@@ -1,0 +1,108 @@
+import {
+  Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Put, Req, UploadedFile, UseInterceptors,
+  BadRequestException,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { z } from 'zod';
+import { Roles } from '../auth/decorators';
+import { AuthedRequest } from '../common/types';
+import { parse } from '../common/zod';
+import { AiService } from './ai.service';
+import { KnowledgeService } from './knowledge/knowledge.service';
+
+const settingsSchema = z.object({
+  enabled: z.boolean().optional(),
+  auto_reply: z.boolean().optional(),
+  business_name: z.string().max(120).nullable().optional(),
+  instructions: z.string().max(4000).nullable().optional(),
+  tone: z.enum(['friendly', 'professional', 'concise']).optional(),
+  language: z.enum(['auto', 'ar', 'en']).optional(),
+  handoff_enabled: z.boolean().optional(),
+  fallback_message: z.string().min(1).max(500).optional(),
+  handoff_message: z.string().min(1).max(500).optional(),
+  max_history: z.number().int().min(2).max(30).optional(),
+  temperature: z.number().min(0).max(1).optional(),
+});
+const askSchema = z.object({ question: z.string().min(1).max(1000) });
+
+const sourceSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('text'), title: z.string().min(1).max(200), content: z.string().min(1).max(300_000) }),
+  z.object({
+    type: z.literal('faq'),
+    title: z.string().min(1).max(200),
+    items: z.array(z.object({ question: z.string().min(1).max(500), answer: z.string().min(1).max(2500) })).min(1).max(300),
+  }),
+  z.object({ type: z.literal('url'), url: z.string().url().max(2000), title: z.string().max(200).optional() }),
+]);
+
+@Controller('ai')
+export class AiController {
+  constructor(
+    private readonly ai: AiService,
+    private readonly knowledge: KnowledgeService,
+  ) {}
+
+  @Get('status')
+  status() {
+    return { llmConfigured: this.ai.configured, embeddingsConfigured: this.knowledge.configured };
+  }
+
+  @Get('settings')
+  settings(@Req() req: AuthedRequest) {
+    return this.ai.getSettings(req.user.tenantId);
+  }
+
+  @Roles('owner', 'admin') @Put('settings')
+  save(@Req() req: AuthedRequest, @Body() body: unknown) {
+    return this.ai.saveSettings(req.user.tenantId, parse(settingsSchema, body));
+  }
+
+  @Get('usage')
+  usage(@Req() req: AuthedRequest) {
+    return this.ai.usage(req.user.tenantId);
+  }
+
+  @Roles('owner', 'admin') @Post('test')
+  test(@Req() req: AuthedRequest, @Body() body: unknown) {
+    return this.ai.playground(req.user.tenantId, parse(askSchema, body).question);
+  }
+
+  // ---------------------------------------------------------------- knowledge
+
+  @Get('knowledge')
+  list(@Req() req: AuthedRequest) {
+    return this.knowledge.list(req.user.tenantId);
+  }
+
+  @Roles('owner', 'admin') @Post('knowledge')
+  create(@Req() req: AuthedRequest, @Body() body: unknown) {
+    return this.knowledge.create(req.user.tenantId, req.user.userId, parse(sourceSchema, body));
+  }
+
+  @Roles('owner', 'admin') @Post('knowledge/upload')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024, files: 1 } }))
+  upload(@Req() req: AuthedRequest, @UploadedFile() file: { originalname: string; mimetype: string; buffer: Buffer } | undefined, @Body('title') title?: string) {
+    if (!file) throw new BadRequestException('file is required');
+    return this.knowledge.createFromFile(req.user.tenantId, req.user.userId, { name: file.originalname, mime: file.mimetype, buf: file.buffer, title });
+  }
+
+  @Roles('owner', 'admin') @Post('knowledge/search')
+  search(@Req() req: AuthedRequest, @Body() body: unknown) {
+    return this.knowledge.search(req.user.tenantId, parse(askSchema, body).question, 6);
+  }
+
+  @Get('knowledge/:id')
+  get(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.knowledge.get(req.user.tenantId, id);
+  }
+
+  @Roles('owner', 'admin') @Post('knowledge/:id/reindex')
+  reindex(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.knowledge.reindex(req.user.tenantId, id);
+  }
+
+  @Roles('owner', 'admin') @Delete('knowledge/:id')
+  remove(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.knowledge.remove(req.user.tenantId, id);
+  }
+}

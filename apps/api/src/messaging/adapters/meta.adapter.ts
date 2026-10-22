@@ -1,0 +1,37 @@
+import { Injectable } from '@nestjs/common';
+import { MessageContent } from '../message-content';
+import { ChannelAdapter, GRAPH, graphPost } from './adapter';
+
+/** فيسبوك ماسنجر وإنستجرام يستخدمان نفس واجهة الإرسال */
+@Injectable()
+export class MetaAdapter implements ChannelAdapter {
+  async send(creds: Record<string, string>, recipientId: string, c: MessageContent) {
+    const url = `${GRAPH}/me/messages`;
+    const token = creds.pageAccessToken;
+    const recipient = { id: recipientId };
+    const post = (message: unknown) =>
+      graphPost(url, token, { recipient, messaging_type: 'RESPONSE', message }) as Promise<{ message_id?: string }>;
+
+    // الأزرار والقوائم تُرسل كـ quick replies (حد أقصى 13)
+    const quick = c.buttons
+      ? c.buttons.map((b) => ({ content_type: 'text', title: b.title, payload: b.id }))
+      : c.list
+        ? c.list.sections.flatMap((s) => s.rows).slice(0, 13).map((r) => ({ content_type: 'text', title: r.title, payload: r.id }))
+        : undefined;
+
+    if (c.media) {
+      const type = c.media.kind === 'file' ? 'file' : c.media.kind;
+      const first = await post({ attachment: { type, payload: { url: c.media.url, is_reusable: false } } });
+      const caption = c.media.caption ?? c.text;
+      if (caption) await post({ text: caption });
+      return { externalId: first.message_id ?? null };
+    }
+    if (c.location) {
+      const text = `${c.location.name ?? ''} https://maps.google.com/?q=${c.location.lat},${c.location.lng}`.trim();
+      const r = await post({ text });
+      return { externalId: r.message_id ?? null };
+    }
+    const r = await post({ text: c.text, ...(quick ? { quick_replies: quick } : {}) });
+    return { externalId: r.message_id ?? null };
+  }
+}
