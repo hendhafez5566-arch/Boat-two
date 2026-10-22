@@ -1,39 +1,40 @@
-# Implementation progress
+# Implementation progress — core reliability + connected business platform
 
-Date: 2026-10-23 (Africa/Cairo).
-Branch: `feat/complete-premium-saas`, based on verified main HEAD `79e712644aefea3ed75b7a0115db928678d8f61a`.
+Date: 2026-10-23 (Africa/Cairo). Continued from verified local/remote HEAD `f1292123a60acd19e12562b41e4d3c829b337d46` on `feat/complete-premium-saas`. Existing Draft PR #1 remains the only PR. No main merge, production deployment, real provider account or paid call was used.
 
-## Core Product construction checkpoint
+## Implemented connected slices
 
-Built a connected core slice on the existing repository, without replacing the application:
+- Transactional inbound outbox; atomic nested tenant transactions for flow state, CRM effects and queued bot replies; unique message-effect keys; shared advisory conversation locks also used by manual takeover/reply/state changes.
+- Durable outbound worker with bounded rejection retries, failed/blocked retry, unknown-delivery suppression, lease-loss handling and audited manual reconciliation. External HTTP/AI result cache survives event rollback and refuses ambiguous replay.
+- Shared PostgreSQL realtime source log/materialized replay stream, commit-safe cursors and membership checks on SSE batches. Future scheduled events do not block immediate work for the same aggregate; unresolved failed heads remain visible and block their own aggregate.
+- Reusable published flow components flattened into immutable parent versions, validated return/cycle/depth/size behavior, CRM event triggers, optimistic publish/restore preconditions, mobile editor panel controls, three-step real-draft bot wizard and mobile Inbox customer context.
+- Departments/membership/SLA values, Inbox department assignment, actual contact-tag editing and basic response target indicator.
+- WhatsApp text-template drafts/examples, submission, synchronization, approval/parameter checks, message/campaign composition and a management page. Unsupported imported variants remain unselectable. Meta OAuth/Embedded Signup state/exchange/discovery/attachment code and gated UI exist; live activation is not claimed.
+- CRM contact create/update/search/paging, native custom fields/type validation, ownership/lifecycle/tags, segments, customer notes/event/conversation timeline, deals/pipelines/status moves, assigned follow-ups, duplicate prevention/reporting, bounded atomic contact import/export and consent evidence/history.
+- Campaign draft/audience/segment UI, scheduling, recipient snapshot/ledger, consent/frequency/plan checks at dispatch, queued delivery tracking, cancellation and retry. Local website campaign smoke uses actual messages; no external campaign was sent.
+- Business automation CRM/scheduled triggers, filters and ordered tag/lifecycle/note/task/delay actions on the shared outbox, delayed follow-ups, causal loop guard, current-rule/entitlement checks and history.
+- AI agents/default selection, encrypted disabled-by-default Anthropic providers, scoped sources, explicit current-contact tool permissions, reply budget serialization, token runs and optional configured-rate cost estimates. Paid generation has a separate default-off gate.
+- Business plan entitlements/quotas for automations, agents and campaigns; existing contact/channel/flow/source/message/reply budgets remain connected to their actual operations.
 
-- Correct metadata-preserving Nest development startup and both API TypeScript fixes discovered during onboarding.
-- Current-membership authorization, atomic single-use refresh rotation, shared frontend refresh coordination, invitation replay/seat protection and owner-only admin invitation.
-- Company settings, preferred plan (not a paid subscription change), onboarding checklist/completion endpoint, team/invitation/acceptance/revoke UI.
-- Core configuration audit trail backed by RLS and database triggers, request actor attribution and paginated screen.
-- Real plan usage, billing readiness endpoint and UI wired to existing Stripe checkout/customer portal. Disabled/unconfigured payments are explicit.
-- Typed support/FAQ/lead-capture templates, editor undo/redo/autosave, stale-save conflict response, version history and draft restoration.
-- Channel widget settings, local enable/disable, encrypted provider-token replacement and explicit unverified-provider messaging.
-- Durable signed-webhook receipt, leased retry worker, per-channel job failures/manual retry, inbound duplicate checks before creating contact/conversation side effects.
-- Inbox load-more, selected bulk-close through existing update logic, missed-event reconciliation and detail-selection race protection.
-- Shared ELHAFEZ BOAT navigation and design tokens, real overview, responsive shell and bilingual new management screens. Legacy controls still need full translation.
+## Validation
 
-## Validation evidence
+- `pnpm build`: API TypeScript and Next production build passed.
+- `pnpm lint`: passed without disabling assertions/rules.
+- `pnpm --filter api test`: **44 passed, 0 failed, 0 skipped** (includes executable component expansion and cost calculations).
+- All migrations 001–021 applied through a clean validation database; incremental/repeated migration runs passed. Migration 021 specifically prevents future follow-ups from holding up immediate campaign/contact work.
+- `smoke-core.mjs`: passed against compiled API, retaining the existing registration/auth/tenant denial/bot/widget/human reply/private note/invitation/refresh checks.
+- `smoke-worker.mjs`: passed with real PostgreSQL, five failed webhook attempts, failure history, retry and completion.
+- `smoke-business.mjs`: passed CRM field validation/duplicates/import rollback, deals, automations, consent/frequency campaigns, delayed follow-ups, departments/SLA, agents/providers, external activation gates, audit reconciliation and durable effect cache/ambiguous refusal.
+- `smoke-reliability.mjs`: passed independent-connection conversation lock contention and late-committing realtime event replay.
+- Connected smoke checks were also run with two independently started compiled API/worker replicas sharing PostgreSQL. Hot-reload development restarts are not used as the stable smoke target.
+- Full final browser, security, performance, visual and provider acceptance remains deferred as requested. No paid AI/tool execution or live Meta receipt/approval/delivery was asserted from local checks.
 
-- Existing 36 tests pass; four new webhook boundary tests pass (40 total, zero skipped).
-- `pnpm build` passes API TypeScript and Next production compilation/type validation.
-- `pnpm lint` passes after fixing actual unused values/escapes and declaring correct browser/Node/CommonJS environments; no lint assertions disabled to achieve this.
-- Migrations 007/008 applied to existing local DB; second migration run reports up-to-date. All eight migrations also passed on the fresh `boat_core_validation` database.
-- `node scripts/smoke-core.mjs` passes with real PostgreSQL and running API: two tenant registrations, company settings, all template schema validation, stale draft rejection, publish/version restoration, widget inbound dedupe and bot reply, human takeover/manual reply, private-note exclusion, cross-tenant negative cases, invitation replay rejection, removed-member denial, audit actor and refresh replay.
-- `node --env-file=.env scripts/smoke-worker.mjs` passes against the real database/worker: parsed WhatsApp event fixture, five failed attempts, failed-job history, manual retry after channel activation, completion and one persisted inbound message. No external send occurred.
-- This is targeted development validation, not the requested separate final browser/security/performance/acceptance campaign.
+## Scope still partial
 
-## Delivery outcome
+Batch 2 is **not entirely complete**. Remaining CRM merge/pipeline/bulk/asynchronous data workflows, provider diversity/knowledge ingestion/agent routing, campaign draft editing/consent collection/channel compliance/analytics and graphical conditional automation are listed precisely in REMAINING_WORK.md. Batch 3 reporting/admin/billing/white label and Batch 4 full localization/integration/acceptance remain.
 
-- Source checkpoint `5ba67f0` pushed to `origin/feat/complete-premium-saas`.
-- Open **Draft PR #1**: https://github.com/hendhafez5566-arch/Boat-two/pull/1 (verified base main, feature branch head and draft status).
-- GitHub API's initial proxy denial was resolved before PR creation; no additional GitHub credentials were requested.
-- Basic production HTTP routes `/`, `/register`, `/login`, `/accept-invitation` and `/dashboard` returned 200 with expected page/shell content. This does not replace browser interaction tests.
-- All six continuity documents saved, plus repeatable development smoke scripts and refreshed environment install/start instructions.
+See CODEX_HANDOVER.md for the exact continuation commands and Git delivery checkpoint. Preserve the same branch and PR.
 
-No main merge, production deployment, provider activation or paid AI call performed. This checkpoint is not the complete SaaS: remaining core reliability work and Batches 2–4 are explicitly tracked. Continue on the same branch and PR.
+## Git delivery checkpoint
+
+Implementation commit: `f091db0613297d4ab4c8560274017bc0f5daa78b`, on the same feature branch and Draft PR #1. Follow-up documentation commit records this handover. Built production HTTP responses for CRM, campaigns, automation, agents, delivery, departments and the beginner wizard returned 200 with the expected workspace shell; this is not a browser-interaction acceptance claim.

@@ -1,41 +1,49 @@
-# Remaining implementation
+# Remaining implementation — continue on PR #1
 
-Do not restart discovery from scratch: continue from this branch and the matrix. Keep one Draft PR and append coherent commits.
+Branch `feat/complete-premium-saas`; existing Draft PR https://github.com/hendhafez5566-arch/Boat-two/pull/1. The current checkpoint adds connected core reliability and major Batch 2 modules. Do not rebuild their models or repeat the original inventory.
 
-## Batch 1 — finish core gaps
+## Batch 1 — remaining specific gaps
 
-1. Transactional domain-event outbox between inbound persistence and flow execution; effect idempotency, distributed per-conversation ownership, durable outbound dispatch with timeout/ambiguous-delivery reconciliation. The new webhook queue does not by itself close these gaps.
-2. Provider OAuth/embedded signup, connection health verification, Messenger/Instagram receipts, WhatsApp approved-template synchronization/send/UI and documented scopes/webhook subscription flows. Operator Meta credentials/app review remain external prerequisites.
-3. Contact/message/AI quotas with atomic reservation and exact entitlement checks. Fixed roles work; granular permission definitions remain. Audit subscription changes and operational actions beyond core configuration.
-4. Teams/departments, customer tags, SLA, richer bulk assignment/status UI, stable tuple pagination, shared realtime transport/status replay and membership-aware SSE stream revocation.
-5. Builder reusable components/subflows, event triggers and guided beginner wizard; improve small-screen editing and translate remaining controls. Add optimistic conflicts to version restoration and coordinate publish with pending autosave; editor currently detects stale PATCH saves.
-6. Complete company creation/switching for existing users, authentication recovery/verification, secure cookie/session design and invitation delivery integration as separate connected slices.
+1. External-effect reconciliation: provider-message ambiguity has an audited UI, but arbitrary HTTP/AI effect records marked started/ambiguous still need operator review tools. Never replay them automatically. Add retention/archival and bounded stream/event storage policies; monitor backlog and long-running transactions. Realtime replay and distributed conversation locks are implemented, not a substitute for final load/failure acceptance.
+2. Meta activation: code/UI includes Facebook Login, Instagram via Facebook Login and WhatsApp Embedded Signup with short-lived hashed one-use state and encrypted discovered tokens. Verify scopes, asset subscriptions, Graph version, permissions/app review and complete real provider SDK acceptance with explicitly authorized accounts. Page/WABA webhook subscription automation and account revocation/reconnect life cycle remain.
+3. WhatsApp templates currently implement text BODY drafts/examples, submit, paginated sync, approval gating and BODY parameter sends. Add full HEADER/media/button/authentication schemas, previews and send composition; do not promise these variants work merely because sync lists them. Prevent unsupported variants from being selected until implemented.
+4. Departments currently support creation/membership/SLA values, Inbox assignment to department, tags and an unread-age target indicator. Add editing/removal, automatic skill/department routing, first-response/resolution clocks, business calendars, escalation and SLA reports.
+5. Finish tuple-based Inbox pagination, finer-grained bulk actions and full mobile/accessibility acceptance. The editor now has mobile panel switching and a real three-step wizard; remaining legacy controls need English translation.
+6. Enforce mandatory revision preconditions for older save/publish/restore clients if required; add source-version dependency display. Current API checks optimistic timestamps when supplied and transactionally freezes reusable components.
+7. Complete account recovery/verification, existing-user workspace creation/switching UI and secure cookie/session migration. Custom roles/permission editor, tenant integration API keys and complete downgrade/usage lifecycle remain.
 
-## Batch 2 — business capabilities
+## Batch 2 — remaining work (not declared complete)
 
-- CRM contact CRUD/profile UI, indexed search, custom fields, tags, segment queries, lifecycle/ownership, notes/timeline linked to messages/flows. Deals/pipelines/tasks, validated import/export and duplicate handling.
-- Tenant AI agents/provider configuration, authorized tool actions, durable knowledge ingestion, atomic budgets, cost accounting with real pricing metadata. Retain current hybrid retrieval and prompt protections.
-- Campaign drafts/templates, segment preview, consent ledger, frequency caps, schedule/recipient ledger, compliant channel delivery, retries/failures and analytics. No sending without explicit configured/authorized provider capability.
-- Business automation rules (typed triggers/actions/conditions), schedules/sequences, execution history and bounded retries, reusing the domain outbox and existing flow primitives where appropriate.
+### CRM
 
-## Batch 3 — commercial SaaS
+Implemented: validated contact profiles/custom fields, tags/lifecycle/owner, segments, notes/timeline linked to Inbox/events, pipeline/deals, tasks, bounded atomic CSV/JSON contact import/export, duplicate detection and consent ledger.
 
-- Analytics date filters/aggregations, conversions, channels/agents/AI/CRM/campaign reporting and real exports.
-- Stripe event idempotency/order handling, payment recovery and fully enforced entitlements; real billing requires keys, prices and webhook setup. Portal already handles invoices/payment methods when configured.
-- Separate platform-admin authentication/authorization boundary and tenant/subscription/revenue administration with audit.
-- Tenant logo/colors, verified custom domains and routing, branded widget/portal, entitlement-based brand removal. Current widget color/title settings are not full white-label support.
+Next: contact merge with safe reparenting of conversations/consents/deals, richer duplicate resolution (phone normalization), pipeline/stage editing and ownership, contact archive/delete policy, bulk edits, complete timeline filtering/export and scalable asynchronous imports/exports. Current contact import is at most 500 rows; export is at most 10,000 and UI refuses silent truncation. Deals/tasks use pagination; some configuration lists are bounded to 100 and need paging at scale.
 
-## Batch 4 — integrated premium completion
+### AI agents
 
-- Full bilingual coverage and direction-aware builder/Inbox internals, common form/table/dialog components, consistent states and meaningful tooltips.
-- End-to-end guided onboarding, richer executable template gallery and all requested journey steps from actual UI.
-- Provider activation/runbooks, permissions/plan documentation, continuity docs updated with each commit.
+Implemented: tenant agents/default selection, encrypted Anthropic provider configuration, scoped knowledge sources, allowed tools (human escalation/follow-up/tag for the current contact), preserved conversation history, atomically serialized reply budget, durable external-result cache, token/run history and optional configured-rate cost estimates. Unknown pricing stays null. `AI_PROVIDER_CALLS_ENABLED=false` independently blocks paid calls.
 
-## External actions
+Next: channel/flow-specific agent selection, multiple provider implementations and secure key rotation/removal UI, per-agent tool execution audit/approval policies, more authorized actions, durable/recoverable knowledge ingestion and embedding budget reservation. Embedding retrieval still uses existing environment provider settings; agent provider settings select generation, not embeddings. Record failed/refused AI calls as dedicated ai_runs and add price-source/version metadata. UI cost is an estimate, not a provider invoice.
 
-- GitHub delivery is complete for this checkpoint: Draft PR #1 is open at https://github.com/hendhafez5566-arch/Boat-two/pull/1. The initial API proxy denial was resolved; reuse this PR and branch.
-- Meta, AI/embedding, Stripe and custom-domain credentials/approvals have not been requested or activated. Do not use paid services without explicit permission.
+### Campaigns
 
-## Separate acceptance phase
+Implemented: draft builder, segments, actual consent-linked audience preview, scheduled audience snapshot, recipient ledger, shared event dispatch, delivery states, safe retries/cancellation, consent recheck and frequency caps, text/approved BODY templates. Actual external sending stays disabled unless the operator explicitly activates it.
 
-No claim of commercial completeness. Defer the full browser, security, performance, isolation, reliability and visual acceptance suite until product construction is complete. Targeted build/type checks and development regression checks must continue throughout construction.
+Next: editing existing drafts, rich campaign template gallery/composer, opt-out UI on the website widget and official inbound keyword/provider opt-out handling, consent collection integrations, cross-campaign scheduling policy and cancellation acceptance under in-flight delivery. Add channel-specific campaign compliance beyond the WhatsApp window/template rules, full analytics/date filters/export and scalable recipient controls. No external campaigns were sent or live provider behavior claimed.
+
+### Business automation
+
+Implemented: CRM/scheduled triggers, stored filters, ordered tag/lifecycle/note/task/delay actions, delayed follow-up events, transactionally committed run history, bounded event retries and causal loop suppression. It uses the same outbox as messaging/campaigns.
+
+Next: OR/branch conditions, graphical sequence editing, business webhook actions and verified HTTP integrations, richer cancellation/rescheduling/recovery controls and failed-rule run attribution. Scheduled follow-ups check current rule enablement and entitlement. Build on the existing event/action implementation instead of a second scheduler or automation engine.
+
+## Batch 3 — next direct implementation point
+
+Build reporting from existing real ledgers: date-scoped conversation/agent/channel response metrics, campaign recipients/delivery, ai_runs tokens/estimated costs, crm_deals pipeline and domain_events/automation_runs reliability. Add exports and dashboard filters. Then complete Stripe event dedupe/order/recovery and invoice workflow, separate platform-admin authorization and tenant/subscription/revenue screens, and verified custom-domain/white-label models with entitlement enforcement. Do not insert sample production statistics.
+
+## Batch 4 — integration and premium completion
+
+Finish legacy Arabic/English direction-aware controls, common dialogs/tables/forms and accessible mobile behavior. Extend the real wizard/template/component journeys, refine customer context/deal/task navigation and error recovery, and write operator activation/privacy/retention runbooks. Keep this matrix/handover current.
+
+After product construction, start the separately authorized **FINAL PRODUCT ACCEPTANCE & COMMERCIAL RELEASE READINESS** phase for full browser, security, load, isolation, failure-recovery and visual acceptance. No main merge or production deployment is authorized.

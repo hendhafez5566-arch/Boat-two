@@ -219,3 +219,16 @@ Development checks: `pnpm build`, `pnpm lint`, `pnpm --filter api test`, and, wi
 See [completion matrix](docs/PRODUCT_COMPLETION_MATRIX.md), [remaining work](docs/REMAINING_WORK.md)
 and [continuation instructions](docs/CODEX_HANDOVER.md). Meta/Stripe/AI activation remains external
 and is not represented as a live connection.
+
+### Connected business platform checkpoint
+
+The same feature branch now adds transactional event/outbound/effect ledgers, shared replayable
+PostgreSQL realtime, CRM/consents/deals/tasks/segments/import-export, campaign scheduling and
+recipient tracking, CRM/scheduled business automation, AI agents/providers/tools and token-cost
+estimates, departments/SLA and reusable bot components/event triggers/a beginner wizard.
+There are 44 unit tests plus `scripts/smoke-business.mjs` and `scripts/smoke-reliability.mjs`
+(run with `node --env-file=.env` after API startup). All 21 migrations are required.
+
+External delivery and paid generation remain off by default via independent operator gates.
+See [provider activation](docs/INTEGRATION_ACTIVATION.md) and the current matrix/remaining work
+before claiming any live integration or full Batch 2/commercial completion.

@@ -1,51 +1,57 @@
 # Continue here — ELHAFEZ BOAT
 
-## Checkout and instruction hierarchy
+## Checkout and delivery boundary
 
-Use `/workspace/Boat-two`, branch `feat/complete-premium-saas`. The owner authorized actual product code changes, commits, push and one Draft PR in the pasted product-completion request. The earlier onboarding-only restriction on changing tracked source does not apply to this coding task. Do not create a separate implementation, worktree or another PR. Do not merge main or deploy to production without owner approval.
+Use `/workspace/Boat-two`, branch `feat/complete-premium-saas`, existing **Draft PR #1**: https://github.com/hendhafez5566-arch/Boat-two/pull/1. This continuation started from verified local/remote `f1292123a60acd19e12562b41e4d3c829b337d46`. Read `git status --short` and `git log -3 --oneline` for the latest pushed checkpoint. Never create another branch/PR, merge main or deploy production without explicit owner approval.
 
-Start with `git status --short` and `git log -3 --oneline`, then read `PRODUCT_COMPLETION_MATRIX.md` and `REMAINING_WORK.md`. Preserve uncommitted user changes. Continue implementation rather than repeating the original inventory/planning. Full scope remains the user's four batches; current checkpoint is a substantive Batch 1 slice, not a declaration that all Batch 1 requirements are complete.
+Read PRODUCT_COMPLETION_MATRIX.md, REMAINING_WORK.md and IMPLEMENTATION_PROGRESS.md. Do not repeat the original repository audit or rebuild the connected CRM/marketing/event models. The owner authorized source changes, migrations, tests, commits and push; the old onboarding-only source restriction is superseded for this product task.
 
-## Run
+Source implementation checkpoint: `f091db0613297d4ab4c8560274017bc0f5daa78b`. A following documentation commit records handover; use current Git HEAD.
+
+## Current construction architecture
+
+- `events/`: durable domain outbox, effect cache; DatabaseService reuses tenant transactions and provides separate durable-effect connections. Message persistence/dispatch is atomic. Listener failures propagate. Future scheduled work cannot block immediate aggregate work.
+- `messaging/outbound.service.ts`: durable send leases, rejection retry, unknown-delivery suppression. Delivery UI supports audited manual reconciliation before confirmed failed work is retried.
+- Shared realtime is PostgreSQL `realtime_events -> stream_events`, materialized after source commit so replay cursors cannot skip late transactions. SSE checks membership each batch. Redis remains provisioned; do not introduce another competing event transport/automation engine.
+- `business/`: CRM/consent, campaign recipient events, typed business rules/actions and departments, all RLS-scoped. Rule/root/contact uniqueness suppresses loops. Delayed follow-ups reuse domain events.
+- Flow components are existing published flows, frozen into parent versions at publish. Event triggers and the beginner wizard use the existing engine/editor.
+- AI tenant agents/providers/tools reuse the existing generation/retrieval service. Embedding provider/ingestion still uses environment configuration; do not imply tenant generation credentials configure embeddings.
+
+## Start
 
 ```bash
 export PATH=/workspace/.boat-tools/node_modules/.bin:$PATH
 cd /workspace/Boat-two
-node --version # Node 22
-pnpm --version # 9.12.0
-# .env is ignored and retained locally; do not print it or replace its keys.
 docker compose up -d
 docker compose exec -T postgres pg_isready -U postgres -d chatbot
-pnpm migrate
+pnpm migrate # all migrations 001–021 required
 pnpm dev:api
-# Separate session, same exported PATH:
+# Another session, same PATH/cwd:
 pnpm dev:web
 ```
 
-`pnpm dev:api` now uses `scripts/dev-api.mjs`: tsc watch and API restart after a clean compilation. Do not use the former tsx watch workaround or `--noCheck`; API typecheck now passes. Wait for “Nest application successfully started”, then require GET `/health` to return `{status:'ok',db:'up'}`. Widget assets resolve from the existing API assets directory. `.env` still holds local development keys; Meta, Stripe and AI/embeddings are unconfigured. Never use production or paid keys without permission.
+Wait for clean TypeScript compilation and Nest startup; require GET `/health` status=ok/db=up before requests. `scripts/dev-api.mjs` preserves decorator metadata. Do not revert to tsx API watch or `--noCheck`. Retain ignored `.env`; never print/overwrite keys. The clean migration validation DB is `boat_business_validation`; earlier `boat_core_validation` is also a local test DB. They contain no production data.
 
-Checks: `pnpm build`, `pnpm lint`, `pnpm --filter api test` (40 tests), then `node scripts/smoke-core.mjs` and `node --env-file=.env scripts/smoke-worker.mjs` against a running API. Smoke creates identified local test workspaces in the isolated development DB and makes no provider calls. Generated next-env and tsbuildinfo are ignored. Migrations require the separate admin database URL; app requests use RLS-restricted app_user.
+`EXTERNAL_DELIVERY_ENABLED=false` and **independent** `AI_PROVIDER_CALLS_ENABLED=false` are defaults. No real provider credentials/accounts or paid calls were used. Meta connection buttons require operator configuration/permissions; consult INTEGRATION_ACTIVATION.md. WhatsApp unsupported template variants cannot send; text BODY variants are the implemented slice.
 
-## Last observed validation
+## Development checks
 
-- Full workspace build and lint passed.
-- All 40 tests passed; targeted connected API/widget/roles/isolation smoke passed.
-- New migrations applied/reapplied without errors; all eight migrations passed on a fresh database.
-- The durable webhook worker integration passed the five-attempt failure/manual-retry/completion path with actual PostgreSQL state.
-- Database `boat_core_validation` was created only for validating a fresh migration chain; it has no user production data.
-- Full browser/visual/security/load acceptance deliberately not started. Use the separate final acceptance phase after implementation completion.
+```bash
+pnpm build
+pnpm lint
+pnpm --filter api test # 44 passed; no skips
+node scripts/smoke-core.mjs
+node --env-file=.env scripts/smoke-worker.mjs
+node --env-file=.env scripts/smoke-business.mjs
+node --env-file=.env scripts/smoke-reliability.mjs
+```
 
-## GitHub delivery — confirmed
+Run smoke scripts against a stable API, not while editing TypeScript/hot-reloading it. To check multiple replicas, build first, then from apps/api start `API_PORT=4100 node --env-file=../../.env dist/main.js` and similarly 4101. Set `SMOKE_API_URL=http://localhost:4100` for the smoke process; both workers share PostgreSQL. Stop only your test replicas afterward. Test fixtures use explicit local-only names and no provider calls. Smoke scripts create isolated test tenants; the business script accelerates only its own delayed event fixture.
 
-- Draft PR **#1**: https://github.com/hendhafez5566-arch/Boat-two/pull/1
-- Verified state: OPEN, `isDraft: true`, base `main`, head `feat/complete-premium-saas`.
-- Source checkpoint: `5ba67f04b2be0c6dbebbb81177e04c398c9c3a6c`; subsequent documentation commit records delivery. Read current HEAD with `git log`.
-- Branch push succeeded through the existing HTTPS Git proxy. No main merge or production deployment occurred.
-- GitHub API initially returned proxy CONNECT 403. A network draft added `api.github.com`; a later actual `gh pr create` and `gh pr view` succeeded. API access is no longer an outstanding blocker. Do not request a new GitHub token or create a second PR.
-- Reusable install/start instructions were refreshed to use the corrected metadata-preserving dev runner, successful standard builds and both smoke scripts. Saving environment configuration is not evidence of publication.
+All 44 tests, core/worker/business/reliability smoke, full build/lint and migration chain passed in this continuation. Basic HTTP route checks are not browser acceptance. Full final security/load/visual/provider acceptance is deliberately not claimed.
 
-Continue every product-completion batch on this same branch and Draft PR. Keep it draft until the owner authorizes the next review/release phase.
+## Direct continuation point
 
-## Next concrete work
+Finish the explicit Batch 2 gaps in REMAINING_WORK.md. In particular: CRM contact merge/reparenting and pipeline/bulk controls; durable knowledge ingestion/embedding budgets and richer agent routing/providers; campaign draft editing/opt-out collection/compliance and analytics; OR/branch automation and graphical sequences. Keep current-contact AI tools limited to explicit permissions and keep unknown external results non-retryable until reconciled.
 
-Finish transactional message-to-flow outbox and distributed ownership, durable outbound dispatch, provider approved templates, core entitlements and departments/SLA. Then implement the CRM/consent foundation that campaigns and business automation require. Reuse the existing DatabaseService, messaging adapters, immutable flow versions and plans service. Keep all six continuity documents current. Detailed gaps and external activation prerequisites are in `REMAINING_WORK.md`.
+Then Batch 3 starts with real ledger-backed reporting (messages/conversations, campaign_recipients/outbound_jobs, ai_runs, crm_deals and automation_runs), date filters and exports, followed by Stripe event reliability, platform-admin privilege boundary and verified white-label domains/entitlements. Batch 4 completes legacy bilingual/mobile/accessibility flows, template/wizard integration and operator documentation. Do not insert fake metrics or start full release acceptance prematurely.
