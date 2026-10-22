@@ -33,7 +33,7 @@ Do not restart discovery from scratch: continue from this branch and the matrix.
 
 ## External actions
 
-- GitHub API access: this environment's proxy denied CONNECT to `api.github.com`. A draft network addition was saved. Apply/save it in environment settings; then retry Draft PR creation with existing GitHub authentication. Do not ask for a token just because the API route is blocked.
+- GitHub delivery is complete for this checkpoint: Draft PR #1 is open at https://github.com/hendhafez5566-arch/Boat-two/pull/1. The initial API proxy denial was resolved; reuse this PR and branch.
 - Meta, AI/embedding, Stripe and custom-domain credentials/approvals have not been requested or activated. Do not use paid services without explicit permission.
 
 ## Separate acceptance phase

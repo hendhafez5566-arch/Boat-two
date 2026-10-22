@@ -28,8 +28,12 @@ Built a connected core slice on the existing repository, without replacing the a
 - `node --env-file=.env scripts/smoke-worker.mjs` passes against the real database/worker: parsed WhatsApp event fixture, five failed attempts, failed-job history, manual retry after channel activation, completion and one persisted inbound message. No external send occurred.
 - This is targeted development validation, not the requested separate final browser/security/performance/acceptance campaign.
 
-## Delivery constraints
+## Delivery outcome
 
-Git branch is the single delivery branch. GitHub API requests currently fail at the proxy CONNECT layer with HTTP 403; a network draft adds `api.github.com`. Do not call that an invalid credential or invent PR completion. See `CODEX_HANDOVER.md` for the observed push/PR outcome.
+- Source checkpoint `5ba67f0` pushed to `origin/feat/complete-premium-saas`.
+- Open **Draft PR #1**: https://github.com/hendhafez5566-arch/Boat-two/pull/1 (verified base main, feature branch head and draft status).
+- GitHub API's initial proxy denial was resolved before PR creation; no additional GitHub credentials were requested.
+- Basic production HTTP routes `/`, `/register`, `/login`, `/accept-invitation` and `/dashboard` returned 200 with expected page/shell content. This does not replace browser interaction tests.
+- All six continuity documents saved, plus repeatable development smoke scripts and refreshed environment install/start instructions.
 
-No main merge, production deployment, provider activation or paid AI call performed. This checkpoint is not the complete SaaS: remaining core reliability work and Batches 2–4 are explicitly tracked.
+No main merge, production deployment, provider activation or paid AI call performed. This checkpoint is not the complete SaaS: remaining core reliability work and Batches 2–4 are explicitly tracked. Continue on the same branch and PR.

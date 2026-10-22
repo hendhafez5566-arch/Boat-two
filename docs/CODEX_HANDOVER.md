@@ -35,11 +35,16 @@ Checks: `pnpm build`, `pnpm lint`, `pnpm --filter api test` (40 tests), then `no
 - Database `boat_core_validation` was created only for validating a fresh migration chain; it has no user production data.
 - Full browser/visual/security/load acceptance deliberately not started. Use the separate final acceptance phase after implementation completion.
 
-## GitHub delivery
+## GitHub delivery — confirmed
 
-Push and PR outcomes must be recorded below after actual commands; do not infer API permission from Git read/push permission. The existing HTTPS Git proxy is configured. `gh api repos/hendhafez5566-arch/Boat-two` and direct HTTPS CONNECT to `api.github.com` returned Forbidden at proxy. A saved environment network draft adds only that domain, preserving package-manager presets. Apply it in environment settings before retrying the blocked API operation. Do not request a raw GitHub token merely because `gh auth status` reports one unusable.
+- Draft PR **#1**: https://github.com/hendhafez5566-arch/Boat-two/pull/1
+- Verified state: OPEN, `isDraft: true`, base `main`, head `feat/complete-premium-saas`.
+- Source checkpoint: `5ba67f04b2be0c6dbebbb81177e04c398c9c3a6c`; subsequent documentation commit records delivery. Read current HEAD with `git log`.
+- Branch push succeeded through the existing HTTPS Git proxy. No main merge or production deployment occurred.
+- GitHub API initially returned proxy CONNECT 403. A network draft added `api.github.com`; a later actual `gh pr create` and `gh pr view` succeeded. API access is no longer an outstanding blocker. Do not request a new GitHub token or create a second PR.
+- Reusable install/start instructions were refreshed to use the corrected metadata-preserving dev runner, successful standard builds and both smoke scripts. Saving environment configuration is not evidence of publication.
 
-When API access works, use the existing branch and create one **draft** PR targeting main with the exact tested checkpoint scope, referencing the matrix and remaining work. Never claim the entire product is implemented. Keep extending that PR across batches.
+Continue every product-completion batch on this same branch and Draft PR. Keep it draft until the owner authorizes the next review/release phase.
 
 ## Next concrete work
 
