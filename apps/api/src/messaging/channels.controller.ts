@@ -1,4 +1,16 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Req,
+} from '@nestjs/common';
+import { z } from 'zod';
+import { DatabaseService } from '../database/database.service';
 import { Roles } from '../auth/decorators';
 import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
@@ -6,24 +18,66 @@ import { ChannelsService, createChannelSchema, updateChannelSchema } from './cha
 
 @Controller('channels')
 export class ChannelsController {
-  constructor(private readonly channels: ChannelsService) {}
+  constructor(
+    private readonly channels: ChannelsService,
+    private readonly db: DatabaseService,
+  ) {}
 
   @Get()
   list(@Req() req: AuthedRequest) {
     return this.channels.list(req.user.tenantId);
   }
 
-  @Roles('owner', 'admin') @Post()
+  @Roles('owner', 'admin')
+  @Post()
   create(@Req() req: AuthedRequest, @Body() body: unknown) {
     return this.channels.create(req.user.tenantId, parse(createChannelSchema, body));
   }
 
-  @Roles('owner', 'admin') @Patch(':id')
+  @Roles('owner', 'admin')
+  @Patch(':id')
   update(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
     return this.channels.update(req.user.tenantId, id, parse(updateChannelSchema, body));
   }
 
-  @Roles('owner', 'admin') @Delete(':id')
+  @Roles('owner', 'admin')
+  @Post(':id/credentials')
+  reconnect(
+    @Req() req: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const input = parse(z.object({ accessToken: z.string().min(10).max(4000) }), body);
+    return this.channels.reconnect(req.user.tenantId, id, input.accessToken);
+  }
+
+  @Roles('owner', 'admin')
+  @Get(':id/webhook-jobs')
+  jobs(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.db.withTenant(
+      req.user.tenantId,
+      async (c) =>
+        (
+          await c.query(
+            'SELECT id,status,attempts,error,created_at,updated_at FROM webhook_jobs WHERE channel_id=$1 ORDER BY created_at DESC LIMIT 50',
+            [id],
+          )
+        ).rows,
+    );
+  }
+
+  @Roles('owner', 'admin')
+  @Post(':id/webhook-jobs/:jobId/retry')
+  retryJob(
+    @Req() req: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('jobId', ParseUUIDPipe) jobId: string,
+  ) {
+    return this.channels.retryWebhook(req.user.tenantId, id, jobId);
+  }
+
+  @Roles('owner', 'admin')
+  @Delete(':id')
   remove(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.channels.remove(req.user.tenantId, id);
   }

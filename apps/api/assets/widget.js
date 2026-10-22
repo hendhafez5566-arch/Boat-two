@@ -9,7 +9,7 @@
   var st = { open: false, visitorId: null, token: null, lastSeq: 0, cfg: null, started: false, unread: 0, timer: null };
 
   function store(get, val) {
-    try { return get ? localStorage.getItem(STORE) : localStorage.setItem(STORE, val); } catch (e) { return null; }
+    try { return get ? localStorage.getItem(STORE) : localStorage.setItem(STORE, val); } catch { return null; }
   }
   function uid() {
     var a = new Uint8Array(12);
@@ -109,7 +109,7 @@
     for (var i = 0; i < all.length; i++) all[i].disabled = true;
   }
 
-  function addBubble(who, content, local) {
+  function addBubble(who, content) {
     var b = h('div', 'm ' + who);
     content = content || {};
     if (content.media) {

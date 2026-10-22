@@ -26,7 +26,7 @@ export default function AiPage() {
   async function save() {
     setMsg('');
     try {
-      const { tenant_id, updated_at, ...body } = s;
+      const body = Object.fromEntries(Object.entries(s).filter(([key]) => !['tenant_id','updated_at'].includes(key)));
       setS(await api('/ai/settings', { method: 'PUT', body: JSON.stringify(body) }));
       setMsg('تم الحفظ');
     } catch (e: any) { setMsg(e.message); }

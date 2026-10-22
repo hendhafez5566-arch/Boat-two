@@ -8,6 +8,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { env } from '../config/env';
+import { PlansService } from '../plans/plans.service';
 import { Role } from '../common/types';
 import { DatabaseService } from '../database/database.service';
 import { hashPassword, verifyPassword } from './password';
@@ -23,7 +24,10 @@ const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 const TRIAL_PLAN = 'pro';
 
 function slugify(name: string) {
-  const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const base = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
   return `${base || 'workspace'}-${randomBytes(2).toString('hex')}`;
 }
 
@@ -32,6 +36,7 @@ export class AuthService {
   constructor(
     private readonly db: DatabaseService,
     private readonly jwt: JwtService,
+    private readonly plans: PlansService,
   ) {}
 
   private async workspaces(userId: string): Promise<Workspace[]> {
@@ -50,7 +55,12 @@ export class AuthService {
     return { accessToken, refreshToken, expiresIn: env.JWT_ACCESS_TTL_SECONDS };
   }
 
-  async register(input: { email: string; password: string; fullName: string; workspaceName: string }) {
+  async register(input: {
+    email: string;
+    password: string;
+    fullName: string;
+    workspaceName: string;
+  }) {
     const email = input.email.toLowerCase();
     const tenantId = randomUUID();
     const userId = randomUUID();
@@ -108,8 +118,9 @@ export class AuthService {
   async refresh(refreshToken: string) {
     const hash = sha256(refreshToken);
     const r = await this.db.query<{ id: string; user_id: string; tenant_id: string }>(
-      `SELECT id, user_id, tenant_id FROM refresh_tokens
-       WHERE token_hash = $1 AND revoked_at IS NULL AND expires_at > now()`,
+      `UPDATE refresh_tokens SET revoked_at = now()
+       WHERE token_hash = $1 AND revoked_at IS NULL AND expires_at > now()
+       RETURNING id, user_id, tenant_id`,
       [hash],
     );
     const row = r.rows[0];
@@ -118,7 +129,6 @@ export class AuthService {
     const space = (await this.workspaces(row.user_id)).find((s) => s.tenant_id === row.tenant_id);
     if (!space) throw new ForbiddenException('Membership removed');
 
-    await this.db.query('UPDATE refresh_tokens SET revoked_at = now() WHERE id = $1', [row.id]);
     return this.issueTokens(row.user_id, row.tenant_id, space.role);
   }
 
@@ -157,34 +167,48 @@ export class AuthService {
       throw new BadRequestException('Invitation is invalid or expired');
     }
 
-    const existing = await this.db.query<{ id: string; password_hash: string | null }>(
-      'SELECT id, password_hash FROM users WHERE email = $1',
-      [inv.email.toLowerCase()],
-    );
-    let userId: string;
-    if (existing.rows[0]) {
-      if (!(await verifyPassword(input.password, existing.rows[0].password_hash))) {
+    const accepted = await this.db.withTenant(inv.tenant_id, async (c) => {
+      // Same lock as invitation creation: concurrent accept/revoke cannot exceed seats or replay a token.
+      await c.query('SELECT id FROM tenants FOR UPDATE');
+      const locked = (
+        await c.query(
+          'SELECT id FROM invitations WHERE id=$1 AND accepted_at IS NULL AND expires_at>now() FOR UPDATE',
+          [inv.id],
+        )
+      ).rows[0];
+      if (!locked) throw new BadRequestException('Invitation is invalid or expired');
+      const existing = (
+        await c.query<{ id: string; password_hash: string | null }>(
+          'SELECT id,password_hash FROM users WHERE email=$1',
+          [inv.email.toLowerCase()],
+        )
+      ).rows[0];
+      if (existing && !(await verifyPassword(input.password, existing.password_hash)))
         throw new UnauthorizedException('Account exists: enter your current password');
+      const userId = existing?.id ?? randomUUID();
+      const membership = (
+        await c.query<{ role: Role }>('SELECT role FROM memberships WHERE user_id=$1', [userId])
+      ).rows[0];
+      if (!membership) {
+        const count = (await c.query('SELECT count(*)::int AS n FROM memberships')).rows[0].n;
+        await this.plans.assertWithinLimit(c, 'agents', count);
+        if (!existing)
+          await c.query('INSERT INTO users(id,email,password_hash,full_name) VALUES($1,$2,$3,$4)', [
+            userId,
+            inv.email.toLowerCase(),
+            await hashPassword(input.password),
+            input.fullName,
+          ]);
+        await c.query('INSERT INTO memberships(tenant_id,user_id,role) VALUES($1,$2,$3)', [
+          inv.tenant_id,
+          userId,
+          inv.role,
+        ]);
       }
-      userId = existing.rows[0].id;
-    } else {
-      userId = randomUUID();
-      await this.db.query(
-        'INSERT INTO users (id, email, password_hash, full_name) VALUES ($1, $2, $3, $4)',
-        [userId, inv.email.toLowerCase(), await hashPassword(input.password), input.fullName],
-      );
-    }
-
-    await this.db.withTenant(inv.tenant_id, async (c) => {
-      await c.query(
-        `INSERT INTO memberships (tenant_id, user_id, role) VALUES ($1, $2, $3)
-         ON CONFLICT (tenant_id, user_id) DO NOTHING`,
-        [inv.tenant_id, userId, inv.role],
-      );
-      await c.query('UPDATE invitations SET accepted_at = now() WHERE id = $1', [inv.id]);
+      await c.query('UPDATE invitations SET accepted_at=now() WHERE id=$1', [inv.id]);
+      return { userId, role: membership?.role ?? inv.role };
     });
-
-    const tokens = await this.issueTokens(userId, inv.tenant_id, inv.role);
-    return { ...tokens, tenantId: inv.tenant_id, role: inv.role };
+    const tokens = await this.issueTokens(accepted.userId, inv.tenant_id, accepted.role);
+    return { ...tokens, tenantId: inv.tenant_id, role: accepted.role };
   }
 }

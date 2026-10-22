@@ -21,15 +21,32 @@ export default function Login() {
   }
 
   return (
-    <main className="mx-auto max-w-sm p-6">
-      <h1 className="mb-4 text-2xl font-bold">تسجيل الدخول</h1>
-      <form onSubmit={submit} className="flex flex-col gap-3">
-        <input name="email" type="email" placeholder="الإيميل" required className="rounded border p-2" />
-        <input name="password" type="password" placeholder="كلمة المرور" required className="rounded border p-2" />
-        <button className="rounded bg-black p-2 text-white">دخول</button>
-        {error && <p className="text-red-600">{error}</p>}
-      </form>
-      <a href="/register" className="mt-4 block text-sm underline">إنشاء حساب جديد</a>
-    </main>
+    <div className="auth-page">
+      <main className="auth-card card">
+        <p className="eyebrow">ELHAFEZ BOAT</p>
+        <h1 className="mb-4 text-2xl font-bold">تسجيل الدخول</h1>
+        <form onSubmit={submit} className="flex flex-col gap-3">
+          <input
+            name="email"
+            type="email"
+            placeholder="الإيميل"
+            required
+            className="rounded border p-2"
+          />
+          <input
+            name="password"
+            type="password"
+            placeholder="كلمة المرور"
+            required
+            className="rounded border p-2"
+          />
+          <button className="rounded bg-black p-2 text-white">دخول</button>
+          {error && <p className="text-red-600">{error}</p>}
+        </form>
+        <a href="/register" className="mt-4 block text-sm underline">
+          إنشاء حساب جديد
+        </a>
+      </main>
+    </div>
   );
 }

@@ -1,0 +1,139 @@
+'use client';
+import { ReactNode, useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
+import { api, getSession, setSession } from '../../lib/api';
+import { LocaleProvider, useLocale } from '../../components/product/locale';
+const links = [
+  ['', '◈', 'نظرة عامة', 'Overview'],
+  ['onboarding', '◷', 'دليل البداية', 'Getting started'],
+  ['inbox', '▤', 'صندوق الوارد', 'Inbox'],
+  ['channels', '◎', 'القنوات', 'Channels'],
+  ['flows', '⌘', 'مصمم البوت', 'Bot builder'],
+  ['ai', '✦', 'المساعد الذكي', 'AI assistant'],
+  ['knowledge', '▣', 'قاعدة المعرفة', 'Knowledge'],
+  ['team', '♧', 'الفريق والصلاحيات', 'Team & roles'],
+  ['billing', '◇', 'الاشتراك والاستهلاك', 'Plan & usage'],
+  ['settings', '⚙', 'إعدادات الشركة', 'Workspace settings'],
+  ['audit', '↗', 'سجل النشاط', 'Activity log'],
+];
+function Shell({ children }: { children: ReactNode }) {
+  const path = usePathname();
+  const { t, toggle } = useLocale();
+  const [name, setName] = useState('ELHAFEZ BOAT');
+  const [role, setRole] = useState('');
+  const [open, setOpen] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (!getSession()) {
+      window.location.replace('/login');
+      return;
+    }
+    api<{ tenant: { name: string }; role: string }>('/workspace')
+      .then((w) => {
+        setName(w.tenant.name);
+        setRole(w.role);
+        setReady(true);
+      })
+      .catch((e) => setError(e.message));
+  }, []);
+  async function logout() {
+    const s = getSession();
+    try {
+      if (s)
+        await api('/auth/logout', {
+          method: 'POST',
+          body: JSON.stringify({ refreshToken: s.refreshToken }),
+        });
+    } finally {
+      setSession(null);
+      window.location.replace('/login');
+    }
+  }
+  const focused = path.startsWith('/dashboard/inbox') || /^\/dashboard\/flows\/[^/]+$/.test(path);
+  return (
+    <div className="product-shell">
+      <aside className={`product-sidebar ${open ? 'is-open' : ''}`}>
+        <Link className="brand" href="/dashboard">
+          <span className="brand-mark">B</span>
+          <span>
+            ELHAFEZ <b>BOAT</b>
+            <small>{t('منصة المحادثات والأتمتة', 'Messaging & automation')}</small>
+          </span>
+        </Link>
+        <div className="workspace-chip">
+          <span className="avatar">{name.slice(0, 1)}</span>
+          <div>
+            <strong>{name}</strong>
+            <small>{role || t('مساحة العمل', 'Workspace')}</small>
+          </div>
+        </div>
+        <nav aria-label={t('التنقل الرئيسي', 'Main navigation')}>
+          {links
+            .filter(
+              ([key]) =>
+                role !== 'agent' || !['team', 'settings', 'audit', 'onboarding'].includes(key),
+            )
+            .map(([key, icon, ar, en]) => (
+              <Link
+                onClick={() => setOpen(false)}
+                key={key}
+                href={`/dashboard${key ? '/' + key : ''}`}
+                className={
+                  key
+                    ? path.startsWith('/dashboard/' + key)
+                      ? 'active'
+                      : ''
+                    : path === '/dashboard'
+                      ? 'active'
+                      : ''
+                }
+              >
+                <span aria-hidden>{icon}</span>
+                {t(ar, en)}
+              </Link>
+            ))}
+        </nav>
+        <div className="sidebar-footer">
+          <button onClick={toggle}>العربية / English</button>
+          <button onClick={logout}>{t('تسجيل الخروج', 'Sign out')}</button>
+        </div>
+      </aside>
+      <div className="product-content">
+        <header className="product-topbar">
+          <button
+            className="mobile-menu"
+            aria-label={t('فتح القائمة', 'Open navigation')}
+            onClick={() => setOpen(!open)}
+          >
+            ☰
+          </button>
+          <span>
+            {t('مساحة العمل', 'Workspace')} / <strong>{name}</strong>
+          </span>
+          <span className="badge">{t('بيئة العمل', 'Workspace')}</span>
+        </header>
+        {error ? (
+          <div className="notice error" role="alert">
+            {error}
+            <button onClick={() => window.location.reload()}>{t('إعادة المحاولة', 'Retry')}</button>
+          </div>
+        ) : !ready ? (
+          <p className="page-loading" role="status">
+            {t('جارٍ تحميل مساحة العمل…', 'Loading workspace…')}
+          </p>
+        ) : (
+          <div className={focused ? 'focused-workspace' : 'page-workspace'}>{children}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+export default function DashboardLayout({ children }: { children: ReactNode }) {
+  return (
+    <LocaleProvider>
+      <Shell>{children}</Shell>
+    </LocaleProvider>
+  );
+}

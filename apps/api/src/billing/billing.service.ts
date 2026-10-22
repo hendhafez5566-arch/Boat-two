@@ -31,6 +31,17 @@ export class BillingService {
     return this.stripe;
   }
 
+  async status(tenantId: string) {
+    const row = await this.db.withTenant(
+      tenantId,
+      async (c) => (await c.query('SELECT stripe_customer_id FROM subscriptions')).rows[0],
+    );
+    return {
+      configured: !!this.stripe,
+      portalAvailable: !!this.stripe && !!row?.stripe_customer_id,
+    };
+  }
+
   async createCheckout(tenantId: string, email: string, planCode: string) {
     const stripe = this.requireStripe();
     const plan = (
@@ -42,8 +53,9 @@ export class BillingService {
     if (!plan) throw new NotFoundException('Plan not found');
     if (!plan.stripe_price_id) throw new BadRequestException('Plan has no Stripe price configured');
 
-    const existing = await this.db.withTenant(tenantId, async (c) =>
-      (await c.query('SELECT stripe_customer_id FROM subscriptions')).rows[0],
+    const existing = await this.db.withTenant(
+      tenantId,
+      async (c) => (await c.query('SELECT stripe_customer_id FROM subscriptions')).rows[0],
     );
 
     const session = await stripe.checkout.sessions.create({
@@ -62,8 +74,9 @@ export class BillingService {
 
   async createPortal(tenantId: string) {
     const stripe = this.requireStripe();
-    const row = await this.db.withTenant(tenantId, async (c) =>
-      (await c.query('SELECT stripe_customer_id FROM subscriptions')).rows[0],
+    const row = await this.db.withTenant(
+      tenantId,
+      async (c) => (await c.query('SELECT stripe_customer_id FROM subscriptions')).rows[0],
     );
     if (!row?.stripe_customer_id) throw new BadRequestException('No billing account yet');
     const session = await stripe.billingPortal.sessions.create({
@@ -95,7 +108,8 @@ export class BillingService {
           planCode,
           status: 'active',
           customerId: typeof s.customer === 'string' ? s.customer : (s.customer?.id ?? null),
-          subscriptionId: typeof s.subscription === 'string' ? s.subscription : (s.subscription?.id ?? null),
+          subscriptionId:
+            typeof s.subscription === 'string' ? s.subscription : (s.subscription?.id ?? null),
         });
         break;
       }
@@ -107,7 +121,8 @@ export class BillingService {
         const deleted = event.type === 'customer.subscription.deleted';
         const periodEnd =
           (sub as unknown as { current_period_end?: number }).current_period_end ??
-          (sub.items.data[0] as unknown as { current_period_end?: number } | undefined)?.current_period_end;
+          (sub.items.data[0] as unknown as { current_period_end?: number } | undefined)
+            ?.current_period_end;
         await this.applySubscription(tenantId, {
           planCode: deleted ? 'free' : (sub.metadata?.planCode ?? null),
           status: deleted ? 'canceled' : (STATUS_MAP[sub.status] ?? 'past_due'),

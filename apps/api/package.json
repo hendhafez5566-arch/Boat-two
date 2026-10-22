@@ -3,10 +3,10 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "tsx watch --env-file=../../.env src/main.ts",
+    "dev": "node ../../scripts/dev-api.mjs",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
-    "test": "tsx --test src/flows/engine/engine.test.ts src/ai/ai.test.ts src/inbox/inbox.test.ts",
+    "test": "tsx --test src/flows/engine/engine.test.ts src/ai/ai.test.ts src/inbox/inbox.test.ts src/messaging/webhooks.test.ts",
     "migrate": "tsx --env-file=../../.env src/database/migrate.ts"
   },
   "dependencies": {

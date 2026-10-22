@@ -4,3 +4,7 @@ dist
 .env
 *.log
 uploads
+
+# Next.js generated declarations and TypeScript incremental cache
+apps/web/next-env.d.ts
+*.tsbuildinfo

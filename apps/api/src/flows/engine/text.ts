@@ -34,7 +34,7 @@ export function getPath(obj: unknown, path: string): unknown {
 export type Escape = 'none' | 'json' | 'url';
 export type Resolver = (path: string) => unknown;
 
-const TAG = /\{\{\s*([\p{L}\p{N}_.\-]+)\s*\}\}/gu;
+const TAG = /\{\{\s*([\p{L}\p{N}_.-]+)\s*\}\}/gu;
 
 function stringify(v: unknown): string {
   if (v === null || v === undefined) return '';
@@ -52,6 +52,6 @@ export function interpolate(tpl: string, resolve: Resolver, escape: Escape = 'no
 
 /** لو القيمة كلها متغير واحد ("{{age}}") نحافظ على نوعه الأصلي */
 export function interpolateValue(tpl: string, resolve: Resolver): unknown {
-  const m = /^\{\{\s*([\p{L}\p{N}_.\-]+)\s*\}\}$/u.exec(tpl.trim());
+  const m = /^\{\{\s*([\p{L}\p{N}_.-]+)\s*\}\}$/u.exec(tpl.trim());
   return m ? resolve(m[1]) : interpolate(tpl, resolve);
 }

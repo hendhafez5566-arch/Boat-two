@@ -11,6 +11,7 @@ import {
   Patch,
   Post,
   Req,
+  Query,
 } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
@@ -34,10 +35,110 @@ export class WorkspaceController {
   @Get('workspace')
   workspace(@Req() req: AuthedRequest) {
     return this.db.withTenant(req.user.tenantId, async (c) => {
-      const tenant = (await c.query('SELECT id, name, slug, created_at FROM tenants')).rows[0];
+      const tenant = (
+        await c.query(
+          'SELECT id, name, slug, settings, preferred_plan, onboarding_completed_at, created_at FROM tenants',
+        )
+      ).rows[0];
       const plan = await this.plans.getTenantPlan(c);
       const agents = (await c.query('SELECT count(*)::int AS n FROM memberships')).rows[0].n;
-      return { tenant, role: req.user.role, plan, usage: { agents } };
+      const counts = (
+        await c.query(`SELECT
+        (SELECT count(*)::int FROM channels) AS channels,
+        (SELECT count(*)::int FROM contacts) AS contacts,
+        (SELECT count(*)::int FROM flows) AS flows,
+        (SELECT count(*)::int FROM messages WHERE created_at>=date_trunc('month',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AND NOT is_internal AND sender_type<>'system') AS messages_per_month`)
+      ).rows[0];
+      return { tenant, role: req.user.role, plan, usage: { agents, ...counts } };
+    });
+  }
+
+  @Roles('owner', 'admin')
+  @Patch('workspace')
+  updateWorkspace(@Req() req: AuthedRequest, @Body() body: unknown) {
+    const input = parse(
+      z.object({
+        name: z.string().trim().min(1).max(120),
+        industry: z.string().max(100).default(''),
+        timezone: z
+          .string()
+          .max(60)
+          .refine((v) => {
+            try {
+              new Intl.DateTimeFormat('en', { timeZone: v });
+              return true;
+            } catch {
+              return false;
+            }
+          }, 'Invalid timezone'),
+        language: z.enum(['ar', 'en']),
+        preferredPlan: z.enum(['free', 'starter', 'pro', 'business']),
+      }),
+      body,
+    );
+    return this.db.withTenant(
+      req.user.tenantId,
+      async (c) =>
+        (
+          await c.query(
+            `UPDATE tenants SET name=$1, settings=settings || $2::jsonb, preferred_plan=$3 RETURNING id, name, settings, preferred_plan, onboarding_completed_at`,
+            [
+              input.name,
+              JSON.stringify({
+                industry: input.industry,
+                timezone: input.timezone,
+                language: input.language,
+              }),
+              input.preferredPlan,
+            ],
+          )
+        ).rows[0],
+    );
+  }
+
+  @Roles('owner', 'admin')
+  @Post('workspace/onboarding/complete')
+  completeOnboarding(@Req() req: AuthedRequest) {
+    return this.db.withTenant(req.user.tenantId, async (c) => {
+      const channels = await c.query("SELECT 1 FROM channels WHERE status='active' LIMIT 1");
+      if (!channels.rowCount) throw new BadRequestException('Connect at least one channel first');
+      return (
+        await c.query(
+          'UPDATE tenants SET onboarding_completed_at=COALESCE(onboarding_completed_at, now()) RETURNING onboarding_completed_at',
+        )
+      ).rows[0];
+    });
+  }
+
+  @Roles('owner', 'admin')
+  @Get('workspace/audit')
+  audit(@Req() req: AuthedRequest, @Query() query: unknown) {
+    const q = parse(
+      z.object({
+        page: z.coerce.number().int().min(1).max(100000).default(1),
+        limit: z.coerce.number().int().min(1).max(100).default(25),
+      }),
+      query,
+    );
+    return this.db.withTenant(req.user.tenantId, async (c) => {
+      const items = (
+        await c.query(
+          `SELECT a.id, a.action, a.resource_type, a.resource_id, a.created_at, u.full_name AS actor_name FROM audit_logs a LEFT JOIN users u ON u.id=a.actor_id ORDER BY a.created_at DESC, a.id DESC LIMIT $1 OFFSET $2`,
+          [q.limit, (q.page - 1) * q.limit],
+        )
+      ).rows;
+      const total = (await c.query('SELECT count(*)::int AS n FROM audit_logs')).rows[0].n;
+      return { items, total, page: q.page, limit: q.limit };
+    });
+  }
+
+  @Roles('owner', 'admin')
+  @Delete('team/invitations/:id')
+  revokeInvite(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.db.withTenant(req.user.tenantId, async (c) => {
+      const r = await c.query('DELETE FROM invitations WHERE id=$1 AND accepted_at IS NULL', [id]);
+      if (!r.rowCount) throw new NotFoundException('Invitation not found');
+      return { removed: true };
     });
   }
 
@@ -56,10 +157,14 @@ export class WorkspaceController {
     });
   }
 
-  @Roles('owner', 'admin') @Post('team/invitations')
+  @Roles('owner', 'admin')
+  @Post('team/invitations')
   invite(@Req() req: AuthedRequest, @Body() body: unknown) {
     const input = parse(inviteSchema, body);
+    if (input.role === 'admin' && req.user.role !== 'owner')
+      throw new ForbiddenException('Only the owner can invite admins');
     return this.db.withTenant(req.user.tenantId, async (c) => {
+      await c.query('SELECT id FROM tenants FOR UPDATE');
       const members = (await c.query('SELECT count(*)::int AS n FROM memberships')).rows[0].n;
       const pending = (
         await c.query(
@@ -85,7 +190,8 @@ export class WorkspaceController {
     });
   }
 
-  @Roles('owner') @Patch('team/members/:userId')
+  @Roles('owner')
+  @Patch('team/members/:userId')
   changeRole(
     @Req() req: AuthedRequest,
     @Param('userId', ParseUUIDPipe) userId: string,
@@ -103,7 +209,8 @@ export class WorkspaceController {
     });
   }
 
-  @Roles('owner', 'admin') @Delete('team/members/:userId')
+  @Roles('owner', 'admin')
+  @Delete('team/members/:userId')
   removeMember(@Req() req: AuthedRequest, @Param('userId', ParseUUIDPipe) userId: string) {
     return this.db.withTenant(req.user.tenantId, async (c) => {
       const target = (await c.query('SELECT role FROM memberships WHERE user_id = $1', [userId]))
@@ -114,10 +221,10 @@ export class WorkspaceController {
         throw new ForbiddenException('Only the owner can remove an admin');
       }
       await c.query('DELETE FROM memberships WHERE user_id = $1', [userId]);
-      await c.query('UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND tenant_id = $2', [
-        userId,
-        req.user.tenantId,
-      ]);
+      await c.query(
+        'UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND tenant_id = $2',
+        [userId, req.user.tenantId],
+      );
       return { removed: true };
     });
   }

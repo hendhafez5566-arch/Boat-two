@@ -1,5 +1,6 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Pool, PoolClient, QueryResultRow } from 'pg';
+import { requestContext } from '../common/request-context';
 import { env } from '../config/env';
 
 @Injectable()
@@ -16,6 +17,9 @@ export class DatabaseService implements OnModuleDestroy {
     try {
       await client.query('BEGIN');
       await client.query("SELECT set_config('app.tenant_id', $1, true)", [tenantId]);
+      const actor = requestContext.getStore()?.user;
+      if (actor?.tenantId === tenantId)
+        await client.query("SELECT set_config('app.actor_id', $1, true)", [actor.userId]);
       const result = await fn(client);
       await client.query('COMMIT');
       return result;

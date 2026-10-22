@@ -17,7 +17,14 @@ import { WorkspaceModule } from './workspace/workspace.module';
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-        redact: ['req.headers.authorization'],
+        redact: [
+          'req.headers.authorization',
+          'req.headers.cookie',
+          'req.headers.x-visitor-token',
+          'req.url',
+          'req.query.ticket',
+          'req.query.token',
+        ],
       },
     }),
     EventEmitterModule.forRoot(),

@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { env } from '../config/env';
@@ -20,7 +25,10 @@ export interface ChannelRow {
 
 export const widgetSettingsSchema = z.object({
   title: z.string().max(60).default('Chat with us'),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).default('#2563eb'),
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .default('#2563eb'),
   welcomeMessage: z.string().max(500).default('Hi! How can we help?'),
   direction: z.enum(['ltr', 'rtl']).default('rtl'),
   position: z.enum(['left', 'right']).default('right'),
@@ -28,7 +36,11 @@ export const widgetSettingsSchema = z.object({
 });
 
 export const createChannelSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('web'), name: z.string().min(1).max(80), settings: widgetSettingsSchema.partial().optional() }),
+  z.object({
+    type: z.literal('web'),
+    name: z.string().min(1).max(80),
+    settings: widgetSettingsSchema.partial().optional(),
+  }),
   z.object({
     type: z.literal('whatsapp'),
     name: z.string().min(1).max(80),
@@ -65,18 +77,26 @@ export class ChannelsService {
 
   private view<T extends { type: string; external_id: string }>(row: T) {
     return row.type === 'web'
-      ? { ...row, widgetSnippet: `<script src="${env.PUBLIC_API_URL}/widget.js" data-key="${row.external_id}" async></script>` }
+      ? {
+          ...row,
+          widgetSnippet: `<script src="${env.PUBLIC_API_URL}/widget.js" data-key="${row.external_id}" async></script>`,
+        }
       : row;
   }
 
   /** من الـ webhook أو الويدجت: بدون سياق شركة */
   async lookup(type: ChannelType, externalId: string): Promise<ChannelRow | null> {
-    const r = await this.db.query<ChannelRow>('SELECT * FROM channel_lookup($1, $2)', [type, externalId]);
+    const r = await this.db.query<ChannelRow>('SELECT * FROM channel_lookup($1, $2)', [
+      type,
+      externalId,
+    ]);
     return r.rows[0] ?? null;
   }
 
   credentials(channel: ChannelRow): Record<string, string> {
-    return channel.credentials_enc ? this.crypto.decrypt<Record<string, string>>(channel.credentials_enc) : {};
+    return channel.credentials_enc
+      ? this.crypto.decrypt<Record<string, string>>(channel.credentials_enc)
+      : {};
   }
 
   list(tenantId: string) {
@@ -112,6 +132,7 @@ export class ChannelsService {
 
     try {
       return await this.db.withTenant(tenantId, async (c) => {
+        await c.query('SELECT id FROM tenants FOR UPDATE');
         const count = (await c.query('SELECT count(*)::int AS n FROM channels')).rows[0].n;
         await this.plans.assertWithinLimit(c, 'channels', count);
         const r = await c.query(
@@ -140,6 +161,35 @@ export class ChannelsService {
         [id, input.name ?? null, input.status ?? null, JSON.stringify(settings)],
       );
       return this.view(r.rows[0]);
+    });
+  }
+
+  reconnect(tenantId: string, id: string, accessToken: string) {
+    return this.db.withTenant(tenantId, async (c) => {
+      const row = (
+        await c.query('SELECT type,credentials_enc FROM channels WHERE id=$1 FOR UPDATE', [id])
+      ).rows[0];
+      if (!row) throw new NotFoundException('Channel not found');
+      if (row.type === 'web')
+        throw new BadRequestException('Website channels do not use provider tokens');
+      const credentials = this.credentials(row as ChannelRow);
+      credentials[row.type === 'whatsapp' ? 'accessToken' : 'pageAccessToken'] = accessToken;
+      await c.query("UPDATE channels SET credentials_enc=$2,status='active' WHERE id=$1", [
+        id,
+        this.crypto.encrypt(credentials),
+      ]);
+      return { saved: true, verified: false };
+    });
+  }
+
+  retryWebhook(tenantId: string, id: string, jobId: string) {
+    return this.db.withTenant(tenantId, async (c) => {
+      const r = await c.query(
+        "UPDATE webhook_jobs SET status='pending',attempts=0,error=NULL,available_at=now(),lease_until=NULL,updated_at=now() WHERE id=$1 AND channel_id=$2 AND status='failed' RETURNING id",
+        [jobId, id],
+      );
+      if (!r.rowCount) throw new NotFoundException('Failed job not found');
+      return { queued: true };
     });
   }
 
