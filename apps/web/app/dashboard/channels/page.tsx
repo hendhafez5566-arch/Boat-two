@@ -1,5 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import MetaConnect from '../../../components/product/MetaConnect';
 import ChannelSettings from '../../../components/product/ChannelSettings';
 import { api, getSession } from '../../../lib/api';
 
@@ -17,6 +19,7 @@ const FIELDS: Record<string, { key: string; label: string }[]> = {
   web: [],
   whatsapp: [
     { key: 'phoneNumberId', label: 'Phone Number ID' },
+    { key: 'wabaId', label: 'WhatsApp Business Account ID' },
     { key: 'accessToken', label: 'Access Token' },
   ],
   facebook: [
@@ -74,6 +77,7 @@ export default function Channels() {
   return (
     <main className="mx-auto max-w-2xl p-6">
       <h1 className="mb-4 text-2xl font-bold">القنوات</h1>
+      <MetaConnect onSaved={load} />
       {error && <p className="mb-3 text-red-600">{error}</p>}
 
       <ul className="mb-8 flex flex-col gap-3">
@@ -88,6 +92,11 @@ export default function Channels() {
               </button>
             </div>
             <ChannelSettings channel={c} onSaved={load} />
+            {c.type === 'whatsapp' && (
+              <Link className="btn mt-3" href={`/dashboard/channels/${c.id}/templates`}>
+                إدارة قوالب WhatsApp ↗
+              </Link>
+            )}
             {c.widgetSnippet && (
               <>
                 <p className="mt-2 text-sm">الصق الكود في موقعك قبل &lt;/body&gt;:</p>

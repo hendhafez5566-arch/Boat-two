@@ -6,7 +6,7 @@
     "dev": "node ../../scripts/dev-api.mjs",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
-    "test": "tsx --test src/flows/engine/engine.test.ts src/ai/ai.test.ts src/inbox/inbox.test.ts src/messaging/webhooks.test.ts",
+    "test": "tsx --test src/flows/engine/engine.test.ts src/ai/ai.test.ts src/inbox/inbox.test.ts src/messaging/webhooks.test.ts src/flows/expand.test.ts src/ai/cost.test.ts",
     "migrate": "tsx --env-file=../../.env src/database/migrate.ts"
   },
   "dependencies": {

@@ -1,3 +1,4 @@
+import { ExternalEffects } from '../events/external-effect';
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { AiService } from '../ai/ai.service';
@@ -37,6 +38,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly db: DatabaseService,
+    private readonly effects: ExternalEffects,
     private readonly messaging: MessagingService,
     private readonly events: EventEmitter2,
     private readonly ai: AiService,
@@ -67,11 +69,36 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
 
   // ------------------------------------------------------------------ inbound
 
-  @OnEvent('message.received', { async: true })
+  @OnEvent('message.received', { suppressErrors: false })
   onMessage(e: MessageReceivedEvent) {
-    return this.serial(e.conversationId, () => this.handleMessage(e)).catch((err) =>
-      this.log.error(`Flow handling failed: ${(err as Error).message}`),
+    return this.db.conversation(e.tenantId, e.conversationId, () => this.handleMessage(e));
+  }
+
+  @OnEvent('domain.event', { suppressErrors: false })
+  async onDomain(e: import('../events/events.service').DomainEvent) {
+    if (!e.type.startsWith('crm.') || typeof e.payload.contactId !== 'string') return;
+    const conversations = await this.db.withTenant(
+      e.tenantId,
+      async (c) =>
+        (
+          await c.query(
+            "SELECT cv.*,ch.type AS channel_type FROM conversations cv JOIN channels ch ON ch.id=cv.channel_id WHERE cv.contact_id=$1 AND cv.status<>'closed' AND cv.handled_by='bot'",
+            [e.payload.contactId],
+          )
+        ).rows,
     );
+    for (const cv of conversations)
+      await this.onMessage({
+        tenantId: e.tenantId,
+        channelId: cv.channel_id,
+        channelType: cv.channel_type,
+        conversationId: cv.id,
+        contactId: cv.contact_id,
+        messageId: e.id,
+        handledBy: 'bot',
+        content: { text: '' },
+        eventName: e.type,
+      });
   }
 
   private async loadConversation(c: import('pg').PoolClient, conversationId: string) {
@@ -120,6 +147,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         );
         session = undefined;
       }
+      if (e.eventName && session) return null;
       if (session?.wait_kind === 'delay') return null; // الـ flow في مرحلة انتظار زمني
 
       if (session) {
@@ -133,7 +161,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         await c.query(
           `SELECT f.id AS flow_id, fv.id AS version_id, f.priority, fv.triggers, fv.channel_ids, fv.graph
            FROM flows f JOIN flow_versions fv ON fv.id = f.published_version_id
-           WHERE f.status = 'published' ORDER BY f.priority DESC, f.created_at`,
+           WHERE f.status = 'published' AND NOT f.is_component ORDER BY f.priority DESC, f.created_at`,
         )
       ).rows;
       const inbound = (
@@ -209,6 +237,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       })),
       {
         text,
+        eventName: e.eventName,
         replyId,
         channelId: loaded.conv.channel_id,
         isFirstMessage: (loaded as { isFirst: boolean }).isFirst,
@@ -255,9 +284,11 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       );
       await Promise.all(
         r.rows.map((row) =>
-          this.serial(row.conversation_id, () => this.resumeDelay(row.tenant_id, row.id)).catch(
-            (err) => this.log.error(`Delay resume failed: ${(err as Error).message}`),
-          ),
+          this.db
+            .conversation(row.tenant_id, row.conversation_id, () =>
+              this.resumeDelay(row.tenant_id, row.id),
+            )
+            .catch((err) => this.log.error(`Delay resume failed: ${(err as Error).message}`)),
         ),
       );
     } catch (err) {
@@ -310,7 +341,10 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       ctx,
     };
     const engine = new FlowEngine(loaded.graph, this.makeDeps(base));
-    const result = await engine.resumeDelay(ctx, loaded.session.state as FlowState);
+    const result = await this.db.eventScope(
+      `delay:${sessionId}:${loaded.session.state.totalSteps}`,
+      () => engine.resumeDelay(ctx, loaded.session.state as FlowState),
+    );
     await this.saveSession(base, {
       existingId: sessionId,
       flowId: loaded.session.flow_id,
@@ -339,10 +373,9 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
           content: content as MessageContent,
           senderType: 'bot',
         });
-        if (r.status === 'failed')
-          throw new Error(`Send failed: ${(r as { error?: string }).error ?? 'unknown'}`);
+        void r; // Provider delivery is tracked by the durable outbound worker.
       },
-      http: (spec) => safeHttpRequest(spec),
+      http: (spec) => this.effects.execute(b.tenantId, spec, () => safeHttpRequest(spec)),
       setContactAttribute: async (key, value) => {
         const json = JSON.stringify(value ?? null);
         if (json.length > 2000) throw new Error('Attribute value too large');

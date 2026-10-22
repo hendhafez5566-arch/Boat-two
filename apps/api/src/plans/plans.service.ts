@@ -46,12 +46,27 @@ export class PlansService {
     return { ...row, trial_expired: false };
   }
 
+  async assertFeature(c: PoolClient, key: string) {
+    const plan = await this.getTenantPlan(c);
+    if (!plan.features[key])
+      throw new ForbiddenException({
+        code: 'FEATURE_UNAVAILABLE',
+        feature: key,
+        plan: plan.plan_code,
+      });
+  }
+
   /** يرفض العملية لو الاستخدام الحالي وصل للحد. -1 = غير محدود */
   async assertWithinLimit(c: PoolClient, key: string, current: number) {
     const plan = await this.getTenantPlan(c);
     const limit = plan.limits[key];
     if (limit !== undefined && limit !== -1 && current >= limit) {
-      throw new ForbiddenException({ code: 'PLAN_LIMIT', limit: key, max: limit, plan: plan.plan_code });
+      throw new ForbiddenException({
+        code: 'PLAN_LIMIT',
+        limit: key,
+        max: limit,
+        plan: plan.plan_code,
+      });
     }
   }
 }

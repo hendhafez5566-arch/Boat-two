@@ -1,3 +1,5 @@
+import { EventsModule } from './events/events.service';
+import { BusinessModule } from './business/business.module';
 import { Module } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { LoggerModule } from 'nestjs-pino';
@@ -30,6 +32,7 @@ import { WorkspaceModule } from './workspace/workspace.module';
     EventEmitterModule.forRoot(),
     DatabaseModule,
     PlansModule,
+    EventsModule,
     AuthModule,
     WorkspaceModule,
     BillingModule,
@@ -37,6 +40,7 @@ import { WorkspaceModule } from './workspace/workspace.module';
     InboxModule,
     FlowsModule,
     AiModule,
+    BusinessModule,
   ],
   controllers: [HealthController],
 })

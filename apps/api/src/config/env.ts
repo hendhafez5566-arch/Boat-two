@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 const schema = z.object({
+  AI_PROVIDER_CALLS_ENABLED: z.enum(['true', 'false']).default('false'),
+  EXTERNAL_DELIVERY_ENABLED: z.enum(['true', 'false']).default('false'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   API_PORT: z.coerce.number().default(4000),
   APP_URL: z.string().url().default('http://localhost:3000'),
@@ -13,6 +15,8 @@ const schema = z.object({
   TRIAL_DAYS: z.coerce.number().default(14),
   PUBLIC_API_URL: z.string().url().default('http://localhost:4000'),
   ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, 'ENCRYPTION_KEY must be 64 hex chars'),
+  META_APP_ID: z.string().optional(),
+  META_EMBEDDED_CONFIG_ID: z.string().optional(),
   META_APP_SECRET: z.string().optional(),
   META_VERIFY_TOKEN: z.string().optional(),
   UPLOAD_DIR: z.string().default('./uploads'),

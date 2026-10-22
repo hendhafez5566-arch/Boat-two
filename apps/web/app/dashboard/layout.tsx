@@ -5,6 +5,12 @@ import Link from 'next/link';
 import { api, getSession, setSession } from '../../lib/api';
 import { LocaleProvider, useLocale } from '../../components/product/locale';
 const links = [
+  ['crm', '◉', 'إدارة العملاء', 'CRM'],
+  ['campaigns', '➤', 'الحملات', 'Campaigns'],
+  ['automations', '⚡', 'أتمتة الأعمال', 'Automations'],
+  ['agents', '✧', 'مساعدو AI', 'AI agents'],
+  ['departments', '♧', 'الأقسام وSLA', 'Departments & SLA'],
+  ['delivery', '⇄', 'التسليم والأحداث', 'Delivery & events'],
   ['', '◈', 'نظرة عامة', 'Overview'],
   ['onboarding', '◷', 'دليل البداية', 'Getting started'],
   ['inbox', '▤', 'صندوق الوارد', 'Inbox'],
@@ -73,7 +79,18 @@ function Shell({ children }: { children: ReactNode }) {
           {links
             .filter(
               ([key]) =>
-                role !== 'agent' || !['team', 'settings', 'audit', 'onboarding'].includes(key),
+                role !== 'agent' ||
+                ![
+                  'team',
+                  'settings',
+                  'audit',
+                  'onboarding',
+                  'campaigns',
+                  'automations',
+                  'agents',
+                  'departments',
+                  'delivery',
+                ].includes(key),
             )
             .map(([key, icon, ar, en]) => (
               <Link

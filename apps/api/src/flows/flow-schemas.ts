@@ -64,6 +64,11 @@ const messageData = z.object({
 });
 
 export const nodeSchema = z.discriminatedUnion('type', [
+  z.object({
+    ...nodeBase,
+    type: z.literal('subflow'),
+    data: z.object({ flowId: z.string().uuid() }),
+  }),
   z.object({ ...nodeBase, type: z.literal('message'), data: messageData }),
   z.object({
     ...nodeBase,
@@ -196,6 +201,16 @@ export const triggersSchema = z
   .array(
     z.discriminatedUnion('type', [
       z.object({
+        type: z.literal('event'),
+        event: z.enum([
+          'crm.contacts.insert',
+          'crm.contacts.update',
+          'crm.crm_deals.insert',
+          'crm.crm_deals.update',
+          'crm.crm_tasks.update',
+        ]),
+      }),
+      z.object({
         type: z.literal('keyword'),
         keywords: z.array(z.string().min(1).max(100)).min(1).max(50),
         match: z.enum(['contains', 'exact', 'starts_with']).default('contains'),
@@ -211,12 +226,14 @@ export const triggersSchema = z
   .max(10);
 
 export const createFlowSchema = z.object({
+  isComponent: z.boolean().default(false),
   templateId: z.string().max(40).optional(),
   name: z.string().min(1).max(120),
   description: z.string().max(500).optional(),
 });
 
 export const updateFlowSchema = z.object({
+  isComponent: z.boolean().optional(),
   expectedUpdatedAt: z.string().datetime().optional(),
   name: z.string().min(1).max(120).optional(),
   description: z.string().max(500).nullable().optional(),

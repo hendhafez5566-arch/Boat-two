@@ -47,7 +47,7 @@ export class WorkspaceController {
         (SELECT count(*)::int FROM channels) AS channels,
         (SELECT count(*)::int FROM contacts) AS contacts,
         (SELECT count(*)::int FROM flows) AS flows,
-        (SELECT count(*)::int FROM messages WHERE created_at>=date_trunc('month',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AND NOT is_internal AND sender_type<>'system') AS messages_per_month`)
+        (SELECT count(*)::int FROM messages WHERE created_at>=date_trunc('month',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AND direction='out' AND NOT is_internal) AS messages_per_month`)
       ).rows[0];
       return { tenant, role: req.user.role, plan, usage: { agents, ...counts } };
     });
@@ -164,7 +164,7 @@ export class WorkspaceController {
     if (input.role === 'admin' && req.user.role !== 'owner')
       throw new ForbiddenException('Only the owner can invite admins');
     return this.db.withTenant(req.user.tenantId, async (c) => {
-      await c.query('SELECT id FROM tenants FOR UPDATE');
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
       const members = (await c.query('SELECT count(*)::int AS n FROM memberships')).rows[0].n;
       const pending = (
         await c.query(

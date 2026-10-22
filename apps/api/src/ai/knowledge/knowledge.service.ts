@@ -1,4 +1,10 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { env } from '../../config/env';
 import { DatabaseService } from '../../database/database.service';
 import { normalizeText } from '../../flows/engine/text';
@@ -17,7 +23,8 @@ export interface RetrievedChunk {
   rrf: number;
 }
 
-const COLS = 'id, type, title, source_ref, status, error, char_count, chunk_count, created_at, updated_at';
+const COLS =
+  'id, type, title, source_ref, status, error, char_count, chunk_count, created_at, updated_at';
 const MAX_CONTENT = 500_000;
 const EMBED_BATCH = 64;
 const MIN_VECTOR_SCORE = 0.2;
@@ -30,9 +37,14 @@ export type CreateSourceInput =
 @Injectable()
 export class KnowledgeService {
   private readonly log = new Logger(KnowledgeService.name);
-  private readonly embedder = (env.EMBEDDING_API_KEY ?? env.OPENAI_API_KEY)
-    ? new EmbeddingProvider(env.EMBEDDING_BASE_URL, (env.EMBEDDING_API_KEY ?? env.OPENAI_API_KEY) as string, env.EMBEDDING_MODEL)
-    : null;
+  private readonly embedder =
+    (env.EMBEDDING_API_KEY ?? env.OPENAI_API_KEY)
+      ? new EmbeddingProvider(
+          env.EMBEDDING_BASE_URL,
+          (env.EMBEDDING_API_KEY ?? env.OPENAI_API_KEY) as string,
+          env.EMBEDDING_MODEL,
+        )
+      : null;
 
   constructor(
     private readonly db: DatabaseService,
@@ -44,27 +56,48 @@ export class KnowledgeService {
   }
 
   list(tenantId: string) {
-    return this.db.withTenant(tenantId, async (c) => (await c.query(`SELECT ${COLS} FROM knowledge_sources ORDER BY created_at DESC`)).rows);
+    return this.db.withTenant(
+      tenantId,
+      async (c) =>
+        (await c.query(`SELECT ${COLS} FROM knowledge_sources ORDER BY created_at DESC`)).rows,
+    );
   }
 
   get(tenantId: string, id: string) {
     return this.db.withTenant(tenantId, async (c) => {
-      const r = await c.query(`SELECT ${COLS}, left(content, 2000) AS preview FROM knowledge_sources WHERE id = $1`, [id]);
+      const r = await c.query(
+        `SELECT ${COLS}, left(content, 2000) AS preview FROM knowledge_sources WHERE id = $1`,
+        [id],
+      );
       if (!r.rows[0]) throw new NotFoundException('Source not found');
       return r.rows[0];
     });
   }
 
-  private async insert(tenantId: string, userId: string, s: { type: string; title: string; ref?: string; content?: string }) {
-    if (!this.embedder) throw new ServiceUnavailableException('Embeddings are not configured on this server');
+  private async insert(
+    tenantId: string,
+    userId: string,
+    s: { type: string; title: string; ref?: string; content?: string },
+  ) {
+    if (!this.embedder)
+      throw new ServiceUnavailableException('Embeddings are not configured on this server');
     const row = await this.db.withTenant(tenantId, async (c) => {
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
       const n = (await c.query('SELECT count(*)::int AS n FROM knowledge_sources')).rows[0].n;
       await this.plans.assertWithinLimit(c, 'knowledge_sources', n);
       return (
         await c.query(
           `INSERT INTO knowledge_sources (tenant_id, type, title, source_ref, content, char_count, created_by)
            VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING ${COLS}`,
-          [tenantId, s.type, s.title, s.ref ?? null, s.content ?? null, s.content?.length ?? 0, userId],
+          [
+            tenantId,
+            s.type,
+            s.title,
+            s.ref ?? null,
+            s.content ?? null,
+            s.content?.length ?? 0,
+            userId,
+          ],
         )
       ).rows[0];
     });
@@ -75,25 +108,43 @@ export class KnowledgeService {
   create(tenantId: string, userId: string, input: CreateSourceInput) {
     if (input.type === 'text') {
       if (input.content.trim().length < 20) throw new BadRequestException('Content is too short');
-      return this.insert(tenantId, userId, { type: 'text', title: input.title, content: input.content.slice(0, MAX_CONTENT) });
+      return this.insert(tenantId, userId, {
+        type: 'text',
+        title: input.title,
+        content: input.content.slice(0, MAX_CONTENT),
+      });
     }
     if (input.type === 'faq') {
       const content = faqToText(input.items);
       if (!content) throw new BadRequestException('Add at least one question with an answer');
       return this.insert(tenantId, userId, { type: 'faq', title: input.title, content });
     }
-    return this.insert(tenantId, userId, { type: 'url', title: input.title?.trim() || input.url, ref: input.url });
+    return this.insert(tenantId, userId, {
+      type: 'url',
+      title: input.title?.trim() || input.url,
+      ref: input.url,
+    });
   }
 
-  async createFromFile(tenantId: string, userId: string, f: { name: string; mime: string; buf: Buffer; title?: string }) {
+  async createFromFile(
+    tenantId: string,
+    userId: string,
+    f: { name: string; mime: string; buf: Buffer; title?: string },
+  ) {
     let text: string;
     try {
       text = await extractFileText(f.name, f.mime, f.buf);
     } catch (e) {
       throw new BadRequestException((e as Error).message);
     }
-    if (text.trim().length < 20) throw new BadRequestException('No readable text found in the file');
-    return this.insert(tenantId, userId, { type: 'file', title: f.title?.trim() || f.name, ref: f.name, content: text.slice(0, MAX_CONTENT) });
+    if (text.trim().length < 20)
+      throw new BadRequestException('No readable text found in the file');
+    return this.insert(tenantId, userId, {
+      type: 'file',
+      title: f.title?.trim() || f.name,
+      ref: f.name,
+      content: text.slice(0, MAX_CONTENT),
+    });
   }
 
   remove(tenantId: string, id: string) {
@@ -107,7 +158,10 @@ export class KnowledgeService {
   async reindex(tenantId: string, id: string) {
     await this.get(tenantId, id);
     await this.db.withTenant(tenantId, (c) =>
-      c.query("UPDATE knowledge_sources SET status = 'pending', error = NULL, updated_at = now() WHERE id = $1", [id]),
+      c.query(
+        "UPDATE knowledge_sources SET status = 'pending', error = NULL, updated_at = now() WHERE id = $1",
+        [id],
+      ),
     );
     void this.process(tenantId, id);
     return { queued: true };
@@ -132,7 +186,9 @@ export class KnowledgeService {
       }
       if (!res.ok) throw new Error(`The page returned HTTP ${res.status}`);
       const raw = typeof res.body === 'string' ? res.body : JSON.stringify(res.body);
-      return /<html|<body|<p[ >]|<div/i.test(raw.slice(0, 5000)) ? htmlToText(raw) : { title: '', text: raw };
+      return /<html|<body|<p[ >]|<div/i.test(raw.slice(0, 5000))
+        ? htmlToText(raw)
+        : { title: '', text: raw };
     }
     throw new Error('Too many redirects');
   }
@@ -140,8 +196,16 @@ export class KnowledgeService {
   private async process(tenantId: string, id: string) {
     try {
       const src = await this.db.withTenant(tenantId, async (c) => {
-        await c.query("UPDATE knowledge_sources SET status = 'processing', error = NULL, updated_at = now() WHERE id = $1", [id]);
-        return (await c.query('SELECT type, title, source_ref, content FROM knowledge_sources WHERE id = $1', [id])).rows[0];
+        await c.query(
+          "UPDATE knowledge_sources SET status = 'processing', error = NULL, updated_at = now() WHERE id = $1",
+          [id],
+        );
+        return (
+          await c.query(
+            'SELECT type, title, source_ref, content FROM knowledge_sources WHERE id = $1',
+            [id],
+          )
+        ).rows[0];
       });
       if (!src) return;
 
@@ -158,7 +222,9 @@ export class KnowledgeService {
 
       const vectors: number[][] = [];
       for (let i = 0; i < chunks.length; i += EMBED_BATCH) {
-        vectors.push(...(await this.embedder.embed(chunks.slice(i, i + EMBED_BATCH).map((c) => c.content))));
+        vectors.push(
+          ...(await this.embedder.embed(chunks.slice(i, i + EMBED_BATCH).map((c) => c.content))),
+        );
       }
 
       await this.db.withTenant(tenantId, async (c) => {
@@ -166,7 +232,14 @@ export class KnowledgeService {
         await c.query(
           `INSERT INTO knowledge_chunks (tenant_id, source_id, chunk_index, content, search_text, embedding)
            SELECT $1, $2, t.i, t.c, t.s, t.e::vector FROM unnest($3::int[], $4::text[], $5::text[], $6::text[]) AS t(i, c, s, e)`,
-          [tenantId, id, chunks.map((c) => c.index), chunks.map((c) => c.content), chunks.map((c) => normalizeText(c.content)), vectors.map(toVectorLiteral)],
+          [
+            tenantId,
+            id,
+            chunks.map((c) => c.index),
+            chunks.map((c) => c.content),
+            chunks.map((c) => normalizeText(c.content)),
+            vectors.map(toVectorLiteral),
+          ],
         );
         await c.query(
           `UPDATE knowledge_sources SET status = 'ready', error = NULL, title = $2, content = $3, char_count = $4, chunk_count = $5, updated_at = now()
@@ -178,7 +251,12 @@ export class KnowledgeService {
       const msg = (e as Error).message.slice(0, 300);
       this.log.warn(`Knowledge source ${id} failed: ${msg}`);
       await this.db
-        .withTenant(tenantId, (c) => c.query("UPDATE knowledge_sources SET status = 'failed', error = $2, updated_at = now() WHERE id = $1", [id, msg]))
+        .withTenant(tenantId, (c) =>
+          c.query(
+            "UPDATE knowledge_sources SET status = 'failed', error = $2, updated_at = now() WHERE id = $1",
+            [id, msg],
+          ),
+        )
         .catch(() => undefined);
     }
   }
@@ -186,9 +264,18 @@ export class KnowledgeService {
   // ------------------------------------------------------------------ retrieval
 
   /** بحث هجين: تشابه دلالي (embeddings) + كلمات مفتاحية، ثم دمج النتيجتين بـ RRF */
-  async search(tenantId: string, query: string, k = 6): Promise<RetrievedChunk[]> {
-    if (!this.embedder) throw new ServiceUnavailableException('Embeddings are not configured on this server');
-    const any = await this.db.withTenant(tenantId, async (c) => (await c.query('SELECT 1 FROM knowledge_chunks LIMIT 1')).rowCount);
+  async search(
+    tenantId: string,
+    query: string,
+    k = 6,
+    sourceIds?: string[],
+  ): Promise<RetrievedChunk[]> {
+    if (!this.embedder)
+      throw new ServiceUnavailableException('Embeddings are not configured on this server');
+    const any = await this.db.withTenant(
+      tenantId,
+      async (c) => (await c.query('SELECT 1 FROM knowledge_chunks LIMIT 1')).rowCount,
+    );
     if (!any) return [];
 
     const [vec] = await this.embedder.embed([query.slice(0, 2000)]);
@@ -214,8 +301,8 @@ export class KnowledgeService {
         await c.query(
           `SELECT c.id, c.source_id, s.title, c.content, 1 - (c.embedding <=> $1::vector) AS score
            FROM knowledge_chunks c JOIN knowledge_sources s ON s.id = c.source_id
-           ORDER BY c.embedding <=> $1::vector LIMIT 20`,
-          [literal],
+           WHERE ($2::uuid[] IS NULL OR c.source_id=ANY($2)) ORDER BY c.embedding <=> $1::vector LIMIT 20`,
+          [literal, sourceIds ?? null],
         )
       ).rows
         .filter((r) => Number(r.score) >= MIN_VECTOR_SCORE)
@@ -225,9 +312,9 @@ export class KnowledgeService {
             await c.query(
               `SELECT c.id, c.source_id, s.title, c.content
                FROM knowledge_chunks c JOIN knowledge_sources s ON s.id = c.source_id
-               WHERE c.tsv @@ to_tsquery('simple', $1)
+               WHERE c.tsv @@ to_tsquery('simple', $1) AND ($2::uuid[] IS NULL OR c.source_id=ANY($2))
                ORDER BY ts_rank(c.tsv, to_tsquery('simple', $1)) DESC LIMIT 20`,
-              [tsq],
+              [tsq, sourceIds ?? null],
             )
           ).rows.map(map)
         : [];

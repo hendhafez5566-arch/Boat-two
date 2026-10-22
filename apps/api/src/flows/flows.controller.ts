@@ -9,6 +9,7 @@ import {
   Post,
   Req,
 } from '@nestjs/common';
+import { z } from 'zod';
 import { Roles } from '../auth/decorators';
 import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
@@ -41,8 +42,15 @@ export class FlowsController {
     @Req() req: AuthedRequest,
     @Param('id', ParseUUIDPipe) id: string,
     @Param('versionId', ParseUUIDPipe) versionId: string,
+    @Body() body: unknown,
   ) {
-    return this.flows.restore(req.user.tenantId, id, versionId);
+    return this.flows.restore(
+      req.user.tenantId,
+      id,
+      versionId,
+      parse(z.object({ expectedUpdatedAt: z.string().datetime().optional() }).default({}), body)
+        .expectedUpdatedAt,
+    );
   }
 
   @Get(':id')
@@ -70,8 +78,18 @@ export class FlowsController {
 
   @Roles('owner', 'admin')
   @Post(':id/publish')
-  publish(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
-    return this.flows.publish(req.user.tenantId, req.user.userId, id);
+  publish(
+    @Req() req: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.flows.publish(
+      req.user.tenantId,
+      req.user.userId,
+      id,
+      parse(z.object({ expectedUpdatedAt: z.string().datetime().optional() }).default({}), body)
+        .expectedUpdatedAt,
+    );
   }
 
   @Roles('owner', 'admin')

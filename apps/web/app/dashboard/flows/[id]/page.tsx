@@ -37,6 +37,7 @@ const inp = 'w-full rounded border p-1.5 text-sm';
 
 function Editor({ id }: { id: string }) {
   const rf = useReactFlow();
+  const [mobilePanel, setMobilePanel] = useState('canvas');
   const [nodes, setNodes, onNodesChange] = useNodesState<RFData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [startId, setStartId] = useState('');
@@ -160,6 +161,7 @@ function Editor({ id }: { id: string }) {
     ]);
     if (!startId || !nodes.length) setStartId(nid);
     setSelected(nid);
+    setMobilePanel('inspector');
     setTab('node');
     setDirty(true);
   };
@@ -208,6 +210,7 @@ function Editor({ id }: { id: string }) {
       setUpdatedAt(result.updated_at);
       if (latest.current === submitted) setDirty(false);
       setMsg('تم الحفظ');
+      return result.updated_at;
     } catch (e: any) {
       setMsg(`تعذّر الحفظ: ${e.message}`);
       throw e;
@@ -285,7 +288,10 @@ function Editor({ id }: { id: string }) {
   async function restoreVersion(versionId: string) {
     if (dirty && !confirm('استبدال التعديلات غير المحفوظة بهذه النسخة؟')) return;
     try {
-      await api(`/flows/${id}/versions/${versionId}/restore`, { method: 'POST' });
+      await api(`/flows/${id}/versions/${versionId}/restore`, {
+        method: 'POST',
+        body: JSON.stringify({ expectedUpdatedAt: updatedAt }),
+      });
       window.location.reload();
     } catch (e) {
       setMsg((e as Error).message);
@@ -308,8 +314,11 @@ function Editor({ id }: { id: string }) {
 
   const publish = async () => {
     try {
-      await save();
-      const r = await api<any>(`/flows/${id}/publish`, { method: 'POST' });
+      const savedAt = await save();
+      const r = await api<any>(`/flows/${id}/publish`, {
+        method: 'POST',
+        body: JSON.stringify({ expectedUpdatedAt: savedAt }),
+      });
       setMeta((m) => ({ ...m, status: 'published', version: r.version }));
       setIssues([]);
       setWarnings(r.warnings ?? []);
@@ -445,8 +454,21 @@ function Editor({ id }: { id: string }) {
         </div>
       )}
 
-      <div className="flex min-h-0 flex-1">
-        <aside className="flex w-36 flex-col gap-1 overflow-y-auto border-l bg-gray-50 p-2">
+      <div className="builder-mobile-tools">
+        <button onClick={() => setMobilePanel('canvas')}>اللوحة</button>
+        <button onClick={() => setMobilePanel('palette')}>إضافة عقدة</button>
+        <button onClick={() => setMobilePanel('inspector')}>التفاصيل</button>
+        <button
+          onClick={() => {
+            setTab('test');
+            setMobilePanel('inspector');
+          }}
+        >
+          تجربة البوت
+        </button>
+      </div>
+      <div className="builder-main flex min-h-0 flex-1" data-mobile-panel={mobilePanel}>
+        <aside className="builder-palette flex w-36 flex-col gap-1 overflow-y-auto border-l bg-gray-50 p-2">
           <div className="mb-1 text-xs text-gray-500">إضافة عقدة</div>
           {(Object.keys(NODE_META) as NodeType[]).map((t) => (
             <button
@@ -459,7 +481,7 @@ function Editor({ id }: { id: string }) {
           ))}
         </aside>
 
-        <div className="min-w-0 flex-1">
+        <div className="builder-canvas min-w-0 flex-1">
           <ReactFlow
             nodes={display}
             edges={edges}
@@ -487,7 +509,7 @@ function Editor({ id }: { id: string }) {
           </ReactFlow>
         </div>
 
-        <aside className="flex w-96 flex-col border-r bg-white">
+        <aside className="builder-inspector flex w-96 flex-col border-r bg-white">
           <div className="flex border-b text-sm">
             {(
               [
@@ -542,14 +564,17 @@ function Editor({ id }: { id: string }) {
                           onChange={(e) => {
                             const type = e.target.value as Trigger['type'];
                             const nt: Trigger =
-                              type === 'keyword'
-                                ? { type, keywords: [], match: 'contains' }
-                                : type === 'reply_id'
-                                  ? { type, ids: [] }
-                                  : ({ type } as Trigger);
+                              type === 'event'
+                                ? { type, event: 'crm.contacts.insert' }
+                                : type === 'keyword'
+                                  ? { type, keywords: [], match: 'contains' }
+                                  : type === 'reply_id'
+                                    ? { type, ids: [] }
+                                    : ({ type } as Trigger);
                             setTriggers(meta.triggers.map((x, j) => (j === i ? nt : x)));
                           }}
                         >
+                          <option value="event">حدث CRM</option>
                           <option value="keyword">كلمة مفتاحية</option>
                           <option value="first_message">أول رسالة في المحادثة</option>
                           <option value="any_message">أي رسالة (احتياطي)</option>
@@ -562,6 +587,29 @@ function Editor({ id }: { id: string }) {
                           ×
                         </button>
                       </div>
+                      {t.type === 'event' && (
+                        <select
+                          className={inp}
+                          value={t.event}
+                          onChange={(e) =>
+                            setTriggers(
+                              meta.triggers.map((x, j) =>
+                                j === i ? { type: 'event', event: e.target.value } : x,
+                              ),
+                            )
+                          }
+                        >
+                          {[
+                            'crm.contacts.insert',
+                            'crm.contacts.update',
+                            'crm.crm_deals.insert',
+                            'crm.crm_deals.update',
+                            'crm.crm_tasks.update',
+                          ].map((x) => (
+                            <option key={x}>{x}</option>
+                          ))}
+                        </select>
+                      )}
                       {t.type === 'keyword' && (
                         <>
                           <textarea

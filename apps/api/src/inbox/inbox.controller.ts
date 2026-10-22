@@ -45,6 +45,7 @@ const messagesQuery = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 const patchSchema = z.object({
+  departmentId: z.string().uuid().nullable().optional(),
   status: z.enum(['open', 'pending', 'closed']).optional(),
   handledBy: z.enum(['bot', 'human']).optional(),
   assignedTo: z.string().uuid().nullable().optional(),
@@ -183,10 +184,11 @@ export class InboxController {
       const r = (
         await c.query(
           `SELECT cv.id, cv.status, cv.handled_by, cv.assigned_to, au.full_name AS assignee_name, cv.unread_count,
-                  cv.last_inbound_at, cv.created_at,
+                  cv.last_inbound_at, cv.created_at,cv.department_id,
+                  (SELECT d.sla_minutes FROM departments d WHERE d.id=cv.department_id) AS sla_minutes,
                   ch.id AS channel_id, ch.type AS channel_type, ch.name AS channel_name,
                   ct.id AS contact_id, ct.name AS contact_name, ct.phone AS contact_phone, ct.email AS contact_email,
-                  ct.attributes AS contact_attributes, ct.created_at AS contact_since,
+                  ct.tags AS contact_tags,ct.lifecycle AS contact_lifecycle,ct.attributes AS contact_attributes, ct.created_at AS contact_since,
                   (SELECT fs.wait_kind FROM flow_sessions fs WHERE fs.conversation_id = cv.id AND fs.status = 'waiting' LIMIT 1) AS flow_waiting
            FROM conversations cv
            JOIN channels ch ON ch.id = cv.channel_id
@@ -244,29 +246,31 @@ export class InboxController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: unknown,
   ) {
-    const content = parse(contentSchema, body);
-    const result = await this.messaging.sendOutbound({
-      tenantId: req.user.tenantId,
-      conversationId: id,
-      content,
-      senderType: 'agent',
-      senderUserId: req.user.userId,
+    return this.db.conversation(req.user.tenantId, id, async () => {
+      const content = parse(contentSchema, body);
+      const result = await this.messaging.sendOutbound({
+        tenantId: req.user.tenantId,
+        conversationId: id,
+        content,
+        senderType: 'agent',
+        senderUserId: req.user.userId,
+      });
+      await this.db.withTenant(req.user.tenantId, async (c) => {
+        const before = (
+          await c.query('SELECT handled_by, status FROM conversations WHERE id = $1', [id])
+        ).rows[0];
+        await c.query(
+          `UPDATE conversations SET handled_by = 'human', assigned_to = COALESCE(assigned_to, $2), status = 'open', unread_count = 0 WHERE id = $1`,
+          [id, req.user.userId],
+        );
+        if (before?.handled_by === 'bot') {
+          await this.expireSessions(c, id);
+          await this.logEvent(c, id, { event: 'taken_over', by: req.user.userId });
+        }
+      });
+      this.changed(req.user.tenantId, id, 'agent_reply');
+      return result;
     });
-    await this.db.withTenant(req.user.tenantId, async (c) => {
-      const before = (
-        await c.query('SELECT handled_by, status FROM conversations WHERE id = $1', [id])
-      ).rows[0];
-      await c.query(
-        `UPDATE conversations SET handled_by = 'human', assigned_to = COALESCE(assigned_to, $2), status = 'open', unread_count = 0 WHERE id = $1`,
-        [id, req.user.userId],
-      );
-      if (before?.handled_by === 'bot') {
-        await this.expireSessions(c, id);
-        await this.logEvent(c, id, { event: 'taken_over', by: req.user.userId });
-      }
-    });
-    this.changed(req.user.tenantId, id, 'agent_reply');
-    return result;
   }
 
   @Post('conversations/:id/notes')
@@ -322,86 +326,102 @@ export class InboxController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: unknown,
   ) {
-    const p = parse(patchSchema, body);
-    const out = await this.db.withTenant(req.user.tenantId, async (c) => {
-      const cur = (
-        await c.query('SELECT status, handled_by, assigned_to FROM conversations WHERE id = $1', [
-          id,
-        ])
-      ).rows[0];
-      if (!cur) throw new NotFoundException('Conversation not found');
-      if (p.assignedTo) {
-        const m = await c.query('SELECT 1 FROM memberships WHERE user_id = $1', [p.assignedTo]);
-        if (!m.rowCount)
-          throw new BadRequestException('Assignee is not a member of this workspace');
-      }
-      const r = await c.query(
-        `UPDATE conversations SET status = COALESCE($2, status), handled_by = COALESCE($3, handled_by),
+    return this.db.conversation(req.user.tenantId, id, async () => {
+      const p = parse(patchSchema, body);
+      const out = await this.db.withTenant(req.user.tenantId, async (c) => {
+        const cur = (
+          await c.query('SELECT status, handled_by, assigned_to FROM conversations WHERE id = $1', [
+            id,
+          ])
+        ).rows[0];
+        if (!cur) throw new NotFoundException('Conversation not found');
+        if (
+          p.departmentId &&
+          !(await c.query('SELECT 1 FROM departments WHERE id=$1', [p.departmentId])).rowCount
+        )
+          throw new BadRequestException('Department not found');
+        if (p.departmentId !== undefined)
+          await c.query('UPDATE conversations SET department_id=$2 WHERE id=$1', [
+            id,
+            p.departmentId,
+          ]);
+        if (p.assignedTo) {
+          const m = await c.query('SELECT 1 FROM memberships WHERE user_id = $1', [p.assignedTo]);
+          if (!m.rowCount)
+            throw new BadRequestException('Assignee is not a member of this workspace');
+        }
+        const r = await c.query(
+          `UPDATE conversations SET status = COALESCE($2, status), handled_by = COALESCE($3, handled_by),
            assigned_to = CASE WHEN $4::boolean THEN $5::uuid ELSE assigned_to END
          WHERE id = $1 RETURNING id, status, handled_by, assigned_to`,
-        [
-          id,
-          p.status ?? null,
-          p.handledBy ?? null,
-          p.assignedTo !== undefined,
-          p.assignedTo ?? null,
-        ],
-      );
-      const by = req.user.userId;
-      if (p.status && p.status !== cur.status)
-        await this.logEvent(c, id, { event: 'status', status: p.status, by });
-      if (p.assignedTo !== undefined && p.assignedTo !== cur.assigned_to) {
-        await this.logEvent(
-          c,
-          id,
-          p.assignedTo
-            ? { event: 'assigned', userId: p.assignedTo, by }
-            : { event: 'unassigned', by },
+          [
+            id,
+            p.status ?? null,
+            p.handledBy ?? null,
+            p.assignedTo !== undefined,
+            p.assignedTo ?? null,
+          ],
         );
-      }
-      if (p.handledBy && p.handledBy !== cur.handled_by) {
-        await this.expireSessions(c, id);
-        await this.logEvent(c, id, {
-          event: p.handledBy === 'human' ? 'taken_over' : 'returned_to_bot',
-          by,
-        });
-      }
-      return r.rows[0];
+        const by = req.user.userId;
+        if (p.status && p.status !== cur.status)
+          await this.logEvent(c, id, { event: 'status', status: p.status, by });
+        if (p.assignedTo !== undefined && p.assignedTo !== cur.assigned_to) {
+          await this.logEvent(
+            c,
+            id,
+            p.assignedTo
+              ? { event: 'assigned', userId: p.assignedTo, by }
+              : { event: 'unassigned', by },
+          );
+        }
+        if (p.handledBy && p.handledBy !== cur.handled_by) {
+          await this.expireSessions(c, id);
+          await this.logEvent(c, id, {
+            event: p.handledBy === 'human' ? 'taken_over' : 'returned_to_bot',
+            by,
+          });
+        }
+        return r.rows[0];
+      });
+      this.changed(req.user.tenantId, id, 'updated');
+      return out;
     });
-    this.changed(req.user.tenantId, id, 'updated');
-    return out;
   }
 
   @Post('conversations/:id/takeover')
   async takeover(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
-    const out = await this.db.withTenant(req.user.tenantId, async (c) => {
-      const r = await c.query(
-        "UPDATE conversations SET handled_by = 'human', assigned_to = $2, status = 'open' WHERE id = $1 RETURNING id, status, handled_by, assigned_to",
-        [id, req.user.userId],
-      );
-      if (!r.rows[0]) throw new NotFoundException('Conversation not found');
-      await this.expireSessions(c, id);
-      await this.logEvent(c, id, { event: 'taken_over', by: req.user.userId });
-      return r.rows[0];
+    return this.db.conversation(req.user.tenantId, id, async () => {
+      const out = await this.db.withTenant(req.user.tenantId, async (c) => {
+        const r = await c.query(
+          "UPDATE conversations SET handled_by = 'human', assigned_to = $2, status = 'open' WHERE id = $1 RETURNING id, status, handled_by, assigned_to",
+          [id, req.user.userId],
+        );
+        if (!r.rows[0]) throw new NotFoundException('Conversation not found');
+        await this.expireSessions(c, id);
+        await this.logEvent(c, id, { event: 'taken_over', by: req.user.userId });
+        return r.rows[0];
+      });
+      this.changed(req.user.tenantId, id, 'takeover');
+      return out;
     });
-    this.changed(req.user.tenantId, id, 'takeover');
-    return out;
   }
 
   @Post('conversations/:id/release')
   async release(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
-    const out = await this.db.withTenant(req.user.tenantId, async (c) => {
-      const r = await c.query(
-        "UPDATE conversations SET handled_by = 'bot', assigned_to = NULL, status = 'open' WHERE id = $1 RETURNING id, status, handled_by, assigned_to",
-        [id],
-      );
-      if (!r.rows[0]) throw new NotFoundException('Conversation not found');
-      await this.expireSessions(c, id);
-      await this.logEvent(c, id, { event: 'returned_to_bot', by: req.user.userId });
-      return r.rows[0];
+    return this.db.conversation(req.user.tenantId, id, async () => {
+      const out = await this.db.withTenant(req.user.tenantId, async (c) => {
+        const r = await c.query(
+          "UPDATE conversations SET handled_by = 'bot', assigned_to = NULL, status = 'open' WHERE id = $1 RETURNING id, status, handled_by, assigned_to",
+          [id],
+        );
+        if (!r.rows[0]) throw new NotFoundException('Conversation not found');
+        await this.expireSessions(c, id);
+        await this.logEvent(c, id, { event: 'returned_to_bot', by: req.user.userId });
+        return r.rows[0];
+      });
+      this.changed(req.user.tenantId, id, 'release');
+      return out;
     });
-    this.changed(req.user.tenantId, id, 'release');
-    return out;
   }
 
   @Post('conversations/:id/auto-assign')

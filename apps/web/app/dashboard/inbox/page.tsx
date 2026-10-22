@@ -1,6 +1,7 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import MessageBubble from '../../../components/inbox/MessageBubble';
 import { api, getSession } from '../../../lib/api';
 import { useRealtime } from '../../../lib/realtime';
@@ -27,6 +28,7 @@ const preview = (c: any) =>
   c ? (c.reply?.title ?? c.text ?? (c.media ? `[${c.media.kind}]` : c.location ? '📍' : '')) : '';
 
 export default function Inbox() {
+  const [showContext, setShowContext] = useState(false);
   const [tab, setTab] = useState<Tab>('active');
   const [q, setQ] = useState('');
   const [channelId, setChannelId] = useState('');
@@ -41,6 +43,9 @@ export default function Inbox() {
   const [msgs, setMsgs] = useState<any[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [team, setTeam] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<
+    { id: string; name: string; sla_minutes: number }[]
+  >([]);
   const [channels, setChannels] = useState<any[]>([]);
   const [canned, setCanned] = useState<any[]>([]);
   const [me, setMe] = useState<string>('');
@@ -97,6 +102,11 @@ export default function Inbox() {
     api<any>('/team')
       .then((r) => setTeam(r.members))
       .catch(() => {});
+    api<typeof departments>('/departments')
+      .then(setDepartments)
+      .catch(() => {});
+    const requested = new URLSearchParams(window.location.search).get('conversation');
+    if (requested) setTimeout(() => open(requested), 0);
     api<any[]>('/channels')
       .then(setChannels)
       .catch(() => {});
@@ -368,6 +378,11 @@ export default function Inbox() {
           ← الرئيسية
         </a>
         <strong className="flex-1">صندوق الوارد</strong>
+        {selId && (
+          <button className="btn lg:hidden" onClick={() => setShowContext(true)}>
+            ملف العميل
+          </button>
+        )}
         {notifPerm === 'default' && (
           <button
             onClick={() => Notification.requestPermission().then(setNotifPerm)}
@@ -674,8 +689,92 @@ export default function Inbox() {
 
         {/* ---------- تفاصيل العميل ---------- */}
         {detail && selId && (
-          <aside className="hidden w-72 overflow-y-auto border-r bg-white p-3 lg:block">
+          <aside
+            className={`w-72 overflow-y-auto border-r bg-white p-3 ${showContext ? '!block fixed inset-4 z-40 shadow-xl rounded !w-auto' : 'hidden lg:block'}`}
+          >
+            {showContext && (
+              <button className="btn mb-3" onClick={() => setShowContext(false)}>
+                إغلاق ملف العميل ×
+              </button>
+            )}
             <h3 className="mb-2 font-semibold">بيانات العميل</h3>
+            <Link href="/dashboard/crm" className="btn mb-3">
+              فتح CRM ↗
+            </Link>
+            <div className="mb-3 flex flex-wrap gap-1">
+              {(detail.contact_tags || []).map((tag: string) => (
+                <span className="badge" key={tag}>
+                  {tag}
+                </span>
+              ))}
+            </div>
+            <form
+              className="mb-3"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const f = new FormData(e.currentTarget);
+                try {
+                  const contact = await api<any>(`/crm/contacts/${detail.contact_id}`);
+                  await api(`/crm/contacts/${detail.contact_id}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                      name: contact.name || 'Visitor',
+                      email: contact.email,
+                      phone: contact.phone,
+                      lifecycle: contact.lifecycle,
+                      tags: String(f.get('tags') || '')
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                      attributes: contact.attributes,
+                      ownerId: contact.owner_id,
+                      allowDuplicate: true,
+                    }),
+                  });
+                  setDetail(await api(`/conversations/${selId}`));
+                } catch (e) {
+                  setError((e as Error).message);
+                }
+              }}
+            >
+              <label className="field">
+                وسوم العميل
+                <input
+                  name="tags"
+                  key={detail.contact_id + (detail.contact_tags || []).join(',')}
+                  defaultValue={(detail.contact_tags || []).join(', ')}
+                  placeholder="وسوم مفصولة بفاصلة"
+                />
+              </label>
+              <button className="btn mt-2">حفظ الوسوم</button>
+            </form>
+            <label className="field mb-3">
+              القسم
+              <select
+                value={detail.department_id || ''}
+                onChange={(e) =>
+                  act(`/conversations/${selId}`, 'PATCH', { departmentId: e.target.value || null })
+                }
+              >
+                <option value="">غير معيّن</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {detail.sla_minutes && detail.last_inbound_at && detail.status !== 'closed' && (
+              <p className="notice">
+                SLA:{' '}
+                {detail.unread_count > 0 &&
+                Date.now() - new Date(detail.last_inbound_at).getTime() > detail.sla_minutes * 60000
+                  ? 'تجاوز هدف الرد'
+                  : 'ضمن هدف الرد'}{' '}
+                · {detail.sla_minutes} دقيقة
+              </p>
+            )}
+
             <dl className="space-y-1 text-xs">
               <div>
                 <dt className="text-gray-400">الاسم</dt>

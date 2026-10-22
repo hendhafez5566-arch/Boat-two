@@ -69,7 +69,10 @@ export default function ChannelSettings({
     try {
       await api(`/channels/${channel.id}/credentials`, {
         method: 'POST',
-        body: JSON.stringify({ accessToken: f.get('accessToken') }),
+        body: JSON.stringify({
+          accessToken: f.get('accessToken'),
+          ...(f.get('wabaId') ? { wabaId: f.get('wabaId') } : {}),
+        }),
       });
       form.reset();
       setMessage(
@@ -200,6 +203,15 @@ export default function ChannelSettings({
                   className="rounded border p-2"
                   autoComplete="off"
                 />
+                {channel.type === 'whatsapp' && (
+                  <input
+                    aria-label="WhatsApp Business Account ID"
+                    name="wabaId"
+                    pattern="[0-9]+"
+                    placeholder="WABA ID (optional)"
+                    className="rounded border p-2"
+                  />
+                )}
                 <button disabled={busy} className="btn">
                   {t('تحديث الرمز بأمان', 'Replace token securely')}
                 </button>

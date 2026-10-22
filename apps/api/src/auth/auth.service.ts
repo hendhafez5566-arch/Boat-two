@@ -169,7 +169,7 @@ export class AuthService {
 
     const accepted = await this.db.withTenant(inv.tenant_id, async (c) => {
       // Same lock as invitation creation: concurrent accept/revoke cannot exceed seats or replay a token.
-      await c.query('SELECT id FROM tenants FOR UPDATE');
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
       const locked = (
         await c.query(
           'SELECT id FROM invitations WHERE id=$1 AND accepted_at IS NULL AND expires_at>now() FOR UPDATE',

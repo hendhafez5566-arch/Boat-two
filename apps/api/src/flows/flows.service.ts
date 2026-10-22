@@ -11,6 +11,7 @@ import { PlansService } from '../plans/plans.service';
 import { FlowEngine, FlowGraph, FlowState, newState, OutContent, validateGraph } from './engine';
 import { createFlowSchema, testFlowSchema, updateFlowSchema } from './flow-schemas';
 import { FLOW_TEMPLATES } from './templates';
+import { expandSubflows } from './expand';
 import { safeHttpRequest } from './http-safe';
 
 const LIST_COLS =
@@ -41,7 +42,7 @@ export class FlowsService {
   list(tenantId: string) {
     return this.db.withTenant(tenantId, async (c) => {
       const r = await c.query(
-        `SELECT f.id, f.name, f.description, f.status, f.priority, f.triggers, f.channel_ids, f.updated_at,
+        `SELECT f.is_component,f.id, f.name, f.description, f.status, f.priority, f.triggers, f.channel_ids, f.updated_at,
                 v.version AS published_version
          FROM flows f LEFT JOIN flow_versions v ON v.id = f.published_version_id
          ORDER BY f.updated_at DESC`,
@@ -53,7 +54,7 @@ export class FlowsService {
   get(tenantId: string, id: string) {
     return this.db.withTenant(tenantId, async (c) => {
       const r = await c.query(
-        `SELECT f.id, f.name, f.description, f.status, f.priority, f.triggers, f.channel_ids, f.draft_graph,
+        `SELECT f.is_component,f.id, f.name, f.description, f.status, f.priority, f.triggers, f.channel_ids, f.draft_graph,
                 f.updated_at, v.version AS published_version
          FROM flows f LEFT JOIN flow_versions v ON v.id = f.published_version_id WHERE f.id = $1`,
         [id],
@@ -65,7 +66,7 @@ export class FlowsService {
 
   create(tenantId: string, userId: string, input: z.infer<typeof createFlowSchema>) {
     return this.db.withTenant(tenantId, async (c) => {
-      await c.query('SELECT id FROM tenants FOR UPDATE');
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
       const n = (await c.query('SELECT count(*)::int AS n FROM flows')).rows[0].n;
       await this.plans.assertWithinLimit(c, 'flows', n);
       const template = input.templateId
@@ -73,8 +74,8 @@ export class FlowsService {
         : undefined;
       if (input.templateId && !template) throw new BadRequestException('Unknown template');
       const r = await c.query(
-        `INSERT INTO flows (tenant_id, name, description, draft_graph, triggers, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING ${LIST_COLS}`,
+        `INSERT INTO flows (tenant_id, name, description, draft_graph, triggers, created_by,is_component)
+         VALUES ($1, $2, $3, $4, $5, $6,$7) RETURNING ${LIST_COLS}`,
         [
           tenantId,
           input.name,
@@ -82,6 +83,7 @@ export class FlowsService {
           JSON.stringify(template?.graph ?? defaultGraph()),
           JSON.stringify([{ type: 'first_message' }]),
           userId,
+          input.isComponent,
         ],
       );
       return r.rows[0];
@@ -136,17 +138,20 @@ export class FlowsService {
     return validateGraph(graph);
   }
 
-  publish(tenantId: string, userId: string, id: string) {
+  publish(tenantId: string, userId: string, id: string, expected?: string) {
     return this.db.withTenant(tenantId, async (c) => {
       const f = (
         await c.query(
-          'SELECT draft_graph, triggers, channel_ids FROM flows WHERE id = $1 FOR UPDATE',
+          'SELECT updated_at,draft_graph, triggers, channel_ids FROM flows WHERE id = $1 FOR UPDATE',
           [id],
         )
       ).rows[0];
       if (!f) throw new NotFoundException('Flow not found');
+      if (expected && new Date(expected).getTime() !== new Date(f.updated_at).getTime())
+        throw new ConflictException('Draft changed before publishing');
 
-      const { errors, warnings } = validateGraph(f.draft_graph);
+      const expanded = await this.expand(tenantId, f.draft_graph, id);
+      const { errors, warnings } = validateGraph(expanded);
       if (!(f.triggers ?? []).length)
         errors.push({ message: 'Add at least one trigger before publishing' });
       if (errors.length) throw new BadRequestException({ code: 'FLOW_INVALID', errors, warnings });
@@ -165,7 +170,7 @@ export class FlowsService {
             tenantId,
             id,
             version,
-            JSON.stringify(f.draft_graph),
+            JSON.stringify(expanded),
             JSON.stringify(f.triggers),
             f.channel_ids,
             userId,
@@ -201,7 +206,7 @@ export class FlowsService {
 
   duplicate(tenantId: string, userId: string, id: string) {
     return this.db.withTenant(tenantId, async (c) => {
-      await c.query('SELECT id FROM tenants FOR UPDATE');
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
       const n = (await c.query('SELECT count(*)::int AS n FROM flows')).rows[0].n;
       await this.plans.assertWithinLimit(c, 'flows', n);
       const r = await c.query(
@@ -213,6 +218,27 @@ export class FlowsService {
       if (!r.rows[0]) throw new NotFoundException('Flow not found');
       return r.rows[0];
     });
+  }
+
+  private expand(tenantId: string, graph: FlowGraph, id: string) {
+    return expandSubflows(
+      graph,
+      (ref) =>
+        this.db.withTenant(tenantId, async (c) => {
+          const row = (
+            await c.query(
+              "SELECT v.graph FROM flows f JOIN flow_versions v ON v.id=f.published_version_id WHERE f.id=$1 AND f.is_component AND f.status='published'",
+              [ref],
+            )
+          ).rows[0];
+          if (!row)
+            throw new BadRequestException(
+              'Referenced component must be published in this workspace',
+            );
+          return row.graph;
+        }),
+      [id],
+    );
   }
 
   templates() {
@@ -237,9 +263,13 @@ export class FlowsService {
     });
   }
 
-  restore(tenantId: string, id: string, versionId: string) {
+  restore(tenantId: string, id: string, versionId: string, expected?: string) {
     return this.db.withTenant(tenantId, async (c) => {
-      await c.query('SELECT id FROM flows WHERE id=$1 FOR UPDATE', [id]);
+      const current = (await c.query('SELECT updated_at FROM flows WHERE id=$1 FOR UPDATE', [id]))
+        .rows[0];
+      if (!current) throw new NotFoundException('Flow not found');
+      if (expected && new Date(expected).getTime() !== new Date(current.updated_at).getTime())
+        throw new ConflictException('Draft changed before restoration');
       const v = (
         await c.query(
           'SELECT graph, triggers, channel_ids FROM flow_versions WHERE flow_id=$1 AND id=$2',
@@ -259,7 +289,7 @@ export class FlowsService {
   /** محاكاة بدون إرسال فعلي: العميل يعيد state في كل دور لمحادثة تجريبية متعددة الخطوات */
   async test(tenantId: string, id: string, input: z.infer<typeof testFlowSchema>) {
     const flow = await this.get(tenantId, id);
-    const graph = flow.draft_graph as FlowGraph;
+    const graph = await this.expand(tenantId, flow.draft_graph as FlowGraph, id);
     const state = (input.state as FlowState | undefined) ?? newState();
     const transcript: { role: 'bot' | 'system'; content: OutContent | string }[] = [];
     const attrs: Record<string, unknown> = {};

@@ -506,3 +506,37 @@ table.product-table {
     padding: 45px 20px;
   }
 }
+.builder-mobile-tools {
+  display: none;
+}
+@media (max-width: 700px) {
+  .builder-mobile-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px;
+    background: white;
+    border-bottom: 1px solid var(--line);
+  }
+  .builder-mobile-tools button {
+    padding: 7px 10px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    font-size: 12px;
+  }
+  .builder-main .builder-palette,
+  .builder-main .builder-inspector {
+    display: none;
+    width: 100%;
+  }
+  .builder-main[data-mobile-panel='palette'] .builder-palette {
+    display: flex;
+  }
+  .builder-main[data-mobile-panel='inspector'] .builder-inspector {
+    display: flex;
+  }
+  .builder-main[data-mobile-panel='inspector'] .builder-canvas,
+  .builder-main[data-mobile-panel='palette'] .builder-canvas {
+    display: none;
+  }
+}

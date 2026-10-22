@@ -44,7 +44,11 @@ export const createChannelSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('whatsapp'),
     name: z.string().min(1).max(80),
-    credentials: z.object({ accessToken: z.string().min(10), phoneNumberId: z.string().min(3) }),
+    credentials: z.object({
+      accessToken: z.string().min(10),
+      phoneNumberId: z.string().min(3),
+      wabaId: z.string().regex(/^\d+$/).optional(),
+    }),
   }),
   z.object({
     type: z.literal('facebook'),
@@ -132,7 +136,7 @@ export class ChannelsService {
 
     try {
       return await this.db.withTenant(tenantId, async (c) => {
-        await c.query('SELECT id FROM tenants FOR UPDATE');
+        await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
         const count = (await c.query('SELECT count(*)::int AS n FROM channels')).rows[0].n;
         await this.plans.assertWithinLimit(c, 'channels', count);
         const r = await c.query(
@@ -164,7 +168,7 @@ export class ChannelsService {
     });
   }
 
-  reconnect(tenantId: string, id: string, accessToken: string) {
+  reconnect(tenantId: string, id: string, accessToken: string, wabaId?: string) {
     return this.db.withTenant(tenantId, async (c) => {
       const row = (
         await c.query('SELECT type,credentials_enc FROM channels WHERE id=$1 FOR UPDATE', [id])
@@ -174,6 +178,7 @@ export class ChannelsService {
         throw new BadRequestException('Website channels do not use provider tokens');
       const credentials = this.credentials(row as ChannelRow);
       credentials[row.type === 'whatsapp' ? 'accessToken' : 'pageAccessToken'] = accessToken;
+      if (row.type === 'whatsapp' && wabaId) credentials.wabaId = wabaId;
       await c.query("UPDATE channels SET credentials_enc=$2,status='active' WHERE id=$1", [
         id,
         this.crypto.encrypt(credentials),

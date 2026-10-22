@@ -1,6 +1,7 @@
 import { normalizeText } from './text';
 
 export type Trigger =
+  | { type: 'event'; event: string }
   | { type: 'keyword'; keywords: string[]; match?: 'contains' | 'exact' | 'starts_with' }
   | { type: 'reply_id'; ids: string[] }
   | { type: 'first_message' }
@@ -15,6 +16,7 @@ export interface FlowCandidate {
 }
 
 export interface TriggerInput {
+  eventName?: string;
   text: string;
   replyId?: string;
   channelId: string;
@@ -22,10 +24,13 @@ export interface TriggerInput {
   alreadyRunFlowIds: Set<string>;
 }
 
-const RANK = { reply_id: 0, keyword: 0, first_message: 1, any_message: 2 } as const;
+const RANK = { event: 0, reply_id: 0, keyword: 0, first_message: 1, any_message: 2 } as const;
 
 function triggerMatches(t: Trigger, i: TriggerInput): boolean {
+  if (i.eventName && t.type !== 'event') return false;
   switch (t.type) {
+    case 'event':
+      return i.eventName === t.event;
     case 'reply_id':
       return !!i.replyId && t.ids.includes(i.replyId);
     case 'keyword': {
@@ -59,11 +64,7 @@ export function matchFlow(cands: FlowCandidate[], input: TriggerInput): FlowCand
       if (triggerMatches(t, input)) rank = Math.min(rank, RANK[t.type]);
     }
     if (rank === Infinity) return;
-    if (
-      !best ||
-      rank < best.rank ||
-      (rank === best.rank && c.priority > best.c.priority)
-    ) {
+    if (!best || rank < best.rank || (rank === best.rank && c.priority > best.c.priority)) {
       best = { c, rank, idx };
     }
   });

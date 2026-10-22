@@ -47,8 +47,14 @@ export class ChannelsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: unknown,
   ) {
-    const input = parse(z.object({ accessToken: z.string().min(10).max(4000) }), body);
-    return this.channels.reconnect(req.user.tenantId, id, input.accessToken);
+    const input = parse(
+      z.object({
+        accessToken: z.string().min(10).max(4000),
+        wabaId: z.string().regex(/^\d+$/).optional(),
+      }),
+      body,
+    );
+    return this.channels.reconnect(req.user.tenantId, id, input.accessToken, input.wabaId);
   }
 
   @Roles('owner', 'admin')

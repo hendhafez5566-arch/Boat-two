@@ -8,7 +8,26 @@ export class WhatsAppAdapter implements ChannelAdapter {
     const base = { messaging_product: 'whatsapp', recipient_type: 'individual', to };
     let payload: Record<string, unknown>;
 
-    if (c.list) {
+    if (c.template) {
+      payload = {
+        ...base,
+        type: 'template',
+        template: {
+          name: c.template.name,
+          language: { code: c.template.language },
+          ...(c.template.bodyParams.length
+            ? {
+                components: [
+                  {
+                    type: 'body',
+                    parameters: c.template.bodyParams.map((text) => ({ type: 'text', text })),
+                  },
+                ],
+              }
+            : {}),
+        },
+      };
+    } else if (c.list) {
       payload = {
         ...base,
         type: 'interactive',
@@ -31,7 +50,9 @@ export class WhatsAppAdapter implements ChannelAdapter {
         interactive: {
           type: 'button',
           body: { text: c.text },
-          action: { buttons: c.buttons.map((b) => ({ type: 'reply', reply: { id: b.id, title: b.title } })) },
+          action: {
+            buttons: c.buttons.map((b) => ({ type: 'reply', reply: { id: b.id, title: b.title } })),
+          },
         },
       };
     } else if (c.media) {
@@ -50,13 +71,22 @@ export class WhatsAppAdapter implements ChannelAdapter {
       payload = {
         ...base,
         type: 'location',
-        location: { latitude: c.location.lat, longitude: c.location.lng, name: c.location.name, address: c.location.address },
+        location: {
+          latitude: c.location.lat,
+          longitude: c.location.lng,
+          name: c.location.name,
+          address: c.location.address,
+        },
       };
     } else {
       payload = { ...base, type: 'text', text: { body: c.text, preview_url: true } };
     }
 
-    const data = (await graphPost(`${GRAPH}/${creds.phoneNumberId}/messages`, creds.accessToken, payload)) as {
+    const data = (await graphPost(
+      `${GRAPH}/${creds.phoneNumberId}/messages`,
+      creds.accessToken,
+      payload,
+    )) as {
       messages?: { id: string }[];
     };
     return { externalId: data.messages?.[0]?.id ?? null };

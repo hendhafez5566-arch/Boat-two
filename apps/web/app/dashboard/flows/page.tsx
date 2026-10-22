@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useLocale } from '../../../components/product/locale';
 import { api, getSession } from '../../../lib/api';
@@ -55,7 +56,11 @@ export default function Flows() {
     try {
       const flow = await api<Flow>('/flows', {
         method: 'POST',
-        body: JSON.stringify({ name: f.get('name'), ...(templateId ? { templateId } : {}) }),
+        body: JSON.stringify({
+          name: f.get('name'),
+          isComponent: f.get('isComponent') === 'on',
+          ...(templateId ? { templateId } : {}),
+        }),
       });
       window.location.href = `/dashboard/flows/${flow.id}`;
     } catch (err) {
@@ -83,6 +88,9 @@ export default function Flows() {
           </p>
         </div>
       </div>
+      <Link className="btn btn-primary mb-6" href="/dashboard/flows/new">
+        {t('معالج إنشاء بوت للمبتدئين', 'Beginner bot wizard')} ↗
+      </Link>
       <div className="card-grid mb-6">
         {templates.map((x) => (
           <button
@@ -106,6 +114,10 @@ export default function Flows() {
       </div>
       {error && <p className="mb-3 text-red-600">{error}</p>}
       <form onSubmit={create} className="mb-6 flex gap-2">
+        <label className="flex items-center gap-1 text-xs">
+          <input type="checkbox" name="isComponent" />
+          مكوّن قابل لإعادة الاستخدام
+        </label>
         <input
           name="name"
           required
