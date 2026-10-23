@@ -67,3 +67,9 @@ No CODE COMPLETE claim until every A requirement is CLOSED with reproducible evi
 ## Verified checkpoint after rich template authoring and editor acceptance
 
 22 A requirements CLOSED; 19 A requirements OPEN (including remaining global UI, larger data/mail/billing/SLA/account scope and complete QA). Seven external/owner dependencies remain. No unresolved demonstrated D defect at this checkpoint; this does not certify absence of defects. Two observed defects fixed: missing rich template card preview (WA-02) and root build ignoring Tailwind config (QA-01). Browser evidence is bounded as described in the acceptance README; additional journey regression continues.
+
+## CRM storage and demonstrated dispatch defect checkpoint
+
+CRM-02 remains OPEN: new exports now freeze ordinal rows in PostgreSQL, worker progress never copies growing JSON, indexed pages read bounded rows and retention removes expired artifacts. 5000-row concurrent/replay test and real browser download passed. Limits remain 50000 exports/10000 imports; large upload sessions and browser-wide memory/legacy JSON jobs remain explicit rather than closed.
+
+D defect QA-04-D1: reproduced cross-tenant outbox starvation under bulk fixture backlog (CRM download and rich campaign delivery timed out). Migration 074 interleaves eligible tenants, retaining aggregate predecessor checks. Isolated fairness test proves a late tenant is discovered in batch size two despite 1000 older events; failed aggregate successor is still blocked. CRM Chromium and rich campaign worker tests pass after the fix. Defect CLOSED; comprehensive QA-04 remains OPEN. Broad post-fix regression continues.

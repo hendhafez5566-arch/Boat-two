@@ -66,6 +66,20 @@ export class CrmJobs {
           }
           processed++;
         }
+      } else if (job.input.storage === 'ordinal_rows_v1') {
+        // Rows were frozen by one INSERT SELECT. Worker progress never loads or copies the payload.
+        const count = Number(
+          (
+            await c.query(
+              'SELECT count(*) n FROM crm_export_rows WHERE job_id=$1 AND ordinal>$2 AND ordinal<=$3',
+              [job.id, processed, processed + 250],
+            )
+          ).rows[0].n,
+        );
+        if (count !== Math.min(250, job.total - processed))
+          throw new Error('Frozen export row coverage is incomplete');
+        processed += count;
+        succeeded += count;
       } else {
         // Snapshot IDs at creation: do not skip/repeat rows when the contact list changes.
         const snapshots = job.input.snapshots;
@@ -165,8 +179,8 @@ export class CrmJobsController {
         ) >= 3
       )
         throw new BadRequestException('At most three active CRM jobs per workspace');
-      let data: unknown = input,
-        total = input.kind === 'import' ? input.contacts.length : 0;
+      const data: unknown = input;
+      let total = input.kind === 'import' ? input.contacts.length : 0;
       if (input.kind === 'export') {
         const where = contactWhere(input.filters);
         if (input.asOf) {
@@ -185,42 +199,48 @@ export class CrmJobsController {
           if (coverage.pending_changes)
             throw new BadRequestException('CRM history is catching up; refresh and retry');
         }
-        const rows = input.asOf
-          ? (
-              await c.query(
-                `WITH latest AS (SELECT DISTINCT ON(contact_id) snapshot,deleted FROM crm_contact_history WHERE recorded_at<=$5 ORDER BY contact_id,recorded_at DESC,change_id DESC),
-           profiles AS (SELECT (jsonb_populate_record(NULL::contacts,snapshot)).* FROM latest WHERE NOT deleted)
-           SELECT id,name,email,phone,lifecycle,tags,attributes,owner_id,archived_at FROM profiles WHERE ${where.sql} ORDER BY id LIMIT 50001`,
-                [...where.params, input.asOf],
-              )
-            ).rows
-          : (
-              await c.query(
-                `SELECT id,name,email,phone,lifecycle,tags,attributes,owner_id,archived_at,
-             statement_timestamp() AS snapshot_at FROM contacts WHERE ${where.sql} ORDER BY id LIMIT 50001`,
-                where.params,
-              )
-            ).rows;
-        if (rows.length > 50000)
+        // Create only metadata, then freeze in PostgreSQL without materializing all profiles in Node.
+        const job = (
+          await c.query(
+            "INSERT INTO crm_jobs(tenant_id,kind,input,total,created_by) VALUES($1,'export',$2,0,$3) RETURNING id,kind,status,total",
+            [
+              r.user.tenantId,
+              JSON.stringify({
+                storage: 'ordinal_rows_v1',
+                historySemantics: input.asOf
+                  ? 'committed_changes_observed_by_journal'
+                  : 'request_time_statement_snapshot',
+              }),
+              r.user.userId,
+            ],
+          )
+        ).rows[0];
+        const source = input.asOf
+          ? `WITH latest AS (SELECT DISTINCT ON(contact_id) snapshot,deleted FROM crm_contact_history WHERE recorded_at<=$5 ORDER BY contact_id,recorded_at DESC,change_id DESC),
+             profiles AS (SELECT (jsonb_populate_record(NULL::contacts,snapshot)).* FROM latest WHERE NOT deleted)
+             SELECT id,name,email,phone,lifecycle,tags,attributes,owner_id,archived_at FROM profiles WHERE ${where.sql} ORDER BY id LIMIT 50001`
+          : `SELECT id,name,email,phone,lifecycle,tags,attributes,owner_id,archived_at FROM contacts WHERE ${where.sql} ORDER BY id LIMIT 50001`;
+        const params = [...where.params, ...(input.asOf ? [input.asOf] : [])];
+        const jobIndex = params.length + 1;
+        const frozen = await c.query(
+          `WITH stamp AS (UPDATE crm_jobs SET input=input||jsonb_build_object('snapshotAt',${input.asOf ? '$5::timestamptz' : 'statement_timestamp()'}) WHERE id=$${jobIndex} RETURNING tenant_id,id),
+           source AS (${source})
+           INSERT INTO crm_export_rows(tenant_id,job_id,ordinal,payload)
+           SELECT stamp.tenant_id,stamp.id,row_number() OVER(ORDER BY source.id),to_jsonb(source) FROM source CROSS JOIN stamp`,
+          [...params, job.id],
+        );
+        total = frozen.rowCount ?? 0;
+        if (total > 50000)
           throw new BadRequestException('Narrow the export to at most 50,000 contacts');
-        // One SELECT captures all values from one PostgreSQL statement snapshot.
-        // Never reread live profiles in later worker chunks.
-        const snapshotAt =
-          input.asOf ??
-          rows[0]?.snapshot_at ??
-          (await c.query('SELECT statement_timestamp() AS at')).rows[0].at;
-        data = {
-          snapshotAt,
-          historySemantics: input.asOf
-            ? 'committed_changes_observed_by_journal'
-            : 'request_time_statement_snapshot',
-          snapshots: rows.map((row) => {
-            const copy = { ...row };
-            delete copy.snapshot_at;
-            return copy;
-          }),
-        };
-        total = rows.length;
+        await c.query('UPDATE crm_jobs SET total=$2 WHERE id=$1', [job.id, total]);
+        await this.events.publish(
+          r.user.tenantId,
+          'crm.job',
+          job.id,
+          { jobId: job.id },
+          `crm-job:${job.id}:0`,
+        );
+        return { ...job, total };
       }
       const row = (
         await c.query(
@@ -255,7 +275,7 @@ export class CrmJobsController {
     return this.db.withTenant(r.user.tenantId, async (c) => {
       const row = (
         await c.query(
-          "SELECT errors,processed,succeeded,expired_at,jsonb_array_length(result) AS total,input->>'snapshotAt' AS snapshot_at FROM crm_jobs WHERE id=$1 AND status='completed'",
+          "SELECT errors,processed,succeeded,expired_at,CASE WHEN input->>'storage'='ordinal_rows_v1' THEN total ELSE jsonb_array_length(result) END AS total,input->>'storage' AS storage,input->>'snapshotAt' AS snapshot_at FROM crm_jobs WHERE id=$1 AND status='completed'",
           [id],
         )
       ).rows[0];
@@ -264,12 +284,20 @@ export class CrmJobsController {
       const paged = q.after !== undefined || q.limit !== undefined,
         after = q.after ?? 0,
         limit = paged ? (q.limit ?? 250) : 50000;
-      const items = (
-        await c.query(
-          'SELECT item FROM crm_jobs j CROSS JOIN LATERAL jsonb_array_elements(j.result) WITH ORDINALITY AS r(item,ordinal) WHERE j.id=$1 AND ordinal>$2 ORDER BY ordinal LIMIT $3',
-          [id, after, limit],
-        )
-      ).rows.map((r) => r.item);
+      const items =
+        row.storage === 'ordinal_rows_v1'
+          ? (
+              await c.query(
+                'SELECT payload FROM crm_export_rows WHERE job_id=$1 AND ordinal>$2 ORDER BY ordinal LIMIT $3',
+                [id, after, limit],
+              )
+            ).rows.map((r) => r.payload)
+          : (
+              await c.query(
+                'SELECT item FROM crm_jobs j CROSS JOIN LATERAL jsonb_array_elements(j.result) WITH ORDINALITY AS r(item,ordinal) WHERE j.id=$1 AND ordinal>$2 ORDER BY ordinal LIMIT $3',
+                [id, after, limit],
+              )
+            ).rows.map((r) => r.item);
       return {
         ...row,
         result: items,

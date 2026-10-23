@@ -1,3 +1,13 @@
+## CRM ordinal storage and tenant dispatch checkpoint — 2026-10-23 UTC
+
+Previous bot checkpoint b99c9f0 pushed/remote-verified. Migration 073 adds tenant-isolated immutable ordinal export payloads and automatic expiration cleanup. New current/historical exports use one PostgreSQL INSERT SELECT to freeze values; job metadata stays small; workers count the next 250 ordinals without copying JSON; API pages use the ordinal index. Existing legacy input/results stay compatible. Existing 50000/10000 limits and 900KB UI import limit remain, and CRM-02 stays OPEN for remaining large upload/storage work.
+
+Targeted API TypeScript/lint, 5000-row frozen export/concurrent worker/replay/immutability/legacy test, existing snapshot/history/paging/retention tests and actual Chromium CRM download pass. Active export rows survive retention; terminal expired payload rows are removed. Fresh migrations 001–073 and repeat passed; 074 then applied/repeated.
+
+Bulk test fixtures exposed actual cross-tenant event starvation: global oldest-first discovery delayed other tenants' CRM exports and web campaigns. Migration 074 interleaves tenant rounds without bypassing failed/due aggregate predecessors. Isolated smoke-dispatch-fairness proves 1000 older events cannot exclude a late tenant from a two-event batch. CRM browser and rich-campaign worker pass after fix. Full post-fix regression is running; earlier failures during the backlog are retained as diagnosis, not final passing evidence. No provider activation/financial writes. Run fairness smoke on an isolated migrated DB; it intentionally refuses an existing due backlog.
+
+Evidence in docs/acceptance/2026-10-23-v1-closure/. Frozen count remains 22 CLOSED / 19 OPEN local requirements + 7 external dependencies. No CODE COMPLETE claim.
+
 ## Bot selection/translation and bounded failure/load acceptance — 2026-10-23 UTC
 
 Prior checkpoint c0a08b5 pushed/remote-verified. Expanded Chromium inspector assertion exposed missing React Flow selection on palette add; selected=true now persists the new selection and deselects prior nodes. Advanced inspector is actually opened and edited in the browser; undo/redo retains original node-count assertions, followed by explicit node re-selection after history travel. The full premium journey passes: real seven-step bot publication, preview button, add/undo/redo/edit/save, version Escape, branded invitation queue and Inbox mobile. Builder settings/version dialog/static node summaries are now bilingual with accessible trigger/priority controls. User-authored text is preserved.

@@ -83,7 +83,17 @@ try {
     );
     const job = (await c.query('SELECT * FROM crm_jobs WHERE id=$1', [active.id])).rows[0];
     assert.equal(job.expired_at, null);
-    assert.ok(job.input.snapshots.length);
+    assert.equal(job.input.storage, 'ordinal_rows_v1');
+    assert.equal(
+      (await c.query('SELECT count(*)::int n FROM crm_export_rows WHERE job_id=$1', [active.id]))
+        .rows[0].n,
+      1,
+    );
+    assert.equal(
+      (await c.query('SELECT count(*)::int n FROM crm_export_rows WHERE job_id=$1', [completed.id]))
+        .rows[0].n,
+      0,
+    );
     assert.equal((await c.query('SELECT count(*)::int AS n FROM contacts')).rows[0].n, 1);
     assert.ok(
       (await c.query("SELECT 1 FROM audit_logs WHERE action='crm_retention_cleanup'")).rowCount,

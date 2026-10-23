@@ -1,0 +1,4 @@
+Applying 074_fair_event_dispatch.sql
+Migrations up to date
+Applying 074_fair_event_dispatch.sql
+Migrations up to date
