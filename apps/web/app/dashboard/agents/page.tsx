@@ -1,4 +1,5 @@
 'use client';
+import { AiToolAudit } from '../../../components/business/AiToolAudit';
 import { AgentRouting } from '../../../components/business/AgentRouting';
 import { useState } from 'react';
 import { api } from '../../../lib/api';
@@ -20,6 +21,8 @@ type Run = {
   input_tokens: number;
   output_tokens: number;
   cost_microusd: number | null;
+  input_rate_microusd: string | null;
+  output_rate_microusd: string | null;
   model: string;
   status: string;
   created_at: string;
@@ -383,6 +386,12 @@ export default function Agents() {
               <th>{t('رموز الإدخال', 'Input tokens')}</th>
               <th>{t('رموز الإخراج', 'Output tokens')}</th>
               <th>{t('التكلفة', 'Cost')}</th>
+              <th>
+                {t(
+                  'أسعار الإدخال / الإخراج المحفوظة لكل مليون رمز',
+                  'Saved input / output rates per million tokens',
+                )}
+              </th>
               <th>{t('الحالة', 'Status')}</th>
             </tr>
           </thead>
@@ -397,6 +406,15 @@ export default function Agents() {
                     ? t('غير محسوبة', 'Not calculated')
                     : '$' + r.cost_microusd / 1000000}
                 </td>
+                <td>
+                  {r.input_rate_microusd === null
+                    ? '—'
+                    : '$' + Number(r.input_rate_microusd) / 1000000}{' '}
+                  /{' '}
+                  {r.output_rate_microusd === null
+                    ? '—'
+                    : '$' + Number(r.output_rate_microusd) / 1000000}
+                </td>
                 <td>{r.status}</td>
               </tr>
             ))}
@@ -408,6 +426,7 @@ export default function Agents() {
           </p>
         )}
       </section>
+      <AiToolAudit />
     </main>
   );
 }

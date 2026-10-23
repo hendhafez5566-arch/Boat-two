@@ -1,3 +1,4 @@
+import { AiToolExecution } from './tool-execution';
 import { KnowledgeRetention, KnowledgeRetentionController } from './knowledge/retention';
 import { KnowledgeJobsController } from './knowledge/jobs.controller';
 import { EmbeddingBudget } from './knowledge/embedding-budget';
@@ -15,7 +16,14 @@ import { KnowledgeService } from './knowledge/knowledge.service';
     AiController,
     AgentsController,
   ],
-  providers: [KnowledgeRetention, EmbeddingBudget, KnowledgeService, AiService, CryptoService],
+  providers: [
+    AiToolExecution,
+    KnowledgeRetention,
+    EmbeddingBudget,
+    KnowledgeService,
+    AiService,
+    CryptoService,
+  ],
   exports: [AiService],
 })
 export class AiModule {}

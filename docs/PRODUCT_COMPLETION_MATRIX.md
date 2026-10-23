@@ -1,5 +1,11 @@
 # ELHAFEZ BOAT — Product completion matrix
 
+## Continuation — AI tool decisions and historical cost inputs (2026-10-23)
+
+Migration 055 adds tenant-scoped append-only tool decision records, stable run/tool indexes and hashed inputs. Shared execution rechecks current agent/tool/provider permissions and local active contact scope, validates inputs, enforces the three-tool action bound, records applied/no-op/denied/invalid/limit/failed decisions and prevents duplicate CRM effects on replay. Changed replay inputs are refused. Handoff is an audited request consumed by the existing conversation workflow. The connected agents screen filters/pages audit records without customer payloads. AI runs now snapshot provider ID/model and input/output cost rates, visible alongside the estimate; this is not a provider invoice or complete model-price catalog.
+
+Validation: API build, web TypeScript, ESLint, incremental migration 055, all 53 unit tests and PostgreSQL mocked-generation/tool-audit smoke pass, including actual CRM effects, replay safety, current permission revocation, private input hashing, cost-rate snapshots and tenant isolation. Before this unit, full API/Next build, migrations 001–054 on a clean database and 23 targeted/core/business/worker regression suites passed. Next: final current-HEAD build/regression and handover; substantial remaining automation/CRM/Inbox/provider/catalog and white-label auth/email/Batch 4 scope stays open.
+
 ## Continuation — bounded knowledge retention (2026-10-23)
 
 Migration 054 connects owner-only preview/confirmed durable retention runs to the existing outbox and bilingual knowledge UI. A frozen cutoff (minimum 30 days) clears old completed/canceled job raw/chunk/vector payloads in 100-record batches and removes eligible historical extraction text, retaining hash/character-count tombstones. Current source content, published chunks, revisions, latest snapshot and external accounting/effect ledgers remain. Active/blocked/failed jobs remain recoverable; workers recheck owner authority and skip locked sources. Cleanup is explicit, not an automatic production deletion policy.

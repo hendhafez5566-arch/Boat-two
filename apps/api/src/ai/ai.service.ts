@@ -1,8 +1,8 @@
+import { AiToolExecution } from './tool-execution';
 import { OpenAiProvider } from './providers/openai';
 import { CryptoService } from '../messaging/crypto.service';
 import { ExternalEffects } from '../events/external-effect';
 import { estimateCost } from './cost';
-import { z } from 'zod';
 import { Injectable, Logger } from '@nestjs/common';
 import { env } from '../config/env';
 import { DatabaseService } from '../database/database.service';
@@ -73,6 +73,7 @@ export class AiService {
     private readonly plans: PlansService,
     private readonly knowledge: KnowledgeService,
     private readonly crypto: CryptoService,
+    private readonly tools: AiToolExecution,
   ) {}
 
   get configured() {
@@ -342,9 +343,9 @@ export class AiService {
           }),
       );
       await this.recordUsage(tenantId, res.inputTokens, res.outputTokens);
-      await this.db.withTenant(tenantId, (c) =>
+      const recorded = await this.db.withTenant(tenantId, (c) =>
         c.query(
-          "INSERT INTO ai_runs(tenant_id,agent_id,input_tokens,output_tokens,model,status,cost_microusd) VALUES($1,$2,$3,$4,$5,'completed',$6)",
+          "INSERT INTO ai_runs(tenant_id,agent_id,input_tokens,output_tokens,model,status,cost_microusd,provider_id,input_rate_microusd,output_rate_microusd) VALUES($1,$2,$3,$4,$5,'completed',$6,$7,$8,$9) RETURNING id",
           [
             tenantId,
             agent?.id ?? null,
@@ -357,50 +358,21 @@ export class AiService {
               agent?.input_microusd_per_million ?? null,
               agent?.output_microusd_per_million ?? null,
             ),
+            agent?.provider_id ?? null,
+            agent?.input_microusd_per_million ?? null,
+            agent?.output_microusd_per_million ?? null,
           ],
         ),
       );
 
-      let actions = 0;
-      if (p.contactId && agent)
-        for (const tool of res.toolCalls.slice(0, 3)) {
-          if (!agent.allowed_tools.includes(tool.name)) continue;
-          if (tool.name === 'create_followup') {
-            const parsed = z
-              .object({
-                title: z.string().min(1).max(200),
-                dueHours: z.number().int().min(1).max(720),
-              })
-              .safeParse(tool.input);
-            if (parsed.success) {
-              await this.db.withTenant(tenantId, (c) =>
-                c.query(
-                  'INSERT INTO crm_tasks(tenant_id,contact_id,title,due_at) SELECT $1,id,$3,now()+make_interval(hours=>$4) FROM contacts WHERE id=$2',
-                  [tenantId, p.contactId, parsed.data.title, parsed.data.dueHours],
-                ),
-              );
-              actions++;
-            }
-          }
-          if (tool.name === 'tag_contact') {
-            const parsed = z
-              .object({ tag: z.string().trim().min(1).max(50) })
-              .safeParse(tool.input);
-            if (parsed.success) {
-              await this.db.withTenant(tenantId, (c) =>
-                c.query(
-                  'UPDATE contacts SET tags=array_append(tags,$2),updated_at=now() WHERE id=$1 AND NOT $2=ANY(tags)',
-                  [p.contactId, parsed.data.tag],
-                ),
-              );
-              actions++;
-            }
-          }
-        }
-      const handoff =
-        settings.handoff_enabled &&
-        (!agent || agent.allowed_tools.includes('handoff_to_human')) &&
-        res.toolCalls.some((t) => t.name === 'handoff_to_human');
+      const { actions, handoff } = await this.tools.execute(
+        tenantId,
+        recorded.rows[0].id,
+        agent?.id ?? null,
+        p.contactId,
+        settings.handoff_enabled,
+        res.toolCalls,
+      );
       const text =
         res.text ||
         (handoff

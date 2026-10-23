@@ -10,6 +10,7 @@ import {
   Patch,
   Post,
   Req,
+  Query,
 } from '@nestjs/common';
 import { z } from 'zod';
 import { Roles } from '../auth/decorators';
@@ -48,10 +49,32 @@ export class AgentsController {
       ).rows,
       runs: (
         await c.query(
-          'SELECT id,agent_id,input_tokens,output_tokens,cost_microusd,model,status,error,created_at FROM ai_runs ORDER BY created_at DESC LIMIT 100',
+          'SELECT id,agent_id,input_tokens,output_tokens,cost_microusd,model,status,error,created_at,provider_id,input_rate_microusd,output_rate_microusd FROM ai_runs ORDER BY created_at DESC LIMIT 100',
         )
       ).rows,
     }));
+  }
+  @Get('tool-audits') audits(@Req() r: AuthedRequest, @Query() query: unknown) {
+    const q = parse(
+      z.object({
+        outcome: z
+          .enum(['all', 'applied', 'noop', 'denied', 'invalid', 'limit', 'failed'])
+          .default('all'),
+        cursor: z.string().uuid().optional(),
+        runId: z.string().uuid().optional(),
+      }),
+      query,
+    );
+    return this.db.withTenant(
+      r.user.tenantId,
+      async (c) =>
+        (
+          await c.query(
+            "SELECT id,run_id,agent_id,tool_index,tool_name,input_hash,outcome,resource_id,created_at FROM ai_tool_audits WHERE ($1='all' OR outcome=$1) AND ($2::uuid IS NULL OR run_id=$2) AND ($3::uuid IS NULL OR (created_at,id)<(SELECT created_at,id FROM ai_tool_audits WHERE id=$3)) ORDER BY created_at DESC,id DESC LIMIT 100",
+            [q.outcome, q.runId ?? null, q.cursor ?? null],
+          )
+        ).rows,
+    );
   }
   @Post('providers') provider(@Req() r: AuthedRequest, @Body() body: unknown) {
     const b = parse(
