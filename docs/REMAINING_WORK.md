@@ -1,5 +1,12 @@
 # Remaining implementation — continue on PR #1
 
+## Acceptance continuation — Inbox tuple pagination (2026-10-23)
+
+Inbox API/UI now page by descending (last_message_at,id), encoding the exact PostgreSQL microsecond timestamp and ID into a validated cursor. Equal timestamps cannot skip conversations; tenant/search filters remain authoritative. Legacy before clients remain supported with their prior semantics. Migration 064 indexes the tuple. Pagination remains a live view: conversations receiving new messages can move ahead of an existing cursor.
+
+Verified: API/web TypeScript, ESLint, migration 064 and PostgreSQL smoke-inbox-cursors: nine conversations with timestamp ties and adjacent microseconds, all pages complete/unique, search, malformed cursors, cross-tenant access and legacy before. Seventeen broader PostgreSQL/worker suites and existing premium Chromium smoke also passed before this change. Next: rebuilt runtime and Inbox/browser regression, remaining automation recovery/integration and billing/email work. Product is not fully accepted.
+
+
 ## Acceptance continuation — AI failure auditing (2026-10-23)
 
 Generation now creates a run before provider execution, updates its immutable provider/model/rate snapshot with actual usage on success, and records a sanitized failure code on provider/execution failure. Unknown failure cost stays null. Failures honor handoff_enabled and do not automatically replay a provider call. Bilingual run history gives recovery guidance. This is handled-failure auditing; process-crash durability/reservations and cost caps remain open.

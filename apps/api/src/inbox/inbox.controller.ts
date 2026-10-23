@@ -37,6 +37,11 @@ const listQuery = z.object({
   unread: z.enum(['true', 'false']).optional(),
   q: z.string().max(100).optional(),
   before: z.string().datetime().optional(),
+  cursor: z
+    .string()
+    .max(300)
+    .regex(/^[A-Za-z0-9_-]+$/)
+    .optional(),
   limit: z.coerce.number().int().min(1).max(100).default(30),
 });
 const messagesQuery = z.object({
@@ -95,6 +100,17 @@ export class InboxController {
   @Get('conversations')
   list(@Req() req: AuthedRequest, @Query() query: unknown) {
     const q = parse(listQuery, query);
+    let cursor: { at: string; id: string } | undefined;
+    if (q.cursor) {
+      try {
+        cursor = z
+          .object({ at: z.string().datetime(), id: z.string().uuid() })
+          .strict()
+          .parse(JSON.parse(Buffer.from(q.cursor, 'base64url').toString('utf8')));
+      } catch {
+        throw new BadRequestException('Invalid conversation cursor');
+      }
+    }
     const assigneeMode = !q.assignee ? null : q.assignee === 'unassigned' ? 'unassigned' : 'user';
     const assigneeId =
       q.assignee === 'me'
@@ -107,6 +123,7 @@ export class InboxController {
     return this.db.withTenant(req.user.tenantId, async (c) => {
       const r = await c.query(
         `SELECT cv.id, cv.status, cv.handled_by, cv.assigned_to, au.full_name AS assignee_name, cv.last_message_at,
+                to_char(cv.last_message_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_at,
                 cv.unread_count, cv.last_inbound_at, ch.id AS channel_id, ch.type AS channel_type, ch.name AS channel_name,
                 ct.id AS contact_id, ct.name AS contact_name, ct.phone AS contact_phone,
                 (SELECT m.content FROM messages m WHERE m.conversation_id = cv.id AND m.is_internal = false ORDER BY m.seq DESC LIMIT 1) AS last_message
@@ -116,28 +133,38 @@ export class InboxController {
          LEFT JOIN users au ON au.id = cv.assigned_to
          WHERE ($1::text IS NULL OR ($1 = 'active' AND cv.status <> 'closed') OR cv.status = $1)
            AND ($2::uuid IS NULL OR cv.channel_id = $2)
-           AND ($3::timestamptz IS NULL OR cv.last_message_at < $3)
+           AND ($3::timestamptz IS NULL OR ($10::uuid IS NULL AND cv.last_message_at < $3) OR ($10::uuid IS NOT NULL AND (cv.last_message_at,cv.id)<($3,$10)))
            AND ($5::text IS NULL OR ($5 = 'unassigned' AND cv.assigned_to IS NULL) OR ($5 = 'user' AND cv.assigned_to = $6::uuid))
            AND ($7::text IS NULL OR cv.handled_by = $7)
            AND (NOT $8::boolean OR cv.unread_count > 0)
            AND ($9::text IS NULL OR ct.name ILIKE $9 OR ct.phone ILIKE $9 OR EXISTS (
                  SELECT 1 FROM messages m WHERE m.conversation_id = cv.id AND m.is_internal = false AND m.content->>'text' ILIKE $9))
-         ORDER BY cv.last_message_at DESC LIMIT $4`,
+         ORDER BY cv.last_message_at DESC,cv.id DESC LIMIT $4`,
         [
           q.status ?? null,
           q.channelId ?? null,
-          q.before ?? null,
+          cursor?.at ?? q.before ?? null,
           q.limit,
           assigneeMode,
           assigneeId,
           q.handledBy ?? null,
           q.unread === 'true',
           pattern,
+          cursor?.id ?? null,
         ],
       );
       return {
         items: r.rows,
         nextBefore: r.rows.length === q.limit ? r.rows[r.rows.length - 1].last_message_at : null,
+        nextCursor:
+          r.rows.length === q.limit
+            ? Buffer.from(
+                JSON.stringify({
+                  at: r.rows[r.rows.length - 1].cursor_at,
+                  id: r.rows[r.rows.length - 1].id,
+                }),
+              ).toString('base64url')
+            : null,
       };
     });
   }

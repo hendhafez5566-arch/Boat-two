@@ -89,7 +89,7 @@ export default function Inbox() {
       const r = await api<any>(`/conversations?${qs}`);
       if (currentQuery.current !== qs) return;
       setItems(r.items);
-      setNextBefore(r.nextBefore);
+      setNextBefore(r.nextCursor);
       setChecked([]);
     } catch (e: any) {
       setError(e.message);
@@ -170,12 +170,12 @@ export default function Inbox() {
   async function moreConversations() {
     if (!nextBefore || loadingMore) return;
     setLoadingMore(true);
-    const qs = `${TAB_QUERY[tab]}${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ''}${channelId ? `&channelId=${channelId}` : ''}&before=${encodeURIComponent(nextBefore)}`;
+    const qs = `${TAB_QUERY[tab]}${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ''}${channelId ? `&channelId=${channelId}` : ''}&cursor=${encodeURIComponent(nextBefore)}`;
     try {
       const r = await api<any>(`/conversations?${qs}`);
-      if (currentQuery.current !== qs.split('&before=')[0]) return;
+      if (currentQuery.current !== qs.split('&cursor=')[0]) return;
       setItems((cur) => [...cur, ...r.items.filter((x: any) => !cur.some((y) => y.id === x.id))]);
-      setNextBefore(r.nextBefore);
+      setNextBefore(r.nextCursor);
     } catch (e) {
       setError((e as Error).message);
     } finally {
