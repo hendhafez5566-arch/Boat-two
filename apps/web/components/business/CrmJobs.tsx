@@ -1,7 +1,7 @@
 'use client';
 import { statusLabel } from '../product/status';
 import { CrmRetention } from './CrmRetention';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 import { useData } from './useData';
@@ -20,6 +20,13 @@ type Job = {
 export function CrmJobs() {
   const { t } = useLocale();
   const jobs = useData<Job[]>('/crm/jobs', []);
+  useEffect(() => {
+    const reload = () => {
+      void jobs.reload();
+    };
+    window.addEventListener('boat:crm-jobs', reload);
+    return () => window.removeEventListener('boat:crm-jobs', reload);
+  }, [jobs.reload]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [asOf, setAsOf] = useState('');
@@ -40,7 +47,7 @@ export function CrmJobs() {
     }
   }
   return (
-    <section className="card stack">
+    <section id="crm-jobs" className="card stack">
       <h2>{t('مهام استيراد وتصدير العملاء', 'Contact import and export jobs')}</h2>
       <p>
         {t(
@@ -140,7 +147,12 @@ export function CrmJobs() {
       {jobs.data.map((job) => (
         <article key={job.id} className="rounded-xl border p-3">
           <strong>
-            {job.kind} · {statusLabel(job.status, t)}
+            {job.kind === 'activity_export'
+              ? t('سجل العميل', 'Customer activity')
+              : job.kind === 'export'
+                ? t('تصدير العملاء', 'Contact export')
+                : t('استيراد العملاء', 'Contact import')}{' '}
+            · {statusLabel(job.status, t)}
           </strong>
           <p>
             {job.processed}/{job.total} · {t('ناجح', 'Succeeded')}: {job.succeeded}

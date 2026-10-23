@@ -1,4 +1,5 @@
 'use client';
+import { ContactActivityExport } from '../../../components/business/ContactActivityExport';
 import { statusLabel } from '../../../components/product/status';
 import { CrmJobs } from '../../../components/business/CrmJobs';
 import { ContactLifecycle } from '../../../components/business/ContactLifecycle';
@@ -719,6 +720,7 @@ export default function CRM() {
             <p>{t('جارٍ التحميل…', 'Loading…')}</p>
           ) : (
             <>
+              <ContactActivityExport key={selected.id} contactId={selected.id} />
               <div className="card-grid">
                 <div>
                   <h3 className="font-bold">{t('المحادثات', 'Conversations')}</h3>

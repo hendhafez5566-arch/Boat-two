@@ -9,6 +9,7 @@ const db = new DatabaseService(),
   events = { publish: async () => {} },
   controller = new CrmJobsController(db, events),
   worker = new CrmJobs(db, events, {});
+let fixtureTenant;
 try {
   const r = await fetch((process.env.SMOKE_API_URL || 'http://localhost:4122') + '/auth/register', {
     method: 'POST',
@@ -28,6 +29,7 @@ try {
         userId: JSON.parse(Buffer.from(a.accessToken.split('.')[1], 'base64url')).sub,
       },
     };
+  fixtureTenant = a.tenantId;
   await db.withTenant(a.tenantId, (c) =>
     c.query(
       "INSERT INTO contacts(tenant_id,name) SELECT $1,'Frozen '||n FROM generate_series(1,5000) n",
@@ -96,5 +98,10 @@ try {
     'CRM ordinal storage: 5000 frozen profiles, concurrent workers/replay, constant-size metadata/no result JSON copying, exact complete bounded paging, immutable payload and legacy compatibility passed.',
   );
 } finally {
+  // Storage/worker tests use explicit handlers; unused contact-trigger fixtures must not pollute unrelated worker acceptance.
+  if (fixtureTenant)
+    await db.withTenant(fixtureTenant, (c) =>
+      c.query('DELETE FROM domain_events WHERE tenant_id=$1', [fixtureTenant]),
+    );
   await db.onModuleDestroy();
 }

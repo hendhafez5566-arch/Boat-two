@@ -7,6 +7,7 @@ const local = createRequire(new URL('../apps/api/package.json', import.meta.url)
 const { DatabaseService } = local('./dist/database/database.service.js');
 const db = new DatabaseService(),
   base = process.env.SMOKE_API_URL || 'http://localhost:4122';
+const fixtureTenants = [];
 async function register(name) {
   const r = await fetch(base + '/auth/register', {
     method: 'POST',
@@ -24,6 +25,7 @@ async function register(name) {
 try {
   const a = await register('Bounded load workspace'),
     b = await register('Isolated load workspace');
+  fixtureTenants.push(a.tenantId, b.tenantId);
   await db.withTenant(a.tenantId, (c) =>
     c.query(
       "INSERT INTO contacts(tenant_id,name) SELECT $1,'Synthetic load contact '||lpad(n::text,4,'0') FROM generate_series(1,2000) n",
@@ -75,5 +77,10 @@ try {
   assert.ok(result.maxMs < 10000, 'Bounded local read should complete within ten seconds');
   console.log(JSON.stringify(result));
 } finally {
+  // These fixtures test reads only; remove their unused contact-trigger events after assertions.
+  for (const tenant of fixtureTenants)
+    await db.withTenant(tenant, (c) =>
+      c.query('DELETE FROM domain_events WHERE tenant_id=$1', [tenant]),
+    );
   await db.onModuleDestroy();
 }

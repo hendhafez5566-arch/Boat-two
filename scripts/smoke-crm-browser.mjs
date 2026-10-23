@@ -136,6 +136,33 @@ try {
   const payload = JSON.parse(await readFile(await file.path(), 'utf8'));
   assert.ok(payload.result.some((row) => row.name === 'Browser customer'));
 
+  await page.getByRole('button', { name: 'Browser customer', exact: true }).click();
+  await page.getByText('Export customer activity and consent', { exact: true }).click();
+  const [activityResponse] = await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith('/crm/jobs') && r.request().method() === 'POST'),
+    page.getByRole('button', { name: 'Create activity snapshot', exact: true }).click(),
+  ]);
+  assert.equal(activityResponse.status(), 201);
+  const activityJob = await activityResponse.json();
+  assert.equal(activityJob.kind, 'activity_export');
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const currentJobs = await call('/crm/jobs', undefined, a.accessToken);
+    if (currentJobs.find((j) => j.id === activityJob.id)?.status === 'completed') break;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  await jobPanel.getByRole('button', { name: 'Refresh', exact: true }).click();
+  const activityCard = jobPanel.locator('article').filter({ hasText: 'Customer activity' });
+  const [activityFile] = await Promise.all([
+    page.waitForEvent('download'),
+    activityCard.getByRole('button', { name: 'Download results', exact: true }).click(),
+  ]);
+  const activity = JSON.parse(await readFile(await activityFile.path(), 'utf8'));
+  assert.equal(activity.contact_id, contact.id);
+  assert.match(activity.history_semantics, /retained_observed/);
+  assert.ok(activity.result.some((row) => row.kind === 'profile_history'));
+  assert.ok(activity.result.some((row) => row.kind === 'task_current'));
+  assert.ok(activity.result.some((row) => row.kind === 'deal_current'));
+
   await page.getByText('CRM history & job payload retention', { exact: true }).click();
   await page.getByRole('button', { name: 'Preview cleanup', exact: true }).click();
   await page.getByRole('button', { name: 'Confirm permanent cleanup', exact: true }).waitFor();
@@ -150,7 +177,7 @@ try {
   assert.ok(deals.items.some((x) => x.title === 'Browser deal'));
   assert.deepEqual(errors, []);
   console.log(
-    'CRM Chromium: network failure/retry, actual contact/pipeline/deal/task creation, snapshot export, retention preview, API persistence and desktop/mobile passed. Cleanup was not applied.',
+    'CRM Chromium: network failure/retry, actual contact/pipeline/deal/task creation, snapshot/activity downloads, retained profile history and current work, retention preview, API persistence and desktop/mobile passed. Cleanup was not applied.',
   );
 } finally {
   await browser.close();

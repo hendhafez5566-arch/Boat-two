@@ -1,3 +1,11 @@
+## Retained activity export completion — 2026-10-23 UTC
+
+Previous checkpoint a87d49f pushed/remote-verified. Migration 075 extends existing CRM jobs with activity_export, using ordinal storage and the same worker/paging/retention paths. Export freezes retained profile/consent history, notes and conversation/event metadata across canonical/merged identities plus current task/deal values. Source event payloads are excluded. Range validation and 50000-record bound remain. Download includes explicit history semantics/coverage/contact/date metadata. Bilingual customer-profile form queues the job, refreshes the existing jobs list and links to actual JSON download.
+
+API TypeScript, ESLint and production Next build passed. New PostgreSQL smoke verifies 260 notes across chunks, original merged consent/history, post-freeze note mutations, all record categories, no raw-event sentinel, empty/range/tenant checks. Expanded actual CRM Chromium creates and downloads the activity snapshot and checks its real contents in addition to the prior CRM journey. Storage/load fixtures now remove only their own unused contact-trigger events after assertions, preventing artificial test queue pollution. The fairness defect remains fixed and its independent tests passed twice; no assertions/timing thresholds were weakened.
+
+Frozen matrix now 23 CLOSED / 18 OPEN local requirements + 7 external/owner dependencies. Broad latest-source regression and all browser suites run next. No V1 CODE COMPLETE or production claim.
+
 ## CRM ordinal storage and tenant dispatch checkpoint — 2026-10-23 UTC
 
 Previous bot checkpoint b99c9f0 pushed/remote-verified. Migration 073 adds tenant-isolated immutable ordinal export payloads and automatic expiration cleanup. New current/historical exports use one PostgreSQL INSERT SELECT to freeze values; job metadata stays small; workers count the next 250 ordinals without copying JSON; API pages use the ordinal index. Existing legacy input/results stay compatible. Existing 50000/10000 limits and 900KB UI import limit remain, and CRM-02 stays OPEN for remaining large upload/storage work.

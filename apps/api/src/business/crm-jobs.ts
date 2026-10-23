@@ -1,3 +1,4 @@
+import { freezeContactActivity } from './crm-activity-export';
 import {
   BadRequestException,
   Body,
@@ -158,6 +159,12 @@ export class CrmJobsController {
   @Post() async create(@Req() r: AuthedRequest, @Body() body: unknown) {
     const input = parse(
       z.discriminatedUnion('kind', [
+        z.object({
+          kind: z.literal('activity_export'),
+          contactId: z.string().uuid(),
+          from: z.string().datetime().optional(),
+          to: z.string().datetime().optional(),
+        }),
         z.object({ kind: z.literal('import'), contacts: z.array(contactSchema).min(1).max(10000) }),
         z.object({
           kind: z.literal('export'),
@@ -179,6 +186,24 @@ export class CrmJobsController {
         ) >= 3
       )
         throw new BadRequestException('At most three active CRM jobs per workspace');
+      if (input.kind === 'activity_export') {
+        const job = await freezeContactActivity(
+          c,
+          r.user.tenantId,
+          r.user.userId,
+          input.contactId,
+          input.from,
+          input.to,
+        );
+        await this.events.publish(
+          r.user.tenantId,
+          'crm.job',
+          job.id,
+          { jobId: job.id },
+          `crm-job:${job.id}:0`,
+        );
+        return job;
+      }
       const data: unknown = input;
       let total = input.kind === 'import' ? input.contacts.length : 0;
       if (input.kind === 'export') {
@@ -275,7 +300,7 @@ export class CrmJobsController {
     return this.db.withTenant(r.user.tenantId, async (c) => {
       const row = (
         await c.query(
-          "SELECT errors,processed,succeeded,expired_at,CASE WHEN input->>'storage'='ordinal_rows_v1' THEN total ELSE jsonb_array_length(result) END AS total,input->>'storage' AS storage,input->>'snapshotAt' AS snapshot_at FROM crm_jobs WHERE id=$1 AND status='completed'",
+          "SELECT errors,processed,succeeded,expired_at,CASE WHEN input->>'storage'='ordinal_rows_v1' THEN total ELSE jsonb_array_length(result) END AS total,input->>'storage' AS storage,input->>'snapshotAt' AS snapshot_at,input->>'historySemantics' AS history_semantics,input->'historyCoverage' AS history_coverage,input->>'contactId' AS contact_id,input->>'from' AS from_at,input->>'to' AS to_at FROM crm_jobs WHERE id=$1 AND status='completed'",
           [id],
         )
       ).rows[0];

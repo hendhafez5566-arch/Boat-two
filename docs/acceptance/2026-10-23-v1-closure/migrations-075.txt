@@ -1,0 +1,2 @@
+Applying 075_crm_activity_exports.sql
+Migrations up to date
