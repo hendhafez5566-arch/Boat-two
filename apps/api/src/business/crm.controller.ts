@@ -507,6 +507,51 @@ export class CrmController {
       ).rows[0];
     });
   }
+  @Patch('pipelines/:id/owner') @Roles('owner', 'admin') reassignPipeline(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const b = parse(
+      z
+        .object({
+          ownerId: z.string().uuid().nullable(),
+          revision: z.number().int().positive(),
+          transferOpenDeals: z.boolean().default(false),
+        })
+        .strict(),
+      body,
+    );
+    return this.crm.db.withTenant(r.user.tenantId, async (c) => {
+      const pipeline = (await c.query('SELECT * FROM crm_pipelines WHERE id=$1 FOR UPDATE', [id]))
+        .rows[0];
+      if (!pipeline) throw new NotFoundException('Pipeline not found');
+      if (pipeline.ownership_revision !== b.revision)
+        throw new BadRequestException('Pipeline ownership changed; reload before reassigning');
+      if (
+        b.ownerId &&
+        !(await c.query('SELECT 1 FROM memberships WHERE user_id=$1 FOR SHARE', [b.ownerId]))
+          .rowCount
+      )
+        throw new BadRequestException('Owner must be a workspace member');
+      let transferred = 0;
+      if (b.transferOpenDeals && b.ownerId !== pipeline.owner_id)
+        transferred =
+          (
+            await c.query(
+              "UPDATE crm_deals SET owner_id=$2,updated_at=now() WHERE pipeline_id=$1 AND status='open' AND owner_id IS NOT DISTINCT FROM $3::uuid",
+              [id, b.ownerId, pipeline.owner_id],
+            )
+          ).rowCount ?? 0;
+      const row = (
+        await c.query(
+          'UPDATE crm_pipelines SET owner_id=$2,ownership_revision=ownership_revision+1 WHERE id=$1 RETURNING *',
+          [id, b.ownerId],
+        )
+      ).rows[0];
+      return { ...row, transferred };
+    });
+  }
   @Delete('pipelines/:id') @Roles('owner', 'admin') deletePipeline(
     @Req() r: AuthedRequest,
     @Param('id', ParseUUIDPipe) id: string,

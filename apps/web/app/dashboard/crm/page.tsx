@@ -18,7 +18,13 @@ type Contact = {
   archived_at: string | null;
   attributes: Record<string, string | number | boolean | null>;
 };
-type Pipeline = { id: string; name: string; stages: string[] };
+type Pipeline = {
+  id: string;
+  name: string;
+  stages: string[];
+  owner_id: string | null;
+  ownership_revision: number;
+};
 type Deal = {
   id: string;
   title: string;
@@ -946,6 +952,48 @@ export default function CRM() {
             {pipelines.data.map((pipeline) => (
               <details key={pipeline.id} className="rounded-xl border p-4">
                 <summary className="cursor-pointer font-semibold">{pipeline.name}</summary>
+                <form
+                  className="stack mt-4"
+                  onSubmit={async (event) => {
+                    event.preventDefault();
+                    const form = new FormData(event.currentTarget);
+                    await act(
+                      '/crm/pipelines/' + pipeline.id + '/owner',
+                      {
+                        ownerId: form.get('owner') || null,
+                        revision: pipeline.ownership_revision,
+                        transferOpenDeals: form.has('transfer'),
+                      },
+                      'PATCH',
+                    ).catch(() => {});
+                  }}
+                >
+                  <label className="field">
+                    {t('مسؤول خط المبيعات', 'Pipeline owner')}
+                    <select
+                      name="owner"
+                      key={pipeline.ownership_revision}
+                      defaultValue={pipeline.owner_id || ''}
+                    >
+                      <option value="">{t('بدون مسؤول', 'Unassigned')}</option>
+                      {team.data.members.map((member) => (
+                        <option key={member.user_id} value={member.user_id}>
+                          {member.full_name || member.email}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <input type="checkbox" name="transfer" />{' '}
+                    {t(
+                      'نقل الصفقات المفتوحة التابعة للمسؤول السابق فقط (يشمل غير المعيّنة إذا كان الخط بدون مسؤول)',
+                      'Also transfer open deals owned by the previous pipeline owner (includes unassigned deals if the pipeline was unassigned)',
+                    )}
+                  </label>
+                  <button className="btn" disabled={busy}>
+                    {t('حفظ المسؤول', 'Save ownership')}
+                  </button>
+                </form>
                 <form
                   className="mt-4 space-y-3"
                   onSubmit={async (event) => {

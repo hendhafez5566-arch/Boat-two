@@ -1,5 +1,12 @@
 # Remaining implementation — continue on PR #1
 
+## Acceptance continuation — pipeline ownership (2026-10-23)
+
+Migration 063 adds pipeline owner and ownership revision. Owner/admin can reassign through the connected bilingual pipeline form with membership/revision checks and audit. Optional explicit transfer changes only open deals belonging to the previous pipeline owner; separately assigned and closed deals are retained. Contacts/consent are untouched. No automatic reassignment follows a pipeline ownership edit.
+
+Verified: API/web TypeScript, ESLint, migration 063 and PostgreSQL smoke-pipeline-ownership (explicit transfer, preservation, default no-transfer, invalid member, stale revision, cross-tenant denial and audit). Next: campaign creation/preview and broader browser acceptance; remaining historical CRM/retention scope stays open.
+
+
 ## Acceptance continuation — frozen CRM exports (2026-10-23)
 
 New export jobs freeze all selected profile values in a single PostgreSQL statement at request time, then use the existing chunked worker. Later edits/archive/merge cannot mix different profile moments into one export. Job/result API and bilingual UI expose snapshot time. Legacy jobs retain prior semantics. No new historical profile store or arbitrary pre-request as-of reconstruction is claimed; job snapshots remain subject to existing retention/scaling work.
