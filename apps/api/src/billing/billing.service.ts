@@ -474,6 +474,18 @@ export class BillingService {
           'UPDATE subscriptions SET next_reconciliation_at=LEAST(next_reconciliation_at,now())',
         );
       }
+      if (
+        isSubscription &&
+        event.id.startsWith('reconcile_') &&
+        event.created === Number(subscription.stripe_event_created) &&
+        subscription.stripe_event_id &&
+        event.type !== 'customer.subscription.deleted'
+      ) {
+        reason = 'Reconciliation read overlaps applied event second; retry a later snapshot';
+        await c.query(
+          "UPDATE subscriptions SET next_reconciliation_at=LEAST(next_reconciliation_at,now()+interval '1 minute')",
+        );
+      }
       if (checkout && (!object.metadata?.planCode || !incomingId || !customerId))
         reason = 'Checkout is missing subscription identity or plan metadata';
       if (

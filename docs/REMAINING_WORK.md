@@ -1,5 +1,11 @@
 # Remaining implementation — continue on PR #1
 
+## Concurrency hardening checkpoint (2026-10-23)
+
+Migration 056 prevents password-only sign-in from replacing an already-authorized MFA recovery enrollment challenge. Losing/expiring that recovery challenge after backup codes are consumed requires externally reviewed recovery, rather than a password bypass. Domain acceptance locks domain before transfer state to match revocation. Reconciliation reads overlapping an already-applied event second are deferred to a later snapshot instead of overwriting potentially newer provider state.
+
+API build, migrations and expanded MFA/catalog/domain PostgreSQL/API smokes pass, including recovery challenge preservation and equal-second read rejection. Next: final full production build/unit/lint and clean migration verification through 056, then save exact current remote HEAD and remaining scope.
+
 ## Continuation — AI tool decisions and historical cost inputs (2026-10-23)
 
 Migration 055 adds tenant-scoped append-only tool decision records, stable run/tool indexes and hashed inputs. Shared execution rechecks current agent/tool/provider permissions and local active contact scope, validates inputs, enforces the three-tool action bound, records applied/no-op/denied/invalid/limit/failed decisions and prevents duplicate CRM effects on replay. Changed replay inputs are refused. Handoff is an audited request consumed by the existing conversation workflow. The connected agents screen filters/pages audit records without customer payloads. AI runs now snapshot provider ID/model and input/output cost rates, visible alongside the estimate; this is not a provider invoice or complete model-price catalog.

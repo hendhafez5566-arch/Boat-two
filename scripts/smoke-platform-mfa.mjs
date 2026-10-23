@@ -264,6 +264,11 @@ try {
   );
   const recovered = recoveries.find((r) => r.status === 201).data;
   assert.equal(
+    (await request('/login', { email, password })).status,
+    403,
+    'Password alone cannot replace a recovery enrollment challenge',
+  );
+  assert.equal(
     (await request('/session', undefined, recovered.setupToken)).status,
     403,
     'Recovery grants enrollment only',

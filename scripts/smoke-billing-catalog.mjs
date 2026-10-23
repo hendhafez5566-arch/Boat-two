@@ -187,6 +187,30 @@ try {
   await requests.process({ tenantId: a.tenantId, id: request.id });
   assert.equal(writes, 1);
   assert.equal((await effective()).plan_code, target);
+  const tieTime = Math.floor(Date.now() / 1000);
+  await db.withTenant(a.tenantId, (c) =>
+    c.query(
+      "UPDATE subscriptions SET status='past_due',stripe_event_created=$1,stripe_event_id='evt_tie_fixture'",
+      [tieTime],
+    ),
+  );
+  billing.effects.execute = async () => ({
+    readAt: tieTime,
+    subscription: {
+      id: sub,
+      customer,
+      status: 'active',
+      metadata: { planCode: target },
+      items: { data: [{ price: { id: targetPrice } }] },
+    },
+  });
+  const overlap = await billing.reconcile(a.tenantId, randomUUID());
+  assert.equal(overlap.ignored, true);
+  assert.equal(
+    (await effective()).status,
+    'past_due',
+    'Overlapping read must not erase an equal-second subscription event',
+  );
   console.log(
     'PASS catalog/delinquency: immutable operator price registry, app-role denial, authoritative price mapping, retired prices, equal-time ambiguity, grace downgrade/recovery and mocked no-proration plan change.',
   );
