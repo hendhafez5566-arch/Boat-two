@@ -1,5 +1,9 @@
 # Custom domain hosting boundary
 
+## Latest continuation status
+
+Migrations 048/051/056 connect delinquency-aware eligibility, explicit owner-approved transfers with fresh receiver TXT/one-use secret, same-owner reclaim and consistent revocation locks. See [verified sprint report](SPRINT_2026-10-23_CONTINUATION.md). Real ingress/ACME, white-label auth and branded email remain open. No production domain, DNS or certificate was activated. Earlier transfer-as-future notes are superseded by the explicit transfer policy below.
+
 Migration 044 connects verified domains to an optional ingress. The owner/admin first registers a hostname, publishes its unique TXT, verifies ownership and requests hosting. All writes retain tenant RLS, audit and white-label entitlement checks. Revocation/disable increments a generation so obsolete recheck events cannot reactivate hosting.
 
 `CUSTOM_DOMAINS_ENABLED=false` is the default. No domain, DNS, ingress or certificate was activated in development. Only after owner authorization, the operator must:

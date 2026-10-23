@@ -1,5 +1,9 @@
 # Platform administration activation and development boundary
 
+## Latest continuation status
+
+Migrations 048–056 add local price lifecycle, segmented reads, mandatory single-use operation step-up, hash-only backup-code recovery and ledger-backed reports. See [verified sprint report](SPRINT_2026-10-23_CONTINUATION.md) for exact coverage/limits; this supersedes earlier descriptions of these slices as future work. No real operator account was activated. Recovery enrollment cannot be replaced by password-only login; a lost/expired recovery challenge requires external identity review.
+
 The `/platform` console is separate from tenant dashboards. It requires all of:
 
 - `PLATFORM_ADMIN_USER_IDS`: a comma-separated allowlist of immutable existing user UUIDs, provisioned by the operator outside tenant APIs. Tenant owners cannot change this list.
