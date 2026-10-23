@@ -19,6 +19,11 @@ export function CrmJobs() {
   const jobs = useData<Job[]>('/crm/jobs', []);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [asOf, setAsOf] = useState('');
+  const history = useData<{ available_from: string; pending_changes: number } | null>(
+    '/crm/jobs/history',
+    null,
+  );
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
     setError('');
@@ -51,6 +56,26 @@ export function CrmJobs() {
           {error || jobs.error}
         </p>
       )}
+      <div className="stack">
+        <label className="field">
+          {t('تصدير تاريخ مسجّل (اختياري)', 'Recorded historical export (optional)')}
+          <input type="datetime-local" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
+        </label>
+        <p className="muted">
+          {t(
+            'التاريخ يعكس التغييرات المؤكدة التي سجلها الدفتر بعد الالتزام، وليس وقت الالتزام الأصلي. لا يشمل تاريخًا قبل بدء الدفتر أو بعد حذف فترة الاحتفاظ.',
+            'History reflects committed changes when observed by the journal, not their original database commit timestamp. Times before journal coverage or retained history are unavailable.',
+          )}
+        </p>
+        {history.data && (
+          <p>
+            {t('متاح منذ: ', 'Available since: ')}
+            {new Date(history.data.available_from).toLocaleString()} ·{' '}
+            {t('تغييرات تنتظر التسجيل: ', 'Changes awaiting recording: ')}
+            {history.data.pending_changes}
+          </p>
+        )}
+      </div>
       <div className="form-actions">
         <label className="btn">
           {t('استيراد CSV أو JSON', 'Import CSV or JSON')}
@@ -90,7 +115,13 @@ export function CrmJobs() {
           disabled={busy}
           onClick={() =>
             void run(() =>
-              api('/crm/jobs', { method: 'POST', body: JSON.stringify({ kind: 'export' }) }),
+              api('/crm/jobs', {
+                method: 'POST',
+                body: JSON.stringify({
+                  kind: 'export',
+                  ...(asOf ? { asOf: new Date(asOf).toISOString() } : {}),
+                }),
+              }),
             )
           }
         >

@@ -126,11 +126,28 @@ export class CrmJobsController {
         ).rows,
     );
   }
+  @Get('history') history(@Req() r: AuthedRequest) {
+    return this.db.withTenant(
+      r.user.tenantId,
+      async (c) =>
+        (
+          await c.query(
+            `SELECT COALESCE((SELECT available_from FROM crm_history_bounds),(SELECT greatest(created_at,(SELECT started_at FROM crm_history_epoch)) FROM tenants)) AS available_from,
+       (SELECT max(recorded_at) FROM crm_contact_history) AS latest_recorded_at,
+       (SELECT count(*)::int FROM crm_contact_changes) AS pending_changes`,
+          )
+        ).rows[0],
+    );
+  }
   @Post() async create(@Req() r: AuthedRequest, @Body() body: unknown) {
     const input = parse(
       z.discriminatedUnion('kind', [
         z.object({ kind: z.literal('import'), contacts: z.array(contactSchema).min(1).max(10000) }),
-        z.object({ kind: z.literal('export'), filters: filtersSchema.default({}) }),
+        z.object({
+          kind: z.literal('export'),
+          filters: filtersSchema.default({}),
+          asOf: z.string().datetime().optional(),
+        }),
       ]),
       body,
     );
@@ -150,21 +167,51 @@ export class CrmJobsController {
         total = input.kind === 'import' ? input.contacts.length : 0;
       if (input.kind === 'export') {
         const where = contactWhere(input.filters);
-        const rows = (
-          await c.query(
-            `SELECT id,name,email,phone,lifecycle,tags,attributes,owner_id,archived_at,
-             statement_timestamp() AS snapshot_at FROM contacts WHERE ${where.sql} ORDER BY id LIMIT 50001`,
-            where.params,
+        if (input.asOf) {
+          if (new Date(input.asOf).getTime() > Date.now())
+            throw new BadRequestException('Historical time cannot be in the future');
+          const coverage = await this.history(r);
+          if (
+            !(
+              await c.query(
+                `SELECT $1::timestamptz>=COALESCE((SELECT available_from FROM crm_history_bounds),(SELECT greatest(created_at,(SELECT started_at FROM crm_history_epoch)) FROM tenants)) AS covered`,
+                [input.asOf],
+              )
+            ).rows[0].covered
           )
-        ).rows;
+            throw new BadRequestException('Time precedes retained CRM history');
+          if (coverage.pending_changes)
+            throw new BadRequestException('CRM history is catching up; refresh and retry');
+        }
+        const rows = input.asOf
+          ? (
+              await c.query(
+                `WITH latest AS (SELECT DISTINCT ON(contact_id) snapshot,deleted FROM crm_contact_history WHERE recorded_at<=$5 ORDER BY contact_id,recorded_at DESC,change_id DESC),
+           profiles AS (SELECT (jsonb_populate_record(NULL::contacts,snapshot)).* FROM latest WHERE NOT deleted)
+           SELECT id,name,email,phone,lifecycle,tags,attributes,owner_id,archived_at FROM profiles WHERE ${where.sql} ORDER BY id LIMIT 50001`,
+                [...where.params, input.asOf],
+              )
+            ).rows
+          : (
+              await c.query(
+                `SELECT id,name,email,phone,lifecycle,tags,attributes,owner_id,archived_at,
+             statement_timestamp() AS snapshot_at FROM contacts WHERE ${where.sql} ORDER BY id LIMIT 50001`,
+                where.params,
+              )
+            ).rows;
         if (rows.length > 50000)
           throw new BadRequestException('Narrow the export to at most 50,000 contacts');
         // One SELECT captures all values from one PostgreSQL statement snapshot.
         // Never reread live profiles in later worker chunks.
         const snapshotAt =
-          rows[0]?.snapshot_at ?? (await c.query('SELECT statement_timestamp() AS at')).rows[0].at;
+          input.asOf ??
+          rows[0]?.snapshot_at ??
+          (await c.query('SELECT statement_timestamp() AS at')).rows[0].at;
         data = {
           snapshotAt,
+          historySemantics: input.asOf
+            ? 'committed_changes_observed_by_journal'
+            : 'request_time_statement_snapshot',
           snapshots: rows.map((row) => {
             const copy = { ...row };
             delete copy.snapshot_at;

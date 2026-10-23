@@ -57,6 +57,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         await this.db.query('SELECT billing_schedule_due(30)');
         this.nextBillingSchedule = Date.now() + 60_000;
       }
+      await this.db.query('SELECT crm_history_drain(1000)');
       await this.db.query('SELECT materialize_realtime(1000)');
       const due = await this.db.query<{ id: string; tenant_id: string }>(
         'SELECT * FROM event_due(30)',

@@ -1,5 +1,12 @@
 # ELHAFEZ BOAT — Product completion matrix
 
+## Maximum-scope continuation — recorded historical CRM exports (2026-10-23)
+
+Migration 067 adds tenant-isolated immutable profile history. Source transactions enqueue snapshots; the existing worker observes committed changes and assigns journal times after commit. Rollbacks never enter history. Existing profiles have a migration baseline. Export jobs can select an observed as-of time, apply existing filters to historical values and freeze results through the existing worker; current snapshot exports are retained. UI/API expose coverage and backlog, reject pre-coverage/future times, and explain observation-time semantics (not original database commit timestamps). No pre-migration history is invented.
+
+API/web TypeScript, ESLint, migration, smoke-crm-history and existing snapshot smoke pass: historical values/archive state, precise coverage, future denial, rollback exclusion, chunked export and tenant isolation. Next: explicit retention/cleanup with predecessor preservation and bounded result downloads, then campaign/integration/email completion. External gates remain disabled.
+
+
 ## Maximum-scope continuation — bilingual AI workspace and accurate attempts (2026-10-23)
 
 Replaced the legacy Arabic-only AI settings screen with shared premium forms/cards, Arabic/English direction, accessible labels, bounded context/variation fields, role-aware editing, persistent save/reopen and test feedback. Provider readiness now includes tenant providers; the independent paid-call gate is explicit. Usage remaining counts durable attempts/reservations rather than successful replies alone. Existing settings/Knowledge/generation engines are retained.
