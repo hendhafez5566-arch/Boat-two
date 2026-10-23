@@ -11,6 +11,7 @@ export class BillingReconciliation {
   constructor(
     private db: DatabaseService,
     private billing: BillingService,
+    private events: EventsService,
   ) {}
   @OnEvent('billing.reconcile', { suppressErrors: false }) async process(event: {
     tenantId: string;
@@ -33,9 +34,30 @@ export class BillingReconciliation {
       }
       await c.query('SAVEPOINT billing_reconcile');
       try {
-        await this.billing.reconcile(event.tenantId, row.id);
+        if (!row.subscription_synced) await this.billing.reconcile(event.tenantId, row.id);
+        const cursor = await this.billing.backfillInvoices(
+          event.tenantId,
+          row.id,
+          row.invoice_cursor ?? undefined,
+        );
         await c.query(
-          "UPDATE billing_reconciliations SET status='completed',error=NULL,updated_at=now() WHERE id=$1",
+          'UPDATE billing_reconciliations SET subscription_synced=true,invoice_cursor=$2,invoice_pages=invoice_pages+1,updated_at=now() WHERE id=$1',
+          [row.id, cursor ?? null],
+        );
+        if (cursor) {
+          if (row.invoice_pages >= 999)
+            throw new Error('Backfill page safety bound reached; operator review required');
+          await this.events.publish(
+            event.tenantId,
+            'billing.reconcile',
+            row.id,
+            { id: row.id },
+            `billing.page:${row.id}:${cursor}`,
+          );
+          return;
+        }
+        await c.query(
+          "UPDATE billing_reconciliations SET status='completed',backfill_complete=true,error=NULL,updated_at=now() WHERE id=$1",
           [row.id],
         );
       } catch (error) {

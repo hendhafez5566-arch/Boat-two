@@ -1,5 +1,11 @@
 # Remaining implementation — continue on PR #1
 
+## Continuation — periodic billing reconciliation and invoice backfill (2026-10-23)
+
+Continued from verified `fc78c7c6baed4619619ae1a4e4631248f0b1658e`, same branch and Draft PR #1. Migration 046 adds a bounded, replica-safe due scheduler feeding the existing outbox. A separate disabled-by-default `BILLING_AUTOMATIC_RECONCILIATION_ENABLED` gate also requires Stripe configuration and external activation. Owner/periodic jobs now persist paged invoice backfill progress, validate customer/subscription ownership, and reuse the durable effect ledger. Uncertain effects cannot replay automatically. Provider reads use their start timestamp to avoid overwriting newer concurrent events. UI displays source and invoice progress.
+
+Validation: API build/TypeScript, web TypeScript, ESLint, all 52 existing unit tests, clean migrations 001–046, health check and new PostgreSQL `smoke-billing-backfill.mjs` pass (mocked SDK only; concurrency, blocked mode, pagination, durable replay and tenant isolation). No Stripe account/network call or production activation. Remaining: durable subscription change/cancel requests, catalog and delinquency policy; subsequent platform/domain/Batch 2/4 scope remains unfinished. Product is not complete.
+
 ## Current continuation delivery — 2026-10-23
 
 Newest status supersedes the historical checkpoints below. Continued from verified local/remote `c6b85ba` with six connected units, each pushed independently: audit filters/cursors/export (`94d8f5f`), immutable operator scopes (`52d3df9`), mandatory TOTP MFA (`129ac0b`, test lint fix `3d156be`), invoice ledger/external billing gates (`c575f50`), gated domain ingress/ownership rechecks (`35ad618`), and knowledge revisions/archive/bilingual editor (`ad81ab2`). Follow-up `2af9713` avoids query embedding charges when no available matching source index exists and updates the integration harness for mandatory MFA/source locking. No new branch/PR, merge, deployment or screenshots.

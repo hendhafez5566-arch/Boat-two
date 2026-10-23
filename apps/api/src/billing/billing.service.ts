@@ -158,6 +158,7 @@ export class BillingService {
     );
     if (!current?.stripe_subscription_id || !current.stripe_customer_id)
       throw new BadRequestException('Workspace has no linked Stripe subscription');
+    const readStartedAt = Math.floor(Date.now() / 1000);
     const snapshot = await this.effects.execute(
       tenant,
       { subscriptionId: current.stripe_subscription_id, customerId: current.stripe_customer_id },
@@ -165,7 +166,7 @@ export class BillingService {
         subscription: await this.requireStripe().subscriptions.retrieve(
           current.stripe_subscription_id,
         ),
-        readAt: Math.floor(Date.now() / 1000),
+        readAt: readStartedAt,
       }),
     );
     const customer =
@@ -194,6 +195,58 @@ export class BillingService {
       created: snapshot.readAt,
       data: { object: subscription },
     } as unknown as Stripe.Event);
+  }
+
+  async backfillInvoices(tenant: string, key: string, cursor?: string) {
+    const current = await this.db.withTenant(
+      tenant,
+      async (c) =>
+        (await c.query('SELECT stripe_customer_id,stripe_subscription_id FROM subscriptions'))
+          .rows[0],
+    );
+    if (!current?.stripe_customer_id || !current.stripe_subscription_id)
+      throw new BadRequestException('Workspace has no linked Stripe subscription');
+    const readStartedAt = Math.floor(Date.now() / 1000);
+    const page = await this.effects.execute(
+      tenant,
+      {
+        customer: current.stripe_customer_id,
+        subscription: current.stripe_subscription_id,
+        cursor: cursor ?? null,
+      },
+      async () => ({
+        readAt: readStartedAt,
+        page: await this.requireStripe().invoices.list({
+          customer: current.stripe_customer_id,
+          subscription: current.stripe_subscription_id,
+          limit: 100,
+          ...(cursor ? { starting_after: cursor } : {}),
+        }),
+      }),
+    );
+    for (const invoice of page.page.data) {
+      if (!invoiceSnapshot('invoice.updated', invoice))
+        throw new BadRequestException('Unsupported invoice backfill snapshot');
+      const customer =
+        typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
+      const subscription =
+        typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+      if (
+        customer !== current.stripe_customer_id ||
+        subscription !== current.stripe_subscription_id
+      )
+        throw new BadRequestException('Backfill invoice ownership mismatch');
+      await this.applyVerifiedEvent({
+        id: `backfill_${key}_${invoice.id}`,
+        type: 'invoice.updated',
+        created: page.readAt,
+        data: { object: { ...invoice, metadata: { ...invoice.metadata, tenantId: tenant } } },
+      } as unknown as Stripe.Event);
+    }
+    const next = page.page.has_more ? page.page.data.at(-1)?.id : undefined;
+    if (page.page.has_more && (!next || next === cursor))
+      throw new Error('Invalid invoice pagination');
+    return next;
   }
 
   private async applyVerifiedEvent(event: Stripe.Event) {

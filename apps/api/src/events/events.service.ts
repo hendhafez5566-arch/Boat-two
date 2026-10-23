@@ -1,6 +1,7 @@
 import { Global, Injectable, Logger, Module, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { randomUUID } from 'node:crypto';
+import { env } from '../config/env';
 import { ExternalEffects } from './external-effect';
 import { DatabaseService } from '../database/database.service';
 export interface DomainEvent {
@@ -13,6 +14,7 @@ export interface DomainEvent {
 export class EventsService implements OnModuleInit, OnModuleDestroy {
   private timer?: NodeJS.Timeout;
   private running = false;
+  private nextBillingSchedule = 0;
   private log = new Logger(EventsService.name);
   constructor(
     private db: DatabaseService,
@@ -46,6 +48,15 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     if (this.running) return;
     this.running = true;
     try {
+      if (
+        env.BILLING_AUTOMATIC_RECONCILIATION_ENABLED === 'true' &&
+        env.EXTERNAL_DELIVERY_ENABLED === 'true' &&
+        env.STRIPE_SECRET_KEY &&
+        Date.now() >= this.nextBillingSchedule
+      ) {
+        await this.db.query('SELECT billing_schedule_due(30)');
+        this.nextBillingSchedule = Date.now() + 60_000;
+      }
       await this.db.query('SELECT materialize_realtime(1000)');
       const due = await this.db.query<{ id: string; tenant_id: string }>(
         'SELECT * FROM event_due(30)',

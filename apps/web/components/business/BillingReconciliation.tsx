@@ -6,10 +6,17 @@ import { useLocale } from '../product/locale';
 export function BillingReconciliation() {
   const { t } = useLocale();
   const workspace = useData<{ role: string }>('/workspace', { role: '' });
-  const jobs = useData<{ id: string; status: string; error: string | null; created_at: string }[]>(
-    workspace.data.role === 'owner' ? '/billing/reconciliations' : null,
-    [],
-  );
+  const jobs = useData<
+    {
+      id: string;
+      status: string;
+      error: string | null;
+      created_at: string;
+      source: string;
+      invoice_pages: number;
+      backfill_complete: boolean;
+    }[]
+  >(workspace.data.role === 'owner' ? '/billing/reconciliations' : null, []);
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
   if (workspace.data.role !== 'owner') return null;
@@ -49,6 +56,15 @@ export function BillingReconciliation() {
       {jobs.data.map((job) => (
         <article key={job.id} className="border rounded p-3">
           <strong>{job.status}</strong>
+          <p>
+            {job.source === 'periodic'
+              ? t('دورية', 'Periodic')
+              : t('بطلب المالك', 'Owner requested')}{' '}
+            · {t('صفحات الفواتير', 'Invoice pages')}: {job.invoice_pages} ·{' '}
+            {job.backfill_complete
+              ? t('اكتمل الاسترجاع', 'Backfill complete')
+              : t('الاسترجاع غير مكتمل', 'Backfill incomplete')}
+          </p>
           <p>{job.error}</p>
           <small>{new Date(job.created_at).toLocaleString()}</small>
         </article>
