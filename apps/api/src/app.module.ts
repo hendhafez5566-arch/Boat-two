@@ -22,6 +22,7 @@ import { WorkspaceModule } from './workspace/workspace.module';
         level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
         redact: [
           'req.headers.authorization',
+          'req.headers.x-platform-step-up',
           'req.headers.cookie',
           'req.headers.x-visitor-token',
           'req.url',

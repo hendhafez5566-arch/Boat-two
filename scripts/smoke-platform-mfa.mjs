@@ -19,12 +19,13 @@ const uid = randomUUID(),
 const port = process.env.SMOKE_MFA_PORT || '4121',
   base = 'http://127.0.0.1:' + port;
 let server;
-async function request(path, body, token, method = body ? 'POST' : 'GET') {
+async function request(path, body, token, method = body ? 'POST' : 'GET', grant) {
   const response = await fetch(base + '/platform' + path, {
     method,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: 'Bearer ' + token } : {}),
+      ...(grant ? { 'x-platform-step-up': grant } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -103,7 +104,14 @@ try {
   );
   const session = await request('/session', undefined, token);
   assert.equal(session.status, 200);
-  assert.deepEqual(session.data.permissions, ['subscriptions.write']);
+  assert.ok(session.data.permissions.includes('subscriptions.write'));
+  assert.ok(!session.data.permissions.includes('users.read'));
+  assert.equal((await request('/directory?kind=users', undefined, token)).status, 403);
+  assert.equal(
+    (await request('/audit?from=2026-01-01T00:00:00Z&to=2026-12-01T00:00:00Z', undefined, token))
+      .status,
+    403,
+  );
   const oldToken = await new JwtService().signAsync(
     { sub: uid, purpose: 'platform', sv: 0 },
     { secret: key, expiresIn: 60 },
@@ -133,8 +141,8 @@ try {
         'PATCH',
       )
     ).status,
-    400,
-    'Billing scope reaches validated SQL operation',
+    403,
+    'Billing writes require an additional operation-bound factor',
   );
   const state = (await platform.query('SELECT platform_mfa_state($1) AS data', [uid])).rows[0].data;
   const next = Number(state.last_step) + 1;
@@ -154,6 +162,44 @@ try {
     results.filter((result) => result.rows[0].ok).length,
     1,
     'Only one concurrent consumer wins',
+  );
+  // Reset only the isolated fixture's clock consumption to exercise a fresh factor without waiting a real minute.
+  await admin.query('UPDATE platform_mfa SET last_step=$2 WHERE user_id=$1', [
+    uid,
+    Math.floor(Date.now() / 30000) - 1,
+  ]);
+  const path = '/subscriptions/' + randomUUID(),
+    body = { planCode: 'starter', status: 'active', reason: 'Local bound step up verification' };
+  const grant = await request(
+    '/step-up',
+    {
+      otp: totp(enrollment.data.secret, Math.floor(Date.now() / 30000)),
+      method: 'PATCH',
+      path: '/platform' + path,
+      body,
+    },
+    token,
+  );
+  assert.equal(grant.status, 201);
+  assert.equal(
+    (await request(path, { ...body, planCode: 'business' }, token, 'PATCH', grant.data.stepUpToken))
+      .status,
+    403,
+    'Body tampering must fail',
+  );
+  assert.equal(
+    (await request(path, body, token, 'PATCH', grant.data.stepUpToken)).status,
+    400,
+    'Authorized write reaches SQL input/target validation',
+  );
+  assert.equal(
+    (await request(path, body, token, 'PATCH', grant.data.stepUpToken)).status,
+    403,
+    'Consumed grant cannot replay even after a rejected SQL action',
+  );
+  await assert.rejects(
+    () => app.query('SELECT platform_consume_step_up($1,$2)', [uid, randomUUID()]),
+    /permission denied/,
   );
   await admin.query('UPDATE users SET session_version=session_version+1 WHERE id=$1', [uid]);
   assert.equal((await request('/session', undefined, token)).status, 403);

@@ -48,6 +48,7 @@ function Console() {
     } | null>(null),
     [requiresMfa, setRequiresMfa] = useState(false);
   const [permissions, setPermissions] = useState<string[]>([]);
+  const [stepUpCode, setStepUpCode] = useState('');
   const [companyQuery, setCompanyQuery] = useState(''),
     [userQuery, setUserQuery] = useState(''),
     [companyPage, setCompanyPage] = useState(1),
@@ -60,22 +61,26 @@ function Console() {
   ) {
     const cp = options.companyPage ?? companyPage,
       up = options.userPage ?? userPage;
-    const [snapshot, companies, users, session] = await Promise.all([
+    const session = await request('/session', undefined, 'GET', access);
+    const [snapshot, companies, users] = await Promise.all([
       request('', undefined, 'GET', access),
-      request(
-        '/directory?' +
-          new URLSearchParams({ kind: 'companies', q: companyQuery, page: String(cp) }),
-        undefined,
-        'GET',
-        access,
-      ),
-      request(
-        '/directory?' + new URLSearchParams({ kind: 'users', q: userQuery, page: String(up) }),
-        undefined,
-        'GET',
-        access,
-      ),
-      request('/session', undefined, 'GET', access),
+      session.permissions.includes('companies.read')
+        ? request(
+            '/directory?' +
+              new URLSearchParams({ kind: 'companies', q: companyQuery, page: String(cp) }),
+            undefined,
+            'GET',
+            access,
+          )
+        : Promise.resolve({ items: [], total: 0 }),
+      session.permissions.includes('users.read')
+        ? request(
+            '/directory?' + new URLSearchParams({ kind: 'users', q: userQuery, page: String(up) }),
+            undefined,
+            'GET',
+            access,
+          )
+        : Promise.resolve({ items: [], total: 0 }),
     ]);
     setPermissions(session.permissions);
     setData({ ...snapshot, companies: companies.items, users: users.items });
@@ -101,11 +106,34 @@ function Console() {
     method = body ? 'POST' : 'GET',
     access = token,
   ) {
+    let stepUpToken = '';
+    if (
+      access &&
+      ['POST', 'PATCH', 'DELETE'].includes(method) &&
+      !['/login', '/mfa/enroll', '/step-up'].includes(path)
+    ) {
+      if (!/^[0-9]{6}$/.test(stepUpCode))
+        throw new Error(
+          t(
+            'أدخل رمز مصادقة جديدًا لهذا الإجراء',
+            'Enter a fresh authenticator code for this action',
+          ),
+        );
+      const grant = await request(
+        '/step-up',
+        { otp: stepUpCode, method, path: '/platform' + path, body },
+        'POST',
+        access,
+      );
+      stepUpToken = grant.stepUpToken;
+      setStepUpCode('');
+    }
     const response = await fetch(API + '/platform' + path, {
       method,
       headers: {
         'Content-Type': 'application/json',
         ...(access ? { Authorization: 'Bearer ' + access } : {}),
+        ...(stepUpToken ? { 'x-platform-step-up': stepUpToken } : {}),
       },
       body: body ? JSON.stringify(body) : undefined,
     });
@@ -273,6 +301,29 @@ function Console() {
             {t('الصلاحيات الفعالة: ', 'Effective permissions: ')}
             {permissions.join(', ') || t('قراءة فقط', 'Read only')}
           </p>
+          <section className="card stack">
+            <h2>{t('تأكيد الإجراءات الحساسة', 'Confirm sensitive actions')}</h2>
+            <label>
+              {t(
+                'رمز جديد من تطبيق المصادقة لكل إجراء',
+                'Fresh authenticator code for each action',
+              )}
+              <input
+                value={stepUpCode}
+                onChange={(e) => setStepUpCode(e.target.value)}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+              />
+            </label>
+            <p className="muted">
+              {t(
+                'انتظر رمزًا جديدًا بعد تسجيل الدخول أو تنفيذ إجراء. الموافقة مرتبطة بطلب واحد وتنتهي خلال دقيقتين.',
+                'Wait for a new code after signing in or completing an action. Approval is bound to one request and expires in two minutes.',
+              )}
+            </p>
+          </section>
+
           <h2>{t('الشركات والاشتراكات', 'Companies and subscriptions')}</h2>
           <form
             className="card form-actions"
@@ -572,8 +623,10 @@ function Console() {
               </form>
             </details>
           ))}
-          <PriceCatalog request={request} canWrite={permissions.includes('plans.write')} />
-          <AuditTrail request={request} />
+          {permissions.includes('plans.read') && (
+            <PriceCatalog request={request} canWrite={permissions.includes('plans.write')} />
+          )}
+          {permissions.includes('audit.read') && <AuditTrail request={request} />}
         </>
       )}
     </main>

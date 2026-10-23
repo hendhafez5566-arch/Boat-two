@@ -1,5 +1,11 @@
 # Implementation progress — core reliability + connected business platform
 
+## Continuation — platform read scopes and operation step-up (2026-10-23)
+
+Migration 049 and platform guards enforce segmented company/user/subscription/catalog/audit/report read permissions from immutable operator roles. Snapshot and directory responses respect these scopes; console loads authorized data only. Every privileged write additionally requires a fresh TOTP and a two-minute signed approval bound to actor/session version, method, target and complete body. PostgreSQL consumes each approval once across replicas, including rejected SQL operations. Tokens remain in memory and are redacted from HTTP logs. Bilingual console includes fresh-code input.
+
+Validation: API build, web TypeScript, incremental migration 049, isolated PostgreSQL/API MFA smoke (scope denial, legacy tokens, tampered body, missing step-up and replay rejection), ESLint and 52 existing unit tests passed. Added a canonical operation-binding unit test for the next regression. Production operator activation remains disabled. Recovery factors and platform financial/operations reports, domain transfer, remaining Batches 2/4 are still open.
+
 ## Continuation — price catalog and past-due lifecycle (2026-10-23)
 
 Migration 048 adds an immutable local provider-price registry, restricted operator publish/retire APIs and bilingual console. Publishing selects a default without rewriting existing subscription prices; retiring blocks new selection but retains historical mappings. Subscription events use provider item price rather than conflicting plan metadata; unsupported/multi-item prices are held for review. Equal-second webhook updates are conservatively ignored and make reconciliation due. Past-due timestamps persist across failed retries, clear on recovery, and a configurable seven-day default grace period applies free entitlements without deleting tenant data. Custom-host eligibility follows the same grace policy. Billing UI explains overdue status and month/year intervals.

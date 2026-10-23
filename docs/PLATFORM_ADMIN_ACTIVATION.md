@@ -43,3 +43,7 @@ Authenticator loss requires an externally reviewed operator recovery procedure: 
 ## Billing continuation gates
 
 Migration 046 adds periodic reconciliation/invoice paging behind `BILLING_AUTOMATIC_RECONCILIATION_ENABLED=false`. Migration 047 adds audited owner subscription-change requests behind `BILLING_SUBSCRIPTION_CHANGES_ENABLED=false`. Both additionally require configured Stripe and explicit external activation. No live Stripe calls were made. Unknown mutation results remain quarantined and must never be manually reset to pending without independently verified provider evidence. Plan changes currently support one subscription item, no immediate proration; cancellation is at period end. Production activation and operator reconciliation/recovery remain separately reviewed work.
+
+## Segmented reads and per-operation authentication
+
+Migration 049 requires fresh TOTP step-up for every platform write. `POST /platform/step-up` binds the two-minute single-use grant to HTTP method, full `/platform/...` path and request body; send it in `x-platform-step-up`. Wait for a fresh authenticator code after sign-in/action. Role mappings now grant explicit read scopes as well: support sees company/user directories, security sees users/audit, billing sees company/subscription/catalog/report data, catalog sees plans/prices, reader sees all read scopes, administrator sees all scopes. Missing/invalid mappings receive no scoped data. Console adapts to permissions; tenant sessions remain invalid. Recovery factors and broad security/browser acceptance remain pending.

@@ -1,6 +1,7 @@
 import { CryptoService } from '../messaging/crypto.service';
 import { matchingTotpStep, newTotpSecret } from './totp';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { stepUpDigest } from './step-up';
 import {
   BadRequestException,
   Body,
@@ -35,6 +36,7 @@ import { DatabaseService } from '../database/database.service';
 import type { Request } from 'express';
 type PlatformRequest = Request & {
   platformActor: string;
+  platformVersion: number;
   platformPermissions: PlatformPermission[];
 };
 const Permission = (value: PlatformPermission) => SetMetadata('platform.permission', value);
@@ -223,16 +225,71 @@ export class PlatformAccess implements CanActivate, OnModuleDestroy {
         throw new Error();
       if (!(await this.mfaState(payload.sub))?.enabled) throw new Error();
       req.platformActor = payload.sub;
+      req.platformVersion = payload.sv;
       req.platformPermissions = operatorPermissions(env.PLATFORM_OPERATOR_ROLES, payload.sub);
       const required = this.reflector.getAllAndOverride<PlatformPermission>('platform.permission', [
         context.getHandler(),
         context.getClass(),
       ]);
       if (required && !req.platformPermissions.includes(required)) throw new Error();
+      if (required && (required.endsWith('.write') || required === 'sessions.revoke')) {
+        const grant = await this.jwt.verifyAsync<{
+          sub: string;
+          sv: number;
+          purpose: string;
+          digest: string;
+          nonce: string;
+        }>(String(req.headers['x-platform-step-up'] ?? ''), { secret: env.PLATFORM_JWT_SECRET });
+        if (
+          grant.purpose !== 'platform-step-up' ||
+          grant.sub !== payload.sub ||
+          grant.sv !== payload.sv ||
+          grant.digest !== stepUpDigest(req.method, req.path, req.body)
+        )
+          throw new Error();
+        if (
+          !(
+            await this.query('SELECT platform_consume_step_up($1,$2) AS ok', [
+              payload.sub,
+              grant.nonce,
+            ])
+          )[0].ok
+        )
+          throw new Error();
+      }
       return true;
     } catch {
       throw new ForbiddenException('Platform session invalid or expired');
     }
+  }
+  async stepUp(
+    r: PlatformRequest,
+    input: { otp: string; method: string; path: string; body?: unknown },
+  ) {
+    if (
+      !(
+        await this.query('SELECT platform_login_gate($1) AS allowed', [
+          'step-up:' + r.platformActor,
+        ])
+      )[0].allowed
+    )
+      throw new ForbiddenException('Step-up temporarily limited');
+    const state = await this.mfaState(r.platformActor);
+    if (!state?.enabled) throw new ForbiddenException('Authenticator required');
+    await this.consumeMfa(r.platformActor, state, input.otp, false);
+    return {
+      stepUpToken: await this.jwt.signAsync(
+        {
+          sub: r.platformActor,
+          sv: r.platformVersion,
+          purpose: 'platform-step-up',
+          nonce: randomUUID(),
+          digest: stepUpDigest(input.method, input.path, input.body),
+        },
+        { secret: env.PLATFORM_JWT_SECRET, expiresIn: 120 },
+      ),
+      expiresIn: 120,
+    };
   }
   async query(sql: string, params: unknown[] = []) {
     this.ready();
@@ -288,7 +345,9 @@ class PlatformController {
   @Get('session') session(@Req() r: PlatformRequest) {
     return { actor: r.platformActor, permissions: r.platformPermissions };
   }
-  @Get('audit') async audit(@Query() query: unknown) {
+  @Permission('audit.read')
+  @Get('audit')
+  async audit(@Query() query: unknown) {
     const q = parse(
       z.object({
         actor: z.string().uuid().optional(),
@@ -321,7 +380,7 @@ class PlatformController {
       ])
     )[0].data;
   }
-  @Get('directory') async directory(@Query() query: unknown) {
+  @Get('directory') async directory(@Req() r: PlatformRequest, @Query() query: unknown) {
     const q = parse(
       z.object({
         kind: z.enum(['companies', 'users']),
@@ -331,6 +390,8 @@ class PlatformController {
       }),
       query,
     );
+    if (!r.platformPermissions.includes(q.kind === 'users' ? 'users.read' : 'companies.read'))
+      throw new ForbiddenException('Directory read scope required');
     return (
       await this.access.query('SELECT platform_directory($1,$2,$3,$4) AS data', [
         q.kind,
@@ -340,8 +401,28 @@ class PlatformController {
       ])
     )[0].data;
   }
-  @Get() async snapshot() {
-    return (await this.access.query('SELECT platform_snapshot() AS data'))[0].data;
+  @Get() async snapshot(@Req() r: PlatformRequest) {
+    const snapshot = (await this.access.query('SELECT platform_snapshot() AS data'))[0].data;
+    return {
+      companies: r.platformPermissions.includes('companies.read') ? snapshot.companies : [],
+      users: r.platformPermissions.includes('users.read') ? snapshot.users : [],
+      plans: r.platformPermissions.includes('plans.read') ? snapshot.plans : [],
+      audit: r.platformPermissions.includes('audit.read') ? snapshot.audit : [],
+    };
+  }
+  @Post('step-up') stepUp(@Req() r: PlatformRequest, @Body() body: unknown) {
+    return this.access.stepUp(
+      r,
+      parse(
+        z.object({
+          otp: z.string().regex(/^[0-9]{6}$/),
+          method: z.enum(['POST', 'PATCH', 'DELETE']),
+          path: z.string().startsWith('/platform/').max(500),
+          body: z.unknown().optional(),
+        }),
+        body,
+      ),
+    );
   }
   @Permission('companies.write')
   @Patch('companies/:id')
@@ -430,7 +511,9 @@ class PlatformController {
     ]);
     return { revoked: true };
   }
-  @Get('prices') async prices() {
+  @Permission('plans.read')
+  @Get('prices')
+  async prices() {
     return (await this.access.query('SELECT platform_price_catalog() AS data'))[0].data;
   }
   @Permission('plans.write') @Post('prices') async publishPrice(
