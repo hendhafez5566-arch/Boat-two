@@ -1,5 +1,14 @@
 # ELHAFEZ BOAT — Product completion matrix
 
+## Final full-product sprint handover — 2026-10-23
+
+Implemented and continuously pushed eight checkpoints from verified `386b6b3` through feature HEAD `8a8b77a` on the same branch/Draft PR #1. Delivered audited billing evidence review and future requests, domain-bound branded authentication, premium foundation and seven-step bot builder, nested/versioned automation, gated encrypted invitation mail and inbox refinement. See [the full sprint report](SPRINT_FULL_PRODUCT_2026-10-23.md) for files, commits and exact limitations.
+
+Validation passed: full API/Next production build and TypeScript, ESLint, **55 unit tests**, **28 PostgreSQL/API smoke suites** (18 direct + 10 worker), clean/repeated migrations **001–061**, and two local Chromium flows including actual bot publication and persisted private inbox notes. This is limited browser smoke, not full visual/accessibility/owner acceptance. No paid provider, real email/DNS/TLS, deployment or main merge. All external/AI/email gates remain false.
+
+Product scope is still incomplete: provider-native/multi-item billing schedules, broader customer portal/email lifecycle, AI provider/model lifecycle/capabilities, historical CRM/export scaling and campaign composer gaps, richer automation recovery/integrations and full legacy i18n/premium/accessibility acceptance. Next: AI/provider capability lifecycle and remaining CRM/campaign business functions; continue UI completion alongside them. Historical sections below describe earlier checkpoints and are superseded by this report. Final documentation HEAD is current Git/PR HEAD, following the feature checkpoint.
+
+
 ## Full product sprint checkpoint — premium inbox and browser regression
 
 Inbox now uses shared surfaces/tokens, named channel labels instead of colored emoji, keyboard-openable conversation rows, bilingual primary filters/actions, IME-safe reply entry and a native focus-managed customer-profile dialog on mobile. Search and pagination discard results that belong to an obsolete filter. Existing message, assignment, department, SLA, note, media, CRM-tag and policy paths remain connected. Advanced message/system labels still require translation.

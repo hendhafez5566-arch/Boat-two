@@ -20,3 +20,8 @@ There is no claim that a certificate is active: UI/API state says requested/oper
 ## Transfer and reclaim policy (migration 051)
 
 Only the current workspace owner may initiate transfer to a known receiving workspace UUID. Hosting immediately stops. Share the displayed one-time secret through a secure channel; the receiver must publish the transfer-specific TXT and accept with that secret within 24 hours while entitled to white label. Acceptance atomically changes ownership, invalidates old hosting generations and leaves hosting disabled. Re-enable hosting explicitly after review. Source cancellation/revocation invalidates pending acceptance. Expired transfers never authorize ownership and must be canceled before a new transfer. Revoked names stay reserved to their current workspace; its owner can reclaim only with a rotated TXT and fresh verification. There is no automatic DNS-only cross-tenant takeover or involuntary administrative reclaim. No production DNS/TLS was changed.
+
+
+## Branded authentication and email — full product sprint
+
+Migration 058 binds login/invitation acceptance to an eligible host and membership. Root rendering uses only middleware-validated host metadata. The external host gate remains false; no real TLS/DNS was activated. Invitation emails may use an eligible domain only after CUSTOM_DOMAINS_ENABLED is explicitly enabled; otherwise links use APP_URL. Mail processing independently rechecks current branding entitlement. Configure the HTTPS invitation gateway and sender-domain authentication only after owner authorization; EMAIL_DELIVERY_ENABLED and EXTERNAL_DELIVERY_ENABLED default false. See sprint report `SPRINT_FULL_PRODUCT_2026-10-23.md` for exact gateway contract and remaining receipts/reconciliation.
