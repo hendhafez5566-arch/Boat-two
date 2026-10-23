@@ -1,5 +1,12 @@
 # Remaining implementation — continue on PR #1
 
+## Maximum-scope continuation — bilingual AI workspace and accurate attempts (2026-10-23)
+
+Replaced the legacy Arabic-only AI settings screen with shared premium forms/cards, Arabic/English direction, accessible labels, bounded context/variation fields, role-aware editing, persistent save/reopen and test feedback. Provider readiness now includes tenant providers; the independent paid-call gate is explicit. Usage remaining counts durable attempts/reservations rather than successful replies alone. Existing settings/Knowledge/generation engines are retained.
+
+API/web TypeScript and ESLint pass. PostgreSQL generation-replay confirms one mocked call/run/tool task/usage charge across replay. Chromium ai-workspace suite actually saves/reopens settings and persists owner call/token/cost caps, then checks Arabic/mobile and zero page errors. Next: commit-observed CRM historical export and retention, campaign rich composition, automation auth and email receipts. No external services activated.
+
+
 ## Maximum-scope continuation — durable generation budgets (2026-10-23)
 
 Migration 066 adds detached generation reservations and monthly call/token/cost accounting. The existing AI runtime reserves before calling, enforces plan and optional owner caps plus model context/output/tools, and settles actual usage from cached provider evidence. Interrupted/uncertain outcomes keep reservations; a completed effect can settle without another paid call. Unknown usage/pricing stays unresolved; legacy effects are not blindly replayed. Immutable model/pricing versions are bound to reservation hashes. Successful local replay reuses its run/tool audit; rollback cannot erase paid accounting. Owner evidence release is stale-only, audited and never repeats the old request; plan attempt counts remain consumed. Conservative byte/framing token estimates are operational reservations, not provider-certified tokenization or invoices; provider/model validation remains an external acceptance gate.

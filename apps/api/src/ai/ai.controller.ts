@@ -67,8 +67,11 @@ export class AiController {
   ) {}
 
   @Get('status')
-  status() {
-    return { llmConfigured: this.ai.configured, embeddingsConfigured: this.knowledge.configured };
+  async status(@Req() req: AuthedRequest) {
+    return {
+      ...(await this.ai.configuration(req.user.tenantId)),
+      embeddingsConfigured: this.knowledge.configured,
+    };
   }
 
   @Get('settings')

@@ -81,6 +81,16 @@ export class AiService {
     return !!this.llm;
   }
 
+  async configuration(tenantId: string) {
+    return this.db.withTenant(tenantId, async (c) => ({
+      llmConfigured:
+        this.configured ||
+        !!(await c.query('SELECT 1 FROM ai_providers WHERE enabled AND retired_at IS NULL LIMIT 1'))
+          .rowCount,
+      generationEnabled: env.AI_PROVIDER_CALLS_ENABLED === 'true',
+    }));
+  }
+
   // ------------------------------------------------------------ settings / usage
 
   async getSettings(tenantId: string): Promise<AiSettings> {
@@ -132,13 +142,21 @@ export class AiService {
         [periodStart(new Date())],
       );
       const limit = plan.limits.ai_credits ?? 0;
+      const ledger = (
+        await c.query('SELECT * FROM generation_usage WHERE period=$1', [periodStart(new Date())])
+      ).rows[0];
+      const attempts = ledger ? ledger.baseline_calls + ledger.attempts : (r.rows[0]?.replies ?? 0);
       return {
         period: periodStart(new Date()),
         replies: r.rows[0]?.replies ?? 0,
+        attempts,
+        reservedTokens: Number(ledger?.reserved_tokens ?? 0),
+        knownCostMicrousd: Number(ledger?.charged_cost_microusd ?? 0),
+        reservedCostMicrousd: Number(ledger?.reserved_cost_microusd ?? 0),
         inputTokens: Number(r.rows[0]?.input_tokens ?? 0),
         outputTokens: Number(r.rows[0]?.output_tokens ?? 0),
         limit,
-        remaining: limit === -1 ? null : Math.max(limit - (r.rows[0]?.replies ?? 0), 0),
+        remaining: limit === -1 ? null : Math.max(limit - attempts, 0),
         plan: plan.plan_code,
       };
     });
