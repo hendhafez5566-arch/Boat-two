@@ -8,6 +8,8 @@ const { ExternalEffects } = require('./dist/events/external-effect.js');
 const { EmbeddingBudget } = require('./dist/ai/knowledge/embedding-budget.js');
 const { env } = require('./dist/config/env.js');
 const { PlatformAccess } = require('./dist/platform/platform.module.js');
+const { Reflector } = require('@nestjs/core');
+const { totp } = require('./dist/platform/totp.js');
 const db = new DatabaseService(),
   plans = new PlansService(db),
   effects = new ExternalEffects(db),
@@ -68,7 +70,7 @@ try {
   assert.ok(job.total > 0);
   assert.equal(Number(jobs.usage.charged), 0);
   assert.equal(Number(jobs.usage.reserved), 0);
-  await post('/ai/knowledge-jobs/' + job.id + '/resume', b.accessToken, undefined, 400);
+  await post('/ai/knowledge-jobs/' + job.id + '/resume', b.accessToken, undefined, 404);
   await post('/ai/knowledge-jobs/' + job.id + '/resume', token);
   await wait(
     async () =>
@@ -202,9 +204,16 @@ try {
   env.PLATFORM_DATABASE_URL = platformUrl.toString();
   env.PLATFORM_JWT_SECRET = randomBytes(32).toString('hex');
   env.PLATFORM_ADMIN_USER_IDS = userId;
-  access = new PlatformAccess(db);
-  const platformLogin = await access.login({ email: a.email, password: a.password });
+  access = new PlatformAccess(db, new Reflector());
+  const challenge = await access.login({ email: a.email, password: a.password });
+  assert.equal(challenge.requiresEnrollment, true);
+  const platformLogin = await access.enroll({
+    setupToken: challenge.setupToken,
+    otp: totp(challenge.secret, Math.floor(Date.now() / 30000)),
+  });
   const contextFor = (jwt) => ({
+    getHandler: () => function handler() {},
+    getClass: () => class Controller {},
     switchToHttp: () => ({ getRequest: () => ({ headers: { authorization: 'Bearer ' + jwt } }) }),
   });
   await assert.rejects(() => access.canActivate(contextFor(token)), /invalid or expired/);
@@ -319,6 +328,7 @@ try {
     );
     const indexing = await knowledge.reindex(a.tenantId, source.id);
     await db.withTenant(a.tenantId, async (c) => {
+      await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,41))', [source.id]);
       await c.query('SELECT id FROM knowledge_jobs WHERE id=$1 FOR UPDATE', [indexing.jobId]);
       await c.query("UPDATE knowledge_jobs SET status='pending' WHERE id=$1", [indexing.jobId]);
       await knowledge.process({ tenantId: a.tenantId, jobId: indexing.jobId });

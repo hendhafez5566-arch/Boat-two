@@ -14,9 +14,13 @@ const db = new DatabaseService(),
   base = process.env.SMOKE_API_URL || 'http://localhost:4124';
 const vector = Array(1536).fill(0);
 vector[0] = 1;
+let embeddingCalls = 0;
 const knowledge = new KnowledgeService(db, plans, events, {
   configured: true,
-  embed: async () => [vector],
+  embed: async () => {
+    embeddingCalls++;
+    return [vector];
+  },
 });
 const original = env.AI_PROVIDER_CALLS_ENABLED;
 async function req(path, token, method = 'GET', body, status = 200) {
@@ -100,10 +104,16 @@ try {
   env.AI_PROVIDER_CALLS_ENABLED = 'true';
   assert.equal((await knowledge.search(a.tenantId, 'reference')).length, 1);
   await req(path + '/archive', a.accessToken, 'PATCH', { archived: true });
+  const beforeArchivedSearch = embeddingCalls;
   assert.equal(
     (await knowledge.search(a.tenantId, 'reference')).length,
     0,
     'Archived source is excluded from vector and keyword retrieval',
+  );
+  assert.equal(
+    embeddingCalls,
+    beforeArchivedSearch,
+    'Archived-only knowledge does not spend query embedding budget',
   );
   assert.equal((await req(path + '/edit', a.accessToken)).history.length, 2);
   const retained = await db.withTenant(a.tenantId, (c) =>

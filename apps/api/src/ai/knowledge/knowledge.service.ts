@@ -487,7 +487,13 @@ export class KnowledgeService {
       throw new ServiceUnavailableException('Embedding provider calls disabled or unconfigured');
     const any = await this.db.withTenant(
       tenantId,
-      async (c) => (await c.query('SELECT 1 FROM knowledge_chunks LIMIT 1')).rowCount,
+      async (c) =>
+        (
+          await c.query(
+            'SELECT 1 FROM knowledge_chunks c JOIN knowledge_sources s ON s.id=c.source_id WHERE s.archived_at IS NULL AND ($1::uuid[] IS NULL OR c.source_id=ANY($1)) LIMIT 1',
+            [sourceIds ?? null],
+          )
+        ).rowCount,
     );
     if (!any) return [];
 
