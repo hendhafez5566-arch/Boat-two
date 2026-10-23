@@ -3,6 +3,7 @@ import { EventsService } from '../../events/events.service';
 import { EmbeddingBudget } from './embedding-budget';
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -26,7 +27,7 @@ export interface RetrievedChunk {
 }
 
 const COLS =
-  'id, type, title, source_ref, status, error, char_count, chunk_count, created_at, updated_at';
+  'id, type, title, source_ref, status, error, char_count, chunk_count, created_at, updated_at, revision, archived_at';
 const MAX_CONTENT = 500_000;
 const EMBED_BATCH = 64;
 const MIN_VECTOR_SCORE = 0.2;
@@ -99,6 +100,10 @@ export class KnowledgeService {
           ],
         )
       ).rows[0];
+      await c.query(
+        'INSERT INTO knowledge_revisions(tenant_id,source_id,revision,title,type,source_ref,content,actor_id) SELECT tenant_id,id,revision,title,type,source_ref,content,$2 FROM knowledge_sources WHERE id=$1',
+        [source.id, userId],
+      );
       await this.queue(tenantId, source.id, s.file);
       return source;
     });
@@ -141,8 +146,117 @@ export class KnowledgeService {
     });
   }
 
+  editDetails(tenant: string, id: string) {
+    return this.db.withTenant(tenant, async (c) => {
+      const source = (await c.query('SELECT * FROM knowledge_sources WHERE id=$1', [id])).rows[0];
+      if (!source) throw new NotFoundException('Source not found');
+      const history = (
+        await c.query(
+          'SELECT revision,title,actor_id,created_at FROM knowledge_revisions WHERE source_id=$1 ORDER BY revision DESC LIMIT 50',
+          [id],
+        )
+      ).rows;
+      return { source, history };
+    });
+  }
+  revisionDetails(tenant: string, id: string, revision: number) {
+    return this.db.withTenant(tenant, async (c) => {
+      const row = (
+        await c.query(
+          'SELECT revision,title,type,source_ref,content,created_at FROM knowledge_revisions WHERE source_id=$1 AND revision=$2',
+          [id, revision],
+        )
+      ).rows[0];
+      if (!row) throw new NotFoundException();
+      return row;
+    });
+  }
+  update(
+    tenant: string,
+    user: string,
+    id: string,
+    input: CreateSourceInput,
+    expectedRevision: number,
+  ) {
+    return this.db.withTenant(tenant, async (c) => {
+      await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,41))', [id]);
+      const src = (await c.query('SELECT * FROM knowledge_sources WHERE id=$1 FOR UPDATE', [id]))
+        .rows[0];
+      if (!src) throw new NotFoundException('Source not found');
+      if (src.revision !== expectedRevision)
+        throw new ConflictException('Source changed; reload before saving');
+      if (src.archived_at) throw new BadRequestException('Restore source before editing');
+      if (src.type !== input.type) throw new BadRequestException('Source type cannot change');
+      if (
+        (
+          await c.query(
+            "SELECT 1 FROM knowledge_jobs WHERE source_id=$1 AND status IN ('pending','running','blocked')",
+            [id],
+          )
+        ).rowCount
+      )
+        throw new ConflictException('Cancel the active indexing job before editing');
+      if (
+        (
+          await c.query('SELECT count(*)::int AS n FROM knowledge_revisions WHERE source_id=$1', [
+            id,
+          ])
+        ).rows[0].n >= 50
+      )
+        throw new BadRequestException('Source history limit reached; create a new source');
+      const content =
+        input.type === 'text'
+          ? input.content
+          : input.type === 'faq'
+            ? faqToText(input.items)
+            : null;
+      if (input.type === 'text' && input.content.trim().length < 20)
+        throw new BadRequestException('Content is too short');
+      const title = input.title?.trim() || (input.type === 'url' ? input.url : src.title);
+      const row = (
+        await c.query(
+          'UPDATE knowledge_sources SET title=$2,content=$3,source_ref=$4,char_count=$5,revision=revision+1,updated_at=now() WHERE id=$1 RETURNING ' +
+            COLS,
+          [
+            id,
+            title,
+            content,
+            input.type === 'url' ? input.url : src.source_ref,
+            content?.length ?? 0,
+          ],
+        )
+      ).rows[0];
+      await c.query(
+        'INSERT INTO knowledge_revisions(tenant_id,source_id,revision,title,type,source_ref,content,actor_id) SELECT tenant_id,id,revision,title,type,source_ref,content,$2 FROM knowledge_sources WHERE id=$1',
+        [id, user],
+      );
+      const job = await this.queue(tenant, id);
+      return { ...row, ...job };
+    });
+  }
+  archive(tenant: string, id: string, archived: boolean) {
+    return this.db.withTenant(tenant, async (c) => {
+      await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,41))', [id]);
+      const row = (
+        await c.query(
+          'UPDATE knowledge_sources SET archived_at=CASE WHEN $2 THEN COALESCE(archived_at,now()) ELSE NULL END,updated_at=now() WHERE id=$1 RETURNING ' +
+            COLS,
+          [id, archived],
+        )
+      ).rows[0];
+      if (!row) throw new NotFoundException();
+      if (archived)
+        await c.query(
+          "UPDATE knowledge_jobs SET status='canceled',error='Source archived',updated_at=now() WHERE source_id=$1 AND status IN ('pending','running','blocked','failed')",
+          [id],
+        );
+      return row;
+    });
+  }
+
   remove(tenantId: string, id: string) {
     return this.db.withTenant(tenantId, async (c) => {
+      await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,41))', [id]);
       const r = await c.query('DELETE FROM knowledge_sources WHERE id = $1', [id]);
       if (!r.rowCount) throw new NotFoundException('Source not found');
       return { removed: true };
@@ -151,7 +265,9 @@ export class KnowledgeService {
 
   async reindex(tenantId: string, id: string) {
     return this.db.withTenant(tenantId, async (c) => {
-      await this.get(tenantId, id);
+      await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,41))', [id]);
+      const current = await this.get(tenantId, id);
+      if (current.archived_at) throw new BadRequestException('Restore source before indexing');
       await c.query('SELECT id FROM knowledge_sources WHERE id=$1 FOR UPDATE', [id]);
       const active = (
         await c.query(
@@ -167,7 +283,7 @@ export class KnowledgeService {
     return this.db.withTenant(tenant, async (c) => {
       const job = (
         await c.query(
-          'INSERT INTO knowledge_jobs(tenant_id,source_id,raw_file,file_mime) VALUES($1,$2,$3,$4) RETURNING id',
+          'INSERT INTO knowledge_jobs(tenant_id,source_id,raw_file,file_mime,source_revision) SELECT $1,$2,$3,$4,revision FROM knowledge_sources WHERE id=$2 RETURNING id',
           [tenant, source, file?.buf ?? null, file?.mime ?? null],
         )
       ).rows[0];
@@ -215,6 +331,11 @@ export class KnowledgeService {
   async process(event: { tenantId: string; jobId: string }) {
     const tenantId = event.tenantId;
     await this.db.withTenant(tenantId, async (c) => {
+      const identity = (
+        await c.query('SELECT source_id FROM knowledge_jobs WHERE id=$1', [event.jobId])
+      ).rows[0];
+      if (!identity) return;
+      await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,41))', [identity.source_id]);
       const job = (
         await c.query(
           "SELECT * FROM knowledge_jobs WHERE id=$1 AND status IN ('pending','running') FOR UPDATE",
@@ -226,6 +347,13 @@ export class KnowledgeService {
         await c.query('SELECT * FROM knowledge_sources WHERE id=$1 FOR UPDATE', [job.source_id])
       ).rows[0];
       if (!src) return;
+      if (src.archived_at || job.source_revision !== src.revision) {
+        await c.query(
+          "UPDATE knowledge_jobs SET status='canceled',error='Source archived or revision superseded',updated_at=now() WHERE id=$1",
+          [job.id],
+        );
+        return;
+      }
       await c.query('SAVEPOINT knowledge_step');
       try {
         let chunks = job.chunks as { index: number; content: string }[];
@@ -386,7 +514,7 @@ export class KnowledgeService {
         await c.query(
           `SELECT c.id, c.source_id, s.title, c.content, 1 - (c.embedding <=> $1::vector) AS score
            FROM knowledge_chunks c JOIN knowledge_sources s ON s.id = c.source_id
-           WHERE ($2::uuid[] IS NULL OR c.source_id=ANY($2)) ORDER BY c.embedding <=> $1::vector LIMIT 20`,
+           WHERE s.archived_at IS NULL AND ($2::uuid[] IS NULL OR c.source_id=ANY($2)) ORDER BY c.embedding <=> $1::vector LIMIT 20`,
           [literal, sourceIds ?? null],
         )
       ).rows
@@ -397,7 +525,7 @@ export class KnowledgeService {
             await c.query(
               `SELECT c.id, c.source_id, s.title, c.content
                FROM knowledge_chunks c JOIN knowledge_sources s ON s.id = c.source_id
-               WHERE c.tsv @@ to_tsquery('simple', $1) AND ($2::uuid[] IS NULL OR c.source_id=ANY($2))
+               WHERE s.archived_at IS NULL AND c.tsv @@ to_tsquery('simple', $1) AND ($2::uuid[] IS NULL OR c.source_id=ANY($2))
                ORDER BY ts_rank(c.tsv, to_tsquery('simple', $1)) DESC LIMIT 20`,
               [tsq, sourceIds ?? null],
             )

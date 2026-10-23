@@ -1,208 +1,302 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { KnowledgeJobs } from '../../../components/business/KnowledgeJobs';
 import { useEffect, useState } from 'react';
-import { api, getSession } from '../../../lib/api';
-
-const inp = 'w-full rounded border p-2 text-sm';
-const STATUS: Record<string, string> = {
-  pending: 'في الانتظار',
-  processing: 'جارٍ المعالجة',
-  ready: 'جاهز',
-  failed: 'فشل',
-  blocked: 'بانتظار تفعيل المعالجة',
-  canceled: 'ملغى',
-};
-
+import { KnowledgeJobs } from '../../../components/business/KnowledgeJobs';
+import { KnowledgeSourceEditor, Source } from '../../../components/business/KnowledgeSourceEditor';
+import { api } from '../../../lib/api';
+import { useLocale } from '../../../components/product/locale';
 export default function Knowledge() {
-  const [items, setItems] = useState<any[]>([]);
-  const [tab, setTab] = useState<'text' | 'faq' | 'url' | 'file'>('text');
-  const [faq, setFaq] = useState([{ question: '', answer: '' }]);
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const load = () =>
-    api<any[]>('/ai/knowledge')
-      .then(setItems)
-      .catch((e) => setError(e.message));
-
+  const { t } = useLocale();
+  const [items, setItems] = useState<Source[]>([]),
+    [tab, setTab] = useState<'text' | 'faq' | 'url' | 'file'>('text'),
+    [faq, setFaq] = useState([{ question: '', answer: '' }]),
+    [error, setError] = useState(''),
+    [busy, setBusy] = useState(false),
+    [loading, setLoading] = useState(true),
+    [role, setRole] = useState(''),
+    [editing, setEditing] = useState<string | null>(null),
+    [showArchived, setShowArchived] = useState(false),
+    [query, setQuery] = useState('');
+  const canManage = role === 'owner' || role === 'admin';
+  async function load() {
+    setItems(await api<Source[]>('/ai/knowledge'));
+  }
   useEffect(() => {
-    if (!getSession()) {
-      window.location.href = '/login';
-      return;
-    }
-    load();
+    Promise.all([load(), api<{ role: string }>('/workspace').then((w) => setRole(w.role))])
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
   }, []);
   useEffect(() => {
-    if (!items.some((i) => i.status === 'pending' || i.status === 'processing')) return;
-    const t = setTimeout(load, 3000);
-    return () => clearTimeout(t);
+    if (!items.some((i) => !i.archived_at && ['pending', 'processing'].includes(i.status))) return;
+    const timer = setTimeout(() => void load().catch((e) => setError(e.message)), 3000);
+    return () => clearTimeout(timer);
   }, [items]);
-
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const form = e.currentTarget;
-    const f = new FormData(form);
-    setError('');
+    const form = e.currentTarget,
+      f = new FormData(form);
     setBusy(true);
+    setError('');
     try {
-      if (tab === 'file') {
-        await api('/ai/knowledge/upload', { method: 'POST', body: f });
-      } else {
-        const body =
-          tab === 'text'
-            ? { type: 'text', title: f.get('title'), content: f.get('content') }
-            : tab === 'url'
-              ? { type: 'url', url: f.get('url'), title: f.get('title') || undefined }
-              : {
-                  type: 'faq',
-                  title: f.get('title'),
-                  items: faq.filter((x) => x.question.trim() && x.answer.trim()),
-                };
-        await api('/ai/knowledge', { method: 'POST', body: JSON.stringify(body) });
-      }
+      if (tab === 'file') await api('/ai/knowledge/upload', { method: 'POST', body: f });
+      else
+        await api('/ai/knowledge', {
+          method: 'POST',
+          body: JSON.stringify(
+            tab === 'text'
+              ? { type: tab, title: f.get('title'), content: f.get('content') }
+              : tab === 'faq'
+                ? { type: tab, title: f.get('title'), items: faq }
+                : { type: tab, url: f.get('url'), title: f.get('title') || undefined },
+          ),
+        });
       form.reset();
       setFaq([{ question: '', answer: '' }]);
-      load();
-    } catch (err: any) {
-      setError(err.message);
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   }
-
-  const act = async (path: string, method = 'POST') => {
-    await api(path, { method }).catch((e) => setError(e.message));
-    load();
+  async function act(path: string, method = 'POST', body?: unknown) {
+    setBusy(true);
+    setError('');
+    try {
+      await api(path, { method, body: body ? JSON.stringify(body) : undefined });
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  const statuses: Record<string, string> = {
+    pending: t('في الانتظار', 'Pending'),
+    processing: t('جارٍ المعالجة', 'Processing'),
+    ready: t('جاهز', 'Ready'),
+    failed: t('فشل', 'Failed'),
+    blocked: t('بانتظار تفعيل المعالجة', 'Processing blocked'),
+    canceled: t('ملغى', 'Canceled'),
   };
-
+  const types: Record<string, string> = {
+    text: t('نص', 'Text'),
+    faq: t('أسئلة وأجوبة', 'FAQ'),
+    url: t('صفحة ويب', 'Web page'),
+    file: t('ملف', 'File'),
+  };
+  const filtered = items.filter(
+    (i) => (showArchived || !i.archived_at) && i.title.toLowerCase().includes(query.toLowerCase()),
+  );
   return (
     <main className="stack">
-      <KnowledgeJobs />
-      <h1 className="mb-4 text-2xl font-bold">قاعدة المعرفة</h1>
-      <p className="mb-4 text-sm text-gray-600">
-        أضف المعلومات التي يجيب منها المساعد: أسئلة شائعة، سياسات، أسعار، صفحات من موقعك، أو ملفات.
-      </p>
-      {error && <p className="mb-3 text-red-600">{error}</p>}
-
-      <div className="mb-2 flex gap-1 text-sm">
-        {(
-          [
-            ['text', 'نص'],
-            ['faq', 'أسئلة وأجوبة'],
-            ['url', 'رابط موقع'],
-            ['file', 'ملف'],
-          ] as const
-        ).map(([k, l]) => (
-          <button
-            key={k}
-            onClick={() => setTab(k)}
-            className={`rounded px-3 py-1 ${tab === k ? 'bg-black text-white' : 'border'}`}
-          >
-            {l}
-          </button>
-        ))}
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow">KNOWLEDGE</p>
+          <h1>{t('معرفة موثوقة لمساعدك', 'Trusted knowledge for your assistant')}</h1>
+          <p>
+            {t(
+              'أضف المعلومات، راجع مصادرها، ثم تابع الفهرسة. الاستدعاءات المدفوعة تتطلب تفعيل المشغّل.',
+              'Add information, review sources, then track indexing. Paid calls require operator activation.',
+            )}
+          </p>
+        </div>
       </div>
-      <form onSubmit={submit} className="mb-8 space-y-2 rounded border p-3">
-        {tab !== 'url' && tab !== 'file' && (
-          <input name="title" required className={inp} placeholder="العنوان" />
-        )}
-        {tab === 'text' && (
-          <textarea name="content" required rows={6} className={inp} placeholder="الصق النص هنا…" />
-        )}
-        {tab === 'faq' && (
-          <>
-            {faq.map((x, i) => (
-              <div key={i} className="space-y-1 rounded bg-gray-50 p-2">
-                <input
-                  className={inp}
-                  placeholder="السؤال"
-                  value={x.question}
-                  onChange={(e) =>
-                    setFaq(faq.map((y, j) => (j === i ? { ...y, question: e.target.value } : y)))
-                  }
-                />
-                <textarea
-                  className={inp}
-                  rows={2}
-                  placeholder="الجواب"
-                  value={x.answer}
-                  onChange={(e) =>
-                    setFaq(faq.map((y, j) => (j === i ? { ...y, answer: e.target.value } : y)))
-                  }
-                />
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => setFaq([...faq, { question: '', answer: '' }])}
-              className="rounded border px-2 py-1 text-xs"
-            >
-              + سؤال
+      {error && (
+        <p role="alert" className="notice error">
+          {error}
+        </p>
+      )}
+      {canManage && (
+        <>
+          <form className="card stack" onSubmit={submit}>
+            <h2>{t('إضافة مصدر', 'Add a source')}</h2>
+            <label className="field">
+              {t('1. اختر نوع المعلومات', '1. Choose the information type')}
+              <select value={tab} onChange={(e) => setTab(e.target.value as typeof tab)}>
+                {Object.entries(types).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              {t('2. عنوان واضح للمصدر', '2. Give the source a clear title')}
+              <input name="title" maxLength={200} required={tab === 'text' || tab === 'faq'} />
+            </label>
+            {tab === 'text' && (
+              <label className="field">
+                {t('المعلومات التي يستند إليها المساعد', 'Information the assistant can use')}
+                <textarea name="content" required minLength={20} maxLength={300000} rows={7} />
+              </label>
+            )}
+            {tab === 'url' && (
+              <label className="field">
+                {t('رابط الصفحة', 'Page URL')}
+                <input name="url" type="url" maxLength={2000} required dir="ltr" />
+              </label>
+            )}
+            {tab === 'file' && (
+              <label className="field">
+                {t(
+                  'ملف حتى 5MB؛ PDF المصوّر غير مدعوم',
+                  'File up to 5MB; scanned PDFs are unsupported',
+                )}
+                <input name="file" type="file" required accept=".txt,.md,.csv,.pdf,.docx" />
+              </label>
+            )}
+            {tab === 'faq' && (
+              <>
+                {faq.map((item, index) => (
+                  <div className="form-grid" key={index}>
+                    <label className="field">
+                      {t('السؤال', 'Question')}
+                      <input
+                        value={item.question}
+                        required
+                        maxLength={500}
+                        onChange={(e) =>
+                          setFaq(
+                            faq.map((v, i) =>
+                              i === index ? { ...v, question: e.target.value } : v,
+                            ),
+                          )
+                        }
+                      />
+                    </label>
+                    <label className="field">
+                      {t('الإجابة', 'Answer')}
+                      <textarea
+                        value={item.answer}
+                        required
+                        maxLength={2500}
+                        onChange={(e) =>
+                          setFaq(
+                            faq.map((v, i) => (i === index ? { ...v, answer: e.target.value } : v)),
+                          )
+                        }
+                      />
+                    </label>
+                    <button
+                      className="btn"
+                      type="button"
+                      disabled={faq.length <= 1}
+                      onClick={() => setFaq(faq.filter((_, i) => i !== index))}
+                    >
+                      {t('إزالة السؤال', 'Remove question')}
+                    </button>
+                  </div>
+                ))}
+                <button
+                  className="btn"
+                  type="button"
+                  disabled={faq.length >= 300}
+                  onClick={() => setFaq([...faq, { question: '', answer: '' }])}
+                >
+                  {t('إضافة سؤال', 'Add question')}
+                </button>
+              </>
+            )}
+            <button className="btn btn-primary" disabled={busy}>
+              {busy
+                ? t('جارٍ الحفظ…', 'Saving…')
+                : t('3. حفظ ومتابعة الفهرسة', '3. Save and track indexing')}
             </button>
-          </>
-        )}
-        {tab === 'url' && (
-          <>
+          </form>
+          <KnowledgeJobs />
+        </>
+      )}
+      <section className="card stack">
+        <h2>{t('مصادر المعرفة', 'Knowledge sources')}</h2>
+        <div className="form-actions">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label={t('بحث في المصادر', 'Search sources')}
+            placeholder={t('ابحث بالعنوان', 'Search by title')}
+          />
+          <label>
             <input
-              name="url"
-              type="url"
-              required
-              dir="ltr"
-              className={inp}
-              placeholder="https://example.com/faq"
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
             />
-            <input name="title" className={inp} placeholder="عنوان (اختياري)" />
-          </>
+            {t('إظهار المؤرشف', 'Include archived')}
+          </label>
+        </div>
+        {loading && <p role="status">{t('جارٍ تحميل المصادر…', 'Loading sources…')}</p>}
+        {!loading && !filtered.length && (
+          <p>
+            {t(
+              'لا توجد مصادر مطابقة. أضف نصًا أو ملفًا للبدء.',
+              'No matching sources. Add text or a file to get started.',
+            )}
+          </p>
         )}
-        {tab === 'file' && (
-          <>
-            <input
-              name="file"
-              type="file"
-              required
-              accept=".txt,.md,.csv,.pdf,.docx"
-              className={inp}
-            />
-            <p className="text-xs text-gray-400">
-              TXT / MD / CSV / PDF / DOCX حتى 5MB. ملفات PDF الممسوحة ضوئياً (صور) غير مدعومة.
-            </p>
-          </>
-        )}
-        <button disabled={busy} className="rounded bg-black px-4 py-2 text-white">
-          {busy ? '…' : 'إضافة'}
-        </button>
-      </form>
-
-      <ul className="space-y-2">
-        {items.map((i) => (
-          <li key={i.id} className="rounded border p-3 text-sm">
-            <div className="flex items-center justify-between">
-              <strong>{i.title}</strong>
-              <span
-                className={`rounded px-2 py-0.5 text-xs ${i.status === 'ready' ? 'bg-green-100 text-green-800' : i.status === 'failed' ? 'bg-red-100 text-red-800' : 'bg-gray-100'}`}
-              >
-                {STATUS[i.status]}
+        <div className="card-grid">
+          {filtered.map((source) => (
+            <article className="card stack" key={source.id}>
+              <h3>{source.title}</h3>
+              <span className="badge">
+                {source.archived_at
+                  ? t('مؤرشف', 'Archived')
+                  : (statuses[source.status] ?? source.status)}
               </span>
-            </div>
-            <div className="mt-1 text-xs text-gray-500">
-              {i.type} · {i.chunk_count} مقطع · {i.char_count} حرف
-            </div>
-            {i.error && <div className="mt-1 text-xs text-red-600">{i.error}</div>}
-            <div className="mt-2 flex gap-3 text-xs">
-              <button onClick={() => act(`/ai/knowledge/${i.id}/reindex`)} className="underline">
-                إعادة المعالجة
-              </button>
-              <button
-                onClick={() => confirm('حذف المصدر؟') && act(`/ai/knowledge/${i.id}`, 'DELETE')}
-                className="text-red-600 underline"
-              >
-                حذف
-              </button>
-            </div>
-          </li>
-        ))}
-        {!items.length && <li className="text-gray-500">لا توجد مصادر بعد.</li>}
-      </ul>
+              <p className="muted">
+                {types[source.type]} · {t('إصدار', 'Revision')} {source.revision} ·{' '}
+                {source.chunk_count} {t('مقطع', 'chunks')} · {source.char_count}{' '}
+                {t('حرف', 'characters')}
+              </p>
+              {source.error && <p className="notice error">{source.error}</p>}
+              {canManage && (
+                <div className="form-actions">
+                  <button className="btn" disabled={busy} onClick={() => setEditing(source.id)}>
+                    {t('تحرير والإصدارات', 'Edit and history')}
+                  </button>
+                  <button
+                    className="btn"
+                    disabled={busy || !!source.archived_at}
+                    onClick={() => void act('/ai/knowledge/' + source.id + '/reindex')}
+                  >
+                    {t('إعادة الفهرسة', 'Reindex')}
+                  </button>
+                  <button
+                    className="btn"
+                    disabled={busy}
+                    onClick={() =>
+                      void act('/ai/knowledge/' + source.id + '/archive', 'PATCH', {
+                        archived: !source.archived_at,
+                      })
+                    }
+                  >
+                    {source.archived_at ? t('استعادة', 'Restore') : t('أرشفة', 'Archive')}
+                  </button>
+                  <button
+                    className="btn"
+                    disabled={busy}
+                    onClick={() => {
+                      if (
+                        confirm(
+                          t(
+                            'حذف المصدر والفهرس والإصدارات نهائيًا؟ الأرشفة تحفظها.',
+                            'Permanently delete this source, index and history? Archiving retains them.',
+                          ),
+                        )
+                      )
+                        void act('/ai/knowledge/' + source.id, 'DELETE');
+                    }}
+                  >
+                    {t('حذف نهائي', 'Delete permanently')}
+                  </button>
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+      </section>
+      {editing && canManage && (
+        <KnowledgeSourceEditor id={editing} onClose={() => setEditing(null)} onSaved={load} />
+      )}
     </main>
   );
 }

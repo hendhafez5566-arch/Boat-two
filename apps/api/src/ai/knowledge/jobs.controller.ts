@@ -47,9 +47,13 @@ export class KnowledgeJobsController {
   }
   @Post(':id/resume') resume(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.db.withTenant(r.user.tenantId, async (c) => {
+      const identity = (await c.query('SELECT source_id FROM knowledge_jobs WHERE id=$1', [id]))
+        .rows[0];
+      if (!identity) throw new NotFoundException();
+      await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,41))', [identity.source_id]);
       const row = (
         await c.query(
-          "UPDATE knowledge_jobs SET status='pending',error=NULL,updated_at=now() WHERE id=$1 AND status IN ('blocked','failed') RETURNING source_id",
+          "UPDATE knowledge_jobs SET status='pending',error=NULL,updated_at=now() WHERE id=$1 AND status IN ('blocked','failed') AND EXISTS(SELECT 1 FROM knowledge_sources s WHERE s.id=knowledge_jobs.source_id AND s.revision=knowledge_jobs.source_revision AND s.archived_at IS NULL) AND NOT EXISTS(SELECT 1 FROM knowledge_jobs other WHERE other.source_id=knowledge_jobs.source_id AND other.id<>knowledge_jobs.id AND other.status IN ('pending','running','blocked')) RETURNING source_id",
           [id],
         )
       ).rows[0];
@@ -63,6 +67,10 @@ export class KnowledgeJobsController {
   }
   @Post(':id/cancel') cancel(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.db.withTenant(r.user.tenantId, async (c) => {
+      const identity = (await c.query('SELECT source_id FROM knowledge_jobs WHERE id=$1', [id]))
+        .rows[0];
+      if (!identity) throw new NotFoundException();
+      await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,41))', [identity.source_id]);
       const job = (
         await c.query(
           "UPDATE knowledge_jobs SET status='canceled',updated_at=now() WHERE id=$1 AND status IN ('pending','running','blocked','failed') RETURNING source_id",

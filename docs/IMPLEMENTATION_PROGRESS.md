@@ -1,5 +1,12 @@
 # Implementation progress — core reliability + connected business platform
 
+## Knowledge lifecycle checkpoint — 2026-10-23
+
+Migration 045 adds immutable input revisions, source archive state and per-job source revisions. Text/FAQ/URL edits require the current revision and cancellation of active indexing first; prior published chunks survive replacement processing. One source advisory lock coordinates edit/archive/reindex/process/resume/cancel. Obsolete jobs cannot resume or publish. Archived sources retain content/history/index but are excluded from vector/keyword retrieval; restore makes the retained index available again. The connected knowledge page now uses shared bilingual forms/cards, search, archive filtering and version review/load-as-new-save. File replacement remains a new upload; extracted URL/file snapshots are not an immutable crawler archive. History is bounded to 50 revisions per source and refuses further edits instead of deleting records; retained archived sources still count toward source quota.
+
+Full API/Next build/TypeScript, ESLint and the new knowledge revision smoke pass with mocked embeddings only. Source retention/cleanup, historical extraction snapshots, larger file replacement and AI tool/pricing audit remain open. Continue with basic cross-module regression/migration verification and save the final handover; do not start screenshots or comprehensive acceptance.
+
+
 ## Custom-domain integration checkpoint — 2026-10-23
 
 Migration 044 connects hosting requests, minimal public brand resolution/TLS eligibility, web Host enforcement/branded entry, and versioned twelve-hour ownership rechecks through the existing outbox. Recent ownership, tenant status and white-label entitlement are checked; disable/revoke/expiry/downgrade deny serving. API/web gates stay false. An optional Caddy ask + per-request forward-auth example and activation runbook are provided, but actual Caddy/ACME/DNS configuration and certificate issuance were not performed or tested.
