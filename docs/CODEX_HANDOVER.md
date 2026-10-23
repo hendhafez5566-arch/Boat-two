@@ -1,3 +1,9 @@
+## AI browser fallback/recovery acceptance — 2026-10-23 UTC
+
+Previous diagnostics checkpoint 82b4c69 pushed/remote-verified. New fixture-ai-api runs the real compiled API in an isolated child in test mode with only OpenAI chat mocked before bootstrap; all requests remain local, the child external gate is false and the main API is unchanged. Browser calls are forwarded to that real isolated API. Actual settings save, forced provider failure, custom fallback, human escalation signal, sanitized failure audit and successful independent request are verified; exactly two run rows prevent hidden paid-call retries. Arabic/mobile screenshots saved. Fixture contains only fake provider credentials.
+
+AI-05 now CLOSED; frozen scope 25 CLOSED / 16 OPEN local requirements + 7 external/owner dependencies. All browser regression, final 132-view survey, fresh migrations 001–077/repeat and final evidence consolidation are running. Earlier AI harness failures were selector ambiguity (textarea label/value; duplicate fallback in editor/result), not relaxed runtime assertions; corrected to textbox/result-article scope. Do not claim live external acceptance, full code completion or production readiness.
+
 ## Automation execution context and recovery — 2026-10-23 UTC
 
 Previous upload checkpoint 06718ba pushed/remote-verified. Migration 077 records failure path/type/original rule revision for nested actions, including delayed follow-ups which previously lacked the same durable failure attribution. Retry/success resolves matching records; HTTP effect keys and idempotency semantics are preserved. UI shows event/contact/revision/path context, opens current rule explicitly for review and warns to compare saved revisions rather than pretending it loaded the failed historical definition.
