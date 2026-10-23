@@ -211,31 +211,51 @@ export class AutomationService {
     eventId: string;
     ruleId?: string;
   }) {
-    const enabled = await this.db.withTenant(event.tenantId, (c) => this.plans.getTenantPlan(c));
-    if (!enabled.features.automations) return;
-    if (event.ruleId) {
-      const active = await this.db.withTenant(
-        event.tenantId,
-        async (c) =>
-          (await c.query('SELECT 1 FROM automation_rules WHERE id=$1 AND enabled', [event.ruleId]))
-            .rowCount,
-      );
-      if (!active) return;
-    }
-    if (
-      !(await this.db.withTenant(
-        event.tenantId,
-        async (c) =>
-          (
-            await c.query(
-              'SELECT 1 FROM contacts WHERE id=$1 AND archived_at IS NULL AND merged_into_id IS NULL',
-              [event.contactId],
-            )
-          ).rowCount,
-      ))
-    )
-      return;
-    const actions = z.array(actionSchema).max(10).parse(event.actions);
-    await this.actions(event.tenantId, event.contactId, actions, event.eventId, event.ruleId);
+    return this.db.withTenant(event.tenantId, async (c) => {
+      // Serialize with CRM merge so resolution and all local writes share one canonical target.
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+      const plan = await this.plans.getTenantPlan(c);
+      if (!plan.features.automations) return;
+      if (
+        event.ruleId &&
+        !(await c.query('SELECT 1 FROM automation_rules WHERE id=$1 AND enabled', [event.ruleId]))
+          .rowCount
+      )
+        return;
+      let contactId = event.contactId;
+      const visited = new Set<string>();
+      for (;;) {
+        if (visited.has(contactId) || visited.size >= 20)
+          throw new Error('Contact merge chain requires operator review');
+        visited.add(contactId);
+        const contact = (
+          await c.query('SELECT id,merged_into_id,archived_at FROM contacts WHERE id=$1', [
+            contactId,
+          ])
+        ).rows[0];
+        if (!contact) return;
+        if (contact.merged_into_id) {
+          contactId = contact.merged_into_id;
+          continue;
+        }
+        if (contact.archived_at) return;
+        break;
+      }
+      const actions = z.array(actionSchema).max(10).parse(event.actions);
+      await this.actions(event.tenantId, contactId, actions, event.eventId, event.ruleId);
+      if (contactId !== event.contactId)
+        await c.query(
+          "INSERT INTO audit_logs(tenant_id,action,resource_type,resource_id,details) VALUES($1,'automation_followup_retarget','contacts',$2,$3)",
+          [
+            event.tenantId,
+            contactId,
+            JSON.stringify({
+              sourceId: event.contactId,
+              eventId: event.eventId,
+              ruleId: event.ruleId ?? null,
+            }),
+          ],
+        );
+    });
   }
 }

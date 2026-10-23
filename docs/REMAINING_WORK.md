@@ -1,5 +1,12 @@
 # Remaining implementation — continue on PR #1
 
+## Acceptance continuation — delayed automation after CRM merge (2026-10-23)
+
+Existing follow-up executor now resolves the tenant-scoped canonical merge chain and runs saved actions under the same tenant lock as CRM merge. Original event/effect identities are preserved. Retargeted work writes an audit entry; archived/missing targets or disabled rules are suppressed; cyclic/excessive chains fail for operator review. No consent is changed and no parallel engine or external replay path is added.
+
+Verified: API TypeScript, ESLint, PostgreSQL smoke-automation-merge (target/source preservation, task/tag execution, audit, archived/cross-tenant suppression and cycle denial) and existing nested-automations smoke (real delayed branch/replay/version isolation). Next: latest-runtime/browser regressions and full handover. Advanced integration authentication/debugger, billing/email lifecycle and broad visual acceptance remain open.
+
+
 ## Acceptance continuation — Inbox tuple pagination (2026-10-23)
 
 Inbox API/UI now page by descending (last_message_at,id), encoding the exact PostgreSQL microsecond timestamp and ID into a validated cursor. Equal timestamps cannot skip conversations; tenant/search filters remain authoritative. Legacy before clients remain supported with their prior semantics. Migration 064 indexes the tuple. Pagination remains a live view: conversations receiving new messages can move ahead of an existing cursor.
