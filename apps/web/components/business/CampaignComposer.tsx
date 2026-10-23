@@ -5,18 +5,19 @@ import {
   validCampaignContent,
   CampaignContent,
 } from './RichCampaignContent';
+import {
+  TemplateParameters,
+  TemplatePreview,
+  TemplateValue,
+  ApprovedTemplate,
+  validTemplateValue,
+} from './TemplateParameters';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 type Channel = { id: string; name: string; type: string };
 type Segment = { id: string; name: string; filters: Record<string, string> };
-type Template = {
-  name: string;
-  language: string;
-  body: string;
-  status: string;
-  supported: boolean;
-};
+type Template = ApprovedTemplate;
 const copy = [
   [
     'متابعة الاهتمام',
@@ -73,7 +74,11 @@ export function CampaignComposer({
   const [frequency, setFrequency] = useState(24),
     [text, setText] = useState(''),
     [template, setTemplate] = useState(''),
-    [parameters, setParameters] = useState('');
+    [templateValue, setTemplateValue] = useState<TemplateValue>({
+      name: '',
+      language: '',
+      bodyParams: [],
+    });
   const [templates, setTemplates] = useState<Template[]>([]),
     [loading, setLoading] = useState(false);
   const [audience, setAudience] = useState<{ matched: number; eligible: number } | null>(null);
@@ -84,18 +89,14 @@ export function CampaignComposer({
   const selectedChannel = channels.find((c) => c.id === channel),
     filters = segments.find((s) => s.id === segment)?.filters || {};
   const selectedTemplate = templates.find((x) => x.name + '|' + x.language === template);
-  const values = parameters.split('\n').filter(Boolean);
-  const preview = selectedTemplate
-    ? selectedTemplate.body.replace(/\{\{(\d+)\}\}/g, (match, n) => values[Number(n) - 1] || match)
-    : text;
   const validContent = selectedTemplate
-    ? !/\{\{\d+\}\}/.test(preview)
+    ? validTemplateValue(selectedTemplate, templateValue)
     : validCampaignContent({ ...rich, text });
   useEffect(() => {
     let active = true;
     setTemplate('');
     setTemplates([]);
-    setParameters('');
+    setTemplateValue({ name: '', language: '', bodyParams: [] });
     setError('');
     setLoading(selectedChannel?.type === 'whatsapp');
     if (selectedChannel?.type === 'whatsapp')
@@ -166,9 +167,9 @@ export function CampaignComposer({
           content: selectedTemplate
             ? {
                 template: {
+                  ...templateValue,
                   name: selectedTemplate.name,
                   language: selectedTemplate.language,
-                  bodyParams: values,
                 },
               }
             : { ...rich, text: text.trim() },
@@ -301,7 +302,12 @@ export function CampaignComposer({
                 value={template}
                 onChange={(e) => {
                   setTemplate(e.target.value);
-                  setParameters('');
+                  const next = templates.find((x) => x.name + '|' + x.language === e.target.value);
+                  setTemplateValue({
+                    name: next?.name ?? '',
+                    language: next?.language ?? '',
+                    bodyParams: [],
+                  });
                 }}
               >
                 <option value="">
@@ -317,17 +323,13 @@ export function CampaignComposer({
           )}
           {loading && <p role="status">{t('تحميل القوالب…', 'Loading templates…')}</p>}
           {template ? (
-            <>
-              <p className="notice whitespace-pre-wrap">{selectedTemplate?.body}</p>
-              <label className="field">
-                {t('قيم القالب، قيمة في كل سطر', 'Template values, one per line')}
-                <textarea
-                  value={parameters}
-                  onChange={(e) => setParameters(e.target.value)}
-                  rows={4}
-                />
-              </label>
-            </>
+            selectedTemplate && (
+              <TemplateParameters
+                definition={selectedTemplate}
+                value={templateValue}
+                onChange={setTemplateValue}
+              />
+            )
           ) : (
             <>
               <div className="form-grid">
@@ -353,8 +355,8 @@ export function CampaignComposer({
           )}
           <p className="muted">
             {t(
-              'يدعم النص والوسائط وأزرار الرد والقوائم وقوالب BODY المعتمدة. تخضع نافذة الرد والموافقة وسياسة القناة للفحص عند الإرسال.',
-              'Supports text, media, reply buttons, menus and approved BODY templates. Reply windows, consent and channel policy are checked at delivery.',
+              'يدعم النص والوسائط وأزرار الرد والقوائم والقوالب المعتمدة بترويسات وأزرار مدعومة. تخضع نافذة الرد والموافقة وسياسة القناة للفحص عند الإرسال.',
+              'Supports text, media, reply buttons, menus and approved templates with supported headers and buttons. Reply windows, consent and channel policy are checked at delivery.',
             )}
           </p>
           <div className="form-actions">
@@ -384,7 +386,11 @@ export function CampaignComposer({
             className="card whitespace-pre-wrap"
             aria-label={t('معاينة الرسالة', 'Message preview')}
           >
-            {template ? preview : <CampaignContentPreview content={{ ...rich, text }} />}
+            {selectedTemplate ? (
+              <TemplatePreview definition={selectedTemplate} value={templateValue} />
+            ) : (
+              <CampaignContentPreview content={{ ...rich, text }} />
+            )}
           </article>
           <p className="notice">
             {t(

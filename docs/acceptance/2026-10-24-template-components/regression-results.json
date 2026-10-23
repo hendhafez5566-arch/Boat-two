@@ -1,0 +1,22 @@
+[
+  {
+    "suite": "template-components",
+    "code": 0
+  },
+  {
+    "suite": "rich-campaigns",
+    "code": 0
+  },
+  {
+    "suite": "core",
+    "code": 0
+  },
+  {
+    "suite": "worker",
+    "code": 0
+  },
+  {
+    "suite": "delivery-accounts",
+    "code": 0
+  }
+]

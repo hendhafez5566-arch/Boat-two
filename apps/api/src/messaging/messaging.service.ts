@@ -1,3 +1,4 @@
+import { validateTemplateParameters } from './template-contract';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventsService } from '../events/events.service';
 import { PlansService } from '../plans/plans.service';
@@ -272,14 +273,12 @@ export class MessagingService {
           throw new BadRequestException('Templates require a WhatsApp channel');
         const template = (
           await c.query(
-            "SELECT body FROM whatsapp_templates WHERE channel_id=$1 AND name=$2 AND language=$3 AND status='APPROVED' AND supported",
+            "SELECT body,category,components FROM whatsapp_templates WHERE channel_id=$1 AND name=$2 AND language=$3 AND status='APPROVED' AND supported",
             [row.channel_id, p.content.template.name, p.content.template.language],
           )
         ).rows[0];
         if (!template) throw new BadRequestException('Template is not approved for this channel');
-        const required = new Set(template.body.match(/\{\{\d+\}\}/g) || []).size;
-        if (required !== p.content.template.bodyParams.length)
-          throw new BadRequestException('Incorrect template parameter count');
+        validateTemplateParameters(template, p.content.template);
       }
       const msg = (
         await c.query(

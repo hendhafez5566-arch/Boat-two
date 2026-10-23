@@ -1,3 +1,4 @@
+import { supportedTemplate, TemplateComponent, variableCount } from './template-contract';
 import {
   BadRequestException,
   Body,
@@ -62,8 +63,8 @@ export class TemplatesController {
       }),
       body,
     );
-    const params = [...new Set(b.body.match(/\{\{\d+\}\}/g) || [])];
-    if (params.length !== b.examples.length)
+    const params = variableCount(b.body);
+    if (params < 0 || params !== b.examples.length)
       throw new BadRequestException('Provide an example for every template variable');
     return this.db.withTenant(
       r.user.tenantId,
@@ -110,7 +111,7 @@ export class TemplatesController {
           language: string;
           category: string;
           status: string;
-          components: { type: string; text?: string }[];
+          components: TemplateComponent[];
         }[];
         error?: { message: string };
         paging?: { cursors?: { after?: string } };
@@ -120,7 +121,7 @@ export class TemplatesController {
       for (const template of data.data || []) {
         await this.db.withTenant(r.user.tenantId, (c) =>
           c.query(
-            `INSERT INTO whatsapp_templates(tenant_id,channel_id,name,language,category,body,status,provider_id,supported) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(channel_id,name,language) DO UPDATE SET status=$7,provider_id=$8,body=$6,supported=$9,updated_at=now()`,
+            `INSERT INTO whatsapp_templates(tenant_id,channel_id,name,language,category,body,status,provider_id,supported,components) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(channel_id,name,language) DO UPDATE SET status=$7,provider_id=$8,body=$6,supported=$9,components=$10,category=$5,updated_at=now()`,
             [
               r.user.tenantId,
               id,
@@ -130,10 +131,8 @@ export class TemplatesController {
               template.components.find((x) => x.type === 'BODY')?.text || '',
               template.status,
               template.id,
-              template.category !== 'AUTHENTICATION' &&
-                template.components.every((component) =>
-                  ['BODY', 'FOOTER'].includes(component.type),
-                ),
+              supportedTemplate(template.category, template.components),
+              JSON.stringify(template.components),
             ],
           ),
         );

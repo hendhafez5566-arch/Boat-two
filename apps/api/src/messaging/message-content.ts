@@ -13,8 +13,33 @@ export const contentSchema = z
       .object({
         name: z.string().regex(/^[a-z0-9_]{1,512}$/),
         language: z.string().regex(/^[a-z]{2,3}(?:_[A-Z]{2})?$/),
-        bodyParams: z.array(z.string().max(1024)).max(20).default([]),
+        bodyParams: z.array(z.string().min(1).max(1024)).max(20).default([]),
+        header: z
+          .discriminatedUnion('type', [
+            z.object({ type: z.literal('text'), text: z.string().min(1).max(60) }).strict(),
+            z
+              .object({
+                type: z.enum(['image', 'video', 'document']),
+                url: z.string().url().max(2048),
+                filename: z.string().min(1).max(200).optional(),
+              })
+              .strict(),
+          ])
+          .optional(),
+        buttonParams: z
+          .array(
+            z
+              .object({
+                index: z.number().int().min(0).max(9),
+                type: z.enum(['quick_reply', 'url']),
+                value: z.string().min(1).max(1024),
+              })
+              .strict(),
+          )
+          .max(10)
+          .optional(),
       })
+      .strict()
       .optional(),
     text: z.string().max(4096).optional(),
     media: z

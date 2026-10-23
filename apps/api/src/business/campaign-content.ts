@@ -1,3 +1,4 @@
+import { validateTemplateParameters } from '../messaging/template-contract';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PoolClient } from 'pg';
 import { isIP } from 'node:net';
@@ -42,21 +43,12 @@ export async function validateCampaignContent(
       throw new BadRequestException('Templates require a WhatsApp channel');
     const row = (
       await c.query(
-        "SELECT body FROM whatsapp_templates WHERE channel_id=$1 AND name=$2 AND language=$3 AND status='APPROVED' AND supported",
+        "SELECT body,category,components FROM whatsapp_templates WHERE channel_id=$1 AND name=$2 AND language=$3 AND status='APPROVED' AND supported",
         [channelId, content.template.name, content.template.language],
       )
     ).rows[0];
     if (!row)
       throw new BadRequestException('Select an approved supported template for this channel');
-    const indices = [
-      ...new Set(
-        (row.body.match(/\{\{(\d+)\}\}/g) ?? []).map((x: string) => Number(x.replace(/\D/g, ''))),
-      ),
-    ].sort((a, b) => Number(a) - Number(b));
-    if (
-      indices.some((n, i) => n !== i + 1) ||
-      indices.length !== content.template.bodyParams.length
-    )
-      throw new BadRequestException('Template BODY parameter count or order is invalid');
+    validateTemplateParameters(row, content.template);
   }
 }

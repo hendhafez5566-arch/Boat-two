@@ -1,4 +1,10 @@
 'use client';
+import {
+  TemplateParameters,
+  TemplatePreview,
+  ApprovedTemplate,
+  validTemplateValue,
+} from './TemplateParameters';
 import { useState } from 'react';
 import { RichCampaignContent, CampaignContent } from './RichCampaignContent';
 import { useData } from './useData';
@@ -28,6 +34,13 @@ export function CampaignDraftEditor({
     '/crm/segments',
     [],
   );
+  const templates = useData<ApprovedTemplate[]>(
+    campaign.content.template ? '/channels/' + campaign.channel_id + '/templates' : '',
+    [],
+  );
+  const definition = templates.data.find(
+    (x) => x.name === draft.template?.name && x.language === draft.template?.language,
+  );
   return (
     <details>
       <summary className="btn">{t('تعديل المسودة', 'Edit draft')}</summary>
@@ -48,16 +61,7 @@ export function CampaignDraftEditor({
                     : (segments.data.find((s) => s.id === form.get('audience'))?.filters ?? {}),
                 frequencyHours: Number(form.get('frequency')),
                 revision: campaign.revision,
-                content: campaign.content.template
-                  ? {
-                      template: {
-                        ...campaign.content.template,
-                        bodyParams: String(form.get('params') || '')
-                          .split('\n')
-                          .filter(Boolean),
-                      },
-                    }
-                  : draft,
+                content: draft,
               }),
             }),
           );
@@ -78,18 +82,28 @@ export function CampaignDraftEditor({
             required
           />
         </label>
-        {campaign.content.template ? (
+        {draft.template ? (
           <>
             <p>
-              {campaign.content.template.name} · {campaign.content.template.language}
+              {draft.template.name} · {draft.template.language}
             </p>
-            <label className="field">
-              {t('قيم القالب، كل قيمة بسطر', 'Template values, one per line')}
-              <textarea
-                name="params"
-                defaultValue={campaign.content.template.bodyParams.join('\n')}
-              />
-            </label>
+            {definition ? (
+              <>
+                <TemplateParameters
+                  definition={definition}
+                  value={draft.template}
+                  onChange={(template) => setDraft({ template })}
+                />
+                <TemplatePreview definition={definition} value={draft.template} />
+              </>
+            ) : (
+              <p role="status">
+                {t(
+                  'تحميل تعريف القالب؛ إذا تعذر التحميل فأعد المحاولة.',
+                  'Loading template definition; retry if unavailable.',
+                )}
+              </p>
+            )}
           </>
         ) : (
           <RichCampaignContent value={draft} onChange={setDraft} />
@@ -106,7 +120,13 @@ export function CampaignDraftEditor({
             ))}
           </select>
         </label>
-        <button className="btn btn-primary" disabled={busy}>
+        <button
+          className="btn btn-primary"
+          disabled={
+            busy ||
+            (!!draft.template && (!definition || !validTemplateValue(definition, draft.template)))
+          }
+        >
           {t('حفظ التعديل', 'Save changes')}
         </button>
       </form>

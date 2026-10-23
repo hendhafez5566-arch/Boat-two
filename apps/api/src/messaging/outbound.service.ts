@@ -1,3 +1,4 @@
+import { validateTemplateParameters } from './template-contract';
 import { DeliveryBudget } from './delivery-budget';
 import {
   BadRequestException,
@@ -129,6 +130,33 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
               [j.message_id],
             );
             return null;
+          }
+          if (message.content.template) {
+            try {
+              const definition = (
+                await c.query(
+                  "SELECT body,category,components FROM whatsapp_templates WHERE channel_id=$1 AND name=$2 AND language=$3 AND status='APPROVED' AND supported",
+                  [
+                    message.channel_id,
+                    message.content.template.name,
+                    message.content.template.language,
+                  ],
+                )
+              ).rows[0];
+              if (message.channel_type !== 'whatsapp' || !definition)
+                throw new Error('Template unavailable');
+              validateTemplateParameters(definition, message.content.template);
+            } catch {
+              await c.query(
+                "UPDATE outbound_jobs SET status='failed',error='Approved template definition changed or parameters are invalid',updated_at=now() WHERE id=$1",
+                [j.id],
+              );
+              await c.query(
+                "UPDATE messages SET status='failed',error='TEMPLATE_DEFINITION_INVALID' WHERE id=$1",
+                [j.message_id],
+              );
+              return null;
+            }
           }
           const permit = await this.budget.take(job.tenant_id, message.channel_id, !!marketing);
           if (!permit.allowed) {

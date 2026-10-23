@@ -15,16 +15,47 @@ export class WhatsAppAdapter implements ChannelAdapter {
         template: {
           name: c.template.name,
           language: { code: c.template.language },
-          ...(c.template.bodyParams.length
-            ? {
-                components: [
+          components: [
+            ...(c.template.header
+              ? [
+                  {
+                    type: 'header',
+                    parameters: [
+                      c.template.header.type === 'text'
+                        ? { type: 'text', text: c.template.header.text }
+                        : {
+                            type: c.template.header.type,
+                            [c.template.header.type]: {
+                              link: c.template.header.url,
+                              ...(c.template.header.type === 'document' &&
+                              c.template.header.filename
+                                ? { filename: c.template.header.filename }
+                                : {}),
+                            },
+                          },
+                    ],
+                  },
+                ]
+              : []),
+            ...(c.template.bodyParams.length
+              ? [
                   {
                     type: 'body',
                     parameters: c.template.bodyParams.map((text) => ({ type: 'text', text })),
                   },
-                ],
-              }
-            : {}),
+                ]
+              : []),
+            ...(c.template.buttonParams ?? []).map((b) => ({
+              type: 'button',
+              sub_type: b.type,
+              index: String(b.index),
+              parameters: [
+                b.type === 'quick_reply'
+                  ? { type: 'payload', payload: b.value }
+                  : { type: 'text', text: b.value },
+              ],
+            })),
+          ],
         },
       };
     } else if (c.list) {

@@ -1,4 +1,5 @@
 'use client';
+import { TemplateValue } from './TemplateParameters';
 import { useLocale } from '../product/locale';
 export type CampaignContent = {
   text?: string;
@@ -13,7 +14,7 @@ export type CampaignContent = {
     buttonText: string;
     sections: { title?: string; rows: { id: string; title: string; description?: string }[] }[];
   };
-  template?: { name: string; language: string; bodyParams: string[] };
+  template?: TemplateValue;
 };
 export function validCampaignContent(c: CampaignContent) {
   if (c.media)
