@@ -245,7 +245,7 @@ export class AiService {
       async (c) =>
         (
           await c.query(
-            `SELECT a.*,p.kind,p.model,p.credentials_enc,p.input_microusd_per_million,p.output_microusd_per_million,p.enabled AS provider_enabled
+            `SELECT a.*,p.kind,p.model,p.credentials_enc,p.input_microusd_per_million,p.output_microusd_per_million,p.enabled AS provider_enabled,p.retired_at,p.supports_tools
              FROM ai_agents a LEFT JOIN ai_providers p ON p.id=a.provider_id WHERE a.id=COALESCE(
              (SELECT agent_id FROM ai_routes WHERE flow_id=$1),
              (SELECT agent_id FROM ai_routes WHERE channel_id=$2),
@@ -255,6 +255,10 @@ export class AiService {
         ).rows[0],
     );
     if (agent && !agent.enabled) return this.fail(settings, 'agent_disabled');
+    if (agent?.retired_at)
+      return this.fail(settings, 'agent_provider_retired', settings.handoff_enabled);
+    if (agent?.provider_id && agent.supports_tools === false && agent.allowed_tools.length)
+      return this.fail(settings, 'model_tools_unsupported', settings.handoff_enabled);
     if (agent?.provider_id && !agent.provider_enabled)
       return this.fail(settings, 'agent_provider_disabled');
     const provider: LlmProvider | null = agent?.provider_enabled

@@ -1,5 +1,12 @@
 # Continue here — ELHAFEZ BOAT
 
+## Acceptance continuation — AI provider lifecycle (2026-10-23)
+
+Migration 062 adds revisions, retirement and administrator-declared tool capability to existing providers. Connected bilingual provider cards edit name/model/rates/capability with revision conflicts; enable/disable remains compatible. Permanent retirement erases the encrypted key, preserves agents/run history and refuses later edits/key rotation/reassignment. Tenant lock serializes configuration with generation; enabled agents requiring tools cannot use a declared incompatible model. Existing capability defaults remain compatible, not provider-certified. No provider network calls enabled.
+
+Verified: API/web TypeScript, ESLint, targeted AI unit files, clean PostgreSQL migration chain 001–062 and HTTP smoke-provider-lifecycle (edit/conflict/compatibility/retirement/tenant isolation). Next: CRM export snapshot semantics and pipeline ownership, then campaign composer and remaining closure. AI cost caps/catalog/fallback and full browser acceptance remain open; this checkpoint is not complete product acceptance.
+
+
 ## Final full-product sprint handover — 2026-10-23
 
 Implemented and continuously pushed eight checkpoints from verified `386b6b3` through feature HEAD `8a8b77a` on the same branch/Draft PR #1. Delivered audited billing evidence review and future requests, domain-bound branded authentication, premium foundation and seven-step bot builder, nested/versioned automation, gated encrypted invitation mail and inbox refinement. See [the full sprint report](SPRINT_FULL_PRODUCT_2026-10-23.md) for files, commits and exact limitations.

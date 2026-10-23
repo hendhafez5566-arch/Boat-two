@@ -1,4 +1,5 @@
 'use client';
+import { ProviderEditor } from '../../../components/business/ProviderEditor';
 import { AiToolAudit } from '../../../components/business/AiToolAudit';
 import { AgentRouting } from '../../../components/business/AgentRouting';
 import { useState } from 'react';
@@ -15,7 +16,18 @@ type Agent = {
   is_default: boolean;
   allowed_tools: string[];
 };
-type Provider = { id: string; name: string; kind: string; model: string; enabled: boolean };
+type Provider = {
+  id: string;
+  name: string;
+  kind: string;
+  model: string;
+  enabled: boolean;
+  revision: number;
+  retired_at: string | null;
+  supports_tools: boolean;
+  input_microusd_per_million: string | null;
+  output_microusd_per_million: string | null;
+};
 type Run = {
   id: string;
   input_tokens: number;
@@ -163,7 +175,7 @@ export default function Agents() {
                 {t('إعدادات البيئة عند توفرها', 'Environment provider if configured')}
               </option>
               {data.data.providers.map((p) => (
-                <option key={p.id} value={p.id}>
+                <option key={p.id} value={p.id} disabled={!!p.retired_at}>
                   {p.name} · {p.model}
                 </option>
               ))}
@@ -259,51 +271,7 @@ export default function Agents() {
       <section className="card">
         <h2>{t('مزودو الخدمة', 'Providers')}</h2>
         {data.data.providers.map((p) => (
-          <div className="step" key={p.id}>
-            <div>
-              <strong>{p.name}</strong>
-              <small>
-                {p.kind} · {p.model}
-              </small>
-            </div>
-            <button
-              className="btn"
-              disabled={busy}
-              onClick={() =>
-                act('/agents/providers/' + p.id, { enabled: !p.enabled }, 'PATCH').catch(() => {})
-              }
-            >
-              {p.enabled ? t('إيقاف', 'Disable') : t('تفعيل', 'Enable')}
-            </button>
-            <form
-              className="flex gap-2"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const form = e.currentTarget;
-                const f = new FormData(form);
-                try {
-                  await act('/agents/providers/' + p.id + '/rotate', { apiKey: f.get('key') });
-                  form.reset();
-                } catch {
-                  /* Shared error banner. */
-                }
-              }}
-            >
-              <input
-                type="password"
-                name="key"
-                required
-                minLength={10}
-                maxLength={4000}
-                autoComplete="off"
-                aria-label={t('مفتاح بديل', 'Replacement key')}
-                placeholder={t('مفتاح بديل', 'Replacement key')}
-              />
-              <button className="btn" disabled={busy}>
-                {t('تدوير المفتاح', 'Rotate key')}
-              </button>
-            </form>
-          </div>
+          <ProviderEditor key={p.id + ':' + p.revision} provider={p} busy={busy} act={act} />
         ))}
       </section>
       <form

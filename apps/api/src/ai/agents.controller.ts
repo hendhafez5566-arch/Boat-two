@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Body,
   Controller,
   Get,
@@ -44,7 +45,7 @@ export class AgentsController {
       agents: (await c.query('SELECT * FROM ai_agents ORDER BY name')).rows,
       providers: (
         await c.query(
-          'SELECT id,name,kind,model,enabled,key_version,key_rotated_at FROM ai_providers ORDER BY name',
+          'SELECT id,name,kind,model,enabled,key_version,key_rotated_at,revision,retired_at,supports_tools,input_microusd_per_million,output_microusd_per_million FROM ai_providers ORDER BY name',
         )
       ).rows,
       runs: (
@@ -114,16 +115,97 @@ export class AgentsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: unknown,
   ) {
-    const b = parse(z.object({ enabled: z.boolean() }), body);
+    const b = parse(
+      z
+        .object({
+          revision: z.number().int().positive().optional(),
+          enabled: z.boolean().optional(),
+          name: z.string().trim().min(1).max(100).optional(),
+          model: z
+            .string()
+            .regex(/^[a-zA-Z0-9._-]{1,100}$/)
+            .optional(),
+          supportsTools: z.boolean().optional(),
+          inputUsdPerMillion: z.number().finite().min(0).max(10000).nullable().optional(),
+          outputUsdPerMillion: z.number().finite().min(0).max(10000).nullable().optional(),
+        })
+        .strict(),
+      body,
+    );
     return this.db.withTenant(r.user.tenantId, async (c) => {
-      const row = (
-        await c.query('UPDATE ai_providers SET enabled=$2 WHERE id=$1 RETURNING id,name,enabled', [
-          id,
-          b.enabled,
-        ])
+      // Same lock as generation and agent assignment: changes cannot race an active call.
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+      const old = (await c.query('SELECT * FROM ai_providers WHERE id=$1 FOR UPDATE', [id]))
+        .rows[0];
+      if (!old) throw new NotFoundException();
+      if (old.retired_at) throw new BadRequestException('Retired providers cannot be changed');
+      if (b.revision !== undefined && old.revision !== b.revision)
+        throw new ConflictException('Provider changed; reload before saving');
+      if (
+        (b.model !== undefined ||
+          b.supportsTools !== undefined ||
+          b.name !== undefined ||
+          b.inputUsdPerMillion !== undefined ||
+          b.outputUsdPerMillion !== undefined) &&
+        b.revision === undefined
+      )
+        throw new BadRequestException('Revision is required for provider edits');
+      if (
+        b.supportsTools === false &&
+        (
+          await c.query(
+            'SELECT 1 FROM ai_agents WHERE provider_id=$1 AND enabled AND cardinality(allowed_tools)>0 LIMIT 1',
+            [id],
+          )
+        ).rowCount
+      )
+        throw new BadRequestException('Disable or reassign agents requiring tools first');
+      return (
+        await c.query(
+          `UPDATE ai_providers SET name=$2,model=$3,enabled=$4,supports_tools=$5,
+         input_microusd_per_million=$6,output_microusd_per_million=$7,revision=revision+1
+         WHERE id=$1 RETURNING id,name,kind,model,enabled,supports_tools,revision,retired_at`,
+          [
+            id,
+            b.name ?? old.name,
+            b.model ?? old.model,
+            b.enabled ?? old.enabled,
+            b.supportsTools ?? old.supports_tools,
+            b.inputUsdPerMillion === undefined
+              ? old.input_microusd_per_million
+              : b.inputUsdPerMillion === null
+                ? null
+                : Math.round(b.inputUsdPerMillion * 1000000),
+            b.outputUsdPerMillion === undefined
+              ? old.output_microusd_per_million
+              : b.outputUsdPerMillion === null
+                ? null
+                : Math.round(b.outputUsdPerMillion * 1000000),
+          ],
+        )
       ).rows[0];
-      if (!row) throw new NotFoundException();
-      return row;
+    });
+  }
+  @Post('providers/:id/retire') retire(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const b = parse(z.object({ revision: z.number().int().positive() }).strict(), body);
+    return this.db.withTenant(r.user.tenantId, async (c) => {
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+      const old = (await c.query('SELECT * FROM ai_providers WHERE id=$1 FOR UPDATE', [id]))
+        .rows[0];
+      if (!old) throw new NotFoundException();
+      if (old.revision !== b.revision)
+        throw new ConflictException('Provider changed; reload before retiring');
+      if (old.retired_at) return { id, retired: true };
+      // Preserve references and run history; erase the credential without cascading deletion.
+      await c.query(
+        'UPDATE ai_providers SET enabled=false,retired_at=now(),credentials_enc=$2,revision=revision+1 WHERE id=$1',
+        [id, this.crypto.encrypt({})],
+      );
+      return { id, retired: true };
     });
   }
   @Post('providers/:id/rotate') rotate(
@@ -133,9 +215,10 @@ export class AgentsController {
   ) {
     const input = parse(z.object({ apiKey: z.string().min(10).max(4000) }), body);
     return this.db.withTenant(r.user.tenantId, async (c) => {
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
       const row = (
         await c.query(
-          'UPDATE ai_providers SET credentials_enc=$2,key_version=key_version+1,key_rotated_at=now() WHERE id=$1 RETURNING id,key_version,key_rotated_at',
+          'UPDATE ai_providers SET credentials_enc=$2,key_version=key_version+1,key_rotated_at=now(),revision=revision+1 WHERE id=$1 AND retired_at IS NULL RETURNING id,key_version,key_rotated_at',
           [id, this.crypto.encrypt({ apiKey: input.apiKey })],
         )
       ).rows[0];
@@ -209,11 +292,17 @@ export class AgentsController {
           'ai_agents',
           (await c.query('SELECT count(*)::int AS n FROM ai_agents')).rows[0].n,
         );
-      if (
-        b.providerId &&
-        !(await c.query('SELECT 1 FROM ai_providers WHERE id=$1', [b.providerId])).rowCount
-      )
-        throw new NotFoundException('Provider not found');
+      if (b.providerId) {
+        const provider = (await c.query('SELECT * FROM ai_providers WHERE id=$1', [b.providerId]))
+          .rows[0];
+        if (!provider) throw new NotFoundException('Provider not found');
+        if (provider.retired_at)
+          throw new BadRequestException('Provider is retired; choose another provider');
+        if (b.enabled && b.allowedTools.length && !provider.supports_tools)
+          throw new BadRequestException(
+            'This model configuration does not support the requested tools',
+          );
+      }
       if (
         b.sourceIds.length !==
         (await c.query('SELECT id FROM knowledge_sources WHERE id=ANY($1::uuid[])', [b.sourceIds]))
