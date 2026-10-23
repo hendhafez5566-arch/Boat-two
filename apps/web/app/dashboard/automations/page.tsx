@@ -126,7 +126,9 @@ export default function Automations() {
             <select value={lifecycle} onChange={(e) => setLifecycle(e.target.value)}>
               <option value="">{t('أي مرحلة', 'Any lifecycle')}</option>
               {['lead', 'qualified', 'customer', 'inactive'].map((s) => (
-                <option key={s}>{s}</option>
+                <option key={s} value={s}>
+                  {statusLabel(s, t)}
+                </option>
               ))}
             </select>
           </label>
@@ -185,7 +187,9 @@ export default function Automations() {
                   }
                 >
                   {['lead', 'qualified', 'customer', 'inactive'].map((s) => (
-                    <option key={s}>{s}</option>
+                    <option key={s} value={s}>
+                      {statusLabel(s, t)}
+                    </option>
                   ))}
                 </select>
               ) : (

@@ -13,6 +13,7 @@ type Job = {
   processed: number;
   total: number;
   succeeded: number;
+  uploaded?: number;
   snapshot_at?: string;
   expired_at?: string | null;
   errors: { row: number; error: string }[];
@@ -29,6 +30,9 @@ export function CrmJobs() {
   }, [jobs.reload]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(
+    null,
+  );
   const [asOf, setAsOf] = useState('');
   const history = useData<{ available_from: string; pending_changes: number } | null>(
     '/crm/jobs/history',
@@ -86,6 +90,23 @@ export function CrmJobs() {
           </p>
         )}
       </div>
+      <p className="muted">
+        {t(
+          'يُرفع الملف على دفعات محفوظة قبل بدء الاستيراد. عند انقطاع الرفع، اختر الملف نفسه لاستكماله دون تكرار الصفوف. تعالج المهام البيانات ضمن حدود الخطة.',
+          'Files upload in durable chunks before import starts. After interruption, select the same file to resume without repeating rows. Jobs process contacts within plan limits.',
+        )}
+      </p>
+      {uploadProgress && (
+        <div
+          role="progressbar"
+          aria-label={t('تقدم رفع العملاء', 'Contact upload progress')}
+          aria-valuemin={0}
+          aria-valuemax={uploadProgress.total}
+          aria-valuenow={uploadProgress.done}
+        >
+          {uploadProgress.done}/{uploadProgress.total} {t('صف مرفوع', 'rows uploaded')}
+        </div>
+      )}
       <div className="form-actions">
         <label className="btn">
           {t('استيراد CSV أو JSON', 'Import CSV or JSON')}
@@ -97,24 +118,70 @@ export function CrmJobs() {
               const file = event.target.files?.[0];
               if (file)
                 void run(async () => {
-                  if (file.size > 900000)
+                  if (file.size > 10000000)
                     throw new Error(
-                      t(
-                        'حد الملف 900KB؛ قسّم الملفات الأكبر.',
-                        'File limit is 900KB; split larger files.',
-                      ),
+                      t('حد الملف 10MB و10,000 صف.', 'File limit is 10MB and 10,000 rows.'),
                     );
                   const text = await file.text();
-                  const contacts = file.name.endsWith('.csv')
+                  const contacts = file.name.toLowerCase().endsWith('.csv')
                     ? parseCsv(text).map((row) => ({
                         ...row,
                         tags: (row.tags || '').split(/[;|]/).filter(Boolean),
                       }))
                     : JSON.parse(text);
-                  await api('/crm/jobs', {
-                    method: 'POST',
-                    body: JSON.stringify({ kind: 'import', contacts }),
-                  });
+                  if (!Array.isArray(contacts) || contacts.length < 1 || contacts.length > 10000)
+                    throw new Error(
+                      t(
+                        'اختر ملفًا يحتوي من 1 إلى 10,000 عميل.',
+                        'Choose a file with 1 to 10,000 contacts.',
+                      ),
+                    );
+                  const fingerprint = Array.from(
+                    new Uint8Array(
+                      await window.crypto.subtle.digest('SHA-256', await file.arrayBuffer()),
+                    ),
+                  )
+                    .map((byte) => byte.toString(16).padStart(2, '0'))
+                    .join('');
+                  const session = await api<{ id: string; uploaded: number; total: number }>(
+                    '/crm/jobs/uploads',
+                    {
+                      method: 'POST',
+                      body: JSON.stringify({ total: contacts.length, fingerprint }),
+                    },
+                  );
+                  let offset = session.uploaded;
+                  setUploadProgress({ done: offset, total: contacts.length });
+                  while (offset < contacts.length) {
+                    let rows = contacts.slice(offset, offset + 100);
+                    while (
+                      new TextEncoder().encode(JSON.stringify({ after: offset, rows })).byteLength >
+                      900000
+                    ) {
+                      if (rows.length === 1)
+                        throw new Error(
+                          t(
+                            'صف واحد يتجاوز حد الطلب؛ قلل بياناته.',
+                            'One row exceeds the request limit; reduce its data.',
+                          ),
+                        );
+                      rows = rows.slice(0, Math.ceil(rows.length / 2));
+                    }
+                    const page = await api<{ uploaded: number }>(`/crm/jobs/${session.id}/upload`, {
+                      method: 'POST',
+                      body: JSON.stringify({ after: offset, rows }),
+                    });
+                    if (page.uploaded <= offset || page.uploaded > contacts.length)
+                      throw new Error(
+                        t(
+                          'تعذّر تقدم الرفع. اختر الملف نفسه للاستكمال.',
+                          'Upload did not advance. Select the same file to resume.',
+                        ),
+                      );
+                    offset = page.uploaded;
+                    setUploadProgress({ done: offset, total: contacts.length });
+                  }
+                  await api(`/crm/jobs/${session.id}/complete-upload`, { method: 'POST' });
                 });
               event.target.value = '';
             }}
@@ -155,7 +222,8 @@ export function CrmJobs() {
             · {statusLabel(job.status, t)}
           </strong>
           <p>
-            {job.processed}/{job.total} · {t('ناجح', 'Succeeded')}: {job.succeeded}
+            {job.status === 'uploading' ? (job.uploaded ?? 0) : job.processed}/{job.total} ·{' '}
+            {t('ناجح', 'Succeeded')}: {job.succeeded}
           </p>
           {job.expired_at && (
             <p className="muted">
@@ -171,7 +239,7 @@ export function CrmJobs() {
               {new Date(job.snapshot_at).toLocaleString()}
             </p>
           )}
-          {['pending', 'running'].includes(job.status) && (
+          {['uploading', 'pending', 'running'].includes(job.status) && (
             <button
               className="btn"
               disabled={busy}

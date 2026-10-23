@@ -75,7 +75,7 @@ export function WorkflowCanvas({
                   {action.title ??
                     action.tag ??
                     action.text?.slice(0, 55) ??
-                    (action.delayMinutes ? `${action.delayMinutes} min` : '')}
+                    (action.delayMinutes ? `${action.delayMinutes} ${t('دقيقة', 'min')}` : '')}
                 </span>
               </div>
             ),

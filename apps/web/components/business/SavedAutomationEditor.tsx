@@ -1,4 +1,6 @@
 'use client';
+import { automationLabel } from './automation-labels';
+import { statusLabel } from '../product/status';
 import { WorkflowCanvas } from './WorkflowCanvas';
 import { useState } from 'react';
 import { api } from '../../lib/api';
@@ -148,7 +150,7 @@ function Steps({
           className="automation-step-card rounded-xl border-2 border-indigo-100 p-4 space-y-3"
         >
           <strong>
-            {index + 1}. {action.type}
+            {index + 1}. {automationLabel(action.type, t)}
           </strong>
           <select
             aria-label={t('نوع الإجراء', 'Action type')}
@@ -176,7 +178,9 @@ function Steps({
               ? ['note', 'tag', 'task', 'lifecycle']
               : ['note', 'tag', 'task', 'lifecycle', 'branch', 'delay', 'http']
             ).map((type) => (
-              <option key={type}>{type}</option>
+              <option key={type} value={type}>
+                {automationLabel(type, t)}
+              </option>
             ))}
           </select>
           {['note', 'tag', 'task', 'lifecycle'].includes(action.type) && (
@@ -468,7 +472,7 @@ export function SavedAutomationEditor() {
                 'automation.scheduled',
               ].map((value) => (
                 <option key={value} value={value}>
-                  {value}
+                  {automationLabel(value, t)}
                 </option>
               ))}
             </select>
@@ -588,8 +592,14 @@ export function SavedAutomationEditor() {
             });
           }}
         >
-          <input name="name" placeholder={t('اسم السر', 'Secret name')} required />
           <input
+            aria-label={t('اسم السر', 'Secret name')}
+            name="name"
+            placeholder={t('اسم السر', 'Secret name')}
+            required
+          />
+          <input
+            aria-label={t('قيمة السر', 'Secret value')}
             name="value"
             type="password"
             autoComplete="off"
@@ -619,7 +629,12 @@ export function SavedAutomationEditor() {
               'HMAC signs timestamp.body and sends X-Boat-Timestamp and X-Boat-Signature. Keep secrets out of request bodies and static headers.',
             )}
           </p>
-          <input name="hosts" placeholder="api.example.com" required />
+          <input
+            aria-label={t('المضيفون المسموحون', 'Allowed hosts')}
+            name="hosts"
+            placeholder="api.example.com"
+            required
+          />
           <button className="btn" disabled={busy}>
             {t('حفظ مشفّر', 'Save encrypted')}
           </button>
@@ -684,7 +699,11 @@ export function SavedAutomationEditor() {
             {failure.name} · {failure.attempts}
           </strong>
           <p>{failure.error}</p>
-          <p>{failure.resolved_at ? t('تمت الاستعادة', 'Recovered') : failure.event_status}</p>
+          <p>
+            {failure.resolved_at
+              ? t('تمت الاستعادة', 'Recovered')
+              : statusLabel(failure.event_status, t)}
+          </p>
           {!failure.resolved_at && failure.event_status === 'failed' && (
             <button
               className="btn"

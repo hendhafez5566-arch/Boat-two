@@ -1,3 +1,4 @@
+import { startImportUpload, addImportUploadRows, finishImportUpload } from './crm-import-upload';
 import { freezeContactActivity } from './crm-activity-export';
 import {
   BadRequestException,
@@ -47,7 +48,18 @@ export class CrmJobs {
       const errors = job.errors as unknown[],
         result = job.result as unknown[];
       if (job.kind === 'import') {
-        for (const row of job.input.contacts.slice(processed, processed + 100)) {
+        const rows =
+          job.input.storage === 'ordinal_import_v1'
+            ? (
+                await c.query(
+                  'SELECT payload FROM crm_import_rows WHERE job_id=$1 AND ordinal>$2 ORDER BY ordinal LIMIT 100',
+                  [job.id, processed],
+                )
+              ).rows.map((r) => r.payload)
+            : job.input.contacts.slice(processed, processed + 100);
+        if (!rows.length && processed < job.total)
+          throw new Error('Import row coverage is incomplete');
+        for (const row of rows) {
           await c.query('SAVEPOINT import_row');
           try {
             await this.crm.save(event.tenantId, contactSchema.parse(row));
@@ -132,13 +144,36 @@ export class CrmJobsController {
     private db: DatabaseService,
     private events: EventsService,
   ) {}
+  @Post('uploads') startUpload(@Req() r: AuthedRequest, @Body() body: unknown) {
+    return this.db.withTenant(r.user.tenantId, (c) =>
+      startImportUpload(c, r.user.tenantId, r.user.userId, body),
+    );
+  }
+  @Post(':id/upload') uploadRows(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.db.withTenant(r.user.tenantId, (c) => addImportUploadRows(c, id, body));
+  }
+  @Post(':id/complete-upload') completeUpload(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.db.withTenant(r.user.tenantId, async (c) => {
+      const row = await finishImportUpload(c, id);
+      if (row.queued)
+        await this.events.publish(r.user.tenantId, 'crm.job', id, { jobId: id }, `crm-job:${id}:0`);
+      return row;
+    });
+  }
   @Get() list(@Req() r: AuthedRequest) {
     return this.db.withTenant(
       r.user.tenantId,
       async (c) =>
         (
           await c.query(
-            "SELECT id,kind,status,processed,total,succeeded,errors,created_at,updated_at,expired_at,input->>'snapshotAt' AS snapshot_at FROM crm_jobs ORDER BY created_at DESC LIMIT 100",
+            "SELECT id,kind,status,uploaded,processed,total,succeeded,errors,created_at,updated_at,expired_at,input->>'snapshotAt' AS snapshot_at FROM crm_jobs ORDER BY created_at DESC LIMIT 100",
           )
         ).rows,
     );
@@ -180,7 +215,7 @@ export class CrmJobsController {
         Number(
           (
             await c.query(
-              "SELECT count(*) AS n FROM crm_jobs WHERE status IN ('pending','running')",
+              "SELECT count(*) AS n FROM crm_jobs WHERE status IN ('uploading','pending','running')",
             )
           ).rows[0].n,
         ) >= 3
@@ -337,7 +372,7 @@ export class CrmJobsController {
       if (
         !(
           await c.query(
-            "UPDATE crm_jobs SET status='canceled',updated_at=now() WHERE id=$1 AND status IN ('pending','running')",
+            "UPDATE crm_jobs SET status='canceled',updated_at=now() WHERE id=$1 AND status IN ('uploading','pending','running')",
             [id],
           )
         ).rowCount

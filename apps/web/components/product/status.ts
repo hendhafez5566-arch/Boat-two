@@ -6,6 +6,7 @@ const labels: Record<string, [string, string]> = {
   active: ['نشط', 'Active'],
   open: ['مفتوح', 'Open'],
   closed: ['مغلق', 'Closed'],
+  uploading: ['جارٍ الرفع', 'Uploading'],
   pending: ['بالانتظار', 'Pending'],
   running: ['قيد التشغيل', 'Running'],
   completed: ['مكتمل', 'Completed'],
