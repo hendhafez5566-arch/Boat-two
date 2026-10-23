@@ -124,6 +124,44 @@ export class AiController {
   }
 
   @Roles('owner', 'admin')
+  @Post('knowledge/:id/replace-file')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024, files: 1 } }))
+  replaceFile(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: { originalname: string; mimetype: string; buffer: Buffer } | undefined,
+    @Body() body: unknown,
+  ) {
+    if (!file) throw new BadRequestException('file is required');
+    const b = parse(
+      z.object({
+        expectedRevision: z.coerce.number().int().min(1),
+        title: z.string().trim().max(200).optional(),
+      }),
+      body,
+    );
+    return this.knowledge.replaceFile(r.user.tenantId, r.user.userId, id, b.expectedRevision, {
+      name: file.originalname,
+      mime: file.mimetype,
+      buf: file.buffer,
+      title: b.title,
+    });
+  }
+  @Roles('owner', 'admin') @Get('knowledge/:id/extractions') extractions(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.knowledge.extractions(r.user.tenantId, id);
+  }
+  @Roles('owner', 'admin') @Get('knowledge/:id/extractions/:extractionId') extraction(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('extractionId', ParseUUIDPipe) extractionId: string,
+  ) {
+    return this.knowledge.extractions(r.user.tenantId, id, extractionId);
+  }
+
+  @Roles('owner', 'admin')
   @Post('knowledge/search')
   search(@Req() req: AuthedRequest, @Body() body: unknown) {
     return this.knowledge.search(req.user.tenantId, parse(askSchema, body).question, 6);

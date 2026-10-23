@@ -1,5 +1,11 @@
 # Implementation progress — core reliability + connected business platform
 
+## Continuation — in-place knowledge file replacement (2026-10-23)
+
+Migration 053 and bilingual editor/API replace a file in the existing source, preserving agent assignments and prior published chunks until replacement publication. Mandatory revision checks/source lock refuse stale, concurrent, archived or active-job replacements. File revisions retain SHA-256/size/MIME metadata; durable file/URL extraction snapshots include source revision/job/text hash and can be reviewed through tenant-scoped endpoints/UI. Upload remains bounded to 5MB and supported extensions. Original raw binaries are not an immutable download archive.
+
+Validation: API build, web TypeScript, ESLint, migration 053, all 53 unit tests and PostgreSQL file-replacement smoke pass using mocked embeddings. Coverage includes stable links, revision/hash metadata, concurrent replacement, old-index preservation, paid-call gate, persisted extraction, final mock publication and cross-tenant denial. Next: bounded explicit knowledge-job/extraction retention, then broader sprint regression and remaining AI/automation/CRM/Inbox scope. No product completion claimed.
+
 ## Continuation — platform financial and operational reporting (2026-10-23)
 
 Migration 052 persists provider invoice payment dates and exposes a restricted, bounded-date aggregate report to `reports.read`. Connected bilingual console shows gross paid invoice totals by payment date/currency, invoice creation cohorts, failed/open balances, current monthly-equivalent mapped active/past-due contracts, unpriced/missing-date counts and operational queue/domain/company/subscription states. Currencies are never mixed; totals do not claim net revenue/refund/tax or bank settlement. Legacy paid invoices without provider payment timestamps remain explicitly excluded from dated paid totals until backfill.

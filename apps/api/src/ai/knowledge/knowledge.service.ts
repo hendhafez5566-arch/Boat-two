@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { OnEvent } from '@nestjs/event-emitter';
 import { EventsService } from '../../events/events.service';
 import { EmbeddingBudget } from './embedding-budget';
@@ -101,8 +102,14 @@ export class KnowledgeService {
         )
       ).rows[0];
       await c.query(
-        'INSERT INTO knowledge_revisions(tenant_id,source_id,revision,title,type,source_ref,content,actor_id) SELECT tenant_id,id,revision,title,type,source_ref,content,$2 FROM knowledge_sources WHERE id=$1',
-        [source.id, userId],
+        'INSERT INTO knowledge_revisions(tenant_id,source_id,revision,title,type,source_ref,content,actor_id,file_sha256,file_bytes,file_mime) SELECT tenant_id,id,revision,title,type,source_ref,content,$2,$3,$4,$5 FROM knowledge_sources WHERE id=$1',
+        [
+          source.id,
+          userId,
+          s.file ? createHash('sha256').update(s.file.buf).digest('hex') : null,
+          s.file?.buf.length ?? null,
+          s.file?.mime ?? null,
+        ],
       );
       await this.queue(tenantId, source.id, s.file);
       return source;
@@ -136,6 +143,7 @@ export class KnowledgeService {
     userId: string,
     f: { name: string; mime: string; buf: Buffer; title?: string },
   ) {
+    this.validateFile(f);
     if (!f.buf.length || f.buf.length > 5 * 1024 * 1024)
       throw new BadRequestException('Upload a file of at most 5MB');
     return this.insert(tenantId, userId, {
@@ -146,6 +154,89 @@ export class KnowledgeService {
     });
   }
 
+  private validateFile(f: { name: string; mime: string; buf: Buffer; title?: string }) {
+    if (
+      !f.buf.length ||
+      f.buf.length > 5 * 1024 * 1024 ||
+      f.name.length > 255 ||
+      f.mime.length > 200 ||
+      (f.title?.length ?? 0) > 200
+    )
+      throw new BadRequestException('File must be at most 5MB with a bounded name/title');
+    if (!/\.(txt|md|csv|pdf|docx)$/i.test(f.name))
+      throw new BadRequestException('Unsupported file extension');
+  }
+  replaceFile(
+    tenant: string,
+    user: string,
+    id: string,
+    expectedRevision: number,
+    f: { name: string; mime: string; buf: Buffer; title?: string },
+  ) {
+    this.validateFile(f);
+    return this.db.withTenant(tenant, async (c) => {
+      await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,41))', [id]);
+      const src = (await c.query('SELECT * FROM knowledge_sources WHERE id=$1 FOR UPDATE', [id]))
+        .rows[0];
+      if (!src) throw new NotFoundException('Source not found');
+      if (src.type !== 'file' || src.archived_at)
+        throw new BadRequestException('Restore an existing file source before replacement');
+      if (src.revision !== expectedRevision)
+        throw new ConflictException('Source changed; reload before replacing');
+      if (
+        (
+          await c.query(
+            "SELECT 1 FROM knowledge_jobs WHERE source_id=$1 AND status IN ('pending','running','blocked')",
+            [id],
+          )
+        ).rowCount
+      )
+        throw new ConflictException('Cancel active indexing before replacement');
+      if (
+        (
+          await c.query('SELECT count(*)::int AS n FROM knowledge_revisions WHERE source_id=$1', [
+            id,
+          ])
+        ).rows[0].n >= 50
+      )
+        throw new BadRequestException('Source history limit reached');
+      const row = (
+        await c.query(
+          'UPDATE knowledge_sources SET title=$2,source_ref=$3,content=NULL,char_count=0,revision=revision+1,updated_at=now() WHERE id=$1 RETURNING ' +
+            COLS,
+          [id, f.title?.trim() || src.title, f.name],
+        )
+      ).rows[0];
+      await c.query(
+        'INSERT INTO knowledge_revisions(tenant_id,source_id,revision,title,type,source_ref,content,actor_id,file_sha256,file_bytes,file_mime) SELECT tenant_id,id,revision,title,type,source_ref,content,$2,$3,$4,$5 FROM knowledge_sources WHERE id=$1',
+        [id, user, createHash('sha256').update(f.buf).digest('hex'), f.buf.length, f.mime],
+      );
+      const job = await this.queue(tenant, id, { buf: f.buf, mime: f.mime });
+      return { ...row, ...job };
+    });
+  }
+  extractions(tenant: string, id: string, extractionId?: string) {
+    return this.db.withTenant(tenant, async (c) => {
+      if (!(await c.query('SELECT 1 FROM knowledge_sources WHERE id=$1', [id])).rowCount)
+        throw new NotFoundException();
+      if (extractionId) {
+        const row = (
+          await c.query('SELECT * FROM knowledge_extractions WHERE source_id=$1 AND id=$2', [
+            id,
+            extractionId,
+          ])
+        ).rows[0];
+        if (!row) throw new NotFoundException();
+        return row;
+      }
+      return (
+        await c.query(
+          'SELECT id,job_id,source_revision,title,source_ref,content_sha256,length(content) AS char_count,created_at FROM knowledge_extractions WHERE source_id=$1 ORDER BY created_at DESC,id DESC LIMIT 50',
+          [id],
+        )
+      ).rows;
+    });
+  }
   editDetails(tenant: string, id: string) {
     return this.db.withTenant(tenant, async (c) => {
       const source = (await c.query('SELECT * FROM knowledge_sources WHERE id=$1', [id])).rows[0];
@@ -163,7 +254,7 @@ export class KnowledgeService {
     return this.db.withTenant(tenant, async (c) => {
       const row = (
         await c.query(
-          'SELECT revision,title,type,source_ref,content,created_at FROM knowledge_revisions WHERE source_id=$1 AND revision=$2',
+          'SELECT revision,title,type,source_ref,content,created_at,file_sha256,file_bytes,file_mime FROM knowledge_revisions WHERE source_id=$1 AND revision=$2',
           [id, revision],
         )
       ).rows[0];
@@ -389,6 +480,20 @@ export class KnowledgeService {
             'UPDATE knowledge_sources SET title=$2,content=$3,char_count=$4 WHERE id=$1',
             [src.id, title, content, content.length],
           );
+          if (src.type === 'file' || src.type === 'url')
+            await c.query(
+              'INSERT INTO knowledge_extractions(tenant_id,source_id,job_id,source_revision,title,source_ref,content,content_sha256) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(job_id) DO NOTHING',
+              [
+                tenantId,
+                src.id,
+                job.id,
+                src.revision,
+                title,
+                src.source_ref,
+                content,
+                createHash('sha256').update(content).digest('hex'),
+              ],
+            );
           await c.query('UPDATE knowledge_jobs SET chunks=$2,total=$3 WHERE id=$1', [
             job.id,
             JSON.stringify(chunks),
