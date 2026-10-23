@@ -1,0 +1,1 @@
+Automation debug: delayed nested HTTP failure records exact path/type/original revision without action body/URL, persists through rollback, and resolves after safe local recovery. No external calls.

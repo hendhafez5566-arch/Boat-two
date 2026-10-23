@@ -11,6 +11,15 @@ import { PlansService } from '../plans/plans.service';
 import { DatabaseService } from '../database/database.service';
 import { DomainEvent } from '../events/events.service';
 import { actionSchema, conditionWhere, ruleSchema } from './schemas';
+class ActionFailure extends Error {
+  constructor(
+    readonly actionPath: string,
+    readonly actionType: string,
+    cause: unknown,
+  ) {
+    super(cause instanceof Error ? cause.message : 'Automation action failed');
+  }
+}
 @Injectable()
 export class AutomationService {
   constructor(
@@ -62,14 +71,17 @@ export class AutomationService {
               rule.actions,
               `${event.id}:${row.id}`,
               row.id,
+              'root',
+              row.revision,
             );
         } catch (error) {
-          await this.db.detached(event.tenantId, (client) =>
-            client.query(
-              `INSERT INTO automation_failures(tenant_id,rule_id,event_id,contact_id,error) VALUES($1,$2,$3,$4,$5)
-            ON CONFLICT(tenant_id,rule_id,event_id) DO UPDATE SET attempts=automation_failures.attempts+1,error=EXCLUDED.error,resolved_at=NULL`,
-              [event.tenantId, row.id, event.id, contactId, (error as Error).message.slice(0, 300)],
-            ),
+          await this.recordFailure(
+            event.tenantId,
+            row.id,
+            event.id,
+            contactId,
+            error,
+            row.revision,
           );
           throw error;
         }
@@ -92,129 +104,171 @@ export class AutomationService {
       }
     });
   }
+  private recordFailure(
+    tenant: string,
+    rule: string,
+    event: string,
+    contact: string,
+    error: unknown,
+    revision?: number,
+  ) {
+    const context = error instanceof ActionFailure ? error : null;
+    return this.db.detached(tenant, (c) =>
+      c.query(
+        `INSERT INTO automation_failures(tenant_id,rule_id,event_id,contact_id,error,action_path,action_type,rule_revision) VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+       ON CONFLICT(tenant_id,rule_id,event_id) DO UPDATE SET attempts=automation_failures.attempts+1,error=EXCLUDED.error,action_path=EXCLUDED.action_path,action_type=EXCLUDED.action_type,rule_revision=EXCLUDED.rule_revision,resolved_at=NULL`,
+        [
+          tenant,
+          rule,
+          event,
+          contact,
+          (error instanceof Error ? error.message : 'Automation failed').slice(0, 300),
+          context?.actionPath ?? null,
+          context?.actionType ?? null,
+          revision ?? null,
+        ],
+      ),
+    );
+  }
   private async actions(
     tenant: string,
     contactId: string,
     actions: z.infer<typeof actionSchema>[],
     key: string,
     ruleId?: string,
+    path = 'root',
+    ruleRevision?: number,
   ) {
     await this.db.withTenant(tenant, async (c) => {
-      for (const [index, action] of actions.entries())
-        switch (action.type) {
-          case 'tag':
-            await c.query(
-              'UPDATE contacts SET tags=array_append(tags,$2),updated_at=now() WHERE id=$1 AND NOT $2=ANY(tags)',
-              [contactId, action.tag],
-            );
-            break;
-          case 'lifecycle':
-            await c.query(
-              'UPDATE contacts SET lifecycle=$2,updated_at=now() WHERE id=$1 AND lifecycle<>$2',
-              [contactId, action.value],
-            );
-            break;
-          case 'task':
-            await c.query(
-              'INSERT INTO crm_tasks(tenant_id,contact_id,title,due_at) VALUES($1,$2,$3,now()+make_interval(mins=>$4))',
-              [tenant, contactId, action.title, action.delayMinutes],
-            );
-            break;
-          case 'note':
-            await c.query('INSERT INTO crm_notes(tenant_id,contact_id,body) VALUES($1,$2,$3)', [
-              tenant,
-              contactId,
-              action.text,
-            ]);
-            break;
-          case 'branch': {
-            const where = conditionWhere(action.conditions);
-            const match = (
+      for (const [index, action] of actions.entries()) {
+        try {
+          switch (action.type) {
+            case 'tag':
               await c.query(
-                `SELECT 1 FROM contacts WHERE ${where.sql} AND id=$${where.params.length + 1}`,
-                [...where.params, contactId],
-              )
-            ).rowCount;
-            await this.actions(
-              tenant,
-              contactId,
-              match ? action.then : action.otherwise,
-              `${key}:branch:${index}`,
-              ruleId,
-            );
-            break;
-          }
-          case 'http': {
-            if (env.EXTERNAL_DELIVERY_ENABLED !== 'true')
-              throw new Error('External automation HTTP delivery is disabled');
-            let secret:
-              | {
-                  value_enc: string;
-                  version: number;
-                  auth_type: string;
-                  header_name: string | null;
-                }
-              | undefined;
-            if (action.secretId) {
-              secret = (
+                'UPDATE contacts SET tags=array_append(tags,$2),updated_at=now() WHERE id=$1 AND NOT $2=ANY(tags)',
+                [contactId, action.tag],
+              );
+              break;
+            case 'lifecycle':
+              await c.query(
+                'UPDATE contacts SET lifecycle=$2,updated_at=now() WHERE id=$1 AND lifecycle<>$2',
+                [contactId, action.value],
+              );
+              break;
+            case 'task':
+              await c.query(
+                'INSERT INTO crm_tasks(tenant_id,contact_id,title,due_at) VALUES($1,$2,$3,now()+make_interval(mins=>$4))',
+                [tenant, contactId, action.title, action.delayMinutes],
+              );
+              break;
+            case 'note':
+              await c.query('INSERT INTO crm_notes(tenant_id,contact_id,body) VALUES($1,$2,$3)', [
+                tenant,
+                contactId,
+                action.text,
+              ]);
+              break;
+            case 'branch': {
+              const where = conditionWhere(action.conditions);
+              const match = (
                 await c.query(
-                  'SELECT value_enc,version,auth_type,header_name FROM integration_secrets WHERE id=$1 AND enabled AND $2=ANY(allowed_hosts)',
-                  [action.secretId, new URL(action.url).hostname],
+                  `SELECT 1 FROM contacts WHERE ${where.sql} AND id=$${where.params.length + 1}`,
+                  [...where.params, contactId],
                 )
-              ).rows[0];
-              if (!secret)
-                throw new Error(
-                  'Integration secret is disabled, not found or not authorized for this hostname',
-                );
-            }
-            const response = await this.effects.execute(
-              tenant,
-              {
+              ).rowCount;
+              await this.actions(
+                tenant,
+                contactId,
+                match ? action.then : action.otherwise,
+                `${key}:branch:${index}`,
                 ruleId,
-                url: action.url,
-                body: action.body,
-                secretId: action.secretId,
-                secretVersion: secret?.version,
-                headers: action.headers,
-                authType: secret?.auth_type,
-                headerName: secret?.header_name,
-              },
-              () =>
-                safeHttpRequest({
-                  method: 'POST',
+                `${path}.${index}.${match ? 'then' : 'otherwise'}`,
+                ruleRevision,
+              );
+              break;
+            }
+            case 'http': {
+              if (env.EXTERNAL_DELIVERY_ENABLED !== 'true')
+                throw new Error('External automation HTTP delivery is disabled');
+              let secret:
+                | {
+                    value_enc: string;
+                    version: number;
+                    auth_type: string;
+                    header_name: string | null;
+                  }
+                | undefined;
+              if (action.secretId) {
+                secret = (
+                  await c.query(
+                    'SELECT value_enc,version,auth_type,header_name FROM integration_secrets WHERE id=$1 AND enabled AND $2=ANY(allowed_hosts)',
+                    [action.secretId, new URL(action.url).hostname],
+                  )
+                ).rows[0];
+                if (!secret)
+                  throw new Error(
+                    'Integration secret is disabled, not found or not authorized for this hostname',
+                  );
+              }
+              const response = await this.effects.execute(
+                tenant,
+                {
+                  ruleId,
                   url: action.url,
-                  headers: {
-                    'Content-Type': 'application/json',
-                    ...action.headers,
-                    ...(secret
-                      ? integrationHeaders(
-                          {
-                            ...secret,
-                            value: this.crypto.decrypt<{ value: string }>(secret.value_enc).value,
-                          },
-                          action.body,
-                        )
-                      : {}),
-                    'Idempotency-Key': `${key}:${index}`,
-                  },
                   body: action.body,
-                  timeoutMs: 10000,
-                }),
-            );
-            if (!response.ok) throw new Error(`Automation HTTP returned ${response.status}`);
-            break;
+                  secretId: action.secretId,
+                  secretVersion: secret?.version,
+                  headers: action.headers,
+                  authType: secret?.auth_type,
+                  headerName: secret?.header_name,
+                },
+                () =>
+                  safeHttpRequest({
+                    method: 'POST',
+                    url: action.url,
+                    headers: {
+                      'Content-Type': 'application/json',
+                      ...action.headers,
+                      ...(secret
+                        ? integrationHeaders(
+                            {
+                              ...secret,
+                              value: this.crypto.decrypt<{ value: string }>(secret.value_enc).value,
+                            },
+                            action.body,
+                          )
+                        : {}),
+                      'Idempotency-Key': `${key}:${index}`,
+                    },
+                    body: action.body,
+                    timeoutMs: 10000,
+                  }),
+              );
+              if (!response.ok) throw new Error(`Automation HTTP returned ${response.status}`);
+              break;
+            }
+            case 'delay':
+              await this.events.publish(
+                tenant,
+                'automation.followup',
+                contactId,
+                {
+                  contactId,
+                  actions: action.actions,
+                  ruleId,
+                  actionPath: `${path}.${index}.actions`,
+                  ruleRevision,
+                },
+                `followup:${key}:${index}`,
+                new Date(Date.now() + action.delayMinutes * 60000).toISOString(),
+              );
+              break;
           }
-          case 'delay':
-            await this.events.publish(
-              tenant,
-              'automation.followup',
-              contactId,
-              { contactId, actions: action.actions, ruleId },
-              `followup:${key}:${index}`,
-              new Date(Date.now() + action.delayMinutes * 60000).toISOString(),
-            );
-            break;
+        } catch (error) {
+          if (error instanceof ActionFailure) throw error;
+          throw new ActionFailure(`${path}.${index}`, action.type, error);
         }
+      }
     });
   }
   @OnEvent('automation.followup', { suppressErrors: false })
@@ -224,6 +278,8 @@ export class AutomationService {
     actions: unknown;
     eventId: string;
     ruleId?: string;
+    actionPath?: string;
+    ruleRevision?: number;
   }) {
     return this.db.withTenant(event.tenantId, async (c) => {
       // Serialize with CRM merge so resolution and all local writes share one canonical target.
@@ -256,7 +312,33 @@ export class AutomationService {
         break;
       }
       const actions = z.array(actionSchema).max(10).parse(event.actions);
-      await this.actions(event.tenantId, contactId, actions, event.eventId, event.ruleId);
+      try {
+        await this.actions(
+          event.tenantId,
+          contactId,
+          actions,
+          event.eventId,
+          event.ruleId,
+          event.actionPath ?? 'root',
+          event.ruleRevision,
+        );
+      } catch (error) {
+        if (event.ruleId)
+          await this.recordFailure(
+            event.tenantId,
+            event.ruleId,
+            event.eventId,
+            contactId,
+            error,
+            event.ruleRevision,
+          );
+        throw error;
+      }
+      if (event.ruleId)
+        await c.query(
+          'UPDATE automation_failures SET resolved_at=now() WHERE rule_id=$1 AND event_id=$2',
+          [event.ruleId, event.eventId],
+        );
       if (contactId !== event.contactId)
         await c.query(
           "INSERT INTO audit_logs(tenant_id,action,resource_type,resource_id,details) VALUES($1,'automation_followup_retarget','contacts',$2,$3)",

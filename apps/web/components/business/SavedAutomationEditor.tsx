@@ -365,6 +365,12 @@ export function SavedAutomationEditor() {
         attempts: number;
         event_status: string;
         resolved_at: string | null;
+        rule_id: string;
+        contact_id: string;
+        event_id: string;
+        action_path: string | null;
+        action_type: string | null;
+        rule_revision: number | null;
       }[]
     >('/automations/failures', []);
   const [rule, setRule] = useState<Rule | null>(null),
@@ -699,6 +705,65 @@ export function SavedAutomationEditor() {
             {failure.name} · {failure.attempts}
           </strong>
           <p>{failure.error}</p>
+          <details>
+            <summary>{t('سياق التنفيذ', 'Execution context')}</summary>
+            <dl className="stack mt-3">
+              <div>
+                <dt>{t('إصدار القاعدة عند الفشل', 'Failed rule revision')}</dt>
+                <dd>
+                  {failure.rule_revision ??
+                    t('غير مسجل للسجل القديم', 'Not recorded for legacy failures')}
+                </dd>
+              </div>
+              <div>
+                <dt>{t('مسار الإجراء', 'Action path')}</dt>
+                <dd>
+                  <code dir="ltr">{failure.action_path || '—'}</code> ·{' '}
+                  {failure.action_type ? automationLabel(failure.action_type, t) : '—'}
+                </dd>
+              </div>
+              <div>
+                <dt>{t('معرّف الحدث', 'Event ID')}</dt>
+                <dd className="break-all" dir="ltr">
+                  {failure.event_id}
+                </dd>
+              </div>
+              <div>
+                <dt>{t('معرّف العميل', 'Contact ID')}</dt>
+                <dd className="break-all" dir="ltr">
+                  {failure.contact_id}
+                </dd>
+              </div>
+            </dl>
+          </details>
+          <button
+            className="btn"
+            disabled={busy || !rules.data.some((row) => row.id === failure.rule_id)}
+            onClick={() => {
+              const current = rules.data.find((row) => row.id === failure.rule_id);
+              if (!current) return;
+              setRule(current);
+              setHistory([]);
+              setFuture([]);
+              setVersions([]);
+              setMessage(
+                t(
+                  'فُتحت القاعدة الحالية. قارن إصدار الفشل بالإصدارات المحفوظة قبل التعديل أو إعادة المحاولة.',
+                  'Current rule opened. Compare the failed revision with saved versions before editing or retrying.',
+                ),
+              );
+              if (current.revision === failure.rule_revision && failure.action_path)
+                setTimeout(() => {
+                  const step = Array.from(
+                    document.querySelectorAll<HTMLElement>('[data-step-path]'),
+                  ).find((node) => node.dataset.stepPath === failure.action_path);
+                  step?.scrollIntoView({ block: 'center' });
+                  step?.focus();
+                }, 100);
+            }}
+          >
+            {t('فتح القاعدة للمراجعة', 'Open rule for review')}
+          </button>
           <p>
             {failure.resolved_at
               ? t('تمت الاستعادة', 'Recovered')
