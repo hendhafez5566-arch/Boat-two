@@ -1,5 +1,12 @@
 # ELHAFEZ BOAT — Product completion matrix
 
+## Maximum-scope continuation — reviewed CRM retention (2026-10-23)
+
+Migration 068 and owner-only preview/apply API/UI expire old completed/canceled job payloads and trim historical revisions while preserving each contact's last predecessor before the cutoff. Current contacts, consent, active jobs and job metadata are retained. Exact preview counts and a minimum seven-day cutoff are enforced; backlog blocks cleanup, coverage bounds advance and cleanup is audited. Expired downloads return Gone rather than empty misleading results. Cleanup is explicit, not an automatically scheduled deletion policy.
+
+API/web TypeScript, ESLint, migration, retention and historical-export suites pass: stale preview denial, predecessor retention, expired payloads, active/contact preservation, audit and tenant isolation. PostgreSQL offset timestamps are accepted without discarding precision. Next: bounded export result paging/storage, rich campaign composer, integration auth and email receipts. All external gates remain false.
+
+
 ## Maximum-scope continuation — recorded historical CRM exports (2026-10-23)
 
 Migration 067 adds tenant-isolated immutable profile history. Source transactions enqueue snapshots; the existing worker observes committed changes and assigns journal times after commit. Rollbacks never enter history. Existing profiles have a migration baseline. Export jobs can select an observed as-of time, apply existing filters to historical values and freeze results through the existing worker; current snapshot exports are retained. UI/API expose coverage and backlog, reject pre-coverage/future times, and explain observation-time semantics (not original database commit timestamps). No pre-migration history is invented.

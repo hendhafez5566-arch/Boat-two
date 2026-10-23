@@ -1,4 +1,5 @@
 'use client';
+import { CrmRetention } from './CrmRetention';
 import { useState } from 'react';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
@@ -12,6 +13,7 @@ type Job = {
   total: number;
   succeeded: number;
   snapshot_at?: string;
+  expired_at?: string | null;
   errors: { row: number; error: string }[];
 };
 export function CrmJobs() {
@@ -133,6 +135,7 @@ export function CrmJobs() {
       </div>
       {jobs.loading && <p>{t('جارٍ التحميل…', 'Loading…')}</p>}
       {!jobs.loading && !jobs.data.length && <p>{t('لا توجد مهام بعد.', 'No jobs yet.')}</p>}
+      <CrmRetention />
       {jobs.data.map((job) => (
         <article key={job.id} className="rounded-xl border p-3">
           <strong>
@@ -141,6 +144,14 @@ export function CrmJobs() {
           <p>
             {job.processed}/{job.total} · {t('ناجح', 'Succeeded')}: {job.succeeded}
           </p>
+          {job.expired_at && (
+            <p className="muted">
+              {t(
+                'انتهت صلاحية الملف وفق الاحتفاظ؛ بيانات المهمة محفوظة.',
+                'Payload expired under retention; job metadata is retained.',
+              )}
+            </p>
+          )}
           {job.snapshot_at && (
             <p>
               {t('وقت اللقطة: ', 'Snapshot time: ')}
@@ -158,7 +169,7 @@ export function CrmJobs() {
               {t('إلغاء المتبقي', 'Cancel remaining')}
             </button>
           )}
-          {job.status === 'completed' && (
+          {job.status === 'completed' && !job.expired_at && (
             <button
               className="btn"
               disabled={busy}

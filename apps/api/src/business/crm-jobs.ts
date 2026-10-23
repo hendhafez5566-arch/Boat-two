@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  GoneException,
   Injectable,
   NotFoundException,
   Param,
@@ -121,7 +122,7 @@ export class CrmJobsController {
       async (c) =>
         (
           await c.query(
-            "SELECT id,kind,status,processed,total,succeeded,errors,created_at,updated_at,input->>'snapshotAt' AS snapshot_at FROM crm_jobs ORDER BY created_at DESC LIMIT 100",
+            "SELECT id,kind,status,processed,total,succeeded,errors,created_at,updated_at,expired_at,input->>'snapshotAt' AS snapshot_at FROM crm_jobs ORDER BY created_at DESC LIMIT 100",
           )
         ).rows,
     );
@@ -240,11 +241,12 @@ export class CrmJobsController {
     return this.db.withTenant(r.user.tenantId, async (c) => {
       const row = (
         await c.query(
-          "SELECT result,errors,processed,succeeded,input->>'snapshotAt' AS snapshot_at FROM crm_jobs WHERE id=$1 AND status='completed'",
+          "SELECT result,errors,processed,succeeded,expired_at,input->>'snapshotAt' AS snapshot_at FROM crm_jobs WHERE id=$1 AND status='completed'",
           [id],
         )
       ).rows[0];
       if (!row) throw new NotFoundException('Completed job not found');
+      if (row.expired_at) throw new GoneException('Job payload expired under workspace retention');
       return row;
     });
   }
