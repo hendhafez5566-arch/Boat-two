@@ -59,7 +59,9 @@ try {
         ready = true;
         break;
       }
-    } catch {}
+    } catch {
+      // The isolated server may still be starting.
+    }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   assert.ok(ready, 'Isolated MFA API must start');
