@@ -1,5 +1,12 @@
 # Remaining implementation — continue on PR #1
 
+## Acceptance continuation — AI failure auditing (2026-10-23)
+
+Generation now creates a run before provider execution, updates its immutable provider/model/rate snapshot with actual usage on success, and records a sanitized failure code on provider/execution failure. Unknown failure cost stays null. Failures honor handoff_enabled and do not automatically replay a provider call. Bilingual run history gives recovery guidance. This is handled-failure auditing; process-crash durability/reservations and cost caps remain open.
+
+Verified: API/web TypeScript, ESLint, mocked PostgreSQL smoke-ai-failures (failed run, sanitized data, unknown costs, no automatic retry, enabled/disabled human handoff, subsequent recovery) and existing smoke-ai-tool-audit (permission/idempotency/cost snapshot isolation). All real provider gates remain false. Next: regression/current-source build and expanded browser acceptance; product scope remains incomplete.
+
+
 ## Acceptance continuation — campaign composer and mobile navigation (2026-10-23)
 
 Replaced the single campaign form with a connected three-step bilingual composer: channel/segment/frequency and real audience count, six starter-copy choices or supported approved WhatsApp BODY templates, parameter substitution/content preview, and explicit draft save. Rechecks eligibility before save; scheduling/delivery retain authoritative consent/window/policy checks. Back navigation retains values; obsolete template/audience responses are discarded. This composer still supports text/BODY only, not rich template/media/button variants. Preview is content, not provider-app rendering.

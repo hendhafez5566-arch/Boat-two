@@ -289,7 +289,24 @@ export class AiService {
       this.log.warn(`Retrieval failed, answering without documents: ${(e as Error).message}`);
     }
 
+    let runId: string | undefined;
+    let providerCompleted = false;
     try {
+      runId = (
+        await this.db.withTenant(tenantId, (c) =>
+          c.query(
+            "INSERT INTO ai_runs(tenant_id,agent_id,provider_id,model,status,input_rate_microusd,output_rate_microusd) VALUES($1,$2,$3,$4,'started',$5,$6) RETURNING id",
+            [
+              tenantId,
+              agent?.id ?? null,
+              agent?.provider_id ?? null,
+              agent?.model ?? env.AI_MODEL,
+              agent?.input_microusd_per_million ?? null,
+              agent?.output_microusd_per_million ?? null,
+            ],
+          ),
+        )
+      ).rows[0].id;
       const res = await this.effects.execute(
         tenantId,
         { agent: agent?.id ?? null, question: p.question, history: p.history },
@@ -346,32 +363,28 @@ export class AiService {
             ],
           }),
       );
+      providerCompleted = true;
       await this.recordUsage(tenantId, res.inputTokens, res.outputTokens);
-      const recorded = await this.db.withTenant(tenantId, (c) =>
+      await this.db.withTenant(tenantId, (c) =>
         c.query(
-          "INSERT INTO ai_runs(tenant_id,agent_id,input_tokens,output_tokens,model,status,cost_microusd,provider_id,input_rate_microusd,output_rate_microusd) VALUES($1,$2,$3,$4,$5,'completed',$6,$7,$8,$9) RETURNING id",
+          "UPDATE ai_runs SET input_tokens=$2,output_tokens=$3,status='completed',cost_microusd=$4 WHERE id=$1",
           [
-            tenantId,
-            agent?.id ?? null,
+            runId,
             res.inputTokens,
             res.outputTokens,
-            agent?.model ?? env.AI_MODEL,
             estimateCost(
               res.inputTokens,
               res.outputTokens,
               agent?.input_microusd_per_million ?? null,
               agent?.output_microusd_per_million ?? null,
             ),
-            agent?.provider_id ?? null,
-            agent?.input_microusd_per_million ?? null,
-            agent?.output_microusd_per_million ?? null,
           ],
         ),
       );
 
       const { actions, handoff } = await this.tools.execute(
         tenantId,
-        recorded.rows[0].id,
+        runId!,
         agent?.id ?? null,
         p.contactId,
         settings.handoff_enabled,
@@ -393,9 +406,15 @@ export class AiService {
         failed: false,
         sources: [...new Set(docs.map((d) => d.title))].map((title) => ({ title })),
       };
-    } catch (e) {
-      this.log.error(`LLM call failed: ${(e as Error).message}`);
-      return this.fail(settings, 'provider_error');
+    } catch {
+      const reason = providerCompleted ? 'execution_error' : 'provider_error';
+      // Store only a stable code, never provider bodies, prompts or customer/tool input.
+      if (runId)
+        await this.db.withTenant(tenantId, (c) =>
+          c.query("UPDATE ai_runs SET status='failed',error=$2 WHERE id=$1", [runId, reason]),
+        );
+      this.log.error(`AI execution failed: ${reason}`);
+      return this.fail(settings, reason, settings.handoff_enabled);
     }
   }
 }

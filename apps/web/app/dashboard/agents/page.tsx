@@ -37,6 +37,7 @@ type Run = {
   output_rate_microusd: string | null;
   model: string;
   status: string;
+  error: string | null;
   created_at: string;
 };
 export default function Agents() {
@@ -383,7 +384,22 @@ export default function Agents() {
                     ? '—'
                     : '$' + Number(r.output_rate_microusd) / 1000000}
                 </td>
-                <td>{r.status}</td>
+                <td>
+                  {r.status}
+                  {r.error && (
+                    <small className="block">
+                      {r.error === 'provider_error'
+                        ? t(
+                            'فشل المزود؛ راجع الإعدادات والتحويل البشري. لا يُعاد الاستدعاء تلقائيًا.',
+                            'Provider failed; review configuration and human handoff. The call is not automatically repeated.',
+                          )
+                        : t(
+                            'تعذّر إكمال التنفيذ؛ راجع سجل الأدوات.',
+                            'Execution failed; review the tool audit.',
+                          )}
+                    </small>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
