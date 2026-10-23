@@ -1,4 +1,5 @@
 'use client';
+import { GenerationBudgetPanel } from '../../../components/business/GenerationBudgetPanel';
 import { ModelCatalog } from '../../../components/business/ModelCatalog';
 import { ProviderEditor } from '../../../components/business/ProviderEditor';
 import { AiToolAudit } from '../../../components/business/AiToolAudit';
@@ -349,6 +350,7 @@ export default function Agents() {
         </button>
       </form>
       <ModelCatalog key={data.data.providers.map((p) => p.id + ':' + p.revision).join(',')} />
+      <GenerationBudgetPanel />
       <AgentRouting />
       <section className="card table-wrap">
         <h2>{t('آخر 100 استدعاء', 'Latest 100 calls')}</h2>

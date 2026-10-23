@@ -1,5 +1,12 @@
 # ELHAFEZ BOAT — Product completion matrix
 
+## Maximum-scope continuation — durable generation budgets (2026-10-23)
+
+Migration 066 adds detached generation reservations and monthly call/token/cost accounting. The existing AI runtime reserves before calling, enforces plan and optional owner caps plus model context/output/tools, and settles actual usage from cached provider evidence. Interrupted/uncertain outcomes keep reservations; a completed effect can settle without another paid call. Unknown usage/pricing stays unresolved; legacy effects are not blindly replayed. Immutable model/pricing versions are bound to reservation hashes. Successful local replay reuses its run/tool audit; rollback cannot erase paid accounting. Owner evidence release is stale-only, audited and never repeats the old request; plan attempt counts remain consumed. Conservative byte/framing token estimates are operational reservations, not provider-certified tokenization or invoices; provider/model validation remains an external acceptance gate.
+
+Connected bilingual usage/policy/review UI and role-checked APIs are implemented. API/web TypeScript, ESLint, migration and PostgreSQL generation-budget/tool-audit/failure suites pass: races, call/token/cost/plan limits, durable rollback, crash evidence, cached replay, uncertain hold/release, capability validation and isolation. Next: accurate legacy AI settings usage/bilingual UI and browser budget acceptance, then CRM historical exports/retention and campaign/integration/email closure. No external gates enabled.
+
+
 ## Maximum-scope continuation — immutable model catalog (2026-10-23)
 
 Migration 065 records immutable provider model/capability/context/output/pricing versions, backfills existing configurations and captures subsequent changes with a database trigger. App role cannot edit historical versions. Connected bilingual provider editor and catalog expose context/output limits and latest 500 versions. These remain administrator-declared capabilities, not remotely certified model discovery. Generation runtime enforcement follows in the reservation unit.

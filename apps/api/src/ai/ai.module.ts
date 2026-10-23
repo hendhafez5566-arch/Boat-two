@@ -1,3 +1,5 @@
+import { GenerationBudget } from './generation-budget';
+import { GenerationController } from './generation.controller';
 import { AiToolExecution } from './tool-execution';
 import { KnowledgeRetention, KnowledgeRetentionController } from './knowledge/retention';
 import { KnowledgeJobsController } from './knowledge/jobs.controller';
@@ -11,12 +13,14 @@ import { KnowledgeService } from './knowledge/knowledge.service';
 
 @Module({
   controllers: [
+    GenerationController,
     KnowledgeRetentionController,
     KnowledgeJobsController,
     AiController,
     AgentsController,
   ],
   providers: [
+    GenerationBudget,
     AiToolExecution,
     KnowledgeRetention,
     EmbeddingBudget,

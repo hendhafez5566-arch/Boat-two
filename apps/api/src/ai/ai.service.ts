@@ -1,16 +1,16 @@
+import { GenerationBudget } from './generation-budget';
 import { AiToolExecution } from './tool-execution';
 import { OpenAiProvider } from './providers/openai';
 import { CryptoService } from '../messaging/crypto.service';
 import { ExternalEffects } from '../events/external-effect';
-import { estimateCost } from './cost';
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { env } from '../config/env';
 import { DatabaseService } from '../database/database.service';
 import { PlansService } from '../plans/plans.service';
 import { KnowledgeService, RetrievedChunk } from './knowledge/knowledge.service';
 import { buildSystemPrompt, HistoryRow, messageToText, toChatMessages } from './prompt';
 import { AnthropicProvider } from './providers/anthropic';
-import { LlmProvider, LlmTool } from './providers/types';
+import { LlmProvider, LlmTool, LlmRequest } from './providers/types';
 import { periodStart } from './retrieval';
 
 export interface AiSettings {
@@ -74,6 +74,7 @@ export class AiService {
     private readonly knowledge: KnowledgeService,
     private readonly crypto: CryptoService,
     private readonly tools: AiToolExecution,
+    private readonly generation: GenerationBudget = new GenerationBudget(db, plans, effects),
   ) {}
 
   get configured() {
@@ -245,7 +246,8 @@ export class AiService {
       async (c) =>
         (
           await c.query(
-            `SELECT a.*,p.kind,p.model,p.credentials_enc,p.input_microusd_per_million,p.output_microusd_per_million,p.enabled AS provider_enabled,p.retired_at,p.supports_tools
+            `SELECT a.*,p.kind,p.model,p.credentials_enc,p.input_microusd_per_million,p.output_microusd_per_million,p.enabled AS provider_enabled,p.retired_at,p.supports_tools,p.context_token_limit,p.max_output_tokens,
+             (SELECT id FROM ai_model_versions WHERE provider_id=p.id ORDER BY revision DESC LIMIT 1) AS model_version_id
              FROM ai_agents a LEFT JOIN ai_providers p ON p.id=a.provider_id WHERE a.id=COALESCE(
              (SELECT agent_id FROM ai_routes WHERE flow_id=$1),
              (SELECT agent_id FROM ai_routes WHERE channel_id=$2),
@@ -275,10 +277,6 @@ export class AiService {
         .filter(Boolean)
         .join('\n');
 
-    const usage = await this.usage(tenantId);
-    if (usage.limit !== -1 && usage.replies >= usage.limit)
-      return this.fail(settings, 'credits_exhausted', settings.handoff_enabled);
-
     const messages = toChatMessages(p.history, settings.max_history);
     if (!messages.length) return this.fail(settings, 'empty_history');
 
@@ -307,78 +305,101 @@ export class AiService {
           ),
         )
       ).rows[0].id;
-      const res = await this.effects.execute(
+      const request: LlmRequest = {
+        system: buildSystemPrompt({
+          businessName: settings.business_name,
+          instructions: settings.instructions,
+          extraInstructions: p.extraInstructions,
+          language: settings.language,
+          tone: settings.tone,
+          handoffEnabled: settings.handoff_enabled,
+          docs: docs.map((d) => ({ title: d.title, content: d.content })),
+          contactName: p.contactName,
+        }),
+        messages,
+        maxTokens: agent?.max_output_tokens ?? 600,
+        temperature: settings.temperature,
+        tools: [
+          ...(settings.handoff_enabled &&
+          (!agent || agent.allowed_tools.includes('handoff_to_human'))
+            ? [HANDOFF_TOOL]
+            : []),
+          ...(p.contactId && agent?.allowed_tools.includes('create_followup')
+            ? [
+                {
+                  name: 'create_followup',
+                  description:
+                    'Create a follow-up task for a human agent. Never promise it is completed.',
+                  input_schema: {
+                    type: 'object',
+                    properties: {
+                      title: { type: 'string' },
+                      dueHours: { type: 'integer', minimum: 1, maximum: 720 },
+                    },
+                    required: ['title', 'dueHours'],
+                  },
+                },
+              ]
+            : []),
+          ...(p.contactId && agent?.allowed_tools.includes('tag_contact')
+            ? [
+                {
+                  name: 'tag_contact',
+                  description: 'Add a CRM classification tag to the current contact.',
+                  input_schema: {
+                    type: 'object',
+                    properties: { tag: { type: 'string' } },
+                    required: ['tag'],
+                  },
+                },
+              ]
+            : []),
+        ],
+      };
+      const { response: res, reservationId } = await this.generation.execute(
         tenantId,
-        { agent: agent?.id ?? null, question: p.question, history: p.history },
-        () =>
-          provider.chat({
-            system: buildSystemPrompt({
-              businessName: settings.business_name,
-              instructions: settings.instructions,
-              extraInstructions: p.extraInstructions,
-              language: settings.language,
-              tone: settings.tone,
-              handoffEnabled: settings.handoff_enabled,
-              docs: docs.map((d) => ({ title: d.title, content: d.content })),
-              contactName: p.contactName,
-            }),
-            messages,
-            maxTokens: 600,
-            temperature: settings.temperature,
-            tools: [
-              ...(settings.handoff_enabled &&
-              (!agent || agent.allowed_tools.includes('handoff_to_human'))
-                ? [HANDOFF_TOOL]
-                : []),
-              ...(p.contactId && agent?.allowed_tools.includes('create_followup')
-                ? [
-                    {
-                      name: 'create_followup',
-                      description:
-                        'Create a follow-up task for a human agent. Never promise it is completed.',
-                      input_schema: {
-                        type: 'object',
-                        properties: {
-                          title: { type: 'string' },
-                          dueHours: { type: 'integer', minimum: 1, maximum: 720 },
-                        },
-                        required: ['title', 'dueHours'],
-                      },
-                    },
-                  ]
-                : []),
-              ...(p.contactId && agent?.allowed_tools.includes('tag_contact')
-                ? [
-                    {
-                      name: 'tag_contact',
-                      description: 'Add a CRM classification tag to the current contact.',
-                      input_schema: {
-                        type: 'object',
-                        properties: { tag: { type: 'string' } },
-                        required: ['tag'],
-                      },
-                    },
-                  ]
-                : []),
-            ],
-          }),
+        request,
+        {
+          id: agent?.model_version_id,
+          provider_id: agent?.provider_id ?? undefined,
+          kind: agent?.kind,
+          model: agent?.model ?? env.AI_MODEL,
+          context_token_limit: agent?.context_token_limit ?? 32000,
+          max_output_tokens: agent?.max_output_tokens ?? 600,
+          supports_tools: agent?.supports_tools ?? true,
+          input_rate_microusd: agent?.input_microusd_per_million ?? null,
+          output_rate_microusd: agent?.output_microusd_per_million ?? null,
+        },
+        () => provider.chat(request),
       );
+      const previous = await this.db.withTenant(
+        tenantId,
+        async (c) =>
+          (
+            await c.query('SELECT id FROM ai_runs WHERE generation_reservation_id=$1', [
+              reservationId,
+            ])
+          ).rows[0],
+      );
+      if (previous) {
+        await this.db.withTenant(tenantId, (c) =>
+          c.query('DELETE FROM ai_runs WHERE id=$1', [runId]),
+        );
+        runId = previous.id;
+      } else {
+        await this.db.withTenant(tenantId, (c) =>
+          c.query('UPDATE ai_runs SET generation_reservation_id=$2 WHERE id=$1', [
+            runId,
+            reservationId,
+          ]),
+        );
+        await this.recordUsage(tenantId, res.inputTokens, res.outputTokens);
+      }
       providerCompleted = true;
-      await this.recordUsage(tenantId, res.inputTokens, res.outputTokens);
       await this.db.withTenant(tenantId, (c) =>
         c.query(
-          "UPDATE ai_runs SET input_tokens=$2,output_tokens=$3,status='completed',cost_microusd=$4 WHERE id=$1",
-          [
-            runId,
-            res.inputTokens,
-            res.outputTokens,
-            estimateCost(
-              res.inputTokens,
-              res.outputTokens,
-              agent?.input_microusd_per_million ?? null,
-              agent?.output_microusd_per_million ?? null,
-            ),
-          ],
+          "UPDATE ai_runs SET input_tokens=$2,output_tokens=$3,status='completed',cost_microusd=(SELECT actual_cost_microusd FROM generation_reservations WHERE id=$4) WHERE id=$1",
+          [runId, res.inputTokens, res.outputTokens, reservationId],
         ),
       );
 
@@ -406,12 +427,23 @@ export class AiService {
         failed: false,
         sources: [...new Set(docs.map((d) => d.title))].map((title) => ({ title })),
       };
-    } catch {
-      const reason = providerCompleted ? 'execution_error' : 'provider_error';
+    } catch (error) {
+      const blocked =
+        !providerCompleted &&
+        (error instanceof ForbiddenException || error instanceof BadRequestException);
+      const reason = blocked
+        ? 'generation_policy_or_review'
+        : providerCompleted
+          ? 'execution_error'
+          : 'provider_error';
       // Store only a stable code, never provider bodies, prompts or customer/tool input.
       if (runId)
         await this.db.withTenant(tenantId, (c) =>
-          c.query("UPDATE ai_runs SET status='failed',error=$2 WHERE id=$1", [runId, reason]),
+          c.query('UPDATE ai_runs SET status=$3,error=$2 WHERE id=$1', [
+            runId,
+            reason,
+            blocked ? 'blocked' : 'failed',
+          ]),
         );
       this.log.error(`AI execution failed: ${reason}`);
       return this.fail(settings, reason, settings.handoff_enabled);
