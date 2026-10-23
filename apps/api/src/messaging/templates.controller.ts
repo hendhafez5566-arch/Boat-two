@@ -1,8 +1,11 @@
-import { supportedTemplate, TemplateComponent, variableCount } from './template-contract';
+import { parseTemplateDraft } from './template-draft';
+import { supportedTemplate, TemplateComponent } from './template-contract';
 import {
   BadRequestException,
   Body,
   Controller,
+  ConflictException,
+  Patch,
   Get,
   NotFoundException,
   Param,
@@ -53,25 +56,13 @@ export class TemplatesController {
     @Body() body: unknown,
   ) {
     await this.channel(r, id);
-    const b = parse(
-      z.object({
-        name: z.string().regex(/^[a-z0-9_]{1,512}$/),
-        language: z.string().regex(/^[a-z]{2,3}(?:_[A-Z]{2})?$/),
-        category: z.enum(['MARKETING', 'UTILITY']),
-        body: z.string().min(1).max(1024),
-        examples: z.array(z.string().min(1).max(500)).max(20).default([]),
-      }),
-      body,
-    );
-    const params = variableCount(b.body);
-    if (params < 0 || params !== b.examples.length)
-      throw new BadRequestException('Provide an example for every template variable');
+    const b = parseTemplateDraft(body);
     return this.db.withTenant(
       r.user.tenantId,
       async (c) =>
         (
           await c.query(
-            'INSERT INTO whatsapp_templates(tenant_id,channel_id,name,language,category,body,examples) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+            'INSERT INTO whatsapp_templates(tenant_id,channel_id,name,language,category,body,examples,components) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
             [
               r.user.tenantId,
               id,
@@ -80,10 +71,47 @@ export class TemplatesController {
               b.category,
               b.body,
               JSON.stringify(b.examples),
+              JSON.stringify(b.components),
             ],
           )
         ).rows[0],
     );
+  }
+  @Patch(':id') async edit(
+    @Req() r: AuthedRequest,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: unknown,
+  ) {
+    await this.channel(r, channelId);
+    const { revision, draft } = parse(
+      z.object({ revision: z.number().int().positive(), draft: z.unknown() }).strict(),
+      input,
+    );
+    const b = parseTemplateDraft(draft);
+    return this.db.withTenant(r.user.tenantId, async (c) => {
+      const row = (
+        await c.query(
+          "UPDATE whatsapp_templates SET name=$4,language=$5,category=$6,body=$7,examples=$8,components=$9,revision=revision+1,updated_at=now() WHERE id=$1 AND channel_id=$2 AND revision=$3 AND status='DRAFT' RETURNING *",
+          [
+            id,
+            channelId,
+            revision,
+            b.name,
+            b.language,
+            b.category,
+            b.body,
+            JSON.stringify(b.examples),
+            JSON.stringify(b.components),
+          ],
+        )
+      ).rows[0];
+      if (!row)
+        throw new ConflictException(
+          'Draft changed or is no longer editable; reload before editing',
+        );
+      return row;
+    });
   }
   private requireExternal() {
     if (env.EXTERNAL_DELIVERY_ENABLED !== 'true')
@@ -121,7 +149,7 @@ export class TemplatesController {
       for (const template of data.data || []) {
         await this.db.withTenant(r.user.tenantId, (c) =>
           c.query(
-            `INSERT INTO whatsapp_templates(tenant_id,channel_id,name,language,category,body,status,provider_id,supported,components) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(channel_id,name,language) DO UPDATE SET status=$7,provider_id=$8,body=$6,supported=$9,components=$10,category=$5,updated_at=now()`,
+            `INSERT INTO whatsapp_templates(tenant_id,channel_id,name,language,category,body,status,provider_id,supported,components) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(channel_id,name,language) DO UPDATE SET status=$7,provider_id=$8,body=$6,supported=$9,components=$10,category=$5,revision=whatsapp_templates.revision+1,error=NULL,updated_at=now()`,
             [
               r.user.tenantId,
               id,
@@ -154,39 +182,64 @@ export class TemplatesController {
     this.requireExternal();
     const creds = this.channels.credentials(ch);
     if (!creds.wabaId) throw new BadRequestException('WABA ID required');
-    const template = await this.db.withTenant(
-      r.user.tenantId,
-      async (c) =>
-        (
-          await c.query(
-            "SELECT * FROM whatsapp_templates WHERE id=$1 AND channel_id=$2 AND status='DRAFT'",
-            [id, channelId],
-          )
-        ).rows[0],
-    );
-    if (!template) throw new NotFoundException('Draft template not found');
-    const result = await graphPost(
-      `${GRAPH}/${creds.wabaId}/message_templates`,
-      creds.accessToken,
-      {
-        name: template.name,
-        language: template.language,
-        category: template.category,
-        components: [
-          {
-            type: 'BODY',
-            text: template.body,
-            ...(template.examples.length ? { example: { body_text: [template.examples] } } : {}),
-          },
-        ],
-      },
-    );
-    await this.db.withTenant(r.user.tenantId, (c) =>
-      c.query(
-        "UPDATE whatsapp_templates SET provider_id=$2,status='PENDING',updated_at=now() WHERE id=$1",
-        [id, result.id],
-      ),
-    );
+    // Durable claim prevents double submission and freezes edits across replicas.
+    const template = await this.db.withTenant(r.user.tenantId, async (c) => {
+      const row = (
+        await c.query('SELECT * FROM whatsapp_templates WHERE id=$1 AND channel_id=$2 FOR UPDATE', [
+          id,
+          channelId,
+        ])
+      ).rows[0];
+      if (!row) throw new NotFoundException('Draft template not found');
+      if (row.status !== 'DRAFT')
+        throw new ConflictException(
+          'Template already submitted or uncertain; synchronize provider evidence',
+        );
+      await c.query(
+        "UPDATE whatsapp_templates SET status='SUBMITTING',revision=revision+1,error=NULL,updated_at=now() WHERE id=$1",
+        [id],
+      );
+      return row;
+    });
+    try {
+      const result = await graphPost(
+        `${GRAPH}/${creds.wabaId}/message_templates`,
+        creds.accessToken,
+        {
+          name: template.name,
+          language: template.language,
+          category: template.category,
+          components: template.components.length
+            ? template.components
+            : [
+                {
+                  type: 'BODY',
+                  text: template.body,
+                  ...(template.examples.length
+                    ? { example: { body_text: [template.examples] } }
+                    : {}),
+                },
+              ],
+        },
+      );
+      if (typeof result.id !== 'string' || !result.id) throw new Error('Missing provider evidence');
+      await this.db.withTenant(r.user.tenantId, (c) =>
+        c.query(
+          "UPDATE whatsapp_templates SET provider_id=$2,status='PENDING',updated_at=now() WHERE id=$1 AND status='SUBMITTING' AND revision=$3",
+          [id, result.id, template.revision + 1],
+        ),
+      );
+    } catch {
+      await this.db.withTenant(r.user.tenantId, (c) =>
+        c.query(
+          "UPDATE whatsapp_templates SET status='SUBMISSION_UNKNOWN',error='Synchronize provider status before any further submission',updated_at=now() WHERE id=$1 AND status='SUBMITTING' AND revision=$2",
+          [id, template.revision + 1],
+        ),
+      );
+      throw new ServiceUnavailableException(
+        'Submission outcome requires provider synchronization; automatic retry is disabled',
+      );
+    }
     return { submitted: true, status: 'PENDING' };
   }
 }

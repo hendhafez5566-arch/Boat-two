@@ -1,3 +1,15 @@
+## Fixed V1 closure checkpoint — 2026-10-23 UTC
+
+Authoritative frozen scope: [V1_FINAL_CLOSURE_MATRIX.md](V1_FINAL_CLOSURE_MATRIX.md), 48 V1 acceptance requirements (41 local completion/verification + 7 external/owner gates), plus one excluded future boundary. No CODE COMPLETE claim. Baseline and PR #1 verified at 9bf82169; matrix checkpoint 9339398 pushed and remote-verified.
+
+Template authoring checkpoint: migration 072 adds revision checks. Supported MARKETING/UTILITY drafts now author headers (text/image/video/document), footer, quick replies or URL/phone buttons and required provider examples. Media draft examples require an externally obtained Meta upload handle; they are not message URLs. PATCH edits require current revision and DRAFT state. Provider submission commits a SUBMITTING claim before I/O, prevents concurrent requests/edits, and quarantines unknown outcomes for synchronization without blind retry. Rich definitions submit exactly; BODY-only legacy drafts remain compatible. Bilingual rich editor, structural preview, save/error/loading states and reopen editing connect to the existing page. OTP/carousel/location remain unsupported.
+
+Current checks: API TypeScript and Next production build, ESLint, 64 unit tests, clean migrations 001–072 plus no-op repeat; smoke-template-drafts (real PostgreSQL/API, mock provider submission, race, ambiguity, gate, tenant and revision checks), smoke-template-components and smoke-rich-campaigns passed. Browser acceptance is in progress; do not count it as passed yet. No real external or financial writes. All runtime gates remain false.
+
+Runtime reconstructed under /workspace/Boat-two: Docker Compose PostgreSQL, compiled API on 4122 and production Next on 3000. Local .env is ignored and must never be committed. Logs under /workspace/work. Environment supplies pnpm 11 although project expects 9; auto-install inserted invalid allowBuilds placeholders, which were restored. Direct node entrypoints build/run successfully. Unit loader needs TSX_TSCONFIG_PATH=apps/api/tsconfig.json when run from root. Playwright module: /opt/codex/cua_node/lib/node_modules/playwright-core, Chromium /usr/bin/chromium. Bind-mounted init SQL needed world-readable directory/file permissions in this managed environment; no source content change.
+
+Continue remaining frozen IDs directly; update their evidence/status without duplicating historical backlog. Browser template draft harness still being validated at this checkpoint.
+
 ## Continuation — actionable campaign recipient ledger (2026-10-23 Cairo)
 
 Recipient API and UI now support bounded contact-name search, processing/delivery/outbound-job filters, filtered counts, job errors/attempts, explicit global totals and loaded-page JSON downloads. Request sequencing discards stale ledger responses. Retry eligibility is authoritative in the API: only failed processing with no prior message and an eligible running/completed campaign can enqueue again. Existing or ambiguous messages cannot be resent through this action. Existing consent/canonical-contact/policy checks still run in the worker.
@@ -24,13 +36,11 @@ Plan mutation now explicitly preserves current licensed quantity, rejects metere
 
 API/web TypeScript, ESLint, mocked catalog/delinquency and durable subscription-request suites pass. Catalog fixture now asserts five existing seats survive a plan change; unit coverage rejects invalid/metered quantities. Real Stripe calls remain disabled. Next: broad regression, fresh migration validation, full production build and expanded real browser acceptance, then truthful completion matrix/handover.
 
-
 ## Maximum-scope continuation — bounded CRM result downloads (2026-10-23)
 
 Existing export result API now accepts validated ordinal cursors and bounded pages; browser downloads assemble 250-row requests with progress guards. Legacy result clients remain compatible, snapshots retain original values/order and expired jobs still return Gone. This bounds HTTP payloads, not the existing 50,000-row job limit, full worker JSON storage or initial import body limit; those larger-scale/storage constraints remain explicit.
 
 API/web TypeScript, ESLint, paged 251-row export and retention suites pass: page limits, complete ordered equality with the frozen result, cursor progress, bad limits, empty exports, expiry and tenant isolation. Email checkpoint push initially failed with HTTP 503; retried immediately and confirmed remote 8aa94bf before proceeding. Next: safe mocked billing contracts and current-source regression/browser acceptance.
-
 
 ## Maximum-scope continuation — signed mail receipts and evidence reconciliation (2026-10-23)
 
@@ -38,13 +48,11 @@ Migration 070 adds immutable delivery/bounce/failure receipts and separate visib
 
 API/web TypeScript, ESLint, migration and receipt/invitation-mail suites pass: signatures/gates, dedupe/body changes, stale/new bounce order, ambiguity evidence, manual no-resend review, encrypted payload/revocation and RLS. All signatures/provider replies are local fixtures. Other transactional message types and real provider/DNS activation acceptance remain open. Next: paged export results/scaling and billing contract closure, then full regression/browser acceptance.
 
-
 ## Maximum-scope continuation — integration authentication policies (2026-10-23)
 
 Migration 069 extends existing host-bound encrypted secret references with Basic, allowlisted API-key headers and HMAC-SHA256, retaining Bearer compatibility and rotation/version checks. Existing automation editor configures auth and four allowlisted non-secret headers. Executor signs timestamp.body only inside the existing effect callback; replay uses the existing ledger without another request. Host/SSRF/redirect gates and external-delivery flag remain authoritative. Raw secret values never appear in list APIs or workflow definitions.
 
 API/web TypeScript, ESLint, migration, integration-auth and existing nested-automation suites pass: encryption, HMAC vectors, Basic/API-key contracts, forbidden headers/CRLF, host/tenant denial, cached replay and existing delayed workflows. HTTP helper was mocked; no external account or delivery enabled. Next: signed email delivery receipts and evidence-only ambiguity review, then regression and browser acceptance.
-
 
 ## Maximum-scope continuation — connected rich campaign composition (2026-10-23)
 
@@ -52,13 +60,11 @@ Existing campaign JSON/storage/worker/adapters now connect to shared creation/ed
 
 API/web TypeScript, ESLint and rich-campaign integration pass: actual local website worker delivery of button/menu/media payloads, consent-filtered audiences, invalid URL/duplicate IDs/template denial, approved BODY parameter validation and mocked WhatsApp/Meta payloads. Chromium actually creates, previews, saves and edits a button campaign while preserving action ID, plus English/Arabic/mobile. Initial fixture lacked an active conversation; corrected fixture rather than weakening delivery assertions. No external delivery enabled. Next: integration authentication/header policies and email delivery lifecycle, then broader regression/acceptance.
 
-
 ## Maximum-scope continuation — reviewed CRM retention (2026-10-23)
 
 Migration 068 and owner-only preview/apply API/UI expire old completed/canceled job payloads and trim historical revisions while preserving each contact's last predecessor before the cutoff. Current contacts, consent, active jobs and job metadata are retained. Exact preview counts and a minimum seven-day cutoff are enforced; backlog blocks cleanup, coverage bounds advance and cleanup is audited. Expired downloads return Gone rather than empty misleading results. Cleanup is explicit, not an automatically scheduled deletion policy.
 
 API/web TypeScript, ESLint, migration, retention and historical-export suites pass: stale preview denial, predecessor retention, expired payloads, active/contact preservation, audit and tenant isolation. PostgreSQL offset timestamps are accepted without discarding precision. Next: bounded export result paging/storage, rich campaign composer, integration auth and email receipts. All external gates remain false.
-
 
 ## Maximum-scope continuation — recorded historical CRM exports (2026-10-23)
 
@@ -66,13 +72,11 @@ Migration 067 adds tenant-isolated immutable profile history. Source transaction
 
 API/web TypeScript, ESLint, migration, smoke-crm-history and existing snapshot smoke pass: historical values/archive state, precise coverage, future denial, rollback exclusion, chunked export and tenant isolation. Next: explicit retention/cleanup with predecessor preservation and bounded result downloads, then campaign/integration/email completion. External gates remain disabled.
 
-
 ## Maximum-scope continuation — bilingual AI workspace and accurate attempts (2026-10-23)
 
 Replaced the legacy Arabic-only AI settings screen with shared premium forms/cards, Arabic/English direction, accessible labels, bounded context/variation fields, role-aware editing, persistent save/reopen and test feedback. Provider readiness now includes tenant providers; the independent paid-call gate is explicit. Usage remaining counts durable attempts/reservations rather than successful replies alone. Existing settings/Knowledge/generation engines are retained.
 
 API/web TypeScript and ESLint pass. PostgreSQL generation-replay confirms one mocked call/run/tool task/usage charge across replay. Chromium ai-workspace suite actually saves/reopens settings and persists owner call/token/cost caps, then checks Arabic/mobile and zero page errors. Next: commit-observed CRM historical export and retention, campaign rich composition, automation auth and email receipts. No external services activated.
-
 
 ## Maximum-scope continuation — durable generation budgets (2026-10-23)
 
@@ -80,23 +84,19 @@ Migration 066 adds detached generation reservations and monthly call/token/cost 
 
 Connected bilingual usage/policy/review UI and role-checked APIs are implemented. API/web TypeScript, ESLint, migration and PostgreSQL generation-budget/tool-audit/failure suites pass: races, call/token/cost/plan limits, durable rollback, crash evidence, cached replay, uncertain hold/release, capability validation and isolation. Next: accurate legacy AI settings usage/bilingual UI and browser budget acceptance, then CRM historical exports/retention and campaign/integration/email closure. No external gates enabled.
 
-
 ## Maximum-scope continuation — immutable model catalog (2026-10-23)
 
 Migration 065 records immutable provider model/capability/context/output/pricing versions, backfills existing configurations and captures subsequent changes with a database trigger. App role cannot edit historical versions. Connected bilingual provider editor and catalog expose context/output limits and latest 500 versions. These remain administrator-declared capabilities, not remotely certified model discovery. Generation runtime enforcement follows in the reservation unit.
 
 API/web TypeScript, ESLint, migration and smoke-model-catalog pass: pricing history, context/output validation, denied mutation and tenant isolation. Next: durable generation reservations, atomic monthly plan/token/cost budgets, replay/crash safety and usage/review UI. Real provider gates stay disabled.
 
-
 ## Maximum-scope continuation — provider retry safety (2026-10-23)
 
 Continued from verified local/remote 877d311 on the existing branch/Draft PR #1. Removed Anthropic adapter automatic retries for timeouts, 429 and 5xx; ambiguous paid outcomes now make one attempt only, matching OpenAI safety. Error bodies are not disclosed. API build, ESLint and three mocked adapter tests passed. Next: immutable model capability/pricing catalog and durable generation reservations. No external gates enabled.
 
-
 ## Acceptance evidence archive — 2026-10-23
 
 Eight actual local Chromium screenshots are now tracked in `docs/acceptance/2026-10-23/`, with fixture/privacy notes and scope. The premium browser suite reran after `ce4d9ff` to refresh images following the final desktop navigation CSS fix; all assertions passed. Eight functional/verification checkpoints (`7a10e70` through `ce4d9ff`) plus this evidence checkpoint were pushed on the same branch/PR; current Git/remote HEAD is authoritative. Build/lint/55 unit tests, 19 distinct PostgreSQL/API/worker suites, four Chromium suites and clean/repeated migrations 001–064 passed. Product remains partial; next work and external gates are unchanged below.
-
 
 ## Verified acceptance continuation — 2026-10-23 (latest)
 
@@ -110,13 +110,11 @@ Exact remaining scope: arbitrary historical/as-of reconstruction before an expor
 
 Continue first with model capability catalog and explicit provider usage/cost reservations (unknown outcomes must retain reservations; no automatic paid retry), then historical CRM/retention and rich campaign variants. Keep all external/AI/email and financial/domain activation gates disabled. Test fixtures live in local `chatbot`; clean schema verification used `boat_acceptance_20261023`. Dependency/browser tools and validation logs are in `/workspace/work`; never commit `.env` or those databases. See the latest section of SPRINT_FULL_PRODUCT_2026-10-23.md for commands and bounds.
 
-
 ## Acceptance continuation — delayed automation after CRM merge (2026-10-23)
 
 Existing follow-up executor now resolves the tenant-scoped canonical merge chain and runs saved actions under the same tenant lock as CRM merge. Original event/effect identities are preserved. Retargeted work writes an audit entry; archived/missing targets or disabled rules are suppressed; cyclic/excessive chains fail for operator review. No consent is changed and no parallel engine or external replay path is added.
 
 Verified: API TypeScript, ESLint, PostgreSQL smoke-automation-merge (target/source preservation, task/tag execution, audit, archived/cross-tenant suppression and cycle denial) and existing nested-automations smoke (real delayed branch/replay/version isolation). Next: latest-runtime/browser regressions and full handover. Advanced integration authentication/debugger, billing/email lifecycle and broad visual acceptance remain open.
-
 
 ## Acceptance continuation — Inbox tuple pagination (2026-10-23)
 
@@ -124,13 +122,11 @@ Inbox API/UI now page by descending (last_message_at,id), encoding the exact Pos
 
 Verified: API/web TypeScript, ESLint, migration 064 and PostgreSQL smoke-inbox-cursors: nine conversations with timestamp ties and adjacent microseconds, all pages complete/unique, search, malformed cursors, cross-tenant access and legacy before. Seventeen broader PostgreSQL/worker suites and existing premium Chromium smoke also passed before this change. Next: rebuilt runtime and Inbox/browser regression, remaining automation recovery/integration and billing/email work. Product is not fully accepted.
 
-
 ## Acceptance continuation — AI failure auditing (2026-10-23)
 
 Generation now creates a run before provider execution, updates its immutable provider/model/rate snapshot with actual usage on success, and records a sanitized failure code on provider/execution failure. Unknown failure cost stays null. Failures honor handoff_enabled and do not automatically replay a provider call. Bilingual run history gives recovery guidance. This is handled-failure auditing; process-crash durability/reservations and cost caps remain open.
 
 Verified: API/web TypeScript, ESLint, mocked PostgreSQL smoke-ai-failures (failed run, sanitized data, unknown costs, no automatic retry, enabled/disabled human handoff, subsequent recovery) and existing smoke-ai-tool-audit (permission/idempotency/cost snapshot isolation). All real provider gates remain false. Next: regression/current-source build and expanded browser acceptance; product scope remains incomplete.
-
 
 ## Acceptance continuation — campaign composer and mobile navigation (2026-10-23)
 
@@ -138,13 +134,11 @@ Replaced the single campaign form with a connected three-step bilingual composer
 
 Chromium exposed missing mobile navigation dismissal; added an inside close button, Escape, expanded/control semantics and auto-close on language change. Verified API/web TypeScript, ESLint, Next production build (before final navigation adjustment), all 55 unit tests and smoke-campaign-browser: actual audience, gallery, preview/edit/back/save persisted via API, 390px overflow, English/Arabic RTL, zero page errors. Screenshots inspected locally. Next: current-source build/regression and AI failure audit; comprehensive acceptance remains incomplete.
 
-
 ## Acceptance continuation — pipeline ownership (2026-10-23)
 
 Migration 063 adds pipeline owner and ownership revision. Owner/admin can reassign through the connected bilingual pipeline form with membership/revision checks and audit. Optional explicit transfer changes only open deals belonging to the previous pipeline owner; separately assigned and closed deals are retained. Contacts/consent are untouched. No automatic reassignment follows a pipeline ownership edit.
 
 Verified: API/web TypeScript, ESLint, migration 063 and PostgreSQL smoke-pipeline-ownership (explicit transfer, preservation, default no-transfer, invalid member, stale revision, cross-tenant denial and audit). Next: campaign creation/preview and broader browser acceptance; remaining historical CRM/retention scope stays open.
-
 
 ## Acceptance continuation — frozen CRM exports (2026-10-23)
 
@@ -152,13 +146,11 @@ New export jobs freeze all selected profile values in a single PostgreSQL statem
 
 Verified: API/web TypeScript, ESLint and PostgreSQL smoke-crm-snapshots: 251 records over two chunks, intervening mutation/archive, stable values/unique IDs/timestamp, empty export and tenant isolation. Next: pipeline ownership/reassignment and campaign composition. Product remains partial.
 
-
 ## Acceptance continuation — AI provider lifecycle (2026-10-23)
 
 Migration 062 adds revisions, retirement and administrator-declared tool capability to existing providers. Connected bilingual provider cards edit name/model/rates/capability with revision conflicts; enable/disable remains compatible. Permanent retirement erases the encrypted key, preserves agents/run history and refuses later edits/key rotation/reassignment. Tenant lock serializes configuration with generation; enabled agents requiring tools cannot use a declared incompatible model. Existing capability defaults remain compatible, not provider-certified. No provider network calls enabled.
 
 Verified: API/web TypeScript, ESLint, targeted AI unit files, clean PostgreSQL migration chain 001–062 and HTTP smoke-provider-lifecycle (edit/conflict/compatibility/retirement/tenant isolation). Next: CRM export snapshot semantics and pipeline ownership, then campaign composer and remaining closure. AI cost caps/catalog/fallback and full browser acceptance remain open; this checkpoint is not complete product acceptance.
-
 
 ## Final full-product sprint handover — 2026-10-23
 
@@ -168,20 +160,17 @@ Validation passed: full API/Next production build and TypeScript, ESLint, **55 u
 
 Product scope is still incomplete: provider-native/multi-item billing schedules, broader customer portal/email lifecycle, AI provider/model lifecycle/capabilities, historical CRM/export scaling and campaign composer gaps, richer automation recovery/integrations and full legacy i18n/premium/accessibility acceptance. Next: AI/provider capability lifecycle and remaining CRM/campaign business functions; continue UI completion alongside them. Historical sections below describe earlier checkpoints and are superseded by this report. Final documentation HEAD is current Git/PR HEAD, following the feature checkpoint.
 
-
 ## Full product sprint checkpoint — premium inbox and browser regression
 
 Inbox now uses shared surfaces/tokens, named channel labels instead of colored emoji, keyboard-openable conversation rows, bilingual primary filters/actions, IME-safe reply entry and a native focus-managed customer-profile dialog on mobile. Search and pagination discard results that belong to an obsolete filter. Existing message, assignment, department, SLA, note, media, CRM-tag and policy paths remain connected. Advanced message/system labels still require translation.
 
 Full API/Next production build, web TypeScript, ESLint, 55 unit tests and a clean database applying migrations 001–061 twice pass. Expanded Chromium smoke passed the seven-step real bot preview/publication, editor add/undo/redo/save/version-dialog dismissal, branded invitation preview/queue and inbox search at 390px, with zero application page errors and no horizontal overflow. This is limited smoke coverage, not full owner visual/accessibility acceptance. A sandboxed email preview correctly denies storage; the browser fixture initializer now targets the top frame only. PostgreSQL regression is ongoing; final report will record the result.
 
-
 ## Full product sprint checkpoint — branded invitation mail
 
 Migration 061 adds encrypted invitation mail jobs using the existing outbox and external effect ledger. Owner/admin invitation forms opt into email; preview and status screens distinguish provider acceptance from delivery. Brand entitlement/domain eligibility is rechecked at processing, and revoked/expired invitations cancel safely. An operator-configured HTTPS gateway requires both external delivery and EMAIL_DELIVERY_ENABLED (default false), with provider idempotency keys. Ambiguous outcomes are quarantined without automatic retry. The invitation acceptance screen now shares the bilingual premium authentication experience and host binding.
 
 API build, web TypeScript, ESLint and PostgreSQL smoke-invitation-mail pass: encryption, disabled gates, mocked acceptance, duplicate suppression, ambiguous timeout, revoked invitations, escaping and tenant isolation. No external email was sent. Gateway delivery receipts, bounce handling and reconciliation of ambiguous email remain incomplete. Next: current-source full regression and browser checks, plus remaining business workspace improvements.
-
 
 ## Full product sprint checkpoint — scheduled subscription requests
 
@@ -303,13 +292,11 @@ Verification: full API/Next production build and TypeScript, latest API rebuild,
 
 Exact next implementation: automatic periodic Stripe reconciliation/backfill and durable subscription-change/cancellation requests through the existing outbox/effect ledger, with ownership validation, uncertainty handling and a connected owner UI. Continue afterwards with price/catalog/payment delinquency policy, richer platform read scopes/backup factors/operation step-up, domain transfer and white-label auth journeys; advanced automation graphs/auth policies; CRM historical/large export refinements; AI tool/pricing audit/file replacement/extraction retention; remaining Inbox/session/channel and Batch 4 editor/mobile/bilingual work. Read activation runbooks before external integration. The product is not PRODUCT BUILD COMPLETE. Maintain stable-unit commit/push and 10–15-minute recoverable checkpoints.
 
-
 ## Knowledge lifecycle checkpoint — 2026-10-23
 
 Migration 045 adds immutable input revisions, source archive state and per-job source revisions. Text/FAQ/URL edits require the current revision and cancellation of active indexing first; prior published chunks survive replacement processing. One source advisory lock coordinates edit/archive/reindex/process/resume/cancel. Obsolete jobs cannot resume or publish. Archived sources retain content/history/index but are excluded from vector/keyword retrieval; restore makes the retained index available again. The connected knowledge page now uses shared bilingual forms/cards, search, archive filtering and version review/load-as-new-save. File replacement remains a new upload; extracted URL/file snapshots are not an immutable crawler archive. History is bounded to 50 revisions per source and refuses further edits instead of deleting records; retained archived sources still count toward source quota.
 
 Full API/Next build/TypeScript, ESLint and the new knowledge revision smoke pass with mocked embeddings only. Source retention/cleanup, historical extraction snapshots, larger file replacement and AI tool/pricing audit remain open. Continue with basic cross-module regression/migration verification and save the final handover; do not start screenshots or comprehensive acceptance.
-
 
 ## Custom-domain integration checkpoint — 2026-10-23
 
@@ -317,28 +304,23 @@ Migration 044 connects hosting requests, minimal public brand resolution/TLS eli
 
 API/web TypeScript, full production build, ESLint and mocked DNS/outbox/tenant-hosting smoke passed. No screenshots or comprehensive acceptance were run. Domain transfer/reclaim, white-label authentication emails and live ingress/ACME acceptance remain open. Continue with remaining billing automation, AI source lifecycle and product UX using immediate stable commit/push checkpoints.
 
-
 ## Invoice lifecycle checkpoint — 2026-10-23
 
 Migration 043 and connected billing UI/API persist verified Stripe invoice snapshots: due/paid/remaining amounts, currency, attempts, failed-payment state, due dates and sanitized Stripe document links. Independent invoice event ordering/deduplication prevents stale/equal-priority updates from erasing paid/failure transitions; invoice events do not override authoritative subscription status. Customer-routed subscription events now apply without tenant metadata, cancellation-at-period-end is visible, and existing active subscriptions use the portal rather than duplicate checkout. Checkout/portal now also require the explicit external-delivery gate.
 
 API build, web TypeScript, ESLint, 52 unit tests, invoice smoke and existing signed billing/branding smoke pass without Stripe calls. This is a webhook-backed ledger, not historical invoice backfill or a payment processor. Automatic reconciliation/backfill, price catalog lifecycle, provider mutations/cancellation workflows and comprehensive delinquency policy remain open. Next: custom-host routing/TLS code and gated activation.
 
-
 ## Platform MFA checkpoint — 2026-10-23
 
 Migration 042 and connected bilingual sign-in/enrollment UI enforce authenticator MFA for every platform session. Secrets use the existing authenticated encryption; limited enrollment challenges grant no console access; database time-step consumption prevents replay across replicas. Old password-only platform tokens are rejected. API/web TypeScript, ESLint and 50 API tests pass, including RFC TOTP vectors. An isolated API/DB smoke validates enrollment, encrypted storage, replay/concurrency, role guards and revocation without activating a real operator. Recovery remains an externally reviewed operator process; hardware factors, backup codes and additional operation step-up remain open. Next: invoice/payment lifecycle, then domain-host/TLS integration.
-
 
 ## Operator authorization checkpoint — 2026-10-23
 
 Explicit operator-managed role mappings now enforce independent company/user/session/subscription/plan write permissions on every request. Missing or invalid configuration is read-only; workspace ownership never grants writes. The platform UI displays effective scopes and disables unauthorized actions. No new schema is required for immutable operator configuration. API/web TypeScript, ESLint and 48 API tests pass. MFA is the immediate next unit; external delivery/AI remain disabled.
 
-
 ## Platform audit checkpoint — 2026-10-23
 
 Migration 041, restricted API and bilingual console provide exact actor/company/action filters, bounded UTC date ranges, stable ID cursor pagination and explicitly loaded-record JSON export. Direct table/application-role access remains denied. API build, web TypeScript, lint and dedicated SQL smoke passed. Continue with granular operator permissions and MFA; product remains partial. No screenshots or visual acceptance are requested in this sprint.
-
 
 ## Mandatory continuous Git checkpoints
 

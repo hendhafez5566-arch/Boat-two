@@ -2,32 +2,31 @@
 import { useState } from 'react';
 import { api } from '../../../../../lib/api';
 import { useLocale } from '../../../../../components/product/locale';
+import {
+  TemplateDraftForm,
+  TemplateRow,
+} from '../../../../../components/business/TemplateDraftForm';
 import { useData } from '../../../../../components/business/useData';
 export default function Templates({ params }: { params: { id: string } }) {
   const { t } = useLocale();
   const path = `/channels/${params.id}/templates`;
-  const data = useData<
-    {
-      id: string;
-      name: string;
-      language: string;
-      category: string;
-      body: string;
-      status: string;
-      supported: boolean;
-      error: string | null;
-    }[]
-  >(path, []);
+  const data = useData<TemplateRow[]>(path, []);
+  const [editing, setEditing] = useState<TemplateRow | undefined>();
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  async function act(url: string, body?: unknown) {
+  async function act(url: string, body?: unknown, method = 'POST') {
     setBusy(true);
     setError('');
+    setSaved(false);
     try {
-      await api(url, { method: 'POST', body: body ? JSON.stringify(body) : undefined });
-      data.reload();
+      await api(url, { method, body: body ? JSON.stringify(body) : undefined });
+      await data.reload();
+      setSaved(true);
+      return true;
     } catch (e) {
       setError((e as Error).message);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -36,7 +35,7 @@ export default function Templates({ params }: { params: { id: string } }) {
     <main className="stack">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">WHATSAPP TEMPLATES</p>
+          <p className="eyebrow">{t('قوالب واتساب', 'WHATSAPP TEMPLATES')}</p>
           <h1>
             {t('قوالب رسمية، بحالة اعتماد واضحة', 'Official templates, explicit approval status')}
           </h1>
@@ -51,7 +50,17 @@ export default function Templates({ params }: { params: { id: string } }) {
           {t('مزامنة من Meta', 'Sync from Meta')}
         </button>
       </div>
-      {(error || data.error) && <p className="notice error">{error || data.error}</p>}
+      {saved && (
+        <p className="notice" role="status">
+          {t('حُفظ التغيير.', 'Change saved.')}
+        </p>
+      )}
+      {data.loading && <p role="status">{t('جارٍ تحميل القوالب…', 'Loading templates…')}</p>}
+      {(error || data.error) && (
+        <p className="notice error" role="alert">
+          {error || data.error}
+        </p>
+      )}
       <p className="notice">
         {t(
           'المزامنة والتقديم يحتاجان WABA ID وصلاحيات Meta وتفعيل الوصول الخارجي بواسطة المشغّل. لا تُرسل القوالب من هذه الصفحة.',
@@ -61,7 +70,32 @@ export default function Templates({ params }: { params: { id: string } }) {
       <div className="card-grid">
         {data.data.map((x) => (
           <section className="card" key={x.id}>
-            <span className="badge">{x.status}</span>
+            <span className="badge">
+              {(
+                {
+                  DRAFT: t('مسودة', 'Draft'),
+                  PENDING: t('قيد المراجعة', 'Pending review'),
+                  APPROVED: t('معتمد', 'Approved'),
+                  REJECTED: t('مرفوض', 'Rejected'),
+                  SUBMITTING: t(
+                    'قيد التقديم؛ زامن إذا تعطل الطلب',
+                    'Submitting; sync if interrupted',
+                  ),
+                  SUBMISSION_UNKNOWN: t(
+                    'نتيجة غير مؤكدة؛ زامن قبل المتابعة',
+                    'Unknown outcome; sync before continuing',
+                  ),
+                } as Record<string, string>
+              )[x.status] || x.status}
+            </span>
+            {x.error && (
+              <p className="notice" role="status">
+                {t(
+                  'تحتاج نتيجة التقديم إلى المزامنة قبل أي محاولة أخرى.',
+                  'Synchronize the submission outcome before any further attempt.',
+                )}
+              </p>
+            )}
             {!x.supported && (
               <p className="notice">
                 {t(
@@ -75,6 +109,11 @@ export default function Templates({ params }: { params: { id: string } }) {
               {x.language} · {x.category}
             </p>
             <p className="my-3 whitespace-pre-wrap">{x.body}</p>
+            {x.status === 'DRAFT' && (
+              <button className="btn" disabled={busy} onClick={() => setEditing(x)}>
+                {t('تعديل المسودة', 'Edit draft')}
+              </button>
+            )}
             {x.status === 'DRAFT' && (
               <button
                 className="btn"
@@ -92,52 +131,21 @@ export default function Templates({ params }: { params: { id: string } }) {
           {t('أنشئ مسودة أو زامن القوالب المعتمدة.', 'Create a draft or sync approved templates.')}
         </p>
       )}
-      <form
-        className="card"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const f = new FormData(e.currentTarget);
-          act(path, {
-            name: f.get('name'),
-            language: f.get('language'),
-            category: f.get('category'),
-            body: f.get('body'),
-            examples: String(f.get('examples') || '')
-              .split('\n')
-              .filter(Boolean),
-          });
+      <TemplateDraftForm
+        key={editing ? editing.id + ':' + editing.revision : 'new'}
+        initial={editing}
+        busy={busy}
+        cancel={editing ? () => setEditing(undefined) : undefined}
+        save={async (draft) => {
+          const ok = await act(
+            editing ? path + '/' + editing.id : path,
+            editing ? { revision: editing.revision, draft } : draft,
+            editing ? 'PATCH' : 'POST',
+          );
+          if (ok) setEditing(undefined);
+          return ok;
         }}
-      >
-        <h2>{t('مسودة قالب نصي جديد', 'New text template draft')}</h2>
-        <div className="form-grid">
-          <label className="field">
-            {t('معرّف إنجليزي صغير', 'Lowercase identifier')}
-            <input name="name" pattern="[a-z0-9_]+" required />
-          </label>
-          <label className="field">
-            {t('اللغة', 'Language')}
-            <input name="language" defaultValue="ar" required />
-          </label>
-          <label className="field">
-            {t('التصنيف', 'Category')}
-            <select name="category">
-              <option>UTILITY</option>
-              <option>MARKETING</option>
-            </select>
-          </label>
-        </div>
-        <label className="field mt-4">
-          {t('النص: المتغيرات بالشكل {{1}}', 'Text: variables use {{1}}')}
-          <textarea required name="body" maxLength={1024} rows={4} />
-        </label>
-        <label className="field mt-4">
-          {t('مثال لكل متغير، سطر لكل مثال', 'One example per variable, one per line')}
-          <textarea name="examples" rows={3} />
-        </label>
-        <button className="btn btn-primary mt-4" disabled={busy}>
-          {t('حفظ المسودة', 'Save draft')}
-        </button>
-      </form>
+      />
     </main>
   );
 }
