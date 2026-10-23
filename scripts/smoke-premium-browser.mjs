@@ -1,4 +1,4 @@
-/* global localStorage, document, innerWidth */
+/* global localStorage, document, innerWidth, window */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
@@ -37,6 +37,8 @@ const apiBase = process.env.SMOKE_API_URL || 'http://localhost:4000',
   page.on('pageerror', (e) => errors.push(e.message));
   await page.addInitScript(
     (session) => {
+      // Session setup belongs to the app, never sandboxed email preview frames.
+      if (window !== window.top) return;
       localStorage.setItem('session', JSON.stringify(session));
       localStorage.setItem('boat-language', 'en');
     },
@@ -92,12 +94,45 @@ const apiBase = process.env.SMOKE_API_URL || 'http://localhost:4000',
     path: (process.env.SMOKE_SCREENSHOT_DIR || '/tmp') + '/boat-builder-mobile.png',
     fullPage: true,
   });
+  assert.deepEqual(errors, [], 'Builder must not emit browser errors');
+  assert.equal(
+    await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+    false,
+    'Builder must fit mobile viewport',
+  );
+  const builderNodeCount = await page.locator('.premium-flow-node').count();
+  await page.setViewportSize({ width: 1536, height: 1000 });
+  await page.goto(webBase + '/dashboard/team');
+  await page.getByRole('button', { name: 'Preview branding' }).click();
+  await page.locator('iframe[title="Invitation email preview"]').waitFor();
+  await page.getByLabel('Email', { exact: true }).fill('invite-' + randomUUID() + '@example.test');
+  await page.getByLabel('Queue a branded invitation email').check();
+  await page.getByRole('button', { name: 'Create invitation link' }).click();
+  await page
+    .getByText('Email queued. This does not confirm delivery; check its status below.')
+    .waitFor();
+  await page.goto(webBase + '/dashboard/inbox');
+  await page.getByRole('textbox', { name: 'Search conversations' }).fill('no-matching-customer');
+  await page.getByText('No conversations match these filters.').waitFor();
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(
+    await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+    false,
+    'Inbox must fit mobile viewport',
+  );
+  await page.screenshot({
+    path: (process.env.SMOKE_SCREENSHOT_DIR || '/tmp') + '/boat-inbox-mobile.png',
+    fullPage: true,
+  });
+  assert.deepEqual(errors, [], 'Workspace must not emit browser errors');
   console.log(
     JSON.stringify({
       errors,
       overflow: await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
       wizardPublished: true,
-      nodeCount: await page.locator('.premium-flow-node').count(),
+      invitationMailQueued: true,
+      inboxMobileChecked: true,
+      nodeCount: builderNodeCount,
     }),
   );
   await browser.close();

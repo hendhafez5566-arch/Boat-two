@@ -1,5 +1,12 @@
 # Continue here — ELHAFEZ BOAT
 
+## Full product sprint checkpoint — premium inbox and browser regression
+
+Inbox now uses shared surfaces/tokens, named channel labels instead of colored emoji, keyboard-openable conversation rows, bilingual primary filters/actions, IME-safe reply entry and a native focus-managed customer-profile dialog on mobile. Search and pagination discard results that belong to an obsolete filter. Existing message, assignment, department, SLA, note, media, CRM-tag and policy paths remain connected. Advanced message/system labels still require translation.
+
+Full API/Next production build, web TypeScript, ESLint, 55 unit tests and a clean database applying migrations 001–061 twice pass. Expanded Chromium smoke passed the seven-step real bot preview/publication, editor add/undo/redo/save/version-dialog dismissal, branded invitation preview/queue and inbox search at 390px, with zero application page errors and no horizontal overflow. This is limited smoke coverage, not full owner visual/accessibility acceptance. A sandboxed email preview correctly denies storage; the browser fixture initializer now targets the top frame only. PostgreSQL regression is ongoing; final report will record the result.
+
+
 ## Full product sprint checkpoint — branded invitation mail
 
 Migration 061 adds encrypted invitation mail jobs using the existing outbox and external effect ledger. Owner/admin invitation forms opt into email; preview and status screens distinguish provider acceptance from delivery. Brand entitlement/domain eligibility is rechecked at processing, and revoked/expired invitations cancel safely. An operator-configured HTTPS gateway requires both external delivery and EMAIL_DELIVERY_ENABLED (default false), with provider idempotency keys. Ambiguous outcomes are quarantined without automatic retry. The invitation acceptance screen now shares the bilingual premium authentication experience and host binding.

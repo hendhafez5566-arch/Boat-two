@@ -1688,3 +1688,16 @@ textarea::placeholder {
   overflow: auto;
   padding: 8px 0;
 }
+
+/* Shared inbox: quieter surfaces and direction-aware boundaries. */
+.premium-inbox { height:calc(100dvh - 48px); min-height:480px; overflow:hidden; border:1px solid var(--line); border-radius:var(--radius); background:var(--surface-muted,#f4f8fa); box-shadow:var(--shadow-sm); }
+.premium-inbox > header {flex-wrap:wrap; padding:16px 20px; gap:12px;}
+.premium-inbox .inbox-list {flex-shrink:0; border-inline-end:1px solid var(--line); border-left:0;}
+.premium-inbox .inbox-list li[role=button] {padding:16px; transition:background .15s;outline-offset:-3px;}
+.premium-inbox .inbox-list li[aria-current=true] {background:#e7f5f2;border-inline-start:3px solid var(--primary);}
+.premium-inbox button {min-height:34px;}
+.premium-inbox .bg-blue-600 {background:var(--primary);}
+.premium-inbox svg {width:17px;height:17px;display:inline-block;vertical-align:middle;}
+.premium-inbox textarea {min-width:0;resize:vertical;}
+.premium-inbox aside:last-child {border-right:0;border-inline-start:1px solid var(--line);}
+@media(max-width:767px){.premium-inbox{height:calc(100dvh - 100px);min-height:400px;border-radius:12px}.premium-inbox>header{padding:10px;gap:8px}.premium-inbox>header>a:first-child{display:none}}
