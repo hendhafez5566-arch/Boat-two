@@ -1,4 +1,10 @@
 'use client';
+import {
+  RichCampaignContent,
+  CampaignContentPreview,
+  validCampaignContent,
+  CampaignContent,
+} from './RichCampaignContent';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
@@ -63,6 +69,7 @@ export function CampaignComposer({
     [name, setName] = useState(''),
     [channel, setChannel] = useState(''),
     [segment, setSegment] = useState('');
+  const [rich, setRich] = useState<CampaignContent>({});
   const [frequency, setFrequency] = useState(24),
     [text, setText] = useState(''),
     [template, setTemplate] = useState(''),
@@ -81,7 +88,9 @@ export function CampaignComposer({
   const preview = selectedTemplate
     ? selectedTemplate.body.replace(/\{\{(\d+)\}\}/g, (match, n) => values[Number(n) - 1] || match)
     : text;
-  const validContent = selectedTemplate ? !/\{\{\d+\}\}/.test(preview) : !!text.trim();
+  const validContent = selectedTemplate
+    ? !/\{\{\d+\}\}/.test(preview)
+    : validCampaignContent({ ...rich, text });
   useEffect(() => {
     let active = true;
     setTemplate('');
@@ -162,12 +171,13 @@ export function CampaignComposer({
                   bodyParams: values,
                 },
               }
-            : { text: text.trim() },
+            : { ...rich, text: text.trim() },
         }),
       });
       setStep(0);
       setName('');
       setText('');
+      setRich({});
       setAudience(null);
       await onSaved();
     } catch (e) {
@@ -332,23 +342,19 @@ export function CampaignComposer({
                   </button>
                 ))}
               </div>
-              <label className="field">
-                {t('محتوى الرسالة', 'Message content')}
-                <textarea
-                  aria-label={t('محتوى الرسالة', 'Message content')}
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  maxLength={4096}
-                  rows={5}
-                  required
-                />
-              </label>
+              <RichCampaignContent
+                value={{ ...rich, text }}
+                onChange={(value) => {
+                  setText(value.text ?? '');
+                  setRich(value);
+                }}
+              />
             </>
           )}
           <p className="muted">
             {t(
-              'يدعم هذا النموذج النص وقوالب BODY المعتمدة فقط. تخضع نافذة الرد والموافقة وسياسة القناة للفحص عند الإرسال.',
-              'This composer supports text and approved BODY templates. Reply windows, consent and channel policy are checked at delivery.',
+              'يدعم النص والوسائط وأزرار الرد والقوائم وقوالب BODY المعتمدة. تخضع نافذة الرد والموافقة وسياسة القناة للفحص عند الإرسال.',
+              'Supports text, media, reply buttons, menus and approved BODY templates. Reply windows, consent and channel policy are checked at delivery.',
             )}
           </p>
           <div className="form-actions">
@@ -378,7 +384,7 @@ export function CampaignComposer({
             className="card whitespace-pre-wrap"
             aria-label={t('معاينة الرسالة', 'Message preview')}
           >
-            {preview}
+            {template ? preview : <CampaignContentPreview content={{ ...rich, text }} />}
           </article>
           <p className="notice">
             {t(

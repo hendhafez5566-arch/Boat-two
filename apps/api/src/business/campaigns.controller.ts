@@ -17,6 +17,7 @@ import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
 import { DatabaseService } from '../database/database.service';
 import { contentSchema, validateOutbound } from '../messaging/message-content';
+import { validateCampaignContent } from './campaign-content';
 import { CampaignsService } from './campaigns.service';
 import { filtersSchema, pagination } from './schemas';
 const schema = z.object({
@@ -52,8 +53,7 @@ export class CampaignsController {
     const b = parse(schema, body);
     validateOutbound(b.content);
     return this.db.withTenant(r.user.tenantId, async (c) => {
-      if (!(await c.query('SELECT 1 FROM channels WHERE id=$1', [b.channelId])).rowCount)
-        throw new NotFoundException('Channel not found');
+      await validateCampaignContent(c, b.channelId, b.content);
       return (
         await c.query(
           'INSERT INTO campaigns(tenant_id,name,channel_id,filters,content,frequency_hours) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',
@@ -77,8 +77,7 @@ export class CampaignsController {
     const b = parse(schema.extend({ revision: z.number().int().min(0) }), body);
     validateOutbound(b.content);
     return this.db.withTenant(r.user.tenantId, async (c) => {
-      if (!(await c.query('SELECT 1 FROM channels WHERE id=$1', [b.channelId])).rowCount)
-        throw new NotFoundException('Channel not found');
+      await validateCampaignContent(c, b.channelId, b.content);
       const row = (
         await c.query(
           `UPDATE campaigns SET name=$2,channel_id=$3,filters=$4,content=$5,frequency_hours=$6,revision=revision+1,updated_at=now()

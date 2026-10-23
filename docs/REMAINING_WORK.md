@@ -1,5 +1,12 @@
 # Remaining implementation — continue on PR #1
 
+## Maximum-scope continuation — connected rich campaign composition (2026-10-23)
+
+Existing campaign JSON/storage/worker/adapters now connect to shared creation/editing controls for images/video/files, reply buttons and choice menus with stable IDs, structural preview and audience editing. Draft edits preserve rich content. API validates public HTTPS media URLs/caption limits, unique option IDs and approved supported WhatsApp BODY templates/contiguous parameters at save and schedule. Meta menus intentionally become quick replies; unsupported rich WhatsApp template component variants remain unavailable.
+
+API/web TypeScript, ESLint and rich-campaign integration pass: actual local website worker delivery of button/menu/media payloads, consent-filtered audiences, invalid URL/duplicate IDs/template denial, approved BODY parameter validation and mocked WhatsApp/Meta payloads. Chromium actually creates, previews, saves and edits a button campaign while preserving action ID, plus English/Arabic/mobile. Initial fixture lacked an active conversation; corrected fixture rather than weakening delivery assertions. No external delivery enabled. Next: integration authentication/header policies and email delivery lifecycle, then broader regression/acceptance.
+
+
 ## Maximum-scope continuation — reviewed CRM retention (2026-10-23)
 
 Migration 068 and owner-only preview/apply API/UI expire old completed/canceled job payloads and trim historical revisions while preserving each contact's last predecessor before the cutoff. Current contacts, consent, active jobs and job metadata are retained. Exact preview counts and a minimum seven-day cutoff are enforced; backlog blocks cleanup, coverage bounds advance and cleanup is audited. Expired downloads return Gone rather than empty misleading results. Cleanup is explicit, not an automatically scheduled deletion policy.

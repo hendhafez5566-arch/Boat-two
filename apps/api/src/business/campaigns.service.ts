@@ -1,3 +1,4 @@
+import { validateCampaignContent } from './campaign-content';
 import { DeliveryBudget } from '../messaging/delivery-budget';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
@@ -46,6 +47,7 @@ export class CampaignsService {
         ).rowCount
       )
         throw new BadRequestException('Enable the channel campaign policy before scheduling');
+      await validateCampaignContent(c, existing.channel_id, existing.content);
       const when = new Date(at).getTime();
       if (when < Date.now() - 60000 || when > Date.now() + 366 * 86400000)
         throw new BadRequestException('Choose a schedule within the next year');

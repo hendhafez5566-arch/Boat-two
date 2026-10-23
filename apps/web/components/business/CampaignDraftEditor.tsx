@@ -1,4 +1,7 @@
 'use client';
+import { useState } from 'react';
+import { RichCampaignContent, CampaignContent } from './RichCampaignContent';
+import { useData } from './useData';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 export type EditableCampaign = {
@@ -7,7 +10,7 @@ export type EditableCampaign = {
   channel_id: string;
   revision: number;
   filters: Record<string, unknown>;
-  content: { text?: string; template?: { name: string; language: string; bodyParams: string[] } };
+  content: CampaignContent;
   frequency_hours: number;
 };
 export function CampaignDraftEditor({
@@ -20,6 +23,11 @@ export function CampaignDraftEditor({
   busy: boolean;
 }) {
   const { t } = useLocale();
+  const [draft, setDraft] = useState<CampaignContent>(campaign.content);
+  const segments = useData<{ id: string; name: string; filters: Record<string, unknown> }[]>(
+    '/crm/segments',
+    [],
+  );
   return (
     <details>
       <summary className="btn">{t('تعديل المسودة', 'Edit draft')}</summary>
@@ -34,7 +42,10 @@ export function CampaignDraftEditor({
               body: JSON.stringify({
                 name: form.get('name'),
                 channelId: campaign.channel_id,
-                filters: campaign.filters,
+                filters:
+                  form.get('audience') === '__keep'
+                    ? campaign.filters
+                    : (segments.data.find((s) => s.id === form.get('audience'))?.filters ?? {}),
                 frequencyHours: Number(form.get('frequency')),
                 revision: campaign.revision,
                 content: campaign.content.template
@@ -46,7 +57,7 @@ export function CampaignDraftEditor({
                           .filter(Boolean),
                       },
                     }
-                  : { text: form.get('text') },
+                  : draft,
               }),
             }),
           );
@@ -81,11 +92,20 @@ export function CampaignDraftEditor({
             </label>
           </>
         ) : (
-          <label className="field">
-            {t('الرسالة', 'Message')}
-            <textarea name="text" required maxLength={4096} defaultValue={campaign.content.text} />
-          </label>
+          <RichCampaignContent value={draft} onChange={setDraft} />
         )}
+        <label className="field">
+          {t('تعديل الجمهور', 'Edit audience')}
+          <select name="audience" defaultValue="__keep">
+            <option value="__keep">{t('الاحتفاظ بالجمهور الحالي', 'Keep current audience')}</option>
+            <option value="">{t('كل المؤهلين', 'All eligible contacts')}</option>
+            {segments.data.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <button className="btn btn-primary" disabled={busy}>
           {t('حفظ التعديل', 'Save changes')}
         </button>
