@@ -72,7 +72,7 @@ export class BrandingController {
     return this.db.withTenant(r.user.tenantId, async (c) => ({
       domains: (
         await c.query(
-          "SELECT id,hostname,verification_token,status,verified_at,hosting_enabled,hosting_error FROM workspace_domains WHERE status<>'revoked' ORDER BY created_at DESC LIMIT 20",
+          'SELECT id,hostname,verification_token,status,verified_at,hosting_enabled,hosting_error FROM workspace_domains ORDER BY created_at DESC LIMIT 20',
         )
       ).rows,
       trafficRouting:
@@ -178,6 +178,12 @@ export class BrandingController {
         ).rowCount
       )
         throw new NotFoundException();
+      const pending = await c.query(
+        "SELECT id FROM workspace_domain_transfers WHERE domain_id=$1 AND source_tenant_id=$2 AND status='pending'",
+        [id, r.user.tenantId],
+      );
+      for (const transfer of pending.rows)
+        await c.query('SELECT domain_cancel_transfer($1)', [transfer.id]);
       return { revoked: true };
     });
   }

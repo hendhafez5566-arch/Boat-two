@@ -1,4 +1,5 @@
 'use client';
+import { DomainTransfers } from '../../../components/business/DomainTransfers';
 import { useState } from 'react';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
@@ -188,7 +189,7 @@ export default function Branding() {
               </button>
               <button
                 className="btn"
-                disabled={busy}
+                disabled={busy || domain.status === 'revoked'}
                 onClick={() =>
                   void run(() =>
                     api('/workspace/branding/domains/' + domain.id + '/verify', { method: 'POST' }),
@@ -214,6 +215,7 @@ export default function Branding() {
           </article>
         ))}
       </section>
+      <DomainTransfers domains={domains.data.domains} onChanged={domains.reload} />
     </main>
   );
 }

@@ -1,5 +1,11 @@
 # Continue here — ELHAFEZ BOAT
 
+## Continuation — explicit domain transfer/reclaim (2026-10-23)
+
+Migration 051 adds current-owner initiated transfers to a specific workspace, 24-hour expiry, one-time secret (hash stored), fresh target TXT proof and atomic acceptance. Hosting stops at initiation and remains off after transfer until the receiver requests it. Pending transfers prevent source hosting; revocation cancels them. Source/target audits remain, unrelated tenants cannot see transfers, and stale source recheck events cannot serve the new owner. The owner UI includes outgoing/incoming transfers and own-domain reclaim with rotated TXT and fresh verification. Revoked names remain reserved; DNS alone never permits another tenant to reclaim a hostname. Expired requests must be canceled explicitly before restarting; involuntary/operator takeover remains deliberately unsupported pending policy review.
+
+Validation: API build, web TypeScript, ESLint, migration 051, new PostgreSQL domain-transfer smoke and existing hosting smoke pass with mocked DNS only. Tests cover secret/tenant checks, failed proof, concurrent acceptance, hosting gates, revocation cancellation, reclaim rotation and retained audits. No DNS/ingress/certificate was activated. Next: ledger-backed platform reports; then remaining Batch 2 AI/CRM/automation and white-label auth/email journeys, followed by Batch 4. Product remains incomplete.
+
 ## Continuation — secure operator MFA recovery (2026-10-23)
 
 Migration 050 adds eight high-entropy single-use backup codes, generated only after operation step-up and displayed once in the bilingual console. Only SHA-256 hashes are persisted in the restricted platform database. Public recovery requires allowlisted account + correct password + saved code, is rate limited, consumes the code atomically, revokes all user sessions, invalidates all remaining backup codes and grants enrollment only for a new encrypted authenticator. Password alone never bypasses MFA. Codes clear from the console on sign-out.

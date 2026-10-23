@@ -117,6 +117,15 @@ export class DomainHostingController {
       ).rows[0];
       if (!row) throw new NotFoundException();
       if (b.enabled) {
+        if (
+          (
+            await c.query(
+              "SELECT 1 FROM workspace_domain_transfers WHERE domain_id=$1 AND status='pending'",
+              [id],
+            )
+          ).rowCount
+        )
+          throw new BadRequestException('Cancel pending transfer before enabling hosting');
         await this.plans.assertFeature(c, 'white_label');
         if (
           row.status !== 'verified' ||
