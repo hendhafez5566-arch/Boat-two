@@ -1,0 +1,34 @@
+[
+  {
+    "suite": "rich-campaign-browser",
+    "code": 0
+  },
+  {
+    "suite": "campaign-browser",
+    "code": 0
+  },
+  {
+    "suite": "template-components-browser",
+    "code": 0
+  },
+  {
+    "suite": "rich-campaigns",
+    "code": 0
+  },
+  {
+    "suite": "core",
+    "code": 0
+  },
+  {
+    "suite": "worker",
+    "code": 0
+  },
+  {
+    "suite": "template-components",
+    "code": 0
+  },
+  {
+    "suite": "campaign-ledger-browser",
+    "code": 0
+  }
+]

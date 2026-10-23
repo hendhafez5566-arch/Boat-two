@@ -5,7 +5,7 @@ import {
   CampaignDraftEditor,
   EditableCampaign,
 } from '../../../components/business/CampaignDraftEditor';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { CampaignComposer } from '../../../components/business/CampaignComposer';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
@@ -24,6 +24,11 @@ type Recipient = {
   status: string;
   delivery_status: string | null;
   error: string | null;
+  delivery_error: string | null;
+  job_status: string | null;
+  job_error: string | null;
+  attempts: number | null;
+  can_retry: boolean;
 };
 export default function Campaigns() {
   const { t } = useLocale();
@@ -38,9 +43,18 @@ export default function Campaigns() {
   const [selected, setSelected] = useState('');
   const [ledger, setLedger] = useState<{
     items: Recipient[];
+    filteredCount: number;
     totals: { status: string; delivery_status: string | null; count: number }[];
   } | null>(null);
   const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState({
+    search: '',
+    status: '',
+    deliveryStatus: '',
+    jobStatus: '',
+  });
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+  const ledgerVersion = useRef(0);
   const [saved, setSaved] = useState(false);
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
@@ -54,14 +68,52 @@ export default function Campaigns() {
       setBusy(false);
     }
   }
-  async function view(id: string, p = 1) {
+  async function view(id: string, p = 1, next = filters) {
+    const version = ++ledgerVersion.current;
     setSelected(id);
     setPage(p);
+    setFilters(next);
+    setLedgerLoading(true);
+    setError('');
+    setLedger(null);
     try {
-      setLedger(await api<typeof ledger>(`/campaigns/${id}/recipients?page=${p}`));
+      const result = await api<NonNullable<typeof ledger>>(
+        `/campaigns/${id}/recipients?` + new URLSearchParams({ ...next, page: String(p) }),
+      );
+      if (version === ledgerVersion.current) setLedger(result);
     } catch (e) {
-      setError((e as Error).message);
+      if (version === ledgerVersion.current) setError((e as Error).message);
+    } finally {
+      if (version === ledgerVersion.current) setLedgerLoading(false);
     }
+  }
+  function downloadLedger() {
+    if (!ledger) return;
+    const url = URL.createObjectURL(
+      new Blob(
+        [
+          JSON.stringify(
+            {
+              campaignId: selected,
+              filters,
+              page,
+              filteredCount: ledger.filteredCount,
+              downloadedAt: new Date().toISOString(),
+              scope: 'loaded_page_only',
+              items: ledger.items,
+            },
+            null,
+            2,
+          ),
+        ],
+        { type: 'application/json' },
+      ),
+    );
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'campaign-recipients-page-' + page + '.json';
+    link.click();
+    URL.revokeObjectURL(url);
   }
   return (
     <main className="stack">
@@ -199,15 +251,98 @@ export default function Campaigns() {
           )
         )}
       </section>
+      {selected && (
+        <section
+          className="card stack"
+          aria-label={t('تصفية مستلمي الحملة', 'Campaign recipient filters')}
+        >
+          <form
+            className="form-grid"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const f = new FormData(e.currentTarget);
+              void view(selected, 1, {
+                search: String(f.get('search') ?? ''),
+                status: String(f.get('status') ?? ''),
+                deliveryStatus: String(f.get('deliveryStatus') ?? ''),
+                jobStatus: String(f.get('jobStatus') ?? ''),
+              });
+            }}
+          >
+            <label className="field">
+              {t('البحث باسم العميل', 'Search contact name')}
+              <input name="search" maxLength={120} defaultValue={filters.search} />
+            </label>
+            <label className="field">
+              {t('حالة المعالجة', 'Processing status')}
+              <select name="status" defaultValue={filters.status}>
+                <option value="">{t('الكل', 'All')}</option>
+                {['pending', 'queued', 'skipped', 'failed'].map((x) => (
+                  <option key={x} value={x}>
+                    {statusLabel(x, t)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              {t('حالة التسليم', 'Delivery status')}
+              <select name="deliveryStatus" defaultValue={filters.deliveryStatus}>
+                <option value="">{t('الكل', 'All')}</option>
+                {['none', 'queued', 'sent', 'delivered', 'read', 'failed'].map((x) => (
+                  <option key={x} value={x}>
+                    {x === 'none' ? t('لا توجد رسالة', 'No message') : statusLabel(x, t)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              {t('حالة مهمة الإرسال', 'Outbound job status')}
+              <select name="jobStatus" defaultValue={filters.jobStatus}>
+                <option value="">{t('الكل', 'All')}</option>
+                {['none', 'pending', 'sending', 'sent', 'failed', 'ambiguous', 'blocked'].map(
+                  (x) => (
+                    <option key={x} value={x}>
+                      {x === 'none' ? t('لا توجد مهمة', 'No job') : statusLabel(x, t)}
+                    </option>
+                  ),
+                )}
+              </select>
+            </label>
+            <button className="btn" disabled={ledgerLoading}>
+              {t('تطبيق الفلاتر', 'Apply filters')}
+            </button>
+          </form>
+          {ledgerLoading && <p role="status">{t('تحميل سجل المستلمين…', 'Loading recipients…')}</p>}
+          <p className="muted">
+            {t(
+              'إعادة المحاولة متاحة فقط لفشل المعالجة قبل إنشاء رسالة. النتائج الغامضة تحتاج مراجعة ولا يُعاد إرسالها هنا.',
+              'Retry is available only for processing failures before message creation. Ambiguous outcomes need review and cannot be resent here.',
+            )}
+          </p>
+        </section>
+      )}
       {ledger && (
         <section className="card table-wrap">
           <h2>{t('سجل الجمهور والتسليم', 'Recipient & delivery ledger')}</h2>
+          <p>{list.data.find((c) => c.id === selected)?.name}</p>
+          <p className="muted">
+            {t('إجمالي الحملة قبل التصفية', 'Campaign totals before filters')}
+          </p>
           <div className="flex flex-wrap gap-2 mb-4">
             {ledger.totals.map((x, i) => (
               <span key={i} className="badge">
-                {statusLabel(x.status, t)} / {x.delivery_status || '—'}: {x.count}
+                {statusLabel(x.status, t)} /{' '}
+                {x.delivery_status ? statusLabel(x.delivery_status, t) : '—'}: {x.count}
               </span>
             ))}
+          </div>
+          <div className="form-actions">
+            <p role="status">
+              {ledger.filteredCount} {t('مستلم مطابق', 'matching recipients')}
+            </p>
+            <button className="btn" onClick={downloadLedger}>
+              {t('تنزيل الصفحة المحملة', 'Download loaded page')}
+            </button>
           </div>
           <table className="product-table">
             <thead>
@@ -223,10 +358,22 @@ export default function Campaigns() {
                 <tr key={x.id}>
                   <td>{x.contact_name}</td>
                   <td>{statusLabel(x.status, t)}</td>
-                  <td>{x.delivery_status || '—'}</td>
                   <td>
-                    {x.error}
-                    {x.status === 'failed' && (
+                    {x.delivery_status ? statusLabel(x.delivery_status, t) : '—'}
+                    <br />
+                    {x.job_status ? statusLabel(x.job_status, t) : '—'}
+                    {x.attempts != null && (
+                      <small>
+                        {' '}
+                        · {x.attempts} {t('محاولات', 'attempts')}
+                      </small>
+                    )}
+                  </td>
+                  <td>
+                    {[...new Set([x.error, x.delivery_error, x.job_error].filter(Boolean))].join(
+                      ' · ',
+                    )}
+                    {x.can_retry && (
                       <button
                         className="btn"
                         disabled={busy}
@@ -247,6 +394,11 @@ export default function Campaigns() {
               ))}
             </tbody>
           </table>
+          {!ledger.items.length && (
+            <p className="empty">
+              {t('لا يوجد مستلمون يطابقون الفلاتر.', 'No recipients match these filters.')}
+            </p>
+          )}
           <div className="form-actions">
             <button className="btn" disabled={page === 1} onClick={() => view(selected, page - 1)}>
               {t('السابق', 'Previous')}
@@ -256,7 +408,7 @@ export default function Campaigns() {
             </button>
             <button
               className="btn"
-              disabled={ledger.items.length < 25}
+              disabled={page * 25 >= ledger.filteredCount}
               onClick={() => view(selected, page + 1)}
             >
               {t('التالي', 'Next')}

@@ -133,17 +133,35 @@ export class CampaignsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query() query: unknown,
   ) {
-    const q = parse(pagination, query);
+    const q = parse(
+      pagination.extend({
+        search: z.string().max(120).default(''),
+        status: z.enum(['', 'pending', 'queued', 'skipped', 'failed']).default(''),
+        deliveryStatus: z
+          .enum(['', 'none', 'received', 'queued', 'sent', 'delivered', 'read', 'failed'])
+          .default(''),
+        jobStatus: z
+          .enum(['', 'none', 'pending', 'sending', 'sent', 'failed', 'ambiguous', 'blocked'])
+          .default(''),
+      }),
+      query,
+    );
     return this.db.withTenant(r.user.tenantId, async (c) => {
       if (!(await c.query('SELECT 1 FROM campaigns WHERE id=$1', [id])).rowCount)
         throw new NotFoundException();
+      const from = `FROM campaign_recipients r JOIN campaigns p ON p.id=r.campaign_id JOIN contacts ct ON ct.id=r.contact_id LEFT JOIN messages m ON m.id=r.message_id LEFT JOIN outbound_jobs j ON j.message_id=m.id
+        WHERE r.campaign_id=$1 AND ($2='' OR position(lower($2) in lower(ct.name))>0) AND ($3='' OR r.status=$3)
+        AND ($4='' OR COALESCE(m.status,'none')=$4) AND ($5='' OR COALESCE(j.status,'none')=$5)`;
+      const values = [id, q.search, q.status, q.deliveryStatus, q.jobStatus];
       return {
         items: (
           await c.query(
-            'SELECT r.*,ct.name AS contact_name,m.status AS delivery_status FROM campaign_recipients r JOIN contacts ct ON ct.id=r.contact_id LEFT JOIN messages m ON m.id=r.message_id WHERE campaign_id=$1 ORDER BY r.id LIMIT $2 OFFSET $3',
-            [id, q.limit, (q.page - 1) * q.limit],
+            `SELECT r.*,ct.name AS contact_name,m.status AS delivery_status,m.error AS delivery_error,j.status AS job_status,j.error AS job_error,j.attempts,
+          (r.status='failed' AND r.message_id IS NULL AND p.status IN ('running','completed')) AS can_retry ${from} ORDER BY r.id LIMIT $6 OFFSET $7`,
+            [...values, q.limit, (q.page - 1) * q.limit],
           )
         ).rows,
+        filteredCount: (await c.query(`SELECT count(*)::int AS n ${from}`, values)).rows[0].n,
         totals: (
           await c.query(
             'SELECT r.status,m.status AS delivery_status,count(*)::int AS count FROM campaign_recipients r LEFT JOIN messages m ON m.id=r.message_id WHERE campaign_id=$1 GROUP BY r.status,m.status',

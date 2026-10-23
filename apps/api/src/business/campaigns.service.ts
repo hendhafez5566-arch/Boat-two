@@ -229,7 +229,7 @@ export class CampaignsService {
     return this.db.withTenant(tenant, async (c) => {
       const row = (
         await c.query(
-          "UPDATE campaign_recipients SET status='pending',error=NULL WHERE id=$1 AND campaign_id=$2 AND status='failed' RETURNING contact_id",
+          "UPDATE campaign_recipients SET status='pending',error=NULL WHERE id=$1 AND campaign_id=$2 AND status='failed' AND message_id IS NULL AND EXISTS(SELECT 1 FROM campaigns p WHERE p.id=$2 AND p.status IN ('running','completed')) RETURNING contact_id",
           [recipient, campaign],
         )
       ).rows[0];
