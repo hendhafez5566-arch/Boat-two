@@ -71,3 +71,11 @@ All unbuilt scope remains in `REMAINING_WORK.md`; no row represents an external 
 Migrations 009–021 add durable events/outbound/replay/effect ledgers, CRM/consent/marketing/automation/department/agent models, immutable component support, secure Meta connection state, pricing estimates and business entitlements. Independent operator gates default to false: `EXTERNAL_DELIVERY_ENABLED` and `AI_PROVIDER_CALLS_ENABLED`. No live provider approval, real external campaign or paid AI invocation was used for validation.
 
 “Implemented” applies to the named connected slice, not to all related commercial requirements. Batch 2 is substantial but **not entirely complete**; remaining items are actionable in REMAINING_WORK.md.
+
+## CRM continuation — 2026-10-23
+
+Started from verified local/remote `e3f714e5d7bd5c15a3f6781bdfac4d3f3bca7ba8`, same branch and Draft PR #1. Added connected sales-pipeline editing/removal and safe stage remapping; deal writes share pipeline locks with configuration changes. Bulk contact lifecycle/owner/additive-tag edits are atomic, tenant scoped and restricted to owner/admin; the UI supports selecting up to 100 contacts. No new schema is required.
+
+Verification: full API/Next build and TypeScript passed; ESLint passed; 44 API unit tests passed. Expanded business smoke passed against a stable compiled local API, including rejected unsafe stage deletion, stage remapping, empty/occupied pipeline removal, cross-tenant rejection, successful bulk edits and rollback on a missing contact. External sending and paid AI calls remain disabled. No final browser/security/performance/visual acceptance was performed.
+
+Batch 2 is still partial; Batches 3–4 remain unfinished. Immediate next implementation: safe duplicate-contact merging with identity/consent/campaign-ledger preservation, then remaining campaign/AI/automation work described in REMAINING_WORK.md. This checkpoint does not declare product completion.

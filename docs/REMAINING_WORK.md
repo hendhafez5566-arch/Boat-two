@@ -18,7 +18,7 @@ Branch `feat/complete-premium-saas`; existing Draft PR https://github.com/hendha
 
 Implemented: validated contact profiles/custom fields, tags/lifecycle/owner, segments, notes/timeline linked to Inbox/events, pipeline/deals, tasks, bounded atomic CSV/JSON contact import/export, duplicate detection and consent ledger.
 
-Next: contact merge with safe reparenting of conversations/consents/deals, richer duplicate resolution (phone normalization), pipeline/stage editing and ownership, contact archive/delete policy, bulk edits, complete timeline filtering/export and scalable asynchronous imports/exports. Current contact import is at most 500 rows; export is at most 10,000 and UI refuses silent truncation. Deals/tasks use pagination; some configuration lists are bounded to 100 and need paging at scale.
+Next: contact merge with safe reparenting of conversations/consents/deals, richer duplicate resolution (phone normalization), pipeline ownership and stage analytics, contact archive/delete policy, bulk editing of custom fields, complete timeline filtering/export and scalable asynchronous imports/exports. Current contact import is at most 500 rows; export is at most 10,000 and UI refuses silent truncation. Deals/tasks use pagination; some configuration lists are bounded to 100 and need paging at scale.
 
 ### AI agents
 
@@ -47,3 +47,7 @@ Build reporting from existing real ledgers: date-scoped conversation/agent/chann
 Finish legacy Arabic/English direction-aware controls, common dialogs/tables/forms and accessible mobile behavior. Extend the real wizard/template/component journeys, refine customer context/deal/task navigation and error recovery, and write operator activation/privacy/retention runbooks. Keep this matrix/handover current.
 
 After product construction, start the separately authorized **FINAL PRODUCT ACCEPTANCE & COMMERCIAL RELEASE READINESS** phase for full browser, security, load, isolation, failure-recovery and visual acceptance. No main merge or production deployment is authorized.
+
+## Current CRM continuation
+
+Implemented pipeline name/stage editing, explicit transactional remapping of removed stages, empty-pipeline deletion and shared locking with deal creation/stage updates. Added atomic bulk contact lifecycle/owner/tag updates (100 IDs), preserving other profile fields, with membership checks, tag limits and all-or-nothing tenant validation. Both have bilingual connected CRM interfaces. Contact merge, advanced import/export and the other Batch 2–4 gaps above remain open. Existing schema supports these operations; no migration is needed.

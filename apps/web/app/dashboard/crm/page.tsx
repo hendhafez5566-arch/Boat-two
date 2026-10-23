@@ -48,6 +48,7 @@ export default function CRM() {
   const { t } = useLocale();
   const [tab, setTab] = useState('contacts');
   const [q, setQ] = useState('');
+  const [bulkIds, setBulkIds] = useState<string[]>([]);
   const [stage, setStage] = useState('');
   const [tag, setTag] = useState('');
   const [page, setPage] = useState(1);
@@ -313,10 +314,71 @@ export default function CRM() {
               </small>
             </div>
           </section>
+          <form
+            className="card space-y-3"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              const data = new FormData(event.currentTarget);
+              const lifecycle = String(data.get('lifecycle') || '');
+              const owner = String(data.get('owner') || '');
+              try {
+                await act('/crm/contacts/bulk', {
+                  ids: bulkIds,
+                  ...(lifecycle ? { lifecycle } : {}),
+                  ...(owner ? { ownerId: owner === 'unassigned' ? null : owner } : {}),
+                  addTags: String(data.get('tags') || '')
+                    .split(',')
+                    .map((tag) => tag.trim())
+                    .filter(Boolean),
+                });
+                setBulkIds([]);
+              } catch {
+                /* Shared error banner. */
+              }
+            }}
+          >
+            <h2>
+              {t('تعديل العملاء المحددين', 'Edit selected contacts')} ({bulkIds.length})
+            </h2>
+            <div className="form-grid">
+              <label className="field">
+                {t('المرحلة', 'Lifecycle')}
+                <select name="lifecycle">
+                  <option value="">{t('دون تغيير', 'Keep current')}</option>
+                  {['lead', 'qualified', 'customer', 'inactive'].map((value) => (
+                    <option key={value}>{value}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                {t('المسؤول', 'Owner')}
+                <select name="owner">
+                  <option value="">{t('دون تغيير', 'Keep current')}</option>
+                  <option value="unassigned">{t('إلغاء التعيين', 'Unassign')}</option>
+                  {team.data.members.map((member) => (
+                    <option key={member.user_id} value={member.user_id}>
+                      {member.full_name || member.email}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                {t('إضافة وسوم مفصولة بفاصلة', 'Add comma-separated tags')}
+                <input name="tags" />
+              </label>
+            </div>
+            <button className="btn btn-primary" disabled={busy || !bulkIds.length}>
+              {t('تطبيق على المحددين', 'Apply to selected')}
+            </button>
+            <button type="button" className="btn" onClick={() => setBulkIds([])}>
+              {t('مسح التحديد', 'Clear selection')}
+            </button>
+          </form>
           <section className="card table-wrap">
             <table className="product-table">
               <thead>
                 <tr>
+                  <th>{t('تحديد', 'Select')}</th>
                   <th>{t('العميل', 'Customer')}</th>
                   <th>{t('التواصل', 'Contact')}</th>
                   <th>{t('المرحلة', 'Lifecycle')}</th>
@@ -327,6 +389,19 @@ export default function CRM() {
               <tbody>
                 {contacts.data.items.map((c) => (
                   <tr key={c.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        aria-label={t('تحديد ', 'Select ') + c.name}
+                        checked={bulkIds.includes(c.id)}
+                        disabled={!bulkIds.includes(c.id) && bulkIds.length >= 100}
+                        onChange={(event) =>
+                          setBulkIds((ids) =>
+                            event.target.checked ? [...ids, c.id] : ids.filter((id) => id !== c.id),
+                          )
+                        }
+                      />
+                    </td>
                     <td>
                       <button className="font-bold underline" onClick={() => view(c)}>
                         {c.name}
@@ -761,6 +836,92 @@ export default function CRM() {
               {t('إنشاء الصفقة', 'Create deal')}
             </button>
           </form>
+          <section className="card space-y-4">
+            <h2>{t('إدارة مراحل المبيعات', 'Manage sales stages')}</h2>
+            <p className="text-sm text-slate-500">
+              {t(
+                'عند إزالة مرحلة تحتوي صفقات، اختر المرحلة البديلة قبل الحفظ.',
+                'When removing a stage with deals, choose its replacement before saving.',
+              )}
+            </p>
+            {pipelines.data.map((pipeline) => (
+              <details key={pipeline.id} className="rounded-xl border p-4">
+                <summary className="cursor-pointer font-semibold">{pipeline.name}</summary>
+                <form
+                  className="mt-4 space-y-3"
+                  onSubmit={async (event) => {
+                    event.preventDefault();
+                    const form = new FormData(event.currentTarget);
+                    const stages = String(form.get('stages'))
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean);
+                    const replacements = Object.fromEntries(
+                      pipeline.stages
+                        .map((stage, index) => [
+                          stage,
+                          String(form.get('replacement-' + index) || ''),
+                        ])
+                        .filter(([, value]) => value),
+                    );
+                    try {
+                      await act(
+                        '/crm/pipelines/' + pipeline.id,
+                        { name: form.get('name'), stages, replacements },
+                        'PATCH',
+                      );
+                    } catch {
+                      /* Shared error banner. */
+                    }
+                  }}
+                >
+                  <label className="field">
+                    {t('الاسم', 'Name')}
+                    <input name="name" required maxLength={100} defaultValue={pipeline.name} />
+                  </label>
+                  <label className="field">
+                    {t('المراحل بالترتيب، مفصولة بفاصلة', 'Stages in order, separated by commas')}
+                    <input name="stages" required defaultValue={pipeline.stages.join(', ')} />
+                  </label>
+                  {pipeline.stages.map((stage, index) => (
+                    <label key={stage} className="field">
+                      {t('بديل عند حذف المرحلة: ', 'Replacement if removing: ') + stage}
+                      <input
+                        name={'replacement-' + index}
+                        maxLength={60}
+                        placeholder={t(
+                          'اسم مرحلة في القائمة الجديدة',
+                          'Stage name in the new list',
+                        )}
+                      />
+                    </label>
+                  ))}
+                  <div className="flex flex-wrap gap-2">
+                    <button className="btn btn-primary" disabled={busy}>
+                      {t('حفظ المراحل', 'Save stages')}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      disabled={busy}
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            t('حذف خط المبيعات الفارغ؟', 'Delete this empty pipeline?'),
+                          )
+                        )
+                          void act('/crm/pipelines/' + pipeline.id, undefined, 'DELETE').catch(
+                            () => {},
+                          );
+                      }}
+                    >
+                      {t('حذف الخط الفارغ', 'Delete empty pipeline')}
+                    </button>
+                  </div>
+                </form>
+              </details>
+            ))}
+          </section>
           <SimpleForm
             title={t('خط مبيعات جديد', 'New pipeline')}
             fields={[

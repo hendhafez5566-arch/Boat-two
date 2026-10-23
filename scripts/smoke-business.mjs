@@ -128,6 +128,58 @@ try {
     },
     404,
   );
+  await post('/crm/contacts/bulk', token, {
+    ids: [contact.id],
+    lifecycle: 'customer',
+    addTags: ['bulk-fixture'],
+  });
+  assert.equal((await req('/crm/contacts/' + contact.id, { token })).lifecycle, 'customer');
+  assert.ok((await req('/crm/contacts/' + contact.id, { token })).tags.includes('bulk-fixture'));
+  await post(
+    '/crm/contacts/bulk',
+    token,
+    { ids: [contact.id, randomUUID()], lifecycle: 'inactive' },
+    404,
+  );
+  assert.equal((await req('/crm/contacts/' + contact.id, { token })).lifecycle, 'customer');
+  await post(
+    '/crm/contacts/bulk',
+    b.accessToken,
+    { ids: [contact.id], lifecycle: 'inactive' },
+    404,
+  );
+  const revisedPipeline = { name: 'Sales revised', stages: ['New', 'Qualified'] };
+  await req('/crm/pipelines/' + pipeline.id, {
+    token,
+    method: 'PATCH',
+    body: revisedPipeline,
+    status: 400,
+  });
+  assert.deepEqual(
+    (await req('/crm/pipelines', { token })).find((p) => p.id === pipeline.id).stages,
+    ['New', 'Offer', 'Won'],
+  );
+  await req('/crm/pipelines/' + pipeline.id, {
+    token: b.accessToken,
+    method: 'PATCH',
+    body: revisedPipeline,
+    status: 404,
+  });
+  await req('/crm/pipelines/' + pipeline.id, {
+    token,
+    method: 'PATCH',
+    body: { ...revisedPipeline, replacements: { Won: 'Qualified' } },
+  });
+  assert.equal(
+    (await req('/crm/deals', { token })).items.find((d) => d.id === deal.id).stage,
+    'Qualified',
+  );
+  await req('/crm/pipelines/' + pipeline.id, { token, method: 'DELETE', status: 400 });
+  const emptyPipeline = await post('/crm/pipelines', token, {
+    name: 'Disposable',
+    stages: ['A', 'B'],
+  });
+  await req('/crm/pipelines/' + emptyPipeline.id, { token, method: 'DELETE' });
   const channel = await post('/channels', token, { type: 'web', name: 'Campaign local widget' });
   const visitor = await post(`/widget/${channel.external_id}/session`, null, {});
   const inbound = await fetch(

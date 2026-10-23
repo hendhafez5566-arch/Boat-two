@@ -55,3 +55,11 @@ All 44 tests, core/worker/business/reliability smoke, full build/lint and migrat
 Finish the explicit Batch 2 gaps in REMAINING_WORK.md. In particular: CRM contact merge/reparenting and pipeline/bulk controls; durable knowledge ingestion/embedding budgets and richer agent routing/providers; campaign draft editing/opt-out collection/compliance and analytics; OR/branch automation and graphical sequences. Keep current-contact AI tools limited to explicit permissions and keep unknown external results non-retryable until reconciled.
 
 Then Batch 3 starts with real ledger-backed reporting (messages/conversations, campaign_recipients/outbound_jobs, ai_runs, crm_deals and automation_runs), date filters and exports, followed by Stripe event reliability, platform-admin privilege boundary and verified white-label domains/entitlements. Batch 4 completes legacy bilingual/mobile/accessibility flows, template/wizard integration and operator documentation. Do not insert fake metrics or start full release acceptance prematurely.
+
+## CRM continuation — 2026-10-23
+
+Started from verified local/remote `e3f714e5d7bd5c15a3f6781bdfac4d3f3bca7ba8`, same branch and Draft PR #1. Added connected sales-pipeline editing/removal and safe stage remapping; deal writes share pipeline locks with configuration changes. Bulk contact lifecycle/owner/additive-tag edits are atomic, tenant scoped and restricted to owner/admin; the UI supports selecting up to 100 contacts. No new schema is required.
+
+Verification: full API/Next build and TypeScript passed; ESLint passed; 44 API unit tests passed. Expanded business smoke passed against a stable compiled local API, including rejected unsafe stage deletion, stage remapping, empty/occupied pipeline removal, cross-tenant rejection, successful bulk edits and rollback on a missing contact. External sending and paid AI calls remain disabled. No final browser/security/performance/visual acceptance was performed.
+
+Batch 2 is still partial; Batches 3–4 remain unfinished. Immediate next implementation: safe duplicate-contact merging with identity/consent/campaign-ledger preservation, then remaining campaign/AI/automation work described in REMAINING_WORK.md. This checkpoint does not declare product completion.

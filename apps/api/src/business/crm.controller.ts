@@ -53,6 +53,64 @@ export class CrmController {
   @Post('contacts') create(@Req() r: AuthedRequest, @Body() body: unknown) {
     return this.crm.save(r.user.tenantId, parse(contactSchema, body));
   }
+  @Post('contacts/bulk') @Roles('owner', 'admin') bulkContacts(
+    @Req() r: AuthedRequest,
+    @Body() body: unknown,
+  ) {
+    const b = parse(
+      z
+        .object({
+          ids: z
+            .array(z.string().uuid())
+            .min(1)
+            .max(100)
+            .refine((ids) => new Set(ids).size === ids.length),
+          lifecycle: z.enum(['lead', 'qualified', 'customer', 'inactive']).optional(),
+          addTags: z.array(z.string().trim().min(1).max(50)).max(20).default([]),
+          ownerId: z.string().uuid().nullable().optional(),
+        })
+        .refine(
+          (input) =>
+            input.lifecycle !== undefined ||
+            input.ownerId !== undefined ||
+            input.addTags.length > 0,
+          'Select a change',
+        ),
+      body,
+    );
+    return this.crm.db.withTenant(r.user.tenantId, async (c) => {
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+      const contacts = await c.query(
+        'SELECT id FROM contacts WHERE id=ANY($1::uuid[]) ORDER BY id FOR UPDATE',
+        [b.ids],
+      );
+      if (contacts.rowCount !== b.ids.length)
+        throw new NotFoundException('One or more contacts not found');
+      if (
+        b.ownerId &&
+        !(await c.query('SELECT 1 FROM memberships WHERE user_id=$1', [b.ownerId])).rowCount
+      )
+        throw new BadRequestException('Owner must be a workspace member');
+      if (
+        (
+          await c.query(
+            `SELECT 1 FROM contacts WHERE id=ANY($1::uuid[])
+        AND (SELECT count(DISTINCT tag) FROM unnest(tags || $2::text[]) AS tag)>30 LIMIT 1`,
+            [b.ids, b.addTags],
+          )
+        ).rowCount
+      )
+        throw new BadRequestException('A contact may have at most 30 tags');
+      await c.query(
+        `UPDATE contacts SET lifecycle=COALESCE($2,lifecycle),
+        tags=ARRAY(SELECT DISTINCT tag FROM unnest(tags || $3::text[]) AS tag ORDER BY tag),
+        owner_id=CASE WHEN $4 THEN $5::uuid ELSE owner_id END,updated_at=now()
+        WHERE id=ANY($1::uuid[])`,
+        [b.ids, b.lifecycle ?? null, b.addTags, b.ownerId !== undefined, b.ownerId ?? null],
+      );
+      return { updated: contacts.rowCount };
+    });
+  }
   @Get('contacts/:id') get(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.crm.get(r.user.tenantId, id);
   }
@@ -201,6 +259,72 @@ export class CrmController {
         ).rows[0],
     );
   }
+  @Patch('pipelines/:id') @Roles('owner', 'admin') updatePipeline(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const b = parse(
+      z.object({
+        name: z.string().trim().min(1).max(100),
+        stages: z
+          .array(z.string().trim().min(1).max(60))
+          .min(2)
+          .max(20)
+          .refine((stages) => new Set(stages).size === stages.length),
+        replacements: z.record(z.string().max(60), z.string().max(60)).default({}),
+      }),
+      body,
+    );
+    return this.crm.db.withTenant(r.user.tenantId, async (c) => {
+      const pipeline = (await c.query('SELECT * FROM crm_pipelines WHERE id=$1 FOR UPDATE', [id]))
+        .rows[0];
+      if (!pipeline) throw new NotFoundException('Pipeline not found');
+      const removed = (pipeline.stages as string[]).filter((stage) => !b.stages.includes(stage));
+      for (const stage of removed) {
+        const target = b.replacements[stage];
+        const used = (
+          await c.query('SELECT 1 FROM crm_deals WHERE pipeline_id=$1 AND stage=$2 LIMIT 1', [
+            id,
+            stage,
+          ])
+        ).rowCount;
+        if (used && (!target || !b.stages.includes(target)))
+          throw new BadRequestException(
+            'Choose a replacement for every removed stage containing deals',
+          );
+        if (target && !b.stages.includes(target))
+          throw new BadRequestException('Invalid replacement stage');
+        if (target)
+          await c.query(
+            'UPDATE crm_deals SET stage=$3,updated_at=now() WHERE pipeline_id=$1 AND stage=$2',
+            [id, stage, target],
+          );
+      }
+      return (
+        await c.query('UPDATE crm_pipelines SET name=$2,stages=$3 WHERE id=$1 RETURNING *', [
+          id,
+          b.name,
+          JSON.stringify(b.stages),
+        ])
+      ).rows[0];
+    });
+  }
+  @Delete('pipelines/:id') @Roles('owner', 'admin') deletePipeline(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.crm.db.withTenant(r.user.tenantId, async (c) => {
+      if (!(await c.query('SELECT 1 FROM crm_pipelines WHERE id=$1 FOR UPDATE', [id])).rowCount)
+        throw new NotFoundException('Pipeline not found');
+      if ((await c.query('SELECT 1 FROM crm_deals WHERE pipeline_id=$1 LIMIT 1', [id])).rowCount)
+        throw new BadRequestException(
+          'Move or retain existing deals before removing this pipeline',
+        );
+      await c.query('DELETE FROM crm_pipelines WHERE id=$1', [id]);
+      return { removed: true };
+    });
+  }
   @Get('deals') deals(@Req() r: AuthedRequest, @Query() query: unknown) {
     const q = parse(pagination, query);
     return this.crm.db.withTenant(r.user.tenantId, async (c) => ({
@@ -231,7 +355,7 @@ export class CrmController {
     return this.crm.db.withTenant(r.user.tenantId, async (c) => {
       await this.crm.get(r.user.tenantId, b.contactId);
       const pipeline = (
-        await c.query('SELECT stages FROM crm_pipelines WHERE id=$1', [b.pipelineId])
+        await c.query('SELECT stages FROM crm_pipelines WHERE id=$1 FOR SHARE', [b.pipelineId])
       ).rows[0];
       if (!pipeline?.stages.includes(b.stage))
         throw new BadRequestException('Invalid pipeline or stage');
@@ -255,7 +379,7 @@ export class CrmController {
     return this.crm.db.withTenant(r.user.tenantId, async (c) => {
       const row = (
         await c.query(
-          'SELECT p.stages FROM crm_deals d JOIN crm_pipelines p ON p.id=d.pipeline_id WHERE d.id=$1',
+          'SELECT p.stages FROM crm_deals d JOIN crm_pipelines p ON p.id=d.pipeline_id WHERE d.id=$1 FOR SHARE OF p',
           [id],
         )
       ).rows[0];
