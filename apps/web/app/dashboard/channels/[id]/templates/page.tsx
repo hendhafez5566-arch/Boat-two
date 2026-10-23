@@ -108,7 +108,32 @@ export default function Templates({ params }: { params: { id: string } }) {
             <p className="muted">
               {x.language} · {x.category}
             </p>
+            {x.components
+              .filter((c) => c.type === 'HEADER')
+              .map((c, i) => (
+                <p key={i} className="font-semibold">
+                  {c.format === 'TEXT'
+                    ? c.text
+                    : `${t('ترويسة وسائط', 'Media header')} · ${c.format}`}
+                </p>
+              ))}
             <p className="my-3 whitespace-pre-wrap">{x.body}</p>
+            {x.components
+              .filter((c) => c.type === 'FOOTER')
+              .map((c, i) => (
+                <p key={i} className="muted">
+                  {c.text}
+                </p>
+              ))}
+            <div className="flex flex-wrap gap-2">
+              {x.components
+                .find((c) => c.type === 'BUTTONS')
+                ?.buttons?.map((b, i) => (
+                  <span key={i} className="badge">
+                    {b.text}
+                  </span>
+                ))}
+            </div>
             {x.status === 'DRAFT' && (
               <button className="btn" disabled={busy} onClick={() => setEditing(x)}>
                 {t('تعديل المسودة', 'Edit draft')}

@@ -3,23 +3,34 @@
 import { useLocale } from '../product/locale';
 import { NodeIcon, nodeLabel, editorLabel } from './presentation';
 import { api } from '../../lib/api';
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, createContext, useContext, useId, useEffect, useState } from 'react';
 import { NodeType, optionsOf, uid } from '../../lib/flow-types';
 
+const FieldContext = createContext({ label: '', description: undefined as string | undefined });
 const inp = 'w-full rounded border p-1.5 text-sm';
 
 function F({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   const { language } = useLocale();
+  const hintId = useId();
   return (
-    <label className="mb-3 block">
-      <span className="mb-1 block text-xs font-semibold text-gray-600">
+    <fieldset className="mb-3 block min-w-0">
+      <legend className="mb-1 block text-xs font-semibold text-gray-600">
         {editorLabel(label, language)}
-      </span>
-      {children}
-      {hint && <span className="mt-0.5 block text-xs text-gray-400">{hint}</span>}
-    </label>
+      </legend>
+      <FieldContext.Provider
+        value={{ label: editorLabel(label, language), description: hint ? hintId : undefined }}
+      >
+        {children}
+      </FieldContext.Provider>
+      {hint && (
+        <span id={hintId} className="mt-0.5 block text-xs text-gray-400">
+          {editorLabel(hint, language)}
+        </span>
+      )}
+    </fieldset>
   );
 }
+
 const Txt = ({
   v,
   on,
@@ -30,15 +41,21 @@ const Txt = ({
   on: (s: string) => void;
   rows?: number;
   ph?: string;
-}) => (
-  <textarea
-    className={inp}
-    rows={rows}
-    value={v ?? ''}
-    placeholder={ph}
-    onChange={(e) => on(e.target.value)}
-  />
-);
+}) => {
+  const { language } = useLocale();
+  const field = useContext(FieldContext);
+  return (
+    <textarea
+      aria-label={ph ? editorLabel(ph, language) : field.label || 'Text'}
+      aria-describedby={field.description}
+      className={inp}
+      rows={rows}
+      value={v ?? ''}
+      placeholder={ph ? editorLabel(ph, language) : undefined}
+      onChange={(e) => on(e.target.value)}
+    />
+  );
+};
 const In = ({
   v,
   on,
@@ -49,32 +66,50 @@ const In = ({
   on: (s: string) => void;
   ph?: string;
   dir?: string;
-}) => (
-  <input
-    className={inp}
-    value={v ?? ''}
-    placeholder={ph}
-    dir={dir}
-    onChange={(e) => on(e.target.value)}
-  />
-);
+}) => {
+  const { language } = useLocale();
+  const field = useContext(FieldContext);
+  return (
+    <input
+      aria-label={ph ? editorLabel(ph, language) : field.label || 'Value'}
+      aria-describedby={field.description}
+      className={inp}
+      value={v ?? ''}
+      placeholder={ph ? editorLabel(ph, language) : undefined}
+      dir={dir}
+      onChange={(e) => on(e.target.value)}
+    />
+  );
+};
 const Sel = ({
   v,
   on,
   opts,
+  localize = true,
 }: {
   v?: string;
   on: (s: string) => void;
   opts: [string, string][];
-}) => (
-  <select className={inp} value={v} onChange={(e) => on(e.target.value)}>
-    {opts.map(([k, l]) => (
-      <option key={k} value={k}>
-        {l}
-      </option>
-    ))}
-  </select>
-);
+  localize?: boolean;
+}) => {
+  const { language } = useLocale();
+  const field = useContext(FieldContext);
+  return (
+    <select
+      aria-label={field.label || 'Selection'}
+      aria-describedby={field.description}
+      className={inp}
+      value={v}
+      onChange={(e) => on(e.target.value)}
+    >
+      {opts.map(([k, l]) => (
+        <option key={k} value={k}>
+          {localize ? editorLabel(l, language) : l}
+        </option>
+      ))}
+    </select>
+  );
+};
 const Btn = ({
   on,
   children,
@@ -83,15 +118,19 @@ const Btn = ({
   on: () => void;
   children: ReactNode;
   danger?: boolean;
-}) => (
-  <button
-    type="button"
-    onClick={on}
-    className={`rounded border px-2 py-1 text-xs ${danger ? 'text-red-600' : ''}`}
-  >
-    {children}
-  </button>
-);
+}) => {
+  const { language, t } = useLocale();
+  return (
+    <button
+      aria-label={children === '×' ? t('حذف العنصر', 'Remove item') : undefined}
+      type="button"
+      onClick={on}
+      className={`rounded border px-2 py-1 text-xs ${danger ? 'text-red-600' : ''}`}
+    >
+      {typeof children === 'string' ? editorLabel(children.trim(), language) : children}
+    </button>
+  );
+};
 
 const DAYS: [string, string][] = [
   ['sun', 'الأحد'],
@@ -152,16 +191,18 @@ export default function Inspector({
         </div>
       </div>
       <p className="mb-3 text-xs text-gray-400">
-        يمكنك استخدام المتغيرات في النصوص بهذا الشكل: {'{{name}}'} أو {'{{contact.name}}'}
+        {t('يمكنك استخدام المتغيرات في النصوص بهذا الشكل:', 'Use variables in text like:')}{' '}
+        {'{{name}}'} {t('أو', 'or')} {'{{contact.name}}'}
       </p>
 
       {type === 'subflow' && (
         <F label="المكوّن المنشور" hint="تُثبت نسخة المكوّن عند نشر البوت الرئيسي.">
           <Sel
+            localize={false}
             v={data.flowId}
             on={(flowId) => set({ flowId })}
             opts={[
-              ['', 'اختر مكوّنًا'],
+              ['', t('اختر مكوّنًا', 'Choose a component')],
               ...components
                 .filter((c) => c.is_component && c.status === 'published')
                 .map((c) => [c.id, c.name] as [string, string]),
@@ -213,12 +254,13 @@ export default function Inspector({
               v={mode}
               on={(m) =>
                 set({
-                  buttons: m === 'buttons' ? [{ id: uid(), title: 'خيار 1' }] : undefined,
+                  buttons:
+                    m === 'buttons' ? [{ id: uid(), title: t('خيار 1', 'Option 1') }] : undefined,
                   list:
                     m === 'list'
                       ? {
-                          buttonText: 'القائمة',
-                          sections: [{ rows: [{ id: uid(), title: 'خيار 1' }] }],
+                          buttonText: t('القائمة', 'Menu'),
+                          sections: [{ rows: [{ id: uid(), title: t('خيار 1', 'Option 1') }] }],
                         }
                       : undefined,
                 })
@@ -261,7 +303,7 @@ export default function Inspector({
                     set({
                       buttons: [
                         ...data.buttons,
-                        { id: uid(), title: `خيار ${data.buttons.length + 1}` },
+                        { id: uid(), title: `${t('خيار', 'Option')} ${data.buttons.length + 1}` },
                       ],
                     })
                   }
@@ -269,7 +311,9 @@ export default function Inspector({
                   + زر
                 </Btn>
               )}
-              <p className="mt-1 text-xs text-gray-400">الحد الأقصى لعنوان الزر 20 حرف.</p>
+              <p className="mt-1 text-xs text-gray-400">
+                {t('الحد الأقصى لعنوان الزر 20 حرف.', 'Button titles allow up to 20 characters.')}
+              </p>
             </>
           )}
           {mode === 'list' && (
@@ -328,7 +372,10 @@ export default function Inspector({
                             ...data.list.sections[0],
                             rows: [
                               ...data.list.sections[0].rows,
-                              { id: uid(), title: `خيار ${data.list.sections[0].rows.length + 1}` },
+                              {
+                                id: uid(),
+                                title: `${t('خيار', 'Option')} ${data.list.sections[0].rows.length + 1}`,
+                              },
                             ],
                           },
                         ],
@@ -401,7 +448,9 @@ export default function Inspector({
           {data.rules.map((r: any, ri: number) => (
             <div key={r.id} className="mb-3 rounded border p-2">
               <div className="mb-1 flex items-center justify-between text-xs">
-                <strong>شرط {ri + 1}</strong>
+                <strong>
+                  {t('شرط', 'Condition')} {ri + 1}
+                </strong>
                 <span className="flex items-center gap-1">
                   <Sel
                     v={r.match}
@@ -539,7 +588,10 @@ export default function Inspector({
             </Btn>
           )}
           <p className="mt-2 text-xs text-gray-400">
-            تُفحص المجموعات بالترتيب، وأول مجموعة تتحقق هي التي تُتبع.
+            {t(
+              'تُفحص المجموعات بالترتيب، وأول مجموعة تتحقق هي التي تُتبع.',
+              'Groups are checked in order; the first matching group runs.',
+            )}
           </p>
         </>
       )}
@@ -622,7 +674,10 @@ export default function Inspector({
             />
           </F>
           <p className="text-xs text-gray-400">
-            على واتساب: الرد الحر مسموح خلال 24 ساعة من آخر رسالة للعميل فقط.
+            {t(
+              'على واتساب: الرد الحر مسموح خلال 24 ساعة من آخر رسالة للعميل فقط.',
+              'WhatsApp allows free-form replies only within 24 hours of the last customer message.',
+            )}
           </p>
         </>
       )}
@@ -758,7 +813,9 @@ export default function Inspector({
         <>
           {data.branches.map((b: any, i: number) => (
             <div key={b.id} className="mb-1 flex items-center gap-1">
-              <span className="text-xs">فرع {i + 1}</span>
+              <span className="text-xs">
+                {t('فرع', 'Branch')} {i + 1}
+              </span>
               <In
                 v={b.weight}
                 on={(w) =>
@@ -784,15 +841,22 @@ export default function Inspector({
               + فرع
             </Btn>
           )}
-          <p className="mt-1 text-xs text-gray-400">الأوزان نسبية (مثلاً 50 و50 تعني نصف/نصف).</p>
+          <p className="mt-1 text-xs text-gray-400">
+            {t(
+              'الأوزان نسبية (مثلاً 50 و50 تعني نصف/نصف).',
+              'Weights are relative (for example 50 and 50 split equally).',
+            )}
+          </p>
         </>
       )}
 
       {type === 'ai_reply' && (
         <>
           <p className="mb-3 rounded bg-indigo-50 p-2 text-xs text-indigo-800">
-            يرد المساعد الذكي من قاعدة المعرفة ويستمر في المحادثة مع العميل حتى يخرج منها. اربط
-            مخرجَي "تحويل لموظف" و"فشل" بعقدة تحويل حتى لا يتعطل العميل أبداً.
+            {t(
+              'يرد المساعد الذكي من قاعدة المعرفة ويستمر في المحادثة مع العميل حتى يخرج منها. اربط مخرجَي "تحويل لموظف" و"فشل" بعقدة تحويل حتى لا يتعطل العميل أبداً.',
+              'The assistant replies from knowledge until the customer exits. Connect both human handoff and failure outputs to a handoff step so the customer can continue.',
+            )}
           </p>
           <F label="رسالة ترحيب (اختياري)">
             <Txt
@@ -834,9 +898,17 @@ export default function Inspector({
               checked={data.answerFirst !== false}
               onChange={(e) => set({ answerFirst: e.target.checked })}
             />{' '}
-            أجب فوراً على الرسالة التي بدأت السيناريو
+            {t(
+              'أجب فوراً على الرسالة التي بدأت السيناريو',
+              'Reply immediately to the message that started the bot',
+            )}
           </label>
-          <p className="mb-3 text-xs text-gray-400">يعمل فقط لو كانت هذه العقدة هي البداية.</p>
+          <p className="mb-3 text-xs text-gray-400">
+            {t(
+              'يعمل فقط لو كانت هذه العقدة هي البداية.',
+              'Applies only when this is the start step.',
+            )}
+          </p>
           <F label="احفظ آخر رد في متغيّر (اختياري)">
             <In v={data.saveAnswerAs} on={(v) => set({ saveAnswerAs: v || undefined })} dir="ltr" />
           </F>
@@ -873,7 +945,7 @@ export default function Inspector({
               checked={!!data.closeConversation}
               onChange={(e) => set({ closeConversation: e.target.checked })}
             />{' '}
-            إغلاق المحادثة
+            {t('إغلاق المحادثة', 'Close conversation')}
           </label>
         </>
       )}

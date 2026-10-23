@@ -1,0 +1,227 @@
+[
+  {
+    "suite": "smoke-ai-failures.mjs",
+    "exitCode": 0,
+    "durationMs": 566
+  },
+  {
+    "suite": "smoke-ai-tool-audit.mjs",
+    "exitCode": 0,
+    "durationMs": 854
+  },
+  {
+    "suite": "smoke-automation-merge.mjs",
+    "exitCode": 0,
+    "durationMs": 1328
+  },
+  {
+    "suite": "smoke-billing-backfill.mjs",
+    "exitCode": 0,
+    "durationMs": 1274
+  },
+  {
+    "suite": "smoke-billing-branding.mjs",
+    "exitCode": 0,
+    "durationMs": 789
+  },
+  {
+    "suite": "smoke-billing-catalog.mjs",
+    "exitCode": 0,
+    "durationMs": 665
+  },
+  {
+    "suite": "smoke-billing-review.mjs",
+    "exitCode": 0,
+    "durationMs": 465
+  },
+  {
+    "suite": "smoke-branded-auth.mjs",
+    "exitCode": 0,
+    "durationMs": 975
+  },
+  {
+    "suite": "smoke-business.mjs",
+    "exitCode": 0,
+    "durationMs": 5111
+  },
+  {
+    "suite": "smoke-core.mjs",
+    "exitCode": 0,
+    "durationMs": 2532
+  },
+  {
+    "suite": "smoke-crm-history.mjs",
+    "exitCode": 0,
+    "durationMs": 985
+  },
+  {
+    "suite": "smoke-crm-paging.mjs",
+    "exitCode": 0,
+    "durationMs": 927
+  },
+  {
+    "suite": "smoke-crm-retention.mjs",
+    "exitCode": 0,
+    "durationMs": 1190
+  },
+  {
+    "suite": "smoke-crm-snapshots.mjs",
+    "exitCode": 0,
+    "durationMs": 1493
+  },
+  {
+    "suite": "smoke-crm-work.mjs",
+    "exitCode": 0,
+    "durationMs": 802
+  },
+  {
+    "suite": "smoke-delivery-accounts.mjs",
+    "exitCode": 0,
+    "durationMs": 961
+  },
+  {
+    "suite": "smoke-departments.mjs",
+    "exitCode": 0,
+    "durationMs": 647
+  },
+  {
+    "suite": "smoke-domain-hosting.mjs",
+    "exitCode": 0,
+    "durationMs": 1176
+  },
+  {
+    "suite": "smoke-domain-transfers.mjs",
+    "exitCode": 0,
+    "durationMs": 2192
+  },
+  {
+    "suite": "smoke-file-replacement.mjs",
+    "exitCode": 0,
+    "durationMs": 1989
+  },
+  {
+    "suite": "smoke-generation-budget.mjs",
+    "exitCode": 0,
+    "durationMs": 1755
+  },
+  {
+    "suite": "smoke-generation-replay.mjs",
+    "exitCode": 0,
+    "durationMs": 1146
+  },
+  {
+    "suite": "smoke-inbox-cursors.mjs",
+    "exitCode": 0,
+    "durationMs": 949
+  },
+  {
+    "suite": "smoke-integration-auth.mjs",
+    "exitCode": 0,
+    "durationMs": 1090
+  },
+  {
+    "suite": "smoke-invitation-mail.mjs",
+    "exitCode": 0,
+    "durationMs": 912
+  },
+  {
+    "suite": "smoke-invoices.mjs",
+    "exitCode": 0,
+    "durationMs": 1071
+  },
+  {
+    "suite": "smoke-knowledge-retention.mjs",
+    "exitCode": 0,
+    "durationMs": 1162
+  },
+  {
+    "suite": "smoke-knowledge-revisions.mjs",
+    "exitCode": 0,
+    "durationMs": 934
+  },
+  {
+    "suite": "smoke-mail-receipts.mjs",
+    "exitCode": 0,
+    "durationMs": 1126
+  },
+  {
+    "suite": "smoke-major.mjs",
+    "exitCode": 0,
+    "durationMs": 2961
+  },
+  {
+    "suite": "smoke-model-catalog.mjs",
+    "exitCode": 0,
+    "durationMs": 386
+  },
+  {
+    "suite": "smoke-nested-automations.mjs",
+    "exitCode": 0,
+    "durationMs": 483
+  },
+  {
+    "suite": "smoke-pipeline-ownership.mjs",
+    "exitCode": 0,
+    "durationMs": 422
+  },
+  {
+    "suite": "smoke-platform-audit.mjs",
+    "exitCode": 0,
+    "durationMs": 105
+  },
+  {
+    "suite": "smoke-platform-directory.mjs",
+    "exitCode": 0,
+    "durationMs": 469
+  },
+  {
+    "suite": "smoke-platform-mfa.mjs",
+    "exitCode": 0,
+    "durationMs": 1595
+  },
+  {
+    "suite": "smoke-platform-reports.mjs",
+    "exitCode": 0,
+    "durationMs": 108
+  },
+  {
+    "suite": "smoke-provider-lifecycle.mjs",
+    "exitCode": 0,
+    "durationMs": 323
+  },
+  {
+    "suite": "smoke-reliability.mjs",
+    "exitCode": 0,
+    "durationMs": 420
+  },
+  {
+    "suite": "smoke-rich-campaigns.mjs",
+    "exitCode": 0,
+    "durationMs": 3404
+  },
+  {
+    "suite": "smoke-sprint.mjs",
+    "exitCode": 0,
+    "durationMs": 4015
+  },
+  {
+    "suite": "smoke-subscription-requests.mjs",
+    "exitCode": 0,
+    "durationMs": 724
+  },
+  {
+    "suite": "smoke-template-components.mjs",
+    "exitCode": 0,
+    "durationMs": 621
+  },
+  {
+    "suite": "smoke-template-drafts.mjs",
+    "exitCode": 0,
+    "durationMs": 632
+  },
+  {
+    "suite": "smoke-worker.mjs",
+    "exitCode": 0,
+    "durationMs": 12616
+  }
+]

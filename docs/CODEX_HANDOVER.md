@@ -1,3 +1,9 @@
+## V1 closure verification and editor checkpoint — 2026-10-23 UTC
+
+Rich template authoring checkpoint `38aad29` pushed/remote-verified. Current continuation closes template browser acceptance, displays persisted rich card previews, separates media input name/help, translates advanced flow inspector labels/options/hints/default new replies and gives controls accessible names with fieldset grouping. Explicit PostCSS Tailwind config fixes the reproduced root-build missing-content warning. Existing behavior and user-entered content are preserved.
+
+Current evidence: docs/acceptance/2026-10-23-v1-closure/. 45 backend regression scripts passed; 64 unit tests; migrations 001–072 clean/repeated; TypeScript, lint and production build passed. New Chromium template draft and automation editor/recovery journeys pass English desktop/Arabic mobile with real API persistence, no overflow/page errors. Broader browser regression is in progress. Frozen matrix now records 22 local requirements CLOSED, 19 OPEN, 7 external/owner dependencies. No complete/production claim. Continue exact open IDs; all external gates remain false.
+
 ## Fixed V1 closure checkpoint — 2026-10-23 UTC
 
 Authoritative frozen scope: [V1_FINAL_CLOSURE_MATRIX.md](V1_FINAL_CLOSURE_MATRIX.md), 48 V1 acceptance requirements (41 local completion/verification + 7 external/owner gates), plus one excluded future boundary. No CODE COMPLETE claim. Baseline and PR #1 verified at 9bf82169; matrix checkpoint 9339398 pushed and remote-verified.

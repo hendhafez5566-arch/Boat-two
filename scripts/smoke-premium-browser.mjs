@@ -78,6 +78,17 @@ const apiBase = process.env.SMOKE_API_URL || 'http://localhost:4000',
   assert.equal(await page.locator('.palette-step').count(), 1);
   const initialNodes = await page.locator('.premium-flow-node').count();
   await page.locator('.palette-step').click();
+  await page.getByRole('textbox', { name: 'Greeting (optional)', exact: true }).waitFor();
+  await page
+    .getByRole('textbox', { name: 'Additional instructions for this step', exact: true })
+    .fill('Local assistant instructions');
+  assert.equal(
+    await page
+      .locator('.flow-inspector-content')
+      .getByText('Maximum replies before exiting', { exact: true })
+      .count(),
+    1,
+  );
   await page.waitForTimeout(150);
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   assert.equal(await page.locator('.premium-flow-node').count(), initialNodes);

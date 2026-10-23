@@ -1,0 +1,1 @@
+Template drafts Chromium: rich document/URL examples, live preview, create/edit/reopen persistence, gated submission, Arabic RTL/mobile and zero page errors passed. No external submission.

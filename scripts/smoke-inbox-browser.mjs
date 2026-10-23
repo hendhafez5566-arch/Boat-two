@@ -92,7 +92,10 @@ const { chromium } = local(process.env.BOAT_PLAYWRIGHT_MODULE || 'playwright-cor
     );
     await page.getByRole('button', { name: 'Send', exact: true }).click();
     if ((await sent).status() !== 201) throw new Error('Public reply API rejected the fixture');
-    await page.getByText('Public local browser reply', { exact: true }).waitFor();
+    await page
+      .locator('section')
+      .getByText('Public local browser reply', { exact: true })
+      .waitFor();
     const publicMessages = await call(
       '/conversations/' + conv.id + '/messages',
       null,

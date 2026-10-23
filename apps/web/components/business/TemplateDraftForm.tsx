@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useLocale } from '../product/locale';
 type Header = {
   type: 'HEADER';
@@ -45,6 +45,7 @@ export function TemplateDraftForm({
   cancel?: () => void;
 }) {
   const { t } = useLocale();
+  const mediaHintId = useId();
   const h = initial?.components.find((c) => c.type === 'HEADER');
   const [format, setFormat] = useState(h?.format || 'NONE');
   const [name, setName] = useState(initial?.name || '');
@@ -179,13 +180,19 @@ export function TemplateDraftForm({
             ? t('مثال متغير الترويسة', 'Header variable example')
             : t('معرّف رفع عينة الوسائط من Meta', 'Meta sample media upload handle')}
           <input
+            aria-label={
+              format === 'TEXT'
+                ? t('مثال متغير الترويسة', 'Header variable example')
+                : t('معرّف رفع عينة الوسائط من Meta', 'Meta sample media upload handle')
+            }
+            aria-describedby={format !== 'TEXT' ? mediaHintId : undefined}
             value={headerSample}
             onChange={(e) => setHeaderSample(e.target.value)}
             maxLength={4096}
             required
           />
           {format !== 'TEXT' && (
-            <span className="muted">
+            <span className="muted" id={mediaHintId}>
               {t(
                 'استخدم معرّف عينة من رفع Meta القابل للاستئناف، وليس رابط إرسال الوسائط. يلزم حساب خارجي للحصول عليه.',
                 'Use a sample handle from Meta resumable upload, rather than a message media URL. Obtaining it requires your external account.',
