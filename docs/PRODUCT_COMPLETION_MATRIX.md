@@ -1,5 +1,12 @@
 # ELHAFEZ BOAT — Product completion matrix
 
+## Acceptance continuation — frozen CRM exports (2026-10-23)
+
+New export jobs freeze all selected profile values in a single PostgreSQL statement at request time, then use the existing chunked worker. Later edits/archive/merge cannot mix different profile moments into one export. Job/result API and bilingual UI expose snapshot time. Legacy jobs retain prior semantics. No new historical profile store or arbitrary pre-request as-of reconstruction is claimed; job snapshots remain subject to existing retention/scaling work.
+
+Verified: API/web TypeScript, ESLint and PostgreSQL smoke-crm-snapshots: 251 records over two chunks, intervening mutation/archive, stable values/unique IDs/timestamp, empty export and tenant isolation. Next: pipeline ownership/reassignment and campaign composition. Product remains partial.
+
+
 ## Acceptance continuation — AI provider lifecycle (2026-10-23)
 
 Migration 062 adds revisions, retirement and administrator-declared tool capability to existing providers. Connected bilingual provider cards edit name/model/rates/capability with revision conflicts; enable/disable remains compatible. Permanent retirement erases the encrypted key, preserves agents/run history and refuses later edits/key rotation/reassignment. Tenant lock serializes configuration with generation; enabled agents requiring tools cannot use a declared incompatible model. Existing capability defaults remain compatible, not provider-certified. No provider network calls enabled.

@@ -66,8 +66,14 @@ export class CrmJobs {
         }
       } else {
         // Snapshot IDs at creation: do not skip/repeat rows when the contact list changes.
-        const ids = job.input.ids.slice(processed, processed + 250);
-        if (ids.length) {
+        const snapshots = job.input.snapshots;
+        const ids = (job.input.ids ?? []).slice(processed, processed + 250);
+        if (Array.isArray(snapshots)) {
+          const rows = snapshots.slice(processed, processed + 250);
+          result.push(...rows);
+          succeeded += rows.length;
+          processed += rows.length;
+        } else if (ids.length) {
           const rows = (
             await c.query(
               'SELECT id,name,email,phone,lifecycle,tags,attributes,owner_id,archived_at FROM contacts WHERE id=ANY($1::uuid[]) ORDER BY id',
@@ -115,7 +121,7 @@ export class CrmJobsController {
       async (c) =>
         (
           await c.query(
-            'SELECT id,kind,status,processed,total,succeeded,errors,created_at,updated_at FROM crm_jobs ORDER BY created_at DESC LIMIT 100',
+            "SELECT id,kind,status,processed,total,succeeded,errors,created_at,updated_at,input->>'snapshotAt' AS snapshot_at FROM crm_jobs ORDER BY created_at DESC LIMIT 100",
           )
         ).rows,
     );
@@ -146,13 +152,25 @@ export class CrmJobsController {
         const where = contactWhere(input.filters);
         const rows = (
           await c.query(
-            `SELECT id FROM contacts WHERE ${where.sql} ORDER BY id LIMIT 50001`,
+            `SELECT id,name,email,phone,lifecycle,tags,attributes,owner_id,archived_at,
+             statement_timestamp() AS snapshot_at FROM contacts WHERE ${where.sql} ORDER BY id LIMIT 50001`,
             where.params,
           )
         ).rows;
         if (rows.length > 50000)
           throw new BadRequestException('Narrow the export to at most 50,000 contacts');
-        data = { ids: rows.map((row) => row.id) };
+        // One SELECT captures all values from one PostgreSQL statement snapshot.
+        // Never reread live profiles in later worker chunks.
+        const snapshotAt =
+          rows[0]?.snapshot_at ?? (await c.query('SELECT statement_timestamp() AS at')).rows[0].at;
+        data = {
+          snapshotAt,
+          snapshots: rows.map((row) => {
+            const copy = { ...row };
+            delete copy.snapshot_at;
+            return copy;
+          }),
+        };
         total = rows.length;
       }
       const row = (
@@ -175,7 +193,7 @@ export class CrmJobsController {
     return this.db.withTenant(r.user.tenantId, async (c) => {
       const row = (
         await c.query(
-          "SELECT result,errors,processed,succeeded FROM crm_jobs WHERE id=$1 AND status='completed'",
+          "SELECT result,errors,processed,succeeded,input->>'snapshotAt' AS snapshot_at FROM crm_jobs WHERE id=$1 AND status='completed'",
           [id],
         )
       ).rows[0];

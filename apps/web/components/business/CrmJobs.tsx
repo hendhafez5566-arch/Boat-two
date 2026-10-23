@@ -11,6 +11,7 @@ type Job = {
   processed: number;
   total: number;
   succeeded: number;
+  snapshot_at?: string;
   errors: { row: number; error: string }[];
 };
 export function CrmJobs() {
@@ -37,6 +38,12 @@ export function CrmJobs() {
         {t(
           'استيراد حتى 10,000 صف على دفعات قابلة للاستعادة، وتصدير حتى 50,000 ملف. الصفوف المرفوضة لا توقف الصفوف الأخرى. يحتفظ الإلغاء بما اكتمل.',
           'Import up to 10,000 rows in recoverable batches and export up to 50,000 profiles. Rejected rows do not stop other rows. Canceling retains completed work.',
+        )}
+      </p>
+      <p className="muted">
+        {t(
+          'تُثبّت قيم التصدير عند الطلب ولا تتغير بتعديل العملاء لاحقًا. التنزيل يعرض وقت اللقطة؛ لا يعيد بناء تاريخ سابق للطلب.',
+          'Export values are frozen when requested and survive later profile edits. Downloads include the snapshot time; earlier history cannot be reconstructed.',
         )}
       </p>
       {(error || jobs.error) && (
@@ -87,7 +94,7 @@ export function CrmJobs() {
             )
           }
         >
-          {t('إنشاء تصدير كامل', 'Create full export')}
+          {t('إنشاء لقطة تصدير ثابتة', 'Create snapshot export')}
         </button>
         <button className="btn" onClick={() => jobs.reload()}>
           {t('تحديث', 'Refresh')}
@@ -103,6 +110,12 @@ export function CrmJobs() {
           <p>
             {job.processed}/{job.total} · {t('ناجح', 'Succeeded')}: {job.succeeded}
           </p>
+          {job.snapshot_at && (
+            <p>
+              {t('وقت اللقطة: ', 'Snapshot time: ')}
+              {new Date(job.snapshot_at).toLocaleString()}
+            </p>
+          )}
           {['pending', 'running'].includes(job.status) && (
             <button
               className="btn"
