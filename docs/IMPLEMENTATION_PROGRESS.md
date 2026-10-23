@@ -1,5 +1,10 @@
 # Implementation progress — core reliability + connected business platform
 
+## Acceptance evidence archive — 2026-10-23
+
+Eight actual local Chromium screenshots are now tracked in `docs/acceptance/2026-10-23/`, with fixture/privacy notes and scope. The premium browser suite reran after `ce4d9ff` to refresh images following the final desktop navigation CSS fix; all assertions passed. Eight functional/verification checkpoints (`7a10e70` through `ce4d9ff`) plus this evidence checkpoint were pushed on the same branch/PR; current Git/remote HEAD is authoritative. Build/lint/55 unit tests, 19 distinct PostgreSQL/API/worker suites, four Chromium suites and clean/repeated migrations 001–064 passed. Product remains partial; next work and external gates are unchanged below.
+
+
 ## Verified acceptance continuation — 2026-10-23 (latest)
 
 Continued from verified local/remote `260f719cbea9143993d01d9a41fb9102259c7e9a` on `feat/complete-premium-saas`, existing Draft PR #1. Seven independently pushed/verified feature checkpoints: `7a10e70`, `ffb2365`, `b833dff`, `64c4603`, `9fbcd36`, `6d2d20d`, `224e56e`. This final checkpoint also fixes desktop/mobile navigation dismissal styling and live language updates of campaign success feedback, and adds real provider-editor Chromium acceptance. Current Git/remote HEAD identifies this final checkpoint.
