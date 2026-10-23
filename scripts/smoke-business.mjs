@@ -181,6 +181,11 @@ try {
   });
   await req('/crm/pipelines/' + emptyPipeline.id, { token, method: 'DELETE' });
   const channel = await post('/channels', token, { type: 'web', name: 'Campaign local widget' });
+  await req('/delivery/policies/' + channel.id, {
+    token,
+    method: 'PUT',
+    body: { intervalMs: 100, marketingEnabled: true },
+  });
   const visitor = await post(`/widget/${channel.external_id}/session`, null, {});
   const inbound = await fetch(
     `${base}/widget/${channel.external_id}/messages?visitorId=${visitor.visitorId}`,

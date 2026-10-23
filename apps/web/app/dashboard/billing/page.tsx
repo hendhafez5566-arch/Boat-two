@@ -1,4 +1,5 @@
 'use client';
+import { BillingReconciliation } from '../../../components/business/BillingReconciliation';
 import { BillingEvents } from '../../../components/business/BillingEvents';
 import { useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
@@ -158,6 +159,7 @@ export default function Billing() {
           </section>
         ))}
       </div>
+      <BillingReconciliation />
       <BillingEvents />
     </main>
   );

@@ -195,7 +195,8 @@ await request('/workspace', {
 });
 const me = await request('/auth/me', { token: agent.accessToken });
 await request('/team/members/' + me.user.id, { token, method: 'DELETE' });
-await request('/workspace', { token: agent.accessToken, status: 403 });
+// Removing the member also revokes the backing session; access is rejected before role checks.
+await request('/workspace', { token: agent.accessToken, status: 401 });
 const audit = await request('/workspace/audit', { token });
 assert.ok(audit.total > 0);
 assert.ok(audit.items.some((x) => x.actor_name === 'Core smoke'));

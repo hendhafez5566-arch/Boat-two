@@ -1,4 +1,5 @@
 'use client';
+import { SavedAutomationEditor } from '../../../components/business/SavedAutomationEditor';
 import { AutomationCanvas } from '../../../components/business/AutomationCanvas';
 import { useState } from 'react';
 import { api } from '../../../lib/api';
@@ -82,6 +83,7 @@ export default function Automations() {
         </button>
       </div>
       {(error || list.error) && <p className="notice error">{error || list.error}</p>}
+      <SavedAutomationEditor />
       <AutomationCanvas />
       <form
         className="card stack"

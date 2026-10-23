@@ -1,5 +1,22 @@
 # Remaining implementation — continue on PR #1
 
+## Major product implementation checkpoint — 2026-10-23
+
+Started from verified local/remote `1f338897cceb119577d9093c2b95d43e91cb8f35`, same branch and Draft PR #1. New migrations 028–036 build on the existing outbox and tenant RLS; no parallel scheduler or production deployment.
+
+- Knowledge: durable text/FAQ/URL/file jobs, persisted file extraction, prepared chunks/vector batches, blocked/failed/canceled states, resume/progress UI, atomic conservative monthly embedding reservations, durable cached effects and audited uncertainty reconciliation. Paid generation/query/ingestion calls remain disabled. Index replacement is atomic after complete processing; the prior index survives failures.
+- Campaigns: explicit per-channel marketing policy, shared external-send pacing across replicas/campaigns, paced web campaign events, Meta response-window checks, inbound opt-out keywords and existing consent checks. Provider-wide account caps and complete external Meta policy acceptance remain open.
+- CRM: real searchable merge-impact preview with profile differences, dependency counts, consent result, identity conflicts and Inbox links. Unsafe identity merges still require manual review; deal/task filtering/editing remains open.
+- Automation: reopen/edit existing sequences and bounded branch/condition groups; encrypted, rotatable host-bound Bearer secret references; durable per-rule failure attribution and safe event retry UI. Nested arbitrary graphs and extended integration policies remain open.
+- Platform administration: separately signed/purposed short-lived platform sessions, immutable operator allowlist, separate least-privilege database connection/role, database-backed sign-in limits and audited company/subscription/user/plan operations. Console is disabled until external operator configuration; tenant roles cannot activate it. See PLATFORM_ADMIN_ACTIVATION.md. Pagination/MFA/granular operator roles remain open.
+- Sessions: backing session IDs/user versions for new access tokens, self-service session list/revoke, global operator revoke, account/tenant suspension enforcement, and live SSE revocation checks. Legacy access tokens without IDs retain their short access lifetime unless globally revoked; cookie migration/recovery remain open.
+- Billing: durable owner-requested Stripe reconciliation jobs, disabled-by-default activation gate, linked customer/subscription ownership checks, cached retrieval and existing event dedupe/order application. No Stripe calls or real account setup occurred.
+- UX: original SVG navigation icons, connected bilingual job/policy/merge/sequence/platform/session screens. Final identity/design approval and standalone visual previews remain deferred to completed-product review.
+
+Validation: production API/Next build and TypeScript, ESLint, 47 unit tests (including active SSE revocation), migrations through 036 on a fresh validation database, core/business/sprint/billing development smokes and `smoke-major.mjs`. Major smoke covers gated jobs and durable file extraction, a real vector index built from mocked embeddings, cached replay/concurrent quota reservation, opt-out/policy isolation, merge preview, encrypted secrets/saved branches, platform token/SQL-role boundaries, suspension, session revocation and blocked/mocked Stripe reconciliation. No paid/provider network calls, live admin credentials or comprehensive final acceptance were used.
+
+Next: finish provider/account-wide campaign caps, CRM deal/task workflows and operator roles/MFA, complete billing/catalog/invoice lifecycle and custom-domain host/TLS integration, then remaining UX/unified bilingual controls and final visual previews. Product build remains incomplete.
+
 Branch `feat/complete-premium-saas`; existing Draft PR https://github.com/hendhafez5566-arch/Boat-two/pull/1. The current checkpoint adds connected core reliability and major Batch 2 modules. Do not rebuild their models or repeat the original inventory.
 
 ## Batch 1 — remaining specific gaps
@@ -32,13 +49,13 @@ Remaining: full rich template gallery and media/composer variants, changing save
 
 Connected: Anthropic and OpenAI implement the shared provider interface; encrypted provider creation and key rotation (version/date metadata, never returning keys); current-contact tools; flow > channel > default routing, including delayed/resumed flows; disabled explicit assignments do not silently select another provider. Configuration/routing/key forms are connected. Existing run/token/cost estimates and source restrictions remain. OpenAI contract tests mock fetch and make no provider calls.
 
-Remaining: durable knowledge ingestion/embedding jobs, reserved embedding budgets and per-source recovery; per-action audit/approval; richer failed/refused run reporting and pricing versions; provider retirement/removal and model capability policies. Embeddings still use the existing embedding settings, independently of the agent generation provider. Live provider/tool acceptance requires explicit activation. `AI_PROVIDER_CALLS_ENABLED=false` remains mandatory.
+Implemented in the newest checkpoint: durable ingestion/file extraction/vector batching and atomic conservative embedding budgets/recovery UI. Remaining: source editing/version history and retention cleanup; per-action audit/approval; richer failed/refused run reporting and pricing versions; provider retirement/removal and model capability policies. Embeddings still use the existing embedding settings, independently of the agent generation provider. Live provider/tool acceptance requires explicit activation. `AI_PROVIDER_CALLS_ENABLED=false` remains mandatory.
 
 ### Business automation
 
 Connected: existing event engine now supports bounded AND/OR condition groups and conditional then/otherwise branches; ordered actions, delayed follow-ups and HTTPS POST actions using the existing SSRF-protected HTTP helper and durable external-effect cache. No parallel scheduler was added. New visual step cards provide condition groups, ordering, branches, delays and webhook composition; new rules save disabled for review. Stored pending schedules/follow-ups can be listed, canceled and rescheduled before any attempt; operator changes are audited. Existing rule lists/history/toggles remain.
 
-Remaining: full graph canvas and editing/reopening arbitrary saved graphs, nested recursive branches beyond the bounded schema, secret-reference/header management for authenticated integrations, per-rule failed-attempt attribution, and complete follow-up migration/recovery after contact merges. HTTP actions are gated by `EXTERNAL_DELIVERY_ENABLED`; ambiguous outcomes are not blindly replayed. Do not enable a webhook rule expecting external delivery while the environment gate is disabled.
+Implemented in the newest checkpoint: saved-sequence/branch editing, host-bound encrypted Bearer secrets and durable per-rule failure attribution/retry. Remaining: arbitrary graph canvas/nested recursive branches, richer integration header/auth policies, and complete follow-up migration/recovery after contact merges. HTTP actions are gated by `EXTERNAL_DELIVERY_ENABLED`; ambiguous outcomes are not blindly replayed. Do not enable a webhook rule expecting external delivery while the environment gate is disabled.
 
 ## Batch 3 — implemented slices and remaining work
 
@@ -48,7 +65,7 @@ Connected branding: plan-gated company name/logo/primary color applied to dashbo
 
 Connected Stripe reliability: verified events and subscription changes commit in one transaction; provider-event IDs dedupe; older events and obsolete subscription IDs are ignored; cancellation wins equal-timestamp ambiguity. Tenant billing history UI records processed/ignored events, including invoice failure notices. Local signed fixtures validate this without calling Stripe. Failed transactions are not acknowledged as applied and rely on provider redelivery.
 
-Remaining: full Super Admin with a separate privilege boundary (no platform-admin API/UI implemented), company/user/plan administration and platform-wide audit/revenue reporting; invoice/payment workflows beyond the existing Stripe portal; periodic Stripe reconciliation and equal-timestamp state reconciliation; complete downgrade/past-due lifecycle and customizable entitlements; response-time/SLA/business-calendar metrics; report retention/scaling; full custom-domain serving and white-label emails/public authentication journeys.
+Implemented in the newest checkpoint: operator-configured platform console with a separate token/key/DB role and company/user/subscription/existing-plan operations, and platform audit. Remaining: platform pagination/search, MFA/granular roles, advanced platform revenue reports; invoice/payment workflows beyond the existing Stripe portal; automatic periodic Stripe reconciliation and complete equal-timestamp policy (owner-requested reconciliation is implemented); complete downgrade/past-due lifecycle and customizable entitlements; response-time/SLA/business-calendar metrics; report retention/scaling; full custom-domain serving and white-label emails/public authentication journeys.
 
 ## Batch 4 — integration and premium completion
 

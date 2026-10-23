@@ -70,6 +70,7 @@ export const actionSchema = z.union([
   }),
   z.object({
     type: z.literal('http'),
+    secretId: z.string().uuid().optional(),
     url: z
       .string()
       .url()

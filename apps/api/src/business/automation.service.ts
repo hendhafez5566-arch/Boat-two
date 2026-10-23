@@ -1,3 +1,4 @@
+import { CryptoService } from '../messaging/crypto.service';
 import { safeHttpRequest } from '../flows/http-safe';
 import { ExternalEffects } from '../events/external-effect';
 import { env } from '../config/env';
@@ -16,6 +17,7 @@ export class AutomationService {
     private plans: PlansService,
     private events: EventsService,
     private effects: ExternalEffects,
+    private crypto: CryptoService,
   ) {}
   @OnEvent('domain.event', { suppressErrors: false }) async handle(event: DomainEvent) {
     const contactId = event.payload.contactId;
@@ -51,14 +53,29 @@ export class AutomationService {
             contactId,
           ])
         ).rowCount;
-        if (match)
-          await this.actions(
-            event.tenantId,
-            contactId,
-            rule.actions,
-            `${event.id}:${row.id}`,
-            row.id,
+        try {
+          if (match)
+            await this.actions(
+              event.tenantId,
+              contactId,
+              rule.actions,
+              `${event.id}:${row.id}`,
+              row.id,
+            );
+        } catch (error) {
+          await this.db.detached(event.tenantId, (client) =>
+            client.query(
+              `INSERT INTO automation_failures(tenant_id,rule_id,event_id,contact_id,error) VALUES($1,$2,$3,$4,$5)
+            ON CONFLICT(tenant_id,rule_id,event_id) DO UPDATE SET attempts=automation_failures.attempts+1,error=EXCLUDED.error,resolved_at=NULL`,
+              [event.tenantId, row.id, event.id, contactId, (error as Error).message.slice(0, 300)],
+            ),
           );
+          throw error;
+        }
+        await c.query(
+          'UPDATE automation_failures SET resolved_at=now() WHERE rule_id=$1 AND event_id=$2',
+          [row.id, event.id],
+        );
         await c.query(
           'INSERT INTO automation_runs(tenant_id,rule_id,event_id,status,root_id,contact_id) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING',
           [event.tenantId, row.id, event.id, match ? 'completed' : 'skipped', root, contactId],
@@ -121,15 +138,41 @@ export class AutomationService {
           case 'http': {
             if (env.EXTERNAL_DELIVERY_ENABLED !== 'true')
               throw new Error('External automation HTTP delivery is disabled');
+            let secret: { value_enc: string; version: number } | undefined;
+            if (action.secretId) {
+              secret = (
+                await c.query(
+                  'SELECT value_enc,version FROM integration_secrets WHERE id=$1 AND enabled AND $2=ANY(allowed_hosts)',
+                  [action.secretId, new URL(action.url).hostname],
+                )
+              ).rows[0];
+              if (!secret)
+                throw new Error(
+                  'Integration secret is disabled, not found or not authorized for this hostname',
+                );
+            }
             const response = await this.effects.execute(
               tenant,
-              { ruleId, url: action.url, body: action.body },
+              {
+                ruleId,
+                url: action.url,
+                body: action.body,
+                secretId: action.secretId,
+                secretVersion: secret?.version,
+              },
               () =>
                 safeHttpRequest({
                   method: 'POST',
                   url: action.url,
                   headers: {
                     'Content-Type': 'application/json',
+                    ...(secret
+                      ? {
+                          Authorization:
+                            'Bearer ' +
+                            this.crypto.decrypt<{ value: string }>(secret.value_enc).value,
+                        }
+                      : {}),
                     'Idempotency-Key': `${key}:${index}`,
                   },
                   body: action.body,

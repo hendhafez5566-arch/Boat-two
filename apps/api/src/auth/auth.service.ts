@@ -45,12 +45,22 @@ export class AuthService {
   }
 
   private async issueTokens(userId: string, tenantId: string, role: Role) {
-    const accessToken = await this.jwt.signAsync({ sub: userId, tid: tenantId, role });
+    const version =
+      (await this.db.query('SELECT session_version FROM users WHERE id=$1', [userId])).rows[0]
+        ?.session_version ?? 0;
+    const sessionId = randomUUID();
+    const accessToken = await this.jwt.signAsync({
+      sub: userId,
+      tid: tenantId,
+      role,
+      sv: version,
+      sid: sessionId,
+    });
     const refreshToken = randomBytes(32).toString('hex');
     await this.db.query(
-      `INSERT INTO refresh_tokens (user_id, tenant_id, token_hash, expires_at)
-       VALUES ($1, $2, $3, now() + ($4 || ' days')::interval)`,
-      [userId, tenantId, sha256(refreshToken), String(env.REFRESH_TTL_DAYS)],
+      `INSERT INTO refresh_tokens (user_id, tenant_id, token_hash, expires_at,id)
+       VALUES ($1, $2, $3, now() + ($4 || ' days')::interval,$5)`,
+      [userId, tenantId, sha256(refreshToken), String(env.REFRESH_TTL_DAYS), sessionId],
     );
     return { accessToken, refreshToken, expiresIn: env.JWT_ACCESS_TTL_SECONDS };
   }

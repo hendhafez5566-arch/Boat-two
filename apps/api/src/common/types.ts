@@ -6,6 +6,8 @@ export interface AuthUser {
   userId: string;
   tenantId: string;
   role: Role;
+  sessionId?: string;
+  sessionVersion?: number;
 }
 
 export interface AuthedRequest extends Request {

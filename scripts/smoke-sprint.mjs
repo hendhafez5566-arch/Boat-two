@@ -50,6 +50,10 @@ try {
     409,
   );
   const channel = await post('/channels', token, { type: 'web', name: 'Local merge widget' });
+  await req('/delivery/policies/' + channel.id, token, 'PUT', {
+    intervalMs: 100,
+    marketingEnabled: true,
+  });
   const visitor = await post(`/widget/${channel.external_id}/session`, null, {});
   const inbound = await fetch(
     `${base}/widget/${channel.external_id}/messages?visitorId=${visitor.visitorId}`,

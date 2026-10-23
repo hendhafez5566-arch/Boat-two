@@ -28,19 +28,50 @@ export class AuthGuard implements CanActivate {
     const [scheme, token] = header.split(' ');
     if (scheme !== 'Bearer' || !token) throw new UnauthorizedException('Missing token');
 
+    let sessionVersion = 0,
+      sessionId: string | undefined;
     try {
       const payload = await this.jwt.verifyAsync<{
         sub: string;
         tid: string;
         role: Role;
         purpose?: string;
+        sv?: number;
+        sid?: string;
       }>(token);
+      sessionVersion = payload.sv ?? 0;
+      sessionId = payload.sid;
       if (payload.purpose) throw new Error('Not an access token');
       req.user = { userId: payload.sub, tenantId: payload.tid, role: payload.role };
     } catch {
       throw new UnauthorizedException('Invalid or expired token');
     }
 
+    const account = (
+      await this.db.query('SELECT session_version,disabled_at FROM users WHERE id=$1', [
+        req.user.userId,
+      ])
+    ).rows[0];
+    if (!account || account.disabled_at || account.session_version !== sessionVersion)
+      throw new UnauthorizedException('Session revoked');
+    if (
+      sessionId &&
+      !(
+        await this.db.query(
+          'SELECT 1 FROM refresh_tokens WHERE id=$1 AND user_id=$2 AND revoked_at IS NULL AND expires_at>now()',
+          [sessionId, req.user.userId],
+        )
+      ).rowCount
+    )
+      throw new UnauthorizedException('Session revoked');
+    const suspended = await this.db.withTenant(
+      req.user.tenantId,
+      async (c) => (await c.query('SELECT suspended_at FROM tenants')).rows[0]?.suspended_at,
+    );
+    if (suspended)
+      throw new ForbiddenException('Workspace suspended; contact the platform operator');
+    req.user.sessionId = sessionId;
+    req.user.sessionVersion = sessionVersion;
     // Membership is authoritative: role changes/removal take effect immediately.
     const member = await this.db.withTenant(
       req.user.tenantId,

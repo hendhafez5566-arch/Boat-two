@@ -98,6 +98,26 @@ export class MessagingService {
         }
       }
 
+      // Inbound opt-out is persisted before any bot/campaign reaction. Opt-in always requires explicit evidence elsewhere.
+      const incomingText = msg.content.text?.normalize('NFKC').trim().toLowerCase();
+      if (
+        incomingText &&
+        [
+          'stop',
+          'unsubscribe',
+          'cancel marketing',
+          'إلغاء الاشتراك',
+          'الغاء الاشتراك',
+          'توقف',
+          'إيقاف التسويق',
+        ].includes(incomingText)
+      ) {
+        await c.query(
+          "INSERT INTO contact_consents(tenant_id,contact_id,channel_id,status,evidence) VALUES($1,$2,$3,'opted_out','Inbound channel opt-out keyword') ON CONFLICT(tenant_id,contact_id,channel_id) DO UPDATE SET status='opted_out',evidence=EXCLUDED.evidence,updated_at=now()",
+          [channel.tenant_id, contactId, channel.id],
+        );
+      }
+
       // 2) المحادثة المفتوحة (أو فتح واحدة جديدة)
       let conv = (
         await c.query(

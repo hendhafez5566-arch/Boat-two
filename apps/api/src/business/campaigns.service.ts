@@ -35,6 +35,15 @@ export class CampaignsService {
         .rows[0];
       if (!existing || !['draft', 'scheduled'].includes(existing.status))
         throw new BadRequestException('Only drafts or scheduled campaigns can be scheduled');
+      if (
+        !(
+          await c.query(
+            'SELECT 1 FROM channel_delivery_policy WHERE channel_id=$1 AND marketing_enabled',
+            [existing.channel_id],
+          )
+        ).rowCount
+      )
+        throw new BadRequestException('Enable the channel campaign policy before scheduling');
       const when = new Date(at).getTime();
       if (when < Date.now() - 60000 || when > Date.now() + 366 * 86400000)
         throw new BadRequestException('Choose a schedule within the next year');
@@ -121,6 +130,12 @@ export class CampaignsService {
           r.canonical_contact_id,
         ])
       ).rows[0];
+      const channelPolicy = (
+        await c.query(
+          'SELECT p.*,ch.type FROM channel_delivery_policy p JOIN channels ch ON ch.id=p.channel_id WHERE p.channel_id=$1 FOR UPDATE OF p',
+          [r.channel_id],
+        )
+      ).rows[0];
       let reason =
         !contact || contact.archived_at || contact.merged_into_id
           ? 'Contact archived or merged'
@@ -134,6 +149,7 @@ export class CampaignsService {
         ).rowCount
       )
         reason = 'Duplicate canonical recipient';
+      if (!channelPolicy?.marketing_enabled) reason = 'Channel marketing policy disabled';
       const plan = await this.plans.getTenantPlan(c);
       if (!plan.features.broadcasts) reason = 'Campaign entitlement no longer available';
       if (r.campaign_status !== 'running') reason = 'Campaign is not running';
@@ -158,6 +174,24 @@ export class CampaignsService {
       let messageId: string | null = null;
       let status = 'skipped';
       if (!reason) {
+        if (channelPolicy.type === 'web') {
+          const due = new Date(channelPolicy.next_send_at);
+          if (due.getTime() > Date.now()) {
+            await this.events.publish(
+              e.tenantId,
+              'campaign.recipient',
+              r.canonical_contact_id,
+              { recipientId: r.id },
+              randomUUID(),
+              due.toISOString(),
+            );
+            return;
+          }
+          await c.query(
+            "UPDATE channel_delivery_policy SET next_send_at=now()+interval_ms*interval '1 millisecond' WHERE channel_id=$1",
+            [r.channel_id],
+          );
+        }
         const conv = (
           await c.query(
             "SELECT id FROM conversations WHERE contact_id=$1 AND channel_id=$2 AND status<>'closed' ORDER BY created_at DESC LIMIT 1",

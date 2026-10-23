@@ -1,3 +1,4 @@
+import { ExternalEffects } from '../events/external-effect';
 import {
   BadRequestException,
   Injectable,
@@ -24,7 +25,10 @@ export class BillingService {
   private readonly log = new Logger(BillingService.name);
   private readonly stripe = env.STRIPE_SECRET_KEY ? new Stripe(env.STRIPE_SECRET_KEY) : null;
 
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly effects: ExternalEffects,
+  ) {}
 
   private requireStripe(): Stripe {
     if (!this.stripe) throw new ServiceUnavailableException('Billing is not configured');
@@ -99,6 +103,63 @@ export class BillingService {
     }
 
     return this.applyVerifiedEvent(event);
+  }
+
+  get reconciliationEnabled() {
+    return !!this.stripe && env.EXTERNAL_DELIVERY_ENABLED === 'true';
+  }
+  async reconcile(tenant: string, key: string) {
+    if (!this.reconciliationEnabled)
+      throw new ServiceUnavailableException(
+        'Stripe reconciliation requires configured credentials and explicit external-service activation',
+      );
+    const current = await this.db.withTenant(
+      tenant,
+      async (c) =>
+        (
+          await c.query(
+            'SELECT s.*,p.code AS plan_code FROM subscriptions s JOIN plans p ON p.id=s.plan_id',
+          )
+        ).rows[0],
+    );
+    if (!current?.stripe_subscription_id || !current.stripe_customer_id)
+      throw new BadRequestException('Workspace has no linked Stripe subscription');
+    const snapshot = await this.effects.execute(
+      tenant,
+      { subscriptionId: current.stripe_subscription_id, customerId: current.stripe_customer_id },
+      async () => ({
+        subscription: await this.requireStripe().subscriptions.retrieve(
+          current.stripe_subscription_id,
+        ),
+        readAt: Math.floor(Date.now() / 1000),
+      }),
+    );
+    const customer =
+      typeof snapshot.subscription.customer === 'string'
+        ? snapshot.subscription.customer
+        : snapshot.subscription.customer.id;
+    if (
+      customer !== current.stripe_customer_id ||
+      snapshot.subscription.id !== current.stripe_subscription_id
+    )
+      throw new BadRequestException('Provider subscription ownership mismatch');
+    const subscription = {
+      ...snapshot.subscription,
+      metadata: {
+        ...snapshot.subscription.metadata,
+        tenantId: tenant,
+        planCode: snapshot.subscription.metadata.planCode ?? current.plan_code,
+      },
+    };
+    return this.applyVerifiedEvent({
+      id: 'reconcile_' + key,
+      type:
+        subscription.status === 'canceled'
+          ? 'customer.subscription.deleted'
+          : 'customer.subscription.updated',
+      created: snapshot.readAt,
+      data: { object: subscription },
+    } as unknown as Stripe.Event);
   }
 
   private async applyVerifiedEvent(event: Stripe.Event) {

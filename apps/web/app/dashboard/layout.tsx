@@ -1,10 +1,12 @@
 'use client';
+import { NavIcon } from '../../components/product/NavIcon';
 import { CSSProperties, ReactNode, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { api, getSession, setSession } from '../../lib/api';
 import { LocaleProvider, useLocale } from '../../components/product/locale';
 const links = [
+  ['sessions', '◷', 'جلسات الحساب', 'Account sessions'],
   ['branding', '◈', 'هوية الشركة', 'Branding'],
   ['reports', '▤', 'التقارير والتحليلات', 'Reports & analytics'],
   ['crm', '◉', 'إدارة العملاء', 'CRM'],
@@ -117,7 +119,7 @@ function Shell({ children }: { children: ReactNode }) {
                   'delivery',
                 ].includes(key),
             )
-            .map(([key, icon, ar, en]) => (
+            .map(([key, , ar, en]) => (
               <Link
                 onClick={() => setOpen(false)}
                 key={key}
@@ -132,7 +134,7 @@ function Shell({ children }: { children: ReactNode }) {
                       : ''
                 }
               >
-                <span aria-hidden>{icon}</span>
+                <NavIcon name={key} />
                 {t(ar, en)}
               </Link>
             ))}

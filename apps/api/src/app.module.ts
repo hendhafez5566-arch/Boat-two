@@ -1,3 +1,4 @@
+import { PlatformModule } from './platform/platform.module';
 import { EventsModule } from './events/events.service';
 import { BusinessModule } from './business/business.module';
 import { Module } from '@nestjs/common';
@@ -34,6 +35,7 @@ import { WorkspaceModule } from './workspace/workspace.module';
     PlansModule,
     EventsModule,
     AuthModule,
+    PlatformModule,
     WorkspaceModule,
     BillingModule,
     MessagingModule,

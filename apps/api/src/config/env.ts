@@ -3,6 +3,9 @@ import { z } from 'zod';
 const schema = z.object({
   AI_PROVIDER_CALLS_ENABLED: z.enum(['true', 'false']).default('false'),
   EXTERNAL_DELIVERY_ENABLED: z.enum(['true', 'false']).default('false'),
+  PLATFORM_DATABASE_URL: z.string().url().optional(),
+  PLATFORM_JWT_SECRET: z.string().min(32).optional(),
+  PLATFORM_ADMIN_USER_IDS: z.string().default(''),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   API_PORT: z.coerce.number().default(4000),
   APP_URL: z.string().url().default('http://localhost:3000'),

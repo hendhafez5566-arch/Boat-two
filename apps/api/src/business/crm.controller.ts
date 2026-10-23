@@ -156,6 +156,73 @@ export class CrmController {
       return row;
     });
   }
+  @Get('contacts/:id/merge-preview') @Roles('owner', 'admin') previewMerge(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: unknown,
+  ) {
+    const b = parse(z.object({ sourceId: z.string().uuid() }), query);
+    if (id === b.sourceId) throw new BadRequestException('Choose two different profiles');
+    return this.crm.db.withTenant(r.user.tenantId, async (c) => {
+      const target = await this.crm.get(r.user.tenantId, id),
+        source = await this.crm.get(r.user.tenantId, b.sourceId);
+      const identities = (
+        await c.query(
+          'SELECT a.channel_id,ch.name AS channel_name,a.external_id AS target_identity,b.external_id AS source_identity FROM contact_channels a JOIN contact_channels b ON a.channel_id=b.channel_id JOIN channels ch ON ch.id=a.channel_id WHERE a.contact_id=$1 AND b.contact_id=$2 AND a.external_id<>b.external_id',
+          [id, b.sourceId],
+        )
+      ).rows;
+      const overlaps = (
+        await c.query(
+          "SELECT a.channel_id,a.id AS target_conversation,b.id AS source_conversation FROM conversations a JOIN conversations b ON a.channel_id=b.channel_id WHERE a.contact_id=$1 AND b.contact_id=$2 AND a.status<>'closed' AND b.status<>'closed'",
+          [id, b.sourceId],
+        )
+      ).rows;
+      const counts: Record<string, number> = {};
+      for (const table of [
+        'conversations',
+        'crm_deals',
+        'crm_tasks',
+        'crm_notes',
+        'flow_sessions',
+        'campaign_recipients',
+      ])
+        counts[table] = (
+          await c.query(`SELECT count(*)::int AS n FROM ${table} WHERE contact_id=$1`, [b.sourceId])
+        ).rows[0].n;
+      const consents = (
+        await c.query(
+          "SELECT s.channel_id,ch.name,s.status AS source_status,t.status AS target_status,CASE WHEN s.status='opted_out' OR t.status='opted_out' THEN 'opted_out' ELSE s.status END AS result FROM contact_consents s JOIN channels ch ON ch.id=s.channel_id LEFT JOIN contact_consents t ON t.channel_id=s.channel_id AND t.contact_id=$1 WHERE s.contact_id=$2",
+          [id, b.sourceId],
+        )
+      ).rows;
+      const profile = (row: typeof target) => ({
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        phone: row.phone,
+        lifecycle: row.lifecycle,
+        tags: row.tags,
+        attributes: row.attributes,
+        owner_id: row.owner_id,
+      });
+      return {
+        target: profile(target),
+        source: profile(source),
+        counts,
+        consents,
+        identities,
+        overlaps,
+        canMerge:
+          !target.archived_at &&
+          !target.merged_into_id &&
+          !source.merged_into_id &&
+          !identities.length &&
+          !overlaps.length &&
+          new Set([...target.tags, ...source.tags]).size <= 30,
+      };
+    });
+  }
   @Post('contacts/:id/merge') @Roles('owner', 'admin') merge(
     @Req() r: AuthedRequest,
     @Param('id', ParseUUIDPipe) id: string,

@@ -168,6 +168,37 @@ export class OperationsController {
       return { changed: true };
     });
   }
+  @Get('automations/failures') failures(@Req() r: AuthedRequest) {
+    return this.db.withTenant(
+      r.user.tenantId,
+      async (c) =>
+        (
+          await c.query(
+            'SELECT f.*,a.name,e.status AS event_status FROM automation_failures f LEFT JOIN automation_rules a ON a.id=f.rule_id LEFT JOIN domain_events e ON e.id=f.event_id ORDER BY f.created_at DESC LIMIT 100',
+          )
+        ).rows,
+    );
+  }
+  @Post('automations/failures/:id/retry') retryFailure(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.db.withTenant(r.user.tenantId, async (c) => {
+      const failure = (await c.query('SELECT * FROM automation_failures WHERE id=$1', [id]))
+        .rows[0];
+      if (!failure) throw new NotFoundException();
+      if (
+        !(
+          await c.query(
+            "UPDATE domain_events SET status='pending',attempts=0,error=NULL,available_at=now() WHERE id=$1 AND status='failed'",
+            [failure.event_id],
+          )
+        ).rowCount
+      )
+        throw new BadRequestException('Only exhausted failed events can be retried');
+      return { queued: true, ambiguousEffectsWillNotReplay: true };
+    });
+  }
   @Get('automations/history') history(@Req() r: AuthedRequest, @Query() query: unknown) {
     const q = parse(pagination, query);
     return this.db.withTenant(

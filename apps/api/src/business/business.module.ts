@@ -1,3 +1,6 @@
+import { IntegrationSecretsController } from './integration-secrets.controller';
+import { CryptoService } from '../messaging/crypto.service';
+import { DeliveryPolicyController } from './delivery-policy.controller';
 import { ReportsController } from './reports.controller';
 import { CrmJobs, CrmJobsController } from './crm-jobs';
 import { Module } from '@nestjs/common';
@@ -10,8 +13,10 @@ import { AutomationService } from './automation.service';
 import { OperationsController } from './operations.controller';
 @Module({
   imports: [MessagingModule],
-  providers: [CrmJobs, CrmService, CampaignsService, AutomationService],
+  providers: [CryptoService, CrmJobs, CrmService, CampaignsService, AutomationService],
   controllers: [
+    IntegrationSecretsController,
+    DeliveryPolicyController,
     ReportsController,
     CrmJobsController,
     CrmController,

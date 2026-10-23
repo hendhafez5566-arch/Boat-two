@@ -42,7 +42,7 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
         const row = await this.db.withTenant(job.tenant_id, async (c) => {
           const j = (
             await c.query(
-              "SELECT * FROM outbound_jobs WHERE id=$1 AND status IN ('pending','sending') FOR UPDATE SKIP LOCKED",
+              "SELECT * FROM outbound_jobs WHERE id=$1 AND status IN ('pending','sending') AND (status='sending' OR available_at<=now()) FOR UPDATE SKIP LOCKED",
               [job.id],
             )
           ).rows[0];
@@ -82,6 +82,25 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
             );
             return null;
           }
+          if (marketing && message) {
+            const policy = (
+              await c.query(
+                'SELECT marketing_enabled FROM channel_delivery_policy WHERE channel_id=$1',
+                [message.channel_id],
+              )
+            ).rows[0];
+            const closedWindow =
+              ['facebook', 'instagram'].includes(message.channel_type) &&
+              (!message.last_inbound_at ||
+                Date.now() - new Date(message.last_inbound_at).getTime() > 86400000);
+            if (!policy?.marketing_enabled || closedWindow) {
+              await c.query(
+                "UPDATE outbound_jobs SET status='blocked',error='Marketing policy disabled or provider response window expired',updated_at=now() WHERE id=$1",
+                [j.id],
+              );
+              return null;
+            }
+          }
           if (
             !message ||
             message.channel_status !== 'active' ||
@@ -109,6 +128,26 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
             );
             return null;
           }
+          await c.query(
+            'INSERT INTO channel_delivery_policy(tenant_id,channel_id) VALUES($1,$2) ON CONFLICT DO NOTHING',
+            [job.tenant_id, message.channel_id],
+          );
+          const policy = (
+            await c.query('SELECT * FROM channel_delivery_policy WHERE channel_id=$1 FOR UPDATE', [
+              message.channel_id,
+            ])
+          ).rows[0];
+          if (new Date(policy.next_send_at).getTime() > Date.now()) {
+            await c.query('UPDATE outbound_jobs SET available_at=$2 WHERE id=$1', [
+              j.id,
+              policy.next_send_at,
+            ]);
+            return null;
+          }
+          await c.query(
+            "UPDATE channel_delivery_policy SET next_send_at=now()+interval_ms*interval '1 millisecond' WHERE channel_id=$1",
+            [message.channel_id],
+          );
           await c.query(
             "UPDATE outbound_jobs SET status='sending',attempts=attempts+1,lease_until=now()+interval '90 seconds',updated_at=now() WHERE id=$1",
             [j.id],

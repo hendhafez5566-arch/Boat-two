@@ -1,4 +1,5 @@
 'use client';
+import { DeliveryPolicies } from '../../../components/business/DeliveryPolicies';
 import {
   CampaignDraftEditor,
   EditableCampaign,
@@ -289,6 +290,7 @@ export default function Campaigns() {
           </button>
         </div>
       </form>
+      <DeliveryPolicies />
       <section className="card table-wrap">
         <h2>{t('الحملات', 'Campaigns')}</h2>
         <table className="product-table">

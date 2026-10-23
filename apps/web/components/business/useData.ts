@@ -1,13 +1,17 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../lib/api';
-export function useData<T>(path: string, initial: T) {
+export function useData<T>(path: string | null, initial: T) {
   const [data, setData] = useState(initial);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const sequence = useRef(0);
   const reload = useCallback(async () => {
     const n = ++sequence.current;
+    if (!path) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const result = await api<T>(path);

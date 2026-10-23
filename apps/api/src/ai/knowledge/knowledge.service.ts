@@ -1,3 +1,6 @@
+import { OnEvent } from '@nestjs/event-emitter';
+import { EventsService } from '../../events/events.service';
+import { EmbeddingBudget } from './embedding-budget';
 import {
   BadRequestException,
   Injectable,
@@ -10,7 +13,6 @@ import { DatabaseService } from '../../database/database.service';
 import { normalizeText } from '../../flows/engine/text';
 import { safeHttpRequest } from '../../flows/http-safe';
 import { PlansService } from '../../plans/plans.service';
-import { EmbeddingProvider } from '../providers/embeddings';
 import { buildOrTsQuery, rrfFuse, toVectorLiteral } from '../retrieval';
 import { chunkText, FaqItem, faqFromText, faqToText } from './chunker';
 import { extractFileText, htmlToText } from './extract';
@@ -37,22 +39,15 @@ export type CreateSourceInput =
 @Injectable()
 export class KnowledgeService {
   private readonly log = new Logger(KnowledgeService.name);
-  private readonly embedder =
-    (env.EMBEDDING_API_KEY ?? env.OPENAI_API_KEY)
-      ? new EmbeddingProvider(
-          env.EMBEDDING_BASE_URL,
-          (env.EMBEDDING_API_KEY ?? env.OPENAI_API_KEY) as string,
-          env.EMBEDDING_MODEL,
-        )
-      : null;
-
   constructor(
     private readonly db: DatabaseService,
     private readonly plans: PlansService,
+    private readonly events: EventsService,
+    private readonly budget: EmbeddingBudget,
   ) {}
 
   get configured() {
-    return !!this.embedder;
+    return this.budget.configured;
   }
 
   list(tenantId: string) {
@@ -77,15 +72,19 @@ export class KnowledgeService {
   private async insert(
     tenantId: string,
     userId: string,
-    s: { type: string; title: string; ref?: string; content?: string },
+    s: {
+      type: string;
+      title: string;
+      ref?: string;
+      content?: string;
+      file?: { buf: Buffer; mime: string };
+    },
   ) {
-    if (!this.embedder)
-      throw new ServiceUnavailableException('Embeddings are not configured on this server');
     const row = await this.db.withTenant(tenantId, async (c) => {
       await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
       const n = (await c.query('SELECT count(*)::int AS n FROM knowledge_sources')).rows[0].n;
       await this.plans.assertWithinLimit(c, 'knowledge_sources', n);
-      return (
+      const source = (
         await c.query(
           `INSERT INTO knowledge_sources (tenant_id, type, title, source_ref, content, char_count, created_by)
            VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING ${COLS}`,
@@ -100,8 +99,9 @@ export class KnowledgeService {
           ],
         )
       ).rows[0];
+      await this.queue(tenantId, source.id, s.file);
+      return source;
     });
-    void this.process(tenantId, row.id); // معالجة في الخلفية: الحالة تظهر في القائمة
     return row;
   }
 
@@ -131,19 +131,13 @@ export class KnowledgeService {
     userId: string,
     f: { name: string; mime: string; buf: Buffer; title?: string },
   ) {
-    let text: string;
-    try {
-      text = await extractFileText(f.name, f.mime, f.buf);
-    } catch (e) {
-      throw new BadRequestException((e as Error).message);
-    }
-    if (text.trim().length < 20)
-      throw new BadRequestException('No readable text found in the file');
+    if (!f.buf.length || f.buf.length > 5 * 1024 * 1024)
+      throw new BadRequestException('Upload a file of at most 5MB');
     return this.insert(tenantId, userId, {
       type: 'file',
       title: f.title?.trim() || f.name,
       ref: f.name,
-      content: text.slice(0, MAX_CONTENT),
+      file: { buf: f.buf, mime: f.mime },
     });
   }
 
@@ -156,17 +150,41 @@ export class KnowledgeService {
   }
 
   async reindex(tenantId: string, id: string) {
-    await this.get(tenantId, id);
-    await this.db.withTenant(tenantId, (c) =>
-      c.query(
-        "UPDATE knowledge_sources SET status = 'pending', error = NULL, updated_at = now() WHERE id = $1",
-        [id],
-      ),
-    );
-    void this.process(tenantId, id);
-    return { queued: true };
+    return this.db.withTenant(tenantId, async (c) => {
+      await this.get(tenantId, id);
+      await c.query('SELECT id FROM knowledge_sources WHERE id=$1 FOR UPDATE', [id]);
+      const active = (
+        await c.query(
+          "SELECT id FROM knowledge_jobs WHERE source_id=$1 AND status IN ('pending','running','blocked')",
+          [id],
+        )
+      ).rows[0];
+      if (active) return { queued: true, jobId: active.id };
+      return this.queue(tenantId, id);
+    });
   }
-
+  private async queue(tenant: string, source: string, file?: { buf: Buffer; mime: string }) {
+    return this.db.withTenant(tenant, async (c) => {
+      const job = (
+        await c.query(
+          'INSERT INTO knowledge_jobs(tenant_id,source_id,raw_file,file_mime) VALUES($1,$2,$3,$4) RETURNING id',
+          [tenant, source, file?.buf ?? null, file?.mime ?? null],
+        )
+      ).rows[0];
+      await c.query(
+        "UPDATE knowledge_sources SET status='pending',error=NULL,updated_at=now() WHERE id=$1",
+        [source],
+      );
+      await this.events.publish(
+        tenant,
+        'knowledge.job',
+        job.id,
+        { jobId: job.id },
+        `knowledge:${job.id}:0`,
+      );
+      return { queued: true, jobId: job.id };
+    });
+  }
   // ------------------------------------------------------------------ ingestion
 
   private async fetchPage(url: string): Promise<{ title: string; text: string }> {
@@ -193,72 +211,139 @@ export class KnowledgeService {
     throw new Error('Too many redirects');
   }
 
-  private async process(tenantId: string, id: string) {
-    try {
-      const src = await this.db.withTenant(tenantId, async (c) => {
+  @OnEvent('knowledge.job', { suppressErrors: false })
+  async process(event: { tenantId: string; jobId: string }) {
+    const tenantId = event.tenantId;
+    await this.db.withTenant(tenantId, async (c) => {
+      const job = (
         await c.query(
-          "UPDATE knowledge_sources SET status = 'processing', error = NULL, updated_at = now() WHERE id = $1",
-          [id],
-        );
-        return (
-          await c.query(
-            'SELECT type, title, source_ref, content FROM knowledge_sources WHERE id = $1',
-            [id],
-          )
-        ).rows[0];
-      });
+          "SELECT * FROM knowledge_jobs WHERE id=$1 AND status IN ('pending','running') FOR UPDATE",
+          [event.jobId],
+        )
+      ).rows[0];
+      if (!job) return;
+      const src = (
+        await c.query('SELECT * FROM knowledge_sources WHERE id=$1 FOR UPDATE', [job.source_id])
+      ).rows[0];
       if (!src) return;
-
-      let content: string = src.content ?? '';
-      let title: string = src.title;
-      if (src.type === 'url') {
-        const page = await this.fetchPage(src.source_ref);
-        content = page.text.slice(0, MAX_CONTENT);
-        if (page.title && title === src.source_ref) title = page.title.slice(0, 200);
-      }
-      const chunks = src.type === 'faq' ? faqFromText(content) : chunkText(content);
-      if (!chunks.length) throw new Error('No readable text found');
-      if (!this.embedder) throw new Error('Embeddings are not configured');
-
-      const vectors: number[][] = [];
-      for (let i = 0; i < chunks.length; i += EMBED_BATCH) {
-        vectors.push(
-          ...(await this.embedder.embed(chunks.slice(i, i + EMBED_BATCH).map((c) => c.content))),
+      await c.query('SAVEPOINT knowledge_step');
+      try {
+        let chunks = job.chunks as { index: number; content: string }[];
+        if (!chunks.length) {
+          let content = src.content ?? '',
+            title = src.title;
+          if (src.type === 'file' && !content && job.raw_file) {
+            content = (await extractFileText(src.source_ref, job.file_mime, job.raw_file)).slice(
+              0,
+              MAX_CONTENT,
+            );
+            await c.query('UPDATE knowledge_jobs SET raw_file=NULL WHERE id=$1', [job.id]);
+          }
+          if (src.type === 'url') {
+            if (env.EXTERNAL_DELIVERY_ENABLED !== 'true') {
+              await c.query(
+                "UPDATE knowledge_jobs SET status='blocked',error='External URL fetching is disabled',updated_at=now() WHERE id=$1",
+                [job.id],
+              );
+              await c.query(
+                "UPDATE knowledge_sources SET status='blocked',error='External URL fetching is disabled' WHERE id=$1",
+                [src.id],
+              );
+              return;
+            }
+            const page = await this.fetchPage(src.source_ref);
+            content = page.text.slice(0, MAX_CONTENT);
+            if (page.title && title === src.source_ref) title = page.title.slice(0, 200);
+          }
+          chunks = src.type === 'faq' ? faqFromText(content) : chunkText(content);
+          if (!chunks.length) throw new Error('No readable text found');
+          await c.query(
+            'UPDATE knowledge_sources SET title=$2,content=$3,char_count=$4 WHERE id=$1',
+            [src.id, title, content, content.length],
+          );
+          await c.query('UPDATE knowledge_jobs SET chunks=$2,total=$3 WHERE id=$1', [
+            job.id,
+            JSON.stringify(chunks),
+            chunks.length,
+          ]);
+        }
+        if (env.AI_PROVIDER_CALLS_ENABLED !== 'true' || !this.budget.configured) {
+          await c.query(
+            "UPDATE knowledge_jobs SET status='blocked',error='Embedding provider calls disabled or unconfigured',updated_at=now() WHERE id=$1",
+            [job.id],
+          );
+          await c.query(
+            "UPDATE knowledge_sources SET status='blocked',error='Embedding provider calls disabled or unconfigured' WHERE id=$1",
+            [src.id],
+          );
+          return;
+        }
+        await c.query("UPDATE knowledge_sources SET status='processing',error=NULL WHERE id=$1", [
+          src.id,
+        ]);
+        const batch = chunks.slice(job.processed, job.processed + EMBED_BATCH);
+        const vectors = await this.budget.embed(
+          tenantId,
+          batch.map((chunk) => chunk.content),
+          `${job.id}:${job.processed}`,
         );
-      }
-
-      await this.db.withTenant(tenantId, async (c) => {
-        await c.query('DELETE FROM knowledge_chunks WHERE source_id = $1', [id]);
+        // Keep the prior published index until all replacement vectors are ready.
+        const prepared = [
+          ...(job.prepared ?? []),
+          ...batch.map((chunk, index) => ({ ...chunk, vector: vectors[index] })),
+        ];
+        const processed = job.processed + batch.length,
+          done = processed === chunks.length;
         await c.query(
-          `INSERT INTO knowledge_chunks (tenant_id, source_id, chunk_index, content, search_text, embedding)
-           SELECT $1, $2, t.i, t.c, t.s, t.e::vector FROM unnest($3::int[], $4::text[], $5::text[], $6::text[]) AS t(i, c, s, e)`,
+          'UPDATE knowledge_jobs SET status=$2,processed=$3,total=$4,prepared=$5,error=NULL,updated_at=now() WHERE id=$1',
           [
-            tenantId,
-            id,
-            chunks.map((c) => c.index),
-            chunks.map((c) => c.content),
-            chunks.map((c) => normalizeText(c.content)),
-            vectors.map(toVectorLiteral),
+            job.id,
+            done ? 'completed' : 'running',
+            processed,
+            chunks.length,
+            JSON.stringify(prepared),
           ],
         );
+        if (done) {
+          await c.query('DELETE FROM knowledge_chunks WHERE source_id=$1', [src.id]);
+          for (const chunk of prepared)
+            await c.query(
+              'INSERT INTO knowledge_chunks(tenant_id,source_id,chunk_index,content,search_text,embedding) VALUES($1,$2,$3,$4,$5,$6::vector)',
+              [
+                tenantId,
+                src.id,
+                chunk.index,
+                chunk.content,
+                normalizeText(chunk.content),
+                toVectorLiteral(chunk.vector),
+              ],
+            );
+          await c.query(
+            "UPDATE knowledge_sources SET status='ready',error=NULL,chunk_count=$2,updated_at=now() WHERE id=$1",
+            [src.id, chunks.length],
+          );
+        } else
+          await this.events.publish(
+            tenantId,
+            'knowledge.job',
+            job.id,
+            { jobId: job.id },
+            `knowledge:${job.id}:${processed}`,
+          );
+      } catch (error) {
+        await c.query('ROLLBACK TO SAVEPOINT knowledge_step');
+        const reason = (error as Error).message.slice(0, 300);
+        // External ambiguity is never automatically replayed. Other failures are explicit and retryable from UI.
         await c.query(
-          `UPDATE knowledge_sources SET status = 'ready', error = NULL, title = $2, content = $3, char_count = $4, chunk_count = $5, updated_at = now()
-           WHERE id = $1`,
-          [id, title, content, content.length, chunks.length],
+          "UPDATE knowledge_jobs SET status='failed',error=$2,attempts=attempts+1,updated_at=now() WHERE id=$1",
+          [job.id, reason],
         );
-      });
-    } catch (e) {
-      const msg = (e as Error).message.slice(0, 300);
-      this.log.warn(`Knowledge source ${id} failed: ${msg}`);
-      await this.db
-        .withTenant(tenantId, (c) =>
-          c.query(
-            "UPDATE knowledge_sources SET status = 'failed', error = $2, updated_at = now() WHERE id = $1",
-            [id, msg],
-          ),
-        )
-        .catch(() => undefined);
-    }
+        await c.query(
+          "UPDATE knowledge_sources SET status='failed',error=$2,updated_at=now() WHERE id=$1",
+          [src.id, reason],
+        );
+      }
+    });
   }
 
   // ------------------------------------------------------------------ retrieval
@@ -270,15 +355,15 @@ export class KnowledgeService {
     k = 6,
     sourceIds?: string[],
   ): Promise<RetrievedChunk[]> {
-    if (!this.embedder)
-      throw new ServiceUnavailableException('Embeddings are not configured on this server');
+    if (!this.budget.configured || env.AI_PROVIDER_CALLS_ENABLED !== 'true')
+      throw new ServiceUnavailableException('Embedding provider calls disabled or unconfigured');
     const any = await this.db.withTenant(
       tenantId,
       async (c) => (await c.query('SELECT 1 FROM knowledge_chunks LIMIT 1')).rowCount,
     );
     if (!any) return [];
 
-    const [vec] = await this.embedder.embed([query.slice(0, 2000)]);
+    const [vec] = await this.budget.embed(tenantId, [query.slice(0, 2000)]);
     const literal = toVectorLiteral(vec);
     const tsq = buildOrTsQuery(query);
 
