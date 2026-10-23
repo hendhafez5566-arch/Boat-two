@@ -140,6 +140,39 @@ class PlatformLoginController {
 @Controller('platform')
 class PlatformController {
   constructor(private access: PlatformAccess) {}
+  @Get('audit') async audit(@Query() query: unknown) {
+    const q = parse(
+      z.object({
+        actor: z.string().uuid().optional(),
+        tenant: z.string().uuid().optional(),
+        action: z.string().max(100).default(''),
+        from: z.string().datetime(),
+        to: z.string().datetime(),
+        cursor: z
+          .string()
+          .regex(/^[1-9][0-9]{0,18}$/)
+          .optional(),
+        limit: z.coerce.number().int().min(1).max(500).default(50),
+      }),
+      query,
+    );
+    if (
+      Date.parse(q.to) <= Date.parse(q.from) ||
+      Date.parse(q.to) - Date.parse(q.from) > 366 * 86400000
+    )
+      throw new BadRequestException('Audit range must be positive and at most 366 days');
+    return (
+      await this.access.query('SELECT platform_audit_page($1,$2,$3,$4,$5,$6,$7) AS data', [
+        q.actor ?? null,
+        q.tenant ?? null,
+        q.action,
+        q.from,
+        q.to,
+        q.cursor ?? null,
+        q.limit,
+      ])
+    )[0].data;
+  }
   @Get('directory') async directory(@Query() query: unknown) {
     const q = parse(
       z.object({

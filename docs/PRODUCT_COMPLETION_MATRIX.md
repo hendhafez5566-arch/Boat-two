@@ -1,5 +1,10 @@
 # ELHAFEZ BOAT — Product completion matrix
 
+## Platform audit checkpoint — 2026-10-23
+
+Migration 041, restricted API and bilingual console provide exact actor/company/action filters, bounded UTC date ranges, stable ID cursor pagination and explicitly loaded-record JSON export. Direct table/application-role access remains denied. API build, web TypeScript, lint and dedicated SQL smoke passed. Continue with granular operator permissions and MFA; product remains partial. No screenshots or visual acceptance are requested in this sprint.
+
+
 ## Continuous sprint verification — 2026-10-23
 
 Four functional checkpoints were committed and pushed separately on the existing branch/PR: `2a67d3f` (CRM work management), `5d6b768` (shared delivery-account budgets), `3c3f07f` (department lifecycle/response reporting), and `00a0a55` (platform directory search/pagination). Each received targeted checks before push; remote HEAD was verified. No new branch/PR, merge or deployment.

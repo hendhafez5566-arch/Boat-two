@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import AuditTrail from './AuditTrail';
 import { API } from '../../lib/api';
 import { LocaleProvider, useLocale } from '../../components/product/locale';
 type Company = {
@@ -482,29 +483,7 @@ function Console() {
               </form>
             </details>
           ))}
-          <section className="card table-wrap">
-            <h2>{t('سجل عمليات المنصة', 'Platform audit trail')}</h2>
-            <table className="product-table">
-              <thead>
-                <tr>
-                  <th>{t('الإجراء', 'Action')}</th>
-                  <th>{t('المسؤول', 'Actor')}</th>
-                  <th>{t('التفاصيل', 'Details')}</th>
-                  <th>{t('التاريخ', 'Date')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data?.audit.map((row) => (
-                  <tr key={row.id}>
-                    <td>{row.action}</td>
-                    <td>{row.actor_id}</td>
-                    <td>{JSON.stringify(row.details)}</td>
-                    <td>{new Date(row.created_at).toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
+          <AuditTrail request={request} />
         </>
       )}
     </main>

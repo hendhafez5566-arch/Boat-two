@@ -1,5 +1,10 @@
 # Continue here — ELHAFEZ BOAT
 
+## Platform audit checkpoint — 2026-10-23
+
+Migration 041, restricted API and bilingual console provide exact actor/company/action filters, bounded UTC date ranges, stable ID cursor pagination and explicitly loaded-record JSON export. Direct table/application-role access remains denied. API build, web TypeScript, lint and dedicated SQL smoke passed. Continue with granular operator permissions and MFA; product remains partial. No screenshots or visual acceptance are requested in this sprint.
+
+
 ## Mandatory continuous Git checkpoints
 
 Owner instruction applies to all current/future work: after each coherent stable functional unit, run appropriate quick checks, commit and push immediately to `feat/complete-premium-saas` / existing Draft PR #1. Target checkpoints every 10–15 minutes while recoverable changes exist. Verify clean/status and remote HEAD after each push, then continue without asking approval. Do not wait for a batch/session or final acceptance tests. If limits approach, prioritize a safe `wip:` checkpoint with feature gates and an honest continuation note. Never stage .env files, secrets, generated/temporary files; `.env.example` must contain placeholders only. No new branch/PR, main merge or production deployment.
