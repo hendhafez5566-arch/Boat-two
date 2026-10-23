@@ -10,7 +10,7 @@ The application role cannot execute platform functions or read platform audit ta
 
 Implemented console slices: recent companies/subscriptions, rename/suspend/restore company, explicit local entitlement overrides, recent users with disable/enable/name updates and global session revocation, existing plan limits/features/name/availability, and platform audit history. The console uses paged/searchable company and user directories (up to 100 per request, 50 by default). The compatibility snapshot remains bounded to 500 and audit to 100. Plan overrides are local entitlement operations, **not** Stripe subscription changes, refunds or invoice edits. Stripe reconciliation uses the provider as authoritative when explicitly activated.
 
-Remaining: audit pagination, granular platform operator roles, MFA/step-up authentication, account provisioning/recovery workflows, price/catalog lifecycle and broad platform revenue/operations reports. These are not a claim of final platform-security acceptance. Dedicated adversarial/security/browser/load acceptance is deferred.
+Audit pagination, operator write scopes and mandatory TOTP are implemented. Remaining: finer read scopes, backup factors, additional operation step-up, account provisioning/recovery workflows, price/catalog lifecycle and broad platform revenue/operations reports. These are not a claim of final platform-security acceptance. Dedicated adversarial/security/browser/load acceptance is deferred.
 
 ## Session migration
 
@@ -24,11 +24,11 @@ Embedding limits reserve one conservative unit per UTF-8 input byte. This is a b
 
 ## Campaign and billing activation
 
-Each channel has an explicit marketing-policy switch and a shared send interval across worker replicas/campaigns. External channels enforce a conservative minimum interval of one second. Website campaign dispatch is paced through the outbox; direct web chat replies remain immediate. WhatsApp template/window checks and Facebook/Instagram 24-hour campaign-window checks apply in addition to consent. Provider-wide account caps, provider-specific nonstandard messaging permissions and full Meta policy acceptance remain open. Do not enable external marketing merely because the local policy is enabled.
+Each channel has an explicit marketing-policy switch and a shared send interval across worker replicas/campaigns. External channels enforce a conservative minimum interval of one second. Website campaign dispatch is paced through the outbox; direct web chat replies remain immediate. WhatsApp template/window checks and Facebook/Instagram 24-hour campaign-window checks apply in addition to consent. Operator-defined provider-account caps are connected. Automatic quota discovery, provider-specific nonstandard messaging permissions and full Meta policy acceptance remain open. Do not enable external marketing merely because the local policy is enabled.
 
 Stripe reconciliation is a durable owner-requested job and stays blocked until credentials and explicit external activation exist. It retrieves the already linked subscription, verifies customer/subscription identity and applies the snapshot through the existing dedupe/order guard. It does not create payments. Complete invoice/payment-method/price changes, cancellation requests, provider-wide automatic reconciliation scheduling and tie-time reconciliation policy remain open.
 
-Domain ownership verification remains separate from live host routing, TLS provisioning and domain transfer/reclaim. No production infrastructure or domain was configured.
+See CUSTOM_DOMAIN_ACTIVATION.md for gated host routing, ownership rechecks and the operator Caddy integration. No production ingress, certificate or domain was configured; transfer/reclaim and real ACME acceptance remain open.
 
 ## Operator scopes
 
