@@ -1,17 +1,27 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useBrand } from './BrandContext';
 import { useLocale } from './locale';
 import { NavIcon } from './NavIcon';
 import { api, setSession } from '../../lib/api';
-export function AuthExperience({ register = false }: { register?: boolean }) {
+export function AuthExperience({
+  register = false,
+  invitation = false,
+}: {
+  register?: boolean;
+  invitation?: boolean;
+}) {
   const brand = useBrand(),
     { t, toggle } = useLocale(),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [visible, setVisible] = useState(false);
-  const joining = register && !!brand;
+  const joining = register && (!!brand || invitation);
+  const [token, setToken] = useState('');
+  useEffect(() => {
+    setToken(new URLSearchParams(window.location.search).get('token') ?? '');
+  }, []);
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
@@ -128,7 +138,14 @@ export function AuthExperience({ register = false }: { register?: boolean }) {
             {joining ? (
               <label>
                 {t('رمز الدعوة', 'Invitation token')}
-                <input name="invitation" required minLength={10} autoComplete="off" />
+                <input
+                  name="invitation"
+                  required
+                  minLength={10}
+                  autoComplete="off"
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                />
               </label>
             ) : (
               <label>

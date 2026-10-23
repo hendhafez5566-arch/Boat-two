@@ -1,6 +1,7 @@
 'use client';
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
+import { InvitationMailPanel } from '../../../components/product/InvitationMailPanel';
 import { useLocale } from '../../../components/product/locale';
 type Member = {
   user_id: string;
@@ -11,12 +12,13 @@ type Member = {
 };
 type Invite = { id: string; email: string; role: string; expires_at: string };
 export default function Team() {
-  const { t } = useLocale();
+  const { t, language } = useLocale();
   const [members, setMembers] = useState<Member[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [role, setRole] = useState('');
   const [error, setError] = useState('');
   const [url, setUrl] = useState('');
+  const [mailQueued, setMailQueued] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   async function load() {
@@ -57,11 +59,20 @@ export default function Team() {
     setError('');
     setUrl('');
     try {
-      const r = await api<{ inviteUrl: string }>('/team/invitations', {
-        method: 'POST',
-        body: JSON.stringify({ email: f.get('email'), role: f.get('role') }),
-      });
+      const r = await api<{ inviteUrl: string; mailJob: { id: string } | null }>(
+        '/team/invitations',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            email: f.get('email'),
+            role: f.get('role'),
+            sendEmail: f.get('sendEmail') === 'on',
+            language,
+          }),
+        },
+      );
       setUrl(r.inviteUrl);
+      setMailQueued(!!r.mailJob);
       form.reset();
       await load();
     } catch (e) {
@@ -165,6 +176,10 @@ export default function Team() {
                 </select>
               </label>
             </div>
+            <label>
+              <input type="checkbox" name="sendEmail" />{' '}
+              {t('إضافة رسالة دعوة إلى طابور البريد الآمن', 'Queue a branded invitation email')}
+            </label>
             <div className="form-actions">
               <button disabled={busy} className="btn btn-primary">
                 {t('إنشاء رابط دعوة', 'Create invitation link')}
@@ -175,8 +190,12 @@ export default function Team() {
             <div className="notice">
               <p>
                 {t(
-                  'شارك الرابط بشكل آمن. لا تُرسل رسائل بريد تلقائيًا.',
-                  'Share this link securely. Email is not sent automatically.',
+                  mailQueued
+                    ? 'أضيف البريد للطابور. لا يعني ذلك تسليمه؛ راجع حالته أدناه.'
+                    : 'شارك الرابط بشكل آمن. لم يُطلب إرسال بريد.',
+                  mailQueued
+                    ? 'Email queued. This does not confirm delivery; check its status below.'
+                    : 'Share this link securely. No email was requested.',
                 )}
               </p>
               <input
@@ -191,6 +210,7 @@ export default function Team() {
           )}
         </section>
       )}
+      {role && role !== 'agent' && <InvitationMailPanel refreshKey={url} />}
       <section className="card">
         <h2>{t('الدعوات المعلّقة', 'Pending invitations')}</h2>
         {!invites.length ? (

@@ -1,5 +1,12 @@
 # Remaining implementation — continue on PR #1
 
+## Full product sprint checkpoint — branded invitation mail
+
+Migration 061 adds encrypted invitation mail jobs using the existing outbox and external effect ledger. Owner/admin invitation forms opt into email; preview and status screens distinguish provider acceptance from delivery. Brand entitlement/domain eligibility is rechecked at processing, and revoked/expired invitations cancel safely. An operator-configured HTTPS gateway requires both external delivery and EMAIL_DELIVERY_ENABLED (default false), with provider idempotency keys. Ambiguous outcomes are quarantined without automatic retry. The invitation acceptance screen now shares the bilingual premium authentication experience and host binding.
+
+API build, web TypeScript, ESLint and PostgreSQL smoke-invitation-mail pass: encryption, disabled gates, mocked acceptance, duplicate suppression, ambiguous timeout, revoked invitations, escaping and tenant isolation. No external email was sent. Gateway delivery receipts, bounce handling and reconciliation of ambiguous email remain incomplete. Next: current-source full regression and browser checks, plus remaining business workspace improvements.
+
+
 ## Full product sprint checkpoint — scheduled subscription requests
 
 Migration 060 adds execution timestamps to the existing durable owner requests. Owners can choose a future local date/time (validated and stored as UTC, one minute to 366 days ahead), see the saved execution time and withdraw before execution. The outbox schedules the existing worker; ownership, provider link, price availability and gates are rechecked at execution. Early handler calls cannot mutate a future request. This is application scheduling, not an independently running Stripe subscription schedule; worker availability still matters around renewal deadlines.

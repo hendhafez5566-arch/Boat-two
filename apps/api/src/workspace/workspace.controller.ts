@@ -1,3 +1,4 @@
+import { InvitationMail } from '../mail/invitation-mail';
 import {
   BadRequestException,
   Body,
@@ -18,11 +19,15 @@ import { z } from 'zod';
 import { Roles } from '../auth/decorators';
 import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
-import { env } from '../config/env';
 import { DatabaseService } from '../database/database.service';
 import { PlansService } from '../plans/plans.service';
 
-const inviteSchema = z.object({ email: z.string().email(), role: z.enum(['admin', 'agent']) });
+const inviteSchema = z.object({
+  email: z.string().email(),
+  role: z.enum(['admin', 'agent']),
+  sendEmail: z.boolean().default(false),
+  language: z.enum(['ar', 'en']).default('ar'),
+});
 const roleSchema = z.object({ role: z.enum(['admin', 'agent']) });
 
 @Controller()
@@ -30,6 +35,7 @@ export class WorkspaceController {
   constructor(
     private readonly db: DatabaseService,
     private readonly plans: PlansService,
+    private readonly mail: InvitationMail,
   ) {}
 
   @Get('workspace')
@@ -174,9 +180,9 @@ export class WorkspaceController {
       await this.plans.assertWithinLimit(c, 'agents', members + pending);
 
       const token = randomBytes(32).toString('hex');
-      await c.query(
+      const inserted = await c.query(
         `INSERT INTO invitations (tenant_id, email, role, token_hash, invited_by, expires_at)
-         VALUES ($1, $2, $3, $4, $5, now() + interval '7 days')`,
+         VALUES ($1, $2, $3, $4, $5, now() + interval '7 days') RETURNING id`,
         [
           req.user.tenantId,
           input.email.toLowerCase(),
@@ -185,8 +191,17 @@ export class WorkspaceController {
           req.user.userId,
         ],
       );
-      // إرسال الإيميل يُضاف في مرحلة لاحقة؛ حالياً نرجع الرابط ليرسله المستخدم يدوياً
-      return { inviteUrl: `${env.APP_URL}/accept-invitation?token=${token}` };
+      const brand = await this.mail.appearance(req.user.tenantId);
+      const mailJob = input.sendEmail
+        ? await this.mail.enqueue(
+            req.user.tenantId,
+            inserted.rows[0].id,
+            input.email,
+            token,
+            input.language,
+          )
+        : null;
+      return { inviteUrl: `${brand.origin}/accept-invitation?token=${token}`, mailJob };
     });
   }
 

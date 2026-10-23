@@ -1,6 +1,16 @@
 import { z } from 'zod';
 
 const schema = z.object({
+  EMAIL_DELIVERY_ENABLED: z.enum(['true', 'false']).default('false'),
+  EMAIL_GATEWAY_URL: z
+    .string()
+    .url()
+    .refine((value) => {
+      const u = new URL(value);
+      return u.protocol === 'https:' && !u.username && !u.password && !u.search && !u.hash;
+    })
+    .optional(),
+  EMAIL_GATEWAY_TOKEN: z.string().min(16).optional(),
   AI_PROVIDER_CALLS_ENABLED: z.enum(['true', 'false']).default('false'),
   EXTERNAL_DELIVERY_ENABLED: z.enum(['true', 'false']).default('false'),
   BILLING_PAST_DUE_GRACE_DAYS: z.coerce.number().int().min(0).max(90).default(7),
