@@ -1,5 +1,11 @@
 # ELHAFEZ BOAT — Product completion matrix
 
+## Continuation — durable subscription requests (2026-10-23)
+
+Migration 047 adds owner-only audited cancel-at-period-end, renewal resume and single-item price-change requests, connected to bilingual billing UI/API and the existing outbox. Separate `BILLING_SUBSCRIPTION_CHANGES_ENABLED=false` plus the external gate block provider activity. Pending requests can be withdrawn; workers recheck owner/company/link/price state. Stable request effect keys and Stripe idempotency keys prevent replay; uncertain outcomes quarantine the request and block further changes. No immediate proration is requested; plan changes affect subsequent invoices. Multi-item/scheduled changes and operator uncertainty resolution remain open.
+
+Validation: API build, web TypeScript, incremental migration 047, PostgreSQL subscription-request smoke (blocked/withdraw, concurrent cancel/resume, idempotency key, revoked owner, ambiguous suppression and tenant isolation) pass using mocked SDK only. Next: authoritative price mapping/catalog lifecycle and past-due entitlement policy, then finer platform scopes/step-up/recovery and domain transfer. Full product completion remains open.
+
 ## Continuation — periodic billing reconciliation and invoice backfill (2026-10-23)
 
 Continued from verified `fc78c7c6baed4619619ae1a4e4631248f0b1658e`, same branch and Draft PR #1. Migration 046 adds a bounded, replica-safe due scheduler feeding the existing outbox. A separate disabled-by-default `BILLING_AUTOMATIC_RECONCILIATION_ENABLED` gate also requires Stripe configuration and external activation. Owner/periodic jobs now persist paged invoice backfill progress, validate customer/subscription ownership, and reuse the durable effect ledger. Uncertain effects cannot replay automatically. Provider reads use their start timestamp to avoid overwriting newer concurrent events. UI displays source and invoice progress.

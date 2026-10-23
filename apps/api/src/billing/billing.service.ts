@@ -197,6 +197,80 @@ export class BillingService {
     } as unknown as Stripe.Event);
   }
 
+  async executeSubscriptionRequest(
+    tenant: string,
+    request: {
+      id: string;
+      kind: string;
+      subscription_id: string;
+      customer_id: string;
+      expected_price_id: string | null;
+      price_id: string | null;
+      plan_code: string | null;
+    },
+  ) {
+    const stripe = this.requireStripe();
+    const current = await this.effects.execute(tenant, { read: request.subscription_id }, () =>
+      stripe.subscriptions.retrieve(request.subscription_id),
+    );
+    const customer = typeof current.customer === 'string' ? current.customer : current.customer.id;
+    if (customer !== request.customer_id || current.id !== request.subscription_id)
+      throw new BadRequestException('Provider ownership mismatch');
+    if (!['active', 'trialing', 'past_due'].includes(current.status))
+      throw new BadRequestException('Provider subscription is not changeable');
+    const item = current.items.data[0];
+    if (
+      request.kind === 'change_plan' &&
+      (current.items.data.length !== 1 ||
+        item?.price.id !== request.expected_price_id ||
+        current.status === 'past_due' ||
+        current.cancel_at_period_end)
+    )
+      throw new BadRequestException(
+        'Provider price or subscription state changed; review required',
+      );
+    const parameters: Stripe.SubscriptionUpdateParams =
+      request.kind === 'change_plan'
+        ? {
+            items: [{ id: item.id, price: request.price_id! }],
+            metadata: { ...current.metadata, planCode: request.plan_code!, tenantId: tenant },
+            proration_behavior: 'none',
+            payment_behavior: 'error_if_incomplete',
+          }
+        : { cancel_at_period_end: request.kind === 'cancel' };
+    const startedAt = Math.floor(Date.now() / 1000);
+    const result = await this.effects.execute(
+      tenant,
+      { subscription: request.subscription_id, parameters, idempotencyKey: request.id },
+      async () => ({
+        subscription: await stripe.subscriptions.update(request.subscription_id, parameters, {
+          idempotencyKey: `boat-subscription-${request.id}`,
+        }),
+        readAt: startedAt,
+      }),
+    );
+    const returnedCustomer =
+      typeof result.subscription.customer === 'string'
+        ? result.subscription.customer
+        : result.subscription.customer.id;
+    if (
+      result.subscription.id !== request.subscription_id ||
+      returnedCustomer !== request.customer_id
+    )
+      throw new BadRequestException('Mutation response ownership mismatch');
+    return this.applyVerifiedEvent({
+      id: `request_${request.id}`,
+      type: 'customer.subscription.updated',
+      created: result.readAt,
+      data: {
+        object: {
+          ...result.subscription,
+          metadata: { ...result.subscription.metadata, tenantId: tenant },
+        },
+      },
+    } as unknown as Stripe.Event);
+  }
+
   async backfillInvoices(tenant: string, key: string, cursor?: string) {
     const current = await this.db.withTenant(
       tenant,

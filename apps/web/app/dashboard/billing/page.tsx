@@ -1,4 +1,5 @@
 'use client';
+import { SubscriptionRequests } from '../../../components/business/SubscriptionRequests';
 import { BillingReconciliation } from '../../../components/business/BillingReconciliation';
 import { BillingInvoices } from '../../../components/business/BillingInvoices';
 import { BillingEvents } from '../../../components/business/BillingEvents';
@@ -180,6 +181,9 @@ export default function Billing() {
         ))}
       </div>
       {['owner', 'admin'].includes(ws?.role ?? '') && <BillingInvoices />}
+      {ws?.role === 'owner' && (
+        <SubscriptionRequests plans={plans} linked={!!status.subscription?.linked} />
+      )}
       <BillingReconciliation />
       <BillingEvents />
     </main>
