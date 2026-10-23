@@ -1,4 +1,5 @@
 'use client';
+import { statusLabel } from '../../../components/product/status';
 import { DomainTransfers } from '../../../components/business/DomainTransfers';
 import { useState } from 'react';
 import { api } from '../../../lib/api';
@@ -152,7 +153,7 @@ export default function Branding() {
         {domains.data.domains.map((domain) => (
           <article key={domain.id} className="rounded border p-4 space-y-2">
             <strong>
-              {domain.hostname} · {domain.status}
+              {domain.hostname} · {statusLabel(domain.status, t)}
             </strong>
             <p dir="ltr" className="break-all select-all">
               _boat-verification.{domain.hostname} TXT boat-verification={domain.verification_token}

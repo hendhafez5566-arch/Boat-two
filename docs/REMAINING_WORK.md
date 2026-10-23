@@ -1,3 +1,9 @@
+## Maximum-scope continuation — 2026-10-23 (latest)
+
+Eleven feature checkpoints were pushed and remote-verified, from `ca2488a` through `e899b79`; final UI acceptance checkpoint follows. Added immutable model catalog and durable generation budgets/replay safety, retained CRM history/retention/paged downloads, rich campaigns, integration auth policies, signed mail receipts/evidence review and licensed-seat preservation. Final UI adds translated statuses, direct-route role feedback, root-build Tailwind content resolution and real workspace/CRM/billing/branding browser journeys.
+
+Validation: 57 unit tests; 43 backend integration/worker suites; clean migrations 001–070 plus no-op repeat; API/web TypeScript, ESLint, Next production build; nine bounded Chromium suites passed. All external/AI/email/receipt/billing/domain gates remain false. No merge/deployment. **Product remains incomplete**: arbitrary multi-item/provider-native billing, full WA template component variants, provider-certified tokenization/catalog, very-large streaming CRM, remaining global UI/accessibility/portal/mail breadth and external production acceptance. Detailed evidence, bounds and next slice: [MAXIMUM_COMPLETION_2026-10-23.md](MAXIMUM_COMPLETION_2026-10-23.md). Earlier dated sections are historical, not the current scope claim.
+
 # Remaining implementation — continue on PR #1
 
 ## Maximum-scope continuation — subscription quantity safety (2026-10-23)

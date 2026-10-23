@@ -83,7 +83,7 @@ export default function Billing() {
       </p>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">PLAN & USAGE</p>
+          <p className="eyebrow">{t('الاشتراك والاستهلاك', 'PLAN & USAGE')}</p>
           <h1>{t('اشتراك ينمو مع شركتك', 'A plan that grows with you')}</h1>
           <p>{ws ? `${ws.plan.plan_name} · ${ws.plan.status}` : t('جارٍ التحميل…', 'Loading…')}</p>
         </div>

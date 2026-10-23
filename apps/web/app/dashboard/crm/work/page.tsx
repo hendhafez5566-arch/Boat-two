@@ -1,4 +1,5 @@
 'use client';
+import { statusLabel } from '../../../../components/product/status';
 import { useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../../../lib/api';
@@ -237,7 +238,7 @@ export default function WorkPage() {
                 <td>{row.title}</td>
                 <td>{row.contact_name}</td>
                 <td>
-                  {row.status} {row.stage || ''}
+                  {statusLabel(row.status, t)} {row.stage || ''}
                 </td>
                 <td>
                   {kind === 'deals'

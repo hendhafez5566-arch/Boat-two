@@ -1,4 +1,5 @@
 'use client';
+import { statusLabel } from '../../../components/product/status';
 import { DeliveryPolicies } from '../../../components/business/DeliveryPolicies';
 import {
   CampaignDraftEditor,
@@ -126,7 +127,7 @@ export default function Campaigns() {
                   <div className="muted">{c.channel_name}</div>
                 </td>
                 <td>
-                  <span className="badge">{c.status}</span>
+                  <span className="badge">{statusLabel(c.status, t)}</span>
                 </td>
                 <td>{c.recipients}</td>
                 <td>
@@ -204,7 +205,7 @@ export default function Campaigns() {
           <div className="flex flex-wrap gap-2 mb-4">
             {ledger.totals.map((x, i) => (
               <span key={i} className="badge">
-                {x.status} / {x.delivery_status || '—'}: {x.count}
+                {statusLabel(x.status, t)} / {x.delivery_status || '—'}: {x.count}
               </span>
             ))}
           </div>
@@ -221,7 +222,7 @@ export default function Campaigns() {
               {ledger.items.map((x) => (
                 <tr key={x.id}>
                   <td>{x.contact_name}</td>
-                  <td>{x.status}</td>
+                  <td>{statusLabel(x.status, t)}</td>
                   <td>{x.delivery_status || '—'}</td>
                   <td>
                     {x.error}

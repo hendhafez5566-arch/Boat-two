@@ -1,4 +1,5 @@
 'use client';
+import { statusLabel } from '../product/status';
 import { useState } from 'react';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
@@ -191,7 +192,7 @@ export function GenerationBudgetPanel() {
                   {r.model}
                   <small className="block">{new Date(r.created_at).toLocaleString()}</small>
                 </td>
-                <td>{r.status}</td>
+                <td>{statusLabel(r.status, t)}</td>
                 <td>
                   {r.reserved_tokens} /{' '}
                   {r.actual_input_tokens == null

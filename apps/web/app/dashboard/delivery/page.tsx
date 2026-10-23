@@ -1,4 +1,5 @@
 'use client';
+import { statusLabel } from '../../../components/product/status';
 import { useState } from 'react';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
@@ -35,7 +36,7 @@ export default function Delivery() {
     <main className="stack">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">RELIABLE OPERATIONS</p>
+          <p className="eyebrow">{t('التشغيل والتسليم', 'RELIABLE OPERATIONS')}</p>
           <h1>{t('مركز التسليم والأحداث', 'Delivery & event center')}</h1>
           <p>
             {t(
@@ -73,7 +74,7 @@ export default function Delivery() {
                   <td>{new Date(j.created_at).toLocaleString()}</td>
                   <td>{j.type || 'message'}</td>
                   <td>
-                    <span className="badge">{j.status}</span>
+                    <span className="badge">{statusLabel(j.status, t)}</span>
                   </td>
                   <td>{j.attempts}</td>
                   <td>{j.error || '—'}</td>

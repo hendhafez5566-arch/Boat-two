@@ -33,6 +33,12 @@ const { chromium } = local(process.env.BOAT_PLAYWRIGHT_MODULE || 'playwright-cor
       { name: 'Mariam customer', email: 'mariam@example.test' },
       a.accessToken,
     );
+    await db.withTenant(a.tenantId, (c) =>
+      c.query(
+        'INSERT INTO contact_channels(tenant_id,contact_id,channel_id,external_id) VALUES($1,$2,$3,$4)',
+        [a.tenantId, contact.id, channel.id, 'browser-fixture-' + randomUUID()],
+      ),
+    );
     const conv = await db.withTenant(
       a.tenantId,
       async (c) =>
@@ -77,6 +83,28 @@ const { chromium } = local(process.env.BOAT_PLAYWRIGHT_MODULE || 'playwright-cor
       )
     )
       throw new Error('Private note was not persisted');
+    await page.getByRole('button', { name: 'Internal note', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Reply composer' }).fill('Public local browser reply');
+    const sent = page.waitForResponse(
+      (r) =>
+        r.url().endsWith('/conversations/' + conv.id + '/messages') &&
+        r.request().method() === 'POST',
+    );
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    if ((await sent).status() !== 201) throw new Error('Public reply API rejected the fixture');
+    await page.getByText('Public local browser reply', { exact: true }).waitFor();
+    const publicMessages = await call(
+      '/conversations/' + conv.id + '/messages',
+      null,
+      a.accessToken,
+    );
+    if (
+      !publicMessages.items.some(
+        (m) =>
+          !m.is_internal && m.content.text === 'Public local browser reply' && m.status === 'sent',
+      )
+    )
+      throw new Error('Public local reply was not persisted and sent');
     await page.screenshot({
       path: (process.env.SMOKE_SCREENSHOT_DIR || '/tmp') + '/boat-inbox-conversation-mobile.png',
       fullPage: true,

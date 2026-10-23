@@ -46,7 +46,7 @@ export default function Reports() {
     <main className="stack">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">ANALYTICS & REPORTS</p>
+          <p className="eyebrow">{t('التحليلات والتقارير', 'ANALYTICS & REPORTS')}</p>
           <h1>{t('تقارير النشاط والمبيعات', 'Activity and sales reports')}</h1>
           <p>
             {t(

@@ -85,7 +85,7 @@ export default function Team() {
     <main className="stack">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">PEOPLE & ACCESS</p>
+          <p className="eyebrow">{t('الفريق والصلاحيات', 'PEOPLE & ACCESS')}</p>
           <h1>{t('الفريق والصلاحيات', 'Team & permissions')}</h1>
           <p>
             {t(

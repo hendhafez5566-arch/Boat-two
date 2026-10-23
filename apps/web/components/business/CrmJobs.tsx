@@ -1,4 +1,5 @@
 'use client';
+import { statusLabel } from '../product/status';
 import { CrmRetention } from './CrmRetention';
 import { useState } from 'react';
 import { api } from '../../lib/api';
@@ -49,8 +50,8 @@ export function CrmJobs() {
       </p>
       <p className="muted">
         {t(
-          'تُثبّت قيم التصدير عند الطلب ولا تتغير بتعديل العملاء لاحقًا. التنزيل يعرض وقت اللقطة؛ لا يعيد بناء تاريخ سابق للطلب.',
-          'Export values are frozen when requested and survive later profile edits. Downloads include the snapshot time; earlier history cannot be reconstructed.',
+          'تُثبّت قيم التصدير عند الطلب ولا تتغير بتعديل العملاء لاحقًا. يدعم الوقت التاريخي الاختياري السجل المحفوظ ضمن فترة التغطية أدناه.',
+          'Export values are frozen when requested and survive later profile edits. An optional historical time uses retained history within the coverage shown below.',
         )}
       </p>
       {(error || jobs.error) && (
@@ -139,7 +140,7 @@ export function CrmJobs() {
       {jobs.data.map((job) => (
         <article key={job.id} className="rounded-xl border p-3">
           <strong>
-            {job.kind} · {job.status}
+            {job.kind} · {statusLabel(job.status, t)}
           </strong>
           <p>
             {job.processed}/{job.total} · {t('ناجح', 'Succeeded')}: {job.succeeded}

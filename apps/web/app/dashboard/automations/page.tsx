@@ -1,4 +1,5 @@
 'use client';
+import { statusLabel } from '../../../components/product/status';
 import { SavedAutomationEditor } from '../../../components/business/SavedAutomationEditor';
 import { AutomationCanvas } from '../../../components/business/AutomationCanvas';
 import { useState } from 'react';
@@ -63,7 +64,7 @@ export default function Automations() {
     <main className="stack">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">BUSINESS AUTOMATION</p>
+          <p className="eyebrow">{t('أتمتة الأعمال', 'BUSINESS AUTOMATION')}</p>
           <h1>{t('خطوات أقل، متابعة أفضل', 'Fewer steps, better follow-up')}</h1>
           <p>
             {t(
@@ -345,7 +346,7 @@ export default function Automations() {
               <tr key={h.id}>
                 <td>{h.name}</td>
                 <td>
-                  {h.status} {h.error}
+                  {statusLabel(h.status, t)} {h.error}
                 </td>
                 <td>{new Date(h.created_at).toLocaleString()}</td>
               </tr>

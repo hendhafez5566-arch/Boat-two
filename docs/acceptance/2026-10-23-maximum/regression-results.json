@@ -1,0 +1,174 @@
+[
+  {
+    "suite": "smoke-ai-failures",
+    "code": 0
+  },
+  {
+    "suite": "smoke-ai-tool-audit",
+    "code": 0
+  },
+  {
+    "suite": "smoke-automation-merge",
+    "code": 0
+  },
+  {
+    "suite": "smoke-billing-backfill",
+    "code": 0
+  },
+  {
+    "suite": "smoke-billing-branding",
+    "code": 0
+  },
+  {
+    "suite": "smoke-billing-catalog",
+    "code": 0
+  },
+  {
+    "suite": "smoke-billing-review",
+    "code": 0
+  },
+  {
+    "suite": "smoke-branded-auth",
+    "code": 0
+  },
+  {
+    "suite": "smoke-business",
+    "code": 0
+  },
+  {
+    "suite": "smoke-core",
+    "code": 0
+  },
+  {
+    "suite": "smoke-crm-history",
+    "code": 0
+  },
+  {
+    "suite": "smoke-crm-paging",
+    "code": 0
+  },
+  {
+    "suite": "smoke-crm-retention",
+    "code": 0
+  },
+  {
+    "suite": "smoke-crm-snapshots",
+    "code": 0
+  },
+  {
+    "suite": "smoke-crm-work",
+    "code": 0
+  },
+  {
+    "suite": "smoke-delivery-accounts",
+    "code": 0
+  },
+  {
+    "suite": "smoke-departments",
+    "code": 0
+  },
+  {
+    "suite": "smoke-domain-hosting",
+    "code": 0
+  },
+  {
+    "suite": "smoke-domain-transfers",
+    "code": 0
+  },
+  {
+    "suite": "smoke-file-replacement",
+    "code": 0
+  },
+  {
+    "suite": "smoke-generation-budget",
+    "code": 0
+  },
+  {
+    "suite": "smoke-generation-replay",
+    "code": 0
+  },
+  {
+    "suite": "smoke-inbox-cursors",
+    "code": 0
+  },
+  {
+    "suite": "smoke-integration-auth",
+    "code": 0
+  },
+  {
+    "suite": "smoke-invitation-mail",
+    "code": 0
+  },
+  {
+    "suite": "smoke-invoices",
+    "code": 0
+  },
+  {
+    "suite": "smoke-knowledge-retention",
+    "code": 0
+  },
+  {
+    "suite": "smoke-knowledge-revisions",
+    "code": 0
+  },
+  {
+    "suite": "smoke-mail-receipts",
+    "code": 0
+  },
+  {
+    "suite": "smoke-major",
+    "code": 0
+  },
+  {
+    "suite": "smoke-model-catalog",
+    "code": 0
+  },
+  {
+    "suite": "smoke-nested-automations",
+    "code": 0
+  },
+  {
+    "suite": "smoke-pipeline-ownership",
+    "code": 0
+  },
+  {
+    "suite": "smoke-platform-audit",
+    "code": 0
+  },
+  {
+    "suite": "smoke-platform-directory",
+    "code": 0
+  },
+  {
+    "suite": "smoke-platform-mfa",
+    "code": 0
+  },
+  {
+    "suite": "smoke-platform-reports",
+    "code": 0
+  },
+  {
+    "suite": "smoke-provider-lifecycle",
+    "code": 0
+  },
+  {
+    "suite": "smoke-reliability",
+    "code": 0
+  },
+  {
+    "suite": "smoke-rich-campaigns",
+    "code": 0
+  },
+  {
+    "suite": "smoke-sprint",
+    "code": 0
+  },
+  {
+    "suite": "smoke-subscription-requests",
+    "code": 0
+  },
+  {
+    "suite": "smoke-worker",
+    "code": 0
+  }
+]

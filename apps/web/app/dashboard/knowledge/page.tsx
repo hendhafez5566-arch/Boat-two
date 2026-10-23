@@ -92,7 +92,7 @@ export default function Knowledge() {
     <main className="stack">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">KNOWLEDGE</p>
+          <p className="eyebrow">{t('المعرفة', 'KNOWLEDGE')}</p>
           <h1>{t('معرفة موثوقة لمساعدك', 'Trusted knowledge for your assistant')}</h1>
           <p>
             {t(

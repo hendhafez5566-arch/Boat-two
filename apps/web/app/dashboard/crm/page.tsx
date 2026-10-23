@@ -1,4 +1,5 @@
 'use client';
+import { statusLabel } from '../../../components/product/status';
 import { CrmJobs } from '../../../components/business/CrmJobs';
 import { ContactLifecycle } from '../../../components/business/ContactLifecycle';
 import { FormEvent, useState } from 'react';
@@ -222,7 +223,7 @@ export default function CRM() {
       </Link>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">CUSTOMER RELATIONSHIPS</p>
+          <p className="eyebrow">{t('علاقات العملاء', 'CUSTOMER RELATIONSHIPS')}</p>
           <h1>{t('كل عميل، بسياقه الكامل', 'Every customer, in context')}</h1>
           <p>
             {t(
@@ -290,7 +291,9 @@ export default function CRM() {
                 >
                   <option value="">{t('الكل', 'All')}</option>
                   {['lead', 'qualified', 'customer', 'inactive'].map((x) => (
-                    <option key={x}>{x}</option>
+                    <option key={x} value={x}>
+                      {statusLabel(x, t)}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -498,7 +501,7 @@ export default function CRM() {
                     </td>
                     <td>{c.email || c.phone || '—'}</td>
                     <td>
-                      <span className="badge">{c.lifecycle}</span>
+                      <span className="badge">{statusLabel(c.lifecycle, t)}</span>
                     </td>
                     <td>{c.tags.join(' · ') || '—'}</td>
                     <td>
@@ -585,7 +588,9 @@ export default function CRM() {
                   onChange={(e) => setForm({ ...form, lifecycle: e.target.value })}
                 >
                   {['lead', 'qualified', 'customer', 'inactive'].map((x) => (
-                    <option key={x}>{x}</option>
+                    <option key={x} value={x}>
+                      {statusLabel(x, t)}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -720,7 +725,7 @@ export default function CRM() {
                   {timeline.conversations.map((x) => (
                     <p key={x.id} className="muted">
                       <Link href={`/dashboard/inbox?conversation=${x.id}`}>
-                        {x.channel_name} · {x.status} ↗
+                        {x.channel_name} · {statusLabel(x.status, t)} ↗
                       </Link>
                     </p>
                   ))}
@@ -764,7 +769,7 @@ export default function CRM() {
               </h3>
               {timeline.consent.map((s) => (
                 <p key={s.channel_id} className="muted">
-                  {s.channel_name} · {s.status} · {s.evidence}
+                  {s.channel_name} · {statusLabel(s.status, t)} · {s.evidence}
                 </p>
               ))}
               <form
@@ -813,7 +818,7 @@ export default function CRM() {
                       <tr key={x.id}>
                         <td>{new Date(x.created_at).toLocaleString()}</td>
                         <td>{x.type}</td>
-                        <td>{x.status}</td>
+                        <td>{statusLabel(x.status, t)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -876,7 +881,9 @@ export default function CRM() {
                           }
                         >
                           {['open', 'won', 'lost'].map((s) => (
-                            <option key={s}>{s}</option>
+                            <option key={s} value={s}>
+                              {statusLabel(s, t)}
+                            </option>
                           ))}
                         </select>
                       </td>

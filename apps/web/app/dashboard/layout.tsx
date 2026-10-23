@@ -29,6 +29,19 @@ const links = [
   ['audit', '↗', 'سجل النشاط', 'Activity log'],
   ['ai', '✦', 'المساعد الذكي', 'AI assistant'],
 ];
+const restrictedForAgents = [
+  'reports',
+  'branding',
+  'team',
+  'settings',
+  'audit',
+  'onboarding',
+  'campaigns',
+  'automations',
+  'agents',
+  'departments',
+  'delivery',
+];
 function Shell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const hostBrand = useBrand();
@@ -85,6 +98,10 @@ function Shell({ children }: { children: ReactNode }) {
       window.location.replace('/login');
     }
   }
+  const forbidden =
+    role === 'agent' &&
+    (restrictedForAgents.includes(path.split('/')[2] ?? '') ||
+      path.startsWith('/dashboard/inbox/settings'));
   const focused = path.startsWith('/dashboard/inbox') || /^\/dashboard\/flows\/[^/]+$/.test(path);
   return (
     <div
@@ -129,23 +146,7 @@ function Shell({ children }: { children: ReactNode }) {
         </div>
         <nav aria-label={t('التنقل الرئيسي', 'Main navigation')}>
           {links
-            .filter(
-              ([key]) =>
-                role !== 'agent' ||
-                ![
-                  'reports',
-                  'branding',
-                  'team',
-                  'settings',
-                  'audit',
-                  'onboarding',
-                  'campaigns',
-                  'automations',
-                  'agents',
-                  'departments',
-                  'delivery',
-                ].includes(key),
-            )
+            .filter(([key]) => role !== 'agent' || !restrictedForAgents.includes(key))
             .map(([key, , ar, en]) => (
               <Link
                 onClick={() => setOpen(false)}
@@ -205,7 +206,26 @@ function Shell({ children }: { children: ReactNode }) {
             {t('جارٍ تحميل مساحة العمل…', 'Loading workspace…')}
           </p>
         ) : (
-          <div className={focused ? 'focused-workspace' : 'page-workspace'}>{children}</div>
+          <div className={focused ? 'focused-workspace' : 'page-workspace'}>
+            {forbidden ? (
+              <section className="card stack" role="alert">
+                <h1>
+                  {t('هذه الصفحة تحتاج صلاحيات إدارية', 'This page requires management access')}
+                </h1>
+                <p>
+                  {t(
+                    'استخدم صندوق الوارد أو تواصل مع مالك مساحة العمل.',
+                    'Use Inbox or contact the workspace owner.',
+                  )}
+                </p>
+                <Link className="btn" href="/dashboard/inbox">
+                  {t('فتح صندوق الوارد', 'Open Inbox')}
+                </Link>
+              </section>
+            ) : (
+              children
+            )}
+          </div>
         )}
       </div>
     </div>

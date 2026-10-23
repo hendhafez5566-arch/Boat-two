@@ -51,7 +51,7 @@ export default function Settings() {
     <main>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">WORKSPACE</p>
+          <p className="eyebrow">{t('مساحة العمل', 'WORKSPACE')}</p>
           <h1>{t('إعدادات الشركة', 'Workspace settings')}</h1>
           <p>
             {t(

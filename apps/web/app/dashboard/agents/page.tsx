@@ -1,4 +1,5 @@
 'use client';
+import { statusLabel } from '../../../components/product/status';
 import { GenerationBudgetPanel } from '../../../components/business/GenerationBudgetPanel';
 import { ModelCatalog } from '../../../components/business/ModelCatalog';
 import { ProviderEditor } from '../../../components/business/ProviderEditor';
@@ -81,7 +82,7 @@ export default function Agents() {
     <main className="stack">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">AI AGENTS</p>
+          <p className="eyebrow">{t('مساعدو الذكاء الاصطناعي', 'AI AGENTS')}</p>
           <h1>{t('مساعد يعرف شركتك', 'An assistant that knows your business')}</h1>
           <p>
             {t(
@@ -214,7 +215,7 @@ export default function Agents() {
                   })
                 }
               />
-              {s.title} · {s.status}
+              {s.title} · {statusLabel(s.status, t)}
             </label>
           ))}
           <p className="muted">
@@ -391,7 +392,7 @@ export default function Agents() {
                     : '$' + Number(r.output_rate_microusd) / 1000000}
                 </td>
                 <td>
-                  {r.status}
+                  {statusLabel(r.status, t)}
                   {r.error && (
                     <small className="block">
                       {r.error === 'provider_error'
