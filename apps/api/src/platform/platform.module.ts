@@ -1,6 +1,6 @@
 import { CryptoService } from '../messaging/crypto.service';
 import { matchingTotpStep, newTotpSecret } from './totp';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, randomUUID, randomBytes } from 'node:crypto';
 import { stepUpDigest } from './step-up';
 import {
   BadRequestException,
@@ -232,7 +232,10 @@ export class PlatformAccess implements CanActivate, OnModuleDestroy {
         context.getClass(),
       ]);
       if (required && !req.platformPermissions.includes(required)) throw new Error();
-      if (required && (required.endsWith('.write') || required === 'sessions.revoke')) {
+      if (
+        required &&
+        (required.endsWith('.write') || required === 'sessions.revoke' || required === 'mfa.manage')
+      ) {
         const grant = await this.jwt.verifyAsync<{
           sub: string;
           sv: number;
@@ -261,6 +264,72 @@ export class PlatformAccess implements CanActivate, OnModuleDestroy {
     } catch {
       throw new ForbiddenException('Platform session invalid or expired');
     }
+  }
+  async backupCodes(actor: string) {
+    const codes = Array.from({ length: 8 }, () => randomBytes(24).toString('base64url'));
+    await this.query('SELECT platform_replace_recovery_codes($1,$2)', [
+      actor,
+      JSON.stringify(codes.map((code) => createHash('sha256').update(code).digest('hex'))),
+    ]);
+    return { codes, displayOnce: true };
+  }
+  async recover(input: { email: string; password: string; recoveryCode: string }) {
+    this.ready();
+    if (
+      !(
+        await this.query('SELECT platform_login_gate($1) AS allowed', [
+          'recover:' + createHash('sha256').update(input.email.trim().toLowerCase()).digest('hex'),
+        ])
+      )[0].allowed
+    )
+      throw new ForbiddenException('Recovery temporarily limited');
+    const user = (
+      await this.db.query(
+        'SELECT id,password_hash,disabled_at FROM users WHERE lower(email)=lower($1)',
+        [input.email],
+      )
+    ).rows[0];
+    if (
+      !user ||
+      user.disabled_at ||
+      !this.allowed(user.id) ||
+      !(await verifyPassword(input.password, user.password_hash))
+    )
+      throw new ForbiddenException('Invalid recovery credentials');
+    const secret = newTotpSecret(),
+      encrypted = this.crypto.encrypt({ secret });
+    const version = (
+      await this.query('SELECT platform_recover_mfa($1,$2,$3) AS version', [
+        user.id,
+        createHash('sha256').update(input.recoveryCode).digest('hex'),
+        encrypted,
+      ])
+    )[0].version;
+    if (version === null) throw new ForbiddenException('Invalid recovery credentials');
+    return {
+      requiresEnrollment: true,
+      secret,
+      provisioningUri:
+        'otpauth://totp/' +
+        encodeURIComponent('ELHAFEZ BOAT:' + input.email) +
+        '?' +
+        new URLSearchParams({
+          secret,
+          issuer: 'ELHAFEZ BOAT',
+          algorithm: 'SHA1',
+          digits: '6',
+          period: '30',
+        }),
+      setupToken: await this.jwt.signAsync(
+        {
+          sub: user.id,
+          purpose: 'platform-mfa-enroll',
+          sv: version,
+          ref: createHash('sha256').update(encrypted).digest('hex'),
+        },
+        { secret: env.PLATFORM_JWT_SECRET, expiresIn: 300 },
+      ),
+    };
   }
   async stepUp(
     r: PlatformRequest,
@@ -315,6 +384,18 @@ class PlatformLoginController {
     return this.access.enroll(
       parse(
         z.object({ setupToken: z.string().max(3000), otp: z.string().regex(/^[0-9]{6}$/) }),
+        body,
+      ),
+    );
+  }
+  @Header('Cache-Control', 'no-store') @Post('mfa/recover') recover(@Body() body: unknown) {
+    return this.access.recover(
+      parse(
+        z.object({
+          email: z.string().email(),
+          password: z.string().min(1).max(128),
+          recoveryCode: z.string().regex(/^[A-Za-z0-9_-]{32}$/),
+        }),
         body,
       ),
     );
@@ -409,6 +490,9 @@ class PlatformController {
       plans: r.platformPermissions.includes('plans.read') ? snapshot.plans : [],
       audit: r.platformPermissions.includes('audit.read') ? snapshot.audit : [],
     };
+  }
+  @Permission('mfa.manage') @Post('mfa/backup-codes') codes(@Req() r: PlatformRequest) {
+    return this.access.backupCodes(r.platformActor);
   }
   @Post('step-up') stepUp(@Req() r: PlatformRequest, @Body() body: unknown) {
     return this.access.stepUp(

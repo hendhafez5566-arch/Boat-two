@@ -1,4 +1,5 @@
 export const platformPermissions = [
+  'mfa.manage',
   'companies.read',
   'users.read',
   'subscriptions.read',
@@ -14,6 +15,7 @@ export const platformPermissions = [
 export type PlatformPermission = (typeof platformPermissions)[number];
 export const operatorRoles = {
   reader: [
+    'mfa.manage',
     'companies.read',
     'users.read',
     'subscriptions.read',
@@ -21,16 +23,17 @@ export const operatorRoles = {
     'audit.read',
     'reports.read',
   ],
-  support: ['companies.read', 'users.read', 'companies.write', 'users.write'],
-  security: ['users.read', 'audit.read', 'sessions.revoke'],
+  support: ['mfa.manage', 'companies.read', 'users.read', 'companies.write', 'users.write'],
+  security: ['mfa.manage', 'users.read', 'audit.read', 'sessions.revoke'],
   billing: [
+    'mfa.manage',
     'companies.read',
     'subscriptions.read',
     'plans.read',
     'reports.read',
     'subscriptions.write',
   ],
-  catalog: ['plans.read', 'plans.write'],
+  catalog: ['mfa.manage', 'plans.read', 'plans.write'],
   administrator: [...platformPermissions],
 } satisfies Record<string, PlatformPermission[]>;
 export function operatorPermissions(configuration: string, userId: string): PlatformPermission[] {

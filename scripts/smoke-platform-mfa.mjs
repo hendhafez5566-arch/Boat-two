@@ -91,7 +91,7 @@ try {
   });
   assert.equal(confirmed.status, 201);
   assert.ok(confirmed.data.accessToken);
-  const token = confirmed.data.accessToken;
+  let token = confirmed.data.accessToken;
   assert.equal(
     (await request('/mfa/enroll', { setupToken: enrollment.data.setupToken, otp: code })).status,
     403,
@@ -200,6 +200,86 @@ try {
   await assert.rejects(
     () => app.query('SELECT platform_consume_step_up($1,$2)', [uid, randomUUID()]),
     /permission denied/,
+  );
+  await admin.query('UPDATE platform_mfa SET last_step=$2 WHERE user_id=$1', [
+    uid,
+    Math.floor(Date.now() / 30000) - 1,
+  ]);
+  const backupGrant = await request(
+    '/step-up',
+    {
+      otp: totp(enrollment.data.secret, Math.floor(Date.now() / 30000)),
+      method: 'POST',
+      path: '/platform/mfa/backup-codes',
+      body: {},
+    },
+    token,
+  );
+  assert.equal(backupGrant.status, 201);
+  const backups = await request(
+    '/mfa/backup-codes',
+    {},
+    token,
+    'POST',
+    backupGrant.data.stepUpToken,
+  );
+  assert.equal(backups.status, 201);
+  assert.equal(backups.data.codes.length, 8);
+  const hashes = (
+    await admin.query('SELECT code_hash FROM platform_recovery_codes WHERE user_id=$1', [uid])
+  ).rows;
+  assert.equal(hashes.length, 8);
+  assert.ok(hashes.every((h) => !backups.data.codes.includes(h.code_hash)));
+  await assert.rejects(
+    () => app.query('SELECT * FROM platform_recovery_codes'),
+    /permission denied/,
+  );
+  assert.equal(
+    (
+      await request('/mfa/recover', {
+        email,
+        password: 'wrong password',
+        recoveryCode: backups.data.codes[0],
+      })
+    ).status,
+    403,
+  );
+  const recoveries = await Promise.all([
+    request('/mfa/recover', { email, password, recoveryCode: backups.data.codes[0] }),
+    request('/mfa/recover', { email, password, recoveryCode: backups.data.codes[0] }),
+  ]);
+  assert.equal(
+    recoveries.filter((r) => r.status === 201).length,
+    1,
+    'Backup code is consumed atomically',
+  );
+  assert.equal(
+    (await request('/session', undefined, token)).status,
+    403,
+    'Recovery revokes old platform sessions',
+  );
+  assert.equal(
+    (await admin.query('SELECT * FROM platform_recovery_codes WHERE user_id=$1', [uid])).rowCount,
+    0,
+  );
+  const recovered = recoveries.find((r) => r.status === 201).data;
+  assert.equal(
+    (await request('/session', undefined, recovered.setupToken)).status,
+    403,
+    'Recovery grants enrollment only',
+  );
+  const reenabled = await request('/mfa/enroll', {
+    setupToken: recovered.setupToken,
+    otp: totp(recovered.secret, Math.floor(Date.now() / 30000)),
+  });
+  assert.equal(reenabled.status, 201);
+  token = reenabled.data.accessToken;
+  assert.equal((await request('/session', undefined, token)).status, 200);
+  assert.equal(
+    (await request('/mfa/recover', { email, password, recoveryCode: backups.data.codes[1] }))
+      .status,
+    403,
+    'Recovery invalidates all remaining codes',
   );
   await admin.query('UPDATE users SET session_version=session_version+1 WHERE id=$1', [uid]);
   assert.equal((await request('/session', undefined, token)).status, 403);

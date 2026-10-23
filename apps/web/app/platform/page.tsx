@@ -49,6 +49,7 @@ function Console() {
     [requiresMfa, setRequiresMfa] = useState(false);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [stepUpCode, setStepUpCode] = useState('');
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [companyQuery, setCompanyQuery] = useState(''),
     [userQuery, setUserQuery] = useState(''),
     [companyPage, setCompanyPage] = useState(1),
@@ -181,6 +182,55 @@ function Console() {
         </p>
       )}
       {message && <p className="notice">{message}</p>}
+      {!token && !enrollment && (
+        <details className="card">
+          <summary>{t('فقدت تطبيق المصادقة؟', 'Lost your authenticator?')}</summary>
+          <form
+            className="stack"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const f = new FormData(e.currentTarget);
+              void act(async () => {
+                const result = await request('/mfa/recover', {
+                  email: f.get('email'),
+                  password: f.get('password'),
+                  recoveryCode: f.get('recoveryCode'),
+                });
+                setEnrollment(result);
+                setRequiresMfa(false);
+              });
+            }}
+          >
+            <p className="notice">
+              {t(
+                'يلزم رمز احتياطي محفوظ وكلمة المرور. ستُلغى جميع الجلسات والرموز الاحتياطية قبل تسجيل مصادقة جديدة.',
+                'Requires a saved backup code and your password. All sessions and backup codes are revoked before enrolling a new authenticator.',
+              )}
+            </p>
+            <label>
+              {t('البريد الإلكتروني', 'Email')}
+              <input name="email" type="email" autoComplete="username" required />
+            </label>
+            <label>
+              {t('كلمة المرور', 'Password')}
+              <input name="password" type="password" autoComplete="current-password" required />
+            </label>
+            <label>
+              {t('الرمز الاحتياطي', 'Backup code')}
+              <input
+                name="recoveryCode"
+                autoComplete="off"
+                required
+                minLength={32}
+                maxLength={32}
+              />
+            </label>
+            <button className="btn" disabled={busy}>
+              {t('بدء الاسترداد الآمن', 'Start secure recovery')}
+            </button>
+          </form>
+        </details>
+      )}
       {!token && enrollment ? (
         <form
           className="card stack"
@@ -291,6 +341,8 @@ function Console() {
               className="btn"
               onClick={() => {
                 setToken('');
+                setBackupCodes([]);
+                setStepUpCode('');
                 setData(null);
               }}
             >
@@ -301,6 +353,42 @@ function Console() {
             {t('الصلاحيات الفعالة: ', 'Effective permissions: ')}
             {permissions.join(', ') || t('قراءة فقط', 'Read only')}
           </p>
+          {permissions.includes('mfa.manage') && (
+            <section className="card stack">
+              <h2>{t('رموز الاسترداد الاحتياطية', 'Backup recovery codes')}</h2>
+              <p>
+                {t(
+                  'توليد مجموعة جديدة يُبطل المجموعة السابقة. احفظ الرموز خارج المتصفح؛ ستظهر مرة واحدة فقط. يلزم رمز مصادقة جديد أدناه.',
+                  'Generating a new set invalidates the previous set. Save the codes outside your browser; they appear only once. Enter a fresh authenticator code below first.',
+                )}
+              </p>
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() =>
+                  void act(async () => {
+                    const r = await request('/mfa/backup-codes', {});
+                    setBackupCodes(r.codes);
+                  })
+                }
+              >
+                {t('توليد رموز جديدة', 'Generate new codes')}
+              </button>
+              {backupCodes.length > 0 && (
+                <>
+                  <textarea
+                    aria-label={t('احفظ رموز الاسترداد الآن', 'Save recovery codes now')}
+                    readOnly
+                    rows={8}
+                    value={backupCodes.join('\n')}
+                  />
+                  <button className="btn" onClick={() => setBackupCodes([])}>
+                    {t('حفظت الرموز؛ إخفاء', 'I saved the codes; hide')}
+                  </button>
+                </>
+              )}
+            </section>
+          )}
           <section className="card stack">
             <h2>{t('تأكيد الإجراءات الحساسة', 'Confirm sensitive actions')}</h2>
             <label>

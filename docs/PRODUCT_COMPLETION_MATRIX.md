@@ -1,5 +1,11 @@
 # ELHAFEZ BOAT — Product completion matrix
 
+## Continuation — secure operator MFA recovery (2026-10-23)
+
+Migration 050 adds eight high-entropy single-use backup codes, generated only after operation step-up and displayed once in the bilingual console. Only SHA-256 hashes are persisted in the restricted platform database. Public recovery requires allowlisted account + correct password + saved code, is rate limited, consumes the code atomically, revokes all user sessions, invalidates all remaining backup codes and grants enrollment only for a new encrypted authenticator. Password alone never bypasses MFA. Codes clear from the console on sign-out.
+
+Validation: API build, web TypeScript, migration 050, ESLint, all 53 unit tests and expanded isolated API/PostgreSQL MFA smoke pass, including wrong password, concurrent one-code recovery, hash-only storage, app-role denial, old-token revocation, new enrollment and remaining-code invalidation. No live operator account activated. Next: domain transfer/reclaim and platform ledger-backed financial/operations reports; Batches 2/4 and full acceptance remain incomplete.
+
 ## Continuation — platform read scopes and operation step-up (2026-10-23)
 
 Migration 049 and platform guards enforce segmented company/user/subscription/catalog/audit/report read permissions from immutable operator roles. Snapshot and directory responses respect these scopes; console loads authorized data only. Every privileged write additionally requires a fresh TOTP and a two-minute signed approval bound to actor/session version, method, target and complete body. PostgreSQL consumes each approval once across replicas, including rejected SQL operations. Tokens remain in memory and are redacted from HTTP logs. Bilingual console includes fresh-code input.
