@@ -3,6 +3,7 @@ import { z } from 'zod';
 const schema = z.object({
   AI_PROVIDER_CALLS_ENABLED: z.enum(['true', 'false']).default('false'),
   EXTERNAL_DELIVERY_ENABLED: z.enum(['true', 'false']).default('false'),
+  BILLING_PAST_DUE_GRACE_DAYS: z.coerce.number().int().min(0).max(90).default(7),
   BILLING_SUBSCRIPTION_CHANGES_ENABLED: z.enum(['true', 'false']).default('false'),
   BILLING_AUTOMATIC_RECONCILIATION_ENABLED: z.enum(['true', 'false']).default('false'),
   CUSTOM_DOMAINS_ENABLED: z.enum(['true', 'false']).default('false'),

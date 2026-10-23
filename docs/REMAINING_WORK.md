@@ -1,5 +1,11 @@
 # Remaining implementation — continue on PR #1
 
+## Continuation — price catalog and past-due lifecycle (2026-10-23)
+
+Migration 048 adds an immutable local provider-price registry, restricted operator publish/retire APIs and bilingual console. Publishing selects a default without rewriting existing subscription prices; retiring blocks new selection but retains historical mappings. Subscription events use provider item price rather than conflicting plan metadata; unsupported/multi-item prices are held for review. Equal-second webhook updates are conservatively ignored and make reconciliation due. Past-due timestamps persist across failed retries, clear on recovery, and a configurable seven-day default grace period applies free entitlements without deleting tenant data. Custom-host eligibility follows the same grace policy. Billing UI explains overdue status and month/year intervals.
+
+Validation: API build, web TypeScript, ESLint, incremental migration 048 and PostgreSQL catalog/delinquency, subscription requests and signed invoice smokes pass. Coverage includes restricted DB privileges, immutable/retired price mapping, tie-time safety, grace expiry/recovery and a mocked single-item plan change with no proration. No real Stripe call. Remaining: live catalog/provider consistency acceptance, multi-item/scheduled changes, operator uncertainty resolution, platform advanced security/reports, domain transfers/auth and remaining Batches 2/4. Not product complete.
+
 ## Continuation — durable subscription requests (2026-10-23)
 
 Migration 047 adds owner-only audited cancel-at-period-end, renewal resume and single-item price-change requests, connected to bilingual billing UI/API and the existing outbox. Separate `BILLING_SUBSCRIPTION_CHANGES_ENABLED=false` plus the external gate block provider activity. Pending requests can be withdrawn; workers recheck owner/company/link/price state. Stable request effect keys and Stripe idempotency keys prevent replay; uncertain outcomes quarantine the request and block further changes. No immediate proration is requested; plan changes affect subsequent invoices. Multi-item/scheduled changes and operator uncertainty resolution remain open.

@@ -430,6 +430,58 @@ class PlatformController {
     ]);
     return { revoked: true };
   }
+  @Get('prices') async prices() {
+    return (await this.access.query('SELECT platform_price_catalog() AS data'))[0].data;
+  }
+  @Permission('plans.write') @Post('prices') async publishPrice(
+    @Req() r: PlatformRequest,
+    @Body() body: unknown,
+  ) {
+    const b = parse(
+      z.object({
+        planCode: z.string().min(1).max(50),
+        priceId: z
+          .string()
+          .regex(/^price_[A-Za-z0-9_]+$/)
+          .max(255),
+        amountCents: z.number().int().min(1).max(1000000000),
+        currency: z.string().regex(/^[a-z]{3}$/),
+        interval: z.enum(['month', 'year']),
+        reason: z.string().trim().min(10).max(1000),
+      }),
+      body,
+    );
+    await this.access.query('SELECT platform_publish_price($1,$2,$3,$4,$5,$6,$7)', [
+      r.platformActor,
+      b.planCode,
+      b.priceId,
+      b.amountCents,
+      b.currency,
+      b.interval,
+      b.reason,
+    ]);
+    return { updated: true, providerUpdated: false };
+  }
+  @Permission('plans.write') @Post('prices/:id/retire') async retirePrice(
+    @Req() r: PlatformRequest,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const b = parse(z.object({ reason: z.string().trim().min(10).max(1000) }), body);
+    parse(
+      z
+        .string()
+        .regex(/^price_[A-Za-z0-9_]+$/)
+        .max(255),
+      id,
+    );
+    await this.access.query('SELECT platform_retire_price($1,$2,$3)', [
+      r.platformActor,
+      id,
+      b.reason,
+    ]);
+    return { updated: true, providerUpdated: false };
+  }
   @Permission('plans.write')
   @Patch('plans/:code')
   async plan(@Req() r: PlatformRequest, @Param('code') code: string, @Body() body: unknown) {

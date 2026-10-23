@@ -61,7 +61,11 @@ export class SubscriptionRequests {
             [data.planCode],
           )
         ).rows[0];
-        if (!plan || !sub.stripe_price_id || plan.id === sub.plan_id)
+        if (
+          !plan ||
+          !(sub.stripe_current_price_id ?? sub.stripe_price_id) ||
+          plan.id === sub.plan_id
+        )
           throw new BadRequestException('Unsupported target or current price');
         if (sub.status === 'past_due' || sub.cancel_at_period_end)
           throw new BadRequestException(
@@ -77,7 +81,7 @@ export class SubscriptionRequests {
             data.kind,
             plan?.code ?? null,
             plan?.stripe_price_id ?? null,
-            sub.stripe_price_id,
+            sub.stripe_current_price_id ?? sub.stripe_price_id,
             sub.stripe_customer_id,
             sub.stripe_subscription_id,
           ],

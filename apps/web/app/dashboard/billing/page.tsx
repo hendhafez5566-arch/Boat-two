@@ -11,6 +11,7 @@ type Plan = {
   name: string;
   price_cents: number;
   currency: string;
+  interval: string;
   limits: Record<string, number>;
   features: Record<string, boolean>;
 };
@@ -37,6 +38,8 @@ export default function Billing() {
       cancelAtPeriodEnd: boolean;
       status: string;
       linked: boolean;
+      pastDueSince: string | null;
+      graceDays: number;
     };
   }>({ configured: false, portalAvailable: false });
   const [error, setError] = useState('');
@@ -99,6 +102,18 @@ export default function Billing() {
           )}
         </p>
       )}
+      {status.subscription?.pastDueSince && (
+        <p className="notice" role="status">
+          {t('تأخر السداد منذ: ', 'Payment overdue since: ')}
+          {new Date(status.subscription.pastDueSince).toLocaleDateString()} ·{' '}
+          {t('فترة السماح بالأيام: ', 'Grace period in days: ')}
+          {status.subscription.graceDays}.{' '}
+          {t(
+            'بعدها تُطبق حدود الخطة المجانية دون حذف بياناتك. حدّث طريقة الدفع من بوابة الفوترة.',
+            'Afterwards free-plan limits apply without deleting your data. Update your payment method in the billing portal.',
+          )}
+        </p>
+      )}
       {status.subscription?.currentPeriodEnd && (
         <p className="notice">
           {status.subscription.cancelAtPeriodEnd
@@ -148,7 +163,10 @@ export default function Billing() {
               {new Intl.NumberFormat(undefined, { style: 'currency', currency: p.currency }).format(
                 p.price_cents / 100,
               )}
-              <small className="muted"> / {t('شهر', 'month')}</small>
+              <small className="muted">
+                {' '}
+                / {p.interval === 'year' ? t('سنة', 'year') : t('شهر', 'month')}
+              </small>
             </div>
             <p className="muted">
               {p.limits.agents === -1 ? '∞' : p.limits.agents} {t('موظف', 'agents')} ·{' '}

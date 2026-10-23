@@ -44,7 +44,7 @@ export class BillingService {
       async (c) =>
         (
           await c.query(
-            'SELECT stripe_customer_id,stripe_subscription_id,status,current_period_end,cancel_at_period_end FROM subscriptions',
+            'SELECT stripe_customer_id,stripe_subscription_id,status,current_period_end,cancel_at_period_end,past_due_since FROM subscriptions',
           )
         ).rows[0],
     );
@@ -56,6 +56,8 @@ export class BillingService {
             currentPeriodEnd: row.current_period_end,
             cancelAtPeriodEnd: row.cancel_at_period_end,
             linked: !!row.stripe_subscription_id,
+            pastDueSince: row.past_due_since,
+            graceDays: env.BILLING_PAST_DUE_GRACE_DAYS,
           }
         : null,
       portalAvailable:
@@ -79,7 +81,7 @@ export class BillingService {
       async (c) =>
         (
           await c.query(
-            'SELECT stripe_customer_id,stripe_subscription_id,status,current_period_end,cancel_at_period_end FROM subscriptions',
+            'SELECT stripe_customer_id,stripe_subscription_id,status,current_period_end,cancel_at_period_end,past_due_since FROM subscriptions',
           )
         ).rows[0],
     );
@@ -112,7 +114,7 @@ export class BillingService {
       async (c) =>
         (
           await c.query(
-            'SELECT stripe_customer_id,stripe_subscription_id,status,current_period_end,cancel_at_period_end FROM subscriptions',
+            'SELECT stripe_customer_id,stripe_subscription_id,status,current_period_end,cancel_at_period_end,past_due_since FROM subscriptions',
           )
         ).rows[0],
     );
@@ -438,16 +440,43 @@ export class BillingService {
         if (!['paid', 'no_payment_required'].includes(session.payment_status))
           reason = 'Checkout not yet paid';
       }
+      if (isSubscription && event.type !== 'customer.subscription.deleted') {
+        const items = (event.data.object as Stripe.Subscription).items?.data ?? [];
+        if (items.length) {
+          const price = items[0]?.price?.id;
+          const mapped =
+            price && items.length === 1
+              ? (
+                  await c.query(
+                    'SELECT p.code FROM billing_prices b JOIN plans p ON p.id=b.plan_id WHERE b.provider_id=$1',
+                    [price],
+                  )
+                ).rows[0]
+              : null;
+          if (!mapped)
+            reason = 'Unknown or multi-item subscription price; operator review required';
+          else object.metadata = { ...object.metadata, planCode: mapped.code };
+        }
+      }
+      if (
+        isSubscription &&
+        event.type !== 'customer.subscription.deleted' &&
+        event.created === Number(subscription.stripe_event_created) &&
+        subscription.stripe_event_id &&
+        !event.id.startsWith('request_') &&
+        !event.id.startsWith('reconcile_')
+      ) {
+        reason = 'Equal-time subscription ambiguity; reconciliation required';
+        await c.query(
+          'UPDATE subscriptions SET next_reconciliation_at=LEAST(next_reconciliation_at,now())',
+        );
+      }
       if (checkout && (!object.metadata?.planCode || !incomingId || !customerId))
         reason = 'Checkout is missing subscription identity or plan metadata';
       if (
         !reason &&
         object.metadata?.planCode &&
-        !(
-          await c.query('SELECT 1 FROM plans WHERE code=$1 AND is_active', [
-            object.metadata.planCode,
-          ])
-        ).rowCount
+        !(await c.query('SELECT 1 FROM plans WHERE code=$1', [object.metadata.planCode])).rowCount
       )
         throw new BadRequestException('Unknown billing plan metadata');
       if (reason) {
@@ -508,6 +537,7 @@ export class BillingService {
           status: deleted ? 'canceled' : (STATUS_MAP[sub.status] ?? 'past_due'),
           customerId: typeof sub.customer === 'string' ? sub.customer : sub.customer.id,
           subscriptionId: sub.id,
+          priceId: sub.items.data[0]?.price?.id ?? null,
           cancelAtPeriodEnd: sub.cancel_at_period_end,
           periodEnd: periodEnd ? new Date(periodEnd * 1000) : null,
         });
@@ -535,6 +565,7 @@ export class BillingService {
       subscriptionId: string | null;
       periodEnd?: Date | null;
       cancelAtPeriodEnd?: boolean;
+      priceId?: string | null;
     },
   ) {
     await this.db.withTenant(tenantId, async (c) => {
@@ -546,6 +577,7 @@ export class BillingService {
            stripe_subscription_id = COALESCE($4, stripe_subscription_id),
            current_period_end = COALESCE($5, current_period_end),
            cancel_at_period_end = COALESCE($6,cancel_at_period_end),
+           stripe_current_price_id=COALESCE($7,stripe_current_price_id),
            updated_at = now()`,
         [
           p.planCode,
@@ -554,6 +586,7 @@ export class BillingService {
           p.subscriptionId,
           p.periodEnd ?? null,
           p.cancelAtPeriodEnd ?? null,
+          p.priceId ?? null,
         ],
       );
     });

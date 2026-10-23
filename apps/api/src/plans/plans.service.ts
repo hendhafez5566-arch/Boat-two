@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PoolClient } from 'pg';
+import { env } from '../config/env';
 import { DatabaseService } from '../database/database.service';
 
 export interface TenantPlan {
@@ -11,6 +12,7 @@ export interface TenantPlan {
   limits: Record<string, number>;
   features: Record<string, boolean>;
   trial_expired: boolean;
+  delinquent_restricted?: boolean;
 }
 
 @Injectable()
@@ -28,7 +30,7 @@ export class PlansService {
   /** الخطة الفعلية للشركة الحالية (يجب استدعاؤها داخل withTenant). التجربة المنتهية تُعامل كخطة free. */
   async getTenantPlan(c: PoolClient): Promise<TenantPlan> {
     const r = await c.query(
-      `SELECT s.status, s.trial_ends_at, s.current_period_end,
+      `SELECT s.status, s.trial_ends_at, s.current_period_end,s.past_due_since,
               p.code AS plan_code, p.name AS plan_name, p.limits, p.features
        FROM subscriptions s JOIN plans p ON p.id = s.plan_id LIMIT 1`,
     );
@@ -37,11 +39,21 @@ export class PlansService {
 
     const trialExpired =
       row.status === 'trialing' && row.trial_ends_at && new Date(row.trial_ends_at) < new Date();
-    if (trialExpired || row.status === 'canceled') {
+    const delinquentRestricted =
+      row.status === 'past_due' &&
+      row.past_due_since &&
+      Date.now() >=
+        new Date(row.past_due_since).getTime() + env.BILLING_PAST_DUE_GRACE_DAYS * 86400000;
+    if (trialExpired || row.status === 'canceled' || delinquentRestricted) {
       const free = await c.query(
         "SELECT code AS plan_code, name AS plan_name, limits, features FROM plans WHERE code = 'free'",
       );
-      return { ...row, ...free.rows[0], trial_expired: !!trialExpired };
+      return {
+        ...row,
+        ...free.rows[0],
+        trial_expired: !!trialExpired,
+        delinquent_restricted: !!delinquentRestricted,
+      };
     }
     return { ...row, trial_expired: false };
   }

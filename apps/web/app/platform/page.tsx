@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import PriceCatalog from './PriceCatalog';
 import AuditTrail from './AuditTrail';
 import { API } from '../../lib/api';
 import { LocaleProvider, useLocale } from '../../components/product/locale';
@@ -571,6 +572,7 @@ function Console() {
               </form>
             </details>
           ))}
+          <PriceCatalog request={request} canWrite={permissions.includes('plans.write')} />
           <AuditTrail request={request} />
         </>
       )}

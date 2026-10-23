@@ -84,8 +84,12 @@ export class DomainHosting {
   async resolve(host: string) {
     if (env.CUSTOM_DOMAINS_ENABLED !== 'true')
       throw new NotFoundException('Custom hosting is disabled');
-    const brand = (await this.db.query('SELECT public_domain_brand($1) AS data', [host])).rows[0]
-      .data;
+    const brand = (
+      await this.db.query('SELECT public_domain_brand($1,$2) AS data', [
+        host,
+        env.BILLING_PAST_DUE_GRACE_DAYS,
+      ])
+    ).rows[0].data;
     if (!brand) throw new NotFoundException('Domain is not eligible for hosting');
     return brand;
   }
