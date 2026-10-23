@@ -1,5 +1,12 @@
 # ELHAFEZ BOAT — Product completion matrix
 
+## Maximum-scope continuation — integration authentication policies (2026-10-23)
+
+Migration 069 extends existing host-bound encrypted secret references with Basic, allowlisted API-key headers and HMAC-SHA256, retaining Bearer compatibility and rotation/version checks. Existing automation editor configures auth and four allowlisted non-secret headers. Executor signs timestamp.body only inside the existing effect callback; replay uses the existing ledger without another request. Host/SSRF/redirect gates and external-delivery flag remain authoritative. Raw secret values never appear in list APIs or workflow definitions.
+
+API/web TypeScript, ESLint, migration, integration-auth and existing nested-automation suites pass: encryption, HMAC vectors, Basic/API-key contracts, forbidden headers/CRLF, host/tenant denial, cached replay and existing delayed workflows. HTTP helper was mocked; no external account or delivery enabled. Next: signed email delivery receipts and evidence-only ambiguity review, then regression and browser acceptance.
+
+
 ## Maximum-scope continuation — connected rich campaign composition (2026-10-23)
 
 Existing campaign JSON/storage/worker/adapters now connect to shared creation/editing controls for images/video/files, reply buttons and choice menus with stable IDs, structural preview and audience editing. Draft edits preserve rich content. API validates public HTTPS media URLs/caption limits, unique option IDs and approved supported WhatsApp BODY templates/contiguous parameters at save and schedule. Meta menus intentionally become quick replies; unsupported rich WhatsApp template component variants remain unavailable.

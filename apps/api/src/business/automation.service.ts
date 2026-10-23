@@ -1,3 +1,4 @@
+import { integrationHeaders } from './integration-auth';
 import { CryptoService } from '../messaging/crypto.service';
 import { safeHttpRequest } from '../flows/http-safe';
 import { ExternalEffects } from '../events/external-effect';
@@ -146,11 +147,18 @@ export class AutomationService {
           case 'http': {
             if (env.EXTERNAL_DELIVERY_ENABLED !== 'true')
               throw new Error('External automation HTTP delivery is disabled');
-            let secret: { value_enc: string; version: number } | undefined;
+            let secret:
+              | {
+                  value_enc: string;
+                  version: number;
+                  auth_type: string;
+                  header_name: string | null;
+                }
+              | undefined;
             if (action.secretId) {
               secret = (
                 await c.query(
-                  'SELECT value_enc,version FROM integration_secrets WHERE id=$1 AND enabled AND $2=ANY(allowed_hosts)',
+                  'SELECT value_enc,version,auth_type,header_name FROM integration_secrets WHERE id=$1 AND enabled AND $2=ANY(allowed_hosts)',
                   [action.secretId, new URL(action.url).hostname],
                 )
               ).rows[0];
@@ -167,6 +175,9 @@ export class AutomationService {
                 body: action.body,
                 secretId: action.secretId,
                 secretVersion: secret?.version,
+                headers: action.headers,
+                authType: secret?.auth_type,
+                headerName: secret?.header_name,
               },
               () =>
                 safeHttpRequest({
@@ -174,12 +185,15 @@ export class AutomationService {
                   url: action.url,
                   headers: {
                     'Content-Type': 'application/json',
+                    ...action.headers,
                     ...(secret
-                      ? {
-                          Authorization:
-                            'Bearer ' +
-                            this.crypto.decrypt<{ value: string }>(secret.value_enc).value,
-                        }
+                      ? integrationHeaders(
+                          {
+                            ...secret,
+                            value: this.crypto.decrypt<{ value: string }>(secret.value_enc).value,
+                          },
+                          action.body,
+                        )
                       : {}),
                     'Idempotency-Key': `${key}:${index}`,
                   },

@@ -23,6 +23,7 @@ type Action = {
   url?: string;
   body?: string;
   secretId?: string;
+  headers?: Record<string, string>;
   conditions?: Conditions;
   then?: Action[];
   otherwise?: Action[];
@@ -229,7 +230,7 @@ function Steps({
                 />
               </label>
               <label className="field">
-                {t('سر Bearer مقيّد بنطاق', 'Host-bound Bearer secret')}
+                {t('سر مصادقة مقيّد بنطاق', 'Host-bound authentication secret')}
                 <select
                   value={action.secretId || ''}
                   onChange={(e) => {
@@ -248,6 +249,28 @@ function Steps({
                 </select>
               </label>
             </>
+          )}
+          {action.type === 'http' && (
+            <fieldset className="form-grid">
+              <legend>{t('ترويسات غير سرية مسموحة', 'Allowed non-secret headers')}</legend>
+              {['Accept', 'Content-Language', 'X-Request-Source', 'X-Correlation-Id'].map(
+                (name) => (
+                  <label className="field" key={name}>
+                    {name}
+                    <input
+                      maxLength={200}
+                      value={action.headers?.[name] ?? ''}
+                      onChange={(e) => {
+                        const headers = { ...action.headers };
+                        if (e.target.value) headers[name] = e.target.value;
+                        else delete headers[name];
+                        patch(index, { headers });
+                      }}
+                    />
+                  </label>
+                ),
+              )}
+            </fieldset>
           )}
           {action.type === 'branch' && (
             <>
@@ -320,7 +343,15 @@ export function SavedAutomationEditor() {
   const { t } = useLocale();
   const rules = useData<Rule[]>('/automations', []),
     secrets = useData<
-      { id: string; name: string; enabled: boolean; version: number; allowed_hosts: string[] }[]
+      {
+        id: string;
+        name: string;
+        enabled: boolean;
+        version: number;
+        allowed_hosts: string[];
+        auth_type: string;
+        header_name: string | null;
+      }[]
     >('/integrations/secrets', []),
     failures = useData<
       {
@@ -545,6 +576,8 @@ export function SavedAutomationEditor() {
                 body: JSON.stringify({
                   name: f.get('name'),
                   value: f.get('value'),
+                  authType: f.get('authType'),
+                  headerName: f.get('headerName'),
                   allowedHosts: String(f.get('hosts'))
                     .split(',')
                     .map((host) => host.trim())
@@ -563,6 +596,29 @@ export function SavedAutomationEditor() {
             placeholder={t('القيمة', 'Value')}
             required
           />
+          <label className="field">
+            {t('طريقة المصادقة', 'Authentication method')}
+            <select name="authType" defaultValue="bearer">
+              <option value="bearer">Bearer</option>
+              <option value="basic">Basic (username:password)</option>
+              <option value="header">API key header</option>
+              <option value="hmac_sha256">HMAC-SHA256</option>
+            </select>
+          </label>
+          <label className="field">
+            {t('ترويسة مفتاح API فقط', 'API key header only')}
+            <select name="headerName">
+              <option value="X-API-Key">X-API-Key</option>
+              <option value="X-Auth-Token">X-Auth-Token</option>
+              <option value="Api-Key">Api-Key</option>
+            </select>
+          </label>
+          <p className="muted">
+            {t(
+              'HMAC يوقّع timestamp.body ويرسل X-Boat-Timestamp وX-Boat-Signature. لا تضع الأسرار في جسم الطلب أو الترويسات الثابتة.',
+              'HMAC signs timestamp.body and sends X-Boat-Timestamp and X-Boat-Signature. Keep secrets out of request bodies and static headers.',
+            )}
+          </p>
           <input name="hosts" placeholder="api.example.com" required />
           <button className="btn" disabled={busy}>
             {t('حفظ مشفّر', 'Save encrypted')}
@@ -571,7 +627,9 @@ export function SavedAutomationEditor() {
         {secrets.data.map((secret) => (
           <div key={secret.id} className="border rounded p-3">
             <p>
-              {secret.name} · v{secret.version} · {secret.allowed_hosts.join(', ')}
+              {secret.name} · {secret.auth_type}
+              {secret.header_name ? ' / ' + secret.header_name : ''} · v{secret.version} ·{' '}
+              {secret.allowed_hosts.join(', ')}
             </p>
             <form
               className="form-actions"

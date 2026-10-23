@@ -97,7 +97,7 @@ export type AutomationAction =
       then: AutomationAction[];
       otherwise: AutomationAction[];
     }
-  | { type: 'http'; secretId?: string; url: string; body: string }
+  | { type: 'http'; secretId?: string; url: string; body: string; headers?: Record<string, string> }
   | { type: 'delay'; delayMinutes: number; actions: AutomationAction[] };
 const actionTree: z.ZodType<AutomationAction, z.ZodTypeDef, unknown> = z.lazy(() =>
   z.union([
@@ -111,6 +111,15 @@ const actionTree: z.ZodType<AutomationAction, z.ZodTypeDef, unknown> = z.lazy(()
     z.object({
       type: z.literal('http'),
       secretId: z.string().uuid().optional(),
+      headers: z
+        .record(
+          z.enum(['Accept', 'Content-Language', 'X-Request-Source', 'X-Correlation-Id']),
+          z
+            .string()
+            .max(200)
+            .regex(/^[\x20-\x7e]*$/),
+        )
+        .optional(),
       url: z
         .string()
         .url()
