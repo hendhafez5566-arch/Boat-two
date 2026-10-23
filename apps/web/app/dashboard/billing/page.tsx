@@ -75,6 +75,12 @@ export default function Billing() {
   }
   return (
     <main className="stack">
+      <p className="notice">
+        {t(
+          'تغييرات الخطة تحتفظ بكمية الاشتراك الحالية؛ السعر المعروض للوحدة. الاشتراكات متعددة البنود أو المقاسة تحتاج مراجعة قبل التعديل.',
+          'Plan changes retain the current subscription quantity; displayed prices are per unit. Multi-item or metered subscriptions require review before changes.',
+        )}
+      </p>
       <div className="page-heading">
         <div>
           <p className="eyebrow">PLAN & USAGE</p>

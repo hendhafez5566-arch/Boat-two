@@ -162,7 +162,7 @@ try {
     customer,
     status: 'active',
     metadata: { planCode: pcode },
-    items: { data: [{ id: 'si_fixture', price: { id: price } }] },
+    items: { data: [{ id: 'si_fixture', price: { id: price }, quantity: 5 }] },
     cancel_at_period_end: false,
   });
   let writes = 0;
@@ -171,12 +171,17 @@ try {
     assert.equal(args.proration_behavior, 'none');
     assert.equal(args.payment_behavior, 'error_if_incomplete');
     assert.equal(args.items[0].price, targetPrice);
+    assert.equal(
+      args.items[0].quantity,
+      5,
+      'Existing licensed seats must survive a plan price change',
+    );
     return {
       id: sub,
       customer,
       status: 'active',
       metadata: args.metadata,
-      items: { data: [{ id: 'si_fixture', price: { id: targetPrice } }] },
+      items: { data: [{ id: 'si_fixture', price: { id: targetPrice }, quantity: 5 }] },
       cancel_at_period_end: false,
     };
   };

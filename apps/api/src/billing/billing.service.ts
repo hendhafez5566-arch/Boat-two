@@ -1,3 +1,4 @@
+import { licensedQuantity } from './subscription-policy';
 import { invoiceSnapshot } from './invoice-snapshot';
 import { ExternalEffects } from '../events/external-effect';
 import {
@@ -272,10 +273,11 @@ export class BillingService {
       throw new BadRequestException(
         'Provider price or subscription state changed; review required',
       );
+    const quantity = request.kind === 'change_plan' ? licensedQuantity(item) : 1;
     const parameters: Stripe.SubscriptionUpdateParams =
       request.kind === 'change_plan'
         ? {
-            items: [{ id: item.id, price: request.price_id! }],
+            items: [{ id: item.id, price: request.price_id!, quantity }],
             metadata: { ...current.metadata, planCode: request.plan_code!, tenantId: tenant },
             proration_behavior: 'none',
             payment_behavior: 'error_if_incomplete',
@@ -301,6 +303,15 @@ export class BillingService {
       returnedCustomer !== request.customer_id
     )
       throw new BadRequestException('Mutation response ownership mismatch');
+    if (
+      request.kind === 'change_plan' &&
+      (result.subscription.items.data.length !== 1 ||
+        result.subscription.items.data[0].price.id !== request.price_id ||
+        licensedQuantity(result.subscription.items.data[0]) !== quantity)
+    )
+      throw new BadRequestException(
+        'Provider returned a different price or quantity; evidence review required',
+      );
     return this.applyVerifiedEvent({
       id: `request_${request.id}`,
       type: 'customer.subscription.updated',

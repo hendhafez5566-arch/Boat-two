@@ -1,5 +1,12 @@
 # Remaining implementation — continue on PR #1
 
+## Maximum-scope continuation — subscription quantity safety (2026-10-23)
+
+Plan mutation now explicitly preserves current licensed quantity, rejects metered/invalid quantities and verifies returned price/quantity before applying local state. Billing UI explains per-unit pricing and the remaining multi-item/metered review boundary. Existing no-proration/idempotency/ambiguous-outcome gates are retained. This fixes seat loss risk; it does not claim arbitrary multi-item additions/removals or provider-native schedules.
+
+API/web TypeScript, ESLint, mocked catalog/delinquency and durable subscription-request suites pass. Catalog fixture now asserts five existing seats survive a plan change; unit coverage rejects invalid/metered quantities. Real Stripe calls remain disabled. Next: broad regression, fresh migration validation, full production build and expanded real browser acceptance, then truthful completion matrix/handover.
+
+
 ## Maximum-scope continuation — bounded CRM result downloads (2026-10-23)
 
 Existing export result API now accepts validated ordinal cursors and bounded pages; browser downloads assemble 250-row requests with progress guards. Legacy result clients remain compatible, snapshots retain original values/order and expired jobs still return Gone. This bounds HTTP payloads, not the existing 50,000-row job limit, full worker JSON storage or initial import body limit; those larger-scale/storage constraints remain explicit.

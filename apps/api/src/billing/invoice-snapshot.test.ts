@@ -32,3 +32,14 @@ test('invoice snapshots reject malformed amounts and prioritize paid over equal-
   assert.ok(paid.rank > failed.rank && failed.rank > updated.rank);
   assert.equal(paid.status, 'paid');
 });
+
+test('licensed subscription quantity is preserved and metered/invalid changes require review', async () => {
+  const { licensedQuantity } = await import('./subscription-policy');
+  assert.equal(licensedQuantity({ quantity: 5 }), 5);
+  assert.equal(licensedQuantity({}), 1);
+  for (const quantity of [0, -1, 1.5, 1000001, NaN])
+    assert.throws(() => licensedQuantity({ quantity }));
+  assert.throws(() =>
+    licensedQuantity({ quantity: 1, price: { recurring: { usage_type: 'metered' } } }),
+  );
+});
