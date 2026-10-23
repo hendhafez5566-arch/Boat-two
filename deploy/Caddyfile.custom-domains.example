@@ -1,0 +1,27 @@
+# Review and configure externally. Never start this against real domains without owner approval.
+# Both API and web require CUSTOM_DOMAINS_ENABLED=true. Web also needs INTERNAL_API_URL
+# and BOAT_CANONICAL_HOSTS. Preserve the original Host header; never trust client brand headers.
+{
+ email {$ACME_CONTACT_EMAIL}
+ on_demand_tls {
+  ask {$INTERNAL_API_URL}/domains/tls-allow
+ }
+}
+https:// {
+ tls {
+  on_demand
+ }
+ # Recheck on every request as certificates can outlive ownership/entitlements.
+ forward_auth {$API_UPSTREAM} {
+  uri /domains/tls-allow?domain={host}
+ }
+ handle_path /api/* {
+  reverse_proxy {$API_UPSTREAM}
+ }
+ handle /widget/* {
+  reverse_proxy {$API_UPSTREAM}
+ }
+ handle {
+  reverse_proxy {$WEB_UPSTREAM}
+ }
+}

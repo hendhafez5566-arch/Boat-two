@@ -3,6 +3,7 @@ import { z } from 'zod';
 const schema = z.object({
   AI_PROVIDER_CALLS_ENABLED: z.enum(['true', 'false']).default('false'),
   EXTERNAL_DELIVERY_ENABLED: z.enum(['true', 'false']).default('false'),
+  CUSTOM_DOMAINS_ENABLED: z.enum(['true', 'false']).default('false'),
   PLATFORM_DATABASE_URL: z.string().url().optional(),
   PLATFORM_JWT_SECRET: z.string().min(32).optional(),
   PLATFORM_OPERATOR_ROLES: z.string().default('{}'),

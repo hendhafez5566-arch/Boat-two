@@ -72,10 +72,13 @@ export class BrandingController {
     return this.db.withTenant(r.user.tenantId, async (c) => ({
       domains: (
         await c.query(
-          "SELECT id,hostname,verification_token,status,verified_at FROM workspace_domains WHERE status<>'revoked' ORDER BY created_at DESC LIMIT 20",
+          "SELECT id,hostname,verification_token,status,verified_at,hosting_enabled,hosting_error FROM workspace_domains WHERE status<>'revoked' ORDER BY created_at DESC LIMIT 20",
         )
       ).rows,
-      trafficRouting: 'requires_operator_tls_and_ingress_configuration',
+      trafficRouting:
+        env.CUSTOM_DOMAINS_ENABLED === 'true'
+          ? 'operator_ingress_enabled'
+          : 'requires_operator_tls_and_ingress_configuration',
     }));
   }
   @Post('domains') @Roles('owner', 'admin') create(@Req() r: AuthedRequest, @Body() body: unknown) {
@@ -153,7 +156,7 @@ export class BrandingController {
       await this.plans.assertFeature(c, 'white_label');
       const row = (
         await c.query(
-          "UPDATE workspace_domains SET status='verified',verified_at=now() WHERE id=$1 AND status<>'revoked' RETURNING id,status,verified_at",
+          "UPDATE workspace_domains SET status='verified',verified_at=now(),hosting_error=NULL WHERE id=$1 AND status<>'revoked' RETURNING id,status,verified_at",
           [id],
         )
       ).rows[0];
@@ -169,7 +172,7 @@ export class BrandingController {
       if (
         !(
           await c.query(
-            "UPDATE workspace_domains SET status='revoked' WHERE id=$1 AND status<>'revoked'",
+            "UPDATE workspace_domains SET status='revoked',hosting_enabled=false,hosting_version=hosting_version+1 WHERE id=$1 AND status<>'revoked'",
             [id],
           )
         ).rowCount

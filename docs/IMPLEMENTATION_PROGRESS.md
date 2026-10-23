@@ -1,5 +1,12 @@
 # Implementation progress — core reliability + connected business platform
 
+## Custom-domain integration checkpoint — 2026-10-23
+
+Migration 044 connects hosting requests, minimal public brand resolution/TLS eligibility, web Host enforcement/branded entry, and versioned twelve-hour ownership rechecks through the existing outbox. Recent ownership, tenant status and white-label entitlement are checked; disable/revoke/expiry/downgrade deny serving. API/web gates stay false. An optional Caddy ask + per-request forward-auth example and activation runbook are provided, but actual Caddy/ACME/DNS configuration and certificate issuance were not performed or tested.
+
+API/web TypeScript, full production build, ESLint and mocked DNS/outbox/tenant-hosting smoke passed. No screenshots or comprehensive acceptance were run. Domain transfer/reclaim, white-label authentication emails and live ingress/ACME acceptance remain open. Continue with remaining billing automation, AI source lifecycle and product UX using immediate stable commit/push checkpoints.
+
+
 ## Invoice lifecycle checkpoint — 2026-10-23
 
 Migration 043 and connected billing UI/API persist verified Stripe invoice snapshots: due/paid/remaining amounts, currency, attempts, failed-payment state, due dates and sanitized Stripe document links. Independent invoice event ordering/deduplication prevents stale/equal-priority updates from erasing paid/failure transitions; invoice events do not override authoritative subscription status. Customer-routed subscription events now apply without tenant metadata, cancellation-at-period-end is visible, and existing active subscriptions use the portal rather than duplicate checkout. Checkout/portal now also require the explicit external-delivery gate.

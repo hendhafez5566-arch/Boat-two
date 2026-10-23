@@ -11,7 +11,14 @@ export default function Branding() {
     branding: null,
   });
   const domains = useData<{
-    domains: { id: string; hostname: string; verification_token: string; status: string }[];
+    domains: {
+      id: string;
+      hostname: string;
+      verification_token: string;
+      status: string;
+      hosting_enabled: boolean;
+      hosting_error: string | null;
+    }[];
   }>('/workspace/branding/domains', { domains: [] });
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
@@ -111,8 +118,8 @@ export default function Branding() {
         <h2>{t('التحقق من ملكية النطاق', 'Domain ownership verification')}</h2>
         <p className="notice">
           {t(
-            'التحقق من TXT لا ينشر الموقع. ربط حركة الزيارات وشهادة TLS يتطلبان إعداد المشغّل؛ لا يُعلن النطاق متصلًا من خلال التحقق وحده.',
-            'TXT verification does not publish the site. Traffic routing and TLS require operator configuration; verification alone does not connect a domain.',
+            'تحقق من TXT ثم اطلب الاستضافة. يلزم إعداد بوابة المشغّل وDNS وTLS. تنتهي صلاحية التحقق بعد 24 ساعة؛ يعاد فحص الملكية دوريًا عند تفعيل الخدمات الخارجية.',
+            'Verify TXT, then request hosting. Operator ingress, DNS and TLS configuration are required. Ownership expires after 24 hours; periodic rechecks run when external services are enabled.',
           )}
         </p>
         <form
@@ -149,7 +156,36 @@ export default function Branding() {
             <p dir="ltr" className="break-all select-all">
               _boat-verification.{domain.hostname} TXT boat-verification={domain.verification_token}
             </p>
+            {domain.hosting_error && (
+              <p role="alert" className="notice error">
+                {domain.hosting_error}
+              </p>
+            )}
+            <p>
+              {domain.hosting_enabled
+                ? t(
+                    'الاستضافة مطلوبة؛ شهادة TLS يديرها المشغّل.',
+                    'Hosting requested; TLS is managed by the operator.',
+                  )
+                : t('استضافة النطاق متوقفة.', 'Domain hosting is off.')}
+            </p>
             <div className="form-actions">
+              <button
+                className="btn"
+                disabled={busy || (!domain.hosting_enabled && domain.status !== 'verified')}
+                onClick={() =>
+                  void run(() =>
+                    api('/workspace/branding/domains/' + domain.id + '/hosting', {
+                      method: 'PATCH',
+                      body: JSON.stringify({ enabled: !domain.hosting_enabled }),
+                    }),
+                  )
+                }
+              >
+                {domain.hosting_enabled
+                  ? t('إيقاف الاستضافة', 'Disable hosting')
+                  : t('طلب استضافة النطاق', 'Request domain hosting')}
+              </button>
               <button
                 className="btn"
                 disabled={busy}
