@@ -1,5 +1,12 @@
 # Remaining implementation — continue on PR #1
 
+## Maximum-scope continuation — signed mail receipts and evidence reconciliation (2026-10-23)
+
+Migration 070 adds immutable delivery/bounce/failure receipts and separate visible delivery state. Optional gateway callback uses raw-body HMAC, a five-minute timestamp window, stable event/body dedupe, provider/job/tenant binding and monotonic event ordering. Signed evidence may resolve ambiguous acceptance without sending. Owner-only manual accepted/not_sent evidence review also never resends; old effects remain quarantined. Team mail UI displays actual delivery state and review controls. Sending and receipt gates remain disabled separately; EMAIL_GATEWAY_RECEIPTS.md documents the normalized gateway contract.
+
+API/web TypeScript, ESLint, migration and receipt/invitation-mail suites pass: signatures/gates, dedupe/body changes, stale/new bounce order, ambiguity evidence, manual no-resend review, encrypted payload/revocation and RLS. All signatures/provider replies are local fixtures. Other transactional message types and real provider/DNS activation acceptance remain open. Next: paged export results/scaling and billing contract closure, then full regression/browser acceptance.
+
+
 ## Maximum-scope continuation — integration authentication policies (2026-10-23)
 
 Migration 069 extends existing host-bound encrypted secret references with Basic, allowlisted API-key headers and HMAC-SHA256, retaining Bearer compatibility and rotation/version checks. Existing automation editor configures auth and four allowlisted non-secret headers. Executor signs timestamp.body only inside the existing effect callback; replay uses the existing ledger without another request. Host/SSRF/redirect gates and external-delivery flag remain authoritative. Raw secret values never appear in list APIs or workflow definitions.

@@ -1,10 +1,19 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useData } from '../business/useData';
 import { api } from '../../lib/api';
 import { useLocale } from './locale';
-type Job = { id: string; status: string; error: string | null; created_at: string };
+type Job = {
+  id: string;
+  status: string;
+  error: string | null;
+  created_at: string;
+  delivery_status: string | null;
+  provider_id: string | null;
+};
 export function InvitationMailPanel({ refreshKey }: { refreshKey: string }) {
   const { t, language } = useLocale();
+  const workspace = useData<{ role: string }>('/workspace', { role: '' });
   const [jobs, setJobs] = useState<Job[]>([]),
     [html, setHtml] = useState(''),
     [error, setError] = useState(''),
@@ -101,8 +110,79 @@ export function InvitationMailPanel({ refreshKey }: { refreshKey: string }) {
                       )[j.status] ?? j.status}
                     </span>
                   </td>
-                  <td>{j.error ?? '—'}</td>
                   <td>
+                    {j.delivery_status
+                      ? (
+                          {
+                            delivered: t('تم التسليم', 'Delivered'),
+                            bounced: t('مرتد', 'Bounced'),
+                            failed: t('فشل التسليم', 'Delivery failed'),
+                          } as Record<string, string>
+                        )[j.delivery_status]
+                      : (j.error ?? '—')}
+                    {j.provider_id && (
+                      <small className="block" dir="ltr">
+                        {j.provider_id}
+                      </small>
+                    )}
+                  </td>
+                  <td>
+                    {j.status === 'ambiguous' && workspace.data.role === 'owner' && (
+                      <details>
+                        <summary>
+                          {t('مراجعة الدليل دون إعادة إرسال', 'Review evidence without resending')}
+                        </summary>
+                        <form
+                          className="stack"
+                          onSubmit={async (e) => {
+                            e.preventDefault();
+                            const f = new FormData(e.currentTarget);
+                            setBusy(true);
+                            setError('');
+                            try {
+                              await api('/workspace/mail/' + j.id + '/reconcile', {
+                                method: 'POST',
+                                body: JSON.stringify({
+                                  outcome: f.get('outcome'),
+                                  ...(f.get('providerId')
+                                    ? { providerId: f.get('providerId') }
+                                    : {}),
+                                  evidence: f.get('evidence'),
+                                }),
+                              });
+                              await load();
+                            } catch (e) {
+                              setError((e as Error).message);
+                            } finally {
+                              setBusy(false);
+                            }
+                          }}
+                        >
+                          <label className="field">
+                            {t('نتيجة الدليل', 'Evidence outcome')}
+                            <select name="outcome">
+                              <option value="not_sent">
+                                {t('لم تُرسل، إغلاق دون إعادة', 'Not sent; close without resend')}
+                              </option>
+                              <option value="accepted">
+                                {t('قبول مؤكد من المزود', 'Confirmed provider acceptance')}
+                              </option>
+                            </select>
+                          </label>
+                          <label className="field">
+                            {t('معرّف القبول عند تأكيده', 'Provider ID if accepted')}
+                            <input name="providerId" maxLength={255} />
+                          </label>
+                          <label className="field">
+                            {t('مرجع الدليل', 'Evidence reference')}
+                            <textarea name="evidence" minLength={20} maxLength={2000} required />
+                          </label>
+                          <button className="btn" disabled={busy}>
+                            {t('حفظ المراجعة فقط', 'Save evidence review only')}
+                          </button>
+                        </form>
+                      </details>
+                    )}
                     {j.status === 'blocked' && (
                       <button disabled={busy} className="btn" onClick={() => run(j.id)}>
                         {t('إعادة فحص بوابة الإرسال', 'Recheck delivery gate')}

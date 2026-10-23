@@ -1,3 +1,4 @@
+import { MailReceiptController, MailReviewController } from './receipts.controller';
 import {
   Body,
   Controller,
@@ -158,7 +159,12 @@ export class InvitationMail {
                 'Content-Type': 'application/json',
                 'Idempotency-Key': 'boat-mail-' + job.id,
               },
-              body: JSON.stringify({ to: payload.email, ...message }),
+              body: JSON.stringify({
+                to: payload.email,
+                ...message,
+                reference: { tenantId: event.tenantId, jobId: job.id },
+                receiptUrl: env.PUBLIC_API_URL + '/mail/receipts',
+              }),
               timeoutMs: 10000,
             });
             const data = z
@@ -196,7 +202,7 @@ class InvitationMailController {
       async (c) =>
         (
           await c.query(
-            'SELECT id,invitation_id,status,provider_id,error,created_at,updated_at FROM invitation_mail_jobs ORDER BY created_at DESC LIMIT 50',
+            'SELECT id,invitation_id,status,provider_id,error,created_at,updated_at,delivery_status,delivery_event_at FROM invitation_mail_jobs ORDER BY created_at DESC LIMIT 50',
           )
         ).rows,
     );
@@ -223,7 +229,7 @@ class InvitationMailController {
 @Global()
 @Module({
   providers: [InvitationMail, CryptoService],
-  controllers: [InvitationMailController],
+  controllers: [InvitationMailController, MailReceiptController, MailReviewController],
   exports: [InvitationMail],
 })
 export class InvitationMailModule {}
