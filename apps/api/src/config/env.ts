@@ -5,6 +5,7 @@ const schema = z.object({
   EXTERNAL_DELIVERY_ENABLED: z.enum(['true', 'false']).default('false'),
   PLATFORM_DATABASE_URL: z.string().url().optional(),
   PLATFORM_JWT_SECRET: z.string().min(32).optional(),
+  PLATFORM_OPERATOR_ROLES: z.string().default('{}'),
   PLATFORM_ADMIN_USER_IDS: z.string().default(''),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   API_PORT: z.coerce.number().default(4000),

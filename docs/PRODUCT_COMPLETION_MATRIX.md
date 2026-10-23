@@ -1,5 +1,10 @@
 # ELHAFEZ BOAT — Product completion matrix
 
+## Operator authorization checkpoint — 2026-10-23
+
+Explicit operator-managed role mappings now enforce independent company/user/session/subscription/plan write permissions on every request. Missing or invalid configuration is read-only; workspace ownership never grants writes. The platform UI displays effective scopes and disables unauthorized actions. No new schema is required for immutable operator configuration. API/web TypeScript, ESLint and 48 API tests pass. MFA is the immediate next unit; external delivery/AI remain disabled.
+
+
 ## Platform audit checkpoint — 2026-10-23
 
 Migration 041, restricted API and bilingual console provide exact actor/company/action filters, bounded UTC date ranges, stable ID cursor pagination and explicitly loaded-record JSON export. Direct table/application-role access remains denied. API build, web TypeScript, lint and dedicated SQL smoke passed. Continue with granular operator permissions and MFA; product remains partial. No screenshots or visual acceptance are requested in this sprint.

@@ -17,7 +17,10 @@ import {
   Req,
   Query,
   UseGuards,
+  SetMetadata,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { operatorPermissions, PlatformPermission } from './permissions';
 import { JwtService } from '@nestjs/jwt';
 import { Pool } from 'pg';
 import { z } from 'zod';
@@ -27,14 +30,21 @@ import { parse } from '../common/zod';
 import { env } from '../config/env';
 import { DatabaseService } from '../database/database.service';
 import type { Request } from 'express';
-type PlatformRequest = Request & { platformActor: string };
+type PlatformRequest = Request & {
+  platformActor: string;
+  platformPermissions: PlatformPermission[];
+};
+const Permission = (value: PlatformPermission) => SetMetadata('platform.permission', value);
 @Injectable()
 export class PlatformAccess implements CanActivate, OnModuleDestroy {
   private pool = env.PLATFORM_DATABASE_URL
     ? new Pool({ connectionString: env.PLATFORM_DATABASE_URL, max: 3 })
     : null;
   private jwt = new JwtService();
-  constructor(private db: DatabaseService) {}
+  constructor(
+    private db: DatabaseService,
+    private reflector: Reflector,
+  ) {}
   private ready() {
     if (
       !this.pool ||
@@ -106,6 +116,12 @@ export class PlatformAccess implements CanActivate, OnModuleDestroy {
       )
         throw new Error();
       req.platformActor = payload.sub;
+      req.platformPermissions = operatorPermissions(env.PLATFORM_OPERATOR_ROLES, payload.sub);
+      const required = this.reflector.getAllAndOverride<PlatformPermission>('platform.permission', [
+        context.getHandler(),
+        context.getClass(),
+      ]);
+      if (required && !req.platformPermissions.includes(required)) throw new Error();
       return true;
     } catch {
       throw new ForbiddenException('Platform session invalid or expired');
@@ -140,6 +156,9 @@ class PlatformLoginController {
 @Controller('platform')
 class PlatformController {
   constructor(private access: PlatformAccess) {}
+  @Get('session') session(@Req() r: PlatformRequest) {
+    return { actor: r.platformActor, permissions: r.platformPermissions };
+  }
   @Get('audit') async audit(@Query() query: unknown) {
     const q = parse(
       z.object({
@@ -195,7 +214,9 @@ class PlatformController {
   @Get() async snapshot() {
     return (await this.access.query('SELECT platform_snapshot() AS data'))[0].data;
   }
-  @Patch('companies/:id') async company(
+  @Permission('companies.write')
+  @Patch('companies/:id')
+  async company(
     @Req() r: PlatformRequest,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: unknown,
@@ -217,7 +238,9 @@ class PlatformController {
     ]);
     return { updated: true };
   }
-  @Patch('subscriptions/:id') async subscription(
+  @Permission('subscriptions.write')
+  @Patch('subscriptions/:id')
+  async subscription(
     @Req() r: PlatformRequest,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: unknown,
@@ -239,7 +262,9 @@ class PlatformController {
     ]);
     return { updated: true, providerUpdated: false };
   }
-  @Patch('users/:id') async user(
+  @Permission('users.write')
+  @Patch('users/:id')
+  async user(
     @Req() r: PlatformRequest,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: unknown,
@@ -261,7 +286,9 @@ class PlatformController {
     ]);
     return { updated: true };
   }
-  @Post('users/:id/revoke-sessions') async revoke(
+  @Permission('sessions.revoke')
+  @Post('users/:id/revoke-sessions')
+  async revoke(
     @Req() r: PlatformRequest,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: unknown,
@@ -274,11 +301,9 @@ class PlatformController {
     ]);
     return { revoked: true };
   }
-  @Patch('plans/:code') async plan(
-    @Req() r: PlatformRequest,
-    @Param('code') code: string,
-    @Body() body: unknown,
-  ) {
+  @Permission('plans.write')
+  @Patch('plans/:code')
+  async plan(@Req() r: PlatformRequest, @Param('code') code: string, @Body() body: unknown) {
     const b = parse(
       z.object({
         name: z.string().min(1).max(100),

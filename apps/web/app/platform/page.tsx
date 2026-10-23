@@ -40,6 +40,7 @@ function Console() {
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState('');
+  const [permissions, setPermissions] = useState<string[]>([]);
   const [companyQuery, setCompanyQuery] = useState(''),
     [userQuery, setUserQuery] = useState(''),
     [companyPage, setCompanyPage] = useState(1),
@@ -52,7 +53,7 @@ function Console() {
   ) {
     const cp = options.companyPage ?? companyPage,
       up = options.userPage ?? userPage;
-    const [snapshot, companies, users] = await Promise.all([
+    const [snapshot, companies, users, session] = await Promise.all([
       request('', undefined, 'GET', access),
       request(
         '/directory?' +
@@ -67,7 +68,9 @@ function Console() {
         'GET',
         access,
       ),
+      request('/session', undefined, 'GET', access),
     ]);
+    setPermissions(session.permissions);
     setData({ ...snapshot, companies: companies.items, users: users.items });
     setCompanyTotal(companies.total);
     setUserTotal(users.total);
@@ -187,6 +190,10 @@ function Console() {
               {t('إنهاء جلسة المنصة', 'End platform session')}
             </button>
           </div>
+          <p className="notice">
+            {t('الصلاحيات الفعالة: ', 'Effective permissions: ')}
+            {permissions.join(', ') || t('قراءة فقط', 'Read only')}
+          </p>
           <h2>{t('الشركات والاشتراكات', 'Companies and subscriptions')}</h2>
           <form
             className="card form-actions"
@@ -267,7 +274,7 @@ function Console() {
                   required
                   placeholder={t('السبب للتدقيق', 'Audit reason')}
                 />
-                <button className="btn" disabled={busy}>
+                <button className="btn" disabled={busy || !permissions.includes('companies.write')}>
                   {t('حفظ الشركة', 'Save company')}
                 </button>
               </form>
@@ -317,7 +324,10 @@ function Console() {
                   required
                   placeholder={t('سبب تعديل الاستحقاق', 'Entitlement override reason')}
                 />
-                <button className="btn" disabled={busy}>
+                <button
+                  className="btn"
+                  disabled={busy || !permissions.includes('subscriptions.write')}
+                >
                   {t('تعديل الاستحقاق المحلي', 'Override local entitlement')}
                 </button>
               </form>
@@ -388,13 +398,13 @@ function Console() {
                   {t('إيقاف الحساب', 'Disable account')}
                 </label>
                 <input name="reason" required minLength={10} placeholder={t('السبب', 'Reason')} />
-                <button className="btn" disabled={busy}>
+                <button className="btn" disabled={busy || !permissions.includes('users.write')}>
                   {t('حفظ وإبطال الجلسات', 'Save and revoke sessions')}
                 </button>
                 <button
                   type="button"
                   className="btn"
-                  disabled={busy}
+                  disabled={busy || !permissions.includes('sessions.revoke')}
                   onClick={() => {
                     const reason = prompt(
                       t(
@@ -477,7 +487,7 @@ function Console() {
                   required
                   placeholder={t('سبب تعديل الباقة', 'Plan change reason')}
                 />
-                <button className="btn" disabled={busy}>
+                <button className="btn" disabled={busy || !permissions.includes('plans.write')}>
                   {t('حفظ الباقة', 'Save plan')}
                 </button>
               </form>
