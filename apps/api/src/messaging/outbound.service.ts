@@ -1,3 +1,4 @@
+import { DeliveryBudget } from './delivery-budget';
 import {
   BadRequestException,
   Injectable,
@@ -18,6 +19,7 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
   private log = new Logger(OutboundService.name);
   constructor(
     private db: DatabaseService,
+    private budget: DeliveryBudget,
     private channels: ChannelsService,
     private whatsapp: WhatsAppAdapter,
     private meta: MetaAdapter,
@@ -128,26 +130,21 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
             );
             return null;
           }
-          await c.query(
-            'INSERT INTO channel_delivery_policy(tenant_id,channel_id) VALUES($1,$2) ON CONFLICT DO NOTHING',
-            [job.tenant_id, message.channel_id],
-          );
-          const policy = (
-            await c.query('SELECT * FROM channel_delivery_policy WHERE channel_id=$1 FOR UPDATE', [
-              message.channel_id,
-            ])
-          ).rows[0];
-          if (new Date(policy.next_send_at).getTime() > Date.now()) {
-            await c.query('UPDATE outbound_jobs SET available_at=$2 WHERE id=$1', [
-              j.id,
-              policy.next_send_at,
-            ]);
+          const permit = await this.budget.take(job.tenant_id, message.channel_id, !!marketing);
+          if (!permit.allowed) {
+            if (permit.blocked)
+              await c.query(
+                "UPDATE outbound_jobs SET status='blocked',error=$2,updated_at=now() WHERE id=$1",
+                [j.id, permit.reason],
+              );
+            else
+              await c.query('UPDATE outbound_jobs SET available_at=$2,error=$3 WHERE id=$1', [
+                j.id,
+                permit.at,
+                permit.reason,
+              ]);
             return null;
           }
-          await c.query(
-            "UPDATE channel_delivery_policy SET next_send_at=now()+interval_ms*interval '1 millisecond' WHERE channel_id=$1",
-            [message.channel_id],
-          );
           await c.query(
             "UPDATE outbound_jobs SET status='sending',attempts=attempts+1,lease_until=now()+interval '90 seconds',updated_at=now() WHERE id=$1",
             [j.id],

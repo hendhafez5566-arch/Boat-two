@@ -1,3 +1,4 @@
+import { DeliveryBudget } from '../messaging/delivery-budget';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { randomUUID } from 'node:crypto';
@@ -14,6 +15,7 @@ export class CampaignsService {
     private events: EventsService,
     private messaging: MessagingService,
     private plans: PlansService,
+    private budget: DeliveryBudget,
   ) {}
   async audience(tenant: string, channelId: string, filters: Filters) {
     const w = contactWhere(filters);
@@ -132,7 +134,7 @@ export class CampaignsService {
       ).rows[0];
       const channelPolicy = (
         await c.query(
-          'SELECT p.*,ch.type FROM channel_delivery_policy p JOIN channels ch ON ch.id=p.channel_id WHERE p.channel_id=$1 FOR UPDATE OF p',
+          'SELECT p.*,ch.type FROM channel_delivery_policy p JOIN channels ch ON ch.id=p.channel_id WHERE p.channel_id=$1',
           [r.channel_id],
         )
       ).rows[0];
@@ -173,25 +175,22 @@ export class CampaignsService {
         reason = 'Frequency cap';
       let messageId: string | null = null;
       let status = 'skipped';
-      if (!reason) {
-        if (channelPolicy.type === 'web') {
-          const due = new Date(channelPolicy.next_send_at);
-          if (due.getTime() > Date.now()) {
-            await this.events.publish(
-              e.tenantId,
-              'campaign.recipient',
-              r.canonical_contact_id,
-              { recipientId: r.id },
-              randomUUID(),
-              due.toISOString(),
-            );
-            return;
-          }
-          await c.query(
-            "UPDATE channel_delivery_policy SET next_send_at=now()+interval_ms*interval '1 millisecond' WHERE channel_id=$1",
-            [r.channel_id],
+      if (!reason && channelPolicy.type === 'web') {
+        const permit = await this.budget.take(e.tenantId, r.channel_id, true);
+        if (permit.blocked) reason = permit.reason ?? 'Shared account blocked';
+        else if (!permit.allowed) {
+          await this.events.publish(
+            e.tenantId,
+            'campaign.recipient',
+            r.canonical_contact_id,
+            { recipientId: r.id },
+            randomUUID(),
+            permit.at,
           );
+          return;
         }
+      }
+      if (!reason) {
         const conv = (
           await c.query(
             "SELECT id FROM conversations WHERE contact_id=$1 AND channel_id=$2 AND status<>'closed' ORDER BY created_at DESC LIMIT 1",

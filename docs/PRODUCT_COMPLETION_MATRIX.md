@@ -114,3 +114,7 @@ Batch 2 is still partial; Batches 3–4 remain unfinished. Immediate next implem
 ## Continuous checkpoint — CRM work management
 
 Migration 037, expanded existing CRM work APIs and bilingual `/dashboard/crm/work`: filtered/paged deal/task lists, full record editing, valid member assignment, optimistic revision checks, due filters and filtered CSV exports. Targeted API/TypeScript/lint/migration/integration checks pass. Remaining pipeline ownership, historical timeline exports and broader CRM lifecycle are not declared complete. Continuous commit/push after each stable unit is now mandatory.
+
+## Continuous checkpoint — shared delivery account limits
+
+Migration 038 adds tenant-owned operator-defined Meta/web account groups. Channels can share a group through the policy UI. The existing outbound worker and web campaign dispatcher use one PostgreSQL permit service for channel interval + account interval + UTC daily attempt caps. Locks serialize cross-channel/cross-worker reservations, and rollback releases uncommitted permits. Disabled groups block dispatch; provider mismatches/cross-tenant assignments are refused. Uncertain provider attempts stay counted. These are configured operational limits, not automatic discovery/approval of provider quotas. Direct web chat remains immediate. API/web TypeScript, ESLint, migration and `smoke-delivery-accounts.mjs` pass. No external sending enabled.

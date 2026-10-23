@@ -1,3 +1,4 @@
+import { DeliveryBudget } from './delivery-budget';
 import { OutboundService } from './outbound.service';
 import { TemplatesController } from './templates.controller';
 import { MetaConnectController } from './meta-connect.controller';
@@ -21,6 +22,7 @@ import { WidgetAssetController, WidgetController } from './widget.controller';
     WidgetAssetController,
   ],
   providers: [
+    DeliveryBudget,
     OutboundService,
     CryptoService,
     ChannelsService,
@@ -28,6 +30,6 @@ import { WidgetAssetController, WidgetController } from './widget.controller';
     WhatsAppAdapter,
     MetaAdapter,
   ],
-  exports: [MessagingService, ChannelsService, OutboundService],
+  exports: [DeliveryBudget, MessagingService, ChannelsService, OutboundService],
 })
 export class MessagingModule {}
