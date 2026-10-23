@@ -10,6 +10,7 @@ type Request = {
   status: string;
   error: string | null;
   created_at: string;
+  execute_at: string;
 };
 export function SubscriptionRequests({
   plans,
@@ -25,6 +26,7 @@ export function SubscriptionRequests({
     [confirmed, setConfirmed] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
+  const [schedule, setSchedule] = useState('');
   const unresolved = jobs.data.some((j) => ['pending', 'ambiguous'].includes(j.status));
   async function act(body: unknown, path = '/billing/subscription-requests') {
     setBusy(true);
@@ -89,6 +91,26 @@ export function SubscriptionRequests({
         </label>
       )}
       <label>
+        {t(
+          'وقت التنفيذ (اختياري، بتوقيت جهازك)',
+          'Execution time (optional, in your device time zone)',
+        )}
+        <input
+          type="datetime-local"
+          value={schedule}
+          onChange={(e) => {
+            setSchedule(e.target.value);
+            setConfirmed(false);
+          }}
+        />
+      </label>
+      <p className="muted">
+        {t(
+          'اتركه فارغًا للتنفيذ الآن. الطلب المؤجل محفوظ في محرك الأحداث؛ يمكنك سحبه قبل التنفيذ. لا يضمن هذا تنفيذًا لدى المزود قبل انتهاء التجديد إذا تأخر العامل.',
+          'Leave empty to execute now. Scheduled requests are stored in the outbox and can be withdrawn before execution. Worker delays can affect execution relative to renewal deadlines.',
+        )}
+      </p>
+      <label>
         <input
           type="checkbox"
           checked={confirmed}
@@ -102,7 +124,13 @@ export function SubscriptionRequests({
           disabled={
             busy || !linked || !confirmed || unresolved || (kind === 'change_plan' && !plan)
           }
-          onClick={() => act({ kind, ...(kind === 'change_plan' ? { planCode: plan } : {}) })}
+          onClick={() =>
+            act({
+              kind,
+              ...(schedule ? { effectiveAt: new Date(schedule).toISOString() } : {}),
+              ...(kind === 'change_plan' ? { planCode: plan } : {}),
+            })
+          }
         >
           {t('حفظ الطلب', 'Save request')}
         </button>
@@ -122,6 +150,8 @@ export function SubscriptionRequests({
           </strong>
           <p>
             {j.status} · {new Date(j.created_at).toLocaleString()}
+            <br />
+            {t('موعد التنفيذ', 'Execution time')}: {new Date(j.execute_at).toLocaleString()}
           </p>
           {j.error && <p role="status">{j.error}</p>}
           {['pending', 'blocked'].includes(j.status) && (

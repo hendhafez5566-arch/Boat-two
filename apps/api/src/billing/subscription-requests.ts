@@ -32,7 +32,19 @@ export class SubscriptionRequests {
     private billing: BillingService,
   ) {}
   async create(tenant: string, actor: string, input: unknown) {
-    const data = parse(schema, input);
+    const data = parse(
+      schema.and(z.object({ effectiveAt: z.string().datetime().optional() })),
+      input,
+    );
+    const executeAt = data.effectiveAt ? new Date(data.effectiveAt) : new Date();
+    if (
+      data.effectiveAt &&
+      (executeAt.getTime() < Date.now() + 60000 ||
+        executeAt.getTime() > Date.now() + 366 * 86400000)
+    )
+      throw new BadRequestException(
+        'Schedule must be at least one minute and at most 366 days ahead',
+      );
     return this.db.withTenant(tenant, async (c) => {
       const sub = (
         await c.query(
@@ -74,7 +86,7 @@ export class SubscriptionRequests {
       }
       const row = (
         await c.query(
-          `INSERT INTO billing_subscription_requests(tenant_id,requested_by,kind,plan_code,price_id,expected_price_id,customer_id,subscription_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id,status`,
+          `INSERT INTO billing_subscription_requests(tenant_id,requested_by,kind,plan_code,price_id,expected_price_id,customer_id,subscription_id,execute_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id,status`,
           [
             tenant,
             actor,
@@ -84,6 +96,7 @@ export class SubscriptionRequests {
             sub.stripe_current_price_id ?? sub.stripe_price_id,
             sub.stripe_customer_id,
             sub.stripe_subscription_id,
+            executeAt,
           ],
         )
       ).rows[0];
@@ -93,6 +106,7 @@ export class SubscriptionRequests {
         row.id,
         { id: row.id },
         `billing.request:${row.id}`,
+        executeAt.toISOString(),
       );
       return row;
     });
@@ -169,7 +183,7 @@ export class SubscriptionRequests {
     return this.db.withTenant(event.tenantId, async (c) => {
       const row = (
         await c.query(
-          "SELECT * FROM billing_subscription_requests WHERE id=$1 AND status='pending' FOR UPDATE",
+          "SELECT * FROM billing_subscription_requests WHERE id=$1 AND status='pending' AND execute_at<=now() FOR UPDATE",
           [event.id],
         )
       ).rows[0];
@@ -257,7 +271,7 @@ export class SubscriptionRequestsController {
       async (c) =>
         (
           await c.query(
-            'SELECT id,kind,plan_code,status,error,created_at,updated_at FROM billing_subscription_requests ORDER BY created_at DESC,id DESC LIMIT 100',
+            'SELECT id,kind,plan_code,status,error,created_at,updated_at,execute_at FROM billing_subscription_requests ORDER BY created_at DESC,id DESC LIMIT 100',
           )
         ).rows,
     );

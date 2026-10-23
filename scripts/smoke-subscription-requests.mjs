@@ -80,6 +80,28 @@ try {
       cancel_at_period_end: providerCancel,
     };
   };
+  const effectiveAt = new Date(Date.now() + 3600000).toISOString();
+  const scheduled = await requests.create(a.tenantId, a.user, { kind: 'cancel', effectiveAt });
+  await requests.process({ tenantId: a.tenantId, id: scheduled.id });
+  assert.equal((await get(scheduled.id)).status, 'pending');
+  assert.equal(writes, 0, 'Future requests cannot execute early');
+  const due = (
+    await db.withTenant(a.tenantId, (c) =>
+      c.query('SELECT available_at FROM domain_events WHERE dedupe_key=$1', [
+        'billing.request:' + scheduled.id,
+      ]),
+    )
+  ).rows[0].available_at;
+  assert.equal(new Date(due).toISOString(), effectiveAt);
+  await requests.cancel(a.tenantId, scheduled.id);
+  await assert.rejects(
+    () =>
+      requests.create(a.tenantId, a.user, {
+        kind: 'cancel',
+        effectiveAt: new Date(Date.now() - 1000).toISOString(),
+      }),
+    /Schedule must/,
+  );
   const cancel = await requests.create(a.tenantId, a.user, { kind: 'cancel' });
   await assert.rejects(() => requests.create(a.tenantId, a.user, { kind: 'resume' }), /unresolved/);
   await Promise.all([

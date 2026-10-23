@@ -1,5 +1,11 @@
 # Continue here — ELHAFEZ BOAT
 
+## Full product sprint checkpoint — scheduled subscription requests
+
+Migration 060 adds execution timestamps to the existing durable owner requests. Owners can choose a future local date/time (validated and stored as UTC, one minute to 366 days ahead), see the saved execution time and withdraw before execution. The outbox schedules the existing worker; ownership, provider link, price availability and gates are rechecked at execution. Early handler calls cannot mutate a future request. This is application scheduling, not an independently running Stripe subscription schedule; worker availability still matters around renewal deadlines.
+
+API build, web TypeScript, ESLint and subscription-request/evidence PostgreSQL smokes pass, including saved due time, early-execution denial, withdrawal and invalid dates. All financial/external gates remain false. Next: branded invitation email lifecycle and remaining product controls, then full development/browser regression.
+
 ## Full product sprint checkpoint — nested automations and visual editing
 
 Migration 059 and the existing automation engine now support nested AND/OR condition groups and nested branch/delay/HTTP actions, bounded before recursive parsing (depth four, bounded lists/node counts). No parallel executor was introduced. Workflow updates optionally check revisions for legacy compatibility; the upgraded editor always sends its revision. Immutable snapshots, saved canvas positions and execution rule revisions are persisted.
