@@ -1,3 +1,11 @@
+## Bot selection/translation and bounded failure/load acceptance — 2026-10-23 UTC
+
+Prior checkpoint c0a08b5 pushed/remote-verified. Expanded Chromium inspector assertion exposed missing React Flow selection on palette add; selected=true now persists the new selection and deselects prior nodes. Advanced inspector is actually opened and edited in the browser; undo/redo retains original node-count assertions, followed by explicit node re-selection after history travel. The full premium journey passes: real seven-step bot publication, preview button, add/undo/redo/edit/save, version Escape, branded invitation queue and Inbox mobile. Builder settings/version dialog/static node summaries are now bilingual with accessible trigger/priority controls. User-authored text is preserved.
+
+New bounded smoke-load: 2000 synthetic contacts, 160 authenticated reads at concurrency 8, correct tenant isolation, zero failures, observed p95 63ms/max 83ms. This is local read throughput only. New smoke-process-crash kills an actual child with SIGKILL after a durable mocked provider attempt: started claim survives, replay refuses a second callback, exactly one attempt remains. No external requests or production capacity/security claim. Evidence in docs/acceptance/2026-10-23-v1-closure/. QA-04 remains open for comprehensive acceptance beyond these fixtures.
+
+Next active unit: remove growing CRM export JSON copying by freezing PostgreSQL ordinal rows and reading bounded pages; this unit is not yet closed at this checkpoint. Frozen IDs remain unchanged.
+
 ## V1 closure verification and editor checkpoint — 2026-10-23 UTC
 
 Rich template authoring checkpoint `38aad29` pushed/remote-verified. Current continuation closes template browser acceptance, displays persisted rich card previews, separates media input name/help, translates advanced flow inspector labels/options/hints/default new replies and gives controls accessible names with fieldset grouping. Explicit PostCSS Tailwind config fixes the reproduced root-build missing-content warning. Existing behavior and user-entered content are preserved.

@@ -160,9 +160,10 @@ function Editor({ id }: { id: string }) {
       },
     );
     setNodes((ns) => [
-      ...ns,
+      ...ns.map((node) => ({ ...node, selected: false })),
       {
         id: nid,
+        selected: true,
         type: 'flowNode',
         position: pos,
         data: { type, data: NODE_META[type].defaults(), isStart: false },
@@ -306,7 +307,16 @@ function Editor({ id }: { id: string }) {
     }
   }
   async function restoreVersion(versionId: string) {
-    if (dirty && !confirm('استبدال التعديلات غير المحفوظة بهذه النسخة؟')) return;
+    if (
+      dirty &&
+      !confirm(
+        t(
+          'استبدال التعديلات غير المحفوظة بهذه النسخة؟',
+          'Replace unsaved changes with this version?',
+        ),
+      )
+    )
+      return;
     try {
       await api(`/flows/${id}/versions/${versionId}/restore`, {
         method: 'POST',
@@ -402,7 +412,7 @@ function Editor({ id }: { id: string }) {
           {msg}
         </span>
         <button
-          title="تراجع عن آخر تعديل"
+          title={t('تراجع عن آخر تعديل', 'Undo last change')}
           disabled={busy || cursor.current <= 0}
           onClick={() => travel(-1)}
           className="rounded border px-2 py-1"
@@ -410,7 +420,7 @@ function Editor({ id }: { id: string }) {
           <NavIcon name="undo" /> {t('تراجع', 'Undo')}
         </button>
         <button
-          title="إعادة التعديل"
+          title={t('إعادة التعديل', 'Redo change')}
           disabled={busy || cursor.current >= history.current.length - 1}
           onClick={() => travel(1)}
           className="rounded border px-2 py-1"
@@ -454,8 +464,10 @@ function Editor({ id }: { id: string }) {
         title={t('الإصدارات المنشورة', 'Published versions')}
       >
         <div className="border-b bg-white p-3 text-sm flex flex-wrap items-center gap-3">
-          <strong>الإصدارات المنشورة</strong>
-          {!versions.length && <span>لا توجد إصدارات منشورة بعد.</span>}
+          <strong>{t('الإصدارات المنشورة', 'Published versions')}</strong>
+          {!versions.length && (
+            <span>{t('لا توجد إصدارات منشورة بعد.', 'No published versions yet.')}</span>
+          )}
           {versions.map((v) => (
             <button
               className="rounded border px-2 py-1"
@@ -463,11 +475,17 @@ function Editor({ id }: { id: string }) {
               disabled={busy}
               onClick={() => restoreVersion(v.id)}
             >
-              استعادة v{v.version} إلى المسودة · {new Date(v.created_at).toLocaleDateString()}
+              {t('استعادة', 'Restore')} v{v.version} {t('إلى المسودة', 'to draft')} ·{' '}
+              {new Date(v.created_at).toLocaleDateString(language === 'ar' ? 'ar' : 'en')}
             </button>
           ))}
-          <button onClick={() => setShowVersions(false)}>إغلاق ×</button>
-          <small>الاستعادة لا تغيّر الإصدار المنشور حتى تضغط نشر.</small>
+          <button onClick={() => setShowVersions(false)}>{t('إغلاق', 'Close')} ×</button>
+          <small>
+            {t(
+              'الاستعادة لا تغيّر الإصدار المنشور حتى تضغط نشر.',
+              'Restoring changes the draft; publish to replace the live version.',
+            )}
+          </small>
         </div>
       </Dialog>
       {(issues.length > 0 || warnings.length > 0) && (
@@ -643,14 +661,15 @@ function Editor({ id }: { id: string }) {
               <div className="space-y-4 p-3 text-sm">
                 <div>
                   <div className="mb-1 text-xs font-semibold text-gray-600">
-                    متى يبدأ السيناريو؟
+                    {t('متى يبدأ السيناريو؟', 'When does the bot start?')}
                   </div>
-                  {meta.triggers.map((t, i) => (
+                  {meta.triggers.map((trigger, i) => (
                     <div key={i} className="mb-2 space-y-1 rounded border p-2">
                       <div className="flex gap-1">
                         <select
                           className={inp}
-                          value={t.type}
+                          aria-label={t('نوع المشغّل', 'Trigger type')}
+                          value={trigger.type}
                           onChange={(e) => {
                             const type = e.target.value as Trigger['type'];
                             const nt: Trigger =
@@ -664,23 +683,31 @@ function Editor({ id }: { id: string }) {
                             setTriggers(meta.triggers.map((x, j) => (j === i ? nt : x)));
                           }}
                         >
-                          <option value="event">حدث CRM</option>
-                          <option value="keyword">كلمة مفتاحية</option>
-                          <option value="first_message">أول رسالة في المحادثة</option>
-                          <option value="any_message">أي رسالة (احتياطي)</option>
-                          <option value="reply_id">ضغط زر/قائمة محدد</option>
+                          <option value="event">{t('حدث CRM', 'CRM event')}</option>
+                          <option value="keyword">{t('كلمة مفتاحية', 'Keyword')}</option>
+                          <option value="first_message">
+                            {t('أول رسالة في المحادثة', 'First message in conversation')}
+                          </option>
+                          <option value="any_message">
+                            {t('أي رسالة (احتياطي)', 'Any message (fallback)')}
+                          </option>
+                          <option value="reply_id">
+                            {t('ضغط زر/قائمة محدد', 'Specific button or list selection')}
+                          </option>
                         </select>
                         <button
+                          aria-label={t('حذف المشغّل', 'Remove trigger')}
                           onClick={() => setTriggers(meta.triggers.filter((_, j) => j !== i))}
                           className="rounded border px-2 text-red-600"
                         >
                           ×
                         </button>
                       </div>
-                      {t.type === 'event' && (
+                      {trigger.type === 'event' && (
                         <select
                           className={inp}
-                          value={t.event}
+                          aria-label={t('حدث CRM', 'CRM event')}
+                          value={trigger.event}
                           onChange={(e) =>
                             setTriggers(
                               meta.triggers.map((x, j) =>
@@ -700,19 +727,23 @@ function Editor({ id }: { id: string }) {
                           ))}
                         </select>
                       )}
-                      {t.type === 'keyword' && (
+                      {trigger.type === 'keyword' && (
                         <>
                           <textarea
                             className={inp}
                             rows={2}
-                            placeholder="كلمات مفصولة بفاصلة: سعر، price، كام"
-                            defaultValue={t.keywords.join('، ')}
+                            aria-label={t('الكلمات المفتاحية', 'Keywords')}
+                            placeholder={t(
+                              'كلمات مفصولة بفاصلة: سعر، price، كام',
+                              'Comma-separated keywords: price, cost',
+                            )}
+                            defaultValue={trigger.keywords.join('، ')}
                             onBlur={(e) =>
                               setTriggers(
                                 meta.triggers.map((x, j) =>
                                   j === i
                                     ? {
-                                        ...t,
+                                        ...trigger,
                                         keywords: e.target.value
                                           .split(/[,،\n]/)
                                           .map((s) => s.trim())
@@ -725,33 +756,44 @@ function Editor({ id }: { id: string }) {
                           />
                           <select
                             className={inp}
-                            value={t.match}
+                            aria-label={t('مطابقة الكلمة', 'Keyword matching')}
+                            value={trigger.match}
                             onChange={(e) =>
                               setTriggers(
                                 meta.triggers.map((x, j) =>
-                                  j === i ? { ...t, match: e.target.value as any } : x,
+                                  j === i ? { ...trigger, match: e.target.value as any } : x,
                                 ),
                               )
                             }
                           >
-                            <option value="contains">تحتوي الرسالة على الكلمة</option>
-                            <option value="exact">الرسالة تطابق الكلمة تماماً</option>
-                            <option value="starts_with">الرسالة تبدأ بالكلمة</option>
+                            <option value="contains">
+                              {t('تحتوي الرسالة على الكلمة', 'Message contains keyword')}
+                            </option>
+                            <option value="exact">
+                              {t('الرسالة تطابق الكلمة تماماً', 'Message exactly matches keyword')}
+                            </option>
+                            <option value="starts_with">
+                              {t('الرسالة تبدأ بالكلمة', 'Message starts with keyword')}
+                            </option>
                           </select>
                         </>
                       )}
-                      {t.type === 'reply_id' && (
+                      {trigger.type === 'reply_id' && (
                         <input
                           className={inp}
                           dir="ltr"
-                          placeholder="معرّفات الأزرار مفصولة بفاصلة"
-                          defaultValue={t.ids.join(', ')}
+                          aria-label={t('معرّفات الرد', 'Reply identifiers')}
+                          placeholder={t(
+                            'معرّفات الأزرار مفصولة بفاصلة',
+                            'Comma-separated button identifiers',
+                          )}
+                          defaultValue={trigger.ids.join(', ')}
                           onBlur={(e) =>
                             setTriggers(
                               meta.triggers.map((x, j) =>
                                 j === i
                                   ? {
-                                      ...t,
+                                      ...trigger,
                                       ids: e.target.value
                                         .split(',')
                                         .map((s) => s.trim())
@@ -774,17 +816,22 @@ function Editor({ id }: { id: string }) {
                     }
                     className="rounded border px-2 py-1 text-xs"
                   >
-                    + مشغّل
+                    {t('+ مشغّل', '+ Trigger')}
                   </button>
                   <p className="mt-2 text-xs text-gray-400">
-                    الأكثر تحديداً يُنفَّذ أولاً: كلمة مفتاحية/زر، ثم أول رسالة، ثم أي رسالة. "أول
-                    رسالة" و"أي رسالة" يعملان مرة واحدة لكل محادثة.
+                    {t(
+                      'الأكثر تحديداً يُنفَّذ أولاً: كلمة مفتاحية/زر، ثم أول رسالة، ثم أي رسالة. أول رسالة وأي رسالة يعملان مرة واحدة لكل محادثة.',
+                      'Specific triggers run first: keyword or button, then first message, then any message. First and any-message triggers run once per conversation.',
+                    )}
                   </p>
                 </div>
 
                 <div>
                   <div className="mb-1 text-xs font-semibold text-gray-600">
-                    القنوات (بدون اختيار = كل القنوات)
+                    {t(
+                      'القنوات (بدون اختيار = كل القنوات)',
+                      'Channels (none selected = all channels)',
+                    )}
                   </div>
                   {channels.map((c) => (
                     <label key={c.id} className="flex items-center gap-2 py-0.5">
@@ -808,11 +855,15 @@ function Editor({ id }: { id: string }) {
 
                 <div>
                   <div className="mb-1 text-xs font-semibold text-gray-600">
-                    الأولوية (الأعلى أولاً عند التعارض)
+                    {t(
+                      'الأولوية (الأعلى أولاً عند التعارض)',
+                      'Priority (highest first when triggers overlap)',
+                    )}
                   </div>
                   <input
                     className={inp}
                     type="number"
+                    aria-label={t('الأولوية', 'Priority')}
                     value={meta.priority}
                     onChange={(e) => {
                       setMeta({ ...meta, priority: Number(e.target.value) || 0 });

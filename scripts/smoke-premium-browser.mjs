@@ -79,9 +79,6 @@ const apiBase = process.env.SMOKE_API_URL || 'http://localhost:4000',
   const initialNodes = await page.locator('.premium-flow-node').count();
   await page.locator('.palette-step').click();
   await page.getByRole('textbox', { name: 'Greeting (optional)', exact: true }).waitFor();
-  await page
-    .getByRole('textbox', { name: 'Additional instructions for this step', exact: true })
-    .fill('Local assistant instructions');
   assert.equal(
     await page
       .locator('.flow-inspector-content')
@@ -94,6 +91,11 @@ const apiBase = process.env.SMOKE_API_URL || 'http://localhost:4000',
   assert.equal(await page.locator('.premium-flow-node').count(), initialNodes);
   await page.getByRole('button', { name: 'Redo', exact: true }).click();
   assert.equal(await page.locator('.premium-flow-node').count(), initialNodes + 1);
+  await page.locator('.premium-flow-node[aria-label="AI assistant"]').click();
+  await page
+    .getByRole('textbox', { name: 'Additional instructions for this step', exact: true })
+    .fill('Local assistant instructions');
+
   await page.getByRole('button', { name: 'Versions', exact: true }).click();
   await page.locator('dialog[open]').waitFor();
   await page.keyboard.press('Escape');

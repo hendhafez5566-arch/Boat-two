@@ -193,16 +193,17 @@ export function handlesFor(
   }
 }
 
-export function summary(type: NodeType, d: Record<string, any>): string {
+export function summary(type: NodeType, d: Record<string, any>, language = 'ar'): string {
+  const en = language === 'en';
   switch (type) {
     case 'subflow':
-      return 'تشغيل مكوّن منشور';
+      return en ? 'Run published component' : 'تشغيل مكوّن منشور';
     case 'message':
-      return d.text || (d.media?.url ? `[${d.media.kind}]` : '(فارغة)');
+      return d.text || (d.media?.url ? `[${d.media.kind}]` : en ? '(empty)' : '(فارغة)');
     case 'question':
-      return `${d.text || '(بدون نص)'} → {{${d.saveAs || '?'}}}`;
+      return `${d.text || (en ? '(no text)' : '(بدون نص)')} → {{${d.saveAs || '?'}}}`;
     case 'condition':
-      return `${(d.rules ?? []).length} شرط`;
+      return `${(d.rules ?? []).length} ${en ? 'conditions' : 'شرط'}`;
     case 'set_variable':
       return (
         (d.assignments ?? [])
@@ -213,19 +214,22 @@ export function summary(type: NodeType, d: Record<string, any>): string {
     case 'set_attribute':
       return d.key ? `${d.key} = ${d.value}` : '—';
     case 'delay':
-      return `${d.amount} ${({ seconds: 'ثانية', minutes: 'دقيقة', hours: 'ساعة', days: 'يوم' } as any)[d.unit] ?? ''}`;
+      return `${d.amount} ${(en ? { seconds: 'seconds', minutes: 'minutes', hours: 'hours', days: 'days' } : ({ seconds: 'ثانية', minutes: 'دقيقة', hours: 'ساعة', days: 'يوم' } as any))[d.unit] ?? ''}`;
     case 'http_request':
       return `${d.method} ${d.url}`;
     case 'business_hours':
       return d.timezone;
     case 'split':
-      return `${(d.branches ?? []).length} فروع`;
+      return `${(d.branches ?? []).length} ${en ? 'branches' : 'فروع'}`;
     case 'ai_reply':
-      return d.instructions || 'المساعد الذكي يرد من قاعدة المعرفة';
+      return (
+        d.instructions ||
+        (en ? 'Assistant replies from knowledge' : 'المساعد الذكي يرد من قاعدة المعرفة')
+      );
     case 'handoff':
-      return d.message || 'تحويل المحادثة لموظف';
+      return d.message || (en ? 'Hand off conversation to an agent' : 'تحويل المحادثة لموظف');
     case 'end':
-      return d.message || 'إنهاء';
+      return d.message || (en ? 'End' : 'إنهاء');
   }
 }
 

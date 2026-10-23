@@ -29,7 +29,8 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
         {data.isStart && <span className="flow-start-badge">{t('بداية', 'Start')}</span>}
       </div>
       <div className="flow-node-summary">
-        {summary(data.type, data.data) || t('اضغط لإضافة المحتوى', 'Select to add content')}
+        {summary(data.type, data.data, language) ||
+          t('اضغط لإضافة المحتوى', 'Select to add content')}
       </div>
       {data.issue && (
         <div className="flow-node-issue" role="status">

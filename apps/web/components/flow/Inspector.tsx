@@ -42,11 +42,11 @@ const Txt = ({
   rows?: number;
   ph?: string;
 }) => {
-  const { language } = useLocale();
+  const { language, t } = useLocale();
   const field = useContext(FieldContext);
   return (
     <textarea
-      aria-label={ph ? editorLabel(ph, language) : field.label || 'Text'}
+      aria-label={ph ? editorLabel(ph, language) : field.label || t('نص', 'Text')}
       aria-describedby={field.description}
       className={inp}
       rows={rows}
@@ -67,11 +67,11 @@ const In = ({
   ph?: string;
   dir?: string;
 }) => {
-  const { language } = useLocale();
+  const { language, t } = useLocale();
   const field = useContext(FieldContext);
   return (
     <input
-      aria-label={ph ? editorLabel(ph, language) : field.label || 'Value'}
+      aria-label={ph ? editorLabel(ph, language) : field.label || t('القيمة', 'Value')}
       aria-describedby={field.description}
       className={inp}
       value={v ?? ''}
@@ -92,11 +92,11 @@ const Sel = ({
   opts: [string, string][];
   localize?: boolean;
 }) => {
-  const { language } = useLocale();
+  const { language, t } = useLocale();
   const field = useContext(FieldContext);
   return (
     <select
-      aria-label={field.label || 'Selection'}
+      aria-label={field.label || t('الاختيار', 'Selection')}
       aria-describedby={field.description}
       className={inp}
       value={v}
@@ -875,6 +875,10 @@ export default function Inspector({
           <F label="كلمات تنهي المحادثة مع المساعد" hint="مفصولة بفاصلة، مثل: شكرا، تمام، bye">
             <input
               className={inp}
+              aria-label={t(
+                'كلمات تنهي المحادثة مع المساعد',
+                'Keywords that end the assistant conversation',
+              )}
               defaultValue={(data.exitKeywords ?? []).join('، ')}
               onBlur={(e) =>
                 set({
