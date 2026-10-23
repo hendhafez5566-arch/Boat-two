@@ -337,7 +337,12 @@ export class InboxController {
         if (!cur) throw new NotFoundException('Conversation not found');
         if (
           p.departmentId &&
-          !(await c.query('SELECT 1 FROM departments WHERE id=$1', [p.departmentId])).rowCount
+          !(
+            await c.query(
+              'SELECT 1 FROM departments WHERE id=$1 AND archived_at IS NULL FOR SHARE',
+              [p.departmentId],
+            )
+          ).rowCount
         )
           throw new BadRequestException('Department not found');
         if (p.departmentId !== undefined)

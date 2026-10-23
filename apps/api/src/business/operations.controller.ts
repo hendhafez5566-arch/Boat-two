@@ -294,16 +294,111 @@ export class OperationsController {
       return row;
     });
   }
-  @Roles('owner', 'admin', 'agent') @Get('departments') departments(@Req() r: AuthedRequest) {
+  @Roles('owner', 'admin', 'agent') @Get('departments') departments(
+    @Req() r: AuthedRequest,
+    @Query() query: unknown,
+  ) {
+    const options = parse(
+      z.object({ includeArchived: z.enum(['true', 'false']).default('false') }),
+      query,
+    );
     return this.db.withTenant(
       r.user.tenantId,
       async (c) =>
         (
           await c.query(
-            "SELECT d.*,COALESCE((SELECT jsonb_agg(user_id) FROM department_members WHERE department_id=d.id),'[]') AS members FROM departments d ORDER BY name",
+            "SELECT d.*,COALESCE((SELECT jsonb_agg(user_id) FROM department_members WHERE department_id=d.id),'[]') AS members FROM departments d WHERE ($1 OR d.archived_at IS NULL) ORDER BY name",
+            [options.includeArchived === 'true'],
           )
         ).rows,
     );
+  }
+  @Get('departments/metrics') metrics(@Req() r: AuthedRequest, @Query() query: unknown) {
+    const b = parse(
+      z
+        .object({ from: z.string().datetime(), to: z.string().datetime() })
+        .refine(
+          (b) =>
+            Date.parse(b.to) > Date.parse(b.from) &&
+            Date.parse(b.to) - Date.parse(b.from) <= 366 * 86400000,
+        ),
+      query,
+    );
+    return this.db.withTenant(
+      r.user.tenantId,
+      async (c) =>
+        (
+          await c.query(
+            `SELECT d.id,d.name,d.sla_minutes,count(cv.id)::int AS conversations,
+      count(reply.sent_at)::int AS responded,count(cv.id) FILTER(WHERE inbound.received_at IS NOT NULL AND reply.sent_at IS NULL)::int AS unanswered,
+      round(avg(extract(epoch FROM(reply.sent_at-inbound.received_at))))::int AS average_response_seconds,
+      count(cv.id) FILTER(WHERE inbound.received_at IS NOT NULL AND COALESCE(reply.sent_at,now())-inbound.received_at>d.sla_minutes*interval '1 minute')::int AS current_target_breaches
+      FROM departments d LEFT JOIN conversations cv ON cv.department_id=d.id AND cv.created_at>=$1 AND cv.created_at<$2
+      LEFT JOIN LATERAL(SELECT min(created_at) AS received_at FROM messages WHERE conversation_id=cv.id AND direction='in') inbound ON true
+      LEFT JOIN LATERAL(SELECT min(created_at) AS sent_at FROM messages WHERE conversation_id=cv.id AND direction='out' AND sender_type='agent' AND NOT is_internal AND status IN ('sent','delivered','read') AND created_at>=inbound.received_at) reply ON true
+      GROUP BY d.id ORDER BY d.name`,
+            [b.from, b.to],
+          )
+        ).rows,
+    );
+  }
+  @Patch('departments/:id') updateDepartment(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const b = parse(
+      z.object({
+        name: z.string().trim().min(1).max(100),
+        slaMinutes: z.number().int().min(1).max(10080),
+        members: z
+          .array(z.string().uuid())
+          .max(100)
+          .refine((ids) => new Set(ids).size === ids.length),
+        expectedUpdatedAt: z.string().datetime().optional(),
+      }),
+      body,
+    );
+    return this.db.withTenant(r.user.tenantId, async (c) => {
+      for (const member of b.members)
+        if (!(await c.query('SELECT 1 FROM memberships WHERE user_id=$1', [member])).rowCount)
+          throw new BadRequestException('Department member outside workspace');
+      const row = (
+        await c.query(
+          `UPDATE departments SET name=$2,sla_minutes=$3,updated_at=now() WHERE id=$1 AND ($4::timestamptz IS NULL OR date_trunc('milliseconds',updated_at)=$4) RETURNING *`,
+          [id, b.name, b.slaMinutes, b.expectedUpdatedAt ?? null],
+        )
+      ).rows[0];
+      if (!row) {
+        if (!(await c.query('SELECT 1 FROM departments WHERE id=$1', [id])).rowCount)
+          throw new NotFoundException();
+        throw new BadRequestException('Department changed; refresh before saving');
+      }
+      await c.query('DELETE FROM department_members WHERE department_id=$1', [id]);
+      for (const member of b.members)
+        await c.query(
+          'INSERT INTO department_members(tenant_id,department_id,user_id) VALUES($1,$2,$3)',
+          [r.user.tenantId, id, member],
+        );
+      return row;
+    });
+  }
+  @Patch('departments/:id/archive') archiveDepartment(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const b = parse(z.object({ archived: z.boolean() }), body);
+    return this.db.withTenant(r.user.tenantId, async (c) => {
+      const row = (
+        await c.query(
+          'UPDATE departments SET archived_at=CASE WHEN $2 THEN now() ELSE NULL END,updated_at=now() WHERE id=$1 RETURNING *',
+          [id, b.archived],
+        )
+      ).rows[0];
+      if (!row) throw new NotFoundException();
+      return row;
+    });
   }
   @Post('departments') department(@Req() r: AuthedRequest, @Body() body: unknown) {
     const b = parse(
