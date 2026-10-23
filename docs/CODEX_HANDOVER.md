@@ -1,5 +1,12 @@
 # Continue here — ELHAFEZ BOAT
 
+## Maximum-scope continuation — immutable model catalog (2026-10-23)
+
+Migration 065 records immutable provider model/capability/context/output/pricing versions, backfills existing configurations and captures subsequent changes with a database trigger. App role cannot edit historical versions. Connected bilingual provider editor and catalog expose context/output limits and latest 500 versions. These remain administrator-declared capabilities, not remotely certified model discovery. Generation runtime enforcement follows in the reservation unit.
+
+API/web TypeScript, ESLint, migration and smoke-model-catalog pass: pricing history, context/output validation, denied mutation and tenant isolation. Next: durable generation reservations, atomic monthly plan/token/cost budgets, replay/crash safety and usage/review UI. Real provider gates stay disabled.
+
+
 ## Maximum-scope continuation — provider retry safety (2026-10-23)
 
 Continued from verified local/remote 877d311 on the existing branch/Draft PR #1. Removed Anthropic adapter automatic retries for timeouts, 429 and 5xx; ambiguous paid outcomes now make one attempt only, matching OpenAI safety. Error bodies are not disclosed. API build, ESLint and three mocked adapter tests passed. Next: immutable model capability/pricing catalog and durable generation reservations. No external gates enabled.

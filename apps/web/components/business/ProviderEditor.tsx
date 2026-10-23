@@ -10,6 +10,8 @@ type Provider = {
   revision: number;
   retired_at: string | null;
   supports_tools: boolean;
+  context_token_limit: number;
+  max_output_tokens: number;
   input_microusd_per_million: string | null;
   output_microusd_per_million: string | null;
 };
@@ -57,6 +59,8 @@ export function ProviderEditor({
                   name: f.get('name'),
                   model: f.get('model'),
                   supportsTools: f.has('tools'),
+                  contextTokenLimit: Number(f.get('context')),
+                  maxOutputTokens: Number(f.get('outputLimit')),
                   inputUsdPerMillion: rate('input'),
                   outputUsdPerMillion: rate('output'),
                 },
@@ -107,6 +111,30 @@ export function ProviderEditor({
                       ? ''
                       : Number(p.output_microusd_per_million) / 1000000
                   }
+                />
+              </label>
+            </div>
+            <div className="form-grid">
+              <label className="field">
+                {t('حد سياق النموذج بالرموز', 'Model context token limit')}
+                <input
+                  name="context"
+                  type="number"
+                  min={1024}
+                  max={2000000}
+                  defaultValue={p.context_token_limit}
+                  required
+                />
+              </label>
+              <label className="field">
+                {t('أقصى رموز للرد', 'Maximum reply tokens')}
+                <input
+                  name="outputLimit"
+                  type="number"
+                  min={1}
+                  max={64000}
+                  defaultValue={p.max_output_tokens}
+                  required
                 />
               </label>
             </div>

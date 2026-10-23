@@ -1,4 +1,5 @@
 'use client';
+import { ModelCatalog } from '../../../components/business/ModelCatalog';
 import { ProviderEditor } from '../../../components/business/ProviderEditor';
 import { AiToolAudit } from '../../../components/business/AiToolAudit';
 import { AgentRouting } from '../../../components/business/AgentRouting';
@@ -25,6 +26,8 @@ type Provider = {
   revision: number;
   retired_at: string | null;
   supports_tools: boolean;
+  context_token_limit: number;
+  max_output_tokens: number;
   input_microusd_per_million: string | null;
   output_microusd_per_million: string | null;
 };
@@ -345,6 +348,7 @@ export default function Agents() {
           {t('حفظ المزود', 'Save provider')}
         </button>
       </form>
+      <ModelCatalog key={data.data.providers.map((p) => p.id + ':' + p.revision).join(',')} />
       <AgentRouting />
       <section className="card table-wrap">
         <h2>{t('آخر 100 استدعاء', 'Latest 100 calls')}</h2>

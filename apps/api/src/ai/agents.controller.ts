@@ -45,7 +45,7 @@ export class AgentsController {
       agents: (await c.query('SELECT * FROM ai_agents ORDER BY name')).rows,
       providers: (
         await c.query(
-          'SELECT id,name,kind,model,enabled,key_version,key_rotated_at,revision,retired_at,supports_tools,input_microusd_per_million,output_microusd_per_million FROM ai_providers ORDER BY name',
+          'SELECT id,name,kind,model,enabled,key_version,key_rotated_at,revision,retired_at,supports_tools,context_token_limit,max_output_tokens,input_microusd_per_million,output_microusd_per_million FROM ai_providers ORDER BY name',
         )
       ).rows,
       runs: (
@@ -54,6 +54,17 @@ export class AgentsController {
         )
       ).rows,
     }));
+  }
+  @Get('models') models(@Req() r: AuthedRequest) {
+    return this.db.withTenant(
+      r.user.tenantId,
+      async (c) =>
+        (
+          await c.query(
+            'SELECT v.*,p.name AS provider_name,p.retired_at,p.enabled FROM ai_model_versions v JOIN ai_providers p ON p.id=v.provider_id ORDER BY v.created_at DESC,v.id DESC LIMIT 500',
+          )
+        ).rows,
+    );
   }
   @Get('tool-audits') audits(@Req() r: AuthedRequest, @Query() query: unknown) {
     const q = parse(
@@ -126,6 +137,8 @@ export class AgentsController {
             .regex(/^[a-zA-Z0-9._-]{1,100}$/)
             .optional(),
           supportsTools: z.boolean().optional(),
+          contextTokenLimit: z.number().int().min(1024).max(2000000).optional(),
+          maxOutputTokens: z.number().int().min(1).max(64000).optional(),
           inputUsdPerMillion: z.number().finite().min(0).max(10000).nullable().optional(),
           outputUsdPerMillion: z.number().finite().min(0).max(10000).nullable().optional(),
         })
@@ -144,6 +157,8 @@ export class AgentsController {
       if (
         (b.model !== undefined ||
           b.supportsTools !== undefined ||
+          b.contextTokenLimit !== undefined ||
+          b.maxOutputTokens !== undefined ||
           b.name !== undefined ||
           b.inputUsdPerMillion !== undefined ||
           b.outputUsdPerMillion !== undefined) &&
@@ -160,10 +175,15 @@ export class AgentsController {
         ).rowCount
       )
         throw new BadRequestException('Disable or reassign agents requiring tools first');
+      if (
+        (b.maxOutputTokens ?? old.max_output_tokens) >=
+        (b.contextTokenLimit ?? old.context_token_limit)
+      )
+        throw new BadRequestException('Output limit must be below the context limit');
       return (
         await c.query(
           `UPDATE ai_providers SET name=$2,model=$3,enabled=$4,supports_tools=$5,
-         input_microusd_per_million=$6,output_microusd_per_million=$7,revision=revision+1
+         input_microusd_per_million=$6,output_microusd_per_million=$7,context_token_limit=$8,max_output_tokens=$9,revision=revision+1
          WHERE id=$1 RETURNING id,name,kind,model,enabled,supports_tools,revision,retired_at`,
           [
             id,
@@ -181,6 +201,8 @@ export class AgentsController {
               : b.outputUsdPerMillion === null
                 ? null
                 : Math.round(b.outputUsdPerMillion * 1000000),
+            b.contextTokenLimit ?? old.context_token_limit,
+            b.maxOutputTokens ?? old.max_output_tokens,
           ],
         )
       ).rows[0];
