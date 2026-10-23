@@ -1,5 +1,13 @@
 # Continue here — ELHAFEZ BOAT
 
+## Mandatory continuous Git checkpoints
+
+Owner instruction applies to all current/future work: after each coherent stable functional unit, run appropriate quick checks, commit and push immediately to `feat/complete-premium-saas` / existing Draft PR #1. Target checkpoints every 10–15 minutes while recoverable changes exist. Verify clean/status and remote HEAD after each push, then continue without asking approval. Do not wait for a batch/session or final acceptance tests. If limits approach, prioritize a safe `wip:` checkpoint with feature gates and an honest continuation note. Never stage .env files, secrets, generated/temporary files; `.env.example` must contain placeholders only. No new branch/PR, main merge or production deployment.
+
+## Current checkpoint — CRM sales and follow-ups
+
+Migration 037 adds deal ownership, task update timestamps and indexes/audit triggers. `/crm/deals` and `/crm/tasks` now filter/search/page; bounded filtered exports refuse silent truncation. Existing PATCH endpoints support titles/amounts/currency/ownership and task due dates/assignment, with optional revision checks and member validation. The connected bilingual `/dashboard/crm/work` screen links from CRM and edits existing records. Existing create/stage/status callers remain compatible. API build, web TypeScript, ESLint, migration and `scripts/smoke-crm-work.mjs` validate this slice. Next: cross-channel/provider-account pacing using existing delivery policies, then remaining SaaS/UX work.
+
 ## Major product implementation checkpoint — 2026-10-23
 
 Started from verified local/remote `1f338897cceb119577d9093c2b95d43e91cb8f35`, same branch and Draft PR #1. New migrations 028–036 build on the existing outbox and tenant RLS; no parallel scheduler or production deployment.

@@ -110,3 +110,7 @@ Started from verified local/remote `e3f714e5d7bd5c15a3f6781bdfac4d3f3bca7ba8`, s
 Verification: full API/Next build and TypeScript passed; ESLint passed; 44 API unit tests passed. Expanded business smoke passed against a stable compiled local API, including rejected unsafe stage deletion, stage remapping, empty/occupied pipeline removal, cross-tenant rejection, successful bulk edits and rollback on a missing contact. External sending and paid AI calls remain disabled. No final browser/security/performance/visual acceptance was performed.
 
 Batch 2 is still partial; Batches 3–4 remain unfinished. Immediate next implementation: safe duplicate-contact merging with identity/consent/campaign-ledger preservation, then remaining campaign/AI/automation work described in REMAINING_WORK.md. This checkpoint does not declare product completion.
+
+## Continuous checkpoint — CRM work management
+
+Migration 037, expanded existing CRM work APIs and bilingual `/dashboard/crm/work`: filtered/paged deal/task lists, full record editing, valid member assignment, optimistic revision checks, due filters and filtered CSV exports. Targeted API/TypeScript/lint/migration/integration checks pass. Remaining pipeline ownership, historical timeline exports and broader CRM lifecycle are not declared complete. Continuous commit/push after each stable unit is now mandatory.

@@ -211,6 +211,9 @@ export default function CRM() {
   ];
   return (
     <main className="stack">
+      <Link href="/dashboard/crm/work" className="btn">
+        {t('إدارة المبيعات والمتابعات المتقدمة', 'Manage sales and follow-ups')}
+      </Link>
       <div className="page-heading">
         <div>
           <p className="eyebrow">CUSTOMER RELATIONSHIPS</p>

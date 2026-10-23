@@ -77,3 +77,7 @@ Started from verified local/remote `1f338897cceb119577d9093c2b95d43e91cb8f35`, s
 Validation: production API/Next build and TypeScript, ESLint, 47 unit tests (including active SSE revocation), migrations through 036 on a fresh validation database, core/business/sprint/billing development smokes and `smoke-major.mjs`. Major smoke covers gated jobs and durable file extraction, a real vector index built from mocked embeddings, cached replay/concurrent quota reservation, opt-out/policy isolation, merge preview, encrypted secrets/saved branches, platform token/SQL-role boundaries, suspension, session revocation and blocked/mocked Stripe reconciliation. No paid/provider network calls, live admin credentials or comprehensive final acceptance were used.
 
 Next: finish provider/account-wide campaign caps, CRM deal/task workflows and operator roles/MFA, complete billing/catalog/invoice lifecycle and custom-domain host/TLS integration, then remaining UX/unified bilingual controls and final visual previews. Product build remains incomplete.
+
+## Continuous checkpoint — CRM work management
+
+Migration 037, expanded existing CRM work APIs and bilingual `/dashboard/crm/work`: filtered/paged deal/task lists, full record editing, valid member assignment, optimistic revision checks, due filters and filtered CSV exports. Targeted API/TypeScript/lint/migration/integration checks pass. Remaining pipeline ownership, historical timeline exports and broader CRM lifecycle are not declared complete. Continuous commit/push after each stable unit is now mandatory.

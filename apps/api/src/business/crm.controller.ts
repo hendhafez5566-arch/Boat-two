@@ -522,17 +522,63 @@ export class CrmController {
       return { removed: true };
     });
   }
-  @Get('deals') deals(@Req() r: AuthedRequest, @Query() query: unknown) {
-    const q = parse(pagination, query);
-    return this.crm.db.withTenant(r.user.tenantId, async (c) => ({
-      items: (
+  private async workList(
+    r: AuthedRequest,
+    query: unknown,
+    kind: 'deals' | 'tasks',
+    exporting = false,
+  ) {
+    const q = parse(
+      pagination.extend({
+        q: z.string().max(100).optional(),
+        status: z.string().max(20).optional(),
+        ownerId: z.string().uuid().optional(),
+        pipelineId: z.string().uuid().optional(),
+        dueFrom: z.string().datetime().optional(),
+        dueTo: z.string().datetime().optional(),
+      }),
+      query,
+    );
+    const statuses = kind === 'deals' ? ['open', 'won', 'lost'] : ['open', 'done'];
+    if (q.status && !statuses.includes(q.status)) throw new BadRequestException('Invalid status');
+    return this.crm.db.withTenant(r.user.tenantId, async (c) => {
+      const params: unknown[] = [
+        q.q ? '%' + q.q.replace(/[\\%_]/g, '\\$&') + '%' : null,
+        q.status ?? null,
+        q.ownerId ?? null,
+      ];
+      let where = `($1::text IS NULL OR w.title ILIKE $1 OR ct.name ILIKE $1 OR ct.email ILIKE $1) AND ($2::text IS NULL OR w.status=$2) AND ($3::uuid IS NULL OR w.${kind === 'deals' ? 'owner_id' : 'assigned_to'}=$3)`;
+      if (kind === 'deals') {
+        params.push(q.pipelineId ?? null);
+        where += ' AND ($4::uuid IS NULL OR w.pipeline_id=$4)';
+      } else {
+        params.push(q.dueFrom ?? null, q.dueTo ?? null);
+        where +=
+          ' AND ($4::timestamptz IS NULL OR w.due_at >= $4) AND ($5::timestamptz IS NULL OR w.due_at < $5)';
+      }
+      const from = `FROM crm_${kind} w JOIN contacts ct ON ct.id=w.contact_id ${kind === 'deals' ? 'JOIN crm_pipelines p ON p.id=w.pipeline_id' : ''} WHERE ${where}`;
+      const total = (await c.query(`SELECT count(*)::int AS n ${from}`, params)).rows[0].n;
+      if (exporting && total > 10000)
+        throw new BadRequestException('Narrow this export to at most 10,000 records');
+      const limit = exporting ? 10000 : q.limit,
+        offset = exporting ? 0 : (q.page - 1) * q.limit;
+      const items = (
         await c.query(
-          'SELECT d.*,ct.name AS contact_name,p.name AS pipeline_name FROM crm_deals d JOIN contacts ct ON ct.id=d.contact_id JOIN crm_pipelines p ON p.id=d.pipeline_id ORDER BY updated_at DESC LIMIT $1 OFFSET $2',
-          [q.limit, (q.page - 1) * q.limit],
+          `SELECT w.*,ct.name AS contact_name ${kind === 'deals' ? ',p.name AS pipeline_name,p.stages AS pipeline_stages' : ''} ${from} ORDER BY ${kind === 'deals' ? 'w.updated_at DESC' : 'w.due_at'},w.id LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+          [...params, limit, offset],
         )
-      ).rows,
-      total: (await c.query('SELECT count(*)::int AS n FROM crm_deals')).rows[0].n,
-    }));
+      ).rows;
+      return { items, total, page: exporting ? 1 : q.page, limit };
+    });
+  }
+  @Get('deals') deals(@Req() r: AuthedRequest, @Query() query: unknown) {
+    return this.workList(r, query, 'deals');
+  }
+  @Get('deals/export') exportDeals(@Req() r: AuthedRequest, @Query() query: unknown) {
+    return this.workList(r, query, 'deals', true);
+  }
+  @Get('tasks/export') exportTasks(@Req() r: AuthedRequest, @Query() query: unknown) {
+    return this.workList(r, query, 'tasks', true);
   }
   @Post('deals') deal(@Req() r: AuthedRequest, @Body() body: unknown) {
     const b = parse(
@@ -570,37 +616,59 @@ export class CrmController {
     @Body() body: unknown,
   ) {
     const b = parse(
-      z.object({ stage: z.string().max(60), status: z.enum(['open', 'won', 'lost']) }),
+      z
+        .object({
+          stage: z.string().min(1).max(60).optional(),
+          status: z.enum(['open', 'won', 'lost']).optional(),
+          title: z.string().trim().min(1).max(200).optional(),
+          valueCents: z.number().int().min(0).max(100000000000).optional(),
+          currency: z
+            .string()
+            .regex(/^[A-Z]{3}$/)
+            .optional(),
+          ownerId: z.string().uuid().nullable().optional(),
+          expectedUpdatedAt: z.string().datetime().optional(),
+        })
+        .refine((b) => Object.keys(b).some((key) => key !== 'expectedUpdatedAt')),
       body,
     );
     return this.crm.db.withTenant(r.user.tenantId, async (c) => {
-      const row = (
+      const pipeline = (
         await c.query(
           'SELECT p.stages FROM crm_deals d JOIN crm_pipelines p ON p.id=d.pipeline_id WHERE d.id=$1 FOR SHARE OF p',
           [id],
         )
       ).rows[0];
-      if (!row) throw new NotFoundException();
-      if (!row.stages.includes(b.stage)) throw new BadRequestException('Invalid stage');
-      return (
+      if (!pipeline) throw new NotFoundException();
+      if (b.stage && !pipeline.stages.includes(b.stage))
+        throw new BadRequestException('Invalid stage');
+      if (
+        b.ownerId &&
+        !(await c.query('SELECT 1 FROM memberships WHERE user_id=$1', [b.ownerId])).rowCount
+      )
+        throw new BadRequestException('Owner must be a workspace member');
+      const row = (
         await c.query(
-          'UPDATE crm_deals SET stage=$2,status=$3,updated_at=now() WHERE id=$1 RETURNING *',
-          [id, b.stage, b.status],
+          `UPDATE crm_deals SET stage=COALESCE($2,stage),status=COALESCE($3,status),title=COALESCE($4,title),value_cents=COALESCE($5,value_cents),currency=COALESCE($6,currency),owner_id=CASE WHEN $7 THEN $8::uuid ELSE owner_id END,updated_at=now() WHERE id=$1 AND ($9::timestamptz IS NULL OR date_trunc('milliseconds',updated_at)=$9) RETURNING *`,
+          [
+            id,
+            b.stage ?? null,
+            b.status ?? null,
+            b.title ?? null,
+            b.valueCents ?? null,
+            b.currency ?? null,
+            b.ownerId !== undefined,
+            b.ownerId ?? null,
+            b.expectedUpdatedAt ?? null,
+          ],
         )
       ).rows[0];
+      if (!row) throw new BadRequestException('Deal changed; refresh before saving');
+      return row;
     });
   }
   @Get('tasks') tasks(@Req() r: AuthedRequest, @Query() query: unknown) {
-    const q = parse(pagination, query);
-    return this.crm.db.withTenant(r.user.tenantId, async (c) => ({
-      items: (
-        await c.query(
-          'SELECT t.*,ct.name AS contact_name FROM crm_tasks t JOIN contacts ct ON ct.id=t.contact_id ORDER BY status,due_at LIMIT $1 OFFSET $2',
-          [q.limit, (q.page - 1) * q.limit],
-        )
-      ).rows,
-      total: (await c.query('SELECT count(*)::int AS n FROM crm_tasks')).rows[0].n,
-    }));
+    return this.workList(r, query, 'tasks');
   }
   @Post('tasks') task(@Req() r: AuthedRequest, @Body() body: unknown) {
     const b = parse(
@@ -627,17 +695,48 @@ export class CrmController {
       ).rows[0];
     });
   }
-  @Patch('tasks/:id') taskStatus(
+  @Patch('tasks/:id') updateTask(
     @Req() r: AuthedRequest,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: unknown,
   ) {
-    const b = parse(z.object({ status: z.enum(['open', 'done']) }), body);
+    const b = parse(
+      z
+        .object({
+          status: z.enum(['open', 'done']).optional(),
+          title: z.string().trim().min(1).max(200).optional(),
+          dueAt: z.string().datetime().optional(),
+          assignedTo: z.string().uuid().nullable().optional(),
+          expectedUpdatedAt: z.string().datetime().optional(),
+        })
+        .refine((b) => Object.keys(b).some((key) => key !== 'expectedUpdatedAt')),
+      body,
+    );
     return this.crm.db.withTenant(r.user.tenantId, async (c) => {
+      if (
+        b.assignedTo &&
+        !(await c.query('SELECT 1 FROM memberships WHERE user_id=$1', [b.assignedTo])).rowCount
+      )
+        throw new BadRequestException('Assignee must be a workspace member');
       const row = (
-        await c.query('UPDATE crm_tasks SET status=$2 WHERE id=$1 RETURNING *', [id, b.status])
+        await c.query(
+          `UPDATE crm_tasks SET status=COALESCE($2,status),title=COALESCE($3,title),due_at=COALESCE($4,due_at),assigned_to=CASE WHEN $5 THEN $6::uuid ELSE assigned_to END,updated_at=now() WHERE id=$1 AND ($7::timestamptz IS NULL OR date_trunc('milliseconds',updated_at)=$7) RETURNING *`,
+          [
+            id,
+            b.status ?? null,
+            b.title ?? null,
+            b.dueAt ?? null,
+            b.assignedTo !== undefined,
+            b.assignedTo ?? null,
+            b.expectedUpdatedAt ?? null,
+          ],
+        )
       ).rows[0];
-      if (!row) throw new NotFoundException();
+      if (!row) {
+        if (!(await c.query('SELECT 1 FROM crm_tasks WHERE id=$1', [id])).rowCount)
+          throw new NotFoundException();
+        throw new BadRequestException('Task changed; refresh before saving');
+      }
       return row;
     });
   }
