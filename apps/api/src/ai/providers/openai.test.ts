@@ -65,3 +65,48 @@ test('OpenAI adapter does not replay an ambiguous provider failure or disclose e
     globalThis.fetch = original;
   }
 });
+
+test('Anthropic never retries uncertain or rejected paid calls and does not disclose provider bodies', async () => {
+  const { AnthropicProvider } = await import('./anthropic');
+  const original = globalThis.fetch;
+  try {
+    for (const status of [429, 500]) {
+      let calls = 0;
+      globalThis.fetch = async () => {
+        calls++;
+        return new Response(JSON.stringify({ error: { message: 'private-provider-body' } }), {
+          status,
+        });
+      };
+      await assert.rejects(
+        new AnthropicProvider('fixture', 'mock').chat({
+          system: '',
+          messages: [{ role: 'user', content: 'fixture' }],
+          maxTokens: 10,
+          temperature: 0,
+        }),
+        (error) => {
+          assert.ok(!String(error).includes('private-provider-body'));
+          return true;
+        },
+      );
+      assert.equal(calls, 1);
+    }
+    let calls = 0;
+    globalThis.fetch = async () => {
+      calls++;
+      throw new DOMException('fixture timeout', 'TimeoutError');
+    };
+    await assert.rejects(
+      new AnthropicProvider('fixture', 'mock').chat({
+        system: '',
+        messages: [{ role: 'user', content: 'fixture' }],
+        maxTokens: 10,
+        temperature: 0,
+      }),
+    );
+    assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = original;
+  }
+});

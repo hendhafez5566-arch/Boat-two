@@ -1,5 +1,10 @@
 # Implementation progress — core reliability + connected business platform
 
+## Maximum-scope continuation — provider retry safety (2026-10-23)
+
+Continued from verified local/remote 877d311 on the existing branch/Draft PR #1. Removed Anthropic adapter automatic retries for timeouts, 429 and 5xx; ambiguous paid outcomes now make one attempt only, matching OpenAI safety. Error bodies are not disclosed. API build, ESLint and three mocked adapter tests passed. Next: immutable model capability/pricing catalog and durable generation reservations. No external gates enabled.
+
+
 ## Acceptance evidence archive — 2026-10-23
 
 Eight actual local Chromium screenshots are now tracked in `docs/acceptance/2026-10-23/`, with fixture/privacy notes and scope. The premium browser suite reran after `ce4d9ff` to refresh images following the final desktop navigation CSS fix; all assertions passed. Eight functional/verification checkpoints (`7a10e70` through `ce4d9ff`) plus this evidence checkpoint were pushed on the same branch/PR; current Git/remote HEAD is authoritative. Build/lint/55 unit tests, 19 distinct PostgreSQL/API/worker suites, four Chromium suites and clean/repeated migrations 001–064 passed. Product remains partial; next work and external gates are unchanged below.

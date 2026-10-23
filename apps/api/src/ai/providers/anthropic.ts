@@ -9,14 +9,14 @@ export function parseAnthropicResponse(body: any): LlmResponse {
       .map((b) => String(b.text ?? ''))
       .join('')
       .trim(),
-    toolCalls: blocks.filter((b) => b.type === 'tool_use').map((b) => ({ name: String(b.name), input: (b.input ?? {}) as Record<string, unknown> })),
+    toolCalls: blocks
+      .filter((b) => b.type === 'tool_use')
+      .map((b) => ({ name: String(b.name), input: (b.input ?? {}) as Record<string, unknown> })),
     inputTokens: Number(body?.usage?.input_tokens ?? 0),
     outputTokens: Number(body?.usage?.output_tokens ?? 0),
     stopReason: body?.stop_reason ?? null,
   };
 }
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export class AnthropicProvider implements LlmProvider {
   constructor(
@@ -35,26 +35,19 @@ export class AnthropicProvider implements LlmProvider {
       ...(req.tools?.length ? { tools: req.tools } : {}),
     });
 
-    let lastErr: Error | undefined;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const res = await fetch(`${this.baseUrl}/v1/messages`, {
-          method: 'POST',
-          headers: { 'x-api-key': this.apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-          body,
-          signal: AbortSignal.timeout(30000),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (res.ok) return parseAnthropicResponse(data);
-        const retryable = res.status === 429 || res.status >= 500;
-        throw new AiProviderError(data?.error?.message ?? `Anthropic API error ${res.status}`, res.status, retryable);
-      } catch (e) {
-        lastErr = e as Error;
-        const retryable = e instanceof AiProviderError ? e.retryable : (e as Error).name === 'TimeoutError';
-        if (!retryable || attempt === 1) break;
-        await sleep(800);
-      }
-    }
-    throw lastErr ?? new AiProviderError('Unknown AI error');
+    // A timeout or 5xx may follow a billable generation. Never retry without evidence.
+    const res = await fetch(`${this.baseUrl}/v1/messages`, {
+      method: 'POST',
+      headers: {
+        'x-api-key': this.apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body,
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok)
+      throw new AiProviderError(`Anthropic request failed (${res.status})`, res.status, false);
+    return parseAnthropicResponse(await res.json());
   }
 }
