@@ -15,6 +15,7 @@ import {
   Patch,
   Post,
   Req,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -139,6 +140,25 @@ class PlatformLoginController {
 @Controller('platform')
 class PlatformController {
   constructor(private access: PlatformAccess) {}
+  @Get('directory') async directory(@Query() query: unknown) {
+    const q = parse(
+      z.object({
+        kind: z.enum(['companies', 'users']),
+        q: z.string().max(100).default(''),
+        page: z.coerce.number().int().min(1).max(100000).default(1),
+        limit: z.coerce.number().int().min(1).max(100).default(50),
+      }),
+      query,
+    );
+    return (
+      await this.access.query('SELECT platform_directory($1,$2,$3,$4) AS data', [
+        q.kind,
+        q.q,
+        q.page,
+        q.limit,
+      ])
+    )[0].data;
+  }
   @Get() async snapshot() {
     return (await this.access.query('SELECT platform_snapshot() AS data'))[0].data;
   }

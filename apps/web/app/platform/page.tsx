@@ -39,6 +39,51 @@ function Console() {
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState('');
+  const [companyQuery, setCompanyQuery] = useState(''),
+    [userQuery, setUserQuery] = useState(''),
+    [companyPage, setCompanyPage] = useState(1),
+    [userPage, setUserPage] = useState(1),
+    [companyTotal, setCompanyTotal] = useState(0),
+    [userTotal, setUserTotal] = useState(0);
+  async function loadSnapshot(
+    access = token,
+    options: { companyPage?: number; userPage?: number } = {},
+  ) {
+    const cp = options.companyPage ?? companyPage,
+      up = options.userPage ?? userPage;
+    const [snapshot, companies, users] = await Promise.all([
+      request('', undefined, 'GET', access),
+      request(
+        '/directory?' +
+          new URLSearchParams({ kind: 'companies', q: companyQuery, page: String(cp) }),
+        undefined,
+        'GET',
+        access,
+      ),
+      request(
+        '/directory?' + new URLSearchParams({ kind: 'users', q: userQuery, page: String(up) }),
+        undefined,
+        'GET',
+        access,
+      ),
+    ]);
+    setData({ ...snapshot, companies: companies.items, users: users.items });
+    setCompanyTotal(companies.total);
+    setUserTotal(users.total);
+    setCompanyPage(cp);
+    setUserPage(up);
+  }
+  async function directoryPage(kind: 'companies' | 'users', page: number) {
+    setBusy(true);
+    setError('');
+    try {
+      await loadSnapshot(token, kind === 'companies' ? { companyPage: page } : { userPage: page });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   async function request(
     path: string,
     body?: unknown,
@@ -66,7 +111,7 @@ function Console() {
     setMessage('');
     try {
       await fn();
-      if (token) setData(await request(''));
+      if (token) await loadSnapshot();
       setMessage(t('تمت العملية.', 'Operation completed.'));
     } catch (e) {
       setError((e as Error).message);
@@ -108,9 +153,8 @@ function Console() {
                 email: f.get('email'),
                 password: f.get('password'),
               });
-              const snapshot = await request('', undefined, 'GET', login.accessToken);
+              await loadSnapshot(login.accessToken);
               setToken(login.accessToken);
-              setData(snapshot);
             });
           }}
         >
@@ -129,11 +173,7 @@ function Console() {
       ) : (
         <>
           <div className="form-actions">
-            <button
-              className="btn"
-              disabled={busy}
-              onClick={() => void act(async () => setData(await request('')))}
-            >
+            <button className="btn" disabled={busy} onClick={() => void act(async () => {})}>
               {t('تحديث', 'Refresh')}
             </button>
             <button
@@ -147,6 +187,43 @@ function Console() {
             </button>
           </div>
           <h2>{t('الشركات والاشتراكات', 'Companies and subscriptions')}</h2>
+          <form
+            className="card form-actions"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void directoryPage('companies', 1);
+            }}
+          >
+            <input
+              aria-label={t('بحث الشركات', 'Search companies')}
+              value={companyQuery}
+              onChange={(e) => setCompanyQuery(e.target.value)}
+              maxLength={100}
+              placeholder={t('الاسم أو المعرّف', 'Name or ID')}
+            />
+            <button className="btn" disabled={busy}>
+              {t('بحث', 'Search')}
+            </button>
+            <button
+              className="btn"
+              type="button"
+              disabled={busy || companyPage === 1}
+              onClick={() => void directoryPage('companies', companyPage - 1)}
+            >
+              {t('السابق', 'Previous')}
+            </button>
+            <span>
+              {companyPage} · {companyTotal} {t('نتيجة', 'records')}
+            </span>
+            <button
+              className="btn"
+              type="button"
+              disabled={busy || companyPage * 50 >= companyTotal}
+              onClick={() => void directoryPage('companies', companyPage + 1)}
+            >
+              {t('التالي', 'Next')}
+            </button>
+          </form>
           {data?.companies.map((company) => (
             <article key={company.id} className="card stack">
               <h3>
@@ -246,6 +323,43 @@ function Console() {
             </article>
           ))}
           <h2>{t('المستخدمون', 'Users')}</h2>
+          <form
+            className="card form-actions"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void directoryPage('users', 1);
+            }}
+          >
+            <input
+              aria-label={t('بحث المستخدمين', 'Search users')}
+              value={userQuery}
+              onChange={(e) => setUserQuery(e.target.value)}
+              maxLength={100}
+              placeholder={t('الاسم أو البريد أو المعرّف', 'Name, email or ID')}
+            />
+            <button className="btn" disabled={busy}>
+              {t('بحث', 'Search')}
+            </button>
+            <button
+              className="btn"
+              type="button"
+              disabled={busy || userPage === 1}
+              onClick={() => void directoryPage('users', userPage - 1)}
+            >
+              {t('السابق', 'Previous')}
+            </button>
+            <span>
+              {userPage} · {userTotal} {t('نتيجة', 'records')}
+            </span>
+            <button
+              className="btn"
+              type="button"
+              disabled={busy || userPage * 50 >= userTotal}
+              onClick={() => void directoryPage('users', userPage + 1)}
+            >
+              {t('التالي', 'Next')}
+            </button>
+          </form>
           {data?.users.map((user) => (
             <article className="card" key={user.id}>
               <strong>{user.email}</strong>
