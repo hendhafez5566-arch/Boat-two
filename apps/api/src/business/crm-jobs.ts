@@ -11,6 +11,7 @@ import {
   Patch,
   Post,
   Req,
+  Query,
 } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { z } from 'zod';
@@ -237,17 +238,45 @@ export class CrmJobsController {
       return row;
     });
   }
-  @Get(':id/result') result(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+  @Get(':id/result') result(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: unknown = {},
+  ) {
+    const q = parse(
+      z
+        .object({
+          after: z.coerce.number().int().min(0).max(50000).optional(),
+          limit: z.coerce.number().int().min(1).max(1000).optional(),
+        })
+        .strict(),
+      query,
+    );
     return this.db.withTenant(r.user.tenantId, async (c) => {
       const row = (
         await c.query(
-          "SELECT result,errors,processed,succeeded,expired_at,input->>'snapshotAt' AS snapshot_at FROM crm_jobs WHERE id=$1 AND status='completed'",
+          "SELECT errors,processed,succeeded,expired_at,jsonb_array_length(result) AS total,input->>'snapshotAt' AS snapshot_at FROM crm_jobs WHERE id=$1 AND status='completed'",
           [id],
         )
       ).rows[0];
       if (!row) throw new NotFoundException('Completed job not found');
       if (row.expired_at) throw new GoneException('Job payload expired under workspace retention');
-      return row;
+      const paged = q.after !== undefined || q.limit !== undefined,
+        after = q.after ?? 0,
+        limit = paged ? (q.limit ?? 250) : 50000;
+      const items = (
+        await c.query(
+          'SELECT item FROM crm_jobs j CROSS JOIN LATERAL jsonb_array_elements(j.result) WITH ORDINALITY AS r(item,ordinal) WHERE j.id=$1 AND ordinal>$2 ORDER BY ordinal LIMIT $3',
+          [id, after, limit],
+        )
+      ).rows.map((r) => r.item);
+      return {
+        ...row,
+        result: items,
+        ...(paged
+          ? { nextAfter: after + items.length < row.total ? after + items.length : null }
+          : {}),
+      };
     });
   }
   @Patch(':id/cancel') cancel(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {

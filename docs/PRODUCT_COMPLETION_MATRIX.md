@@ -1,5 +1,12 @@
 # ELHAFEZ BOAT — Product completion matrix
 
+## Maximum-scope continuation — bounded CRM result downloads (2026-10-23)
+
+Existing export result API now accepts validated ordinal cursors and bounded pages; browser downloads assemble 250-row requests with progress guards. Legacy result clients remain compatible, snapshots retain original values/order and expired jobs still return Gone. This bounds HTTP payloads, not the existing 50,000-row job limit, full worker JSON storage or initial import body limit; those larger-scale/storage constraints remain explicit.
+
+API/web TypeScript, ESLint, paged 251-row export and retention suites pass: page limits, complete ordered equality with the frozen result, cursor progress, bad limits, empty exports, expiry and tenant isolation. Email checkpoint push initially failed with HTTP 503; retried immediately and confirmed remote 8aa94bf before proceeding. Next: safe mocked billing contracts and current-source regression/browser acceptance.
+
+
 ## Maximum-scope continuation — signed mail receipts and evidence reconciliation (2026-10-23)
 
 Migration 070 adds immutable delivery/bounce/failure receipts and separate visible delivery state. Optional gateway callback uses raw-body HMAC, a five-minute timestamp window, stable event/body dedupe, provider/job/tenant binding and monotonic event ordering. Signed evidence may resolve ambiguous acceptance without sending. Owner-only manual accepted/not_sent evidence review also never resends; old effects remain quarantined. Team mail UI displays actual delivery state and review controls. Sending and receipt gates remain disabled separately; EMAIL_GATEWAY_RECEIPTS.md documents the normalized gateway contract.

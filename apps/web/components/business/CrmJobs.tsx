@@ -175,10 +175,33 @@ export function CrmJobs() {
               disabled={busy}
               onClick={() =>
                 void run(async () => {
-                  const result = await api<{
+                  type Page = {
                     result: Record<string, unknown>[];
                     errors: unknown[];
-                  }>('/crm/jobs/' + job.id + '/result');
+                    snapshot_at?: string;
+                    total: number;
+                    nextAfter: number | null;
+                  };
+                  let after = 0,
+                    meta: Page | undefined;
+                  const rows: Record<string, unknown>[] = [];
+                  for (let page = 0; page < 201; page++) {
+                    const part = await api<Page>(
+                      '/crm/jobs/' + job.id + '/result?limit=250&after=' + after,
+                    );
+                    meta = part;
+                    rows.push(...part.result);
+                    if (part.nextAfter === null) break;
+                    if (part.nextAfter <= after)
+                      throw new Error(
+                        t(
+                          'تعذّر تقدم تنزيل الملف؛ أعد المحاولة.',
+                          'Download cursor did not advance; retry.',
+                        ),
+                      );
+                    after = part.nextAfter;
+                  }
+                  const result = { ...meta, result: rows };
                   download(
                     'crm-' + job.id + '.json',
                     JSON.stringify(result, null, 2),
