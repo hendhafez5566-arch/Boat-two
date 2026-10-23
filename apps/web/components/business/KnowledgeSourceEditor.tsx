@@ -15,7 +15,13 @@ export type Source = {
   char_count: number;
   error: string | null;
 };
-type Extraction = { id: string; source_revision: number; char_count: number; created_at: string };
+type Extraction = {
+  id: string;
+  source_revision: number;
+  char_count: number;
+  created_at: string;
+  purged_at?: string | null;
+};
 type Revision = { revision: number; title: string; created_at: string };
 export function parseFaq(content: string) {
   return content
@@ -285,6 +291,13 @@ export function KnowledgeSourceEditor({
                         const snapshot = await api<{ content: string }>(
                           '/ai/knowledge/' + id + '/extractions/' + row.id,
                         );
+                        if (!snapshot.content)
+                          throw new Error(
+                            t(
+                              'نُقّحت اللقطة وفق سياسة الاحتفاظ',
+                              'Snapshot content was removed under retention policy',
+                            ),
+                          );
                         setExtractedPreview(snapshot.content.slice(0, 10000));
                       } catch (e) {
                         setError((e as Error).message);

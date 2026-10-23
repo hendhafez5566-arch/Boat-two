@@ -1,5 +1,11 @@
 # ELHAFEZ BOAT — Product completion matrix
 
+## Continuation — bounded knowledge retention (2026-10-23)
+
+Migration 054 connects owner-only preview/confirmed durable retention runs to the existing outbox and bilingual knowledge UI. A frozen cutoff (minimum 30 days) clears old completed/canceled job raw/chunk/vector payloads in 100-record batches and removes eligible historical extraction text, retaining hash/character-count tombstones. Current source content, published chunks, revisions, latest snapshot and external accounting/effect ledgers remain. Active/blocked/failed jobs remain recoverable; workers recheck owner authority and skip locked sources. Cleanup is explicit, not an automatic production deletion policy.
+
+Validation: API build, web TypeScript, migration 054, ESLint and PostgreSQL retention smoke pass (120-job paging, frozen cutoff, active/failed protection, latest snapshot preservation, no source deletion and tenant isolation). File replacement regression also passes. Next: broad current-HEAD build/unit/smoke/migration regression; then remaining AI tool/pricing/provider lifecycle, automation graph/CRM/Inbox and white-label auth/email work. Product remains incomplete.
+
 ## Continuation — in-place knowledge file replacement (2026-10-23)
 
 Migration 053 and bilingual editor/API replace a file in the existing source, preserving agent assignments and prior published chunks until replacement publication. Mandatory revision checks/source lock refuse stale, concurrent, archived or active-job replacements. File revisions retain SHA-256/size/MIME metadata; durable file/URL extraction snapshots include source revision/job/text hash and can be reviewed through tenant-scoped endpoints/UI. Upload remains bounded to 5MB and supported extensions. Original raw binaries are not an immutable download archive.

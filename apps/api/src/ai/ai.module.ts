@@ -1,3 +1,4 @@
+import { KnowledgeRetention, KnowledgeRetentionController } from './knowledge/retention';
 import { KnowledgeJobsController } from './knowledge/jobs.controller';
 import { EmbeddingBudget } from './knowledge/embedding-budget';
 import { AgentsController } from './agents.controller';
@@ -8,8 +9,13 @@ import { AiService } from './ai.service';
 import { KnowledgeService } from './knowledge/knowledge.service';
 
 @Module({
-  controllers: [KnowledgeJobsController,AiController, AgentsController],
-  providers: [EmbeddingBudget, KnowledgeService, AiService, CryptoService],
+  controllers: [
+    KnowledgeRetentionController,
+    KnowledgeJobsController,
+    AiController,
+    AgentsController,
+  ],
+  providers: [KnowledgeRetention, EmbeddingBudget, KnowledgeService, AiService, CryptoService],
   exports: [AiService],
 })
 export class AiModule {}

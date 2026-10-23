@@ -231,7 +231,7 @@ export class KnowledgeService {
       }
       return (
         await c.query(
-          'SELECT id,job_id,source_revision,title,source_ref,content_sha256,length(content) AS char_count,created_at FROM knowledge_extractions WHERE source_id=$1 ORDER BY created_at DESC,id DESC LIMIT 50',
+          'SELECT id,job_id,source_revision,title,source_ref,content_sha256,content_chars AS char_count,purged_at,created_at FROM knowledge_extractions WHERE source_id=$1 ORDER BY created_at DESC,id DESC LIMIT 50',
           [id],
         )
       ).rows;
@@ -482,7 +482,7 @@ export class KnowledgeService {
           );
           if (src.type === 'file' || src.type === 'url')
             await c.query(
-              'INSERT INTO knowledge_extractions(tenant_id,source_id,job_id,source_revision,title,source_ref,content,content_sha256) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(job_id) DO NOTHING',
+              'INSERT INTO knowledge_extractions(tenant_id,source_id,job_id,source_revision,title,source_ref,content,content_sha256,content_chars) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(job_id) DO NOTHING',
               [
                 tenantId,
                 src.id,
@@ -492,6 +492,7 @@ export class KnowledgeService {
                 src.source_ref,
                 content,
                 createHash('sha256').update(content).digest('hex'),
+                content.length,
               ],
             );
           await c.query('UPDATE knowledge_jobs SET chunks=$2,total=$3 WHERE id=$1', [

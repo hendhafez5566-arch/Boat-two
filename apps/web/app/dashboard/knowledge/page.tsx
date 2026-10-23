@@ -1,4 +1,5 @@
 'use client';
+import { KnowledgeRetention } from '../../../components/business/KnowledgeRetention';
 import { useEffect, useState } from 'react';
 import { KnowledgeJobs } from '../../../components/business/KnowledgeJobs';
 import { KnowledgeSourceEditor, Source } from '../../../components/business/KnowledgeSourceEditor';
@@ -294,6 +295,7 @@ export default function Knowledge() {
           ))}
         </div>
       </section>
+      <KnowledgeRetention />
       {editing && canManage && (
         <KnowledgeSourceEditor id={editing} onClose={() => setEditing(null)} onSaved={load} />
       )}
