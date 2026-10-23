@@ -1,5 +1,13 @@
 # Continue here — ELHAFEZ BOAT
 
+## Full product sprint checkpoint — nested automations and visual editing
+
+Migration 059 and the existing automation engine now support nested AND/OR condition groups and nested branch/delay/HTTP actions, bounded before recursive parsing (depth four, bounded lists/node counts). No parallel executor was introduced. Workflow updates optionally check revisions for legacy compatibility; the upgraded editor always sends its revision. Immutable snapshots, saved canvas positions and execution rule revisions are persisted.
+
+The saved-workflow editor includes a draggable structured workflow canvas with zoom/minimap, click-to-inspect steps, nested conditions/actions, trigger editing, undo/redo and version load-as-disabled-draft. Existing sequence creation, secrets, schedules and recovery remain available. Canvas connections reflect structured execution; arbitrary cyclic graph rewiring is intentionally unsupported.
+
+API/web TypeScript, ESLint, all 55 unit tests and actual PostgreSQL nested-branch/delayed-branch/replay/version/layout/isolation smoke pass. Next: scheduled subscription requests, provider lifecycle and remaining CRM/Inbox refinements, then current-HEAD full regression and local browser readiness checks. Product remains partial.
+
 ## Full product sprint checkpoint — premium bot canvas and seven-step creation
 
 The existing React Flow editor now has original SVG node icons, directional ports, colored action cards, searchable draggable palette, clearer edges, minimap/zoom controls, responsive inspector and native focus-trapped version dialog. Existing save/autosave/conflict/version/publish/reusable-component behavior is preserved; added keyboard save and bilingual primary controls/preview. Legacy advanced inspector strings still need completion rather than a false full-translation claim.

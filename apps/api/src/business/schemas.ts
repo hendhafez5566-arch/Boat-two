@@ -22,16 +22,45 @@ export const pagination = z.object({
   page: z.coerce.number().int().min(1).max(100000).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(25),
 });
-export const conditionsSchema = filtersSchema.extend({
-  allOf: z.array(filtersSchema).max(10).default([]),
-  anyOf: z.array(filtersSchema).max(10).default([]),
-});
-export function conditionWhere(input: z.infer<typeof conditionsSchema>) {
+export type Conditions = z.infer<typeof filtersSchema> & {
+  allOf: Conditions[];
+  anyOf: Conditions[];
+};
+function boundedTree(keys: string[], maxDepth = 4, maxNodes = 80) {
+  return z.unknown().superRefine((value, ctx) => {
+    const stack: { value: unknown; depth: number }[] = [{ value, depth: 0 }];
+    let count = 0;
+    while (stack.length) {
+      const item = stack.pop()!;
+      if (++count > maxNodes || item.depth > maxDepth) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Workflow exceeds safe nesting or node limit',
+        });
+        return;
+      }
+      if (item.value && typeof item.value === 'object')
+        for (const key of keys) {
+          const next = (item.value as Record<string, unknown>)[key];
+          if (Array.isArray(next))
+            for (const child of next) stack.push({ value: child, depth: item.depth + 1 });
+        }
+    }
+  });
+}
+const conditionTree: z.ZodType<Conditions, z.ZodTypeDef, unknown> = z.lazy(() =>
+  filtersSchema.extend({
+    allOf: z.array(conditionTree).max(10).default([]),
+    anyOf: z.array(conditionTree).max(10).default([]),
+  }),
+);
+export const conditionsSchema = boundedTree(['allOf', 'anyOf']).pipe(conditionTree);
+export function conditionWhere(input: Conditions): { sql: string; params: unknown[] } {
   const base = contactWhere(input),
     params: unknown[] = [...base.params];
-  const clause = (filter: Filters) => {
-    const next = contactWhere(filter);
-    const offset = params.length;
+  const clause = (filter: Conditions) => {
+    const next = conditionWhere(filter),
+      offset = params.length;
     params.push(...next.params);
     return '(' + next.sql.replace(/\$(\d+)/g, (_, n) => '$' + (Number(n) + offset)) + ')';
   };
@@ -60,35 +89,46 @@ export const baseActionSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('note'), text: z.string().min(1).max(4000) }),
 ]);
-export const actionSchema = z.union([
-  baseActionSchema,
-  z.object({
-    type: z.literal('branch'),
-    conditions: conditionsSchema,
-    then: z.array(baseActionSchema).min(1).max(10),
-    otherwise: z.array(baseActionSchema).max(10).default([]),
-  }),
-  z.object({
-    type: z.literal('http'),
-    secretId: z.string().uuid().optional(),
-    url: z
-      .string()
-      .url()
-      .max(2000)
-      .refine((value) => {
-        const url = new URL(value);
-        return (
-          url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash
-        );
-      }, 'Use HTTPS without credentials or query secrets'),
-    body: z.string().max(16000).default(''),
-  }),
-  z.object({
-    type: z.literal('delay'),
-    delayMinutes: z.number().int().min(1).max(525600),
-    actions: z.array(baseActionSchema).min(1).max(10),
-  }),
-]);
+export type AutomationAction =
+  | z.infer<typeof baseActionSchema>
+  | {
+      type: 'branch';
+      conditions: Conditions;
+      then: AutomationAction[];
+      otherwise: AutomationAction[];
+    }
+  | { type: 'http'; secretId?: string; url: string; body: string }
+  | { type: 'delay'; delayMinutes: number; actions: AutomationAction[] };
+const actionTree: z.ZodType<AutomationAction, z.ZodTypeDef, unknown> = z.lazy(() =>
+  z.union([
+    baseActionSchema,
+    z.object({
+      type: z.literal('branch'),
+      conditions: conditionsSchema,
+      then: z.array(actionTree).min(1).max(10),
+      otherwise: z.array(actionTree).max(10).default([]),
+    }),
+    z.object({
+      type: z.literal('http'),
+      secretId: z.string().uuid().optional(),
+      url: z
+        .string()
+        .url()
+        .max(2000)
+        .refine((value) => {
+          const u = new URL(value);
+          return u.protocol === 'https:' && !u.username && !u.password && !u.search && !u.hash;
+        }, 'Use HTTPS without credentials or query secrets'),
+      body: z.string().max(16000).default(''),
+    }),
+    z.object({
+      type: z.literal('delay'),
+      delayMinutes: z.number().int().min(1).max(525600),
+      actions: z.array(actionTree).min(1).max(10),
+    }),
+  ]),
+);
+export const actionSchema = boundedTree(['then', 'otherwise', 'actions']).pipe(actionTree);
 export const ruleSchema = z.object({
   name: z.string().min(1).max(120),
   enabled: z.boolean().default(false),

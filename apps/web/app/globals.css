@@ -1615,3 +1615,76 @@ textarea::placeholder {
     margin-bottom: 20px;
   }
 }
+.automation-canvas {
+  height: 480px;
+  background: #f5f9fa;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  direction: ltr;
+}
+.automation-node-label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: start;
+}
+.automation-node-label small {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #7d939a;
+}
+.automation-node-label strong {
+  font-size: 13px;
+  color: #263f49;
+}
+.automation-node-label span {
+  font-size: 10px;
+  color: #6c838b;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.condition-group {
+  border: 1px solid #dbe7e5;
+  background: #fbfdfc;
+  border-radius: 12px;
+  padding: 16px;
+}
+.condition-group fieldset {
+  border: 1px dashed #c6dbd4;
+  border-radius: 10px;
+  padding: 12px;
+  margin-top: 10px;
+}
+.condition-group legend {
+  font-size: 0.73rem;
+  color: #477467;
+  padding-inline: 6px;
+}
+.condition-clause {
+  padding: 10px;
+  background: white;
+  border-radius: 8px;
+  margin-block: 10px;
+}
+.condition-clause summary {
+  font-size: 0.75rem;
+  color: var(--primary);
+  cursor: pointer;
+}
+.automation-step-card {
+  border-color: #e0eae6 !important;
+  background: white;
+  border-radius: 14px !important;
+  position: relative;
+}
+.automation-step-card:focus {
+  outline: 3px solid #a4d8c7;
+}
+.version-list {
+  display: flex;
+  gap: 8px;
+  overflow: auto;
+  padding: 8px 0;
+}

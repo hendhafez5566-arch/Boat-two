@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Body,
   Controller,
   Get,
@@ -66,12 +67,34 @@ export class OperationsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: unknown,
   ) {
-    const b = parse(ruleSchema, body);
+    const b = parse(
+      ruleSchema.and(
+        z.object({
+          expectedRevision: z.number().int().min(1).optional(),
+          canvasPositions: z
+            .record(
+              z.object({
+                x: z.number().finite().min(-100000).max(100000),
+                y: z.number().finite().min(-100000).max(100000),
+              }),
+            )
+            .refine((v) => Object.keys(v).length <= 100)
+            .optional(),
+        }),
+      ),
+      body,
+    );
     return this.db.withTenant(r.user.tenantId, async (c) => {
+      const current = (
+        await c.query('SELECT revision FROM automation_rules WHERE id=$1 FOR UPDATE', [id])
+      ).rows[0];
+      if (!current) throw new NotFoundException();
+      if (b.expectedRevision !== undefined && b.expectedRevision !== current.revision)
+        throw new ConflictException('Workflow changed; reload before saving');
       if (b.enabled) await this.plans.assertFeature(c, 'automations');
       const row = (
         await c.query(
-          'UPDATE automation_rules SET name=$2,enabled=$3,trigger=$4,conditions=$5,actions=$6 WHERE id=$1 RETURNING *',
+          'UPDATE automation_rules SET name=$2,enabled=$3,trigger=$4,conditions=$5,actions=$6,canvas_positions=COALESCE($7,canvas_positions) WHERE id=$1 RETURNING *',
           [
             id,
             b.name,
@@ -79,12 +102,28 @@ export class OperationsController {
             b.trigger,
             JSON.stringify(b.conditions),
             JSON.stringify(b.actions),
+            b.canvasPositions ? JSON.stringify(b.canvasPositions) : null,
           ],
         )
       ).rows[0];
       if (!row) throw new NotFoundException();
       return row;
     });
+  }
+  @Get('automations/:id/versions') versions(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.db.withTenant(
+      r.user.tenantId,
+      async (c) =>
+        (
+          await c.query(
+            'SELECT revision,snapshot,actor_id,created_at FROM automation_rule_versions WHERE rule_id=$1 ORDER BY revision DESC LIMIT 50',
+            [id],
+          )
+        ).rows,
+    );
   }
   @Post('automations/:id/schedule') schedule(
     @Req() r: AuthedRequest,

@@ -1,4 +1,5 @@
 'use client';
+import { WorkflowCanvas } from './WorkflowCanvas';
 import { useState } from 'react';
 import { api } from '../../lib/api';
 import { useData } from './useData';
@@ -34,103 +35,87 @@ type Rule = {
   enabled: boolean;
   conditions: Conditions;
   actions: Action[];
+  revision: number;
+  canvas_positions: Record<string, { x: number; y: number }>;
 };
 function ConditionsForm({
   value,
   change,
+  depth = 0,
 }: {
   value: Conditions;
   change: (value: Conditions) => void;
+  depth?: number;
 }) {
   const { t } = useLocale();
   return (
-    <div className="space-y-2 border rounded p-3">
-      {(['q', 'tag', 'lifecycle', 'ownerId'] as const).map((key) => (
-        <label className="field" key={key}>
-          {
+    <div className="condition-group stack">
+      <div className="form-grid">
+        {(['q', 'tag', 'lifecycle', 'ownerId'] as const).map((key) => (
+          <label key={key}>
             {
-              q: t('بحث', 'Search'),
-              tag: t('وسم', 'Tag'),
-              lifecycle: t('مرحلة العميل', 'Lifecycle'),
-              ownerId: t('معرّف المسؤول', 'Owner ID'),
-            }[key]
-          }
-          <input
-            value={value[key] || ''}
-            onChange={(e) => {
-              const next = { ...value };
-              if (e.target.value) next[key] = e.target.value;
-              else delete next[key];
-              change(next);
-            }}
-          />
-        </label>
-      ))}
+              {
+                q: t('بحث', 'Search'),
+                tag: t('وسم', 'Tag'),
+                lifecycle: t('مرحلة العميل', 'Lifecycle'),
+                ownerId: t('معرّف المسؤول', 'Owner ID'),
+              }[key]
+            }
+            <input
+              value={value[key] ?? ''}
+              onChange={(e) => {
+                const next = { ...value };
+                if (e.target.value) next[key] = e.target.value;
+                else delete next[key];
+                change(next);
+              }}
+            />
+          </label>
+        ))}
+      </div>
       {(['allOf', 'anyOf'] as const).map((group) => (
         <fieldset key={group}>
-          <legend>{group === 'allOf' ? 'AND' : 'OR'}</legend>
-          {(value[group] || []).map((clause, index) => (
-            <div key={index} className="flex gap-2">
-              <select
-                aria-label={t('حقل الشرط', 'Condition field')}
-                value={
-                  clause.tag !== undefined
-                    ? 'tag'
-                    : clause.lifecycle !== undefined
-                      ? 'lifecycle'
-                      : 'q'
-                }
-                onChange={(e) =>
+          <legend>
+            {group === 'allOf'
+              ? t('كل الشروط (AND)', 'All conditions (AND)')
+              : t('أي شرط (OR)', 'Any condition (OR)')}
+          </legend>
+          {(value[group] ?? []).map((clause, index) => (
+            <details key={index} className="condition-clause">
+              <summary>
+                {t('مجموعة', 'Group')} {index + 1} · {group === 'allOf' ? 'AND' : 'OR'}
+              </summary>
+              <ConditionsForm
+                value={clause}
+                depth={depth + 1}
+                change={(next) =>
                   change({
                     ...value,
-                    [group]: (value[group] || []).map((row, i) =>
-                      i === index ? { [e.target.value]: '' } : row,
-                    ),
+                    [group]: (value[group] ?? []).map((v, i) => (i === index ? next : v)),
                   })
                 }
-              >
-                <option value="tag">{t('وسم', 'Tag')}</option>
-                <option value="lifecycle">{t('مرحلة', 'Lifecycle')}</option>
-                <option value="q">{t('بحث', 'Search')}</option>
-              </select>
-              <input
-                aria-label={t('قيمة الشرط', 'Condition value')}
-                required
-                value={clause.tag ?? clause.lifecycle ?? clause.q ?? ''}
-                onChange={(e) => {
-                  const key =
-                    clause.tag !== undefined
-                      ? 'tag'
-                      : clause.lifecycle !== undefined
-                        ? 'lifecycle'
-                        : 'q';
-                  change({
-                    ...value,
-                    [group]: (value[group] || []).map((row, i) =>
-                      i === index ? { ...row, [key]: e.target.value } : row,
-                    ),
-                  });
-                }}
               />
               <button
-                className="btn"
                 type="button"
+                className="btn"
                 onClick={() =>
-                  change({ ...value, [group]: (value[group] || []).filter((_, i) => i !== index) })
+                  change({ ...value, [group]: (value[group] ?? []).filter((_, i) => i !== index) })
                 }
               >
-                {t('حذف', 'Remove')}
+                {t('إزالة المجموعة', 'Remove group')}
               </button>
-            </div>
+            </details>
           ))}
-          <button
-            type="button"
-            className="btn"
-            disabled={(value[group]?.length || 0) >= 10}
-            onClick={() => change({ ...value, [group]: [...(value[group] || []), { tag: '' }] })}
-          >
-            {t('إضافة شرط', 'Add condition')} {group === 'allOf' ? 'AND' : 'OR'}
-          </button>
+          {depth < 4 && (
+            <button
+              type="button"
+              className="btn"
+              disabled={(value[group]?.length ?? 0) >= 10}
+              onClick={() => change({ ...value, [group]: [...(value[group] ?? []), {}] })}
+            >
+              {t('إضافة مجموعة', 'Add group')} {group === 'allOf' ? 'AND' : 'OR'}
+            </button>
+          )}
         </fieldset>
       ))}
     </div>
@@ -140,12 +125,14 @@ function Steps({
   value,
   change,
   secrets,
-  baseOnly = false,
+  depth = 0,
+  path = 'root',
 }: {
   value: Action[];
   change: (value: Action[]) => void;
   secrets: { id: string; name: string }[];
-  baseOnly?: boolean;
+  depth?: number;
+  path?: string;
 }) {
   const { t } = useLocale();
   const patch = (index: number, patch: Partial<Action>) =>
@@ -153,7 +140,12 @@ function Steps({
   return (
     <div className="space-y-3">
       {value.map((action, index) => (
-        <article key={index} className="rounded-xl border-2 border-indigo-100 p-4 space-y-3">
+        <article
+          tabIndex={-1}
+          data-step-path={`${path}.${index}`}
+          key={index}
+          className="automation-step-card rounded-xl border-2 border-indigo-100 p-4 space-y-3"
+        >
           <strong>
             {index + 1}. {action.type}
           </strong>
@@ -179,7 +171,7 @@ function Steps({
               )
             }
           >
-            {(baseOnly
+            {(depth >= 4
               ? ['note', 'tag', 'task', 'lifecycle']
               : ['note', 'tag', 'task', 'lifecycle', 'branch', 'delay', 'http']
             ).map((type) => (
@@ -268,14 +260,16 @@ function Steps({
                 value={action.then || []}
                 change={(then) => patch(index, { then })}
                 secrets={secrets}
-                baseOnly
+                depth={depth + 1}
+                path={`${path}.${index}.then`}
               />
               <h4>{t('مسار لا', 'No path')}</h4>
               <Steps
                 value={action.otherwise || []}
                 change={(otherwise) => patch(index, { otherwise })}
                 secrets={secrets}
-                baseOnly
+                depth={depth + 1}
+                path={`${path}.${index}.otherwise`}
               />
             </>
           )}
@@ -284,7 +278,8 @@ function Steps({
               value={action.actions || []}
               change={(actions) => patch(index, { actions })}
               secrets={secrets}
-              baseOnly
+              depth={depth + 1}
+              path={`${path}.${index}.actions`}
             />
           )}
           <div className="flex gap-2">
@@ -341,6 +336,16 @@ export function SavedAutomationEditor() {
     [error, setError] = useState(''),
     [message, setMessage] = useState(''),
     [busy, setBusy] = useState(false);
+  const [versions, setVersions] = useState<
+    { revision: number; snapshot: Partial<Rule>; created_at: string }[]
+  >([]);
+  const [history, setHistory] = useState<string[]>([]),
+    [future, setFuture] = useState<string[]>([]);
+  function edit(next: Rule) {
+    if (rule) setHistory([...history.slice(-39), JSON.stringify(rule)]);
+    setFuture([]);
+    setRule(next);
+  }
   async function act(fn: () => Promise<unknown>) {
     setBusy(true);
     setError('');
@@ -370,7 +375,12 @@ export function SavedAutomationEditor() {
         {t('افتح قاعدة محفوظة', 'Open a saved rule')}
         <select
           value={rule?.id || ''}
-          onChange={(e) => setRule(rules.data.find((row) => row.id === e.target.value) || null)}
+          onChange={(e) => {
+            setRule(rules.data.find((row) => row.id === e.target.value) || null);
+            setHistory([]);
+            setFuture([]);
+            setVersions([]);
+          }}
         >
           <option value="">{t('اختر قاعدة', 'Choose a rule')}</option>
           {rules.data.map((row) => (
@@ -388,9 +398,19 @@ export function SavedAutomationEditor() {
           className="stack"
           onSubmit={(e) => {
             e.preventDefault();
-            void act(() =>
-              api('/automations/' + rule.id, { method: 'PATCH', body: JSON.stringify(rule) }),
-            );
+            void act(async () => {
+              const saved = await api<Rule>('/automations/' + rule.id, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                  ...rule,
+                  expectedRevision: rule.revision,
+                  canvasPositions: rule.canvas_positions,
+                }),
+              });
+              setRule(saved);
+              setHistory([]);
+              setFuture([]);
+            });
           }}
         >
           <label className="field">
@@ -398,24 +418,112 @@ export function SavedAutomationEditor() {
             <input
               required
               value={rule.name}
-              onChange={(e) => setRule({ ...rule, name: e.target.value })}
+              onChange={(e) => edit({ ...rule, name: e.target.value })}
             />
+          </label>
+          <label>
+            {t('المحفّز', 'Trigger')}
+            <select
+              value={rule.trigger}
+              onChange={(e) => edit({ ...rule, trigger: e.target.value })}
+            >
+              {[
+                'crm.contacts.insert',
+                'crm.contacts.update',
+                'crm.crm_deals.insert',
+                'crm.crm_deals.update',
+                'crm.crm_tasks.insert',
+                'crm.crm_tasks.update',
+                'automation.scheduled',
+              ].map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
           </label>
           <label>
             <input
               type="checkbox"
               checked={rule.enabled}
-              onChange={(e) => setRule({ ...rule, enabled: e.target.checked })}
+              onChange={(e) => edit({ ...rule, enabled: e.target.checked })}
             />{' '}
             {t('مفعّل', 'Enabled')}
           </label>
+          <div className="form-actions">
+            <span className="badge">
+              {t('إصدار', 'Revision')} {rule.revision}
+            </span>
+            <button
+              type="button"
+              className="btn"
+              disabled={!history.length}
+              onClick={() => {
+                setFuture([JSON.stringify(rule), ...future]);
+                setRule(JSON.parse(history[history.length - 1]));
+                setHistory(history.slice(0, -1));
+              }}
+            >
+              {t('تراجع', 'Undo')}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={!future.length}
+              onClick={() => {
+                setHistory([...history, JSON.stringify(rule)]);
+                setRule(JSON.parse(future[0]));
+                setFuture(future.slice(1));
+              }}
+            >
+              {t('إعادة', 'Redo')}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() =>
+                void api<typeof versions>('/automations/' + rule.id + '/versions')
+                  .then(setVersions)
+                  .catch((e) => setError(e.message))
+              }
+            >
+              {t('الإصدارات المحفوظة', 'Saved versions')}
+            </button>
+          </div>
+          {versions.length > 0 && (
+            <div className="version-list">
+              {versions.map((v) => (
+                <button
+                  type="button"
+                  className="btn"
+                  key={v.revision}
+                  onClick={() => {
+                    edit({ ...rule, ...v.snapshot, enabled: false, revision: rule.revision });
+                    setMessage(
+                      t(
+                        'حُمّل الإصدار كمسودة معطلة. راجع ثم احفظ إصدارًا جديدًا.',
+                        'Version loaded as a disabled draft. Review and save a new revision.',
+                      ),
+                    );
+                  }}
+                >
+                  {t('تحميل', 'Load')} v{v.revision}
+                </button>
+              ))}
+            </div>
+          )}
+          <WorkflowCanvas
+            actions={rule.actions}
+            positions={rule.canvas_positions ?? {}}
+            onLayout={(canvas_positions) => setRule({ ...rule, canvas_positions })}
+          />
           <ConditionsForm
             value={rule.conditions}
-            change={(conditions) => setRule({ ...rule, conditions })}
+            change={(conditions) => edit({ ...rule, conditions })}
           />
           <Steps
             value={rule.actions}
-            change={(actions) => setRule({ ...rule, actions })}
+            change={(actions) => edit({ ...rule, actions })}
             secrets={secrets.data.filter((secret) => secret.enabled)}
           />
           <button className="btn btn-primary" disabled={busy}>

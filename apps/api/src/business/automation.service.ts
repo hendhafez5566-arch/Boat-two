@@ -77,8 +77,16 @@ export class AutomationService {
           [row.id, event.id],
         );
         await c.query(
-          'INSERT INTO automation_runs(tenant_id,rule_id,event_id,status,root_id,contact_id) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING',
-          [event.tenantId, row.id, event.id, match ? 'completed' : 'skipped', root, contactId],
+          'INSERT INTO automation_runs(tenant_id,rule_id,event_id,status,root_id,contact_id,rule_revision) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING',
+          [
+            event.tenantId,
+            row.id,
+            event.id,
+            match ? 'completed' : 'skipped',
+            root,
+            contactId,
+            row.revision,
+          ],
         );
       }
     });
