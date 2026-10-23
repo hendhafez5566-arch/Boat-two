@@ -226,6 +226,7 @@ export const triggersSchema = z
   .max(10);
 
 export const createFlowSchema = z.object({
+  language: z.enum(['ar', 'en']).default('ar'),
   isComponent: z.boolean().default(false),
   templateId: z.string().max(40).optional(),
   name: z.string().min(1).max(120),

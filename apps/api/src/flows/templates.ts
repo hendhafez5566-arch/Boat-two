@@ -134,3 +134,42 @@ export const FLOW_TEMPLATES: { id: string; name: string; description: string; gr
       },
     },
   ];
+
+// Localize only immutable built-in starter content; saved/user-authored graphs never pass here.
+export function localizedFlowTemplates(language: 'ar' | 'en' = 'ar') {
+  const translations: Record<string, string> = {
+    'خدمة العملاء · Customer support': 'Customer support',
+    'جمع بيانات العملاء · Lead capture': 'Lead capture',
+    'أسئلة متكررة · FAQ': 'Frequently asked questions',
+    'ترحيب وقائمة مساعدة وتحويل إلى موظف.': 'Welcome, offer help and hand off to a teammate.',
+    'اسأل عن الاسم والبريد واحفظهما في ملف العميل قبل التحويل.':
+      'Ask for name and email, save them to the contact and hand off.',
+    'قائمة خدمات وأسعار قابلة للتعديل، مع تحويل بشري.':
+      'Editable service and pricing choices with human handoff.',
+    'سيتواصل معك أحد أفراد الفريق الآن.': 'A teammate will help you now.',
+    'مرحبًا بك! كيف نساعدك اليوم؟': 'Welcome! How can we help today?',
+    'مواعيد العمل': 'Opening hours',
+    'تحدث مع موظف': 'Talk to a teammate',
+    'يسعدنا خدمتك. يرجى تعديل هذه الرسالة لتوضيح مواعيد شركتك.':
+      'We are happy to help. Edit this message to show your opening hours.',
+    'أهلًا! ما اسمك؟': 'Hello! What is your name?',
+    'ما بريدك الإلكتروني للتواصل؟': 'What email address can we use to contact you?',
+    'يرجى إدخال بريد صحيح.': 'Please enter a valid email address.',
+    'ما الذي تريد معرفته؟': 'What would you like to know?',
+    خدماتنا: 'Our services',
+    الأسعار: 'Pricing',
+    موظف: 'Teammate',
+    'أضف وصف خدمات شركتك هنا قبل النشر.': 'Add your service descriptions here before publishing.',
+    'أضف أسعارك الفعلية هنا قبل النشر.': 'Add your actual prices here before publishing.',
+  };
+  const walk = (value: unknown): unknown =>
+    typeof value === 'string'
+      ? (translations[value] ?? value)
+      : Array.isArray(value)
+        ? value.map(walk)
+        : value && typeof value === 'object'
+          ? Object.fromEntries(Object.entries(value).map(([key, item]) => [key, walk(item)]))
+          : value;
+  const copy = structuredClone(FLOW_TEMPLATES);
+  return language === 'en' ? (walk(copy) as typeof FLOW_TEMPLATES) : copy;
+}

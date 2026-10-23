@@ -1,0 +1,1 @@
+Flow locales: all three English catalog/templates and actual engine previews contain English starter content; Arabic originals and graph IDs/edges preserved; English blank and invalid locale checks passed. No external calls.

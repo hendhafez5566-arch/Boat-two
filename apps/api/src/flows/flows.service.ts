@@ -10,21 +10,23 @@ import { DatabaseService } from '../database/database.service';
 import { PlansService } from '../plans/plans.service';
 import { FlowEngine, FlowGraph, FlowState, newState, OutContent, validateGraph } from './engine';
 import { createFlowSchema, testFlowSchema, updateFlowSchema } from './flow-schemas';
-import { FLOW_TEMPLATES } from './templates';
+import { localizedFlowTemplates } from './templates';
 import { expandSubflows } from './expand';
 import { safeHttpRequest } from './http-safe';
 
 const LIST_COLS =
   'id, name, description, status, priority, triggers, channel_ids, published_version_id, created_at, updated_at';
 
-const defaultGraph = (): FlowGraph => ({
+const defaultGraph = (language: 'ar' | 'en' = 'ar'): FlowGraph => ({
   startNodeId: 'start',
   nodes: [
     {
       id: 'start',
       type: 'message',
       position: { x: 80, y: 80 },
-      data: { text: 'مرحباً! كيف يمكنني مساعدتك؟' },
+      data: {
+        text: language === 'en' ? 'Hello! How can I help you?' : 'مرحباً! كيف يمكنني مساعدتك؟',
+      },
       edges: { next: 'end' },
     },
     { id: 'end', type: 'end', position: { x: 80, y: 280 }, data: {}, edges: {} },
@@ -70,7 +72,7 @@ export class FlowsService {
       const n = (await c.query('SELECT count(*)::int AS n FROM flows')).rows[0].n;
       await this.plans.assertWithinLimit(c, 'flows', n);
       const template = input.templateId
-        ? FLOW_TEMPLATES.find((t) => t.id === input.templateId)
+        ? localizedFlowTemplates(input.language).find((t) => t.id === input.templateId)
         : undefined;
       if (input.templateId && !template) throw new BadRequestException('Unknown template');
       const r = await c.query(
@@ -80,7 +82,7 @@ export class FlowsService {
           tenantId,
           input.name,
           input.description ?? null,
-          JSON.stringify(template?.graph ?? defaultGraph()),
+          JSON.stringify(template?.graph ?? defaultGraph(input.language)),
           JSON.stringify([{ type: 'first_message' }]),
           userId,
           input.isComponent,
@@ -241,8 +243,8 @@ export class FlowsService {
     );
   }
 
-  templates() {
-    return FLOW_TEMPLATES.map(({ id, name, description, graph }) => ({
+  templates(language: 'ar' | 'en' = 'ar') {
+    return localizedFlowTemplates(language).map(({ id, name, description, graph }) => ({
       id,
       name,
       description,

@@ -70,15 +70,13 @@ try {
       for (const route of routes) {
         const start = errors.length;
         const r = await page.goto(web + '/dashboard' + route);
-        await page.locator('main h1').first().waitFor();
+        await page.locator('.page-workspace,.focused-workspace').first().waitFor();
         await page.waitForTimeout(150);
         const data = await page.evaluate(() => ({
           direction: document.documentElement.dir,
           overflow: document.documentElement.scrollWidth > innerWidth + 1,
-          heading: document.querySelector('main h1')?.textContent,
-          unlabelled: [
-            ...document.querySelectorAll('main input:not([type=hidden]),main textarea,main select'),
-          ]
+          heading: document.querySelector('.page-workspace h1,.focused-workspace h1')?.textContent,
+          unlabelled: [...document.querySelectorAll('input:not([type=hidden]),textarea,select')]
             .filter(
               (e) =>
                 !e.getAttribute('aria-label') &&

@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Req,
+  Query,
 } from '@nestjs/common';
 import { z } from 'zod';
 import { Roles } from '../auth/decorators';
@@ -27,8 +28,9 @@ export class FlowsController {
   }
 
   @Get('templates')
-  templates() {
-    return this.flows.templates();
+  templates(@Query() query: unknown) {
+    const { language } = parse(z.object({ language: z.enum(['ar', 'en']).default('ar') }), query);
+    return this.flows.templates(language);
   }
 
   @Get(':id/versions')

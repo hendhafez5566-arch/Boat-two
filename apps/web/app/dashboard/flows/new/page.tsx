@@ -10,9 +10,9 @@ import TestPanel from '../../../../components/flow/TestPanel';
 import { Button, Feedback } from '../../../../components/product/ProductUI';
 type Saved = { id: string; updatedAt: string; graph: Graph };
 export default function BotWizard() {
-  const { t } = useLocale(),
+  const { t, language } = useLocale(),
     templates = useData<{ id: string; name: string; description: string }[]>(
-      '/flows/templates',
+      '/flows/templates?language=' + language,
       [],
     ),
     channels = useData<{ id: string; name: string; type: string }[]>('/channels', []);
@@ -45,7 +45,7 @@ export default function BotWizard() {
       if (!flowId.current) {
         const row = await api<{ id: string }>('/flows', {
           method: 'POST',
-          body: JSON.stringify({ name, templateId: template }),
+          body: JSON.stringify({ name, templateId: template, language }),
         });
         flowId.current = row.id;
         setCreated(row.id);

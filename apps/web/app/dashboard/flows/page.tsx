@@ -13,18 +13,19 @@ type Flow = {
   updated_at: string;
 };
 
-const trig = (t: Flow['triggers'][number]) =>
-  t.type === 'keyword'
-    ? `كلمات: ${(t.keywords ?? []).slice(0, 3).join('، ')}`
-    : ((
-        { first_message: 'أول رسالة', any_message: 'أي رسالة', reply_id: 'زر محدد' } as Record<
-          string,
-          string
-        >
-      )[t.type] ?? t.type);
-
 export default function Flows() {
-  const { t } = useLocale();
+  const { t, language } = useLocale();
+  const trig = (trigger: Flow['triggers'][number]) =>
+    trigger.type === 'keyword'
+      ? `${t('كلمات', 'Keywords')}: ${(trigger.keywords ?? []).slice(0, 3).join(', ')}`
+      : ((
+          {
+            first_message: t('أول رسالة', 'First message'),
+            any_message: t('أي رسالة', 'Any message'),
+            reply_id: t('زر محدد', 'Specific reply'),
+            event: t('حدث أعمال', 'Business event'),
+          } as Record<string, string>
+        )[trigger.type] ?? trigger.type);
   const [templates, setTemplates] = useState<
     { id: string; name: string; description: string; nodeCount: number }[]
   >([]);
@@ -43,10 +44,10 @@ export default function Flows() {
       return;
     }
     load();
-    api<typeof templates>('/flows/templates')
+    api<typeof templates>('/flows/templates?language=' + language)
       .then(setTemplates)
       .catch((e) => setError(e.message));
-  }, []);
+  }, [language]);
 
   async function create(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -57,6 +58,7 @@ export default function Flows() {
       const flow = await api<Flow>('/flows', {
         method: 'POST',
         body: JSON.stringify({
+          language,
           name: f.get('name'),
           isComponent: f.get('isComponent') === 'on',
           ...(templateId ? { templateId } : {}),
@@ -75,10 +77,10 @@ export default function Flows() {
   };
 
   return (
-    <main className="mx-auto max-w-3xl p-6">
+    <main className="stack">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">BOT STUDIO</p>
+          <p className="eyebrow">{t('استوديو البوت', 'BOT STUDIO')}</p>
           <h1>{t('مصمم البوت', 'Bot builder')}</h1>
           <p>
             {t(
@@ -112,16 +114,21 @@ export default function Flows() {
           </button>
         ))}
       </div>
-      {error && <p className="mb-3 text-red-600">{error}</p>}
-      <form onSubmit={create} className="mb-6 flex gap-2">
+      {error && (
+        <p role="alert" className="notice error">
+          {error}
+        </p>
+      )}
+      <form onSubmit={create} className="card mb-6 flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-1 text-xs">
           <input type="checkbox" name="isComponent" />
-          مكوّن قابل لإعادة الاستخدام
+          {t('مكوّن قابل لإعادة الاستخدام', 'Reusable component')}
         </label>
         <input
           name="name"
           required
-          placeholder="اسم سيناريو جديد"
+          aria-label={t('اسم البوت', 'Bot name')}
+          placeholder={t('اسم سيناريو جديد', 'New bot name')}
           className="flex-1 rounded border p-2"
         />
         <select
@@ -151,31 +158,39 @@ export default function Flows() {
               <span
                 className={`rounded px-2 py-0.5 text-xs ${f.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100'}`}
               >
-                {f.status === 'published' ? `منشور v${f.published_version}` : 'مسودة'}
+                {f.status === 'published'
+                  ? `${t('منشور', 'Published')} v${f.published_version}`
+                  : t('مسودة', 'Draft')}
               </span>
             </div>
             <div className="mt-1 text-xs text-gray-500">
-              المشغّلات: {f.triggers.map(trig).join(' | ') || 'لا يوجد'}
+              {t('المشغّلات:', 'Triggers:')}{' '}
+              {f.triggers.map(trig).join(' | ') || t('لا يوجد', 'None')}
             </div>
             <div className="mt-2 flex gap-3 text-xs">
               <button onClick={() => act(`/flows/${f.id}/duplicate`)} className="underline">
-                نسخ
+                {t('نسخ', 'Duplicate')}
               </button>
               {f.status === 'published' && (
                 <button onClick={() => act(`/flows/${f.id}/unpublish`)} className="underline">
-                  إيقاف
+                  {t('إيقاف', 'Unpublish')}
                 </button>
               )}
               <button
-                onClick={() => confirm('حذف السيناريو؟') && act(`/flows/${f.id}`, 'DELETE')}
+                onClick={() =>
+                  confirm(t('حذف السيناريو؟', 'Delete this bot?')) &&
+                  act(`/flows/${f.id}`, 'DELETE')
+                }
                 className="text-red-600 underline"
               >
-                حذف
+                {t('حذف', 'Delete')}
               </button>
             </div>
           </li>
         ))}
-        {!items.length && <li className="text-gray-500">لا توجد سيناريوهات بعد.</li>}
+        {!items.length && (
+          <li className="text-gray-500">{t('لا توجد سيناريوهات بعد.', 'No bots yet.')}</li>
+        )}
       </ul>
     </main>
   );

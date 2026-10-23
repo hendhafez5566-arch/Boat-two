@@ -1,3 +1,9 @@
+## Built-in bot language checkpoint — 2026-10-23 UTC
+
+Previous settings checkpoint c1da11c pushed/remote-verified. Built-in flow catalog and new template/blank graph creation now accept validated ar/en, defaulting to Arabic for legacy clients. Only immutable starter content is localized; existing/user-authored graphs are preserved. Wizard and advanced creation pass locale. Bot list, trigger/status/actions/empty state and reusable-component creation are bilingual, the creation form wraps on mobile and its name input is labelled. Inbox title is now a semantic h1.
+
+API TypeScript, ESLint and Next production build passed. New smoke-flow-locales verifies all three English templates and actual engine previews contain English starter content, Arabic originals remain, graph IDs/edges match, English blank works and unsupported locale is rejected. Premium Chromium passes again through seven-step publication/preview, inspector edit, undo/redo, save/version dialog and Inbox/mobile. All dashboard route/direction/layout survey is still running; no global UI-complete claim. Frozen 23 CLOSED / 18 OPEN local requirements + 7 external dependencies unchanged.
+
 ## Legacy channel/Inbox settings completion checkpoint — 2026-10-23 UTC
 
 Previous activity export checkpoint e5b7ad2 pushed/remote-verified. Replaced Arabic-only channel creation/deletion and Inbox assignment/canned-reply screens with shared bilingual responsive controls, labelled fields, keyboard/Escape native confirmation dialogs, loading/error/retry/busy/saved states. Channel credential labels, local status and provider job states are translated; stored tokens and existing APIs/behavior are preserved. Config/connection errors now render in MetaConnect.

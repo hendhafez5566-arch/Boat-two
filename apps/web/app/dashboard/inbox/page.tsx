@@ -550,7 +550,7 @@ export default function Inbox() {
         <a href="/dashboard" className="underline">
           {t('الرئيسية', 'Overview')}
         </a>
-        <strong className="flex-1">{t('صندوق الوارد', 'Inbox')}</strong>
+        <h1 className="flex-1 text-sm font-semibold">{t('صندوق الوارد', 'Inbox')}</h1>
         {selId && (
           <button className="btn lg:hidden" onClick={() => setShowContext(true)}>
             {t('ملف العميل', 'Customer profile')}
