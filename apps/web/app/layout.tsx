@@ -1,6 +1,7 @@
 import '@fontsource-variable/dm-sans';
 import '@fontsource-variable/noto-sans-arabic';
 import './globals.css';
+import './design-system.css';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { BrandProvider, PublicBrand } from '../components/product/BrandContext';
