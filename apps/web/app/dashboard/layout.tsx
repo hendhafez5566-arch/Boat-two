@@ -1,10 +1,12 @@
 'use client';
+import { WorkspaceMenu } from '../../components/product/WorkspaceMenu';
 import { NavIcon } from '../../components/product/NavIcon';
 import { CSSProperties, ReactNode, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { api, getSession, setSession } from '../../lib/api';
-import { LocaleProvider, useLocale } from '../../components/product/locale';
+import { useBrand } from '../../components/product/BrandContext';
+import { useLocale } from '../../components/product/locale';
 const links = [
   ['sessions', '◷', 'جلسات الحساب', 'Account sessions'],
   ['branding', '◈', 'هوية الشركة', 'Branding'],
@@ -29,6 +31,7 @@ const links = [
 ];
 function Shell({ children }: { children: ReactNode }) {
   const path = usePathname();
+  const hostBrand = useBrand();
   const { t, toggle } = useLocale();
   const [name, setName] = useState('ELHAFEZ BOAT');
   const [role, setRole] = useState('');
@@ -45,13 +48,24 @@ function Shell({ children }: { children: ReactNode }) {
       window.location.replace('/login');
       return;
     }
-    api<{ enabled: boolean; branding: typeof brand }>('/workspace/branding')
-      .then((result) => {
-        if (result.enabled) setBrand(result.branding);
-      })
-      .catch(() => {});
-    api<{ tenant: { name: string }; role: string }>('/workspace')
+    if (hostBrand)
+      setBrand({
+        name: hostBrand.name,
+        logo_url: hostBrand.logoUrl,
+        primary_color: hostBrand.primaryColor,
+      });
+    if (!hostBrand)
+      api<{ enabled: boolean; branding: typeof brand }>('/workspace/branding')
+        .then((result) => {
+          if (result.enabled) setBrand(result.branding);
+        })
+        .catch(() => {});
+    api<{ tenant: { id: string; name: string }; role: string }>('/workspace')
       .then((w) => {
+        if (hostBrand && w.tenant.id !== hostBrand.tenantId)
+          throw new Error(
+            t('سجّل الدخول إلى مساحة هذا النطاق', 'Sign in to this domain’s workspace'),
+          );
         setName(w.tenant.name);
         setRole(w.role);
         setReady(true);
@@ -151,16 +165,17 @@ function Shell({ children }: { children: ReactNode }) {
             aria-label={t('فتح القائمة', 'Open navigation')}
             onClick={() => setOpen(!open)}
           >
-            ☰
+            <NavIcon name="menu" />
           </button>
-          <span>
-            {t('مساحة العمل', 'Workspace')} / <strong>{name}</strong>
-          </span>
+          <WorkspaceMenu name={name} />
           <span className="badge">{t('بيئة العمل', 'Workspace')}</span>
         </header>
         {error ? (
           <div className="notice error" role="alert">
             {error}
+            <button className="btn" onClick={() => void logout()}>
+              {t('تسجيل خروج وتغيير الحساب', 'Sign out and change account')}
+            </button>
             <button onClick={() => window.location.reload()}>{t('إعادة المحاولة', 'Retry')}</button>
           </div>
         ) : !ready ? (
@@ -175,9 +190,5 @@ function Shell({ children }: { children: ReactNode }) {
   );
 }
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  return (
-    <LocaleProvider>
-      <Shell>{children}</Shell>
-    </LocaleProvider>
-  );
+  return <Shell>{children}</Shell>;
 }

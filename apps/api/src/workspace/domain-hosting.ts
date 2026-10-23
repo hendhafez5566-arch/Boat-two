@@ -91,7 +91,13 @@ export class DomainHosting {
       ])
     ).rows[0].data;
     if (!brand) throw new NotFoundException('Domain is not eligible for hosting');
-    return brand;
+    const tenant = (
+      await this.db.query('SELECT auth_domain_tenant($1,$2) AS id', [
+        host,
+        env.BILLING_PAST_DUE_GRACE_DAYS,
+      ])
+    ).rows[0].id;
+    return { ...brand, tenantId: tenant };
   }
 }
 @Controller('workspace/branding/domains')

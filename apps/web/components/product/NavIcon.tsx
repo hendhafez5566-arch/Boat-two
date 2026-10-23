@@ -1,4 +1,10 @@
 const paths: Record<string, string> = {
+  menu: 'M4 6h16M4 12h16M4 18h16',
+  team: 'M4 20v-3a4 4 0 0 1 4-4h3a4 4 0 0 1 4 4v3M9 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6M18 10a2 2 0 1 0 0-4M18 14a3 3 0 0 1 3 3v3',
+  departments: 'M9 3h6v5H9V3ZM3 16h6v5H3v-5ZM15 16h6v5h-6v-5ZM12 8v4M6 16v-4h12v4',
+  audit: 'M5 3h14v18H5V3ZM8 7h8M8 11h8M8 15h5',
+  ai: 'M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8M9 9h6v6H9V9Z',
+  onboarding: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM8 12l3 3 5-6',
   crm: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
   campaigns: 'm3 11 18-8-8 18-2-8-8-2Zm8 2L21 3',
   automations: 'M12 3v5M5 16v5M19 16v5M5 16h14M12 8H5v8M12 8h7v8',

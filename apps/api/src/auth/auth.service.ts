@@ -66,11 +66,14 @@ export class AuthService {
   }
 
   async register(input: {
+    brandHostname?: string;
     email: string;
     password: string;
     fullName: string;
     workspaceName: string;
   }) {
+    if (input.brandHostname)
+      throw new ForbiddenException('Join a branded workspace using an invitation');
     const email = input.email.toLowerCase();
     const tenantId = randomUUID();
     const userId = randomUUID();
@@ -108,7 +111,24 @@ export class AuthService {
     return { ...tokens, tenantId, role: 'owner' as Role };
   }
 
-  async login(input: { email: string; password: string; tenantId?: string }) {
+  private async brandedTenant(host: string): Promise<string> {
+    if (env.CUSTOM_DOMAINS_ENABLED !== 'true')
+      throw new ForbiddenException('Branded authentication disabled');
+    const tenant = (
+      await this.db.query('SELECT auth_domain_tenant($1,$2) AS id', [
+        host,
+        env.BILLING_PAST_DUE_GRACE_DAYS,
+      ])
+    ).rows[0]?.id;
+    if (!tenant) throw new ForbiddenException('Domain unavailable');
+    return tenant;
+  }
+  async login(input: {
+    email: string;
+    password: string;
+    tenantId?: string;
+    brandHostname?: string;
+  }) {
     const r = await this.db.query<{ id: string; password_hash: string | null }>(
       'SELECT id, password_hash FROM users WHERE email = $1',
       [input.email.toLowerCase()],
@@ -117,12 +137,18 @@ export class AuthService {
     const ok = await verifyPassword(input.password, user?.password_hash ?? null);
     if (!user || !ok) throw new UnauthorizedException('Invalid email or password');
 
+    if (input.brandHostname) input.tenantId = await this.brandedTenant(input.brandHostname);
     const spaces = await this.workspaces(user.id);
     const chosen = input.tenantId ? spaces.find((s) => s.tenant_id === input.tenantId) : spaces[0];
     if (!chosen) throw new ForbiddenException('No workspace for this user');
 
     const tokens = await this.issueTokens(user.id, chosen.tenant_id, chosen.role);
-    return { ...tokens, tenantId: chosen.tenant_id, role: chosen.role, workspaces: spaces };
+    return {
+      ...tokens,
+      tenantId: chosen.tenant_id,
+      role: chosen.role,
+      workspaces: input.brandHostname ? [chosen] : spaces,
+    };
   }
 
   async refresh(refreshToken: string) {
@@ -163,7 +189,12 @@ export class AuthService {
     return { user: r.rows[0], workspaces: await this.workspaces(userId) };
   }
 
-  async acceptInvitation(input: { token: string; password: string; fullName: string }) {
+  async acceptInvitation(input: {
+    token: string;
+    password: string;
+    fullName: string;
+    brandHostname?: string;
+  }) {
     const found = await this.db.query<{
       id: string;
       tenant_id: string;
@@ -176,6 +207,9 @@ export class AuthService {
     if (!inv || inv.accepted_at || inv.expires_at < new Date()) {
       throw new BadRequestException('Invitation is invalid or expired');
     }
+
+    if (input.brandHostname && (await this.brandedTenant(input.brandHostname)) !== inv.tenant_id)
+      throw new ForbiddenException('Invitation belongs to a different workspace');
 
     const accepted = await this.db.withTenant(inv.tenant_id, async (c) => {
       // Same lock as invitation creation: concurrent accept/revoke cannot exceed seats or replay a token.

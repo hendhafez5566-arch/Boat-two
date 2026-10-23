@@ -1,5 +1,13 @@
 # Continue here — ELHAFEZ BOAT
 
+## Full product sprint checkpoint — premium foundation and branded sign-in
+
+Migration 058 binds branded sign-in to a currently eligible verified domain and actual membership. Branded joining is invitation-only and validates the invitation workspace. The root brand context reaches login/register and the workspace shell; a mismatched saved workspace cannot render tenant pages. Added a real membership-backed workspace switcher (restricted to the host workspace on custom domains).
+
+Shared design tokens, self-hosted DM Sans/Noto Sans Arabic, unified forms/cards/tables/buttons, SVG navigation, responsive public authentication and reusable native accessible Dialog/Feedback/EmptyState/Button components are implemented. Canonical registration still creates a workspace; branded registration accepts a company invitation. This covers member sign-in/portal surfaces, not a separate public customer account product or live email sending.
+
+Full API/Next build, TypeScript, ESLint, migrations and PostgreSQL branded-auth smoke pass (gate, membership, invitation isolation and domain revocation). Existing paid/external/ingress gates remain false. Next: premium flow canvas, beginner creation and advanced automation improvements in this same sprint. Owner visual approval remains open.
+
 ## Full product sprint checkpoint — provider-evidence review
 
 Continued from verified local/remote `386b6b3c872ca78793c899b8f55ccc48bd388136`, same branch/PR #1. Migration 057 adds restricted operator review of ambiguous subscription requests: step-up-protected evidence requests, durable read-only provider inspection through the existing effect ledger/outbox, provider request IDs, mismatch quarantine and explicit approval of fresh matching evidence. Confirmation closes the local request only; it never repeats a financial write or clears an unknown effect. Bilingual platform review UI is connected.

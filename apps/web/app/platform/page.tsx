@@ -5,7 +5,7 @@ import OperationalReports from './OperationalReports';
 import PriceCatalog from './PriceCatalog';
 import AuditTrail from './AuditTrail';
 import { API } from '../../lib/api';
-import { LocaleProvider, useLocale } from '../../components/product/locale';
+import { useLocale } from '../../components/product/locale';
 type Company = {
   id: string;
   name: string;
@@ -730,9 +730,5 @@ function Console() {
   );
 }
 export default function Platform() {
-  return (
-    <LocaleProvider>
-      <Console />
-    </LocaleProvider>
-  );
+  return <Console />;
 }
