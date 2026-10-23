@@ -1,62 +1,94 @@
 [
   {
+    "suite": "smoke-ai-recovery-browser.mjs",
+    "exitCode": 0,
+    "durationMs": 3810,
+    "previousAttempts": [
+      {
+        "exitCode": 1,
+        "durationMs": 7363,
+        "reason": "Selector ambiguity corrected; functional assertions preserved"
+      }
+    ]
+  },
+  {
     "suite": "smoke-ai-workspace-browser.mjs",
     "exitCode": 0,
-    "durationMs": 5529
+    "durationMs": 10928
+  },
+  {
+    "suite": "smoke-automation-debug-browser.mjs",
+    "exitCode": 0,
+    "durationMs": 9094
   },
   {
     "suite": "smoke-automation-editor-browser.mjs",
     "exitCode": 0,
-    "durationMs": 4730
+    "durationMs": 6061
   },
   {
     "suite": "smoke-billing-branding-browser.mjs",
     "exitCode": 0,
-    "durationMs": 3622
+    "durationMs": 9262
   },
   {
     "suite": "smoke-campaign-browser.mjs",
     "exitCode": 0,
-    "durationMs": 4932
+    "durationMs": 5683
   },
   {
     "suite": "smoke-campaign-ledger-browser.mjs",
     "exitCode": 0,
-    "durationMs": 5408
+    "durationMs": 8162
   },
   {
     "suite": "smoke-crm-browser.mjs",
     "exitCode": 0,
-    "durationMs": 8613
+    "durationMs": 9212
+  },
+  {
+    "suite": "smoke-crm-upload-browser.mjs",
+    "exitCode": 0,
+    "durationMs": 15599
   },
   {
     "suite": "smoke-inbox-browser.mjs",
     "exitCode": 0,
-    "durationMs": 5801
+    "durationMs": 3373
   },
   {
     "suite": "smoke-premium-browser.mjs",
     "exitCode": 0,
-    "durationMs": 10925
+    "durationMs": 6266
   },
   {
     "suite": "smoke-provider-browser.mjs",
     "exitCode": 0,
-    "durationMs": 4146
+    "durationMs": 2680
   },
   {
     "suite": "smoke-rich-campaign-browser.mjs",
     "exitCode": 0,
-    "durationMs": 7007
+    "durationMs": 3138
+  },
+  {
+    "suite": "smoke-settings-browser.mjs",
+    "exitCode": 0,
+    "durationMs": 4298
   },
   {
     "suite": "smoke-template-components-browser.mjs",
     "exitCode": 0,
-    "durationMs": 4842
+    "durationMs": 3255
   },
   {
     "suite": "smoke-workspace-browser.mjs",
     "exitCode": 0,
-    "durationMs": 4714
+    "durationMs": 3042
+  },
+  {
+    "suite": "smoke-template-drafts-browser.mjs",
+    "exitCode": 0,
+    "durationMs": 3150
   }
 ]

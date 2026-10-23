@@ -1,0 +1,1 @@
+Dispatch fairness: 1000 earlier events cannot starve a later tenant in batch 2; failed aggregate predecessor still blocks its successor while independent work runs.

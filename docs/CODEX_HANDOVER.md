@@ -1,3 +1,13 @@
+## Final saved closure evidence — 2026-10-23 UTC
+
+Authoritative report: [V1_RELEASE_CLOSURE_REPORT.md](V1_RELEASE_CLOSURE_REPORT.md); frozen scope: [V1_FINAL_CLOSURE_MATRIX.md](V1_FINAL_CLOSURE_MATRIX.md). **V1 is incomplete: 48 fixed required entries, 25 CLOSED, 16 OPEN local implementation/acceptance requirements and 7 external/owner dependencies.** No unresolved demonstrated blocking defect remains; unfinished required functions still block acceptance. One optional future boundary is excluded from the 48. No new feature backlog.
+
+Latest validation: API/web TypeScript, ESLint, Next production build; 64 unit tests; 52 backend suites plus isolated fairness; 17 functional Chromium suites; fresh migrations 001–077 and repeat; 132 route/language/width surveys with zero overflow/page errors/unnamed controls; bounded load and real SIGKILL replay test. Reports and actual local-fixture images: docs/acceptance/2026-10-23-v1-closure/. This is not full requested populated-browser/security/load/owner acceptance or live provider acceptance.
+
+Main external/AI/email/billing/domain gates remain false. No real financial writes, new branch/PR, force push, main merge or production deployment. Existing Draft PR #1 follows this same branch. Current remote/PR HEAD is the delivery authority; source checkpoint before report is d988a05ef1ea0117362d2b55bbd0ea9f814c453b. The final documentation commit follows it.
+
+OPEN IDs are unchanged: AI-06, WA-02, INBOX-02, INBOX-03, BILL-01, BILL-02, BILL-03, SAAS-03, SAAS-05, UI-01, UI-02, UI-03, UI-04, UI-05, QA-03, QA-04. WA-02 includes still-unsupported authentication templates; rich MARKETING/UTILITY authoring is delivered, not a claim of OTP support. Do not declare V1 CODE COMPLETE or PRODUCTION READY.
+
 ## AI browser fallback/recovery acceptance — 2026-10-23 UTC
 
 Previous diagnostics checkpoint 82b4c69 pushed/remote-verified. New fixture-ai-api runs the real compiled API in an isolated child in test mode with only OpenAI chat mocked before bootstrap; all requests remain local, the child external gate is false and the main API is unchanged. Browser calls are forwarded to that real isolated API. Actual settings save, forced provider failure, custom fallback, human escalation signal, sanitized failure audit and successful independent request are verified; exactly two run rows prevent hidden paid-call retries. Arabic/mobile screenshots saved. Fixture contains only fake provider credentials.

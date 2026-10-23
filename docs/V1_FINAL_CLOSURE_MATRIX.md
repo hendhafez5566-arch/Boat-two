@@ -91,3 +91,7 @@ AUTO-03 CLOSED with immediate/delayed nested action context and actual browser r
 ## AI recovery acceptance checkpoint
 
 25 A requirements CLOSED / 16 A requirements OPEN / 7 external or owner dependencies. AI-05 closes for supported fallback/human escalation and real browser/API configuration/runtime recovery with a mocked provider. The child API alone enables the AI call gate, patches provider chat before bootstrap, has no real credentials and keeps external delivery disabled. Main API gates remain false. No live provider certification or Inbox conversation handoff is claimed by the playground test; existing runtime/tool tests supply those separate bounds.
+
+## Final saved evidence
+
+Fixed totals confirmed by parsing the 49 inventory rows: 41 A (25 CLOSED, 16 OPEN), 7 B external/owner dependencies, 1 excluded C, no unresolved D. Required V1 total remains 48. Final validation and open-ID contract: [V1_RELEASE_CLOSURE_REPORT.md](V1_RELEASE_CLOSURE_REPORT.md). 52 backend + isolated fairness, 17 functional Chromium, 64 unit, fresh/repeat 001–077 and 132 route surveys passed within their documented limits. Main gates remain false; no CODE COMPLETE/production claim.
