@@ -1,3 +1,11 @@
+## Legacy channel/Inbox settings completion checkpoint — 2026-10-23 UTC
+
+Previous activity export checkpoint e5b7ad2 pushed/remote-verified. Replaced Arabic-only channel creation/deletion and Inbox assignment/canned-reply screens with shared bilingual responsive controls, labelled fields, keyboard/Escape native confirmation dialogs, loading/error/retry/busy/saved states. Channel credential labels, local status and provider job states are translated; stored tokens and existing APIs/behavior are preserved. Config/connection errors now render in MetaConnect.
+
+New settings Chromium passes real API-backed channel create/edit/disable and fetch failure/retry; Inbox assignment save; reply create/edit/delete; deletion cancellation/Escape; English desktop, Arabic RTL/mobile and zero page errors. Current build, lint and TypeScript pass. Previous complete-source regression passed 49 backend suites with zero failures; 12 automated browser suites plus standalone template drafts acceptance passed; new settings adds a separate actual functional journey. Fairness has its independent isolated DB test. 64 unit tests and migrations through 075/repeat pass. Route survey across all dashboard pages/languages/widths is running; it is not functional acceptance or proof of global UI completion.
+
+Frozen count remains 23 CLOSED / 18 OPEN local requirements + 7 external/owner dependencies. Do not claim code complete. No new features outside frozen requirements, real financial writes, external activation, merge or deployment.
+
 ## Retained activity export completion — 2026-10-23 UTC
 
 Previous checkpoint a87d49f pushed/remote-verified. Migration 075 extends existing CRM jobs with activity_export, using ordinal storage and the same worker/paging/retention paths. Export freezes retained profile/consent history, notes and conversation/event metadata across canonical/merged identities plus current task/deal values. Source event payloads are excluded. Range validation and 50000-record bound remain. Download includes explicit history semantics/coverage/contact/date metadata. Bilingual customer-profile form queues the job, refreshes the existing jobs list and links to actual JSON download.

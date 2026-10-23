@@ -1,0 +1,62 @@
+[
+  {
+    "suite": "smoke-ai-workspace-browser.mjs",
+    "exitCode": 0,
+    "durationMs": 5529
+  },
+  {
+    "suite": "smoke-automation-editor-browser.mjs",
+    "exitCode": 0,
+    "durationMs": 4730
+  },
+  {
+    "suite": "smoke-billing-branding-browser.mjs",
+    "exitCode": 0,
+    "durationMs": 3622
+  },
+  {
+    "suite": "smoke-campaign-browser.mjs",
+    "exitCode": 0,
+    "durationMs": 4932
+  },
+  {
+    "suite": "smoke-campaign-ledger-browser.mjs",
+    "exitCode": 0,
+    "durationMs": 5408
+  },
+  {
+    "suite": "smoke-crm-browser.mjs",
+    "exitCode": 0,
+    "durationMs": 8613
+  },
+  {
+    "suite": "smoke-inbox-browser.mjs",
+    "exitCode": 0,
+    "durationMs": 5801
+  },
+  {
+    "suite": "smoke-premium-browser.mjs",
+    "exitCode": 0,
+    "durationMs": 10925
+  },
+  {
+    "suite": "smoke-provider-browser.mjs",
+    "exitCode": 0,
+    "durationMs": 4146
+  },
+  {
+    "suite": "smoke-rich-campaign-browser.mjs",
+    "exitCode": 0,
+    "durationMs": 7007
+  },
+  {
+    "suite": "smoke-template-components-browser.mjs",
+    "exitCode": 0,
+    "durationMs": 4842
+  },
+  {
+    "suite": "smoke-workspace-browser.mjs",
+    "exitCode": 0,
+    "durationMs": 4714
+  }
+]

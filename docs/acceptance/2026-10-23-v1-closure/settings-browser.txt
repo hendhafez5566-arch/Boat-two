@@ -1,0 +1,1 @@
+Settings Chromium: channel fetch recovery, create/edit/disable with API persistence, assignment settings, saved reply create/edit/delete, delete cancellation/Escape, Arabic RTL/mobile and no page errors passed. Fixtures only.

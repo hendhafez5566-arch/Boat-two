@@ -69,10 +69,11 @@ export default function MetaConnect({ onSaved }: { onSaved: () => void }) {
             const script = document.createElement('script');
             script.src = 'https://connect.facebook.net/en_US/sdk.js';
             script.onload = () => resolve();
-            script.onerror = () => reject(new Error('Meta SDK failed to load'));
+            script.onerror = () =>
+              reject(new Error(t('تعذّر تحميل Meta SDK', 'Meta SDK failed to load')));
             document.head.appendChild(script);
           });
-        if (!win.FB) throw new Error('Meta SDK unavailable');
+        if (!win.FB) throw new Error(t('Meta SDK غير متاح', 'Meta SDK unavailable'));
         win.FB.init({ appId: config.data.appId, version: 'v21.0', xfbml: false });
         const response = await new Promise<{ authResponse?: { code?: string } }>((resolve) =>
           win.FB!.login(resolve, {
@@ -135,7 +136,11 @@ export default function MetaConnect({ onSaved }: { onSaved: () => void }) {
           )}
         </p>
       )}
-      {error && <p className="notice error">{error}</p>}
+      {(error || config.error || connections.error) && (
+        <p role="alert" className="notice error">
+          {error || config.error || connections.error}
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
         {['facebook', 'instagram', 'whatsapp'].map((kind) => (
           <button

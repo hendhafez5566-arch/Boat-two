@@ -1,6 +1,7 @@
 'use client';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useId, useState } from 'react';
 import { api } from '../../lib/api';
+import { statusLabel } from './status';
 import { useLocale } from './locale';
 type Channel = {
   id: string;
@@ -24,6 +25,7 @@ export default function ChannelSettings({
   onSaved: () => void;
 }) {
   const { t } = useLocale();
+  const panelId = useId();
   const [open, setOpen] = useState(false);
   const [jobs, setJobs] = useState<Job[] | null>(null);
   const [error, setError] = useState('');
@@ -63,6 +65,8 @@ export default function ChannelSettings({
   }
   async function reconnect(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setError('');
+    setMessage('');
     const form = e.currentTarget;
     const f = new FormData(form);
     setBusy(true);
@@ -89,10 +93,14 @@ export default function ChannelSettings({
     }
   }
   async function loadJobs() {
+    setBusy(true);
+    setError('');
     try {
       setJobs(await api<Job[]>(`/channels/${channel.id}/webhook-jobs`));
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setBusy(false);
     }
   }
   async function retry(id: string) {
@@ -109,11 +117,16 @@ export default function ChannelSettings({
   const s = channel.settings || {};
   return (
     <div className="mt-3">
-      <button className="btn" onClick={() => setOpen(!open)}>
+      <button
+        className="btn"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen(!open)}
+      >
         {t('الإعدادات وحالة القناة', 'Channel settings & status')}
       </button>
       {open && (
-        <div className="stack mt-4">
+        <div className="stack mt-4" id={panelId}>
           {error && (
             <p role="alert" className="notice error">
               {error}
@@ -193,7 +206,7 @@ export default function ChannelSettings({
               </p>
               <form onSubmit={reconnect} className="flex flex-wrap gap-2">
                 <input
-                  aria-label="New provider access token"
+                  aria-label={t('رمز وصول جديد للمزود', 'New provider access token')}
                   type="password"
                   name="accessToken"
                   required
@@ -205,10 +218,10 @@ export default function ChannelSettings({
                 />
                 {channel.type === 'whatsapp' && (
                   <input
-                    aria-label="WhatsApp Business Account ID"
+                    aria-label={t('معرّف حساب WhatsApp Business', 'WhatsApp Business Account ID')}
                     name="wabaId"
                     pattern="[0-9]+"
-                    placeholder="WABA ID (optional)"
+                    placeholder={t('معرّف WABA (اختياري)', 'WABA ID (optional)')}
                     className="rounded border p-2"
                   />
                 )}
@@ -216,7 +229,7 @@ export default function ChannelSettings({
                   {t('تحديث الرمز بأمان', 'Replace token securely')}
                 </button>
               </form>
-              <button className="btn" onClick={loadJobs}>
+              <button className="btn" disabled={busy} onClick={loadJobs}>
                 {t('عرض آخر 50 عملية Webhook', 'View last 50 webhook jobs')}
               </button>
               {jobs && (
@@ -233,7 +246,7 @@ export default function ChannelSettings({
                     <tbody>
                       {jobs.map((j) => (
                         <tr key={j.id}>
-                          <td>{j.status}</td>
+                          <td>{statusLabel(j.status, t)}</td>
                           <td>{j.attempts}</td>
                           <td>{j.error || '—'}</td>
                           <td>
