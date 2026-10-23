@@ -1,5 +1,39 @@
 # Full product sprint — 2026-10-23
 
+## Verified acceptance continuation — 2026-10-23 (latest)
+
+Continued from verified local/remote `260f719cbea9143993d01d9a41fb9102259c7e9a` on `feat/complete-premium-saas`, existing Draft PR #1. Seven independently pushed/verified feature checkpoints: `7a10e70`, `ffb2365`, `b833dff`, `64c4603`, `9fbcd36`, `6d2d20d`, `224e56e`. This final checkpoint also fixes desktop/mobile navigation dismissal styling and live language updates of campaign success feedback, and adds real provider-editor Chromium acceptance. Current Git/remote HEAD identifies this final checkpoint.
+
+Delivered: provider editing/retirement/tool capability checks; frozen request-time CRM exports; explicit audited pipeline/deal ownership; guided text/BODY campaign composer and preview; handled AI failure audit/handoff; exact Inbox tuple cursors; canonical-contact recovery for delayed automation. Migrations 062–064 are additive. No external provider calls/email/financial writes, new branch/PR, force push, main merge or production deployment.
+
+Current-source validation: API TypeScript build; Next production build (31 routes)/web TypeScript; ESLint; **55 unit tests passed**, zero skipped/failed; clean PostgreSQL migrations **001–064** and no-op repeat; **19 distinct PostgreSQL/API/worker suites** passed. Following Inbox/automation changes, 11 relevant suites reran against the latest compiled runtime. Four Chromium suites passed on a production Next server: premium bot creation/preview/publication/undo/redo/team preview, populated Inbox/private note/mobile dialog, campaign audience/gallery/editable preview/persisted draft/Arabic-English/390px, and provider edit/capability/retirement with actual API verification. Screenshots use local test fixtures only. Campaign/browser failures led to source fixes; no assertions were removed. This remains bounded acceptance, not the full requested fifteen-journey/security/load/visual acceptance.
+
+Exact remaining scope: arbitrary historical/as-of reconstruction before an export request and retention/large-data scaling; provider model catalog/cost caps/process-crash accounting; full rich campaign/media/button/template variants and recipient tools; advanced automation authentication/debugging; multi-item/provider-native subscription schedules and broader financial recovery; transactional email receipts/bounces/ambiguous evidence reconciliation; remaining global legacy UI/i18n/accessibility and complete browser/owner design acceptance. Existing working functions must not be rebuilt. Product is **not complete or certified ready for sale**.
+
+Continue first with model capability catalog and explicit provider usage/cost reservations (unknown outcomes must retain reservations; no automatic paid retry), then historical CRM/retention and rich campaign variants. Keep all external/AI/email and financial/domain activation gates disabled. Test fixtures live in local `chatbot`; clean schema verification used `boat_acceptance_20261023`. Dependency/browser tools and validation logs are in `/workspace/work`; never commit `.env` or those databases. See the latest section of SPRINT_FULL_PRODUCT_2026-10-23.md for commands and bounds.
+
+### Reproducible validation for this continuation
+
+Use the declared pnpm version when available. This environment's pnpm wrapper attempted an incompatible install, so commands below used the already installed binaries directly without changing package manifests/lockfile. A standalone local pgvector container was used because the Compose init-script bind mount could not be read; application SQL role and migration chain were initialized explicitly. This was test infrastructure only.
+
+```bash
+node node_modules/typescript/bin/tsc -p apps/api/tsconfig.json
+node node_modules/eslint/bin/eslint.js .
+# In apps/web, with the local API running on 4122:
+NEXT_PUBLIC_API_URL=http://localhost:4122 node node_modules/next/dist/bin/next build
+# In repository root, with .env pointing to local fixtures:
+node --env-file=.env --import ./apps/api/node_modules/tsx/dist/loader.mjs apps/api/src/database/migrate.ts
+# Unit suite: use apps/api tsconfig (experimental parameter decorators required).
+node apps/api/node_modules/tsx/dist/cli.mjs --tsconfig apps/api/tsconfig.json --test apps/api/src/ai/ai.test.ts
+```
+
+The full 55-test suite uses the files enumerated in apps/api/package.json, with `--tsconfig apps/api/tsconfig.json`. PostgreSQL/worker suites executed: core, business, sprint, worker, reliability, major, crm-work, delivery-accounts, departments, nested-automations, billing-review, invitation-mail, provider-lifecycle, crm-snapshots, pipeline-ownership, ai-failures, ai-tool-audit, inbox-cursors and automation-merge. Run `SMOKE_API_URL=http://localhost:4122 node --env-file=.env scripts/smoke-<name>.mjs`.
+
+Browser suites: smoke-premium-browser, smoke-inbox-browser, smoke-campaign-browser and smoke-provider-browser. Configure BOAT_PLAYWRIGHT_MODULE, SMOKE_API_URL, SMOKE_WEB_URL and SMOKE_SCREENSHOT_DIR; campaign also accepts BOAT_SCREENSHOTS. All used local Chromium and fake fixtures. The campaign test verifies persisted data, bilingual feedback and hidden desktop navigation dismissal; the provider test verifies model/capability revisions and irreversible retirement. No real account credentials are needed.
+
+---
+
+
 Continued from verified `386b6b3c872ca78793c899b8f55ccc48bd388136` in `hendhafez5566-arch/Boat-two`, branch `feat/complete-premium-saas`, existing Draft PR [#1](https://github.com/hendhafez5566-arch/Boat-two/pull/1). Feature source checkpoint: `8a8b77af5d5d94419db51d55f7112b3a54676474`. The final verification/documentation commit follows that checkpoint; current branch/PR HEAD is authoritative. No new branch/PR, force push, main merge or production deployment.
 
 ## Delivered in this sprint

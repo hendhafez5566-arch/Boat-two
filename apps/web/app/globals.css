@@ -1701,3 +1701,7 @@ textarea::placeholder {
 .premium-inbox textarea {min-width:0;resize:vertical;}
 .premium-inbox aside:last-child {border-right:0;border-inline-start:1px solid var(--line);}
 @media(max-width:767px){.premium-inbox{height:calc(100dvh - 100px);min-height:400px;border-radius:12px}.premium-inbox>header{padding:10px;gap:8px}.premium-inbox>header>a:first-child{display:none}}
+
+/* Keep the navigation dismissal inside the drawer and readable on its light surface. */
+.product-sidebar .mobile-menu { display:none; color:var(--ink); }
+@media (max-width:700px) { .product-sidebar .mobile-menu { display:inline-flex; } }

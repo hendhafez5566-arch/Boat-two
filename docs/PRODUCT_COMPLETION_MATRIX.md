@@ -1,5 +1,18 @@
 # ELHAFEZ BOAT — Product completion matrix
 
+## Verified acceptance continuation — 2026-10-23 (latest)
+
+Continued from verified local/remote `260f719cbea9143993d01d9a41fb9102259c7e9a` on `feat/complete-premium-saas`, existing Draft PR #1. Seven independently pushed/verified feature checkpoints: `7a10e70`, `ffb2365`, `b833dff`, `64c4603`, `9fbcd36`, `6d2d20d`, `224e56e`. This final checkpoint also fixes desktop/mobile navigation dismissal styling and live language updates of campaign success feedback, and adds real provider-editor Chromium acceptance. Current Git/remote HEAD identifies this final checkpoint.
+
+Delivered: provider editing/retirement/tool capability checks; frozen request-time CRM exports; explicit audited pipeline/deal ownership; guided text/BODY campaign composer and preview; handled AI failure audit/handoff; exact Inbox tuple cursors; canonical-contact recovery for delayed automation. Migrations 062–064 are additive. No external provider calls/email/financial writes, new branch/PR, force push, main merge or production deployment.
+
+Current-source validation: API TypeScript build; Next production build (31 routes)/web TypeScript; ESLint; **55 unit tests passed**, zero skipped/failed; clean PostgreSQL migrations **001–064** and no-op repeat; **19 distinct PostgreSQL/API/worker suites** passed. Following Inbox/automation changes, 11 relevant suites reran against the latest compiled runtime. Four Chromium suites passed on a production Next server: premium bot creation/preview/publication/undo/redo/team preview, populated Inbox/private note/mobile dialog, campaign audience/gallery/editable preview/persisted draft/Arabic-English/390px, and provider edit/capability/retirement with actual API verification. Screenshots use local test fixtures only. Campaign/browser failures led to source fixes; no assertions were removed. This remains bounded acceptance, not the full requested fifteen-journey/security/load/visual acceptance.
+
+Exact remaining scope: arbitrary historical/as-of reconstruction before an export request and retention/large-data scaling; provider model catalog/cost caps/process-crash accounting; full rich campaign/media/button/template variants and recipient tools; advanced automation authentication/debugging; multi-item/provider-native subscription schedules and broader financial recovery; transactional email receipts/bounces/ambiguous evidence reconciliation; remaining global legacy UI/i18n/accessibility and complete browser/owner design acceptance. Existing working functions must not be rebuilt. Product is **not complete or certified ready for sale**.
+
+Continue first with model capability catalog and explicit provider usage/cost reservations (unknown outcomes must retain reservations; no automatic paid retry), then historical CRM/retention and rich campaign variants. Keep all external/AI/email and financial/domain activation gates disabled. Test fixtures live in local `chatbot`; clean schema verification used `boat_acceptance_20261023`. Dependency/browser tools and validation logs are in `/workspace/work`; never commit `.env` or those databases. See the latest section of SPRINT_FULL_PRODUCT_2026-10-23.md for commands and bounds.
+
+
 ## Acceptance continuation — delayed automation after CRM merge (2026-10-23)
 
 Existing follow-up executor now resolves the tenant-scoped canonical merge chain and runs saved actions under the same tenant lock as CRM merge. Original event/effect identities are preserved. Retargeted work writes an audit entry; archived/missing targets or disabled rules are suppressed; cyclic/excessive chains fail for operator review. No consent is changed and no parallel engine or external replay path is added.

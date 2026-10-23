@@ -66,6 +66,10 @@ try {
     { accessToken: a.accessToken, refreshToken: a.refreshToken },
   );
   await page.goto(web + '/dashboard/campaigns');
+  assert.equal(
+    await page.getByRole('button', { name: 'Close navigation', exact: true }).isVisible(),
+    false,
+  );
   const composer = page.getByRole('region', { name: 'Create campaign', exact: true });
   await composer.getByLabel('Campaign name', { exact: true }).fill('Browser draft');
   await composer.getByLabel('Channel', { exact: true }).selectOption(channel.id);
@@ -102,6 +106,9 @@ try {
   await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
   await page.getByRole('button', { name: 'العربية / English', exact: true }).click();
   await page.getByRole('region', { name: 'إنشاء حملة', exact: true }).waitFor();
+  await page
+    .getByText('حُفظت مسودة الحملة. يمكنك مراجعتها وجدولتها من القائمة.', { exact: true })
+    .waitFor();
   assert.equal(await page.locator('html').getAttribute('dir'), 'rtl');
   await page.screenshot({ path: shots + '/campaign-arabic-mobile.png', fullPage: true });
   assert.deepEqual(errors, []);

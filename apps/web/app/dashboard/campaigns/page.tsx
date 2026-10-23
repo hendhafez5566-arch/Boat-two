@@ -40,7 +40,7 @@ export default function Campaigns() {
     totals: { status: string; delivery_status: string | null; count: number }[];
   } | null>(null);
   const [page, setPage] = useState(1);
-  const [message, setMessage] = useState('');
+  const [saved, setSaved] = useState(false);
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
     setError('');
@@ -66,7 +66,7 @@ export default function Campaigns() {
     <main className="stack">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">PERMISSION-BASED MARKETING</p>
+          <p className="eyebrow">{t('تسويق قائم على الموافقة', 'PERMISSION-BASED MARKETING')}</p>
           <h1>{t('رسالة مناسبة، لجمهور موافق', 'The right message, with permission')}</h1>
           <p>
             {t(
@@ -90,18 +90,20 @@ export default function Campaigns() {
           {error || list.error}
         </p>
       )}
-      {message && <p className="notice">{message}</p>}
+      {saved && (
+        <p className="notice" role="status">
+          {t(
+            'حُفظت مسودة الحملة. يمكنك مراجعتها وجدولتها من القائمة.',
+            'Campaign draft saved. Review and schedule it below.',
+          )}
+        </p>
+      )}
       <CampaignComposer
         channels={channels.data}
         segments={segments.data}
         onSaved={async () => {
           await list.reload();
-          setMessage(
-            t(
-              'حُفظت مسودة الحملة. يمكنك مراجعتها وجدولتها من القائمة.',
-              'Campaign draft saved. Review and schedule it below.',
-            ),
-          );
+          setSaved(true);
         }}
       />
       <DeliveryPolicies />
