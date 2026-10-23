@@ -426,6 +426,36 @@ class PlatformController {
   @Get('session') session(@Req() r: PlatformRequest) {
     return { actor: r.platformActor, permissions: r.platformPermissions };
   }
+  @Permission('subscriptions.read') @Get('billing-reviews') async billingReviews() {
+    return (await this.access.query('SELECT platform_billing_review_queue() AS data'))[0].data;
+  }
+  @Permission('subscriptions.write') @Post('billing-reviews/:id/evidence') async billingEvidence(
+    @Req() r: PlatformRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: unknown,
+  ) {
+    const b = parse(z.object({ reason: z.string().trim().min(10).max(1000) }), input);
+    return (
+      await this.access.query('SELECT platform_request_billing_evidence($1,$2,$3) AS id', [
+        r.platformActor,
+        id,
+        b.reason,
+      ])
+    )[0];
+  }
+  @Permission('subscriptions.write') @Post('billing-reviews/:id/confirm') async confirmBilling(
+    @Req() r: PlatformRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: unknown,
+  ) {
+    const b = parse(z.object({ reason: z.string().trim().min(10).max(1000) }), input);
+    await this.access.query('SELECT platform_confirm_billing_evidence($1,$2,$3)', [
+      r.platformActor,
+      id,
+      b.reason,
+    ]);
+    return { resolved: true, providerUpdated: false };
+  }
   @Permission('reports.read') @Get('reports') async reports(@Query() query: unknown) {
     const q = parse(z.object({ from: z.string().datetime(), to: z.string().datetime() }), query);
     if (

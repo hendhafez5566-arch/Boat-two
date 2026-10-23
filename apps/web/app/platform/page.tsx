@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import BillingReviews from './BillingReviews';
 import OperationalReports from './OperationalReports';
 import PriceCatalog from './PriceCatalog';
 import AuditTrail from './AuditTrail';
@@ -714,6 +715,12 @@ function Console() {
           ))}
           {permissions.includes('plans.read') && (
             <PriceCatalog request={request} canWrite={permissions.includes('plans.write')} />
+          )}
+          {permissions.includes('subscriptions.read') && (
+            <BillingReviews
+              request={request}
+              canWrite={permissions.includes('subscriptions.write')}
+            />
           )}
           {permissions.includes('reports.read') && <OperationalReports request={request} />}
           {permissions.includes('audit.read') && <AuditTrail request={request} />}

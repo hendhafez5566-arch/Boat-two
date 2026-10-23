@@ -109,6 +109,61 @@ export class SubscriptionRequests {
       return row;
     });
   }
+  @OnEvent('billing.request.evidence', { suppressErrors: false }) evidence(event: {
+    tenantId: string;
+    reviewId: string;
+  }) {
+    return this.db.withTenant(event.tenantId, async (c) => {
+      const identity = (
+        await c.query('SELECT request_id FROM billing_request_reviews WHERE id=$1', [
+          event.reviewId,
+        ])
+      ).rows[0];
+      if (!identity) return;
+      const request = (
+        await c.query('SELECT * FROM billing_subscription_requests WHERE id=$1 FOR UPDATE', [
+          identity.request_id,
+        ])
+      ).rows[0];
+      const review = (
+        await c.query(
+          "SELECT * FROM billing_request_reviews WHERE id=$1 AND status='pending' FOR UPDATE",
+          [event.reviewId],
+        )
+      ).rows[0];
+      if (!review) return;
+      if (!this.billing.reconciliationEnabled) {
+        await c.query(
+          "UPDATE billing_request_reviews SET status='blocked',error='External provider reads disabled' WHERE id=$1",
+          [review.id],
+        );
+        return;
+      }
+      if (
+        !request ||
+        request.status !== 'ambiguous' ||
+        new Date(request.updated_at).getTime() !== new Date(review.request_revision).getTime()
+      ) {
+        await c.query(
+          "UPDATE billing_request_reviews SET status='failed',error='Request state changed' WHERE id=$1",
+          [review.id],
+        );
+        return;
+      }
+      try {
+        const evidence = await this.billing.inspectSubscriptionRequest(event.tenantId, request);
+        await c.query(
+          "UPDATE billing_request_reviews SET status='ready',evidence=$2,observed_at=$3,error=NULL WHERE id=$1",
+          [review.id, JSON.stringify(evidence), evidence.observedAt],
+        );
+      } catch (error) {
+        await c.query("UPDATE billing_request_reviews SET status='failed',error=$2 WHERE id=$1", [
+          review.id,
+          (error as Error).message.slice(0, 250),
+        ]);
+      }
+    });
+  }
   @OnEvent('billing.subscription.request', { suppressErrors: false })
   async process(event: { tenantId: string; id: string }) {
     return this.db.withTenant(event.tenantId, async (c) => {

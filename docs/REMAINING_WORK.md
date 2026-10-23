@@ -1,5 +1,11 @@
 # Remaining implementation — continue on PR #1
 
+## Full product sprint checkpoint — provider-evidence review
+
+Continued from verified local/remote `386b6b3c872ca78793c899b8f55ccc48bd388136`, same branch/PR #1. Migration 057 adds restricted operator review of ambiguous subscription requests: step-up-protected evidence requests, durable read-only provider inspection through the existing effect ledger/outbox, provider request IDs, mismatch quarantine and explicit approval of fresh matching evidence. Confirmation closes the local request only; it never repeats a financial write or clears an unknown effect. Bilingual platform review UI is connected.
+
+API build, web TypeScript, ESLint and PostgreSQL `smoke-billing-review.mjs` pass with mocked Stripe reads only. New owner instructions authorize premium UI/UX work during this same sprint; earlier design deferral is superseded. Next: shared design system/branded authentication and builder improvements alongside remaining functional modules. Full product scope remains incomplete.
+
 ## Verified sprint delivery — 2026-10-23 (latest; supersedes historical checkpoints)
 
 Continued from exact verified remote `fc78c7c6baed4619619ae1a4e4631248f0b1658e` on `feat/complete-premium-saas`, same Draft PR #1. Eleven implementation/hardening checkpoints were committed, pushed immediately and remotely verified: `21c55bc`, `616b64a`, `a5d9490`, `e59949f`, `825502d`, `e47869b`, `c323dd4`, `468c08f`, `2cc4861`, `744ac66`, `4753b84`. Source HEAD `4753b840e2d99c4284fe70a0797786b8310c5ddf` matched both the remote branch and PR #1 head before this final documentation checkpoint. Use current Git HEAD for the documentation commit. No new repository/branch/PR, main merge, force push or production deployment.

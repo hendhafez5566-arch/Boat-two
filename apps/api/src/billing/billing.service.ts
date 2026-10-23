@@ -199,6 +199,47 @@ export class BillingService {
     } as unknown as Stripe.Event);
   }
 
+  async inspectSubscriptionRequest(
+    tenant: string,
+    request: {
+      subscription_id: string;
+      customer_id: string;
+      kind: string;
+      price_id: string | null;
+    },
+  ) {
+    const snapshot = await this.effects.execute(
+      tenant,
+      { inspect: request.subscription_id, customer: request.customer_id },
+      async () => {
+        const sub = await this.requireStripe().subscriptions.retrieve(request.subscription_id);
+        return {
+          id: sub.id,
+          customer: typeof sub.customer === 'string' ? sub.customer : sub.customer.id,
+          status: sub.status,
+          cancelAtPeriodEnd: sub.cancel_at_period_end,
+          prices: sub.items.data.map((i) => i.price.id),
+          providerRequestId: sub.lastResponse?.requestId ?? null,
+          observedAt: new Date().toISOString(),
+        };
+      },
+    );
+    if (
+      snapshot.id !== request.subscription_id ||
+      snapshot.customer !== request.customer_id ||
+      !snapshot.providerRequestId?.startsWith('req_')
+    )
+      throw new BadRequestException('Verified provider identity and request evidence required');
+    const satisfied =
+      request.kind === 'cancel'
+        ? snapshot.cancelAtPeriodEnd || snapshot.status === 'canceled'
+        : request.kind === 'resume'
+          ? !snapshot.cancelAtPeriodEnd && ['active', 'trialing'].includes(snapshot.status)
+          : snapshot.prices.length === 1 &&
+            snapshot.prices[0] === request.price_id &&
+            ['active', 'trialing'].includes(snapshot.status);
+    return { ...snapshot, verdict: satisfied ? 'satisfied' : 'not_matched' };
+  }
   async executeSubscriptionRequest(
     tenant: string,
     request: {
