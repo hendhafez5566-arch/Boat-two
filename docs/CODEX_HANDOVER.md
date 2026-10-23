@@ -1,5 +1,10 @@
 # Continue here — ELHAFEZ BOAT
 
+## Platform MFA checkpoint — 2026-10-23
+
+Migration 042 and connected bilingual sign-in/enrollment UI enforce authenticator MFA for every platform session. Secrets use the existing authenticated encryption; limited enrollment challenges grant no console access; database time-step consumption prevents replay across replicas. Old password-only platform tokens are rejected. API/web TypeScript, ESLint and 50 API tests pass, including RFC TOTP vectors. An isolated API/DB smoke validates enrollment, encrypted storage, replay/concurrency, role guards and revocation without activating a real operator. Recovery remains an externally reviewed operator process; hardware factors, backup codes and additional operation step-up remain open. Next: invoice/payment lifecycle, then domain-host/TLS integration.
+
+
 ## Operator authorization checkpoint — 2026-10-23
 
 Explicit operator-managed role mappings now enforce independent company/user/session/subscription/plan write permissions on every request. Missing or invalid configuration is read-only; workspace ownership never grants writes. The platform UI displays effective scopes and disables unauthorized actions. No new schema is required for immutable operator configuration. API/web TypeScript, ESLint and 48 API tests pass. MFA is the immediate next unit; external delivery/AI remain disabled.

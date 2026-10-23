@@ -1,3 +1,5 @@
+import { CryptoService } from '../messaging/crypto.service';
+import { matchingTotpStep, newTotpSecret } from './totp';
 import { createHash } from 'node:crypto';
 import {
   BadRequestException,
@@ -7,6 +9,7 @@ import {
   ExecutionContext,
   ForbiddenException,
   Get,
+  Header,
   Injectable,
   Module,
   OnModuleDestroy,
@@ -41,6 +44,7 @@ export class PlatformAccess implements CanActivate, OnModuleDestroy {
     ? new Pool({ connectionString: env.PLATFORM_DATABASE_URL, max: 3 })
     : null;
   private jwt = new JwtService();
+  private crypto = new CryptoService();
   constructor(
     private db: DatabaseService,
     private reflector: Reflector,
@@ -59,7 +63,7 @@ export class PlatformAccess implements CanActivate, OnModuleDestroy {
       .map((value) => value.trim())
       .includes(id);
   }
-  async login(input: { email: string; password: string }) {
+  async login(input: { email: string; password: string; otp?: string }) {
     this.ready();
     if (
       !(
@@ -82,16 +86,115 @@ export class PlatformAccess implements CanActivate, OnModuleDestroy {
       !(await verifyPassword(input.password, user.password_hash))
     )
       throw new ForbiddenException('Invalid platform credentials');
-    const version = (
+    const account = (
       await this.db.query('SELECT session_version,disabled_at FROM users WHERE id=$1', [user.id])
-    ).rows[0].session_version;
+    ).rows[0];
+    if (!account || account.disabled_at)
+      throw new ForbiddenException('Invalid platform credentials');
+    const state = await this.mfaState(user.id);
+    if (!state?.enabled) {
+      const secret = newTotpSecret(),
+        encrypted = this.crypto.encrypt({ secret });
+      const begun = (
+        await this.query('SELECT platform_mfa_begin($1,$2) AS ok', [user.id, encrypted])
+      )[0].ok;
+      if (!begun) throw new ForbiddenException('MFA state changed; sign in again');
+      return {
+        requiresEnrollment: true,
+        secret,
+        provisioningUri:
+          'otpauth://totp/' +
+          encodeURIComponent('ELHAFEZ BOAT:' + input.email) +
+          '?' +
+          new URLSearchParams({
+            secret,
+            issuer: 'ELHAFEZ BOAT',
+            algorithm: 'SHA1',
+            digits: '6',
+            period: '30',
+          }),
+        setupToken: await this.jwt.signAsync(
+          {
+            sub: user.id,
+            purpose: 'platform-mfa-enroll',
+            sv: account.session_version,
+            ref: createHash('sha256').update(encrypted).digest('hex'),
+          },
+          { secret: env.PLATFORM_JWT_SECRET, expiresIn: 300 },
+        ),
+      };
+    }
+    if (!input.otp) return { requiresMfa: true };
+    await this.consumeMfa(user.id, state, input.otp, false);
+    return this.session(user.id, account.session_version);
+  }
+  private async session(id: string, version: number) {
     return {
       accessToken: await this.jwt.signAsync(
-        { sub: user.id, purpose: 'platform', sv: version },
+        { sub: id, purpose: 'platform', sv: version, mfa: true },
         { secret: env.PLATFORM_JWT_SECRET, expiresIn: 600 },
       ),
       expiresIn: 600,
     };
+  }
+  private async mfaState(id: string): Promise<{ secret_enc: string; enabled: boolean } | null> {
+    return (await this.query('SELECT platform_mfa_state($1) AS data', [id]))[0].data;
+  }
+  private async consumeMfa(
+    id: string,
+    state: { secret_enc: string },
+    otp: string,
+    enroll: boolean,
+  ) {
+    const secret = this.crypto.decrypt<{ secret: string }>(state.secret_enc).secret;
+    const step = matchingTotpStep(secret, otp);
+    if (
+      step === null ||
+      !(
+        await this.query('SELECT platform_mfa_consume($1,$2,$3,$4) AS ok', [
+          id,
+          state.secret_enc,
+          step,
+          enroll,
+        ])
+      )[0].ok
+    )
+      throw new ForbiddenException(
+        'MFA code invalid, expired or already used; wait for a new code',
+      );
+  }
+  async enroll(input: { setupToken: string; otp: string }) {
+    this.ready();
+    let payload: { sub: string; purpose: string; sv: number; ref: string };
+    try {
+      payload = await this.jwt.verifyAsync(input.setupToken, { secret: env.PLATFORM_JWT_SECRET });
+    } catch {
+      throw new ForbiddenException('Enrollment expired; sign in again');
+    }
+    if (payload.purpose !== 'platform-mfa-enroll' || !this.allowed(payload.sub))
+      throw new ForbiddenException('Invalid enrollment');
+    if (
+      !(await this.query('SELECT platform_login_gate($1) AS allowed', ['mfa:' + payload.sub]))[0]
+        .allowed
+    )
+      throw new ForbiddenException('Enrollment temporarily limited');
+    const user = (
+      await this.db.query('SELECT session_version,disabled_at FROM users WHERE id=$1', [
+        payload.sub,
+      ])
+    ).rows[0];
+    const state = await this.mfaState(payload.sub);
+    if (
+      !user ||
+      user.disabled_at ||
+      user.session_version !== payload.sv ||
+      !state ||
+      state.enabled ||
+      createHash('sha256').update(state.secret_enc).digest('hex') !== payload.ref
+    )
+      throw new ForbiddenException('Invalid enrollment; sign in again');
+    await this.consumeMfa(payload.sub, state, input.otp, true);
+    return this.session(payload.sub, user.session_version);
   }
   async canActivate(context: ExecutionContext) {
     this.ready();
@@ -99,10 +202,12 @@ export class PlatformAccess implements CanActivate, OnModuleDestroy {
     try {
       const [scheme, token] = (req.headers.authorization ?? '').split(' ');
       if (scheme !== 'Bearer') throw new Error();
-      const payload = await this.jwt.verifyAsync<{ sub: string; purpose: string; sv: number }>(
-        token,
-        { secret: env.PLATFORM_JWT_SECRET },
-      );
+      const payload = await this.jwt.verifyAsync<{
+        sub: string;
+        purpose: string;
+        sv: number;
+        mfa?: boolean;
+      }>(token, { secret: env.PLATFORM_JWT_SECRET });
       const account = (
         await this.db.query('SELECT session_version,disabled_at FROM users WHERE id=$1', [
           payload.sub,
@@ -111,10 +216,12 @@ export class PlatformAccess implements CanActivate, OnModuleDestroy {
       if (
         account?.disabled_at ||
         payload.purpose !== 'platform' ||
+        payload.mfa !== true ||
         !this.allowed(payload.sub) ||
         account?.session_version !== payload.sv
       )
         throw new Error();
+      if (!(await this.mfaState(payload.sub))?.enabled) throw new Error();
       req.platformActor = payload.sub;
       req.platformPermissions = operatorPermissions(env.PLATFORM_OPERATOR_ROLES, payload.sub);
       const required = this.reflector.getAllAndOverride<PlatformPermission>('platform.permission', [
@@ -145,9 +252,31 @@ export class PlatformAccess implements CanActivate, OnModuleDestroy {
 @Controller('platform')
 class PlatformLoginController {
   constructor(private access: PlatformAccess) {}
-  @Post('login') login(@Body() body: unknown) {
+  @Header('Cache-Control', 'no-store')
+  @Post('mfa/enroll')
+  enroll(@Body() body: unknown) {
+    return this.access.enroll(
+      parse(
+        z.object({ setupToken: z.string().max(3000), otp: z.string().regex(/^[0-9]{6}$/) }),
+        body,
+      ),
+    );
+  }
+  @Header('Cache-Control', 'no-store')
+  @Post('login')
+  login(@Body() body: unknown) {
     return this.access.login(
-      parse(z.object({ email: z.string().email(), password: z.string().min(1).max(128) }), body),
+      parse(
+        z.object({
+          email: z.string().email(),
+          password: z.string().min(1).max(128),
+          otp: z
+            .string()
+            .regex(/^[0-9]{6}$/)
+            .optional(),
+        }),
+        body,
+      ),
     );
   }
 }

@@ -40,6 +40,12 @@ function Console() {
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState('');
+  const [enrollment, setEnrollment] = useState<{
+      secret: string;
+      provisioningUri: string;
+      setupToken: string;
+    } | null>(null),
+    [requiresMfa, setRequiresMfa] = useState(false);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [companyQuery, setCompanyQuery] = useState(''),
     [userQuery, setUserQuery] = useState(''),
@@ -146,7 +152,52 @@ function Console() {
         </p>
       )}
       {message && <p className="notice">{message}</p>}
-      {!token ? (
+      {!token && enrollment ? (
+        <form
+          className="card stack"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const f = new FormData(e.currentTarget);
+            void act(async () => {
+              const login = await request('/mfa/enroll', {
+                setupToken: enrollment.setupToken,
+                otp: f.get('otp'),
+              });
+              await loadSnapshot(login.accessToken);
+              setToken(login.accessToken);
+              setEnrollment(null);
+            });
+          }}
+        >
+          <h2>{t('تفعيل تطبيق المصادقة', 'Set up your authenticator')}</h2>
+          <p>
+            {t(
+              'أضف المفتاح يدويًا في تطبيق المصادقة، أو افتح رابط الإعداد على جهازك. لا تشارك المفتاح.',
+              'Add this key manually to your authenticator, or open the setup link on your device. Keep the key private.',
+            )}
+          </p>
+          <code dir="ltr">{enrollment.secret}</code>
+          <a className="btn" href={enrollment.provisioningUri}>
+            {t('فتح تطبيق المصادقة', 'Open authenticator')}
+          </a>
+          <label className="field">
+            {t('رمز من 6 أرقام', 'Six-digit code')}
+            <input
+              name="otp"
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              autoComplete="one-time-code"
+              required
+            />
+          </label>
+          <button className="btn btn-primary" disabled={busy}>
+            {t('تأكيد وتسجيل الدخول', 'Confirm and sign in')}
+          </button>
+          <button className="btn" type="button" onClick={() => setEnrollment(null)}>
+            {t('العودة للدخول', 'Back to sign-in')}
+          </button>
+        </form>
+      ) : !token ? (
         <form
           className="card stack"
           onSubmit={(e) => {
@@ -156,7 +207,16 @@ function Console() {
               const login = await request('/login', {
                 email: f.get('email'),
                 password: f.get('password'),
+                ...(f.get('otp') ? { otp: f.get('otp') } : {}),
               });
+              if (login.requiresEnrollment) {
+                setEnrollment(login);
+                return;
+              }
+              if (login.requiresMfa) {
+                setRequiresMfa(true);
+                return;
+              }
               await loadSnapshot(login.accessToken);
               setToken(login.accessToken);
             });
@@ -170,6 +230,24 @@ function Console() {
             {t('كلمة المرور', 'Password')}
             <input name="password" type="password" required autoComplete="current-password" />
           </label>
+          <label className="field">
+            {t('رمز تطبيق المصادقة', 'Authenticator code')}
+            <input
+              name="otp"
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              autoComplete="one-time-code"
+              required={requiresMfa}
+            />
+          </label>
+          {requiresMfa && (
+            <p className="notice">
+              {t(
+                'أدخل رمزًا جديدًا من تطبيق المصادقة ثم تابع.',
+                'Enter a fresh authenticator code, then continue.',
+              )}
+            </p>
+          )}
           <button className="btn btn-primary" disabled={busy}>
             {t('دخول مستقل', 'Platform sign-in')}
           </button>
