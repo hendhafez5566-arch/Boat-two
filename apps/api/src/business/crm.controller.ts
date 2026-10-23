@@ -35,7 +35,10 @@ export class CrmController {
       async (c) =>
         (
           await c.query(
-            `SELECT lower(email) AS email,array_agg(id) AS ids,count(*)::int AS count FROM contacts WHERE email IS NOT NULL GROUP BY lower(email) HAVING count(*)>1 LIMIT 100`,
+            `SELECT kind,value,array_agg(id ORDER BY created_at,id) AS ids,count(*)::int AS count FROM (
+ SELECT id,created_at,'email' AS kind,lower(trim(email)) AS value FROM contacts WHERE email IS NOT NULL AND merged_into_id IS NULL
+ UNION ALL SELECT id,created_at,'phone',normalize_contact_phone(phone) FROM contacts WHERE phone IS NOT NULL AND merged_into_id IS NULL
+ ) candidates WHERE value IS NOT NULL AND value<>'' GROUP BY kind,value HAVING count(*)>1 ORDER BY count(*) DESC LIMIT 100`,
           )
         ).rows,
     );
@@ -68,12 +71,14 @@ export class CrmController {
           lifecycle: z.enum(['lead', 'qualified', 'customer', 'inactive']).optional(),
           addTags: z.array(z.string().trim().min(1).max(50)).max(20).default([]),
           ownerId: z.string().uuid().nullable().optional(),
+          attributes: contactSchema.shape.attributes.optional(),
         })
         .refine(
           (input) =>
             input.lifecycle !== undefined ||
             input.ownerId !== undefined ||
-            input.addTags.length > 0,
+            input.addTags.length > 0 ||
+            (input.attributes !== undefined && Object.keys(input.attributes).length > 0),
           'Select a change',
         ),
       body,
@@ -81,7 +86,7 @@ export class CrmController {
     return this.crm.db.withTenant(r.user.tenantId, async (c) => {
       await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
       const contacts = await c.query(
-        'SELECT id FROM contacts WHERE id=ANY($1::uuid[]) ORDER BY id FOR UPDATE',
+        'SELECT id,attributes FROM contacts WHERE merged_into_id IS NULL AND id=ANY($1::uuid[]) ORDER BY id FOR UPDATE',
         [b.ids],
       );
       if (contacts.rowCount !== b.ids.length)
@@ -101,12 +106,25 @@ export class CrmController {
         ).rowCount
       )
         throw new BadRequestException('A contact may have at most 30 tags');
+      if (b.attributes)
+        for (const contact of contacts.rows)
+          await this.crm.validateAttributes(r.user.tenantId, {
+            ...contact.attributes,
+            ...b.attributes,
+          });
       await c.query(
         `UPDATE contacts SET lifecycle=COALESCE($2,lifecycle),
         tags=ARRAY(SELECT DISTINCT tag FROM unnest(tags || $3::text[]) AS tag ORDER BY tag),
-        owner_id=CASE WHEN $4 THEN $5::uuid ELSE owner_id END,updated_at=now()
+        owner_id=CASE WHEN $4 THEN $5::uuid ELSE owner_id END,attributes=attributes || $6::jsonb,updated_at=now()
         WHERE id=ANY($1::uuid[])`,
-        [b.ids, b.lifecycle ?? null, b.addTags, b.ownerId !== undefined, b.ownerId ?? null],
+        [
+          b.ids,
+          b.lifecycle ?? null,
+          b.addTags,
+          b.ownerId !== undefined,
+          b.ownerId ?? null,
+          JSON.stringify(b.attributes ?? {}),
+        ],
       );
       return { updated: contacts.rowCount };
     });
@@ -120,6 +138,118 @@ export class CrmController {
     @Body() body: unknown,
   ) {
     return this.crm.save(r.user.tenantId, parse(contactSchema, body), id);
+  }
+  @Patch('contacts/:id/archive') @Roles('owner', 'admin') archive(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const b = parse(z.object({ archived: z.boolean() }), body);
+    return this.crm.db.withTenant(r.user.tenantId, async (c) => {
+      const row = (
+        await c.query(
+          'UPDATE contacts SET archived_at=CASE WHEN $2 THEN now() ELSE NULL END,updated_at=now() WHERE id=$1 AND merged_into_id IS NULL RETURNING *',
+          [id, b.archived],
+        )
+      ).rows[0];
+      if (!row) throw new NotFoundException('Contact not found or merged');
+      return row;
+    });
+  }
+  @Post('contacts/:id/merge') @Roles('owner', 'admin') merge(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const b = parse(
+      z.object({ sourceId: z.string().uuid(), evidence: z.string().trim().min(10).max(1000) }),
+      body,
+    );
+    if (id === b.sourceId) throw new BadRequestException('Cannot merge a contact into itself');
+    return this.crm.db.withTenant(r.user.tenantId, async (c) => {
+      // Inbound takes channel locks first; campaign workers lock recipients before budget rows.
+      await c.query('SELECT id FROM channels ORDER BY id FOR UPDATE');
+      await c.query(
+        'SELECT id FROM campaign_recipients WHERE canonical_contact_id=ANY($1::uuid[]) ORDER BY id FOR UPDATE',
+        [[id, b.sourceId]],
+      );
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+      const rows = (
+        await c.query('SELECT * FROM contacts WHERE id=ANY($1::uuid[]) ORDER BY id FOR UPDATE', [
+          [id, b.sourceId],
+        ])
+      ).rows;
+      const target = rows.find((row) => row.id === id),
+        source = rows.find((row) => row.id === b.sourceId);
+      if (!target || !source) throw new NotFoundException('Contact not found');
+      if (target.merged_into_id || source.merged_into_id || target.archived_at)
+        throw new BadRequestException('Choose an active canonical target and an unmerged source');
+      if (
+        (
+          await c.query(
+            'SELECT 1 FROM contact_channels a JOIN contact_channels b ON a.channel_id=b.channel_id WHERE a.contact_id=$1 AND b.contact_id=$2 AND a.external_id<>b.external_id LIMIT 1',
+            [id, b.sourceId],
+          )
+        ).rowCount
+      )
+        throw new BadRequestException(
+          'Distinct identities on the same channel require identity review before merging',
+        );
+      if (
+        (
+          await c.query(
+            "SELECT 1 FROM conversations a JOIN conversations b ON a.channel_id=b.channel_id WHERE a.contact_id=$1 AND b.contact_id=$2 AND a.status<>'closed' AND b.status<>'closed' LIMIT 1",
+            [id, b.sourceId],
+          )
+        ).rowCount
+      )
+        throw new BadRequestException(
+          'Close one overlapping channel conversation in Inbox before merging',
+        );
+      const tags = [...new Set([...target.tags, ...source.tags])];
+      if (tags.length > 30)
+        throw new BadRequestException('Resolve tags to at most 30 before merging');
+      await c.query(
+        'UPDATE contacts SET name=COALESCE(name,$2),email=COALESCE(email,$3),phone=COALESCE(phone,$4),attributes=$5::jsonb || attributes,tags=$6,updated_at=now() WHERE id=$1',
+        [id, source.name, source.email, source.phone, JSON.stringify(source.attributes), tags],
+      );
+      for (const table of [
+        'conversations',
+        'contact_channels',
+        'crm_deals',
+        'crm_tasks',
+        'crm_notes',
+        'flow_sessions',
+      ])
+        await c.query(`UPDATE ${table} SET contact_id=$1 WHERE contact_id=$2`, [id, b.sourceId]);
+      // Opt-out always wins a conflict; retain both original evidence records/history.
+      await c.query(
+        `INSERT INTO contact_consents(tenant_id,contact_id,channel_id,status,evidence)
+        SELECT tenant_id,$1,channel_id,status,'Merge: '||evidence FROM contact_consents WHERE contact_id=$2
+        ON CONFLICT(tenant_id,contact_id,channel_id) DO UPDATE SET
+        status=CASE WHEN contact_consents.status='opted_out' OR EXCLUDED.status='opted_out' THEN 'opted_out' ELSE 'opted_in' END,
+        evidence='Contact merge; original evidence retained in consent history',updated_at=now()`,
+        [id, b.sourceId],
+      );
+      await c.query(
+        'UPDATE campaign_recipients SET canonical_contact_id=$1 WHERE canonical_contact_id=$2',
+        [id, b.sourceId],
+      );
+      await c.query(
+        'UPDATE contacts SET merged_into_id=$1,archived_at=COALESCE(archived_at,now()),updated_at=now() WHERE id=$2 OR merged_into_id=$2',
+        [id, b.sourceId],
+      );
+      await c.query(
+        "INSERT INTO audit_logs(tenant_id,actor_id,action,resource_type,resource_id,details) VALUES($1,$2,'merge','contacts',$3,$4)",
+        [
+          r.user.tenantId,
+          r.user.userId,
+          id,
+          JSON.stringify({ sourceId: b.sourceId, evidence: b.evidence }),
+        ],
+      );
+      return { merged: true, targetId: id, sourceId: b.sourceId };
+    });
   }
   @Get('contacts/:id/timeline') timeline(
     @Req() r: AuthedRequest,

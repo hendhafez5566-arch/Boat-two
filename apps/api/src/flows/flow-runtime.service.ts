@@ -204,7 +204,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     };
 
     if ('session' in loaded && loaded.session && loaded.graph) {
-      const engine = new FlowEngine(loaded.graph, this.makeDeps(base));
+      const engine = new FlowEngine(loaded.graph, this.makeDeps(base, loaded.session.flow_id));
       const result = await engine.resume(ctx, loaded.session.state as FlowState);
       await this.saveSession(base, {
         existingId: loaded.session.id,
@@ -250,7 +250,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     }
 
     const graph = cands.find((x) => x.version_id === match.versionId)!.graph;
-    const engine = new FlowEngine(graph, this.makeDeps(base));
+    const engine = new FlowEngine(graph, this.makeDeps(base, match.flowId));
     const result = await engine.start(ctx, newState());
     await this.saveSession(base, { flowId: match.flowId, versionId: match.versionId, result });
   }
@@ -340,7 +340,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       channelId: loaded.conv.channel_id,
       ctx,
     };
-    const engine = new FlowEngine(loaded.graph, this.makeDeps(base));
+    const engine = new FlowEngine(loaded.graph, this.makeDeps(base, loaded.session.flow_id));
     const result = await this.db.eventScope(
       `delay:${sessionId}:${loaded.session.state.totalSteps}`,
       () => engine.resumeDelay(ctx, loaded.session.state as FlowState),
@@ -355,13 +355,14 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
 
   // ------------------------------------------------------------------ plumbing
 
-  private makeDeps(b: Loaded): EngineDeps {
+  private makeDeps(b: Loaded, flowId?: string): EngineDeps {
     return {
       ai: async (req) => {
         const r = await this.ai.replyInConversation({
           tenantId: b.tenantId,
           conversationId: b.conversationId,
           text: req.text,
+          flowId,
           extraInstructions: req.instructions,
         });
         return { text: r.text, handoff: r.handoff, failed: r.failed };

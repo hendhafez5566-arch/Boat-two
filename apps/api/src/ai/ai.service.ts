@@ -1,3 +1,4 @@
+import { OpenAiProvider } from './providers/openai';
 import { CryptoService } from '../messaging/crypto.service';
 import { ExternalEffects } from '../events/external-effect';
 import { estimateCost } from './cost';
@@ -158,6 +159,7 @@ export class AiService {
   async replyInConversation(p: {
     tenantId: string;
     conversationId: string;
+    flowId?: string;
     text: string;
     extraInstructions?: string;
   }): Promise<AnswerResult> {
@@ -179,7 +181,10 @@ export class AiService {
       const contactId = (
         await c.query('SELECT contact_id FROM conversations WHERE id=$1', [p.conversationId])
       ).rows[0]?.contact_id as string | undefined;
-      return { rows, name, contactId };
+      const channelId = (
+        await c.query('SELECT channel_id FROM conversations WHERE id=$1', [p.conversationId])
+      ).rows[0]?.channel_id as string | undefined;
+      return { rows, name, contactId, channelId };
     });
     const history: HistoryRow[] = ctx.rows.map((r) => ({
       role: r.direction === 'in' ? 'user' : 'assistant',
@@ -193,6 +198,8 @@ export class AiService {
       extraInstructions: p.extraInstructions,
       contactName: ctx.name,
       contactId: ctx.contactId,
+      channelId: ctx.channelId,
+      flowId: p.flowId,
     });
   }
 
@@ -226,6 +233,8 @@ export class AiService {
     extraInstructions?: string;
     contactName?: string | null;
     contactId?: string;
+    channelId?: string;
+    flowId?: string;
   }): Promise<AnswerResult> {
     const tenantId = p.tenantId;
     const settings = { ...p.settings };
@@ -235,14 +244,20 @@ export class AiService {
       async (c) =>
         (
           await c.query(
-            'SELECT a.*,p.model,p.credentials_enc,p.input_microusd_per_million,p.output_microusd_per_million,p.enabled AS provider_enabled FROM ai_agents a LEFT JOIN ai_providers p ON p.id=a.provider_id WHERE a.is_default AND a.enabled LIMIT 1',
+            `SELECT a.*,p.kind,p.model,p.credentials_enc,p.input_microusd_per_million,p.output_microusd_per_million,p.enabled AS provider_enabled
+             FROM ai_agents a LEFT JOIN ai_providers p ON p.id=a.provider_id WHERE a.id=COALESCE(
+             (SELECT agent_id FROM ai_routes WHERE flow_id=$1),
+             (SELECT agent_id FROM ai_routes WHERE channel_id=$2),
+             (SELECT id FROM ai_agents WHERE is_default)) LIMIT 1`,
+            [p.flowId ?? null, p.channelId ?? null],
           )
         ).rows[0],
     );
+    if (agent && !agent.enabled) return this.fail(settings, 'agent_disabled');
     if (agent?.provider_id && !agent.provider_enabled)
       return this.fail(settings, 'agent_provider_disabled');
     const provider: LlmProvider | null = agent?.provider_enabled
-      ? new AnthropicProvider(
+      ? new (agent.kind === 'openai' ? OpenAiProvider : AnthropicProvider)(
           this.crypto.decrypt<{ apiKey: string }>(agent.credentials_enc).apiKey,
           agent.model,
         )

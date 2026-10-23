@@ -1,10 +1,12 @@
 'use client';
-import { ReactNode, useEffect, useState } from 'react';
+import { CSSProperties, ReactNode, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { api, getSession, setSession } from '../../lib/api';
 import { LocaleProvider, useLocale } from '../../components/product/locale';
 const links = [
+  ['branding', '◈', 'هوية الشركة', 'Branding'],
+  ['reports', '▤', 'التقارير والتحليلات', 'Reports & analytics'],
   ['crm', '◉', 'إدارة العملاء', 'CRM'],
   ['campaigns', '➤', 'الحملات', 'Campaigns'],
   ['automations', '⚡', 'أتمتة الأعمال', 'Automations'],
@@ -28,6 +30,11 @@ function Shell({ children }: { children: ReactNode }) {
   const { t, toggle } = useLocale();
   const [name, setName] = useState('ELHAFEZ BOAT');
   const [role, setRole] = useState('');
+  const [brand, setBrand] = useState<{
+    name: string;
+    logo_url: string | null;
+    primary_color: string;
+  } | null>(null);
   const [open, setOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
@@ -36,6 +43,11 @@ function Shell({ children }: { children: ReactNode }) {
       window.location.replace('/login');
       return;
     }
+    api<{ enabled: boolean; branding: typeof brand }>('/workspace/branding')
+      .then((result) => {
+        if (result.enabled) setBrand(result.branding);
+      })
+      .catch(() => {});
     api<{ tenant: { name: string }; role: string }>('/workspace')
       .then((w) => {
         setName(w.tenant.name);
@@ -59,12 +71,23 @@ function Shell({ children }: { children: ReactNode }) {
   }
   const focused = path.startsWith('/dashboard/inbox') || /^\/dashboard\/flows\/[^/]+$/.test(path);
   return (
-    <div className="product-shell">
+    <div
+      className="product-shell"
+      style={brand ? ({ '--primary': brand.primary_color } as CSSProperties) : undefined}
+    >
       <aside className={`product-sidebar ${open ? 'is-open' : ''}`}>
         <Link className="brand" href="/dashboard">
-          <span className="brand-mark">B</span>
+          {brand?.logo_url ? (
+            <img src={brand.logo_url} alt={brand.name} className="h-10 w-10 object-contain" />
+          ) : (
+            <span className="brand-mark">B</span>
+          )}
           <span>
-            ELHAFEZ <b>BOAT</b>
+            {brand?.name || (
+              <>
+                ELHAFEZ <b>BOAT</b>
+              </>
+            )}
             <small>{t('منصة المحادثات والأتمتة', 'Messaging & automation')}</small>
           </span>
         </Link>
@@ -81,6 +104,8 @@ function Shell({ children }: { children: ReactNode }) {
               ([key]) =>
                 role !== 'agent' ||
                 ![
+                  'reports',
+                  'branding',
                   'team',
                   'settings',
                   'audit',

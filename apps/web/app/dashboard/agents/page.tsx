@@ -1,4 +1,5 @@
 'use client';
+import { AgentRouting } from '../../../components/business/AgentRouting';
 import { useState } from 'react';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
@@ -271,6 +272,34 @@ export default function Agents() {
             >
               {p.enabled ? t('إيقاف', 'Disable') : t('تفعيل', 'Enable')}
             </button>
+            <form
+              className="flex gap-2"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const form = e.currentTarget;
+                const f = new FormData(form);
+                try {
+                  await act('/agents/providers/' + p.id + '/rotate', { apiKey: f.get('key') });
+                  form.reset();
+                } catch {
+                  /* Shared error banner. */
+                }
+              }}
+            >
+              <input
+                type="password"
+                name="key"
+                required
+                minLength={10}
+                maxLength={4000}
+                autoComplete="off"
+                aria-label={t('مفتاح بديل', 'Replacement key')}
+                placeholder={t('مفتاح بديل', 'Replacement key')}
+              />
+              <button className="btn" disabled={busy}>
+                {t('تدوير المفتاح', 'Rotate key')}
+              </button>
+            </form>
           </div>
         ))}
       </section>
@@ -283,7 +312,7 @@ export default function Agents() {
           try {
             await act('/agents/providers', {
               name: f.get('name'),
-              kind: 'anthropic',
+              kind: f.get('kind'),
               model: f.get('model'),
               apiKey: f.get('apiKey'),
               enabled: false,
@@ -300,14 +329,21 @@ export default function Agents() {
         <h2>
           {t('إضافة مزود (يحفظ معطلًا ومشفرًا)', 'Add provider (saved disabled and encrypted)')}
         </h2>
+        <label className="field">
+          {t('المزود', 'Provider')}
+          <select name="kind">
+            <option value="anthropic">Anthropic</option>
+            <option value="openai">OpenAI</option>
+          </select>
+        </label>
         <div className="form-grid">
           <label className="field">
             {t('الاسم', 'Name')}
             <input name="name" required />
           </label>
           <label className="field">
-            {t('معرّف نموذج Anthropic', 'Anthropic model identifier')}
-            <input required name="model" dir="ltr" placeholder="claude-…" />
+            {t('معرّف النموذج', 'Model identifier')}
+            <input required name="model" dir="ltr" />
           </label>
           <label className="field">
             {t('مفتاح API', 'API key')}
@@ -337,6 +373,7 @@ export default function Agents() {
           {t('حفظ المزود', 'Save provider')}
         </button>
       </form>
+      <AgentRouting />
       <section className="card table-wrap">
         <h2>{t('آخر 100 استدعاء', 'Latest 100 calls')}</h2>
         <table className="product-table">

@@ -30,6 +30,17 @@ export class BillingController {
     return this.billing.status(req.user.tenantId);
   }
 
+  @Get('events') @Roles('owner', 'admin') events(@Req() r: AuthedRequest) {
+    return this.db.withTenant(
+      r.user.tenantId,
+      async (c) =>
+        (
+          await c.query(
+            'SELECT id,type,status,reason,provider_created,created_at FROM billing_events ORDER BY created_at DESC LIMIT 100',
+          )
+        ).rows,
+    );
+  }
   @Roles('owner')
   @Post('checkout')
   async checkout(@Req() req: AuthedRequest, @Body() body: unknown) {

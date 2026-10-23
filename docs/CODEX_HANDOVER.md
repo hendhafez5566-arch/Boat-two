@@ -1,5 +1,19 @@
 # Continue here — ELHAFEZ BOAT
 
+## Multi-feature implementation checkpoint — 2026-10-23
+
+Started from verified local/remote `6b4f68f0468f503469ce9ac581a97861af624e16` on `feat/complete-premium-saas`, same open Draft PR #1. No new branch/PR, merge or production deployment.
+
+- CRM lifecycle: migrations 022–023; normalized identity matching, audited soft merge/reparenting with original campaign ledger preservation and conservative consent, archive/restore, bulk custom fields, durable chunked import/export with progress/cancel/results UI. Distinct identities on the same channel require manual review; merged source records are retained.
+- Campaigns: migration 024; draft revision checks, editing, starter copy, versioned rescheduling/cancel, canonical recipient dedupe/frequency checks. Website widget opt-out and pre-send consent checks are connected. No external delivery occurred.
+- AI: migration 025; shared Anthropic/OpenAI implementations, encrypted key rotation, flow/channel/default assignments and UI; flow routing is propagated through resume/delay. Paid calls remain disabled. Knowledge ingestion/embedding recovery remains open.
+- Automations: bounded AND/OR groups, then/otherwise branches, ordered visual step cards, gated HTTPS actions using the existing SSRF helper/effect ledger, and audited schedule/follow-up cancel/reschedule. Arbitrary graph editing, secret references and detailed failure attribution remain open.
+- Batch 3: real tenant/date-scoped reports and exports; migration 026 branding/domain ownership models and UI with plan enforcement and widget integration; migration 027 atomic signed Stripe event dedupe/order guard and tenant event history. Domain verification does not activate hosting/TLS. Super Admin is not implemented.
+
+Verification: API + Next production build/TypeScript, ESLint and 46 API unit tests; fresh database migration chain 001–027 and incremental migration checks; core, business, worker, reliability, sprint and billing/branding development smokes. Sprint smoke covers multi-batch jobs and row errors, merge data retention/consent, archive/restore, bulk custom-field rollback, authenticated widget opt-out, routing/key rotation, OR/branches, schedule edits, campaign revisions and report isolation. Billing smoke uses local signed fixtures only; OpenAI tests mock fetch. No comprehensive browser/security/load/visual acceptance was run.
+
+Continue directly with durable knowledge ingestion/embedding budgets, channel-wide campaign pacing/provider policies and remaining CRM conflict/graph editing, then separate Super Admin authorization/administration and domain hosting/TLS. Read REMAINING_WORK.md for exact bounds. Batches 2–3 remain partial; final design/Batch 4 is deferred per owner instructions. This is not PRODUCT BUILD COMPLETE.
+
 ## Checkout and delivery boundary
 
 Use `/workspace/Boat-two`, branch `feat/complete-premium-saas`, existing **Draft PR #1**: https://github.com/hendhafez5566-arch/Boat-two/pull/1. This continuation started from verified local/remote `f1292123a60acd19e12562b41e4d3c829b337d46`. Read `git status --short` and `git log -3 --oneline` for the latest pushed checkpoint. Never create another branch/PR, merge main or deploy production without explicit owner approval.

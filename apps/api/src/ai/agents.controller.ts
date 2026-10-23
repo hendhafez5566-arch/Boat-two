@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  Delete,
   NotFoundException,
   Param,
   ParseUUIDPipe,
@@ -41,7 +42,9 @@ export class AgentsController {
     return this.db.withTenant(r.user.tenantId, async (c) => ({
       agents: (await c.query('SELECT * FROM ai_agents ORDER BY name')).rows,
       providers: (
-        await c.query('SELECT id,name,kind,model,enabled FROM ai_providers ORDER BY name')
+        await c.query(
+          'SELECT id,name,kind,model,enabled,key_version,key_rotated_at FROM ai_providers ORDER BY name',
+        )
       ).rows,
       runs: (
         await c.query(
@@ -54,7 +57,7 @@ export class AgentsController {
     const b = parse(
       z.object({
         name: z.string().min(1).max(100),
-        kind: z.literal('anthropic'),
+        kind: z.enum(['anthropic', 'openai']),
         model: z.string().regex(/^[a-zA-Z0-9._-]{1,100}$/),
         apiKey: z.string().min(10).max(4000),
         enabled: z.boolean().default(false),
@@ -98,6 +101,70 @@ export class AgentsController {
       ).rows[0];
       if (!row) throw new NotFoundException();
       return row;
+    });
+  }
+  @Post('providers/:id/rotate') rotate(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const input = parse(z.object({ apiKey: z.string().min(10).max(4000) }), body);
+    return this.db.withTenant(r.user.tenantId, async (c) => {
+      const row = (
+        await c.query(
+          'UPDATE ai_providers SET credentials_enc=$2,key_version=key_version+1,key_rotated_at=now() WHERE id=$1 RETURNING id,key_version,key_rotated_at',
+          [id, this.crypto.encrypt({ apiKey: input.apiKey })],
+        )
+      ).rows[0];
+      if (!row) throw new NotFoundException();
+      return row;
+    });
+  }
+  @Get('routes') routes(@Req() r: AuthedRequest) {
+    return this.db.withTenant(
+      r.user.tenantId,
+      async (c) =>
+        (
+          await c.query(
+            'SELECT r.*,a.name AS agent_name,ch.name AS channel_name,f.name AS flow_name FROM ai_routes r JOIN ai_agents a ON a.id=r.agent_id LEFT JOIN channels ch ON ch.id=r.channel_id LEFT JOIN flows f ON f.id=r.flow_id ORDER BY a.name',
+          )
+        ).rows,
+    );
+  }
+  @Post('routes') route(@Req() r: AuthedRequest, @Body() body: unknown) {
+    const b = parse(
+      z.object({
+        agentId: z.string().uuid(),
+        scope: z.enum(['channel', 'flow']),
+        scopeId: z.string().uuid(),
+      }),
+      body,
+    );
+    return this.db.withTenant(r.user.tenantId, async (c) => {
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+      if (!(await c.query('SELECT 1 FROM ai_agents WHERE id=$1', [b.agentId])).rowCount)
+        throw new NotFoundException('Agent not found');
+      const table = b.scope === 'channel' ? 'channels' : 'flows',
+        column = b.scope === 'channel' ? 'channel_id' : 'flow_id';
+      if (!(await c.query(`SELECT 1 FROM ${table} WHERE id=$1`, [b.scopeId])).rowCount)
+        throw new NotFoundException('Scope not found');
+      await c.query(`DELETE FROM ai_routes WHERE ${column}=$1`, [b.scopeId]);
+      return (
+        await c.query(
+          `INSERT INTO ai_routes(tenant_id,agent_id,${column}) VALUES($1,$2,$3) RETURNING *`,
+          [r.user.tenantId, b.agentId, b.scopeId],
+        )
+      ).rows[0];
+    });
+  }
+  @Delete('routes/:id') removeRoute(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.db.withTenant(r.user.tenantId, async (c) => {
+      if (!(await c.query('DELETE FROM ai_routes WHERE id=$1', [id])).rowCount)
+        throw new NotFoundException();
+      return { removed: true };
     });
   }
   @Post() create(@Req() r: AuthedRequest, @Body() body: unknown) {

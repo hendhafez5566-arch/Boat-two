@@ -19,7 +19,7 @@ export class CrmService {
     return this.db.withTenant(tenant, async (c) => {
       const items = (
         await c.query(
-          `SELECT id,name,email,phone,lifecycle,tags,owner_id,attributes,created_at,updated_at FROM contacts WHERE ${w.sql} ORDER BY created_at DESC,id LIMIT $5 OFFSET $6`,
+          `SELECT id,name,email,phone,lifecycle,tags,owner_id,attributes,archived_at,merged_into_id,created_at,updated_at FROM contacts WHERE ${w.sql} ORDER BY created_at DESC,id LIMIT $5 OFFSET $6`,
           [...w.params, limit, (page - 1) * limit],
         )
       ).rows;
@@ -39,7 +39,8 @@ export class CrmService {
   async save(tenant: string, input: z.infer<typeof contactSchema>, id?: string) {
     return this.db.withTenant(tenant, async (c) => {
       await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
-      if (id) await this.get(tenant, id);
+      if (id && (await this.get(tenant, id)).merged_into_id)
+        throw new ConflictException('Contact has been merged');
       if (
         input.ownerId &&
         !(await c.query('SELECT 1 FROM memberships WHERE user_id=$1', [input.ownerId])).rowCount
@@ -47,33 +48,28 @@ export class CrmService {
         throw new BadRequestException('Owner must be a workspace member');
       if (!input.allowDuplicate && (input.email || input.phone)) {
         const dup = await c.query(
-          'SELECT id FROM contacts WHERE ($3::uuid IS NULL OR id<>$3) AND (($1::text IS NOT NULL AND lower(email)=lower($1)) OR ($2::text IS NOT NULL AND phone=$2)) LIMIT 1',
+          'SELECT id FROM contacts WHERE merged_into_id IS NULL AND ($3::uuid IS NULL OR id<>$3) AND (($1::text IS NOT NULL AND lower(email)=lower($1)) OR ($2::text IS NOT NULL AND normalize_contact_phone(phone)=normalize_contact_phone($2))) LIMIT 1',
           [input.email ?? null, input.phone ?? null, id ?? null],
         );
         if (dup.rowCount)
           throw new ConflictException('A contact with this email or phone already exists');
       }
-      const definitions = (await c.query('SELECT key,type FROM crm_fields')).rows;
-      for (const field of definitions) {
-        const value = input.attributes[field.key];
-        if (value === undefined || value === null) continue;
-        if (
-          (field.type === 'number' && typeof value !== 'number') ||
-          (field.type === 'boolean' && typeof value !== 'boolean') ||
-          (field.type === 'text' && typeof value !== 'string') ||
-          (field.type === 'date' &&
-            (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)))
-        )
-          throw new BadRequestException(`Invalid custom field: ${field.key}`);
-      }
+      await this.validateAttributes(tenant, input.attributes);
       if (!id) {
         const n = (await c.query('SELECT count(*)::int AS n FROM contacts')).rows[0].n;
         await this.plans.assertWithinLimit(c, 'contacts', n);
       }
+      const normalizedPhone = input.phone
+        ? (await c.query('SELECT normalize_contact_phone($1) AS phone', [input.phone])).rows[0]
+            .phone
+        : null;
       const values = [
         input.name,
         input.email?.toLowerCase() ?? null,
-        input.phone ?? null,
+        normalizedPhone
+          ? (/[+]/.test(input.phone || '') || /^[0٠۰]{2}/.test(input.phone || '') ? '+' : '') +
+            normalizedPhone
+          : null,
         input.lifecycle,
         [...new Set(input.tags)],
         JSON.stringify(input.attributes),
@@ -87,6 +83,23 @@ export class CrmService {
           [...values, id ?? tenant],
         )
       ).rows[0];
+    });
+  }
+  async validateAttributes(tenant: string, attributes: Record<string, unknown>) {
+    return this.db.withTenant(tenant, async (c) => {
+      const definitions = (await c.query('SELECT key,type FROM crm_fields')).rows;
+      for (const field of definitions) {
+        const value = attributes[field.key];
+        if (value === undefined || value === null) continue;
+        if (
+          (field.type === 'number' && typeof value !== 'number') ||
+          (field.type === 'boolean' && typeof value !== 'boolean') ||
+          (field.type === 'text' && typeof value !== 'string') ||
+          (field.type === 'date' &&
+            (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)))
+        )
+          throw new BadRequestException(`Invalid custom field: ${field.key}`);
+      }
     });
   }
   async timeline(tenant: string, id: string) {

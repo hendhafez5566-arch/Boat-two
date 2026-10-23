@@ -31,21 +31,29 @@ export class CampaignsService {
   async schedule(tenant: string, id: string, at: string) {
     return this.db.withTenant(tenant, async (c) => {
       await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
-      await this.plans.assertWithinLimit(
-        c,
-        'campaigns_per_month',
-        (
-          await c.query(
-            "SELECT count(*)::int AS n FROM campaigns WHERE status<>'draft' AND scheduled_at>=date_trunc('month',now())",
-          )
-        ).rows[0].n,
-      );
+      const existing = (await c.query('SELECT * FROM campaigns WHERE id=$1 FOR UPDATE', [id]))
+        .rows[0];
+      if (!existing || !['draft', 'scheduled'].includes(existing.status))
+        throw new BadRequestException('Only drafts or scheduled campaigns can be scheduled');
+      const when = new Date(at).getTime();
+      if (when < Date.now() - 60000 || when > Date.now() + 366 * 86400000)
+        throw new BadRequestException('Choose a schedule within the next year');
+      if (existing.status === 'draft')
+        await this.plans.assertWithinLimit(
+          c,
+          'campaigns_per_month',
+          (
+            await c.query(
+              "SELECT count(*)::int AS n FROM campaigns WHERE status<>'draft' AND scheduled_at>=date_trunc('month',now())",
+            )
+          ).rows[0].n,
+        );
       const p = await this.plans.getTenantPlan(c);
       if (!p.features.broadcasts)
         throw new BadRequestException('This plan does not include campaigns');
       const row = (
         await c.query(
-          "UPDATE campaigns SET status='scheduled',scheduled_at=$2 WHERE id=$1 AND status='draft' RETURNING *",
+          "UPDATE campaigns SET status='scheduled',scheduled_at=$2,revision=revision+1,updated_at=now() WHERE id=$1 AND status IN ('draft','scheduled') RETURNING *",
           [id, at],
         )
       ).rows[0];
@@ -57,8 +65,8 @@ export class CampaignsService {
         tenant,
         'campaign.run',
         id,
-        { campaignId: id },
-        `campaign:${id}`,
+        { campaignId: id, revision: row.revision },
+        `campaign:${id}:${row.revision}`,
         at,
       );
       return { scheduled: true, audience };
@@ -67,12 +75,13 @@ export class CampaignsService {
   @OnEvent('campaign.run', { suppressErrors: false }) async start(e: {
     tenantId: string;
     campaignId: string;
+    revision?: number;
   }) {
     await this.db.withTenant(e.tenantId, async (c) => {
       const row = (
         await c.query(
-          "UPDATE campaigns SET status='running' WHERE id=$1 AND status='scheduled' RETURNING *",
-          [e.campaignId],
+          "UPDATE campaigns SET status='running' WHERE id=$1 AND status='scheduled' AND ($2::int IS NULL AND revision<=1 OR revision=$2) AND scheduled_at<=now() RETURNING *",
+          [e.campaignId, e.revision ?? null],
         )
       ).rows[0];
       if (!row) return;
@@ -104,7 +113,27 @@ export class CampaignsService {
         )
       ).rows[0];
       if (!r || r.status !== 'pending') return;
-      let reason = '';
+      await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,1))', [
+        r.canonical_contact_id,
+      ]);
+      const contact = (
+        await c.query('SELECT archived_at,merged_into_id FROM contacts WHERE id=$1', [
+          r.canonical_contact_id,
+        ])
+      ).rows[0];
+      let reason =
+        !contact || contact.archived_at || contact.merged_into_id
+          ? 'Contact archived or merged'
+          : '';
+      if (
+        (
+          await c.query(
+            "SELECT 1 FROM campaign_recipients WHERE campaign_id=$1 AND canonical_contact_id=$2 AND id<>$3 AND status='queued' LIMIT 1",
+            [r.campaign_id, r.canonical_contact_id, r.id],
+          )
+        ).rowCount
+      )
+        reason = 'Duplicate canonical recipient';
       const plan = await this.plans.getTenantPlan(c);
       if (!plan.features.broadcasts) reason = 'Campaign entitlement no longer available';
       if (r.campaign_status !== 'running') reason = 'Campaign is not running';
@@ -112,7 +141,7 @@ export class CampaignsService {
         !(
           await c.query(
             "SELECT 1 FROM contact_consents WHERE contact_id=$1 AND channel_id=$2 AND status='opted_in'",
-            [r.contact_id, r.channel_id],
+            [r.canonical_contact_id, r.channel_id],
           )
         ).rowCount
       )
@@ -120,8 +149,8 @@ export class CampaignsService {
       if (
         (
           await c.query(
-            "SELECT 1 FROM campaign_recipients other JOIN campaigns p ON p.id=other.campaign_id WHERE other.contact_id=$1 AND p.channel_id=$2 AND other.id<>$3 AND other.status='queued' AND other.updated_at>now()-make_interval(hours=>$4)",
-            [r.contact_id, r.channel_id, r.id, r.frequency_hours],
+            "SELECT 1 FROM campaign_recipients other JOIN campaigns p ON p.id=other.campaign_id WHERE other.canonical_contact_id=$1 AND p.channel_id=$2 AND other.id<>$3 AND other.status='queued' AND other.updated_at>now()-make_interval(hours=>$4)",
+            [r.canonical_contact_id, r.channel_id, r.id, r.frequency_hours],
           )
         ).rowCount
       )
@@ -132,7 +161,7 @@ export class CampaignsService {
         const conv = (
           await c.query(
             "SELECT id FROM conversations WHERE contact_id=$1 AND channel_id=$2 AND status<>'closed' ORDER BY created_at DESC LIMIT 1",
-            [r.contact_id, r.channel_id],
+            [r.canonical_contact_id, r.channel_id],
           )
         ).rows[0];
         if (!conv) reason = 'No active channel conversation';

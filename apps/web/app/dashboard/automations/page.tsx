@@ -1,4 +1,5 @@
 'use client';
+import { AutomationCanvas } from '../../../components/business/AutomationCanvas';
 import { useState } from 'react';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
@@ -81,6 +82,7 @@ export default function Automations() {
         </button>
       </div>
       {(error || list.error) && <p className="notice error">{error || list.error}</p>}
+      <AutomationCanvas />
       <form
         className="card stack"
         onSubmit={(e) => {

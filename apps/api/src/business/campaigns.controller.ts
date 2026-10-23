@@ -69,6 +69,38 @@ export class CampaignsController {
       ).rows[0];
     });
   }
+  @Patch(':id') edit(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const b = parse(schema.extend({ revision: z.number().int().min(0) }), body);
+    validateOutbound(b.content);
+    return this.db.withTenant(r.user.tenantId, async (c) => {
+      if (!(await c.query('SELECT 1 FROM channels WHERE id=$1', [b.channelId])).rowCount)
+        throw new NotFoundException('Channel not found');
+      const row = (
+        await c.query(
+          `UPDATE campaigns SET name=$2,channel_id=$3,filters=$4,content=$5,frequency_hours=$6,revision=revision+1,updated_at=now()
+        WHERE id=$1 AND status='draft' AND revision=$7 RETURNING *`,
+          [
+            id,
+            b.name,
+            b.channelId,
+            JSON.stringify(b.filters),
+            JSON.stringify(b.content),
+            b.frequencyHours,
+            b.revision,
+          ],
+        )
+      ).rows[0];
+      if (!row)
+        throw new BadRequestException(
+          'Draft changed or is no longer editable; refresh before saving',
+        );
+      return row;
+    });
+  }
   @Post(':id/schedule') schedule(
     @Req() r: AuthedRequest,
     @Param('id', ParseUUIDPipe) id: string,
@@ -81,7 +113,7 @@ export class CampaignsController {
     return this.db.withTenant(r.user.tenantId, async (c) => {
       const row = (
         await c.query(
-          "UPDATE campaigns SET status='canceled' WHERE id=$1 AND status IN ('draft','scheduled','running') RETURNING id",
+          "UPDATE campaigns SET status='canceled',revision=revision+1,updated_at=now() WHERE id=$1 AND status IN ('draft','scheduled','running') RETURNING id",
           [id],
         )
       ).rows[0];

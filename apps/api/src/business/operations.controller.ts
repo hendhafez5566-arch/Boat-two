@@ -116,6 +116,58 @@ export class OperationsController {
       return { scheduled: true };
     });
   }
+  @Get('automations/schedules') schedules(@Req() r: AuthedRequest) {
+    return this.db.withTenant(
+      r.user.tenantId,
+      async (c) =>
+        (
+          await c.query(
+            "SELECT id,type,status,available_at,error,attempts FROM domain_events WHERE type IN ('automation.scheduled','automation.followup') ORDER BY created_at DESC LIMIT 100",
+          )
+        ).rows,
+    );
+  }
+  @Patch('automations/schedules/:eventId') changeSchedule(
+    @Req() r: AuthedRequest,
+    @Param('eventId', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const b = parse(
+      z.union([
+        z.object({ cancel: z.literal(true) }),
+        z.object({
+          at: z
+            .string()
+            .datetime()
+            .refine((at) => Date.parse(at) > Date.now(), 'Choose a future time'),
+        }),
+      ]),
+      body,
+    );
+    return this.db.withTenant(r.user.tenantId, async (c) => {
+      const row = (
+        await c.query(
+          "SELECT * FROM domain_events WHERE id=$1 AND type IN ('automation.scheduled','automation.followup') AND status='pending' AND attempts=0 FOR UPDATE",
+          [id],
+        )
+      ).rows[0];
+      if (!row) throw new BadRequestException('Only unattempted pending schedules can be changed');
+      if ('cancel' in b)
+        await c.query(
+          "UPDATE domain_events SET status='completed',completed_at=now(),error='Canceled by operator' WHERE id=$1",
+          [id],
+        );
+      else {
+        await this.plans.assertFeature(c, 'automations');
+        await c.query('UPDATE domain_events SET available_at=$2 WHERE id=$1', [id, b.at]);
+      }
+      await c.query(
+        "INSERT INTO audit_logs(tenant_id,actor_id,action,resource_type,resource_id) VALUES($1,$2,$3,'automation_schedule',$4)",
+        [r.user.tenantId, r.user.userId, 'cancel' in b ? 'cancel' : 'reschedule', id],
+      );
+      return { changed: true };
+    });
+  }
   @Get('automations/history') history(@Req() r: AuthedRequest, @Query() query: unknown) {
     const q = parse(pagination, query);
     return this.db.withTenant(

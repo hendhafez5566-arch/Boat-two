@@ -88,6 +88,17 @@
     ui.panel.appendChild(head);
     ui.panel.appendChild(ui.msgs);
     ui.panel.appendChild(ui.form);
+    var optOut = h('button', 'chip', st.cfg.direction === 'rtl' ? 'إيقاف الرسائل التسويقية' : 'Stop marketing messages');
+    optOut.type = 'button';
+    optOut.onclick = function () {
+      optOut.disabled = true;
+      start().then(function () { return req('/widget/' + key + '/opt-out?visitorId=' + encodeURIComponent(st.visitorId), 'POST'); })
+        .then(function () { addBubble('them', { text: st.cfg.direction === 'rtl' ? 'تم إيقاف الرسائل التسويقية لهذه القناة.' : 'Marketing messages for this channel have been stopped.' }); })
+        .catch(function () { addBubble('them', { text: st.cfg.direction === 'rtl' ? 'تعذر الحفظ. حاول مرة أخرى.' : 'Could not save your preference. Please retry.' }); })
+        .finally(function () { optOut.disabled = false; });
+    };
+    ui.panel.appendChild(optOut);
+
 
     root.appendChild(style);
     root.appendChild(ui.launcher);

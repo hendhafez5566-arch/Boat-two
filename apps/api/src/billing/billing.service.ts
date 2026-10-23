@@ -98,6 +98,95 @@ export class BillingService {
       throw new BadRequestException('Invalid signature');
     }
 
+    return this.applyVerifiedEvent(event);
+  }
+
+  private async applyVerifiedEvent(event: Stripe.Event) {
+    const object = event.data.object as unknown as {
+      metadata?: Record<string, string>;
+      customer?: string | { id: string };
+      subscription?: string | { id: string };
+      id?: string;
+    };
+    let tenantId = object.metadata?.tenantId;
+    const customerId = typeof object.customer === 'string' ? object.customer : object.customer?.id;
+    if (!tenantId && customerId)
+      tenantId = (
+        await this.db.query('SELECT billing_customer_tenant($1) AS tenant_id', [customerId])
+      ).rows[0]?.tenant_id;
+    if (!tenantId) return { received: true, ignored: true };
+    if (!/^[0-9a-f-]{36}$/i.test(tenantId))
+      throw new BadRequestException('Invalid tenant metadata');
+    return this.db.withTenant(tenantId, async (c) => {
+      const subscription = (await c.query('SELECT * FROM subscriptions FOR UPDATE')).rows[0];
+      if (!subscription) throw new BadRequestException('Subscription workspace not found');
+      const inserted = await c.query(
+        "INSERT INTO billing_events(id,tenant_id,type,provider_created,status) VALUES($1,$2,$3,$4,'processed') ON CONFLICT(id) DO NOTHING RETURNING id",
+        [event.id, tenantId, event.type, event.created],
+      );
+      if (!inserted.rowCount) return { received: true, duplicate: true };
+      let reason: string | null = null;
+      const isSubscription = [
+        'customer.subscription.updated',
+        'customer.subscription.deleted',
+      ].includes(event.type);
+      const checkout = event.type === 'checkout.session.completed';
+      const incomingId = isSubscription
+        ? object.id
+        : typeof object.subscription === 'string'
+          ? object.subscription
+          : object.subscription?.id;
+      if (event.created < Number(subscription.stripe_event_created))
+        reason = 'Older than applied subscription event';
+      if (
+        isSubscription &&
+        subscription.stripe_subscription_id &&
+        incomingId !== subscription.stripe_subscription_id
+      )
+        reason = 'Obsolete subscription identity';
+      if (
+        event.created === Number(subscription.stripe_event_created) &&
+        subscription.status === 'canceled' &&
+        event.type !== 'customer.subscription.deleted' &&
+        !(checkout && incomingId !== subscription.stripe_subscription_id)
+      )
+        reason = 'Canceled state wins equal-time ambiguity';
+      if (!isSubscription && !checkout)
+        reason = 'Recorded for review; subscription state comes from subscription events';
+      if (checkout) {
+        const session = event.data.object as Stripe.Checkout.Session;
+        if (!['paid', 'no_payment_required'].includes(session.payment_status))
+          reason = 'Checkout not yet paid';
+      }
+      if (checkout && (!object.metadata?.planCode || !incomingId || !customerId))
+        reason = 'Checkout is missing subscription identity or plan metadata';
+      if (
+        !reason &&
+        object.metadata?.planCode &&
+        !(
+          await c.query('SELECT 1 FROM plans WHERE code=$1 AND is_active', [
+            object.metadata.planCode,
+          ])
+        ).rowCount
+      )
+        throw new BadRequestException('Unknown billing plan metadata');
+      if (reason) {
+        await c.query("UPDATE billing_events SET status='ignored',reason=$2 WHERE id=$1", [
+          event.id,
+          reason,
+        ]);
+        return { received: true, ignored: true };
+      }
+      await this.processVerifiedEvent(event);
+      await c.query('UPDATE subscriptions SET stripe_event_created=$1,stripe_event_id=$2', [
+        event.created,
+        event.id,
+      ]);
+      return { received: true };
+    });
+  }
+
+  private async processVerifiedEvent(event: Stripe.Event) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const s = event.data.object as Stripe.Checkout.Session;

@@ -1,3 +1,4 @@
+import { PlansService } from '../plans/plans.service';
 import {
   Body,
   Controller,
@@ -25,7 +26,10 @@ import { ChannelRow, ChannelsService, widgetSettingsSchema } from './channels.se
 import { MessagingService } from './messaging.service';
 
 const VISITOR_ID = /^[A-Za-z0-9_-]{8,64}$/;
-const sessionSchema = z.object({ visitorId: z.string().regex(VISITOR_ID).optional(), name: z.string().max(80).optional() });
+const sessionSchema = z.object({
+  visitorId: z.string().regex(VISITOR_ID).optional(),
+  name: z.string().max(80).optional(),
+});
 const sendSchema = z
   .object({
     clientMsgId: z.string().min(8).max(64),
@@ -41,7 +45,8 @@ const token = (channelId: string, visitorId: string) =>
 export class WidgetAssetController {
   private readonly script = readFileSync(join(__dirname, '../../assets/widget.js'), 'utf8');
 
-  @Public() @Get('widget.js')
+  @Public()
+  @Get('widget.js')
   @Header('Content-Type', 'application/javascript; charset=utf-8')
   @Header('Cache-Control', 'public, max-age=300')
   asset() {
@@ -55,6 +60,7 @@ export class WidgetController {
     private readonly channels: ChannelsService,
     private readonly messaging: MessagingService,
     private readonly db: DatabaseService,
+    private readonly plans: PlansService,
   ) {}
 
   private async channel(key: string, req: Request): Promise<ChannelRow> {
@@ -62,25 +68,42 @@ export class WidgetController {
     if (!ch || ch.status !== 'active') throw new NotFoundException('Widget not found');
     const allowed = (ch.settings.allowedOrigins as string[] | undefined) ?? [];
     const origin = req.headers.origin;
-    if (allowed.length && origin && !allowed.includes(origin)) throw new ForbiddenException('Origin not allowed');
+    if (allowed.length && origin && !allowed.includes(origin))
+      throw new ForbiddenException('Origin not allowed');
     return ch;
   }
 
   private checkToken(ch: ChannelRow, visitorId: string, given?: string) {
-    if (!VISITOR_ID.test(visitorId) || !given) throw new UnauthorizedException('Invalid visitor token');
+    if (!VISITOR_ID.test(visitorId) || !given)
+      throw new UnauthorizedException('Invalid visitor token');
     const a = Buffer.from(token(ch.id, visitorId));
     const b = Buffer.from(given);
-    if (a.length !== b.length || !timingSafeEqual(a, b)) throw new UnauthorizedException('Invalid visitor token');
+    if (a.length !== b.length || !timingSafeEqual(a, b))
+      throw new UnauthorizedException('Invalid visitor token');
   }
 
-  @Public() @Get(':key/config')
+  @Public()
+  @Get(':key/config')
   async config(@Param('key') key: string, @Req() req: Request) {
     const ch = await this.channel(key, req);
     const s = widgetSettingsSchema.parse(ch.settings);
-    return { title: s.title, color: s.color, welcomeMessage: s.welcomeMessage, direction: s.direction, position: s.position };
+    const brand = await this.db.withTenant(ch.tenant_id, async (c) => {
+      const plan = await this.plans.getTenantPlan(c);
+      return plan.features.white_label
+        ? (await c.query('SELECT widget_title,primary_color FROM workspace_branding')).rows[0]
+        : null;
+    });
+    return {
+      title: brand?.widget_title || s.title,
+      color: brand?.primary_color || s.color,
+      welcomeMessage: s.welcomeMessage,
+      direction: s.direction,
+      position: s.position,
+    };
   }
 
-  @Public() @Post(':key/session')
+  @Public()
+  @Post(':key/session')
   async session(@Param('key') key: string, @Body() body: unknown, @Req() req: Request) {
     const ch = await this.channel(key, req);
     const input = parse(sessionSchema, body);
@@ -88,7 +111,33 @@ export class WidgetController {
     return { visitorId, token: token(ch.id, visitorId) };
   }
 
-  @Public() @Get(':key/messages')
+  @Public()
+  @Post(':key/opt-out')
+  async optOut(
+    @Param('key') key: string,
+    @Query('visitorId') visitorId: string,
+    @Headers('x-visitor-token') given: string | undefined,
+    @Req() req: Request,
+  ) {
+    const ch = await this.channel(key, req);
+    this.checkToken(ch, visitorId, given);
+    return this.db.withTenant(ch.tenant_id, async (c) => {
+      const contact = (
+        await c.query(
+          'SELECT contact_id FROM contact_channels WHERE channel_id=$1 AND external_id=$2',
+          [ch.id, visitorId],
+        )
+      ).rows[0];
+      if (!contact) return { status: 'opted_out' };
+      await c.query(
+        "INSERT INTO contact_consents(tenant_id,contact_id,channel_id,status,evidence) VALUES($1,$2,$3,'opted_out','Authenticated website visitor requested opt-out') ON CONFLICT(tenant_id,contact_id,channel_id) DO UPDATE SET status='opted_out',evidence=EXCLUDED.evidence,updated_at=now()",
+        [ch.tenant_id, contact.contact_id, ch.id],
+      );
+      return { status: 'opted_out' };
+    });
+  }
+  @Public()
+  @Get(':key/messages')
   async messages(
     @Param('key') key: string,
     @Query('visitorId') visitorId: string,
@@ -126,7 +175,8 @@ export class WidgetController {
     });
   }
 
-  @Public() @Post(':key/messages')
+  @Public()
+  @Post(':key/messages')
   async send(
     @Param('key') key: string,
     @Query('visitorId') visitorId: string,

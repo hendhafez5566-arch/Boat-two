@@ -1,9 +1,13 @@
 'use client';
+import {
+  CampaignDraftEditor,
+  EditableCampaign,
+} from '../../../components/business/CampaignDraftEditor';
 import { FormEvent, useState, useEffect } from 'react';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
 import { useData } from '../../../components/business/useData';
-type Campaign = {
+type Campaign = EditableCampaign & {
   id: string;
   name: string;
   channel_name: string;
@@ -42,6 +46,7 @@ export default function Campaigns() {
   } | null>(null);
   const [page, setPage] = useState(1);
   const [message, setMessage] = useState('');
+  const [text, setText] = useState('');
   const filters = segments.data.find((s) => s.id === segment)?.filters || {};
   useEffect(() => {
     setAudience(null);
@@ -214,7 +219,45 @@ export default function Campaigns() {
         ) : (
           <label className="field">
             {t('محتوى الرسالة', 'Message content')}
-            <textarea name="text" required maxLength={4096} rows={4} />
+            <select
+              aria-label={t('مكتبة نصوص البداية', 'Starter copy library')}
+              defaultValue=""
+              onChange={(event) => setText(event.target.value)}
+            >
+              <option value="">{t('اختر نصًا وخصصه', 'Choose copy and personalize it')}</option>
+              <option
+                value={t(
+                  'شكرًا لاهتمامك! يسعدنا مساعدتك في اختيار الخدمة المناسبة. تواصل معنا لمعرفة التفاصيل.',
+                  'Thank you for your interest! We can help you choose the right service. Reply to learn more.',
+                )}
+              >
+                {t('متابعة الاهتمام', 'Lead follow-up')}
+              </option>
+              <option
+                value={t(
+                  'تذكير بموعدك القادم. يرجى الرد لتأكيد الموعد أو طلب تغييره.',
+                  'A reminder about your upcoming appointment. Please reply to confirm or request a change.',
+                )}
+              >
+                {t('تذكير بموعد', 'Appointment reminder')}
+              </option>
+              <option
+                value={t(
+                  'نود معرفة رأيك في تجربتك الأخيرة. ما الذي يمكننا تحسينه؟',
+                  'We would love your feedback on your recent experience. What can we improve?',
+                )}
+              >
+                {t('طلب تقييم', 'Feedback request')}
+              </option>
+            </select>
+            <textarea
+              name="text"
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+              required
+              maxLength={4096}
+              rows={4}
+            />
           </label>
         )}
         <div className="form-actions">
@@ -274,6 +317,9 @@ export default function Campaigns() {
                       {t('النتائج', 'Results')}
                     </button>
                     {c.status === 'draft' && (
+                      <CampaignDraftEditor campaign={c} save={run} busy={busy} />
+                    )}
+                    {['draft', 'scheduled'].includes(c.status) && (
                       <form
                         className="flex flex-wrap gap-1"
                         onSubmit={(e) => {
@@ -296,7 +342,9 @@ export default function Campaigns() {
                           required
                         />
                         <button className="btn" disabled={busy}>
-                          {t('جدولة', 'Schedule')}
+                          {c.status === 'scheduled'
+                            ? t('إعادة الجدولة', 'Reschedule')
+                            : t('جدولة', 'Schedule')}
                         </button>
                       </form>
                     )}

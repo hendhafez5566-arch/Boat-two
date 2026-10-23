@@ -1,3 +1,6 @@
+import { safeHttpRequest } from '../flows/http-safe';
+import { ExternalEffects } from '../events/external-effect';
+import { env } from '../config/env';
 import { z } from 'zod';
 import { EventsService } from '../events/events.service';
 import { Injectable } from '@nestjs/common';
@@ -5,13 +8,14 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { PlansService } from '../plans/plans.service';
 import { DatabaseService } from '../database/database.service';
 import { DomainEvent } from '../events/events.service';
-import { actionSchema, contactWhere, ruleSchema } from './schemas';
+import { actionSchema, conditionWhere, ruleSchema } from './schemas';
 @Injectable()
 export class AutomationService {
   constructor(
     private db: DatabaseService,
     private plans: PlansService,
     private events: EventsService,
+    private effects: ExternalEffects,
   ) {}
   @OnEvent('domain.event', { suppressErrors: false }) async handle(event: DomainEvent) {
     const contactId = event.payload.contactId;
@@ -40,9 +44,9 @@ export class AutomationService {
         )
           continue;
         const rule = ruleSchema.parse(row);
-        const w = contactWhere(rule.conditions);
+        const w = conditionWhere(rule.conditions);
         const match = (
-          await c.query(`SELECT id FROM contacts WHERE ${w.sql} AND id=$5`, [
+          await c.query(`SELECT id FROM contacts WHERE ${w.sql} AND id=$${w.params.length + 1}`, [
             ...w.params,
             contactId,
           ])
@@ -97,6 +101,44 @@ export class AutomationService {
               action.text,
             ]);
             break;
+          case 'branch': {
+            const where = conditionWhere(action.conditions);
+            const match = (
+              await c.query(
+                `SELECT 1 FROM contacts WHERE ${where.sql} AND id=$${where.params.length + 1}`,
+                [...where.params, contactId],
+              )
+            ).rowCount;
+            await this.actions(
+              tenant,
+              contactId,
+              match ? action.then : action.otherwise,
+              `${key}:branch:${index}`,
+              ruleId,
+            );
+            break;
+          }
+          case 'http': {
+            if (env.EXTERNAL_DELIVERY_ENABLED !== 'true')
+              throw new Error('External automation HTTP delivery is disabled');
+            const response = await this.effects.execute(
+              tenant,
+              { ruleId, url: action.url, body: action.body },
+              () =>
+                safeHttpRequest({
+                  method: 'POST',
+                  url: action.url,
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Idempotency-Key': `${key}:${index}`,
+                  },
+                  body: action.body,
+                  timeoutMs: 10000,
+                }),
+            );
+            if (!response.ok) throw new Error(`Automation HTTP returned ${response.status}`);
+            break;
+          }
           case 'delay':
             await this.events.publish(
               tenant,
@@ -129,6 +171,19 @@ export class AutomationService {
       );
       if (!active) return;
     }
+    if (
+      !(await this.db.withTenant(
+        event.tenantId,
+        async (c) =>
+          (
+            await c.query(
+              'SELECT 1 FROM contacts WHERE id=$1 AND archived_at IS NULL AND merged_into_id IS NULL',
+              [event.contactId],
+            )
+          ).rowCount,
+      ))
+    )
+      return;
     const actions = z.array(actionSchema).max(10).parse(event.actions);
     await this.actions(event.tenantId, event.contactId, actions, event.eventId, event.ruleId);
   }

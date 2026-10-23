@@ -60,6 +60,28 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
               [j.message_id],
             )
           ).rows[0];
+          const marketing = (
+            await c.query(
+              `SELECT r.canonical_contact_id,ct.archived_at,ct.merged_into_id,
+            EXISTS(SELECT 1 FROM contact_consents s WHERE s.contact_id=r.canonical_contact_id AND s.channel_id=p.channel_id AND s.status='opted_in') AS consent
+            FROM campaign_recipients r JOIN campaigns p ON p.id=r.campaign_id JOIN contacts ct ON ct.id=r.canonical_contact_id WHERE r.message_id=$1`,
+              [j.message_id],
+            )
+          ).rows[0];
+          if (
+            marketing &&
+            (!marketing.consent || marketing.archived_at || marketing.merged_into_id)
+          ) {
+            await c.query(
+              "UPDATE outbound_jobs SET status='failed',error='Marketing consent withdrawn or contact archived',updated_at=now() WHERE id=$1",
+              [j.id],
+            );
+            await c.query(
+              "UPDATE messages SET status='failed',error='MARKETING_PERMISSION_REVOKED' WHERE id=$1",
+              [j.message_id],
+            );
+            return null;
+          }
           if (
             !message ||
             message.channel_status !== 'active' ||

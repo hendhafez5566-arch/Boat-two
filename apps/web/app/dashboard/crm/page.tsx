@@ -1,4 +1,6 @@
 'use client';
+import { CrmJobs } from '../../../components/business/CrmJobs';
+import { ContactLifecycle } from '../../../components/business/ContactLifecycle';
 import { FormEvent, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../../lib/api';
@@ -13,6 +15,7 @@ type Contact = {
   lifecycle: string;
   tags: string[];
   owner_id: string | null;
+  archived_at: string | null;
   attributes: Record<string, string | number | boolean | null>;
 };
 type Pipeline = { id: string; name: string; stages: string[] };
@@ -46,11 +49,14 @@ const blank = {
 };
 export default function CRM() {
   const { t } = useLocale();
+  const workspace = useData<{ role: string }>('/workspace', { role: '' });
+  const canManage = ['owner', 'admin'].includes(workspace.data.role);
   const [tab, setTab] = useState('contacts');
   const [q, setQ] = useState('');
   const [bulkIds, setBulkIds] = useState<string[]>([]);
   const [stage, setStage] = useState('');
   const [tag, setTag] = useState('');
+  const [archiveFilter, setArchiveFilter] = useState('active');
   const [page, setPage] = useState(1);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -61,6 +67,7 @@ export default function CRM() {
   const [timeline, setTimeline] = useState<Timeline | null>(null);
   const filter = new URLSearchParams({
     q,
+    archived: archiveFilter,
     ...(stage ? { lifecycle: stage } : {}),
     ...(tag ? { tag } : {}),
   });
@@ -84,7 +91,7 @@ export default function CRM() {
   const segments = useData<
     { id: string; name: string; filters: { q?: string; lifecycle?: string; tag?: string } }[]
   >('/crm/segments', []);
-  const duplicates = useData<{ email: string; ids: string[]; count: number }[]>(
+  const duplicates = useData<{ kind: string; value: string; ids: string[]; count: number }[]>(
     '/crm/contacts/duplicates',
     [],
   );
@@ -314,66 +321,139 @@ export default function CRM() {
               </small>
             </div>
           </section>
-          <form
-            className="card space-y-3"
-            onSubmit={async (event) => {
-              event.preventDefault();
-              const data = new FormData(event.currentTarget);
-              const lifecycle = String(data.get('lifecycle') || '');
-              const owner = String(data.get('owner') || '');
-              try {
-                await act('/crm/contacts/bulk', {
-                  ids: bulkIds,
-                  ...(lifecycle ? { lifecycle } : {}),
-                  ...(owner ? { ownerId: owner === 'unassigned' ? null : owner } : {}),
-                  addTags: String(data.get('tags') || '')
-                    .split(',')
-                    .map((tag) => tag.trim())
-                    .filter(Boolean),
-                });
-                setBulkIds([]);
-              } catch {
-                /* Shared error banner. */
-              }
-            }}
-          >
-            <h2>
-              {t('تعديل العملاء المحددين', 'Edit selected contacts')} ({bulkIds.length})
-            </h2>
-            <div className="form-grid">
-              <label className="field">
-                {t('المرحلة', 'Lifecycle')}
-                <select name="lifecycle">
-                  <option value="">{t('دون تغيير', 'Keep current')}</option>
-                  {['lead', 'qualified', 'customer', 'inactive'].map((value) => (
-                    <option key={value}>{value}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                {t('المسؤول', 'Owner')}
-                <select name="owner">
-                  <option value="">{t('دون تغيير', 'Keep current')}</option>
-                  <option value="unassigned">{t('إلغاء التعيين', 'Unassign')}</option>
-                  {team.data.members.map((member) => (
-                    <option key={member.user_id} value={member.user_id}>
-                      {member.full_name || member.email}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                {t('إضافة وسوم مفصولة بفاصلة', 'Add comma-separated tags')}
-                <input name="tags" />
-              </label>
-            </div>
-            <button className="btn btn-primary" disabled={busy || !bulkIds.length}>
-              {t('تطبيق على المحددين', 'Apply to selected')}
-            </button>
-            <button type="button" className="btn" onClick={() => setBulkIds([])}>
-              {t('مسح التحديد', 'Clear selection')}
-            </button>
-          </form>
+          <section className="card">
+            <label className="field">
+              {t('حالة الملفات', 'Profile status')}
+              <select
+                value={archiveFilter}
+                onChange={(event) => {
+                  setArchiveFilter(event.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="active">{t('النشطة', 'Active')}</option>
+                <option value="archived">{t('المؤرشفة', 'Archived')}</option>
+                <option value="all">{t('الكل', 'All')}</option>
+              </select>
+            </label>
+          </section>
+          {canManage && <ContactLifecycle act={act} busy={busy} />}
+          {canManage && <CrmJobs />}
+          {canManage && (
+            <form
+              className="card space-y-3"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                const data = new FormData(event.currentTarget);
+                const lifecycle = String(data.get('lifecycle') || '');
+                const owner = String(data.get('owner') || '');
+                try {
+                  await act('/crm/contacts/bulk', {
+                    ids: bulkIds,
+                    attributes: Object.fromEntries(
+                      fields.data
+                        .filter((field) => data.get('apply-' + field.key))
+                        .map((field) => {
+                          const value = String(data.get('custom-' + field.key) || '');
+                          return [
+                            field.key,
+                            value === ''
+                              ? null
+                              : field.type === 'number'
+                                ? Number(value)
+                                : field.type === 'boolean'
+                                  ? value === 'true'
+                                  : value,
+                          ];
+                        }),
+                    ),
+                    ...(lifecycle ? { lifecycle } : {}),
+                    ...(owner ? { ownerId: owner === 'unassigned' ? null : owner } : {}),
+                    addTags: String(data.get('tags') || '')
+                      .split(',')
+                      .map((tag) => tag.trim())
+                      .filter(Boolean),
+                  });
+                  setBulkIds([]);
+                } catch {
+                  /* Shared error banner. */
+                }
+              }}
+            >
+              <h2>
+                {t('تعديل العملاء المحددين', 'Edit selected contacts')} ({bulkIds.length})
+              </h2>
+              <div className="form-grid">
+                <label className="field">
+                  {t('المرحلة', 'Lifecycle')}
+                  <select name="lifecycle">
+                    <option value="">{t('دون تغيير', 'Keep current')}</option>
+                    {['lead', 'qualified', 'customer', 'inactive'].map((value) => (
+                      <option key={value}>{value}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  {t('المسؤول', 'Owner')}
+                  <select name="owner">
+                    <option value="">{t('دون تغيير', 'Keep current')}</option>
+                    <option value="unassigned">{t('إلغاء التعيين', 'Unassign')}</option>
+                    {team.data.members.map((member) => (
+                      <option key={member.user_id} value={member.user_id}>
+                        {member.full_name || member.email}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  {t('إضافة وسوم مفصولة بفاصلة', 'Add comma-separated tags')}
+                  <input name="tags" />
+                </label>
+              </div>
+              <fieldset className="form-grid">
+                <legend>
+                  {t(
+                    'حقول مخصصة (حدد ما تريد تغييره فقط)',
+                    'Custom fields (select only fields to change)',
+                  )}
+                </legend>
+                {fields.data.map((field) => (
+                  <label className="field" key={field.key}>
+                    <span>
+                      <input type="checkbox" name={'apply-' + field.key} /> {field.label}
+                    </span>
+                    {field.type === 'boolean' ? (
+                      <select name={'custom-' + field.key}>
+                        <option value="">{t('مسح القيمة', 'Clear value')}</option>
+                        <option value="true">{t('نعم', 'Yes')}</option>
+                        <option value="false">{t('لا', 'No')}</option>
+                      </select>
+                    ) : (
+                      <input
+                        name={'custom-' + field.key}
+                        type={
+                          field.type === 'number'
+                            ? 'number'
+                            : field.type === 'date'
+                              ? 'date'
+                              : 'text'
+                        }
+                        step={field.type === 'number' ? 'any' : undefined}
+                        maxLength={2000}
+                      />
+                    )}
+                  </label>
+                ))}
+              </fieldset>
+              <button className="btn btn-primary" disabled={busy || !bulkIds.length}>
+                {t('تطبيق على المحددين', 'Apply to selected')}
+              </button>
+              <button type="button" className="btn" onClick={() => setBulkIds([])}>
+                {t('مسح التحديد', 'Clear selection')}
+              </button>
+            </form>
+          )}
+
           <section className="card table-wrap">
             <table className="product-table">
               <thead>
@@ -430,6 +510,22 @@ export default function CRM() {
                       >
                         {t('تعديل', 'Edit')}
                       </button>
+                      <button
+                        className="btn"
+                        disabled={busy || !canManage}
+                        onClick={() =>
+                          void act(
+                            '/crm/contacts/' + c.id + '/archive',
+                            { archived: !c.archived_at },
+                            'PATCH',
+                          ).catch(() => {})
+                        }
+                      >
+                        {c.archived_at ? t('استعادة', 'Restore') : t('أرشفة', 'Archive')}
+                      </button>
+                      <small className="block select-all" dir="ltr">
+                        {c.id}
+                      </small>
                     </td>
                   </tr>
                 ))}
@@ -1096,8 +1192,8 @@ export default function CRM() {
           <section className="card">
             <h2>{t('بريد مكرر', 'Duplicate emails')}</h2>
             {duplicates.data.map((x) => (
-              <p className="muted" key={x.email}>
-                {x.email} · {x.count} · {x.ids.join(', ')}
+              <p className="muted" key={x.kind + x.value}>
+                {x.kind}: {x.value} · {x.count} · {x.ids.join(', ')}
               </p>
             ))}
             {!duplicates.data.length && (
