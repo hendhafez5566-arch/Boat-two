@@ -1,5 +1,6 @@
 'use client';
 import { BillingReconciliation } from '../../../components/business/BillingReconciliation';
+import { BillingInvoices } from '../../../components/business/BillingInvoices';
 import { BillingEvents } from '../../../components/business/BillingEvents';
 import { useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
@@ -27,7 +28,16 @@ export default function Billing() {
   const { t } = useLocale();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [ws, setWs] = useState<Workspace | null>(null);
-  const [status, setStatus] = useState({ configured: false, portalAvailable: false });
+  const [status, setStatus] = useState<{
+    configured: boolean;
+    portalAvailable: boolean;
+    subscription?: {
+      currentPeriodEnd: string | null;
+      cancelAtPeriodEnd: boolean;
+      status: string;
+      linked: boolean;
+    };
+  }>({ configured: false, portalAvailable: false });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -86,6 +96,14 @@ export default function Billing() {
             'الدفع غير مفعّل في هذه البيئة. يلزم إعداد Stripe والأسعار بواسطة مشغّل المنصة. لن يتم خصم أي مبلغ.',
             'Billing is not configured in this environment. The platform operator must configure Stripe and prices. No payment will be taken.',
           )}
+        </p>
+      )}
+      {status.subscription?.currentPeriodEnd && (
+        <p className="notice">
+          {status.subscription.cancelAtPeriodEnd
+            ? t('ينتهي الاشتراك في: ', 'Subscription ends on: ')
+            : t('نهاية الفترة الحالية: ', 'Current period ends: ')}
+          {new Date(status.subscription.currentPeriodEnd).toLocaleDateString()}
         </p>
       )}
       {ws && (
@@ -147,6 +165,8 @@ export default function Billing() {
                   busy ||
                   ws?.role !== 'owner' ||
                   !p.price_cents ||
+                  (!!status.subscription?.linked &&
+                    ['active', 'trialing', 'past_due'].includes(status.subscription.status)) ||
                   ws?.plan.plan_code === p.code
                 }
                 onClick={() => pay('/billing/checkout', { planCode: p.code })}
@@ -159,6 +179,7 @@ export default function Billing() {
           </section>
         ))}
       </div>
+      {['owner', 'admin'].includes(ws?.role ?? '') && <BillingInvoices />}
       <BillingReconciliation />
       <BillingEvents />
     </main>

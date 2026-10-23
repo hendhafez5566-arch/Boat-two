@@ -1,3 +1,4 @@
+import { invoiceSnapshot } from './invoice-snapshot';
 import { ExternalEffects } from '../events/external-effect';
 import {
   BadRequestException,
@@ -30,7 +31,9 @@ export class BillingService {
     private readonly effects: ExternalEffects,
   ) {}
 
-  private requireStripe(): Stripe {
+  private requireStripe(external = true): Stripe {
+    if (external && env.EXTERNAL_DELIVERY_ENABLED !== 'true')
+      throw new ServiceUnavailableException('External billing operations are disabled');
     if (!this.stripe) throw new ServiceUnavailableException('Billing is not configured');
     return this.stripe;
   }
@@ -38,11 +41,25 @@ export class BillingService {
   async status(tenantId: string) {
     const row = await this.db.withTenant(
       tenantId,
-      async (c) => (await c.query('SELECT stripe_customer_id FROM subscriptions')).rows[0],
+      async (c) =>
+        (
+          await c.query(
+            'SELECT stripe_customer_id,stripe_subscription_id,status,current_period_end,cancel_at_period_end FROM subscriptions',
+          )
+        ).rows[0],
     );
     return {
-      configured: !!this.stripe,
-      portalAvailable: !!this.stripe && !!row?.stripe_customer_id,
+      configured: !!this.stripe && env.EXTERNAL_DELIVERY_ENABLED === 'true',
+      subscription: row
+        ? {
+            status: row.status,
+            currentPeriodEnd: row.current_period_end,
+            cancelAtPeriodEnd: row.cancel_at_period_end,
+            linked: !!row.stripe_subscription_id,
+          }
+        : null,
+      portalAvailable:
+        !!this.stripe && env.EXTERNAL_DELIVERY_ENABLED === 'true' && !!row?.stripe_customer_id,
     };
   }
 
@@ -59,9 +76,21 @@ export class BillingService {
 
     const existing = await this.db.withTenant(
       tenantId,
-      async (c) => (await c.query('SELECT stripe_customer_id FROM subscriptions')).rows[0],
+      async (c) =>
+        (
+          await c.query(
+            'SELECT stripe_customer_id,stripe_subscription_id,status,current_period_end,cancel_at_period_end FROM subscriptions',
+          )
+        ).rows[0],
     );
 
+    if (
+      existing?.stripe_subscription_id &&
+      ['active', 'trialing', 'past_due'].includes(existing.status)
+    )
+      throw new BadRequestException(
+        'An existing subscription must be changed through the billing portal',
+      );
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       line_items: [{ price: plan.stripe_price_id, quantity: 1 }],
@@ -80,7 +109,12 @@ export class BillingService {
     const stripe = this.requireStripe();
     const row = await this.db.withTenant(
       tenantId,
-      async (c) => (await c.query('SELECT stripe_customer_id FROM subscriptions')).rows[0],
+      async (c) =>
+        (
+          await c.query(
+            'SELECT stripe_customer_id,stripe_subscription_id,status,current_period_end,cancel_at_period_end FROM subscriptions',
+          )
+        ).rows[0],
     );
     if (!row?.stripe_customer_id) throw new BadRequestException('No billing account yet');
     const session = await stripe.billingPortal.sessions.create({
@@ -91,7 +125,7 @@ export class BillingService {
   }
 
   async handleWebhook(rawBody: Buffer | undefined, signature: string | undefined) {
-    const stripe = this.requireStripe();
+    const stripe = this.requireStripe(false);
     if (!env.STRIPE_WEBHOOK_SECRET) throw new ServiceUnavailableException('Webhook secret missing');
     if (!rawBody || !signature) throw new BadRequestException('Missing body or signature');
 
@@ -186,12 +220,70 @@ export class BillingService {
         [event.id, tenantId, event.type, event.created],
       );
       if (!inserted.rowCount) return { received: true, duplicate: true };
+      if (event.type.startsWith('invoice.')) {
+        const invoice = invoiceSnapshot(event.type, event.data.object);
+        const invoiceSubscription =
+          typeof object.subscription === 'string' ? object.subscription : object.subscription?.id;
+        let reason: string | null = null;
+        if (!invoice) reason = 'Unsupported or incomplete invoice snapshot';
+        else if (
+          !subscription.stripe_customer_id ||
+          customerId !== subscription.stripe_customer_id ||
+          (invoiceSubscription && invoiceSubscription !== subscription.stripe_subscription_id)
+        )
+          reason = 'Invoice ownership does not match linked subscription';
+        if (reason) {
+          await c.query("UPDATE billing_events SET status='ignored',reason=$2 WHERE id=$1", [
+            event.id,
+            reason,
+          ]);
+          return { received: true, ignored: true };
+        }
+        const inv = invoice!;
+        const result = await c.query(
+          `INSERT INTO billing_invoices(provider_id,tenant_id,number,status,currency,amount_due,amount_paid,amount_remaining,attempted_count,payment_failed,hosted_url,pdf_url,due_at,provider_created,event_created,event_rank)
+         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+         ON CONFLICT(provider_id) DO UPDATE SET number=EXCLUDED.number,status=EXCLUDED.status,currency=EXCLUDED.currency,amount_due=EXCLUDED.amount_due,amount_paid=EXCLUDED.amount_paid,amount_remaining=EXCLUDED.amount_remaining,attempted_count=GREATEST(billing_invoices.attempted_count,EXCLUDED.attempted_count),payment_failed=CASE WHEN EXCLUDED.status='paid' THEN false WHEN $17='invoice.payment_failed' THEN true ELSE billing_invoices.payment_failed END,hosted_url=EXCLUDED.hosted_url,pdf_url=EXCLUDED.pdf_url,due_at=EXCLUDED.due_at,event_created=EXCLUDED.event_created,event_rank=EXCLUDED.event_rank,updated_at=now()
+         WHERE billing_invoices.tenant_id=EXCLUDED.tenant_id AND (EXCLUDED.event_created>billing_invoices.event_created OR (EXCLUDED.event_created=billing_invoices.event_created AND EXCLUDED.event_rank>billing_invoices.event_rank)) RETURNING provider_id`,
+          [
+            inv.id,
+            tenantId,
+            inv.number ?? null,
+            inv.status,
+            inv.currency,
+            inv.amount_due,
+            inv.amount_paid,
+            inv.amount_remaining,
+            inv.attempt_count,
+            event.type === 'invoice.payment_failed',
+            inv.hosted_invoice_url,
+            inv.invoice_pdf,
+            inv.due_date ? new Date(inv.due_date * 1000) : null,
+            inv.created,
+            event.created,
+            inv.rank,
+            event.type,
+          ],
+        );
+        if (!result.rowCount)
+          await c.query(
+            "UPDATE billing_events SET status='ignored',reason='Older or equal-priority invoice snapshot' WHERE id=$1",
+            [event.id],
+          );
+        return { received: true, ...(!result.rowCount ? { ignored: true } : {}) };
+      }
       let reason: string | null = null;
       const isSubscription = [
         'customer.subscription.updated',
         'customer.subscription.deleted',
       ].includes(event.type);
       const checkout = event.type === 'checkout.session.completed';
+      if (
+        customerId &&
+        subscription.stripe_customer_id &&
+        customerId !== subscription.stripe_customer_id
+      )
+        reason = 'Billing customer ownership mismatch';
       const incomingId = isSubscription
         ? object.id
         : typeof object.subscription === 'string'
@@ -238,7 +330,18 @@ export class BillingService {
         ]);
         return { received: true, ignored: true };
       }
-      await this.processVerifiedEvent(event);
+      const routedEvent = {
+        id: event.id,
+        type: event.type,
+        created: event.created,
+        data: {
+          object: {
+            ...(event.data.object as unknown as Record<string, unknown>),
+            metadata: { ...object.metadata, tenantId },
+          },
+        },
+      } as unknown as Stripe.Event;
+      await this.processVerifiedEvent(routedEvent);
       await c.query('UPDATE subscriptions SET stripe_event_created=$1,stripe_event_id=$2', [
         event.created,
         event.id,
@@ -278,6 +381,7 @@ export class BillingService {
           status: deleted ? 'canceled' : (STATUS_MAP[sub.status] ?? 'past_due'),
           customerId: typeof sub.customer === 'string' ? sub.customer : sub.customer.id,
           subscriptionId: sub.id,
+          cancelAtPeriodEnd: sub.cancel_at_period_end,
           periodEnd: periodEnd ? new Date(periodEnd * 1000) : null,
         });
         break;
@@ -303,6 +407,7 @@ export class BillingService {
       customerId: string | null;
       subscriptionId: string | null;
       periodEnd?: Date | null;
+      cancelAtPeriodEnd?: boolean;
     },
   ) {
     await this.db.withTenant(tenantId, async (c) => {
@@ -313,8 +418,16 @@ export class BillingService {
            stripe_customer_id = COALESCE($3, stripe_customer_id),
            stripe_subscription_id = COALESCE($4, stripe_subscription_id),
            current_period_end = COALESCE($5, current_period_end),
+           cancel_at_period_end = COALESCE($6,cancel_at_period_end),
            updated_at = now()`,
-        [p.planCode, p.status, p.customerId, p.subscriptionId, p.periodEnd ?? null],
+        [
+          p.planCode,
+          p.status,
+          p.customerId,
+          p.subscriptionId,
+          p.periodEnd ?? null,
+          p.cancelAtPeriodEnd ?? null,
+        ],
       );
     });
   }
