@@ -15,6 +15,7 @@ const schema = z.object({
   attempt_count: z.number().int().min(0).max(1000000).default(0),
   created: timestamp,
   due_date: timestamp.nullable().optional(),
+  status_transitions: z.object({ paid_at: timestamp.nullable().optional() }).optional(),
   hosted_invoice_url: z.string().max(4000).nullable().optional(),
   invoice_pdf: z.string().max(4000).nullable().optional(),
 });

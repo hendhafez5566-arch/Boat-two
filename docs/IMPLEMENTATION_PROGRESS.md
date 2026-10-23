@@ -1,5 +1,11 @@
 # Implementation progress — core reliability + connected business platform
 
+## Continuation — platform financial and operational reporting (2026-10-23)
+
+Migration 052 persists provider invoice payment dates and exposes a restricted, bounded-date aggregate report to `reports.read`. Connected bilingual console shows gross paid invoice totals by payment date/currency, invoice creation cohorts, failed/open balances, current monthly-equivalent mapped active/past-due contracts, unpriced/missing-date counts and operational queue/domain/company/subscription states. Currencies are never mixed; totals do not claim net revenue/refund/tax or bank settlement. Legacy paid invoices without provider payment timestamps remain explicitly excluded from dated paid totals until backfill.
+
+Validation: API build, web TypeScript, migration 052, PostgreSQL report privilege/range/date/currency smoke and signed invoice/backfill/catalog regression smokes pass; no provider calls. Next: complete broad build/lint/unit/integration regression across saved units, then Batch 2 AI source replacement/retention and remaining automations/CRM/Inbox; white-label auth/email and Batch 4 remain open. Do not declare product complete.
+
 ## Continuation — explicit domain transfer/reclaim (2026-10-23)
 
 Migration 051 adds current-owner initiated transfers to a specific workspace, 24-hour expiry, one-time secret (hash stored), fresh target TXT proof and atomic acceptance. Hosting stops at initiation and remains off after transfer until the receiver requests it. Pending transfers prevent source hosting; revocation cancels them. Source/target audits remain, unrelated tenants cannot see transfers, and stale source recheck events cannot serve the new owner. The owner UI includes outgoing/incoming transfers and own-domain reclaim with rotated TXT and fresh verification. Revoked names remain reserved; DNS alone never permits another tenant to reclaim a hostname. Expired requests must be canceled explicitly before restarting; involuntary/operator takeover remains deliberately unsupported pending policy review.

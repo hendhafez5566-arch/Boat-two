@@ -426,6 +426,17 @@ class PlatformController {
   @Get('session') session(@Req() r: PlatformRequest) {
     return { actor: r.platformActor, permissions: r.platformPermissions };
   }
+  @Permission('reports.read') @Get('reports') async reports(@Query() query: unknown) {
+    const q = parse(z.object({ from: z.string().datetime(), to: z.string().datetime() }), query);
+    if (
+      Date.parse(q.to) <= Date.parse(q.from) ||
+      Date.parse(q.to) - Date.parse(q.from) > 366 * 86400000
+    )
+      throw new BadRequestException('Report range must be positive and at most 366 days');
+    return (
+      await this.access.query('SELECT platform_operational_report($1,$2) AS data', [q.from, q.to])
+    )[0].data;
+  }
   @Permission('audit.read')
   @Get('audit')
   async audit(@Query() query: unknown) {

@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import OperationalReports from './OperationalReports';
 import PriceCatalog from './PriceCatalog';
 import AuditTrail from './AuditTrail';
 import { API } from '../../lib/api';
@@ -714,6 +715,7 @@ function Console() {
           {permissions.includes('plans.read') && (
             <PriceCatalog request={request} canWrite={permissions.includes('plans.write')} />
           )}
+          {permissions.includes('reports.read') && <OperationalReports request={request} />}
           {permissions.includes('audit.read') && <AuditTrail request={request} />}
         </>
       )}

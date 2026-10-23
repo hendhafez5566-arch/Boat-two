@@ -92,11 +92,27 @@ try {
     1,
     'Equal-time generic update cannot erase failure',
   );
-  const paid = { ...invoice, status: 'paid', amount_paid: 5000, amount_remaining: 0 };
+  const paid = {
+    ...invoice,
+    status: 'paid',
+    amount_paid: 5000,
+    amount_remaining: 0,
+    status_transitions: { paid_at: created },
+  };
   await deliver(event('invoice.paid', paid, created));
   result = await request('/billing/invoices?status=paid', a.accessToken);
   assert.equal(result.total, 1);
   assert.equal(result.items[0].payment_failed, false);
+  assert.equal(
+    new Date(
+      (
+        await db.withTenant(a.tenantId, (c) =>
+          c.query('SELECT paid_at FROM billing_invoices WHERE provider_id=$1', [invoice.id]),
+        )
+      ).rows[0].paid_at,
+    ).getTime(),
+    created * 1000,
+  );
   assert.equal(Number(result.items[0].amount_paid), 5000);
   assert.equal(
     (await deliver(event('invoice.payment_failed', invoice, created - 1))).ignored,

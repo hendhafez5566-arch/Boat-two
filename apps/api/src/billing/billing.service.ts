@@ -370,9 +370,9 @@ export class BillingService {
         }
         const inv = invoice!;
         const result = await c.query(
-          `INSERT INTO billing_invoices(provider_id,tenant_id,number,status,currency,amount_due,amount_paid,amount_remaining,attempted_count,payment_failed,hosted_url,pdf_url,due_at,provider_created,event_created,event_rank)
-         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
-         ON CONFLICT(provider_id) DO UPDATE SET number=EXCLUDED.number,status=EXCLUDED.status,currency=EXCLUDED.currency,amount_due=EXCLUDED.amount_due,amount_paid=EXCLUDED.amount_paid,amount_remaining=EXCLUDED.amount_remaining,attempted_count=GREATEST(billing_invoices.attempted_count,EXCLUDED.attempted_count),payment_failed=CASE WHEN EXCLUDED.status='paid' THEN false WHEN $17='invoice.payment_failed' THEN true ELSE billing_invoices.payment_failed END,hosted_url=EXCLUDED.hosted_url,pdf_url=EXCLUDED.pdf_url,due_at=EXCLUDED.due_at,event_created=EXCLUDED.event_created,event_rank=EXCLUDED.event_rank,updated_at=now()
+          `INSERT INTO billing_invoices(provider_id,tenant_id,number,status,currency,amount_due,amount_paid,amount_remaining,attempted_count,payment_failed,hosted_url,pdf_url,due_at,provider_created,event_created,event_rank,paid_at)
+         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$18)
+         ON CONFLICT(provider_id) DO UPDATE SET number=EXCLUDED.number,status=EXCLUDED.status,currency=EXCLUDED.currency,amount_due=EXCLUDED.amount_due,amount_paid=EXCLUDED.amount_paid,amount_remaining=EXCLUDED.amount_remaining,attempted_count=GREATEST(billing_invoices.attempted_count,EXCLUDED.attempted_count),payment_failed=CASE WHEN EXCLUDED.status='paid' THEN false WHEN $17='invoice.payment_failed' THEN true ELSE billing_invoices.payment_failed END,hosted_url=EXCLUDED.hosted_url,pdf_url=EXCLUDED.pdf_url,due_at=EXCLUDED.due_at,event_created=EXCLUDED.event_created,event_rank=EXCLUDED.event_rank,paid_at=COALESCE(EXCLUDED.paid_at,billing_invoices.paid_at),updated_at=now()
          WHERE billing_invoices.tenant_id=EXCLUDED.tenant_id AND (EXCLUDED.event_created>billing_invoices.event_created OR (EXCLUDED.event_created=billing_invoices.event_created AND EXCLUDED.event_rank>billing_invoices.event_rank)) RETURNING provider_id`,
           [
             inv.id,
@@ -392,6 +392,9 @@ export class BillingService {
             event.created,
             inv.rank,
             event.type,
+            inv.status_transitions?.paid_at
+              ? new Date(inv.status_transitions.paid_at * 1000)
+              : null,
           ],
         );
         if (!result.rowCount)
