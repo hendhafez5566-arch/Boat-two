@@ -4,7 +4,8 @@ import {
   CampaignDraftEditor,
   EditableCampaign,
 } from '../../../components/business/CampaignDraftEditor';
-import { FormEvent, useState, useEffect } from 'react';
+import { useState } from 'react';
+import { CampaignComposer } from '../../../components/business/CampaignComposer';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
 import { useData } from '../../../components/business/useData';
@@ -31,13 +32,6 @@ export default function Campaigns() {
     '/crm/segments',
     [],
   );
-  const [channel, setChannel] = useState('');
-  const [segment, setSegment] = useState('');
-  const [templates, setTemplates] = useState<
-    { name: string; language: string; body: string; status: string; supported: boolean }[]
-  >([]);
-  const [template, setTemplate] = useState('');
-  const [audience, setAudience] = useState<{ matched: number; eligible: number } | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState('');
@@ -47,19 +41,6 @@ export default function Campaigns() {
   } | null>(null);
   const [page, setPage] = useState(1);
   const [message, setMessage] = useState('');
-  const [text, setText] = useState('');
-  const filters = segments.data.find((s) => s.id === segment)?.filters || {};
-  useEffect(() => {
-    setAudience(null);
-    setTemplate('');
-    setTemplates([]);
-    if (channels.data.find((c) => c.id === channel)?.type === 'whatsapp')
-      api<typeof templates>(`/channels/${channel}/templates`)
-        .then((r) =>
-          setTemplates(r.filter((x) => x.status === 'APPROVED' && x.supported !== false)),
-        )
-        .catch((e) => setError(e.message));
-  }, [channel, channels.data]);
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
     setError('');
@@ -71,43 +52,6 @@ export default function Campaigns() {
     } finally {
       setBusy(false);
     }
-  }
-  async function create(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const f = new FormData(form);
-    await run(async () => {
-      const selectedTemplate = templates.find((x) => x.name + '|' + x.language === template);
-      const content = selectedTemplate
-        ? {
-            template: {
-              name: selectedTemplate.name,
-              language: selectedTemplate.language,
-              bodyParams: String(f.get('parameters') || '')
-                .split('\n')
-                .filter(Boolean),
-            },
-          }
-        : { text: f.get('text') };
-      await api('/campaigns', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: f.get('name'),
-          channelId: channel,
-          filters,
-          content,
-          frequencyHours: Number(f.get('frequency')),
-        }),
-      });
-      form.reset();
-      setAudience(null);
-      setMessage(
-        t(
-          'حُفظت مسودة الحملة. راجع الجمهور وحدد موعدها من القائمة.',
-          'Campaign draft saved. Review the audience and schedule it below.',
-        ),
-      );
-    });
   }
   async function view(id: string, p = 1) {
     setSelected(id);
@@ -147,149 +91,19 @@ export default function Campaigns() {
         </p>
       )}
       {message && <p className="notice">{message}</p>}
-      <form className="card stack" onSubmit={create}>
-        <h2>{t('1. إنشاء الحملة', '1. Build your campaign')}</h2>
-        <div className="form-grid">
-          <label className="field">
-            {t('اسم الحملة', 'Campaign name')}
-            <input name="name" required maxLength={120} />
-          </label>
-          <label className="field">
-            {t('القناة', 'Channel')}
-            <select value={channel} required onChange={(e) => setChannel(e.target.value)}>
-              <option value="">{t('اختر قناة', 'Choose channel')}</option>
-              {channels.data.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.name} · {x.type}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            {t('الجمهور', 'Audience')}
-            <select
-              value={segment}
-              onChange={(e) => {
-                setSegment(e.target.value);
-                setAudience(null);
-              }}
-            >
-              <option value="">
-                {t('كل جهات الاتصال المطابقة للموافقة', 'All eligible contacts')}
-              </option>
-              {segments.data.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            {t('أقل ساعات بين الحملات لكل عميل', 'Minimum hours between campaigns per contact')}
-            <input name="frequency" type="number" defaultValue={24} min={1} max={720} required />
-          </label>
-        </div>
-        {channels.data.find((c) => c.id === channel)?.type === 'whatsapp' && (
-          <label className="field">
-            {t(
-              'قالب WhatsApp معتمد (موصى به خارج نافذة الرد)',
-              'Approved WhatsApp template (required outside the reply window)',
-            )}
-            <select value={template} onChange={(e) => setTemplate(e.target.value)}>
-              <option value="">
-                {t('رسالة نصية داخل نافذة الرد فقط', 'Text within reply window only')}
-              </option>
-              {templates.map((x) => (
-                <option key={x.name + x.language} value={x.name + '|' + x.language}>
-                  {x.name} · {x.language}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        {template ? (
-          <>
-            <p className="notice whitespace-pre-wrap">
-              {templates.find((x) => x.name + '|' + x.language === template)?.body}
-            </p>
-            <label className="field">
-              {t('قيم متغيرات القالب، قيمة في كل سطر', 'Template parameter values, one per line')}
-              <textarea name="parameters" rows={3} />
-            </label>
-          </>
-        ) : (
-          <label className="field">
-            {t('محتوى الرسالة', 'Message content')}
-            <select
-              aria-label={t('مكتبة نصوص البداية', 'Starter copy library')}
-              defaultValue=""
-              onChange={(event) => setText(event.target.value)}
-            >
-              <option value="">{t('اختر نصًا وخصصه', 'Choose copy and personalize it')}</option>
-              <option
-                value={t(
-                  'شكرًا لاهتمامك! يسعدنا مساعدتك في اختيار الخدمة المناسبة. تواصل معنا لمعرفة التفاصيل.',
-                  'Thank you for your interest! We can help you choose the right service. Reply to learn more.',
-                )}
-              >
-                {t('متابعة الاهتمام', 'Lead follow-up')}
-              </option>
-              <option
-                value={t(
-                  'تذكير بموعدك القادم. يرجى الرد لتأكيد الموعد أو طلب تغييره.',
-                  'A reminder about your upcoming appointment. Please reply to confirm or request a change.',
-                )}
-              >
-                {t('تذكير بموعد', 'Appointment reminder')}
-              </option>
-              <option
-                value={t(
-                  'نود معرفة رأيك في تجربتك الأخيرة. ما الذي يمكننا تحسينه؟',
-                  'We would love your feedback on your recent experience. What can we improve?',
-                )}
-              >
-                {t('طلب تقييم', 'Feedback request')}
-              </option>
-            </select>
-            <textarea
-              name="text"
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-              required
-              maxLength={4096}
-              rows={4}
-            />
-          </label>
-        )}
-        <div className="form-actions">
-          <button
-            type="button"
-            className="btn"
-            disabled={!channel || busy}
-            onClick={() =>
-              run(async () =>
-                setAudience(
-                  await api('/campaigns/audience', {
-                    method: 'POST',
-                    body: JSON.stringify({ channelId: channel, filters }),
-                  }),
-                ),
-              )
-            }
-          >
-            {t('2. مراجعة الجمهور', '2. Review audience')}
-          </button>
-          {audience && (
-            <span className="badge">
-              {audience.eligible} {t('موافق ومربوط بالقناة من', 'consented & linked of')}{' '}
-              {audience.matched}
-            </span>
-          )}
-          <button disabled={!audience?.eligible || busy} className="btn btn-primary">
-            {t('3. حفظ المسودة', '3. Save draft')}
-          </button>
-        </div>
-      </form>
+      <CampaignComposer
+        channels={channels.data}
+        segments={segments.data}
+        onSaved={async () => {
+          await list.reload();
+          setMessage(
+            t(
+              'حُفظت مسودة الحملة. يمكنك مراجعتها وجدولتها من القائمة.',
+              'Campaign draft saved. Review and schedule it below.',
+            ),
+          );
+        }}
+      />
       <DeliveryPolicies />
       <section className="card table-wrap">
         <h2>{t('الحملات', 'Campaigns')}</h2>

@@ -1,5 +1,12 @@
 # ELHAFEZ BOAT — Product completion matrix
 
+## Acceptance continuation — campaign composer and mobile navigation (2026-10-23)
+
+Replaced the single campaign form with a connected three-step bilingual composer: channel/segment/frequency and real audience count, six starter-copy choices or supported approved WhatsApp BODY templates, parameter substitution/content preview, and explicit draft save. Rechecks eligibility before save; scheduling/delivery retain authoritative consent/window/policy checks. Back navigation retains values; obsolete template/audience responses are discarded. This composer still supports text/BODY only, not rich template/media/button variants. Preview is content, not provider-app rendering.
+
+Chromium exposed missing mobile navigation dismissal; added an inside close button, Escape, expanded/control semantics and auto-close on language change. Verified API/web TypeScript, ESLint, Next production build (before final navigation adjustment), all 55 unit tests and smoke-campaign-browser: actual audience, gallery, preview/edit/back/save persisted via API, 390px overflow, English/Arabic RTL, zero page errors. Screenshots inspected locally. Next: current-source build/regression and AI failure audit; comprehensive acceptance remains incomplete.
+
+
 ## Acceptance continuation — pipeline ownership (2026-10-23)
 
 Migration 063 adds pipeline owner and ownership revision. Owner/admin can reassign through the connected bilingual pipeline form with membership/revision checks and audit. Optional explicit transfer changes only open deals belonging to the previous pipeline owner; separately assigned and closed deals are retained. Contacts/consent are untouched. No automatic reassignment follows a pipeline ownership edit.

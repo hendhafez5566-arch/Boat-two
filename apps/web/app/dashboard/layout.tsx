@@ -91,7 +91,20 @@ function Shell({ children }: { children: ReactNode }) {
       className="product-shell"
       style={brand ? ({ '--primary': brand.primary_color } as CSSProperties) : undefined}
     >
-      <aside className={`product-sidebar ${open ? 'is-open' : ''}`}>
+      <aside
+        id="workspace-navigation"
+        className={`product-sidebar ${open ? 'is-open' : ''}`}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') setOpen(false);
+        }}
+      >
+        <button
+          className="mobile-menu btn"
+          aria-label={t('إغلاق القائمة', 'Close navigation')}
+          onClick={() => setOpen(false)}
+        >
+          {t('إغلاق القائمة', 'Close navigation')}
+        </button>
         <Link className="brand" href="/dashboard">
           {brand?.logo_url ? (
             <img src={brand.logo_url} alt={brand.name} className="h-10 w-10 object-contain" />
@@ -154,7 +167,14 @@ function Shell({ children }: { children: ReactNode }) {
             ))}
         </nav>
         <div className="sidebar-footer">
-          <button onClick={toggle}>العربية / English</button>
+          <button
+            onClick={() => {
+              toggle();
+              setOpen(false);
+            }}
+          >
+            العربية / English
+          </button>
           <button onClick={logout}>{t('تسجيل الخروج', 'Sign out')}</button>
         </div>
       </aside>
@@ -162,6 +182,8 @@ function Shell({ children }: { children: ReactNode }) {
         <header className="product-topbar">
           <button
             className="mobile-menu"
+            aria-expanded={open}
+            aria-controls="workspace-navigation"
             aria-label={t('فتح القائمة', 'Open navigation')}
             onClick={() => setOpen(!open)}
           >
