@@ -7,6 +7,7 @@ import ReactFlow, {
   Connection,
   Controls,
   MiniMap,
+  MarkerType,
   Node,
   NodeChange,
   ReactFlowProvider,
@@ -15,6 +16,10 @@ import ReactFlow, {
   useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { useLocale } from '../../../../components/product/locale';
+import { Dialog } from '../../../../components/product/ProductUI';
+import { NavIcon } from '../../../../components/product/NavIcon';
+import { NodeIcon, nodeLabel } from '../../../../components/flow/presentation';
 import FlowNodeView from '../../../../components/flow/FlowNodeView';
 import Inspector from '../../../../components/flow/Inspector';
 import TestPanel from '../../../../components/flow/TestPanel';
@@ -37,6 +42,8 @@ const inp = 'w-full rounded border p-1.5 text-sm';
 
 function Editor({ id }: { id: string }) {
   const rf = useReactFlow();
+  const { t, language } = useLocale();
+  const [nodeSearch, setNodeSearch] = useState('');
   const [mobilePanel, setMobilePanel] = useState('canvas');
   const [nodes, setNodes, onNodesChange] = useNodesState<RFData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -144,12 +151,14 @@ function Editor({ id }: { id: string }) {
     [setEdges],
   );
 
-  const addNode = (type: NodeType) => {
+  const addNode = (type: NodeType, point?: { x: number; y: number }) => {
     const nid = `${type}_${uid(4)}`;
-    const pos = rf.screenToFlowPosition({
-      x: window.innerWidth / 2 - 200,
-      y: window.innerHeight / 2 - 100,
-    });
+    const pos = rf.screenToFlowPosition(
+      point ?? {
+        x: window.innerWidth / 2 - 200,
+        y: window.innerHeight / 2 - 100,
+      },
+    );
     setNodes((ns) => [
       ...ns,
       {
@@ -190,7 +199,8 @@ function Editor({ id }: { id: string }) {
   const graph = () => fromFlow(nodes, edges, startId);
 
   const save = async () => {
-    if (saving.current) throw new Error('انتظر اكتمال الحفظ الحالي');
+    if (saving.current)
+      throw new Error(t('انتظر اكتمال الحفظ الحالي', 'Wait for the current save'));
     saving.current = true;
     const submitted = latest.current;
     setBusy(true);
@@ -209,10 +219,10 @@ function Editor({ id }: { id: string }) {
       });
       setUpdatedAt(result.updated_at);
       if (latest.current === submitted) setDirty(false);
-      setMsg('تم الحفظ');
+      setMsg(t('تم الحفظ', 'All changes saved'));
       return result.updated_at;
     } catch (e: any) {
-      setMsg(`تعذّر الحفظ: ${e.message}`);
+      setMsg(`${t('تعذّر الحفظ', 'Save failed')}: ${e.message}`);
       throw e;
     } finally {
       setBusy(false);
@@ -277,6 +287,16 @@ function Editor({ id }: { id: string }) {
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
+  useEffect(() => {
+    const shortcut = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        if (!saving.current) void save().catch(() => {});
+      }
+    };
+    window.addEventListener('keydown', shortcut);
+    return () => window.removeEventListener('keydown', shortcut);
+  }, [content, updatedAt]);
   async function loadVersions() {
     try {
       setVersions(await api<typeof versions>(`/flows/${id}/versions`));
@@ -306,7 +326,11 @@ function Editor({ id }: { id: string }) {
       });
       setIssues(r.errors);
       setWarnings(r.warnings);
-      setMsg(r.errors.length ? `${r.errors.length} خطأ` : 'لا توجد أخطاء');
+      setMsg(
+        r.errors.length
+          ? `${r.errors.length} ${t('خطأ', 'errors')}`
+          : t('لا توجد أخطاء', 'Validation passed'),
+      );
     } catch (e: any) {
       setMsg(e.message);
     }
@@ -322,12 +346,12 @@ function Editor({ id }: { id: string }) {
       setMeta((m) => ({ ...m, status: 'published', version: r.version }));
       setIssues([]);
       setWarnings(r.warnings ?? []);
-      setMsg(`تم النشر (النسخة ${r.version})`);
+      setMsg(`${t('تم النشر', 'Published')} v${r.version}`);
     } catch (e: any) {
       if (e.details?.errors) {
         setIssues(e.details.errors);
         setWarnings(e.details.warnings ?? []);
-        setMsg('لا يمكن النشر: صحّح الأخطاء');
+        setMsg(t('لا يمكن النشر: صحّح الأخطاء', 'Fix validation errors before publishing'));
       }
     }
   };
@@ -348,13 +372,14 @@ function Editor({ id }: { id: string }) {
   };
 
   return (
-    <div className="flex h-screen flex-col">
-      <header className="flex flex-wrap items-center gap-2 border-b bg-white p-2 text-sm">
+    <div className="premium-builder flex h-screen flex-col">
+      <header className="builder-toolbar">
         <a href="/dashboard/flows" className="underline">
-          ← السيناريوهات
+          {t('السيناريوهات', 'Bots')} /
         </a>
         <input
-          className="w-56 rounded border p-1"
+          aria-label={t('اسم البوت', 'Bot name')}
+          className="builder-title"
           value={meta.name}
           onChange={(e) => {
             setMeta({ ...meta, name: e.target.value });
@@ -364,17 +389,25 @@ function Editor({ id }: { id: string }) {
         <span
           className={`rounded px-2 py-0.5 text-xs ${meta.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100'}`}
         >
-          {meta.status === 'published' ? `منشور v${meta.version}` : 'مسودة'}
+          {meta.status === 'published'
+            ? `${t('منشور', 'Published')} v${meta.version}`
+            : t('مسودة', 'Draft')}
         </span>
-        {dirty && <span className="text-xs text-orange-600">تغييرات غير محفوظة</span>}
-        <span className="flex-1 text-xs text-gray-500">{msg}</span>
+        {dirty && (
+          <span className="text-xs text-orange-600">
+            {t('تغييرات غير محفوظة', 'Unsaved changes')}
+          </span>
+        )}
+        <span className="builder-save-status" role="status">
+          {msg}
+        </span>
         <button
           title="تراجع عن آخر تعديل"
           disabled={busy || cursor.current <= 0}
           onClick={() => travel(-1)}
           className="rounded border px-2 py-1"
         >
-          ↶ تراجع
+          <NavIcon name="undo" /> {t('تراجع', 'Undo')}
         </button>
         <button
           title="إعادة التعديل"
@@ -382,7 +415,7 @@ function Editor({ id }: { id: string }) {
           onClick={() => travel(1)}
           className="rounded border px-2 py-1"
         >
-          ↷ إعادة
+          <NavIcon name="redo" /> {t('إعادة', 'Redo')}
         </button>
         <label className="text-xs flex gap-1">
           <input
@@ -390,36 +423,36 @@ function Editor({ id }: { id: string }) {
             checked={autoSave}
             onChange={(e) => setAutoSave(e.target.checked)}
           />
-          حفظ تلقائي
+          {t('حفظ تلقائي', 'Autosave')}
         </label>
         <button disabled={busy} onClick={loadVersions} className="rounded border px-2 py-1">
-          الإصدارات
+          {t('الإصدارات', 'Versions')}
         </button>
         <button
           disabled={busy}
           onClick={() => save().catch(() => {})}
           className="rounded border px-3 py-1"
         >
-          حفظ
+          {t('حفظ', 'Save')}
         </button>
         <button onClick={check} className="rounded border px-3 py-1">
-          فحص
+          {t('فحص', 'Validate')}
         </button>
-        <button
-          disabled={busy}
-          onClick={publish}
-          className="rounded bg-green-600 px-3 py-1 text-white"
-        >
-          نشر
+        <button disabled={busy} onClick={publish} className="btn btn-primary">
+          {t('نشر', 'Publish')}
         </button>
         {meta.status === 'published' && (
           <button onClick={unpublish} className="rounded border px-3 py-1">
-            إيقاف النشر
+            {t('إيقاف النشر', 'Unpublish')}
           </button>
         )}
       </header>
 
-      {showVersions && (
+      <Dialog
+        open={showVersions}
+        onClose={() => setShowVersions(false)}
+        title={t('الإصدارات المنشورة', 'Published versions')}
+      >
         <div className="border-b bg-white p-3 text-sm flex flex-wrap items-center gap-3">
           <strong>الإصدارات المنشورة</strong>
           {!versions.length && <span>لا توجد إصدارات منشورة بعد.</span>}
@@ -436,7 +469,7 @@ function Editor({ id }: { id: string }) {
           <button onClick={() => setShowVersions(false)}>إغلاق ×</button>
           <small>الاستعادة لا تغيّر الإصدار المنشور حتى تضغط نشر.</small>
         </div>
-      )}
+      </Dialog>
       {(issues.length > 0 || warnings.length > 0) && (
         <div className="max-h-24 overflow-y-auto border-b bg-red-50 px-3 py-1 text-xs">
           {issues.map((i, k) => (
@@ -455,33 +488,76 @@ function Editor({ id }: { id: string }) {
       )}
 
       <div className="builder-mobile-tools">
-        <button onClick={() => setMobilePanel('canvas')}>اللوحة</button>
-        <button onClick={() => setMobilePanel('palette')}>إضافة عقدة</button>
-        <button onClick={() => setMobilePanel('inspector')}>التفاصيل</button>
+        <button onClick={() => setMobilePanel('canvas')}>{t('اللوحة', 'Canvas')}</button>
+        <button onClick={() => setMobilePanel('palette')}>{t('إضافة عقدة', 'Add a step')}</button>
+        <button onClick={() => setMobilePanel('inspector')}>{t('التفاصيل', 'Inspector')}</button>
         <button
           onClick={() => {
             setTab('test');
             setMobilePanel('inspector');
           }}
         >
-          تجربة البوت
+          {t('تجربة البوت', 'Preview bot')}
         </button>
       </div>
       <div className="builder-main flex min-h-0 flex-1" data-mobile-panel={mobilePanel}>
         <aside className="builder-palette flex w-36 flex-col gap-1 overflow-y-auto border-l bg-gray-50 p-2">
-          <div className="mb-1 text-xs text-gray-500">إضافة عقدة</div>
-          {(Object.keys(NODE_META) as NodeType[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => addNode(t)}
-              className="rounded border bg-white px-2 py-1.5 text-start text-xs hover:bg-gray-100"
-            >
-              {NODE_META[t].icon} {NODE_META[t].label}
-            </button>
-          ))}
+          <div className="palette-heading">
+            <p className="eyebrow">{t('خطوة بخطوة', 'STEP BY STEP')}</p>
+            <h2>{t('أضف خطوة', 'Add a step')}</h2>
+            <p>
+              {t('اسحبها إلى اللوحة أو اضغط لإضافتها.', 'Drag onto the canvas or select to add.')}
+            </p>
+            <input
+              aria-label={t('البحث عن خطوة', 'Search steps')}
+              placeholder={t('ابحث عن إجراء…', 'Find an action…')}
+              value={nodeSearch}
+              onChange={(e) => setNodeSearch(e.target.value)}
+            />
+          </div>
+          {(Object.keys(NODE_META) as NodeType[])
+            .filter((type) =>
+              nodeLabel(type, language).toLowerCase().includes(nodeSearch.toLowerCase()),
+            )
+            .map((type) => (
+              <button
+                key={type}
+                className="palette-step"
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('application/boat-node', type);
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
+                onClick={() => addNode(type)}
+              >
+                <span style={{ color: NODE_META[type].color }}>
+                  <NodeIcon type={type} />
+                </span>
+                <span>{nodeLabel(type, language)}</span>
+                <small>+</small>
+              </button>
+            ))}
+          <div className="palette-tip">
+            {t(
+              'ابدأ برسالة ترحيب، ثم سؤال أو شرط. جرّب البوت قبل النشر.',
+              'Start with a welcome message, then a question or condition. Preview before publishing.',
+            )}
+          </div>
         </aside>
 
-        <div className="builder-canvas min-w-0 flex-1">
+        <div
+          className="builder-canvas min-w-0 flex-1"
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            const type = e.dataTransfer.getData('application/boat-node');
+            if (Object.hasOwn(NODE_META, type))
+              addNode(type as NodeType, { x: e.clientX, y: e.clientY });
+          }}
+        >
           <ReactFlow
             nodes={display}
             edges={edges}
@@ -501,11 +577,23 @@ function Editor({ id }: { id: string }) {
                 setStartId(nodes.find((n) => !del.some((d) => d.id === n.id))?.id ?? '');
             }}
             deleteKeyCode={['Backspace', 'Delete']}
+            defaultEdgeOptions={{
+              type: 'smoothstep',
+              style: { stroke: '#86a9a5', strokeWidth: 2 },
+              markerEnd: { type: MarkerType.ArrowClosed },
+            }}
+            minZoom={0.2}
+            maxZoom={2}
             fitView
           >
-            <Background />
+            <Background color="#c9d7db" gap={24} size={1.2} />
             <Controls />
-            <MiniMap pannable zoomable />
+            <MiniMap
+              pannable
+              zoomable
+              nodeColor={(n) => NODE_META[n.data?.type as NodeType]?.color ?? '#8aa6ad'}
+              maskColor="#eef4f7bb"
+            />
           </ReactFlow>
         </div>
 
@@ -513,9 +601,9 @@ function Editor({ id }: { id: string }) {
           <div className="flex border-b text-sm">
             {(
               [
-                ['node', 'العقدة'],
-                ['settings', 'الإعدادات'],
-                ['test', 'تجربة'],
+                ['node', t('العقدة', 'Inspector')],
+                ['settings', t('الإعدادات', 'Settings')],
+                ['test', t('تجربة', 'Preview')],
               ] as const
             ).map(([k, l]) => (
               <button
@@ -544,8 +632,10 @@ function Editor({ id }: { id: string }) {
                 />
               ) : (
                 <p className="p-4 text-sm text-gray-500">
-                  اختر عقدة من اللوحة لتعديلها، أو أضف عقدة من القائمة الجانبية. اسحب من دائرة
-                  الخروج (يسار العقدة) إلى عقدة أخرى لربطهما.
+                  {t(
+                    'اختر خطوة لتعديلها. اسحب بين نقاط الاتصال لربط الخطوات.',
+                    'Select a step to edit it. Drag between connection points to link steps.',
+                  )}
                 </p>
               ))}
 

@@ -8,26 +8,26 @@ import { api, getSession, setSession } from '../../lib/api';
 import { useBrand } from '../../components/product/BrandContext';
 import { useLocale } from '../../components/product/locale';
 const links = [
-  ['sessions', '◷', 'جلسات الحساب', 'Account sessions'],
-  ['branding', '◈', 'هوية الشركة', 'Branding'],
-  ['reports', '▤', 'التقارير والتحليلات', 'Reports & analytics'],
-  ['crm', '◉', 'إدارة العملاء', 'CRM'],
-  ['campaigns', '➤', 'الحملات', 'Campaigns'],
-  ['automations', '⚡', 'أتمتة الأعمال', 'Automations'],
-  ['agents', '✧', 'مساعدو AI', 'AI agents'],
-  ['departments', '♧', 'الأقسام وSLA', 'Departments & SLA'],
-  ['delivery', '⇄', 'التسليم والأحداث', 'Delivery & events'],
   ['', '◈', 'نظرة عامة', 'Overview'],
   ['onboarding', '◷', 'دليل البداية', 'Getting started'],
   ['inbox', '▤', 'صندوق الوارد', 'Inbox'],
-  ['channels', '◎', 'القنوات', 'Channels'],
+  ['crm', '◉', 'إدارة العملاء', 'CRM'],
   ['flows', '⌘', 'مصمم البوت', 'Bot builder'],
-  ['ai', '✦', 'المساعد الذكي', 'AI assistant'],
+  ['campaigns', '➤', 'الحملات', 'Campaigns'],
+  ['automations', '⚡', 'أتمتة الأعمال', 'Automations'],
+  ['agents', '✧', 'مساعدو AI', 'AI agents'],
   ['knowledge', '▣', 'قاعدة المعرفة', 'Knowledge'],
+  ['reports', '▤', 'التقارير والتحليلات', 'Reports & analytics'],
+  ['channels', '◎', 'القنوات', 'Channels'],
+  ['departments', '♧', 'الأقسام وSLA', 'Departments & SLA'],
   ['team', '♧', 'الفريق والصلاحيات', 'Team & roles'],
   ['billing', '◇', 'الاشتراك والاستهلاك', 'Plan & usage'],
+  ['branding', '◈', 'هوية الشركة', 'Branding'],
   ['settings', '⚙', 'إعدادات الشركة', 'Workspace settings'],
+  ['sessions', '◷', 'جلسات الحساب', 'Account sessions'],
+  ['delivery', '⇄', 'التسليم والأحداث', 'Delivery & events'],
   ['audit', '↗', 'سجل النشاط', 'Activity log'],
+  ['ai', '✦', 'المساعد الذكي', 'AI assistant'],
 ];
 function Shell({ children }: { children: ReactNode }) {
   const path = usePathname();

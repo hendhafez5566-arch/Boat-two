@@ -1,39 +1,53 @@
 'use client';
-import { memo, useEffect } from 'react';
+import { memo, useEffect, CSSProperties } from 'react';
 import { Handle, NodeProps, Position, useUpdateNodeInternals } from 'reactflow';
 import { handlesFor, NODE_META, RFData, summary } from '../../lib/flow-types';
-
+import { useLocale } from '../product/locale';
+import { NodeIcon, nodeLabel, editorLabel } from './presentation';
 function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
-  const meta = NODE_META[data.type];
-  const handles = handlesFor(data.type, data.data);
-  const update = useUpdateNodeInternals();
-  const key = handles.map((h) => h.id).join('|');
-
+  const { language, t } = useLocale(),
+    meta = NODE_META[data.type],
+    handles = handlesFor(data.type, data.data),
+    update = useUpdateNodeInternals(),
+    key = handles.map((h) => h.id).join('|');
   useEffect(() => {
     update(id);
-  }, [id, key, update]);
-
+  }, [id, key, update, language]);
   return (
     <div
-      dir="rtl"
-      className={`w-60 rounded-lg border bg-white text-sm shadow ${selected ? 'ring-2 ring-blue-500' : ''} ${data.issue ? 'border-red-500' : 'border-gray-300'}`}
+      dir={language === 'ar' ? 'rtl' : 'ltr'}
+      className={`premium-flow-node ${selected ? 'is-selected' : ''} ${data.issue ? 'has-issue' : ''}`}
+      style={{ '--node-color': meta.color } as CSSProperties}
+      aria-label={nodeLabel(data.type, language)}
     >
       <Handle type="target" position={Position.Top} />
-      <div className="flex items-center gap-2 rounded-t-lg px-3 py-1.5 text-white" style={{ background: meta.color }}>
-        <span>{meta.icon}</span>
-        <strong className="flex-1">{meta.label}</strong>
-        {data.isStart && <span className="rounded bg-white/25 px-1 text-xs">بداية</span>}
+      <div className="flow-node-heading">
+        <span className="flow-node-icon">
+          <NodeIcon type={data.type} />
+        </span>
+        <strong>{nodeLabel(data.type, language)}</strong>
+        {data.isStart && <span className="flow-start-badge">{t('بداية', 'Start')}</span>}
       </div>
-      <div className="line-clamp-3 whitespace-pre-wrap break-words px-3 py-2 text-gray-700">{summary(data.type, data.data)}</div>
-      {data.issue && <div className="border-t bg-red-50 px-3 py-1 text-xs text-red-700">{data.issue}</div>}
+      <div className="flow-node-summary">
+        {summary(data.type, data.data) || t('اضغط لإضافة المحتوى', 'Select to add content')}
+      </div>
+      {data.issue && (
+        <div className="flow-node-issue" role="status">
+          {data.issue}
+        </div>
+      )}
       {handles.map((h) => (
-        <div key={h.id} className="relative border-t px-3 py-1 text-xs text-gray-600">
-          {h.label}
-          <Handle type="source" position={Position.Left} id={h.id} style={{ left: -5, top: '50%' }} />
+        <div key={h.id} className="flow-node-port">
+          {editorLabel(h.label, language)}
+          <Handle
+            type="source"
+            position={language === 'ar' ? Position.Left : Position.Right}
+            id={h.id}
+            style={{ [language === 'ar' ? 'left' : 'right']: -6, top: '50%' }}
+          />
         </div>
       ))}
     </div>
   );
 }
-
 export default memo(FlowNodeView);

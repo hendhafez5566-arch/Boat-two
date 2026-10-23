@@ -1,5 +1,13 @@
 # Remaining implementation — continue on PR #1
 
+## Full product sprint checkpoint — premium bot canvas and seven-step creation
+
+The existing React Flow editor now has original SVG node icons, directional ports, colored action cards, searchable draggable palette, clearer edges, minimap/zoom controls, responsive inspector and native focus-trapped version dialog. Existing save/autosave/conflict/version/publish/reusable-component behavior is preserved; added keyboard save and bilingual primary controls/preview. Legacy advanced inspector strings still need completion rather than a false full-translation claim.
+
+Beginner creation now runs seven steps: goal, real template, welcome, optional three reply buttons, real channel, actual engine preview, then server-validated publication. Generated welcome/reply nodes precede the original template without deleting its workflow. Draft retries reuse the saved flow ID.
+
+Web production build/TypeScript/ESLint pass. Chromium smoke actually created a fixture workspace/web channel, completed all seven steps, clicked a reply in the real preview, published, opened the builder, filtered/added a node and saved; zero page errors and no overflow at 390px. Desktop/mobile artifacts were inspected locally. Added configurable `scripts/smoke-premium-browser.mjs`; this is not comprehensive visual/accessibility/owner acceptance. Next: nested automation/version controls, followed by remaining CRM/provider and communications work.
+
 ## Full product sprint checkpoint — premium foundation and branded sign-in
 
 Migration 058 binds branded sign-in to a currently eligible verified domain and actual membership. Branded joining is invitation-only and validates the invitation workspace. The root brand context reaches login/register and the workspace shell; a mismatched saved workspace cannot render tenant pages. Added a real membership-backed workspace switcher (restricted to the host workspace on custom domains).

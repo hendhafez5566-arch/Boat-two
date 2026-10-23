@@ -1,4 +1,12 @@
 const paths: Record<string, string> = {
+  question: 'M9 8a3 3 0 0 1 6 0c0 2-3 2-3 5M12 17h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+  globe: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3c-4 5-4 13 0 18M12 3c4 5 4 13 0 18',
+  variable: 'M8 4H5v16h3M16 4h3v16h-3M10 9l4 6M14 9l-4 6',
+  check: 'M5 12l4 4L19 6',
+  undo: 'M9 5 3 11l6 6M3 11h11a6 6 0 0 1 6 6',
+  redo: 'm15 5 6 6-6 6M21 11H10a6 6 0 0 0-6 6',
+  search: 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm5 12 6 6',
+  play: 'm8 4 12 8-12 8V4Z',
   menu: 'M4 6h16M4 12h16M4 18h16',
   team: 'M4 20v-3a4 4 0 0 1 4-4h3a4 4 0 0 1 4 4v3M9 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6M18 10a2 2 0 1 0 0-4M18 14a3 3 0 0 1 3 3v3',
   departments: 'M9 3h6v5H9V3ZM3 16h6v5H3v-5ZM15 16h6v5h-6v-5ZM12 8v4M6 16v-4h12v4',

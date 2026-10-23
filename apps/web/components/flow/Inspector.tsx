@@ -1,15 +1,20 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { useLocale } from '../product/locale';
+import { NodeIcon, nodeLabel, editorLabel } from './presentation';
 import { api } from '../../lib/api';
 import { ReactNode, useEffect, useState } from 'react';
-import { NODE_META, NodeType, optionsOf, uid } from '../../lib/flow-types';
+import { NodeType, optionsOf, uid } from '../../lib/flow-types';
 
 const inp = 'w-full rounded border p-1.5 text-sm';
 
 function F({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
+  const { language } = useLocale();
   return (
     <label className="mb-3 block">
-      <span className="mb-1 block text-xs font-semibold text-gray-600">{label}</span>
+      <span className="mb-1 block text-xs font-semibold text-gray-600">
+        {editorLabel(label, language)}
+      </span>
       {children}
       {hint && <span className="mt-0.5 block text-xs text-gray-400">{hint}</span>}
     </label>
@@ -130,19 +135,19 @@ export default function Inspector({
         .catch(() => {});
   }, [type]);
   const set = (patch: any) => onChange({ ...data, ...patch });
-  const meta = NODE_META[type];
+  const { language, t } = useLocale();
   const mode = data.list?.sections?.length ? 'list' : data.buttons?.length ? 'buttons' : 'none';
 
   return (
-    <div dir="rtl" className="p-3">
+    <div dir={language === 'ar' ? 'rtl' : 'ltr'} className="flow-inspector-content p-3">
       <div className="mb-3 flex items-center justify-between">
         <strong>
-          {meta.icon} {meta.label}
+          <NodeIcon type={type} /> {nodeLabel(type, language)}
         </strong>
         <div className="flex gap-2">
-          {!isStart && <Btn on={onSetStart}>اجعلها البداية</Btn>}
+          {!isStart && <Btn on={onSetStart}>{t('اجعلها البداية', 'Make start')}</Btn>}
           <Btn on={onDelete} danger>
-            حذف
+            {t('حذف', 'Delete')}
           </Btn>
         </div>
       </div>
@@ -573,7 +578,7 @@ export default function Inspector({
                     set({ assignments: data.assignments.filter((_: any, j: number) => j !== i) })
                   }
                 >
-                  حذف
+                  {t('حذف', 'Delete')}
                 </Btn>
               </div>
             );
