@@ -53,4 +53,15 @@ if (apiOnly) {
   console.log('Phase 5 source fix: typed stats row mapping');
 }
 
+
+// Fix a duplicate Arabic translation key in the uploaded Phase 5 presentation source.
+if (webOnly) {
+  const target = path.join(root, 'apps/web/components/flow/presentation.tsx');
+  const original = fs.readFileSync(target, 'utf8');
+  const duplicate = "  'غير موجود': 'Is not set',\\n".replace('\\n', '\n');
+  if (!original.includes(duplicate)) throw new Error('Expected Phase 5 duplicate translation not found');
+  fs.writeFileSync(target, original.replace(duplicate, ''));
+  console.log('Phase 5 source fix: one unique translation for غير موجود');
+}
+
 console.log('Phase 5 ZIP sources applied and verified: ' + count + ' files; mode=' + (apiOnly ? 'api' : 'web'));
