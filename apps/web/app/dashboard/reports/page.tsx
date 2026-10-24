@@ -1,7 +1,8 @@
 'use client';
 import { reportColumn, reportValue } from '../../../lib/report-format';
 import { statusLabel } from '../../../components/product/status';
-import { useState } from 'react';
+import {localDay,shiftDay,reportRange} from '../../../lib/time-range';
+import { useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
 import { download, exportCsv } from '../../../components/business/csv';
@@ -26,8 +27,10 @@ export default function Reports() {
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [from, setFrom] = useState(new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10));
-  const [to, setTo] = useState(new Date(Date.now() + 86400000).toISOString().slice(0, 10));
+  const [timezone,setTimezone]=useState('');
+  const [hideEmpty,setHideEmpty]=useState(true);
+  const [from,setFrom]=useState(''),[to,setTo]=useState('');
+  useEffect(()=>{api<{tenant:{settings?:{timezone?:string}}}>('/workspace').then(w=>{const zone=w.tenant.settings?.timezone || 'Africa/Cairo';const today=localDay(new Date(),zone);setTimezone(zone);setFrom(shiftDay(today,-29));setTo(today);}).catch(e=>setError(e.message));},[]);
   const sections: [keyof Omit<Report, 'range' | 'timezone'>, string][] = [
     ['daily', t('الرسائل اليومية', 'Daily messages')],
     ['channels', t('القنوات', 'Channels')],
@@ -52,8 +55,8 @@ export default function Reports() {
           <h1>{t('تقارير النشاط والمبيعات', 'Activity and sales reports')}</h1>
           <p>
             {t(
-              'بيانات فعلية من سجلات شركتك. التواريخ بتوقيت UTC، ونهاية الفترة غير مشمولة.',
-              'Actual workspace ledger data. Dates use UTC and the end date is exclusive.',
+              'اختر أيامًا بتوقيت شركتك. يوم النهاية مشمول بالكامل؛ تُحوّل الحدود تلقائيًا للتقرير.',
+              'Choose calendar days in your workspace timezone. The final day is included; report bounds are converted automatically.',
             )}
           </p>
         </div>
@@ -68,10 +71,7 @@ export default function Reports() {
             setReport(
               await api<Report>(
                 '/reports?' +
-                  new URLSearchParams({
-                    from: new Date(from).toISOString(),
-                    to: new Date(to).toISOString(),
-                  }),
+                  new URLSearchParams(reportRange(from,to,timezone)),
               ),
             );
           } catch (err) {
@@ -86,10 +86,12 @@ export default function Reports() {
           <input type="date" required value={from} onChange={(e) => setFrom(e.target.value)} />
         </label>
         <label className="field">
-          {t('إلى (غير شامل)', 'To (exclusive)')}
-          <input type="date" required value={to} onChange={(e) => setTo(e.target.value)} />
+          {t('إلى (شامل)', 'To (inclusive)')}
+          <input type="date" required min={from} value={to} onChange={(e) => setTo(e.target.value)} />
         </label>
-        <button className="btn btn-primary" disabled={loading}>
+        <p>{t('توقيت الشركة','Workspace timezone')}: <bdi>{timezone || '…'}</bdi></p>
+        <label className="field">{t('فترة جاهزة','Preset range')}<select defaultValue="" disabled={!timezone} onChange={e=>{if(!e.target.value)return;const today=localDay(new Date(),timezone);setTo(today);setFrom(shiftDay(today,-Number(e.target.value)+1));}}><option value="">{t('اختر فترة','Choose range')}</option><option value="1">{t('اليوم','Today')}</option><option value="7">{t('آخر 7 أيام','Last 7 days')}</option><option value="30">{t('آخر 30 يومًا','Last 30 days')}</option></select></label>
+        <button className="btn btn-primary" disabled={loading || !timezone}>
           {loading ? t('جارٍ التحميل…', 'Loading…') : t('عرض التقارير', 'View reports')}
         </button>
         {report && (
@@ -121,15 +123,16 @@ export default function Reports() {
         <>
           <p className="notice">
             {t(
-              'التكلفة تقديرية؛ القيم غير المسعّرة تبقى فارغة. قيمة المبيعات بالسنت ولا تُجمع العملات. الإرسال لا يعني التسليم.',
-              'Costs are estimates; unpriced runs remain blank. Sales values are in cents and currencies stay separate. Sent does not mean delivered.',
+              'التكلفة تقديرية؛ القيم غير المسعّرة تبقى فارغة. المبالغ معروضة بالعملة الرئيسية لكل صف دون جمع العملات. الإرسال لا يعني التسليم.',
+              'Costs are estimates; unpriced runs remain blank. Amounts use each row’s main currency unit; currencies remain separate. Sent does not mean delivered.',
             )}
           </p>
-          {sections.map(([key, title]) => {
+          <section className="card"><strong>{t('ملخص التقرير','Report summary')}</strong><p>{t('أقسام تحتوي بيانات','Sections with data')}: {sections.filter(([key])=>report[key].length>0).length} {t('من','of')} {sections.length}</p><p><bdi>{localDay(new Date(report.range.from),report.timezone || timezone)}</bdi> — <bdi>{localDay(new Date(Date.parse(report.range.to)-1),report.timezone || timezone)}</bdi> · <bdi>{report.timezone || timezone}</bdi></p><label><input type="checkbox" checked={hideEmpty} onChange={e=>setHideEmpty(e.target.checked)} /> {t('إخفاء الأقسام الفارغة','Hide empty sections')}</label><nav className="form-actions">{sections.filter(([key])=>!hideEmpty || report[key].length).map(([key,title])=><a className="btn" key={key} href={'#report-'+key}>{title}</a>)}</nav></section>
+          {sections.filter(([key])=>!hideEmpty || report[key].length>0).map(([key, title]) => {
             const rows = report[key];
             const headers = rows.length ? Object.keys(rows[0]) : [];
             return (
-              <section key={key} className="card table-wrap">
+              <section key={key} id={'report-'+key} className="card table-wrap">
                 <div className="form-actions">
                   <h2>{title}</h2>
                   <button

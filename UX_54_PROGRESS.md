@@ -83,3 +83,10 @@ Checks: `node scripts/test-ux19.mjs` passed; `node scripts/test-ux-designer.mjs`
 - UX-46: widget snippet copy action with success/failure, real demo link and short shareable installation instruction. Demo now loads the configured API script through a same-origin config route, replacing the broken localhost literal without accepting arbitrary script URLs from query parameters.
 - UX-47: verified server defaults were English with RTL; new defaults now Arabic. Existing channels are preserved, with explicit suggested Arabic text applied only on click and saved only by Save. Live content/direction preview added to channel settings.
 - Check: whitespace passed. Widget not opened and no external messages sent.
+
+- UX-48: reviewed/reused F13 reportColumn/reportValue and exact BigInt minor-unit formatting; corrected stale explanatory text that still claimed displayed sales were cents. Existing export/display functions retained.
+- UX-49: company-timezone Today/7-day/30-day presets and inclusive end-day UI; time-range helper finds local calendar-day boundaries then sends exclusive UTC bounds. Cairo DST, New York 23/25-hour days, fractional offsets, skipped/invalid dates and final-day inclusion checks passed with Node's TypeScript stripping.
+- UX-50: summary counts sections with data and links to them; empty sections hidden by default with explicit show control.
+- UX-51: shared searchable city/region selector, localized common-city labels, full supported-zone list, current local-time preview and secondary IANA identifier in Settings and Sequences.
+- UX-52: removed non-operative preferred-plan selector; current plan and billing/upgrade link shown. Workspace save includes identity/language/timezone only and does not modify billing.
+- Check: whitespace and focused timezone checks passed. Full web build not yet available (dependencies absent; initial workspace command unsupported by the old local bootstrap). No deployment.

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
+import TimezonePicker from '../../../components/product/TimezonePicker';
 import { useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
@@ -206,9 +207,7 @@ export default function Sequences() {
             <label className="sq-field">{t('وقت التسليم (للخطوات بالأيام)', 'Delivery Time (day-based steps)')}
               <input type="time" dir="ltr" value={cur.deliveryTime ?? ''} onChange={(e) => setCur({ ...cur, deliveryTime: e.target.value || null })} />
             </label>
-            <label className="sq-field">{t('المنطقة الزمنية', 'Time zone')}
-              <input dir="ltr" value={cur.timezone} onChange={(e) => setCur({ ...cur, timezone: e.target.value })} />
-            </label>
+            <TimezonePicker value={cur.timezone} onChange={timezone=>setCur({...cur,timezone})} />
             <label className="sq-check">
               <input type="checkbox" checked={cur.stopOnReply} onChange={(e) => setCur({ ...cur, stopOnReply: e.target.checked })} />
               {t('إيقاف التسلسل لو العميل رد', 'Stop when the contact replies')}
