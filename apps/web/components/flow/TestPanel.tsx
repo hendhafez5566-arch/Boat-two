@@ -27,6 +27,7 @@ export default function TestPanel({
   const [text, setText] = useState('');
   const [allowHttp, setAllowHttp] = useState(false);
   const [error, setError] = useState('');
+  const [statusError, setStatusError] = useState('');
   const [showVars, setShowVars] = useState(false);
 
   async function run(body: Record<string, unknown>, youSaid?: string) {
@@ -46,7 +47,8 @@ export default function TestPanel({
       ]);
       setState(r.state);
       onProgress?.(r.state?.waiting?.nodeId ?? null);
-      setStatus(r.status + (r.error ? `: ${r.error}` : ''));
+      setStatus(r.status);
+      setStatusError(r.error ?? '');
       setWaitKind(r.waitKind);
     } catch (e) {
       setError((e as Error).message);
@@ -60,6 +62,7 @@ export default function TestPanel({
     setLog([]);
     setState(null);
     setStatus('');
+    setStatusError('');
     setWaitKind(null);
     run({ text: 'hi' });
   };
@@ -81,6 +84,7 @@ export default function TestPanel({
         <button onClick={restart} disabled={busy} className="btn btn-primary">
           {state ? t('إعادة', 'Restart') : t('ابدأ التجربة', 'Start preview')}
         </button>
+        <details className="text-xs"><summary>{t('أدوات متقدمة', 'Advanced tools')}</summary>
         <label className="flex items-center gap-1 text-xs">
           <input
             type="checkbox"
@@ -89,7 +93,9 @@ export default function TestPanel({
           />{' '}
           {t('تنفيذ طلبات API فعليًا', 'Allow real HTTP requests')}
         </label>
+        </details>
       </div>
+      <p className="mb-2 text-xs text-gray-500">{t('اختبار المنطق — شكل الرسائل تقريبي وقد يختلف حسب القناة. لا تُرسل رسائل للعملاء.', 'Logic test — message appearance is approximate and varies by channel. No customer messages are sent.')}</p>
       {error && <p className="mb-2 text-red-600">{error}</p>}
       <div className="flex-1 space-y-2 overflow-y-auto rounded bg-gray-50 p-2">
         {log.map((e, i) =>
@@ -140,7 +146,7 @@ export default function TestPanel({
         </div>
       )}
       <div className="mt-2 text-xs text-gray-500">
-        {t('الحالة', 'Status')}: {status || '—'}
+        {t('الحالة', 'Status')}: {({ waiting: t('بانتظار رد أو متابعة', 'Waiting for a reply or continuation'), ended: t('انتهت التجربة', 'Test ended'), done: t('اكتملت التجربة', 'Test complete'), completed: t('اكتملت التجربة', 'Test complete'), error: t('تعذّر إكمال التجربة', 'Test failed'), running: t('جارٍ التنفيذ', 'Running') } as Record<string, string>)[status] ?? (status ? t('حالة غير معروفة؛ راجع التفاصيل المتقدمة', 'Unknown status; see advanced details') : '—')}
       </div>
       {waitKind === 'delay' && (
         <button
@@ -178,7 +184,7 @@ export default function TestPanel({
           </button>
           {showVars && (
             <pre dir="ltr" className="mt-1 max-h-32 overflow-auto rounded bg-gray-100 p-2 text-xs">
-              {JSON.stringify(state.vars, null, 2)}
+              {JSON.stringify({ status, error: statusError || undefined, variables: state.vars }, null, 2)}
             </pre>
           )}
         </>

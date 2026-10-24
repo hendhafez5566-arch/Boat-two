@@ -24,3 +24,6 @@ Constraints: no merge to main, no Railway deployment, no prolonged tests. No app
 - UX-09 complete: settings entry and tab consistently named “Bot triggers and channels”.
 - UX-13 complete: moved existing F02/F10 arrange-and-fit action out of More into toolbar; reused collision-aware implementation. UX-01 already implemented by F02/F10; retained existing tests, browser verification pending.
 - UX-23 complete: validation summary reports both error and warning totals, explains passed-with-warnings. Reuses F06 translated issue details for UX-22 (no duplicate translation layer). Diff whitespace check passed.
+
+- UX-20 complete via the audit's explicit-label option: preview clearly states it tests logic with approximate channel appearance; existing F08/F09 list/media renderers reused.
+- UX-21 complete: customer-facing execution status localized; raw status/error details remain in advanced variable view, real-HTTP switch moved into closed Advanced tools. No requests/sends performed. Diff check passed.
