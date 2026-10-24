@@ -228,6 +228,11 @@ export default function Inspector({
                   alert(t('القائمة تحتوي أكثر من 3 اختيارات. قلّلها يدويًا قبل التحويل؛ لن يُحذف أي اختيار تلقائيًا.', 'Reduce the list to three choices before converting. No choices were deleted.'));
                   return;
                 }
+                if (m === 'buttons' && choices.some((c: any) => c.title.length > 20)) {
+                  alert(t('بعض العناوين أطول من حد الأزرار (20 حرفًا). اختصرها أولًا؛ لم يُغيّر أي عنوان.', 'Some titles exceed the 20-character button limit. Shorten them first; no titles were changed.'));
+                  return;
+                }
+                if (m === 'buttons' && (choices.some((c: any) => c.description) || data.list?.sections?.some((s: any) => s.title) || (data.list?.buttonText && data.list.buttonText !== t('القائمة', 'Menu'))) && !confirm(t('الأزرار لا تدعم أوصاف الصفوف أو عناوين الأقسام أو نص فتح القائمة. ستبقى عناوين الاختيارات ومعرّفاتها ووصلاتها. متابعة التحويل؟', 'Buttons do not support row descriptions, section headings or menu-opening text. Choice titles, IDs and links will remain. Continue?'))) return;
                 if (m === 'none' && choices.length && !confirm(t('إزالة جميع الاختيارات ووصلاتها؟ يمكنك التراجع عن هذا التغيير.', 'Remove all choices and their connections? You can undo this change.'))) return;
                 const kept = choices.length ? choices : [{ id: uid(), title: t('خيار 1', 'Option 1') }];
                 set({

@@ -29,6 +29,7 @@ import FlowButtonNode from '../../../../components/flow/FlowButtonNode';
 import { validationMessage } from '../../../../lib/validation-message';
 import UnsavedChangesGuard from '../../../../components/flow/UnsavedChangesGuard';
 import Inspector from '../../../../components/flow/Inspector';
+import type { ConditionVariable } from '../../../../components/business/ConditionModal';
 import TestPanel from '../../../../components/flow/TestPanel';
 import { api, getSession } from '../../../../lib/api';
 import {
@@ -49,6 +50,7 @@ import {
 
 import { computeLayout, hasLayoutOverlap, nodeFootprint } from '../../../../lib/flow-layout';
 
+const inp = 'w-full rounded border p-1.5 text-sm';
 const nodeTypes = { flowNode: FlowNodeView, [BUTTON_NODE_TYPE]: FlowButtonNode };
 const edgeTypes = { smoothstep: FlowEdge, buttonLink: ButtonLinkEdge };
 
@@ -220,6 +222,7 @@ function Editor({ id }: { id: string }) {
     setSelected(nid);
     if (nid) {
       setTab('node');
+      setPreviewOpen(false);
       setInspectorOpen(true);
     }
   }, []);
@@ -453,6 +456,7 @@ function Editor({ id }: { id: string }) {
     if (!startId || !nodes.length) setStartId(nid);
     setSelected(nid);
     selRef.current = nid;
+    setPreviewOpen(false);
     setInspectorOpen(true);
     setTab('node');
     setDirty(true);
@@ -536,6 +540,7 @@ function Editor({ id }: { id: string }) {
     setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === nid })));
     setSelected(nid);
     selRef.current = nid;
+    setPreviewOpen(false);
     setInspectorOpen(true);
     setTab('node');
     rf.fitView({ nodes: [{ id: nid }], padding: 1.2, maxZoom: 1.1, duration: 300 });
@@ -829,7 +834,7 @@ function Editor({ id }: { id: string }) {
       for (const edge of edges) if (edge.target === target && edge.source !== sel.id && !upstream.has(edge.source)) { upstream.add(edge.source); pending.push(edge.source); }
     }
   }
-  const conditionVariables = nodes.filter((n) => upstream.has(n.id)).flatMap((n) => {
+  const conditionVariables = nodes.filter((n) => upstream.has(n.id)).flatMap<ConditionVariable>((n) => {
     const d = n.data.data;
     const label = `${nodeLabel(n.data.type, language)} — ${String(d.text || n.data.note || '').slice(0, 40)}`;
     if (d.saveReplyAs && optionsOf(d).length) return [
@@ -1018,7 +1023,7 @@ function Editor({ id }: { id: string }) {
             onClick={() => {
               setTab('settings');
               setPreviewOpen(false);
-            setInspectorOpen(true);
+              setInspectorOpen(true);
             }}
           >
             <span className="font-semibold">{t('البداية', 'Start')}</span>
@@ -1282,7 +1287,7 @@ function Editor({ id }: { id: string }) {
               setSelected(hit.parentId);
               setTab('node');
               setPreviewOpen(false);
-            setInspectorOpen(true);
+              setInspectorOpen(true);
             }}
             edgeTypes={edgeTypes}
             isValidConnection={isValidConnection}
@@ -1442,7 +1447,7 @@ function Editor({ id }: { id: string }) {
                     <label key={h.id} className="block text-sm">
                       <span>{h.label}</span>
                       <select className="w-full rounded border p-2" value={edges.find((e) => e.source === sel.id && e.sourceHandle === h.id)?.target ?? ''} onChange={(e) => {
-                        if (e.target.value) onConnect({ source: sel.id, sourceHandle: h.id, target: e.target.value, targetHandle: 'in' });
+                        if (e.target.value) onConnect({ source: sel.id, sourceHandle: h.id, target: e.target.value, targetHandle: null });
                         else { setEdges((es) => es.filter((edge) => edge.source !== sel.id || edge.sourceHandle !== h.id)); setDirty(true); }
                       }}>
                         <option value="">{t('بلا توصيل', 'Not connected')}</option>

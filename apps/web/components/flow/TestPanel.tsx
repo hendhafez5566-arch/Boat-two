@@ -146,7 +146,7 @@ export default function TestPanel({
         </div>
       )}
       <div className="mt-2 text-xs text-gray-500">
-        {t('الحالة', 'Status')}: {({ waiting: t('بانتظار رد أو متابعة', 'Waiting for a reply or continuation'), ended: t('انتهت التجربة', 'Test ended'), done: t('اكتملت التجربة', 'Test complete'), completed: t('اكتملت التجربة', 'Test complete'), error: t('تعذّر إكمال التجربة', 'Test failed'), running: t('جارٍ التنفيذ', 'Running') } as Record<string, string>)[status] ?? (status ? t('حالة غير معروفة؛ راجع التفاصيل المتقدمة', 'Unknown status; see advanced details') : '—')}
+        {t('الحالة', 'Status')}: {({ handed_off: t('تم التحويل إلى موظف', 'Handed off to staff'), waiting: t('بانتظار رد أو متابعة', 'Waiting for a reply or continuation'), ended: t('انتهت التجربة', 'Test ended'), done: t('اكتملت التجربة', 'Test complete'), completed: t('اكتملت التجربة', 'Test complete'), error: t('تعذّر إكمال التجربة', 'Test failed'), running: t('جارٍ التنفيذ', 'Running') } as Record<string, string>)[status] ?? (status ? t('حالة غير معروفة؛ راجع التفاصيل المتقدمة', 'Unknown status; see advanced details') : '—')}
       </div>
       {waitKind === 'delay' && (
         <button

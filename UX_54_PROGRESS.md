@@ -45,3 +45,6 @@ Constraints: no merge to main, no Railway deployment, no prolonged tests. No app
 - UX-15 complete: explicit fullscreen focus mode removes workspace navigation and bot tabs while retaining editing/actions; exit button/Escape restores normal layout. Browser denial reports a readable message. F18 navigation remains unchanged.
 
 - UX-17/UX-18 complete: both condition editors share source/choice pickers derived from connected upstream steps. Reply title and stable reply-ID sources are distinguished, with stable IDs recommended and displayed as human choice titles. Saved title comparisons absent from current options show a review warning; existing comparisons are never rewritten automatically. Arbitrary variable keys remain editable. Reuses runtime's existing `<saveReplyAs>_id` behavior (no engine change). No F01–F19 equivalent.
+
+- Review follow-ups: non-drag connections use the node's actual default target handle; all detail-opening paths exit preview. Added missing pre-existing `inp` constant discovered by focused TypeScript checking (settings otherwise referenced an undefined symbol). Localized staff-handoff preview status.
+- UX-10 channel limits: conversion blocks titles over the server's 20-character button limit and requires explicit confirmation before dropping list-only descriptions/section headings/opening text. No silent truncation.
