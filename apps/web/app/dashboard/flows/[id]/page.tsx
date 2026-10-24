@@ -39,6 +39,7 @@ import {
   hasButtonCards,
   NODE_META,
   NODE_GROUPS,
+  optionsOf,
   NodeType,
   RFData,
   toFlow,
@@ -820,6 +821,24 @@ function Editor({ id }: { id: string }) {
   };
 
   const sel = nodes.find((n) => n.id === selected);
+  const upstream = new Set<string>();
+  if (sel) {
+    const pending = [sel.id];
+    while (pending.length) {
+      const target = pending.pop()!;
+      for (const edge of edges) if (edge.target === target && edge.source !== sel.id && !upstream.has(edge.source)) { upstream.add(edge.source); pending.push(edge.source); }
+    }
+  }
+  const conditionVariables = nodes.filter((n) => upstream.has(n.id)).flatMap((n) => {
+    const d = n.data.data;
+    const label = `${nodeLabel(n.data.type, language)} — ${String(d.text || n.data.note || '').slice(0, 40)}`;
+    if (d.saveReplyAs && optionsOf(d).length) return [
+      { key: d.saveReplyAs, label: `${label}: ${t('عنوان الاختيار (يتغير عند التسمية)', 'Choice title (changes when renamed)')}`, values: optionsOf(d).map((o) => ({ value: o.title, label: o.title })) },
+      { key: `${d.saveReplyAs}_id`, label: `${label}: ${t('معرّف الاختيار الثابت — موصى به', 'Stable choice ID — recommended')}`, values: optionsOf(d).map((o) => ({ value: o.id, label: o.title })) },
+    ];
+    const keys = [typeof d.saveAs === 'string' ? d.saveAs : '', d.saveAnswerAs, ...(d.assignments ?? []).map((a: any) => a.name), ...(d.questions ?? []).map((q: any) => q.saveAs)].filter(Boolean);
+    return keys.map((key: string) => ({ key, label: `${label}: ${key}` }));
+  }).filter((v, i, all) => all.findIndex((x) => x.key === v.key) === i);
   const triggerLabel = (x: Trigger) =>
     x.type === 'keyword'
       ? `${t('كلمة', 'Keyword')}: ${x.keywords.slice(0, 3).join('، ') || '—'}`
@@ -1406,6 +1425,7 @@ function Editor({ id }: { id: string }) {
                 >
                 <Inspector
                   key={sel.id}
+                  variables={conditionVariables}
                   type={sel.data.type}
                   data={sel.data.data}
                   isStart={sel.id === startId}

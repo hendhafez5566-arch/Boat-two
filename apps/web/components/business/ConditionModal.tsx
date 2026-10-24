@@ -11,6 +11,29 @@ export type Cond = {
 export type CondGroup = { match: 'all' | 'any'; conditions: Cond[] };
 export type LabelOption = { label: string; contacts: number };
 
+export type ConditionVariable = { key: string; label: string; values?: { value: string; label: string }[] };
+export function VariableRulePicker({ rule, variables, onChange }: { rule: Cond; variables: ConditionVariable[]; onChange: (patch: Partial<Cond>) => void }) {
+  const { t } = useLocale();
+  const source = variables.find((v) => v.key === rule.key);
+  const stale = source?.values && ['equals', 'not_equals'].includes(rule.operator) && rule.value && !source.values.some((v) => v.value === rule.value);
+  return <div className="space-y-1">
+    <label className="block text-xs">{t('قيمة من خطوة سابقة', 'Value from an earlier step')}
+      <select className="cm-input w-full" value={source?.key ?? ''} onChange={(e) => { if (e.target.value) onChange({ key: e.target.value, value: '' }); }}>
+        <option value="">{t('اختر المصدر أو اكتب الاسم يدويًا أدناه', 'Choose a source or enter its name below')}</option>
+        {variables.map((v) => <option key={v.key} value={v.key}>{v.label}</option>)}
+      </select>
+    </label>
+    {source?.values && <label className="block text-xs">{t('اختيار العميل', 'Customer choice')}
+      <select className="cm-input w-full" value={rule.value ?? ''} onChange={(e) => onChange({ value: e.target.value })}>
+        <option value="">{t('اختر قيمة', 'Choose a value')}</option>
+        {stale && <option value={rule.value}>{rule.value}</option>}
+        {source.values.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
+      </select>
+    </label>}
+    {stale && <p role="alert" className="text-xs text-amber-700">{t('القيمة المحفوظة لا تطابق اختيارات المصدر الحالية. راجعها بعد تغيير العناوين، أو استخدم مصدر معرّف الاختيار الثابت.', 'Saved value does not match the current choices. Review renamed choices, or use the stable choice ID source.')}</p>}
+  </div>;
+}
+
 const MAX_RULES = 10;
 const LABEL_OPS = ['contains', 'not_contains', 'is_set', 'is_not_set'];
 const TEXT_OPS = ['equals', 'not_equals', 'contains', 'not_contains', 'starts_with', 'ends_with', 'is_set', 'is_not_set', 'greater_than', 'less_than', 'matches_regex'];
@@ -54,7 +77,9 @@ export default function ConditionModal({
   labels,
   onSave,
   onClose,
+  variables = [],
 }: {
+  variables?: ConditionVariable[];
   open: boolean;
   value?: CondGroup;
   labels: LabelOption[];
@@ -238,6 +263,7 @@ export default function ConditionModal({
                   <option value="channel">{t('القناة', 'Channel')}</option>
                 </select>
               </label>
+              {c.source === 'variable' && <VariableRulePicker rule={c} variables={variables} onChange={(change) => patch(i, change)} />}
               {c.source === 'variable' && <label><span>{t('اسم المتغيّر', 'Variable name')}</span><input className={sel} dir="ltr" value={c.key ?? ''} onChange={(e) => patch(i, { key: e.target.value })} /></label>}
               <label><span>{t('المقارنة', 'Comparison')}</span><select className={sel} value={c.operator} onChange={(e) => patch(i, { operator: e.target.value })}>
                 {TEXT_OPS.map((o) => <option key={o} value={o}>{t(...OP_LABEL[o])}</option>)}

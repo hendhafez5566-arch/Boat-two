@@ -6,7 +6,7 @@ import { api } from '../../lib/api';
 import { ReactNode, createContext, useContext, useId, useEffect, useState } from 'react';
 import { NodeType, optionsOf, uid } from '../../lib/flow-types';
 import UserInputPreview, { UIQuestion } from './UserInputPreview';
-import ConditionModal, { CondGroup, LabelOption } from '../business/ConditionModal';
+import ConditionModal, { CondGroup, LabelOption, ConditionVariable, VariableRulePicker } from '../business/ConditionModal';
 
 const FieldContext = createContext({ label: '', description: undefined as string | undefined });
 const inp = 'w-full rounded border p-1.5 text-sm';
@@ -158,7 +158,9 @@ export default function Inspector({
   isStart,
   onSetStart,
   onDelete,
+  variables = [],
 }: {
+  variables?: ConditionVariable[];
   type: NodeType;
   data: any;
   onChange: (d: any) => void;
@@ -569,6 +571,7 @@ export default function Inspector({
                         ['channel', 'القناة'],
                       ]}
                     />
+                    {c.source === 'variable' && <VariableRulePicker rule={c} variables={variables} onChange={upd} />}
                     {['variable', 'contact_field', 'contact_attribute'].includes(c.source) && (
                       <In v={c.key} on={(key) => upd({ key })} ph="الاسم" dir="ltr" />
                     )}
@@ -638,6 +641,7 @@ export default function Inspector({
             </div>
           ))}
           <ConditionModal
+            variables={variables}
             open={condRule !== null}
             value={
               condRule !== null && data.rules[condRule]

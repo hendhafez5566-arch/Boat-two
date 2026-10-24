@@ -43,3 +43,5 @@ Constraints: no merge to main, no Railway deployment, no prolonged tests. No app
 - UX-08 complete: message text then reply choices lead the editor; attachments/storage, variable chips, internal comment and destructive step tools moved below content into closed disclosures. Explicit Done/close releases canvas. No F01–F19 equivalent; all fields retained. Diff check passed.
 
 - UX-15 complete: explicit fullscreen focus mode removes workspace navigation and bot tabs while retaining editing/actions; exit button/Escape restores normal layout. Browser denial reports a readable message. F18 navigation remains unchanged.
+
+- UX-17/UX-18 complete: both condition editors share source/choice pickers derived from connected upstream steps. Reply title and stable reply-ID sources are distinguished, with stable IDs recommended and displayed as human choice titles. Saved title comparisons absent from current options show a review warning; existing comparisons are never rewritten automatically. Arbitrary variable keys remain editable. Reuses runtime's existing `<saveReplyAs>_id` behavior (no engine change). No F01–F19 equivalent.
