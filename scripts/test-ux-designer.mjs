@@ -14,7 +14,7 @@ function convert(data, mode, next, approve = true) {
   const alerts = [], confirmations = [];
   const before = structuredClone(data);
   const groups = data.list?.sections ?? [{rows:data.buttons ?? []}];
-  const fn = new Function('data','mode','groups','choices','t','confirm','onChange','convertChoices','setError', `return (${handler.replace(/;\s*$/, '')});`)(data,mode,groups,groups.flatMap(s=>s.rows),(ar)=>ar,(s)=>{confirmations.push(s);return approve;},(p)=>{patch=p;},convertChoices,(s)=>alerts.push(s));
+  const fn = new Function('data','mode','groups','choices','t','confirm','onChange','convertChoices','setError','uid', `return (${handler.replace(/;\s*$/, '')});`)(data,mode,groups,groups.flatMap(s=>s.rows),(ar)=>ar,(s)=>{confirmations.push(s);return approve;},(p)=>{patch=p;},convertChoices,(s)=>alerts.push(s),()=> 'new-id');
   fn(next);
   assert.deepEqual(data,before);
   return {patch,alerts,confirmations};
@@ -36,3 +36,5 @@ assert.equal(convert({ buttons }, 'buttons', 'none', false).patch, undefined);
 assert.equal(convert({ buttons }, 'buttons', 'none').patch.buttons, undefined);
 assert.equal(convert({ buttons }, 'buttons', 'buttons').patch, undefined);
 console.log('PASS: actual reply conversion preserves choices/edge IDs; guards count, title limits, list-only metadata and removal; cancelled changes never mutate data');
+
+assert.equal(convert({}, 'none', 'buttons').patch.buttons[0].id,'new-id');

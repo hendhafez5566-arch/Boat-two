@@ -28,6 +28,7 @@ import FlowEdge, { ButtonLinkEdge } from '../../../../components/flow/FlowEdge';
 import FlowButtonNode from '../../../../components/flow/FlowButtonNode';
 import { validationMessage } from '../../../../lib/validation-message';
 import UnsavedChangesGuard from '../../../../components/flow/UnsavedChangesGuard';
+import { STEP_GUIDANCE } from '../../../../lib/step-guidance';
 import StepActions from '../../../../components/flow/StepActions';
 import Inspector from '../../../../components/flow/Inspector';
 import type { ConditionVariable } from '../../../../components/business/ConditionModal';
@@ -77,6 +78,7 @@ function Editor({ id }: { id: string }) {
   const [zoomPercent, setZoomPercent] = useState(100);
   const [showMap, setShowMap] = useState(false);
   const [analytics, setAnalytics] = useState(false);
+  const reviewViewport = useRef<{x:number;y:number;zoom:number} | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewActive, setPreviewActive] = useState<string | null>(null);
   const previewActiveRef = useRef<string | null>(null);
@@ -547,6 +549,9 @@ function Editor({ id }: { id: string }) {
     rf.fitView({ nodes: [{ id: nid }], padding: 1.2, maxZoom: 1.1, duration: 300 });
   };
 
+  const openReview = () => { reviewViewport.current = rf.getViewport(); setInspectorOpen(false); setPreviewOpen(true); setMobilePanel('preview'); };
+  const closeReview = () => { setPreviewOpen(false); setMobilePanel('canvas'); setInspectorOpen(!!selRef.current); if (reviewViewport.current) void rf.setViewport(reviewViewport.current); };
+
   const renderStepAction = (handle: string, title: string) => sel ? <StepActions
     key={`${sel.id}:${handle}`}
     title={title}
@@ -887,7 +892,7 @@ function Editor({ id }: { id: string }) {
           onDragStart={(e) => { e.dataTransfer.setData('application/boat-node', type); e.dataTransfer.effectAllowed = 'move'; }}
           onClick={() => onPick(type)}>
           <span className="add-step-icon" style={{ background: NODE_META[type].color }}><NodeIcon type={type} /></span>
-          {nodeLabel(type, language)}
+          <span>{nodeLabel(type, language)}<small className="smart-step-hint">{t(...STEP_GUIDANCE[type])}</small></span>
         </button>)}
       </section> : null;
     });
@@ -950,9 +955,7 @@ function Editor({ id }: { id: string }) {
           type="button"
           aria-pressed={previewOpen}
           onClick={() => {
-            if (!previewOpen) setInspectorOpen(false);
-            setPreviewOpen(!previewOpen);
-            setMobilePanel(mobilePanel === 'preview' ? 'canvas' : 'preview');
+            if (previewOpen) closeReview(); else openReview();
           }}
           className="rounded border px-2 py-1 builder-preview-toggle"
         >
@@ -1162,7 +1165,7 @@ function Editor({ id }: { id: string }) {
                     <span style={{ color: NODE_META[type].color }}>
                       <NodeIcon type={type} />
                     </span>
-                    <span>{nodeLabel(type, language)}</span>
+                    <span>{nodeLabel(type, language)}<small className="smart-step-hint">{t(...STEP_GUIDANCE[type])}</small></span>
                     <small>+</small>
                   </button>
                 ))}
@@ -1305,10 +1308,10 @@ function Editor({ id }: { id: string }) {
             onNodeClick={(_, node) => {
               // A click on a button card opens its message in the inspector.
               const hit = btnIndexRef.current[node.id];
-              if (!hit) return;
-              setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === hit.parentId })));
-              selRef.current = hit.parentId;
-              setSelected(hit.parentId);
+              const nodeId = hit?.parentId ?? node.id;
+              setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === nodeId })));
+              selRef.current = nodeId;
+              setSelected(nodeId);
               setTab('node');
               setPreviewOpen(false);
               setInspectorOpen(true);
@@ -1384,6 +1387,8 @@ function Editor({ id }: { id: string }) {
         </div>
 
         <aside className="builder-preview" data-open={previewOpen} aria-label={t('معاينة البوت', 'Bot preview')}>
+          <button type="button" className="smart-review-back" onClick={closeReview}>{t('رجوع للتحرير', 'Back to editing')}</button>
+          <p className="smart-review-label">{t('محاكاة المنطق — بدون إرسال واتساب', 'Logic simulator — no WhatsApp delivery')}</p>
           <div className="phone-frame">
             <div className="phone-notch" />
             <div className="phone-screen">
@@ -1455,6 +1460,7 @@ function Editor({ id }: { id: string }) {
                 >
                 <Inspector
                   key={sel.id}
+                  actionSummary={handle => { const edge = edges.find(e => e.source === sel.id && e.sourceHandle === handle); return edge ? `${t('بعد الضغط:', 'Then:')} ${stepCaption(edge.target)}` : t('لا يوجد إجراء بعد', 'No action yet'); }}
                   renderAction={(handle, title) => renderStepAction(handle, title)}
                   nextSteps={<section className="smart-next-steps"><h3>{t('الخطوة التالية', 'Next step')}</h3>{handlesFor(sel.data.type, sel.data.data).filter(h => !h.id.startsWith('option:')).map(h => <div key={h.id}>{renderStepAction(h.id, sel.data.type === 'condition' ? h.id === 'else' ? t('لا — لم يتحقق', 'No — not matched') : `${t('نعم — تحقق الشرط', 'Yes — matched')} ${h.label}` : h.label)}</div>)}</section>}
                   variables={conditionVariables}
@@ -1722,7 +1728,7 @@ function Editor({ id }: { id: string }) {
             )}
 
           </div>
-          <footer className="smart-editor-footer"><span role="status">{saveState === 'saving' ? t('جارٍ الحفظ…', 'Saving…') : saveState === 'error' ? t('فشل الحفظ', 'Save failed') : dirty ? t('تغييرات غير محفوظة', 'Unsaved changes') : t('تم الحفظ', 'Saved')}</span><button type="button" onClick={() => { setInspectorOpen(false); setPreviewOpen(true); setMobilePanel('preview'); }}>{t('تجربة', 'Try')}</button><button type="button" className="smart-primary" onClick={async () => { try { if (dirty) await save(); setInspectorOpen(false); setMobilePanel('canvas'); } catch { /* save reports error and keeps editor open */ } }}>{t('تم', 'Done')}</button></footer>
+          <footer className="smart-editor-footer"><span role="status">{saveState === 'saving' ? t('جارٍ الحفظ…', 'Saving…') : saveState === 'error' ? t('فشل الحفظ', 'Save failed') : dirty ? t('تغييرات غير محفوظة', 'Unsaved changes') : t('تم الحفظ', 'Saved')}</span><button type="button" onClick={openReview}>{t('تجربة', 'Try')}</button><button type="button" className="smart-primary" onClick={async () => { try { if (dirty) await save(); setInspectorOpen(false); setMobilePanel('canvas'); } catch { /* save reports error and keeps editor open */ } }}>{t('تم', 'Done')}</button></footer>
         </aside>
       </div>
     </div>

@@ -5,6 +5,7 @@ import { NodeIcon, nodeLabel, editorLabel } from './presentation';
 import { api } from '../../lib/api';
 import { ReactNode, createContext, useContext, useId, useEffect, useState } from 'react';
 import { NodeType, optionsOf, uid } from '../../lib/flow-types';
+import { STEP_GUIDANCE } from '../../lib/step-guidance';
 import MessageEditor, { EditorSection, ChatBubble } from './MessageEditor';
 import UserInputPreview, { UIQuestion } from './UserInputPreview';
 import ConditionModal, { CondGroup, LabelOption, ConditionVariable, VariableRulePicker } from '../business/ConditionModal';
@@ -152,6 +153,12 @@ const parseRanges = (s: string): [string, string][] =>
     .filter(Boolean)
     .map((m) => [m![1], m![2]] as [string, string]);
 
+function AnswerDestination({ value, onChange, variables }: { value?: string; onChange: (key: string) => void; variables: ConditionVariable[] }) {
+  const { t } = useLocale();
+  const keys = variables.filter((v, i, all) => all.findIndex(x => x.key === v.key) === i);
+  return <div className="smart-answer-destination"><label>{t('مكان حفظ الإجابة', 'Where to save the answer')}<select value={value ?? ''} onChange={e => onChange(e.target.value)}><option value="">{t('اختر مكان الحفظ', 'Choose answer storage')}</option>{value && !keys.some(v => v.key === value) && <option value={value}>{t('الحقل الحالي', 'Current field')}: {value}</option>}{keys.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}</select></label><details><summary>{t('اسم حقل جديد أو إعداد متقدم', 'New field name or advanced setting')}</summary><label>{t('اسم الحقل (إنجليزي وأرقام و _)', 'Field key (letters, numbers and _)')}<input dir="ltr" value={value ?? ''} onChange={e => onChange(e.target.value)} /></label></details></div>;
+}
+
 export default function Inspector({
   type,
   data,
@@ -161,8 +168,10 @@ export default function Inspector({
   onDelete,
   variables = [],
   renderAction,
+  actionSummary,
   nextSteps,
 }: {
+  actionSummary?: (handle: string) => string;
   renderAction?: (handle: string, title: string) => ReactNode;
   nextSteps?: ReactNode;
   variables?: ConditionVariable[];
@@ -196,6 +205,8 @@ export default function Inspector({
         .then(setLabels)
         .catch(() => {});
   }, [type]);
+  const [drilling, setDrilling] = useState(false);
+  const [activeQuestion, setActiveQuestion] = useState<string | null>(null);
   const [condRule, setCondRule] = useState<number | null>(null);
   const set = (patch: any) => onChange({ ...data, ...patch });
   const { language, t } = useLocale();
@@ -203,6 +214,7 @@ export default function Inspector({
 
   return (
     <div dir={language === 'ar' ? 'rtl' : 'ltr'} className="flow-inspector-content p-3">
+      {type !== 'message' && type !== 'interactive' && <p className="smart-step-intro">{t(...STEP_GUIDANCE[type])}</p>}
       {type === 'subflow' && (
         <F label="المكوّن المنشور" hint="تُثبت نسخة المكوّن عند نشر البوت الرئيسي.">
           <Sel
@@ -218,7 +230,8 @@ export default function Inspector({
           />
         </F>
       )}
-      {(type === 'message' || type === 'interactive') && <MessageEditor data={data} onChange={onChange} variables={variables} renderAction={renderAction} />}
+      {(type === 'message' || type === 'interactive') && <MessageEditor data={data} onChange={onChange} variables={variables} renderAction={renderAction} actionSummary={actionSummary} onDrillChange={setDrilling} />}
+      <div hidden={drilling}>
       {type !== 'message' && type !== 'interactive' && <h2 className="smart-core-title">{type === 'condition' ? t('متى يسلك العميل هذا المسار؟', 'When should the customer take this path?') : type === 'handoff' ? t('تحويل إلى موظف', 'Transfer to staff') : nodeLabel(type, language)}</h2>}
       {type === 'location' && (
         <>
@@ -305,9 +318,7 @@ export default function Inspector({
               <In v={data.pattern} on={(pattern) => set({ pattern })} dir="ltr" />
             </F>
           )}
-          <F label="احفظ الإجابة في متغيّر">
-            <In v={data.saveAs} on={(saveAs) => set({ saveAs })} dir="ltr" />
-          </F>
+          <AnswerDestination value={data.saveAs} onChange={saveAs => set({ saveAs })} variables={variables} />
           <details><summary>{t("لو الإجابة غير صحيحة", "If the answer is invalid")}</summary>
           <F label="عدد المحاولات عند الإجابة الخاطئة">
             <In
@@ -631,6 +642,8 @@ export default function Inspector({
               set({ questions: all.map((x, k) => (k === qi ? { ...x, ...patch } : x)) });
             return (
               <div key={q.id} className="mb-3 rounded border p-2">
+                <button type="button" className="smart-question-heading" aria-expanded={(activeQuestion ?? all[0]?.id) === q.id} onClick={() => setActiveQuestion(q.id)}>{qi + 1}. {q.text || t('سؤال جديد', 'New question')}</button>
+                {(activeQuestion ?? all[0]?.id) === q.id && <>
                 <div className="mb-1 flex items-center justify-between text-xs">
                   <strong>
                     {t('سؤال', 'Question')} {qi + 1}
@@ -651,7 +664,7 @@ export default function Inspector({
                     >
                       ↓
                     </Btn>
-                    <Btn danger on={() => set({ questions: all.filter((_, k) => k !== qi) })}>
+                    <Btn danger on={() => { if (confirm(t('حذف السؤال؟ يمكنك التراجع.', 'Delete question? You can undo.'))) { set({ questions: all.filter((_, k) => k !== qi) }); setActiveQuestion(null); } }}>
                       ×
                     </Btn>
                   </span>
@@ -710,17 +723,13 @@ export default function Inspector({
                     )}
                   </F>
                 )}
-                <F
-                  label={t('حفظ في حقل مخصص', 'Save to custom field')}
-                  hint={t('حروف إنجليزية وأرقام و _ فقط، ويُحفظ على ملف العميل.', 'Letters, digits and _ only. Stored on the contact.')}
-                >
-                  <In v={q.saveAs} on={(saveAs) => upq({ saveAs })} dir="ltr" />
-                </F>
+                <AnswerDestination value={q.saveAs} onChange={saveAs => upq({ saveAs })} variables={variables} />
                 {q.kind !== 'choice' && (
                   <F label={t('رسالة الخطأ', 'Error message')}>
                     <In v={q.errorText} on={(errorText) => upq({ errorText })} />
                   </F>
                 )}
+                </>}
               </div>
             );
           })}
@@ -1136,6 +1145,7 @@ export default function Inspector({
       </p>
 
       </details>
+      </div>
     </div>
   );
 }

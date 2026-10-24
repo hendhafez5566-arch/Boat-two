@@ -286,3 +286,16 @@ img, video, canvas, svg { max-width: 100%; }
   .smart-editor-footer { flex-wrap:wrap; }
   .smart-editor-footer span { min-width:100px; }
 }
+.smart-step-hint { display:block!important; font-size:13px!important; font-weight:400; color:#43576d!important; white-space:normal; line-height:1.6; margin-top:4px; }
+.smart-question-heading { width:100%; text-align:start; padding:12px; font-size:16px; font-weight:600; border-radius:8px; background:#eef3ff; }
+.smart-answer-destination { margin-block:16px; }
+.smart-answer-destination > label { display:block; font-size:14px; font-weight:600; }
+.smart-step-intro { padding:12px; background:#eef3ff; border-radius:10px; margin-bottom:16px; }
+.smart-review-back { margin:8px 12px; padding:10px 16px; min-height:44px; border:1px solid #abbdd3; border-radius:8px; background:white; }
+.smart-review-label { margin:8px 12px; color:#334e73; font-size:14px; }
+@media (max-width:700px) {
+  .premium-builder .builder-toolbar { flex-wrap:wrap; max-width:100%; }
+  .premium-builder .builder-title { min-width:100px; }
+  .premium-builder .builder-toolbar .tb-more { margin-inline-start:0; }
+  .premium-builder .builder-main { overflow:hidden; }
+}
