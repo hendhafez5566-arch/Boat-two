@@ -1,4 +1,6 @@
 'use client';
+import { reportColumn, reportValue } from '../../../lib/report-format';
+import { statusLabel } from '../../../components/product/status';
 import { useState } from 'react';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
@@ -20,7 +22,7 @@ type Report = {
   followups: Row[];
 };
 export default function Reports() {
-  const { t } = useLocale();
+  const { t, language } = useLocale();
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -133,7 +135,7 @@ export default function Reports() {
                   <button
                     className="btn"
                     disabled={!rows.length}
-                    onClick={() => download(key + '.csv', exportCsv(rows, headers))}
+                    onClick={() => download(key + '.csv', exportCsv(rows.map(row => Object.fromEntries(headers.map(h => [reportColumn(h,t), ['status','lifecycle'].includes(h) ? statusLabel(String(row[h] || ''),t) : reportValue(h,row[h],row,language,t)]))), headers.map(h=>reportColumn(h,t))))}
                   >
                     {t('تصدير CSV', 'Export CSV')}
                   </button>
@@ -147,7 +149,7 @@ export default function Reports() {
                     <thead>
                       <tr>
                         {headers.map((h) => (
-                          <th key={h}>{h.replaceAll('_', ' ')}</th>
+                          <th key={h}>{reportColumn(h,t)}</th>
                         ))}
                       </tr>
                     </thead>
@@ -155,7 +157,7 @@ export default function Reports() {
                       {rows.map((row, i) => (
                         <tr key={i}>
                           {headers.map((h) => (
-                            <td key={h}>{row[h] ?? '—'}</td>
+                            <td key={h}>{h === 'id' ? <details><summary>{t('عرض المرجع','Show reference')}</summary><code>{row[h]}</code></details> : ['status','lifecycle'].includes(h) ? statusLabel(String(row[h] || ''),t) : reportValue(h,row[h],row,language,t)}</td>
                           ))}
                         </tr>
                       ))}
