@@ -25,6 +25,7 @@ import FlowNodeView from '../../../../components/flow/FlowNodeView';
 import { ButtonStats, FlowButtonStatsContext, FlowSequencesContext, FlowStatsContext, NodeStats, SeqInfo } from '../../../../components/flow/stats-context';
 import FlowEdge, { ButtonLinkEdge } from '../../../../components/flow/FlowEdge';
 import FlowButtonNode from '../../../../components/flow/FlowButtonNode';
+import UnsavedChangesGuard from '../../../../components/flow/UnsavedChangesGuard';
 import Inspector from '../../../../components/flow/Inspector';
 import TestPanel from '../../../../components/flow/TestPanel';
 import { api, getSession } from '../../../../lib/api';
@@ -130,6 +131,8 @@ function Editor({ id }: { id: string }) {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [warnings, setWarnings] = useState<Issue[]>([]);
   const [dirty, setDirty] = useState(false);
+  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved');
+  const savedContent = useRef('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [updatedAt, setUpdatedAt] = useState('');
@@ -584,6 +587,7 @@ function Editor({ id }: { id: string }) {
     saving.current = true;
     const submitted = latest.current;
     setBusy(true);
+    setSaveState('saving');
     setMsg('');
     try {
       const result = await api<{ updated_at: string }>(`/flows/${id}`, {
@@ -598,10 +602,13 @@ function Editor({ id }: { id: string }) {
         }),
       });
       setUpdatedAt(result.updated_at);
+      savedContent.current = submitted;
       if (latest.current === submitted) setDirty(false);
-      setMsg(t('تم الحفظ', 'All changes saved'));
+      setSaveState('saved');
+      setMsg(latest.current === submitted ? t('تم الحفظ', 'All changes saved') : t('تم حفظ النسخة السابقة؛ توجد تعديلات أحدث غير محفوظة', 'Previous version saved; newer changes remain unsaved'));
       return result.updated_at;
     } catch (e: any) {
+      setSaveState('error');
       setMsg(`${t('تعذّر الحفظ', 'Save failed')}: ${e.message}`);
       throw e;
     } finally {
@@ -657,16 +664,6 @@ function Editor({ id }: { id: string }) {
     return () => clearTimeout(timeout);
     // Saving is scheduled against serialized editor content; failures pause autosave.
   }, [content, dirty, loaded, autoSave, busy]);
-  useEffect(() => {
-    const warn = (e: BeforeUnloadEvent) => {
-      if (dirty) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty]);
   useEffect(() => {
     const shortcut = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
@@ -862,11 +859,13 @@ function Editor({ id }: { id: string }) {
             ? `${t('منشور', 'Published')} v${meta.version}`
             : t('مسودة', 'Draft')}
         </span>
-        {dirty && (
-          <span className="text-xs text-orange-600">
-            {t('تغييرات غير محفوظة', 'Unsaved changes')}
-          </span>
-        )}
+        <span className="text-xs" role="status" aria-live="polite">
+          {!loaded ? t('جارٍ تحميل المسودة…', 'Loading draft…') : saveState === 'saving' ? t('جارٍ الحفظ…', 'Saving…') : saveState === 'error' ? t('فشل الحفظ — أعد المحاولة', 'Save failed — retry') : dirty ? t('تغييرات غير محفوظة', 'Unsaved changes') : t('تم الحفظ', 'Saved')}
+        </span>
+        <UnsavedChangesGuard dirty={dirty} save={async () => {
+          await save();
+          return savedContent.current === latest.current;
+        }} />
         <span className="builder-save-status" role="status">
           {msg}
         </span>
