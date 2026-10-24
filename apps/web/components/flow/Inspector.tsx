@@ -196,22 +196,6 @@ export default function Inspector({
 
   return (
     <div dir={language === 'ar' ? 'rtl' : 'ltr'} className="flow-inspector-content p-3">
-      <div className="mb-3 flex items-center justify-between">
-        <strong>
-          <NodeIcon type={type} /> {nodeLabel(type, language)}
-        </strong>
-        <div className="flex gap-2">
-          {!isStart && <Btn on={onSetStart}>{t('اجعلها البداية', 'Make start')}</Btn>}
-          <Btn on={onDelete} danger>
-            {t('حذف', 'Delete')}
-          </Btn>
-        </div>
-      </div>
-      <p className="mb-3 text-xs text-gray-400">
-        {t('يمكنك استخدام المتغيرات في النصوص بهذا الشكل:', 'Use variables in text like:')}{' '}
-        {'{{name}}'} {t('أو', 'or')} {'{{contact.name}}'}
-      </p>
-
       {type === 'subflow' && (
         <F label="المكوّن المنشور" hint="تُثبت نسخة المكوّن عند نشر البوت الرئيسي.">
           <Sel
@@ -231,40 +215,6 @@ export default function Inspector({
         <>
           <F label="نص الرسالة">
             <Txt v={data.text} on={(text) => set({ text })} rows={4} />
-          </F>
-          <F label="مرفق (اختياري)">
-            <Sel
-              v={data.media?.kind ?? ''}
-              on={(k) =>
-                set({
-                  media: k
-                    ? { ...(data.media ?? {}), kind: k, url: data.media?.url ?? '' }
-                    : undefined,
-                })
-              }
-              opts={[
-                ['', 'بدون'],
-                ['image', 'صورة'],
-                ['video', 'فيديو'],
-                ['audio', 'صوت'],
-                ['file', 'ملف'],
-              ]}
-            />
-            {data.media && (
-              <div className="mt-1 space-y-1">
-                <In
-                  v={data.media.url}
-                  on={(url) => set({ media: { ...data.media, url } })}
-                  ph="https://…"
-                  dir="ltr"
-                />
-                <In
-                  v={data.media.caption}
-                  on={(caption) => set({ media: { ...data.media, caption } })}
-                  ph="تعليق"
-                />
-              </div>
-            )}
           </F>
           <F label="خيارات الرد">
             <Sel
@@ -406,6 +356,41 @@ export default function Inspector({
               )}
             </>
           )}
+          <details className="mb-3 rounded border p-2"><summary>{t('مرفقات وحفظ الإجابة', 'Attachments and answer storage')}</summary>
+          <F label="مرفق (اختياري)">
+            <Sel
+              v={data.media?.kind ?? ''}
+              on={(k) =>
+                set({
+                  media: k
+                    ? { ...(data.media ?? {}), kind: k, url: data.media?.url ?? '' }
+                    : undefined,
+                })
+              }
+              opts={[
+                ['', 'بدون'],
+                ['image', 'صورة'],
+                ['video', 'فيديو'],
+                ['audio', 'صوت'],
+                ['file', 'ملف'],
+              ]}
+            />
+            {data.media && (
+              <div className="mt-1 space-y-1">
+                <In
+                  v={data.media.url}
+                  on={(url) => set({ media: { ...data.media, url } })}
+                  ph="https://…"
+                  dir="ltr"
+                />
+                <In
+                  v={data.media.caption}
+                  on={(caption) => set({ media: { ...data.media, caption } })}
+                  ph="تعليق"
+                />
+              </div>
+            )}
+          </F>
           {optionsOf(data).length > 0 && (
             <F label="حفظ اختيار العميل في متغيّر" hint="يُحفظ العنوان، ويُحفظ المعرّف في {اسم}_id">
               <In
@@ -416,6 +401,7 @@ export default function Inspector({
               />
             </F>
           )}
+          </details>
         </>
       )}
 
@@ -1305,6 +1291,24 @@ export default function Inspector({
           </label>
         </>
       )}
+      <details className="mt-3 rounded border p-2"><summary>{t('أدوات الخطوة والمتغيّرات', 'Step tools and variables')}</summary>
+      <div className="mb-3 flex items-center justify-between">
+        <strong>
+          <NodeIcon type={type} /> {nodeLabel(type, language)}
+        </strong>
+        <div className="flex gap-2">
+          {!isStart && <Btn on={onSetStart}>{t('اجعلها البداية', 'Make start')}</Btn>}
+          <Btn on={onDelete} danger>
+            {t('حذف', 'Delete')}
+          </Btn>
+        </div>
+      </div>
+      <p className="mb-3 text-xs text-gray-400">
+        {t('يمكنك استخدام المتغيرات في النصوص بهذا الشكل:', 'Use variables in text like:')}{' '}
+        {'{{name}}'} {t('أو', 'or')} {'{{contact.name}}'}
+      </p>
+
+      </details>
     </div>
   );
 }

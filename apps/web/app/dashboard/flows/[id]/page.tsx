@@ -1393,20 +1393,6 @@ function Editor({ id }: { id: string }) {
                       lastFocused.current = el;
                   }}
                 >
-                <div className="var-picker" aria-label={t('المتغيّرات المتاحة', 'Available variables')}>
-                  <span>{t('أدرج متغيّرًا', 'Insert variable')}</span>
-                  {knownVars.map((v) => (
-                    <button
-                      type="button"
-                      key={v}
-                      className="var-chip"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => insertVariable(v)}
-                    >
-                      {v}
-                    </button>
-                  ))}
-                </div>
                 <Inspector
                   key={sel.id}
                   type={sel.data.type}
@@ -1434,6 +1420,21 @@ function Editor({ id }: { id: string }) {
                     </label>
                   ))}
                 </section>
+                <details className="m-3 rounded border p-2"><summary>{t('متغيّرات وتعليق داخلي', 'Variables and internal comment')}</summary>
+                <div className="var-picker" aria-label={t('المتغيّرات المتاحة', 'Available variables')}>
+                  <span>{t('أدرج متغيّرًا', 'Insert variable')}</span>
+                  {knownVars.map((v) => (
+                    <button
+                      type="button"
+                      key={v}
+                      className="var-chip"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => insertVariable(v)}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
                 <label className="note-field">
                   {t('تعليق على الخطوة (لا يظهر للعميل)', 'Step comment (never shown to customers)')}
                   <textarea
@@ -1442,7 +1443,9 @@ function Editor({ id }: { id: string }) {
                     value={sel.data.note ?? ''}
                     onChange={(e) => updateNote(sel.id, e.target.value)}
                   />
-                </label>
+                </label></details>
+                <button type="button" className="btn m-3" onClick={() => setInspectorOpen(false)}>{t('تم — إغلاق التفاصيل', 'Done — close details')}</button>
+
                 </div>
               ) : (
                 <p className="p-4 text-sm text-gray-500">
