@@ -2,9 +2,9 @@
 
 Verified preview source: b4f2da4894dae24bd55e6d7351fddc2b25fe7a14; materialized V10/V11/Phase 5, legacy build commands do not mutate source.
 
-Completed: F01, F02, F03, F04, F05, F06, F07, F08, F09, F10, F11, F12, F13, F14, F15, F17, F19.
-Remaining: F16, F18.
-Last pushed commit before this checkpoint: 52911a615f4c90d5f3ef17246fb2bfa5f4acf2ec.
+Completed: F01, F02, F03, F04, F05, F06, F07, F08, F09, F10, F11, F12, F13, F14, F15, F16, F17, F19.
+Remaining: F18.
+Last pushed commit before this checkpoint: 918a861e4a377c6384becfc92f6a7ff5235fdd27.
 The commit containing this file is the current checkpoint; see PR history for its SHA.
 
 F01: browser draft persistence/isolation/expiry/storage failure tests passed.
@@ -18,5 +18,6 @@ F14: report headers and status/channel values use business labels; counts/dates 
 F17: workspace audit actions/resources and CRM event timeline use Arabic business labels; raw actions/table names/IDs remain available under explicit technical details. Unknown events have readable fallbacks instead of leaking identifiers. Existing audit collection and tenant scopes unchanged.
 F13: audience preview returns matched/identity-consent-eligible/excluded totals and mutually exclusive no-channel-identity, opted-out, and missing-consent counts using tenant-scoped SQL. Shared summary explains policy gates and runtime rechecks; composer and existing draft scheduling require audience review, invalidated by campaign revision. Scheduling/dispatch checks unchanged; no campaign scheduled or sent.
 F15: automation events grouped into contacts, sales, follow-ups and scheduling with business labels and selected-event descriptions. Internal event identifiers and trigger behavior preserved, including saved custom events.
+F16: company name/logo/color/widget identity is the primary form with live unsaved preview; advanced domain ownership, DNS/TLS/hosting and transfers are grouped in a disclosure with activation requirements. All plan and domain verification checks preserved.
 
 Build verification: dependencies unavailable locally; network proxy unavailable. No production data or real sends used.
