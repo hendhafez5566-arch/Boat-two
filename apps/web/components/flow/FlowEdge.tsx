@@ -15,11 +15,12 @@ export default function FlowEdge(props: EdgeProps) {
     sourcePosition,
     targetPosition,
     borderRadius: 14,
+    offset: 36,
   });
   return (
     <>
-      <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} interactionWidth={28} />
-      <EdgeLabelRenderer>
+      <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} interactionWidth={14} />
+      {selected && <EdgeLabelRenderer>
         <button
           type="button"
           className="edge-add nodrag nopan"
@@ -36,7 +37,7 @@ export default function FlowEdge(props: EdgeProps) {
         >
           +
         </button>
-      </EdgeLabelRenderer>
+      </EdgeLabelRenderer>}
       {selected && (
         <EdgeLabelRenderer>
           <button

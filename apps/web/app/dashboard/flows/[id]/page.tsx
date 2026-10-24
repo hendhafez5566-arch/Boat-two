@@ -44,48 +44,18 @@ import {
   uid,
 } from '../../../../lib/flow-types';
 
+import { computeLayout, hasLayoutOverlap, nodeFootprint } from '../../../../lib/flow-layout';
+
 const nodeTypes = { flowNode: FlowNodeView, [BUTTON_NODE_TYPE]: FlowButtonNode };
 const edgeTypes = { smoothstep: FlowEdge, buttonLink: ButtonLinkEdge };
 
 type Issue = { nodeId?: string; message: string };
 
-/** Top-to-bottom layered layout from the Start step; unreachable steps go on a last row. */
-function computeLayout(
-  nodes: Node<RFData>[],
-  edges: { source: string; target: string }[],
-  startId: string,
-) {
-  const out: Record<string, string[]> = {};
-  for (const e of edges) (out[e.source] ??= []).push(e.target);
-  const depth: Record<string, number> = {};
-  const first = startId && nodes.some((n) => n.id === startId) ? startId : nodes[0].id;
-  const queue = [first];
-  depth[first] = 0;
-  while (queue.length) {
-    const cur = queue.shift() as string;
-    for (const next of out[cur] ?? [])
-      if (depth[next] === undefined) {
-        depth[next] = depth[cur] + 1;
-        queue.push(next);
-      }
-  }
-  const maxDepth = Math.max(0, ...Object.values(depth));
-  for (const n of nodes) if (depth[n.id] === undefined) depth[n.id] = maxDepth + 1;
-  const rows: Record<number, string[]> = {};
-  for (const n of nodes) (rows[depth[n.id]] ??= []).push(n.id);
-  const pos: Record<string, { x: number; y: number }> = {};
-  for (const [d, ids] of Object.entries(rows))
-    ids.forEach((id, i) => {
-      pos[id] = { x: (i - (ids.length - 1) / 2) * 340, y: Number(d) * 200 };
-    });
-  return pos;
-}
-const inp = 'w-full rounded border p-1.5 text-sm';
-
 function Editor({ id }: { id: string }) {
   const rf = useReactFlow();
   const { t, language } = useLocale();
   const [nodeSearch, setNodeSearch] = useState('');
+  const [findNode, setFindNode] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobilePanel, setMobilePanel] = useState('canvas');
   const [inspectorOpen, setInspectorOpen] = useState(false);
@@ -202,9 +172,10 @@ function Editor({ id }: { id: string }) {
       setUpdatedAt(f.updated_at);
       setLoaded(true);
       const spots = new Set(g.nodes.map((n) => `${Math.round(n.position.x / 40)},${Math.round(n.position.y / 40)}`));
-      if (g.nodes.length > 1 && spots.size < g.nodes.length) {
-        const pos = computeLayout(g.nodes, g.edges, f.draft_graph.startNodeId);
+      if (g.nodes.length > 1 && (spots.size < g.nodes.length || hasLayoutOverlap(g.nodes, language === 'ar'))) {
+        const pos = computeLayout(g.nodes, g.edges, f.draft_graph.startNodeId, language === 'ar');
         g.nodes = g.nodes.map((n) => ({ ...n, position: pos[n.id] ?? n.position }));
+        setDirty(true);
       }
       setNodes(g.nodes);
       setEdges(g.edges);
@@ -426,6 +397,17 @@ function Editor({ id }: { id: string }) {
         y: window.innerHeight / 2 - 100,
       },
     );
+    const candidate: Node<RFData> = {id: nid, position: pos, data: {type, data: NODE_META[type].defaults(), isStart: false}};
+    let attempts = 0;
+    while (hasLayoutOverlap([...nodes, candidate], language === 'ar') && attempts++ < nodes.length + 1) {
+      // Compare the new card against existing cards without changing user positions.
+      const touching = nodes.some(n => hasLayoutOverlap([n, candidate], language === 'ar'));
+      if (!touching) break;
+      pos.y += 280;
+    }
+    if (nodes.some(n => hasLayoutOverlap([n, candidate], language === 'ar'))) {
+      pos.y = Math.max(...nodes.map(n => n.position.y + nodeFootprint(n, language === 'ar', btnDims).bottom)) + 120;
+    }
     setNodes((ns) => [
       ...ns.map((node) => ({ ...node, selected: false })),
       {
@@ -527,8 +509,9 @@ function Editor({ id }: { id: string }) {
 
   const autoLayout = () => {
     if (!nodes.length) return;
-    const pos = computeLayout(nodes, edges, startId);
-    setNodes((ns) => ns.map((n) => ({ ...n, position: pos[n.id] ?? n.position })));
+    const arranged = nodes.map(n => ({...n, data: {...n.data, layout: undefined}}));
+    const pos = computeLayout(arranged, edges, startId, language === 'ar', btnDims);
+    setNodes(arranged.map(n => ({ ...n, position: pos[n.id] ?? n.position })));
     setDirty(true);
     setTimeout(() => rf.fitView({ padding: 0.25, maxZoom: 1, duration: 300 }), 50);
   };
@@ -1211,6 +1194,15 @@ function Editor({ id }: { id: string }) {
               </div>
             </>
           )}
+          <div className="node-finder nodrag nopan" style={{position:'absolute',top:12,left:12,zIndex:10,maxWidth:300}}>
+            <input type="search" className="rounded border p-2" aria-label={t('البحث في عقد البوت', 'Find a bot node')} placeholder={t('ابحث بالنص أو اسم الخطوة…', 'Find by text or step name…')} value={findNode} onChange={e => setFindNode(e.target.value)} />
+            {findNode.trim() && <div className="card stack" style={{maxHeight:280,overflow:'auto'}}>
+              {nodes.filter(n => [nodeLabel(n.data.type, language), n.data.data?.text, n.data.note, n.id].join(' ').toLocaleLowerCase().includes(findNode.trim().toLocaleLowerCase())).map((n) => <button className="btn" key={n.id} onClick={() => {focusNode(n.id);setFindNode('');}}>
+                {nodeLabel(n.data.type, language)} · {String(n.data.data?.text || n.data.note || t('خطوة', 'Step') + ' ' + (nodes.indexOf(n)+1)).slice(0,70)}
+              </button>)}
+              {!nodes.some(n => [nodeLabel(n.data.type, language),n.data.data?.text,n.data.note,n.id].join(' ').toLocaleLowerCase().includes(findNode.trim().toLocaleLowerCase())) && <p role="status">{t('لا توجد خطوة مطابقة', 'No matching step')}</p>}
+            </div>}
+          </div>
           <FlowStatsContext.Provider value={nodeStats}>
           <FlowSequencesContext.Provider value={seqInfo}>
           <FlowButtonStatsContext.Provider value={buttonStats}>
@@ -1263,7 +1255,7 @@ function Editor({ id }: { id: string }) {
             edgeTypes={edgeTypes}
             isValidConnection={isValidConnection}
             onEdgeUpdate={onEdgeUpdate}
-            connectionRadius={36}
+            connectionRadius={18}
             onEdgesDelete={() => notify(t('قُطع التوصيل.', 'Link removed.'), true)}
             onNodesDelete={(del: Node[]) => {
               notify(t('حُذفت الخطوة وتوصيلاتها.', 'Step and its links deleted.'), true);

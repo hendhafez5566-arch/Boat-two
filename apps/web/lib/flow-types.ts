@@ -472,7 +472,7 @@ const GAP = 70;
 
 /** Where a button card sits relative to its message until the user drags it elsewhere. */
 export function defaultButtonOffset(index: number, rtl: boolean): { x: number; y: number } {
-  return { x: rtl ? -(BUTTON_CARD_WIDTH + GAP) : CARD_WIDTH + GAP, y: 24 + index * 104 };
+  return { x: rtl ? -(BUTTON_CARD_WIDTH + GAP) : CARD_WIDTH + GAP, y: 24 + index * 168 };
 }
 
 export interface ButtonNodeData {
@@ -504,9 +504,11 @@ export function deriveButtonCards(
   const sourced = new Set(edges.map((e) => `${e.source}\u0000${e.sourceHandle}`));
   for (const n of nodes) {
     if (!hasButtonCards(n.data.type, n.data.data)) continue;
+    let nextY = 24;
     optionsOf(n.data.data).forEach((b, i) => {
       const id = buttonNodeId(n.id, b.id);
-      const rel = n.data.layout?.[b.id] ?? defaultButtonOffset(i, rtl);
+      const rel = n.data.layout?.[b.id] ?? { ...defaultButtonOffset(i, rtl), y: nextY };
+      nextY = rel.y + Math.max(140, dims[id]?.height || 0) + 28;
       index[id] = { parentId: n.id, buttonId: b.id };
       cardNodes.push({
         id,
