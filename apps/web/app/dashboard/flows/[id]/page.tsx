@@ -1218,7 +1218,7 @@ function Editor({ id }: { id: string }) {
               </div>
             </>
           )}
-          <div className="node-finder nodrag nopan" style={{position:'absolute',top:12,left:12,zIndex:10,maxWidth:300}}>
+          <div className="node-finder nodrag nopan" style={{position:'absolute',top:12,insetInlineEnd:12,zIndex:10,maxWidth:300}}>
             <input type="search" className="rounded border p-2" aria-label={t('البحث في عقد البوت', 'Find a bot node')} placeholder={t('ابحث بالنص أو اسم الخطوة…', 'Find by text or step name…')} value={findNode} onChange={e => setFindNode(e.target.value)} />
             {findNode.trim() && <div className="card stack" style={{maxHeight:280,overflow:'auto'}}>
               {nodes.filter(n => [nodeLabel(n.data.type, language), n.data.data?.text, n.data.note, n.id].join(' ').toLocaleLowerCase().includes(findNode.trim().toLocaleLowerCase())).map((n) => <button className="btn" key={n.id} onClick={() => {focusNode(n.id);setFindNode('');}}>
@@ -1296,7 +1296,7 @@ function Editor({ id }: { id: string }) {
             snapGrid={[16, 16]}
             selectionOnDrag={false}
             multiSelectionKeyCode={['Shift', 'Meta', 'Control']}
-            minZoom={0.2}
+            minZoom={0.05}
             maxZoom={2}
             fitView
             fitViewOptions={{ padding: 0.25, maxZoom: 1 }}

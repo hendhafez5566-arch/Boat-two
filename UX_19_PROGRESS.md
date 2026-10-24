@@ -4,7 +4,7 @@ Verified preview source: b4f2da4894dae24bd55e6d7351fddc2b25fe7a14; materialized 
 
 Completed: F01, F02, F03, F04, F05, F06, F07, F08, F09, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19.
 Remaining: .
-Last pushed commit before this checkpoint: 598b81f9de8fbca00d656afc8b893f12f9fca253.
+Last pushed commit before this checkpoint: fb1d2d3580432d72e521573431b0bcc97b8722a3.
 The commit containing this file is the current checkpoint; see PR history for its SHA.
 
 F01: browser draft persistence/isolation/expiry/storage failure tests passed.
@@ -20,5 +20,6 @@ F13: audience preview returns matched/identity-consent-eligible/excluded totals 
 F15: automation events grouped into contacts, sales, follow-ups and scheduling with business labels and selected-event descriptions. Internal event identifiers and trigger behavior preserved, including saved custom events.
 F16: company name/logo/color/widget identity is the primary form with live unsaved preview; advanced domain ownership, DNS/TLS/hosting and transfers are grouped in a disclosure with activation requirements. All plan and domain verification checks preserved.
 F18: labelled sidebar expanded by default with explicit persistent expand/collapse control; existing mobile drawer, RTL logical placement, role filtering, active states and More navigation retained. Diff check passed.
+Final review: all 19 implementation items complete. scripts/test-ux19.mjs passes draft persistence/isolation/expiry/failure, five wizard actions, 40-node RTL/LTR layout, all engine message translations, exact monetary scales and actual engine-validation/designer-roundtrip contracts. All 449 tracked local files matched remote blob hashes before this checkpoint. Legacy preview entrypoints verified non-mutating. F02/F10 follow-up moves finder to the logical opposite side of Add Step and allows 5% zoom for large maps. Latest commit: https://github.com/hendhafez5566-arch/Boat-two/commits/fix/boat-ux-19-one-batch . Full Next/TypeScript build remains unverified because package installation cannot reach the registry.
 
 Build verification: dependencies unavailable locally; network proxy unavailable. No production data or real sends used.
