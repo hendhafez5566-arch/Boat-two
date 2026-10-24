@@ -1,4 +1,5 @@
 'use client';
+import AudienceSummary, { Audience } from '../../../components/business/AudienceSummary';
 import { statusLabel } from '../../../components/product/status';
 import { DeliveryPolicies } from '../../../components/business/DeliveryPolicies';
 import {
@@ -56,6 +57,18 @@ export default function Campaigns() {
   const [ledgerLoading, setLedgerLoading] = useState(false);
   const ledgerVersion = useRef(0);
   const [saved, setSaved] = useState(false);
+  const [reviews,setReviews] = useState<Record<string,{key:string;audience:Audience}>>({});
+  const reviewRequest = useRef<Record<string,number>>({});
+  const reviewKey = (campaign:Campaign) => JSON.stringify([campaign.channel_id,campaign.filters,campaign.revision]);
+  async function reviewAudience(campaign:Campaign) {
+    const request=(reviewRequest.current[campaign.id] || 0)+1;
+    reviewRequest.current[campaign.id]=request;
+    const key=reviewKey(campaign);
+    setBusy(true);setError('');
+    try {const audience=await api<Audience>('/campaigns/audience',{method:'POST',body:JSON.stringify({channelId:campaign.channel_id,filters:campaign.filters})});
+      if(reviewRequest.current[campaign.id]===request)setReviews(current=>({...current,[campaign.id]:{key,audience}}));
+    } catch(e) {setError((e as Error).message);} finally {setBusy(false);}
+  }
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
     setError('');
@@ -195,6 +208,7 @@ export default function Campaigns() {
                         className="flex flex-wrap gap-1"
                         onSubmit={(e) => {
                           e.preventDefault();
+                          if (reviews[c.id]?.key !== reviewKey(c) || !reviews[c.id]?.audience.eligible) {setError(t('راجع الجمهور وأسباب الاستبعاد أولاً.','Review the audience and exclusions first.'));return;}
                           const at = new Date(
                             String(new FormData(e.currentTarget).get('at')),
                           ).toISOString();
@@ -206,13 +220,15 @@ export default function Campaigns() {
                           );
                         }}
                       >
+                        <button type="button" className="btn" disabled={busy} onClick={()=>reviewAudience(c)}>{t('مراجعة أسباب أهلية الجمهور','Review audience eligibility')}</button>
+                        {reviews[c.id]?.key === reviewKey(c) && <AudienceSummary audience={reviews[c.id].audience} />}
                         <input
                           type="datetime-local"
                           aria-label={t('موعد الحملة', 'Campaign schedule')}
                           name="at"
                           required
                         />
-                        <button className="btn" disabled={busy}>
+                        <button className="btn" disabled={busy || reviews[c.id]?.key !== reviewKey(c) || !reviews[c.id]?.audience.eligible}>
                           {c.status === 'scheduled'
                             ? t('إعادة الجدولة', 'Reschedule')
                             : t('جدولة', 'Schedule')}

@@ -1,4 +1,5 @@
 'use client';
+import AudienceSummary, { Audience } from './AudienceSummary';
 import {
   RichCampaignContent,
   CampaignContentPreview,
@@ -81,7 +82,7 @@ export function CampaignComposer({
     });
   const [templates, setTemplates] = useState<Template[]>([]),
     [loading, setLoading] = useState(false);
-  const [audience, setAudience] = useState<{ matched: number; eligible: number } | null>(null);
+  const [audience, setAudience] = useState<Audience | null>(null);
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
   const review = useRef(0),
@@ -124,7 +125,7 @@ export function CampaignComposer({
     setBusy(true);
     setError('');
     try {
-      const result = await api<{ matched: number; eligible: number }>('/campaigns/audience', {
+      const result = await api<Audience>('/campaigns/audience', {
         method: 'POST',
         body: JSON.stringify({ channelId: channel, filters }),
       });
@@ -145,7 +146,7 @@ export function CampaignComposer({
     setError('');
     try {
       // Counts are advisory; scheduling and each send still recheck consent and channel policy.
-      const current = await api<{ eligible: number; matched: number }>('/campaigns/audience', {
+      const current = await api<Audience>('/campaigns/audience', {
         method: 'POST',
         body: JSON.stringify({ channelId: channel, filters }),
       });
@@ -271,9 +272,7 @@ export function CampaignComposer({
             {t('مراجعة الجمهور', 'Review audience')}
           </button>
           {audience && (
-            <p role="status">
-              {audience.eligible} {t('مؤهل من', 'eligible of')} {audience.matched}
-            </p>
+            <AudienceSummary audience={audience} />
           )}
           <button
             className="btn btn-primary"
