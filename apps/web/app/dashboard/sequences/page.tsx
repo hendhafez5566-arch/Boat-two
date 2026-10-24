@@ -168,7 +168,7 @@ export default function Sequences() {
         <h1>{cur.name || t('تسلسل جديد', 'New sequence')}</h1>
         {cur.status && <span className="text-xs opacity-60">{cur.status}</span>}
         <div className="sq-actions">
-          <button disabled={busy} className="sq-btn" onClick={save}>{t('حفظ', 'Save')}</button>
+          <button disabled={busy || !eligibleChannels.some(c=>c.id===cur.channelId)} className="sq-btn" onClick={save}>{t('حفظ', 'Save')}</button>
           {cur.id && cur.status !== 'active' && (
             <button disabled={busy} className="sq-btn sq-btn-success" onClick={() => setStatus('active')}>{t('تفعيل', 'Activate')}</button>
           )}
@@ -195,7 +195,7 @@ export default function Sequences() {
               <input value={cur.name} placeholder={t('أول تسلسل تسويقي', 'First Marketing Sequence')} onChange={(e) => setCur({ ...cur, name: e.target.value })} />
             </label>
             <label className="sq-field">{t('القناة', 'Channel')}
-              {!eligibleChannels.length && <p role="alert">{t('لا توجد قناة مؤهلة. أضف قناة واتساب أو ماسنجر أو إنستغرام أولاً.', 'No eligible channel. Add WhatsApp, Messenger or Instagram first.')} <a href="/dashboard/channels">{t('إدارة القنوات', 'Manage channels')}</a></p>}
+              {!eligibleChannels.length && <p role="alert">{t('لا توجد قناة مدعومة. قناة الموقع لا تدعم التسلسلات؛ أضف واتساب أو ماسنجر أو إنستغرام لتتمكن من الحفظ.', 'No supported channel. Website chat does not support sequences; add WhatsApp, Messenger or Instagram to save.')} <a href="/dashboard/channels">{t('إدارة القنوات', 'Manage channels')}</a></p>}
               <select aria-invalid={fieldErrors.some(e => e.path[0] === 'channelId')} value={cur.channelId} disabled={!!cur.id} onChange={(e) => setCur({ ...cur, channelId: e.target.value })}>
                 <option value="">{t('اختر القناة', 'Choose a channel')}</option>
                 {eligibleChannels.map((c) => (
@@ -204,7 +204,7 @@ export default function Sequences() {
               </select>
             </label>
             <label className="sq-field">{t('وقت التسليم (للخطوات بالأيام)', 'Delivery Time (day-based steps)')}
-              <input dir="ltr" placeholder="09:00" value={cur.deliveryTime ?? ''} onChange={(e) => setCur({ ...cur, deliveryTime: e.target.value || null })} />
+              <input type="time" dir="ltr" value={cur.deliveryTime ?? ''} onChange={(e) => setCur({ ...cur, deliveryTime: e.target.value || null })} />
             </label>
             <label className="sq-field">{t('المنطقة الزمنية', 'Time zone')}
               <input dir="ltr" value={cur.timezone} onChange={(e) => setCur({ ...cur, timezone: e.target.value })} />
@@ -259,10 +259,12 @@ export default function Sequences() {
                         <option value="days">{t('أيام', 'Days')}</option>
                       </select>
                     </label>
-                    <label className="sq-field">{t('وقت ثابت', 'Fixed time')}
-                      <input dir="ltr" placeholder="HH:MM" value={s.sendAt ?? ''} onChange={(e) => patchStep(i, { sendAt: e.target.value || undefined })} />
+                    <label className="sq-field">{t('طريقة التوقيت','Timing mode')}
+                      <select value={s.sendAt !== undefined ? 'clock' : 'delay'} onChange={e=>patchStep(i,{sendAt:e.target.value === 'clock' ? (cur.deliveryTime || '09:00') : undefined})}><option value="delay">{t('بعد مدة الانتظار','After the delay')}</option><option value="clock">{t('في وقت محدد بعد الانتظار','At a set time after the delay')}</option></select>
+                      {s.sendAt !== undefined && <input type="time" aria-label={t('وقت الخطوة','Step time')} required value={s.sendAt} onChange={e=>patchStep(i,{sendAt:e.target.value})} />}
                     </label>
                   </div>
+                  <p className="sq-note">{t('بعد','After')} {unitShort(s)} {i === 0 ? t('من الاشتراك','from enrollment') : t('من الخطوة السابقة','from the preceding step')}{s.sendAt || (s.delay.unit === 'days' && cur.deliveryTime) ? t('، ثم أول موعد للساعة المحددة بعد انتهاء الانتظار: ', ', then the first selected clock time after that delay: ') + (s.sendAt || cur.deliveryTime) : t('، دون انتظار ساعة محددة', ', without waiting for a clock time')} · <bdi>{cur.timezone}</bdi></p>
                   {sum && (
                     <div className="sq-cond">
                       <b>⏷ {sum.title}</b>
@@ -288,12 +290,13 @@ export default function Sequences() {
                       <small className="sq-sub">{t('محتوى الرسالة والإحصائيات', 'Message content and statistics')}</small>
                     </div>
                   </div>
-                  <div className="sq-stats">
+                  {cur.id && st && (st.sent + st.delivered + st.subscribers + st.errors > 0) && <details><summary>{t('إحصاءات الرسالة','Message statistics')}</summary><div className="sq-stats">
                     <div>✈ {t('أُرسلت', 'Sent')}<b>{st?.sent ?? 0}</b></div>
                     <div>✓ {t('وصلت', 'Delivered')}<b>{st?.delivered ?? 0}</b></div>
                     <div>👥 {t('مشتركون', 'Subscribers')}<b>{st?.subscribers ?? 0}</b></div>
                     <div className={st?.errors ? 'is-err' : ''}>⚠ {t('أخطاء', 'Errors')}<b>{st?.errors ?? 0}</b></div>
                   </div>
+                  </details>}
                   {kind !== 'template' && (
                     <div className="sq-body">
                       <textarea rows={3} placeholder={t('نص الرسالة', 'Message text')} value={s.content.text ?? ''} onChange={(e) => patchStep(i, { content: { ...s.content, text: e.target.value } })} />

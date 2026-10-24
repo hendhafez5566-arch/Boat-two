@@ -34,6 +34,7 @@ export default function Automations() {
     items: [],
   });
   const [tab, setTab] = useState<'rules' | 'create' | 'saved' | 'history'>('rules');
+  const [editId, setEditId] = useState('');
   const [createMode, setCreateMode] = useState<'quick' | 'sequence'>('quick');
   useEffect(() => {
     if (tab === 'rules') list.reload();
@@ -78,7 +79,7 @@ export default function Automations() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">{t('أتمتة الأعمال', 'BUSINESS AUTOMATION')}</p>
-          <h1>{t('خطوات أقل، متابعة أفضل', 'Fewer steps, better follow-up')}</h1>
+          <h1>{t('أتمتة الأعمال', 'Automations')}</h1>
           <p>
             {t(
               'الأتمتة تستخدم سجل الأحداث نفسه، وتُحفظ إجراءاتها مع نتيجة التنفيذ.',
@@ -138,7 +139,7 @@ export default function Automations() {
             <article className={`auto-card ${r.enabled ? 'is-on' : ''}`} key={r.id}>
               <div className="auto-card-main">
                 <div>
-                  <strong>{r.name}</strong>
+                  <button type="button" className="btn" onClick={()=>{setEditId(r.id);setTab('saved');}}>{r.name} · {t('تحرير ومراجعة','Edit and review')}</button>
                   <p className="muted">
                     {eventLabel(r.trigger,t)}
                   </p>
@@ -163,8 +164,8 @@ export default function Automations() {
                       !r.enabled &&
                       !confirm(
                         t(
-                          'سيبدأ تنفيذ هذه القاعدة فور وقوع الحدث المطابق. تفعيلها؟',
-                          'This rule will run as soon as a matching event occurs. Enable it?',
+                          'هل راجعت المحفز والشروط والإجراءات؟ سيبدأ التنفيذ عند وقوع الحدث المطابق. تفعيل القاعدة؟',
+                          'Have you reviewed the trigger, conditions and actions? This rule runs when a matching event occurs. Enable it?',
                         ),
                       )
                     )
@@ -429,7 +430,7 @@ export default function Automations() {
           {createMode === 'sequence' && <AutomationCanvas />}
         </>
       )}
-      {tab === 'saved' && <SavedAutomationEditor />}
+      {tab === 'saved' && <SavedAutomationEditor initialRuleId={editId} />}
       {tab === 'history' && (
       <section className="card table-wrap">
         <h2>{t('آخر 25 تنفيذًا', 'Latest 25 executions')}</h2>

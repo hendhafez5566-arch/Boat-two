@@ -68,3 +68,13 @@ Checks: `node scripts/test-ux19.mjs` passed; `node scripts/test-ux-designer.mjs`
 - UX-35: reused F11 supported type choices; custom form now generates an ASCII integration key from the label, with advanced override and content/type preview.
 - UX-36: editable search/lifecycle/tag/archive conditions and matching count appear alongside segment name; loading a segment restores archive condition too.
 - UX-29: CRM now uses direct section title; lifecycle options reuse shared status labels. Whitespace check passed; full build unavailable.
+
+- UX-37: Inbox distinguishes filtered-empty from initial-empty, clears search/channel/tab together, offers closed conversations when present and links first-channel/widget setup.
+- UX-38: consistent button sizes/primary active state, aria-pressed and available zero counts.
+- UX-39: reviewed/reused F14 audience reason counts and scheduling rechecks; added links to customer identity/consent and channels without changing eligibility or granting consent. Empty-audience drafting remains gated by current composer (not bypassed).
+- UX-40: delivery policies moved into closed advanced disclosure with plain-language impact.
+- UX-41: each rule opens its exact saved editor through an adjacent named edit action; activation confirmation explicitly asks to review trigger/conditions/actions. Existing revision-aware save retained.
+- UX-42: reused F16 supported-channel filtering and validation; explains website exclusion at empty select and disables Save until a supported channel is selected.
+- UX-43: timing mode separates free delay from clock-after-delay, with per-step summary tied to enrollment/previous step and timezone; schedule.ts reviewed to match delay-first then next local clock semantics. Global delivery time remains day-step-only.
+- UX-44: unsent steps show content without zero metrics; existing real statistics remain in a disclosure when activity exists.
+- UX-29: direct Campaigns and Automations titles; shared status/event labels reused. Check: whitespace passed. No external delivery/activation performed.

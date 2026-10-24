@@ -133,7 +133,7 @@ export default function Campaigns() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">{t('تسويق قائم على الموافقة', 'PERMISSION-BASED MARKETING')}</p>
-          <h1>{t('رسالة مناسبة، لجمهور موافق', 'The right message, with permission')}</h1>
+          <h1>{t('الحملات', 'Campaigns')}</h1>
           <p>
             {t(
               'راجع الجمهور والموافقة قبل الجدولة. حالة الطابور لا تعني التسليم.',
@@ -172,7 +172,7 @@ export default function Campaigns() {
           setSaved(true);
         }}
       />
-      <DeliveryPolicies />
+      <details className="card"><summary>{t('إعدادات إرسال متقدمة','Advanced delivery settings')}</summary><p>{t('تحدد حدود الإرسال وسياسة القناة؛ لا يلزم تعديلها لإنشاء مسودة.','Controls sending limits and channel policy; no changes needed to draft a campaign.')}</p><DeliveryPolicies /></details>
       <section className="card table-wrap">
         <h2>{t('الحملات', 'Campaigns')}</h2>
         <table className="product-table">
