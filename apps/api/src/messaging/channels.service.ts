@@ -24,12 +24,12 @@ export interface ChannelRow {
 }
 
 export const widgetSettingsSchema = z.object({
-  title: z.string().max(60).default('Chat with us'),
+  title: z.string().max(60).default('تحدث معنا'),
   color: z
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/)
     .default('#2563eb'),
-  welcomeMessage: z.string().max(500).default('Hi! How can we help?'),
+  welcomeMessage: z.string().max(500).default('أهلًا بك! كيف يمكننا مساعدتك؟'),
   direction: z.enum(['ltr', 'rtl']).default('rtl'),
   position: z.enum(['left', 'right']).default('right'),
   allowedOrigins: z.array(z.string().url()).max(20).default([]),

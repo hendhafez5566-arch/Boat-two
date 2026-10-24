@@ -26,6 +26,7 @@ export default function ChannelSettings({
 }) {
   const { t } = useLocale();
   const panelId = useId();
+  const [widgetPreview,setWidgetPreview]=useState({title:String(channel.settings?.title || t('تحدث معنا','Chat with us')),welcome:String(channel.settings?.welcomeMessage || t('أهلًا بك! كيف يمكننا مساعدتك؟','Hi! How can we help?')),direction:String(channel.settings?.direction || 'rtl')});
   const [open, setOpen] = useState(false);
   const [jobs, setJobs] = useState<Job[] | null>(null);
   const [error, setError] = useState('');
@@ -137,7 +138,7 @@ export default function ChannelSettings({
               {message}
             </p>
           )}
-          <form onSubmit={save}>
+          <form onSubmit={save} onChange={e=>{if(channel.type !== 'web')return;const form=e.currentTarget;setWidgetPreview({title:(form.elements.namedItem('title') as HTMLInputElement).value,welcome:(form.elements.namedItem('welcomeMessage') as HTMLInputElement).value,direction:(form.elements.namedItem('direction') as HTMLSelectElement).value});}}>
             <div className="form-grid">
               <label className="field">
                 {t('اسم القناة', 'Channel name')}
@@ -152,12 +153,13 @@ export default function ChannelSettings({
               </label>
               {channel.type === 'web' && (
                 <>
+                  <div className="notice"><p>{t('راجع العنوان والترحيب مع اتجاه العرض قبل الحفظ. المحتوى الحالي لا يُترجم تلقائيًا.','Review title and welcome text with the direction before saving. Existing content is not translated automatically.')}</p><button type="button" className="btn" onClick={e=>{const form=e.currentTarget.form;if(!form)return;(form.elements.namedItem('title') as HTMLInputElement).value='تحدث معنا';(form.elements.namedItem('welcomeMessage') as HTMLInputElement).value='أهلًا بك! كيف يمكننا مساعدتك؟';(form.elements.namedItem('direction') as HTMLSelectElement).value='rtl';setWidgetPreview({title:'تحدث معنا',welcome:'أهلًا بك! كيف يمكننا مساعدتك؟',direction:'rtl'});}}>{t('استخدام ترحيب عربي مقترح (راجع ثم احفظ)','Use suggested Arabic welcome (review then save)')}</button></div>
                   <label className="field">
                     {t('عنوان الويدجت', 'Widget title')}
                     <input
                       name="title"
                       maxLength={60}
-                      defaultValue={String(s.title || 'Chat with us')}
+                      defaultValue={String(s.title || t('تحدث معنا','Chat with us'))}
                     />
                   </label>
                   <label className="field">
@@ -169,7 +171,7 @@ export default function ChannelSettings({
                     <input
                       name="welcomeMessage"
                       maxLength={500}
-                      defaultValue={String(s.welcomeMessage || 'Hi! How can we help?')}
+                      defaultValue={String(s.welcomeMessage || t('أهلًا بك! كيف يمكننا مساعدتك؟','Hi! How can we help?'))}
                     />
                   </label>
                   <label className="field">
@@ -179,6 +181,7 @@ export default function ChannelSettings({
                       <option value="ltr">English LTR</option>
                     </select>
                   </label>
+                  <div className="card" dir={widgetPreview.direction}><small>{t('معاينة المحتوى','Content preview')}</small><h3>{widgetPreview.title}</h3><p>{widgetPreview.welcome}</p></div>
                   <label className="field">
                     {t('المواقع المسموحة (رابط أصل لكل سطر)', 'Allowed origins (one per line)')}
                     <textarea

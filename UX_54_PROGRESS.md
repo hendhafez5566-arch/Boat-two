@@ -78,3 +78,8 @@ Checks: `node scripts/test-ux19.mjs` passed; `node scripts/test-ux-designer.mjs`
 - UX-43: timing mode separates free delay from clock-after-delay, with per-step summary tied to enrollment/previous step and timezone; schedule.ts reviewed to match delay-first then next local clock semantics. Global delivery time remains day-step-only.
 - UX-44: unsent steps show content without zero metrics; existing real statistics remain in a disclosure when activity exists.
 - UX-29: direct Campaigns and Automations titles; shared status/event labels reused. Check: whitespace passed. No external delivery/activation performed.
+
+- UX-45: unavailable official Meta connection now names the pending setup, responsible platform administrator and website-channel alternative; operator requirements remain in closed details. No connection or service activated.
+- UX-46: widget snippet copy action with success/failure, real demo link and short shareable installation instruction. Demo now loads the configured API script through a same-origin config route, replacing the broken localhost literal without accepting arbitrary script URLs from query parameters.
+- UX-47: verified server defaults were English with RTL; new defaults now Arabic. Existing channels are preserved, with explicit suggested Arabic text applied only on click and saved only by Save. Live content/direction preview added to channel settings.
+- Check: whitespace passed. Widget not opened and no external messages sent.
