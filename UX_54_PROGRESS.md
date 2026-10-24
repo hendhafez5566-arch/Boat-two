@@ -2,16 +2,14 @@
 
 ## Designer scope: UX-01–UX-23
 
-Status: blocked on missing source audit; no UX item claimed complete.
+Source audit received at `7aef49a`; implementation checkpoints below are pushed on `fix/boat-ux-19-one-batch` (PR #2).
 
-Required source: `ELHAFEZ_BOAT_DEEP_UX_FRICTION_AUDIT.md`.
-Checked the working tree, all fetched branches/history, workspace attachments, and PR #2 issue comments. The audit is absent; PR issue comments are empty. Supply the report or its exact repository path/commit before assigning meanings to UX-01–UX-23.
+Implemented: UX-02–UX-11, UX-13–UX-21, UX-23. UX-22 reuses F06 translations/navigation with content excerpts added in this pass.
+Reused after source review: UX-01 = F02/F10 collision-aware layout; UX-12 = F10 selected-edge insertion controls. Existing short layout/localization/round-trip contracts pass. No claim of verification on the deployed preview.
 
-Baseline reviewed: `UX_19_PROGRESS.md` at `ee5164a` records F01–F19 complete, including draft recovery, leave/save guards, map layout/finder, validation, wizard actions, media/list previews and navigation. New work must compare each audit item against these implementations; do not repeat them.
+Remaining handoff: browser acceptance at ~1363×936 and mobile for inline choices, analytics switching, arrange/fit, click-to-connect, conversion undo, condition source pickers, preview/inspector switching and fullscreen. No deployment or full Next build performed. UX-24–UX-54 outside this account's scope.
 
-Remaining: read the missing audit, map UX-01–UX-23 to F01–F19, implement actual designer usability gaps, run short focused checks, and commit/push each small completed group immediately.
-
-Constraints: no merge to main, no Railway deployment, no prolonged tests. No application code changed in this checkpoint.
+Checks: `node scripts/test-ux19.mjs` passed; `node scripts/test-ux-designer.mjs` passed (actual conversion handler, stable edge IDs, count/title limits, cancellation and metadata warnings). TS/TSX syntax passed; focused strict TypeScript checking of changed files with temporary React/ReactFlow types produced zero diagnostics after fixing pre-existing undefined `inp`. This is not a full application build. No long tests, merge, real sends or Railway operations.
 
 ## Implementation checkpoints
 - UX-10 complete: reply format conversion retains option objects/IDs/titles and therefore canonical `option:<id>` edges. More than three options blocks button conversion without mutation; removing all choices asks explicitly. F07 creates actions but did not cover this conversion; F02/F10 layout remains reused. Reviewed `updateData` handle filtering to confirm retained IDs preserve connections. Short check: `git diff --check`.
@@ -48,3 +46,5 @@ Constraints: no merge to main, no Railway deployment, no prolonged tests. No app
 
 - Review follow-ups: non-drag connections use the node's actual default target handle; all detail-opening paths exit preview. Added missing pre-existing `inp` constant discovered by focused TypeScript checking (settings otherwise referenced an undefined symbol). Localized staff-handoff preview status.
 - UX-10 channel limits: conversion blocks titles over the server's 20-character button limit and requires explicit confirmation before dropping list-only descriptions/section headings/opening text. No silent truncation.
+
+- UX-22 follow-up: validation targets now include content/comment excerpts as well as human type and ordinal; clicking still focuses the step and opens its editor. F06's translated diagnosis and unreachable-step repair guidance reused.

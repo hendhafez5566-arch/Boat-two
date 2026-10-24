@@ -844,6 +844,12 @@ function Editor({ id }: { id: string }) {
     const keys = [typeof d.saveAs === 'string' ? d.saveAs : '', d.saveAnswerAs, ...(d.assignments ?? []).map((a: any) => a.name), ...(d.questions ?? []).map((q: any) => q.saveAs)].filter(Boolean);
     return keys.map((key: string) => ({ key, label: `${label}: ${key}` }));
   }).filter((v, i, all) => all.findIndex((x) => x.key === v.key) === i);
+  const stepCaption = (nid: string) => {
+    const index = nodes.findIndex((n) => n.id === nid), node = nodes[index];
+    if (!node) return t('خطوة غير موجودة', 'Missing step');
+    const excerpt = String(node.data.data?.text || node.data.note || '').slice(0, 55);
+    return `${nodeLabel(node.data.type, language)} ${index + 1}${excerpt ? ` — ${excerpt}` : ''}`;
+  };
   const triggerLabel = (x: Trigger) =>
     x.type === 'keyword'
       ? `${t('كلمة', 'Keyword')}: ${x.keywords.slice(0, 3).join('، ') || '—'}`
@@ -1073,7 +1079,7 @@ function Editor({ id }: { id: string }) {
               ⛔{' '}
               {i.nodeId && (
                 <button type="button" className="underline" onClick={() => focusNode(i.nodeId as string)}>
-                  {nodeLabel(nodes.find(n => n.id === i.nodeId)?.data.type || 'message', language)} · {nodes.findIndex(n => n.id === i.nodeId)+1}
+                  {stepCaption(i.nodeId)}
                 </button>
               )}{' '}
               {validationMessage(i.message, language)}
@@ -1084,7 +1090,7 @@ function Editor({ id }: { id: string }) {
               ⚠️{' '}
               {i.nodeId && (
                 <button type="button" className="underline" onClick={() => focusNode(i.nodeId as string)}>
-                  {nodeLabel(nodes.find(n => n.id === i.nodeId)?.data.type || 'message', language)} · {nodes.findIndex(n => n.id === i.nodeId)+1}
+                  {stepCaption(i.nodeId)}
                 </button>
               )}{' '}
               {validationMessage(i.message, language)}
