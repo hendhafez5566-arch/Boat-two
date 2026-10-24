@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { useLocale } from '../../components/product/locale';
 type Workspace = {
-  tenant: { name: string; onboarding_completed_at: string | null };
+  tenant: { name: string; settings?: { industry?: string }; onboarding_completed_at: string | null };
   plan: { plan_name: string; status: string; trial_ends_at: string | null };
   usage: Record<string, number>;
 };
@@ -25,10 +25,10 @@ export default function Dashboard() {
       .catch((e) => setError(e.message));
   }, []);
   const metrics = [
-    [t('محادثات مفتوحة', 'Active conversations'), counts.active],
-    [t('بانتظار التعيين', 'Unassigned'), counts.unassigned],
-    [t('محادثات عند البوت', 'Handled by bot'), counts.bot],
-    [t('جهات الاتصال', 'Contacts'), w?.usage.contacts],
+    [t('محادثات مفتوحة', 'Active conversations'), counts.active, '/dashboard/inbox?tab=active'],
+    [t('بانتظار التعيين', 'Unassigned'), counts.unassigned, '/dashboard/inbox?tab=unassigned'],
+    [t('محادثات عند البوت', 'Handled by bot'), counts.bot, '/dashboard/inbox?tab=bot'],
+    [t('جهات الاتصال', 'Contacts'), w?.usage.contacts, '/dashboard/crm'],
   ];
   return (
     <main className="stack">
@@ -36,7 +36,7 @@ export default function Dashboard() {
         <div>
           <p className="eyebrow">YOUR WORKSPACE, CONNECTED</p>
           <h1>
-            {t('مرحبًا بك في', 'Welcome to')} {w?.tenant.name || 'ELHAFEZ BOAT'}
+            {t('لوحة التحكم —', 'Dashboard —')} {w?.tenant.name || 'ELHAFEZ BOAT'}
           </h1>
           <p>
             {t(
@@ -54,11 +54,11 @@ export default function Dashboard() {
           {error}
         </p>
       )}
-      {!w?.tenant.onboarding_completed_at && (
+      {w && !w.tenant.onboarding_completed_at && (
         <section className="card">
           <div className="page-heading mb-0">
             <div>
-              <h2>{t('لنجهّز أول تجربة لعملائك', 'Build your first customer experience')}</h2>
+              <h2>{t('تقدم الإعداد', 'Setup progress')}</h2><p>{t(`اكتملت ${[!!w.tenant.settings?.industry, !!w.usage.channels, !!w.usage.flows].filter(Boolean).length} من 3 خطوات أساسية`, `${[!!w.tenant.settings?.industry, !!w.usage.channels, !!w.usage.flows].filter(Boolean).length} of 3 essential steps completed`)}</p>
               <p>
                 {t(
                   'جهّز شركتك، أضف قناة، واختر قالبًا لبوتك.',
@@ -67,16 +67,16 @@ export default function Dashboard() {
               </p>
             </div>
             <Link href="/dashboard/onboarding" className="btn">
-              {t('متابعة الإعداد', 'Continue setup')}
+              {!w.tenant.settings?.industry ? t('التالي: تعريف الشركة','Next: company details') : !w.usage.channels ? t('التالي: إضافة قناة','Next: add a channel') : !w.usage.flows ? t('التالي: إنشاء مسودة بوت','Next: create a bot draft') : t('التالي: تجربة المسودة ومراجعة النشر','Next: test draft and review publication')}
             </Link>
           </div>
         </section>
       )}
       <div className="card-grid">
-        {metrics.map(([label, value]) => (
+        {metrics.map(([label, value, href]) => (
           <section className="card" key={String(label)}>
             <p className="muted">{label}</p>
-            <div className="metric">{value ?? '—'}</div>
+            <Link className="metric" href={String(href)}>{value ?? '—'}</Link>
             <small className="muted">{t('من بيانات مساحة عملك', 'From your workspace data')}</small>
           </section>
         ))}
@@ -102,7 +102,7 @@ export default function Dashboard() {
         <section className="card">
           <h2>{t('اشتراكك الحالي', 'Your subscription')}</h2>
           <span className="badge">
-            {w?.plan.plan_name || '—'} · {w?.plan.status || '—'}
+            {w?.plan.plan_name || '—'} · {({trialing:t('فترة تجريبية','Trial'),active:t('نشط','Active'),past_due:t('دفعة مستحقة','Past due'),canceled:t('ملغى','Canceled')} as Record<string,string>)[w?.plan.status || ''] || w?.plan.status || '—'}
           </span>
           {w?.plan.trial_ends_at && (
             <p className="muted mt-3">

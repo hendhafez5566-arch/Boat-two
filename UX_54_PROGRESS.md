@@ -48,3 +48,15 @@ Checks: `node scripts/test-ux19.mjs` passed; `node scripts/test-ux-designer.mjs`
 - UX-10 channel limits: conversion blocks titles over the server's 20-character button limit and requires explicit confirmation before dropping list-only descriptions/section headings/opening text. No silent truncation.
 
 - UX-22 follow-up: validation targets now include content/comment excerpts as well as human type and ordinal; clicking still focuses the step and opens its editor. F06's translated diagnosis and unreachable-step repair guidance reused.
+
+## UX-24–UX-54 execution (HEAD verified: 8359321)
+
+- UX-24: goal-specific template guidance explains booking limits and how to complete request/confirmation paths without claiming automatic reservations.
+- UX-25: reused F07 independent message/card/question/route/handoff actions; added a visible choice → result → template summary alongside each action.
+- UX-26: static companion removed in test step; existing local TestPanel is the sole preview there.
+- UX-27: reviewed/reused F18 expanded labels, optional collapse and saved preference without rewriting. UX-28: sequences, channels and settings now direct daily navigation destinations; existing groups retained for other tools.
+- UX-29 (partial): direct Dashboard/Getting started titles, translated shell roles and subscription states. Other pages reviewed in subsequent groups.
+- UX-30: Dashboard shows essential setup count and a single prioritized next step; metrics link to corresponding Inbox tabs or CRM. Inbox accepts those tabs through its existing query mapping.
+- UX-53: wizard says “step N of 7”; onboarding says completed N of 3 essential steps, avoiding ambiguous RTL fractions.
+- UX-54: team excluded from essential progress and explicitly optional; bot step explicitly records draft creation only and explains that testing/publication need separate confirmation in the builder. No inferred tested/published status.
+- Check: whitespace passed. Runtime/build pending; environment Git HTTP proxy unavailable, so checkpoint commits are written through GitHub Git API with expected-HEAD checks on the existing branch. No deployment, paid service or external sends.

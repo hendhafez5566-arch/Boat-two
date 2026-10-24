@@ -32,8 +32,8 @@ export default function Onboarding() {
   }
   const steps = [
     {
-      ar: 'عرّف شركتك واختر خطتك',
-      en: 'Set up your company and preferred plan',
+      ar: 'عرّف شركتك',
+      en: 'Set up your company',
       hint: t('الاسم ومجال العمل والمنطقة الزمنية', 'Name, industry and timezone'),
       href: '/dashboard/settings',
       done: !!w?.tenant.settings.industry,
@@ -49,11 +49,11 @@ export default function Onboarding() {
       done: !!w?.usage.channels,
     },
     {
-      ar: 'أنشئ بوتك من قالب',
-      en: 'Create your bot from a template',
+      ar: 'أنشئ مسودة بوت من قالب',
+      en: 'Create a bot draft from a template',
       hint: t(
-        'عدّل المحتوى وجربه ثم انشره من المصمم',
-        'Customize, test and publish in the builder',
+        'وجود المسودة لا يعني التجربة أو النشر. افتح المصمم لتجربتها ثم انشرها عندما تصبح جاهزة.',
+        'A draft does not confirm testing or publication. Open the builder to test, then publish when ready.',
       ),
       href: '/dashboard/flows',
       done: !!w?.usage.flows,
@@ -74,7 +74,7 @@ export default function Onboarding() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">WELCOME ABOARD</p>
-          <h1>{t('خطوات بسيطة لأول محادثة ناجحة', 'A few steps to your first conversation')}</h1>
+          <h1>{t('دليل البداية', 'Getting started')}</h1>
           <p>
             {t(
               'كل خطوة تحفظ تقدمك داخل شركتك. يمكنك العودة في أي وقت.',
@@ -91,13 +91,14 @@ export default function Onboarding() {
       <section className="card">
         <div className="flex justify-between">
           <strong>{w?.tenant.name || '…'}</strong>
-          <span className="badge">{steps.filter((s) => s.done).length} / 4</span>
+          <span className="badge">{t(`اكتملت ${steps.slice(0, 3).filter(s => s.done).length} من 3 خطوات أساسية`, `${steps.slice(0, 3).filter(s => s.done).length} of 3 essential steps completed`)}</span>
         </div>
         <div className="progress-track">
-          <div style={{ width: (steps.filter((s) => s.done).length / 4) * 100 + '%' }} />
+          <div style={{ width: (steps.slice(0, 3).filter((s) => s.done).length / 3) * 100 + '%' }} />
         </div>
         {steps.map((s, i) => (
           <div className="step" key={s.href}>
+            {i === 3 && <strong>{t('اختياري — الفريق', 'Optional — team')}</strong>}
             <span className="step-number">{s.done ? '✓' : i + 1}</span>
             <div>
               <strong>{t(s.ar, s.en)}</strong>

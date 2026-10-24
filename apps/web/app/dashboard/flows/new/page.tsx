@@ -196,7 +196,7 @@ export default function BotWizard() {
       {(error || templates.error || channels.error) && (
         <Feedback error>{error || templates.error || channels.error}</Feedback>
       )}
-      <div className="wizard-layout">
+      <div className="wizard-layout" style={step === 6 ? { gridTemplateColumns: '1fr' } : undefined}>
         <section className="card wizard-content">
           {step === 1 && (
             <>
@@ -250,6 +250,9 @@ export default function BotWizard() {
           {step === 2 && (
             <>
               <h2>{t('ابدأ بقالب، واجعله خاصًا بك', 'Start with a template, make it yours')}</h2>
+              <p className="notice">{goal === 'booking'
+                ? t('للحجوزات: اختر قالب جمع البيانات ثم أضف سؤالًا لتفاصيل الطلب وزر تحويل لموظف. القالب لا يحجز موعدًا تلقائيًا؛ أكمل مسار التأكيد من المصمم.', 'For bookings: choose lead capture, add a request question and staff handoff. Templates do not reserve appointments automatically; complete confirmation in the builder.')
+                : goal === 'sales' ? t('ابدأ بقالب جمع البيانات لجمع احتياجات العميل.', 'Start with lead capture to collect customer needs.') : t('ابدأ بخدمة العملاء أو الأسئلة المتكررة للإجابة والتحويل للفريق.', 'Start with support or FAQ for answers and team handoff.')}</p>
               <div className="goal-grid">
                 {templates.data.map((item) => (
                   <button
@@ -363,6 +366,7 @@ export default function BotWizard() {
                       }
                     />
                   </label>
+                  <p className="muted">{t('عند اختيار', 'When choosing')} «{choice.title || t('الزر', 'button')}» ← {choice.action === 'route' ? t('ينتقل مباشرة للخطوة المحددة', 'go directly to the selected step') : choice.action === 'handoff' ? t('تظهر رسالة التحويل ثم ينتظر الموظف', 'show handoff message, then wait for staff') : t('يظهر الرد ثم يبدأ القالب؛ لفرع مستقل اختر «الانتقال لمسار في القالب»', 'show response, then start the template; for a separate branch choose “Go to a template path”')}</p>
                   <Button onClick={() => setChoices(choices.filter((_, i) => i !== index))}>
                     {t('إزالة الزر', 'Remove button')}
                   </Button>
@@ -475,10 +479,10 @@ export default function BotWizard() {
                   : t('متابعة', 'Continue')}
               </Button>
             )}
-            <span>{step} / 7</span>
+            <span>{t(`الخطوة ${step} من 7`, `Step ${step} of 7`)}</span>
           </footer>
         </section>
-        <aside className="wizard-companion" aria-label={t('معاينة البوت', 'Bot preview')}>
+        {step !== 6 && <aside className="wizard-companion" aria-label={t('معاينة البوت', 'Bot preview')}>
           <div className="phone-preview">
             <header>
               <span className="bot-avatar">
@@ -510,7 +514,7 @@ export default function BotWizard() {
               'A template is a starting point. Open the builder to add conditions, AI and team handoff.',
             )}
           </p>
-        </aside>
+        </aside>}
       </div>
     </main>
   );

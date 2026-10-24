@@ -41,7 +41,7 @@ const navGroups = [
     keys: ['billing', 'branding', 'settings', 'sessions', 'delivery', 'audit'],
   },
 ];
-const primaryKeys = ['', 'inbox', 'crm', 'flows', 'campaigns', 'reports'];
+const primaryKeys = ['', 'inbox', 'crm', 'flows', 'campaigns', 'sequences', 'channels', 'reports', 'settings'];
 const restrictedForAgents = [
   'reports',
   'branding',
@@ -162,7 +162,7 @@ function Shell({ children }: { children: ReactNode }) {
           <span className="avatar">{name.slice(0, 1)}</span>
           <div>
             <strong>{name}</strong>
-            <small>{role || t('مساحة العمل', 'Workspace')}</small>
+            <small>{({owner:t('مالك الشركة','Owner'),admin:t('مسؤول','Admin'),agent:t('موظف','Agent')} as Record<string,string>)[role] || t('مساحة العمل', 'Workspace')}</small>
           </div>
         </div>
         <nav aria-label={t('التنقل الرئيسي', 'Main navigation')}>

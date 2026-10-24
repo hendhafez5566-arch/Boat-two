@@ -39,6 +39,7 @@ export default function Inbox() {
   const { t, language } = useLocale();
   const [showContext, setShowContext] = useState(false);
   const [tab, setTab] = useState<Tab>('active');
+  useEffect(() => { const key = new URLSearchParams(window.location.search).get('tab'); if (key && key in TAB_QUERY) setTab(key as Tab); }, []);
   const [q, setQ] = useState('');
   const [channelId, setChannelId] = useState('');
   const [items, setItems] = useState<any[]>([]);
