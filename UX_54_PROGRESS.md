@@ -99,9 +99,15 @@ Checks: `node scripts/test-ux19.mjs` passed; `node scripts/test-ux-designer.mjs`
 - PASS: new scripts/test-ux-workspace.mjs (local calendar boundaries, DST, invalid dates, empty-audience draft save without sends and widget demo JS syntax). Whitespace check passed.
 - Full Next/TypeScript build unavailable: npm run build --prefix apps/web stops at next: not found; project dependencies are absent and environment Git/network proxy is unreachable. No browser or deployed-preview verification claimed.
 
-Implementation coverage: UX-24–UX-54 implemented or explicitly reused as described above. Remaining verification: full dependency-backed build/typecheck and browser acceptance (RTL/mobile, filters/forms, widget with allowed origins, report presets, draft/test/published onboarding comprehension). PR #2 stays draft; no main merge, Railway deployment, real messages, Meta connection or paid AI activation.
+Implementation coverage: UX-24–UX-33 and UX-35–UX-54 implemented or explicitly reused as described above. UX-34 is partial: human event names and folded technical IDs are reused, but actor/change details are not available in the current timeline response (id/type/created_at/status only). This is not counted as a fully completed item; a follow-up must add reliable actor/change capture and a tenant-scoped response before presenting those details. Remaining verification: full dependency-backed build/typecheck and browser acceptance (RTL/mobile, filters/forms, widget with allowed origins, report presets, draft/test/published onboarding comprehension). PR #2 stays draft; no main merge, Railway deployment, real messages, Meta connection or paid AI activation.
 
 ### Final API compatibility review
 - UX-49: reports controller previously returned UTC and grouped daily rows in UTC despite local input bounds. It now reads timezone inside the existing tenant transaction, validates/falls back to Africa/Cairo, binds timezone as SQL parameter $3 for daily grouping, and reports that timezone. All other UTC filters and tenant isolation remain unchanged. Actual query callback tests cover configured/invalid/missing timezone, tenant ID binding and unchanged exclusive UTC bounds.
 - UX-52 compatibility: workspace API requires preferredPlan. Settings now round-trips the existing preference unchanged alongside editable settings; it is not an editable plan choice and never modifies billing. This corrects the earlier note that the preference was omitted.
 - Checks: test-ux-workspace.mjs and whitespace pass after these fixes. Existing F01–F19/designer checks passed in the preceding checkpoint; no graph/designer changes in this review. Full build remains blocked by missing Next/dependencies.
+
+### Delivery status
+- Completed implementation/reuse: UX-24–UX-33, UX-35–UX-54.
+- Partial: UX-34 — event label/technical disclosure exists; actor and changed-value details still require reliable backend capture/response. No actor or historical changes were invented.
+- Verified 27 changed deliverable files against the pushed GitHub tree with exact Git blob hashes (zero mismatches). All checkpoints are on fix/boat-ux-19-one-batch, PR #2; no force push or merge.
+- Full build/typecheck and visual acceptance remain unverified, with the missing dependency/proxy limitation recorded above.
