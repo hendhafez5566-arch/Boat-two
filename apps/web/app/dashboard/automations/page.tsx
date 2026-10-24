@@ -1,4 +1,5 @@
 'use client';
+import { AUTOMATION_EVENTS, eventLabel } from '../../../lib/business-events';
 import { statusLabel } from '../../../components/product/status';
 import { SavedAutomationEditor } from '../../../components/business/SavedAutomationEditor';
 import { AutomationCanvas } from '../../../components/business/AutomationCanvas';
@@ -60,14 +61,8 @@ export default function Automations() {
       setBusy(false);
     }
   }
-  const triggers = [
-    ['crm.contacts.insert', t('عند إنشاء عميل', 'Contact created')],
-    ['crm.contacts.update', t('عند تحديث عميل', 'Contact updated')],
-    ['crm.crm_deals.insert', t('عند إنشاء صفقة', 'Deal created')],
-    ['crm.crm_deals.update', t('عند تحديث صفقة', 'Deal updated')],
-    ['crm.crm_tasks.update', t('عند تحديث متابعة', 'Task updated')],
-    ['automation.scheduled', t('موعد مخصص', 'Scheduled')],
-  ];
+  const eventGroups = [['contacts',t('العملاء','Contacts')],['sales',t('المبيعات','Sales')],['tasks',t('المتابعات','Follow-ups')],['schedule',t('الجدولة','Scheduling')]];
+  const selectedEvent = AUTOMATION_EVENTS.find(event => event.id === trigger);
   const actionLabel = (type: string) =>
     ({
       tag: t('وسم', 'Tag'),
@@ -145,7 +140,7 @@ export default function Automations() {
                 <div>
                   <strong>{r.name}</strong>
                   <p className="muted">
-                    {triggers.find(([id]) => id === r.trigger)?.[1] || r.trigger}
+                    {eventLabel(r.trigger,t)}
                   </p>
                   <div className="auto-chips">
                     {r.actions.slice(0, 6).map((a, i) => (
@@ -279,13 +274,13 @@ export default function Automations() {
             </label>
             <label className="field">
               {t('عندما', 'When')}
-              <select value={trigger} onChange={(e) => setTrigger(e.target.value)}>
-                {triggers.map(([id, label]) => (
-                  <option key={id} value={id}>
-                    {label}
-                  </option>
-                ))}
+              <select aria-describedby="automation-trigger-help" value={trigger} onChange={(e) => setTrigger(e.target.value)}>
+                {!selectedEvent && <option value={trigger}>{t('حدث مخصص محفوظ','Saved custom event')}</option>}
+                {eventGroups.map(([group,label]) => <optgroup key={group} label={label}>
+                  {AUTOMATION_EVENTS.filter(event => event.group === group).map(event => <option key={event.id} value={event.id} title={t(event.descriptionAr,event.descriptionEn)}>{t(event.ar,event.en)}</option>)}
+                </optgroup>)}
               </select>
+              <small id="automation-trigger-help" aria-live="polite">{selectedEvent ? t(selectedEvent.descriptionAr,selectedEvent.descriptionEn) : t('حدث محفوظ بمعرّفه الداخلي. راجع تفاصيل القاعدة قبل تغييره.','A saved event using its internal identifier. Review the rule before changing it.')}</small>
             </label>
             <label className="field">
               {t('بشرط مرحلة العميل', 'With contact lifecycle')}
