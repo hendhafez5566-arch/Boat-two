@@ -224,6 +224,7 @@ export class MessagingService {
     content: MessageContent;
     senderType: 'bot' | 'agent' | 'system';
     senderUserId?: string;
+    flow?: { flowId: string; nodeId?: string };
   }) {
     validateOutbound(p.content);
     const effectKey = this.db.effectKey();
@@ -282,8 +283,8 @@ export class MessagingService {
       }
       const msg = (
         await c.query(
-          `INSERT INTO messages (tenant_id, conversation_id, channel_id, direction, sender_type, sender_user_id, type, content, status,effect_key)
-           VALUES ($1, $2, $3, 'out', $4, $5, $6, $7, $8,$9) RETURNING id, seq, created_at`,
+          `INSERT INTO messages (tenant_id, conversation_id, channel_id, direction, sender_type, sender_user_id, type, content, status,effect_key, flow_id, flow_node_id)
+           VALUES ($1, $2, $3, 'out', $4, $5, $6, $7, $8,$9,$10,$11) RETURNING id, seq, created_at`,
           [
             p.tenantId,
             p.conversationId,
@@ -294,6 +295,8 @@ export class MessagingService {
             JSON.stringify(p.content),
             row.type === 'web' ? 'sent' : 'queued',
             effectKey,
+            p.flow?.flowId ?? null,
+            p.flow?.nodeId ?? null,
           ],
         )
       ).rows[0];

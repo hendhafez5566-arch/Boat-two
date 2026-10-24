@@ -128,13 +128,12 @@ export default function MetaConnect({ onSaved }: { onSaved: () => void }) {
           )}
         </p>
       </div>
-      {!config.data.configured && (
-        <p className="notice">
-          {t(
+      {(!config.data.configured || !config.data.externalEnabled) && (
+        <div className="notice"><strong>{t('بانتظار تجهيز الربط','Connection setup pending')}</strong><p>{t('تواصل مع مسؤول المنصة لتجهيز الربط الرسمي. يمكنك استخدام قناة الموقع الآن دون حساب خارجي.','Contact the platform administrator to prepare the official connection. Website chat is available without an external account.')}</p><details><summary>{t('تفاصيل للمسؤول','Administrator details')}</summary>{t(
             'يلزم إعداد تطبيق Meta ومعرّف Embedded Signup وRedirect URI والصلاحيات المعتمدة بواسطة المشغّل.',
             'The operator must configure the Meta app, Embedded Signup configuration, redirect URI and approved permissions.',
           )}
-        </p>
+        </details></div>
       )}
       {(error || config.error || connections.error) && (
         <p role="alert" className="notice error">

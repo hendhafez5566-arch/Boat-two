@@ -39,6 +39,7 @@ export default function Inbox() {
   const { t, language } = useLocale();
   const [showContext, setShowContext] = useState(false);
   const [tab, setTab] = useState<Tab>('active');
+  useEffect(() => { const key = new URLSearchParams(window.location.search).get('tab'); if (key && key in TAB_QUERY) setTab(key as Tab); }, []);
   const [q, setQ] = useState('');
   const [channelId, setChannelId] = useState('');
   const [items, setItems] = useState<any[]>([]);
@@ -625,7 +626,8 @@ export default function Inbox() {
                 <button
                   key={k}
                   onClick={() => setTab(k)}
-                  className={`rounded-full px-2 py-0.5 text-xs ${tab === k ? 'bg-black text-white' : 'border'}`}
+                  aria-pressed={tab === k}
+                  className={`btn rounded-full px-3 py-2 text-sm ${tab === k ? 'btn-primary' : ''}`}
                 >
                   {language === 'ar'
                     ? label
@@ -639,7 +641,7 @@ export default function Inbox() {
                           closed: 'Closed',
                         } as Record<string, string>
                       )[k]}
-                  {counts[ck] ? ` (${counts[ck]})` : ''}
+                  {typeof counts[ck] === 'number' ? ` (${counts[ck]})` : ''}
                 </button>
               ))}
             </div>
@@ -713,7 +715,9 @@ export default function Inbox() {
               <li className="empty" role="status">
                 {listLoading
                   ? t('جارٍ التحميل…', 'Loading…')
-                  : t('لا توجد محادثات تطابق الفلاتر.', 'No conversations match these filters.')}
+                  : (q.trim() || channelId || tab !== 'active' || Number(counts.active || 0) + Number(counts.closed || 0) > 0)
+                    ? <div className="stack"><p>{t('لا توجد محادثات تطابق الفلاتر.','No conversations match these filters.')}</p><button className="btn" onClick={()=>{setQ('');setChannelId('');setTab('active');}}>{t('مسح البحث والفلاتر','Clear search and filters')}</button>{Number(counts.closed)>0 && <button className="btn" onClick={()=>{setQ('');setChannelId('');setTab('closed');}}>{t('عرض المحادثات المغلقة','View closed conversations')}</button>}</div>
+                    : <div className="stack"><p>{t('لا توجد محادثات بعد. ابدأ بربط قناة أو تجربة ويدجت الموقع.','No conversations yet. Connect a channel or try your website widget.')}</p><Link className="btn" href="/dashboard/channels">{t('القنوات وتجربة الويدجت','Channels and widget demo')}</Link></div>}
               </li>
             )}
           </ul>

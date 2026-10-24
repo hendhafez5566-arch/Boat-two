@@ -41,6 +41,7 @@ export default function Channels() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<Channel | null>(null);
   const [saved, setSaved] = useState(false);
+  const [copied,setCopied]=useState('');
   const [items, setItems] = useState<Channel[]>([]);
   const [type, setType] = useState('web');
   const [error, setError] = useState('');
@@ -179,6 +180,7 @@ export default function Channels() {
                 <pre dir="ltr" className="overflow-x-auto rounded bg-gray-100 p-2 text-xs">
                   {c.widgetSnippet}
                 </pre>
+                <div className="form-actions"><button className="btn" onClick={async()=>{try{await navigator.clipboard.writeText(c.widgetSnippet!);setCopied(c.id);}catch{setError(t('تعذر النسخ التلقائي. انسخ الكود الظاهر يدويًا.','Automatic copy failed. Copy the displayed code manually.'));}}}>{copied === c.id ? t('تم نسخ الكود','Code copied') : t('نسخ كود التثبيت','Copy installation code')}</button><a className="btn" target="_blank" rel="noopener noreferrer" href={'/widget-demo.html?key='+encodeURIComponent(c.external_id)}>{t('جرّب الويدجت','Try widget')}</a></div><p role="status">{copied === c.id && t('أرسل الكود لمسؤول موقعك وأضفه قبل إغلاق body. اضبط المواقع المسموحة من إعدادات القناة.','Share the code with your website administrator and insert before closing body. Set allowed origins in channel settings.')}</p>
                 <p className="mt-1 text-xs">
                   {t('للتجربة:', 'Try it:')} <code>/widget-demo.html?key={c.external_id}</code>
                 </p>

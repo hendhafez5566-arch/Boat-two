@@ -1,4 +1,5 @@
 'use client';
+import { activityAction, resourceLabel } from '../../../lib/business-events';
 import { useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
@@ -56,10 +57,10 @@ export default function Audit() {
             {data.items.map((x) => (
               <tr key={x.id}>
                 <td>{new Date(x.created_at).toLocaleString()}</td>
-                <td>{x.action}</td>
+                <td>{activityAction(x.action,t)}</td>
                 <td>
-                  {x.resource_type}
-                  <small className="muted block">{x.resource_id}</small>
+                  {resourceLabel(x.resource_type,t)}
+                  <details><summary>{t('تفاصيل تقنية', 'Technical details')}</summary><code dir="ltr">{x.action} · {x.resource_type} · {x.resource_id}</code></details>
                 </td>
                 <td>
                   {x.actor_name || t('النظام / قبل تفعيل سجل المستخدم', 'System / unattributed')}

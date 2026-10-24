@@ -1,0 +1,13 @@
+{
+  "sourceCommit": "b4f2da4894dae24bd55e6d7351fddc2b25fe7a14",
+  "layersVerified": [
+    "original redesign",
+    "V10 flow types",
+    "V10",
+    "V11",
+    "Phase 5 API",
+    "Phase 5 web"
+  ],
+  "mode": "tracked-source",
+  "legacyBuildEntrypoints": "compatibility checks only; no source mutation"
+}

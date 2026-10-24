@@ -1,14 +1,16 @@
 'use client';
+import { eventLabel } from '../../../lib/business-events';
+import { Dialog } from '../../../components/product/ProductUI';
 import { ContactActivityExport } from '../../../components/business/ContactActivityExport';
 import { statusLabel } from '../../../components/product/status';
 import { CrmJobs } from '../../../components/business/CrmJobs';
 import { ContactLifecycle } from '../../../components/business/ContactLifecycle';
-import { FormEvent, useState } from 'react';
+import { CSSProperties, FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
 import { useData } from '../../../components/business/useData';
-import { download, exportCsv, parseCsv } from '../../../components/business/csv';
+import { download, exportCsv } from '../../../components/business/csv';
 type Contact = {
   id: string;
   name: string;
@@ -55,11 +57,30 @@ const blank = {
   ownerId: '',
   attributes: '{}',
 };
+const COLUMNS = ['contact', 'lifecycle', 'tags', 'id'] as const;
+type Column = (typeof COLUMNS)[number];
+const tagHue = (tag: string) => [...tag].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 7);
+
 export default function CRM() {
   const { t } = useLocale();
   const workspace = useData<{ role: string }>('/workspace', { role: '' });
   const canManage = ['owner', 'admin'].includes(workspace.data.role);
   const [tab, setTab] = useState('contacts');
+  const [cols, setCols] = useState<Column[]>(['contact', 'lifecycle', 'tags']);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('crm.columns') || 'null');
+      if (Array.isArray(saved)) setCols(saved.filter((c): c is Column => COLUMNS.includes(c)));
+    } catch {}
+  }, []);
+  const toggleCol = (c: Column, on: boolean) =>
+    setCols((cur) => {
+      const next = on ? [...cur, c] : cur.filter((x) => x !== c);
+      try {
+        localStorage.setItem('crm.columns', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
   const [q, setQ] = useState('');
   const [bulkIds, setBulkIds] = useState<string[]>([]);
   const [stage, setStage] = useState('');
@@ -70,6 +91,7 @@ export default function CRM() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [edit, setEdit] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState(blank);
   const [selected, setSelected] = useState<Contact | null>(null);
   const [timeline, setTimeline] = useState<Timeline | null>(null);
@@ -97,7 +119,7 @@ export default function CRM() {
     [],
   );
   const segments = useData<
-    { id: string; name: string; filters: { q?: string; lifecycle?: string; tag?: string } }[]
+    { id: string; name: string; filters: { q?: string; lifecycle?: string; tag?: string; archived?: string } }[]
   >('/crm/segments', []);
   const duplicates = useData<{ kind: string; value: string; ids: string[]; count: number }[]>(
     '/crm/contacts/duplicates',
@@ -108,6 +130,7 @@ export default function CRM() {
     { members: [] },
   );
   const channels = useData<{ id: string; name: string }[]>('/channels', []);
+  useEffect(() => { const reload=()=>{void contacts.reload();};window.addEventListener('boat:crm-imported',reload);return ()=>window.removeEventListener('boat:crm-imported',reload); }, [contacts.reload]);
   const refresh = () => {
     contacts.reload();
     deals.reload();
@@ -162,38 +185,9 @@ export default function CRM() {
       );
       setForm(blank);
       setEdit(null);
+      setShowCreate(false);
     } catch (e) {
       setError((e as Error).message);
-    }
-  }
-  async function importFile(file: File) {
-    setBusy(true);
-    setError('');
-    try {
-      if (file.size > 2_000_000) throw new Error(t('حجم الملف أكبر من 2MB', 'File exceeds 2MB'));
-      const text = await file.text();
-      const rows = file.name.endsWith('.json') ? JSON.parse(text) : parseCsv(text);
-      if (!Array.isArray(rows)) throw new Error('Expected an array');
-      const mapped = rows.map((r) => ({
-        ...r,
-        email: r.email || null,
-        phone: r.phone || null,
-        tags: Array.isArray(r.tags)
-          ? r.tags
-          : String(r.tags || '')
-              .split(';')
-              .filter(Boolean),
-      }));
-      const result = await api<{ imported: number }>('/crm/contacts/import', {
-        method: 'POST',
-        body: JSON.stringify({ contacts: mapped }),
-      });
-      setMessage(`${result.imported} ${t('جهة اتصال مستوردة', 'contacts imported')}`);
-      refresh();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
     }
   }
   async function exportContacts() {
@@ -219,13 +213,10 @@ export default function CRM() {
   ];
   return (
     <main className="stack">
-      <Link href="/dashboard/crm/work" className="btn">
-        {t('إدارة المبيعات والمتابعات المتقدمة', 'Manage sales and follow-ups')}
-      </Link>
       <div className="page-heading">
         <div>
           <p className="eyebrow">{t('علاقات العملاء', 'CUSTOMER RELATIONSHIPS')}</p>
-          <h1>{t('كل عميل، بسياقه الكامل', 'Every customer, in context')}</h1>
+          <h1>{t('إدارة العملاء', 'Customer management')}</h1>
           <p>
             {t(
               'العملاء والمحادثات والصفقات والمتابعات مرتبطة ببيانات شركتك.',
@@ -233,6 +224,7 @@ export default function CRM() {
             )}
           </p>
         </div>
+        <button className="btn btn-primary" onClick={() => {setEdit(null);setForm(blank);setShowCreate(true);setTab('contacts');}}>{t('إضافة عميل', 'Add contact')}</button>
         <button className="btn" onClick={refresh}>
           {t('تحديث', 'Refresh')}
         </button>
@@ -268,9 +260,7 @@ export default function CRM() {
       )}
       {tab === 'contacts' && (
         <>
-          <section className="card">
-            <div className="form-grid">
-              <label className="field">
+          <section className="card form-actions">              <label className="field">
                 {t('بحث', 'Search')}
                 <input
                   value={q}
@@ -280,7 +270,15 @@ export default function CRM() {
                   }}
                   placeholder={t('اسم أو بريد أو هاتف', 'Name, email or phone')}
                 />
-              </label>
+              </label><strong>{contacts.data.total} {t('عميل', 'contacts')}</strong>
+            {(q || stage || tag || archiveFilter !== 'active') && <button className="btn" onClick={()=>{setQ('');setStage('');setTag('');setArchiveFilter('active');setPage(1);}}>{t('مسح التصفية', 'Clear filters')}</button>}
+          </section>
+          <details className="card" open={bulkIds.length > 0 || undefined}>
+            <summary>{t('الفلاتر والأدوات المتقدمة', 'Advanced filters and tools')} {(stage || tag || archiveFilter !== 'active') && t('· توجد فلاتر نشطة', '· filters active')}</summary>
+            <Link href="/dashboard/crm/work" className="btn">{t('إدارة المبيعات والمتابعات المتقدمة', 'Manage sales and follow-ups')}</Link>
+          <section className="card">
+            <div className="form-grid">
+
               <label className="field">
                 {t('مرحلة العميل', 'Lifecycle')}
                 <select
@@ -301,37 +299,66 @@ export default function CRM() {
               <label className="field">
                 {t('وسم', 'Tag')}
                 <input
+                  list="crm-known-tags"
                   value={tag}
                   onChange={(e) => {
                     setTag(e.target.value);
                     setPage(1);
                   }}
                 />
+                <datalist id="crm-known-tags">
+                  {[...new Set(contacts.data.items.flatMap((c) => c.tags))].sort().map((x) => (
+                    <option key={x} value={x} />
+                  ))}
+                </datalist>
               </label>
             </div>
+            {(q || stage || tag) && (
+              <div className="filter-chips" aria-label={t('التصفية الحالية', 'Active filters')}>
+                {q && (
+                  <button type="button" className="filter-chip" onClick={() => { setQ(''); setPage(1); }}>
+                    {t('بحث', 'Search')}: {q} ×
+                  </button>
+                )}
+                {stage && (
+                  <button type="button" className="filter-chip" onClick={() => { setStage(''); setPage(1); }}>
+                    {statusLabel(stage, t)} ×
+                  </button>
+                )}
+                {tag && (
+                  <button type="button" className="filter-chip" onClick={() => { setTag(''); setPage(1); }}>
+                    # {tag} ×
+                  </button>
+                )}
+              </div>
+            )}
             <div className="form-actions">
+              <details className="col-picker">
+                <summary className="btn">{t('الأعمدة', 'Columns')}</summary>
+                <div className="col-picker-menu">
+                  {(
+                    [
+                      ['contact', t('التواصل', 'Contact')],
+                      ['lifecycle', t('المرحلة', 'Lifecycle')],
+                      ['tags', t('الوسوم', 'Tags')],
+                      ['id', t('المعرّف', 'ID')],
+                    ] as [Column, string][]
+                  ).map(([key, label]) => (
+                    <label key={key}>
+                      <input
+                        type="checkbox"
+                        checked={cols.includes(key)}
+                        onChange={(e) => toggleCol(key, e.target.checked)}
+                      />{' '}
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </details>
               <button className="btn" onClick={exportContacts}>
                 {t('تصدير CSV', 'Export CSV')}
               </button>
-              <label className="btn">
-                {t('استيراد CSV / JSON', 'Import CSV / JSON')}
-                <input
-                  type="file"
-                  className="hidden"
-                  accept=".csv,.json"
-                  disabled={busy}
-                  onChange={(e) => {
-                    if (e.target.files?.[0]) importFile(e.target.files[0]);
-                    e.target.value = '';
-                  }}
-                />
-              </label>
-              <small className="muted">
-                {t(
-                  'حتى 500 صف للاستيراد. CSV: name,email,phone,lifecycle,tags',
-                  'Import up to 500 rows. CSV: name,email,phone,lifecycle,tags',
-                )}
-              </small>
+
             </div>
           </section>
           <section className="card">
@@ -352,7 +379,7 @@ export default function CRM() {
           </section>
           {canManage && <ContactLifecycle act={act} busy={busy} />}
           {canManage && <CrmJobs />}
-          {canManage && (
+          {canManage && bulkIds.length > 0 && (
             <form
               className="card space-y-3"
               onSubmit={async (event) => {
@@ -402,7 +429,7 @@ export default function CRM() {
                   <select name="lifecycle">
                     <option value="">{t('دون تغيير', 'Keep current')}</option>
                     {['lead', 'qualified', 'customer', 'inactive'].map((value) => (
-                      <option key={value}>{value}</option>
+                      <option key={value} value={value}>{statusLabel(value,t)}</option>
                     ))}
                   </select>
                 </label>
@@ -467,15 +494,16 @@ export default function CRM() {
             </form>
           )}
 
+          </details>
           <section className="card table-wrap">
             <table className="product-table">
               <thead>
                 <tr>
                   <th>{t('تحديد', 'Select')}</th>
                   <th>{t('العميل', 'Customer')}</th>
-                  <th>{t('التواصل', 'Contact')}</th>
-                  <th>{t('المرحلة', 'Lifecycle')}</th>
-                  <th>{t('الوسوم', 'Tags')}</th>
+                  {cols.includes('contact') && <th>{t('التواصل', 'Contact')}</th>}
+                  {cols.includes('lifecycle') && <th>{t('المرحلة', 'Lifecycle')}</th>}
+                  {cols.includes('tags') && <th>{t('الوسوم', 'Tags')}</th>}
                   <th />
                 </tr>
               </thead>
@@ -500,11 +528,33 @@ export default function CRM() {
                         {c.name}
                       </button>
                     </td>
-                    <td>{c.email || c.phone || '—'}</td>
-                    <td>
-                      <span className="badge">{statusLabel(c.lifecycle, t)}</span>
-                    </td>
-                    <td>{c.tags.join(' · ') || '—'}</td>
+                    {cols.includes('contact') && <td>{c.email || c.phone || '—'}</td>}
+                    {cols.includes('lifecycle') && (
+                      <td>
+                        <span className="badge">{statusLabel(c.lifecycle, t)}</span>
+                      </td>
+                    )}
+                    {cols.includes('tags') && (
+                      <td>
+                        {c.tags.length
+                          ? c.tags.map((x) => (
+                              <button
+                                type="button"
+                                key={x}
+                                className="tag-chip"
+                                title={t('تصفية بهذا الوسم', 'Filter by this tag')}
+                                style={{ '--tag-hue': tagHue(x) } as CSSProperties}
+                                onClick={() => {
+                                  setTag(x);
+                                  setPage(1);
+                                }}
+                              >
+                                {x}
+                              </button>
+                            ))
+                          : '—'}
+                      </td>
+                    )}
                     <td>
                       <button
                         className="btn"
@@ -536,9 +586,11 @@ export default function CRM() {
                       >
                         {c.archived_at ? t('استعادة', 'Restore') : t('أرشفة', 'Archive')}
                       </button>
-                      <small className="block select-all" dir="ltr">
-                        {c.id}
-                      </small>
+                      {cols.includes('id') && (
+                        <small className="block select-all" dir="ltr">
+                          {c.id}
+                        </small>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -557,6 +609,7 @@ export default function CRM() {
               )
             )}
           </section>
+          <Dialog open={showCreate || !!edit} onClose={() => {setShowCreate(false);setEdit(null);}} title={edit ? t('تعديل العميل','Edit contact') : t('إضافة عميل','Add contact')}>
           <form className="card" onSubmit={save}>
             <h2>
               {edit
@@ -691,13 +744,15 @@ export default function CRM() {
                   onClick={() => {
                     setEdit(null);
                     setForm(blank);
+                    setShowCreate(false);
                   }}
                 >
                   {t('إلغاء', 'Cancel')}
                 </button>
               )}
             </div>
-          </form>
+          </form>          </Dialog>
+
         </>
       )}
       {selected && tab === 'contacts' && (
@@ -819,7 +874,7 @@ export default function CRM() {
                     {timeline.events.map((x) => (
                       <tr key={x.id}>
                         <td>{new Date(x.created_at).toLocaleString()}</td>
-                        <td>{x.type}</td>
+                        <td>{eventLabel(x.type,t)}<details><summary>{t('تفاصيل تقنية','Technical details')}</summary><code dir="ltr">{x.type} · {x.id}</code></details></td>
                         <td>{statusLabel(x.status, t)}</td>
                       </tr>
                     ))}
@@ -1198,7 +1253,7 @@ export default function CRM() {
               <h2>{t('الحقول المخصصة', 'Custom fields')}</h2>
               {fields.data.map((x) => (
                 <p className="muted" key={x.id}>
-                  {x.label} · {x.key} · {x.type}
+                  {x.label} · {({text:t('نص','Text'),number:t('رقم','Number'),date:t('تاريخ','Date'),boolean:t('نعم / لا','Yes / no')} as Record<string,string>)[x.type] || x.type} · {x.key}
                 </p>
               ))}
             </section>
@@ -1211,6 +1266,7 @@ export default function CRM() {
                       setQ(x.filters.q || '');
                       setStage(x.filters.lifecycle || '');
                       setTag(x.filters.tag || '');
+                      setArchiveFilter(x.filters.archived || 'active');
                       setTab('contacts');
                       setPage(1);
                     }}
@@ -1230,18 +1286,17 @@ export default function CRM() {
               ))}
             </section>
           </div>
-          <SimpleForm
-            title={t(
-              'حقل جديد: text / number / date / boolean',
-              'New field: text / number / date / boolean',
-            )}
-            fields={[
-              ['key', t('مفتاح إنجليزي', 'Field key')],
-              ['label', t('العنوان', 'Label')],
-              ['type', t('النوع', 'Type')],
-            ]}
-            onSave={(b) => act('/crm/fields', b)}
-          />
+          <CustomFieldForm onSave={(body) => act('/crm/fields', body)} />
+          <section className="card stack">
+            <h2>{t('مراجعة شروط الشريحة', 'Review segment conditions')}</h2>
+            <p>{contacts.data.total} {t('عميل مطابق حاليًا — تُحفظ الشروط لا قائمة ثابتة من العملاء', 'contacts match now — saves conditions, not a fixed contact list')}</p>
+            <div className="form-grid">
+              <label>{t('البحث','Search')}<input value={q} onChange={e=>{setQ(e.target.value);setPage(1);}} /></label>
+              <label>{t('المرحلة','Lifecycle')}<select value={stage} onChange={e=>{setStage(e.target.value);setPage(1);}}><option value="">{t('كل المراحل','All stages')}</option>{['lead','qualified','customer','inactive'].map(x=><option key={x} value={x}>{statusLabel(x,t)}</option>)}</select></label>
+              <label>{t('الوسم','Tag')}<input value={tag} onChange={e=>{setTag(e.target.value);setPage(1);}} /></label>
+              <label>{t('حالة الملفات','Profile status')}<select value={archiveFilter} onChange={e=>{setArchiveFilter(e.target.value);setPage(1);}}>{['active','archived','all'].map(x=><option key={x} value={x}>{x === 'all' ? t('الكل','All') : statusLabel(x,t)}</option>)}</select></label>
+            </div>
+          </section>
           <SimpleForm
             title={t('احفظ التصفية الحالية كشريحة', 'Save current filters as a segment')}
             fields={[['name', t('اسم الشريحة', 'Segment name')]]}
@@ -1307,10 +1362,14 @@ function ContactSelect({ items }: { items: Contact[] }) {
 function SimpleForm({
   title,
   fields,
+  options = {},
+  help = {},
   onSave,
 }: {
   title: string;
   fields: string[][];
+  options?: Record<string, string[][]>;
+  help?: Record<string,string>;
   onSave: (body: Record<string, string>) => Promise<unknown>;
 }) {
   const { t } = useLocale();
@@ -1339,7 +1398,8 @@ function SimpleForm({
         {fields.map(([key, label]) => (
           <label className="field" key={key}>
             {label}
-            <input required name={key} />
+            {options[key] ? <select required name={key}>{options[key].map(([value,title])=><option key={value} value={value}>{title}</option>)}</select> : <input required name={key} />}
+            {help[key] && <small>{help[key]}</small>}
           </label>
         ))}
       </div>
@@ -1349,4 +1409,20 @@ function SimpleForm({
       </button>
     </form>
   );
+}
+
+function CustomFieldForm({onSave}:{onSave:(body:Record<string,string>)=>Promise<unknown>}) {
+  const {t}=useLocale();
+  const [label,setLabel]=useState(''),[key,setKey]=useState(''),[type,setType]=useState('text'),[busy,setBusy]=useState(false),[error,setError]=useState('');
+  const generated = 'field_' + Array.from(label.trim()).map(c=>c.codePointAt(0)!.toString(16)).join('').slice(0,32);
+  const fieldKey=key || generated;
+  return <form className="card stack" onSubmit={async e=>{e.preventDefault();setBusy(true);setError('');try{await onSave({label,key:fieldKey,type});setLabel('');setKey('');}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}>
+    <h2>{t('إضافة حقل مخصص','Add custom field')}</h2>
+    <label>{t('العنوان','Label')}<input required maxLength={100} value={label} onChange={e=>setLabel(e.target.value)} /></label>
+    <label>{t('نوع البيانات','Data type')}<select value={type} onChange={e=>setType(e.target.value)}>{[['text',t('نص','Text')],['number',t('رقم','Number')],['date',t('تاريخ','Date')],['boolean',t('نعم / لا','Yes / no')]].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
+    <p>{t('معاينة','Preview')}: {label || t('عنوان الحقل','Field label')} — {type === 'boolean' ? t('نعم / لا','Yes / no') : type === 'number' ? '123' : type === 'date' ? '2026-10-24' : t('قيمة نصية','Text value')}</p>
+    <details><summary>{t('متقدم: مفتاح التكامل','Advanced: integration key')}</summary><input aria-label={t('مفتاح الحقل','Field key')} dir="ltr" pattern="[a-z][a-z0-9_]{0,40}" maxLength={41} placeholder={generated} value={key} onChange={e=>setKey(e.target.value)} /><code dir="ltr">{fieldKey}</code></details>
+    {error && <p role="alert" className="notice error">{error}</p>}
+    <button className="btn btn-primary" disabled={busy}>{busy?t('جارٍ الحفظ…','Saving…'):t('حفظ الحقل','Save field')}</button>
+  </form>;
 }

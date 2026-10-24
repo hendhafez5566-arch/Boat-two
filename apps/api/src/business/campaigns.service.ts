@@ -21,14 +21,25 @@ export class CampaignsService {
   async audience(tenant: string, channelId: string, filters: Filters) {
     const w = contactWhere(filters);
     return this.db.withTenant(tenant, async (c) => {
-      if (!(await c.query('SELECT 1 FROM channels WHERE id=$1', [channelId])).rowCount)
-        throw new NotFoundException('Channel not found');
-      return (
-        await c.query(
-          `SELECT count(*)::int AS matched,count(*) FILTER(WHERE EXISTS(SELECT 1 FROM contact_consents s JOIN contact_channels cc ON cc.contact_id=s.contact_id AND cc.channel_id=s.channel_id WHERE s.contact_id=contacts.id AND s.channel_id=$5 AND s.status='opted_in'))::int AS eligible FROM contacts WHERE ${w.sql}`,
-          [...w.params, channelId],
-        )
-      ).rows[0];
+      const channel = (await c.query('SELECT ch.type,p.marketing_enabled FROM channels ch LEFT JOIN channel_delivery_policy p ON p.channel_id=ch.id WHERE ch.id=$1', [channelId])).rows[0];
+      if (!channel) throw new NotFoundException('Channel not found');
+      const counts = (await c.query(
+        `WITH classified AS (
+          SELECT CASE
+            WHEN NOT EXISTS(SELECT 1 FROM contact_channels cc WHERE cc.contact_id=contacts.id AND cc.channel_id=$5) THEN 'not_linked'
+            WHEN EXISTS(SELECT 1 FROM contact_consents s WHERE s.contact_id=contacts.id AND s.channel_id=$5 AND s.status='opted_in') THEN 'eligible'
+            WHEN EXISTS(SELECT 1 FROM contact_consents s WHERE s.contact_id=contacts.id AND s.channel_id=$5 AND s.status='opted_out') THEN 'opted_out'
+            ELSE 'no_consent' END AS reason FROM contacts WHERE ${w.sql}
+        ) SELECT count(*)::int AS matched,count(*) FILTER(WHERE reason='eligible')::int AS eligible,
+          count(*) FILTER(WHERE reason='not_linked')::int AS not_linked,
+          count(*) FILTER(WHERE reason='opted_out')::int AS opted_out,
+          count(*) FILTER(WHERE reason='no_consent')::int AS no_consent FROM classified`,
+        [...w.params, channelId],
+      )).rows[0];
+      return {matched:counts.matched,eligible:counts.eligible,excluded:counts.matched-counts.eligible,
+        reasons:['not_linked','opted_out','no_consent'].map(code=>({code,count:counts[code]})),
+        channelPolicyEnabled:channel.marketing_enabled === true,
+      };
     });
   }
   async schedule(tenant: string, id: string, at: string) {

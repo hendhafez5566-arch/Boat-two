@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useLocale } from '../../../components/product/locale';
 import { api, getSession } from '../../../lib/api';
+import { NavIcon } from '../../../components/product/NavIcon';
+import { EmptyState } from '../../../components/product/ProductUI';
 
 type Flow = {
   id: string;
@@ -76,122 +78,165 @@ export default function Flows() {
     load();
   };
 
+  const published = items.filter((f) => f.status === 'published').length;
   return (
     <main className="stack">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">{t('استوديو البوت', 'BOT STUDIO')}</p>
           <h1>{t('مصمم البوت', 'Bot builder')}</h1>
           <p>
             {t(
-              'ابدأ بقالب، عدّل محتواه، ثم جرّبه قبل النشر.',
-              'Choose a template, customize its content and test before publishing.',
+              'أنشئ بوتات تحادث عملاءك، وعدّلها بالسحب والإفلات، وجرّبها قبل النشر.',
+              'Create bots that talk to your customers, edit them by drag and drop, and test before you publish.',
             )}
           </p>
         </div>
-      </div>
-      <Link className="btn btn-primary mb-6" href="/dashboard/flows/new">
-        {t('معالج إنشاء بوت للمبتدئين', 'Beginner bot wizard')} ↗
-      </Link>
-      <div className="card-grid mb-6">
-        {templates.map((x) => (
-          <button
-            key={x.id}
-            className="card text-start"
-            style={{ borderColor: templateId === x.id ? '#0f766e' : undefined }}
-            onClick={() => setTemplateId(x.id)}
-          >
-            <span className="badge">
-              {x.nodeCount} {t('عقد', 'nodes')}
-            </span>
-            <h2 className="mt-3">{x.name}</h2>
-            <p className="muted">{x.description}</p>
-            <span className="muted">
-              {templateId === x.id
-                ? t('✓ تم الاختيار', '✓ Selected')
-                : t('اختيار القالب', 'Select template')}
-            </span>
-          </button>
-        ))}
+        <Link className="btn btn-primary btn-lg" href="/dashboard/flows/new">
+          <NavIcon name="ai" />
+          {t('إنشاء بوت جديد', 'Create a new bot')}
+        </Link>
       </div>
       {error && (
         <p role="alert" className="notice error">
           {error}
         </p>
       )}
-      <form onSubmit={create} className="card mb-6 flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-1 text-xs">
-          <input type="checkbox" name="isComponent" />
-          {t('مكوّن قابل لإعادة الاستخدام', 'Reusable component')}
-        </label>
-        <input
-          name="name"
-          required
-          aria-label={t('اسم البوت', 'Bot name')}
-          placeholder={t('اسم سيناريو جديد', 'New bot name')}
-          className="flex-1 rounded border p-2"
-        />
-        <select
-          aria-label={t('قالب السيناريو', 'Flow template')}
-          className="rounded border p-2"
-          value={templateId}
-          onChange={(e) => setTemplateId(e.target.value)}
-        >
-          <option value="">{t('سيناريو فارغ', 'Blank flow')}</option>
-          {templates.map((x) => (
-            <option key={x.id} value={x.id}>
-              {x.name}
-            </option>
-          ))}
-        </select>
-        <button disabled={busy} className="btn btn-primary">
-          {busy ? t('جارٍ الإنشاء…', 'Creating…') : t('إنشاء البوت', 'Create bot')}
-        </button>
-      </form>
-      <ul className="flex flex-col gap-3">
-        {items.map((f) => (
-          <li key={f.id} className="rounded border p-3">
-            <div className="flex items-center justify-between">
-              <a href={`/dashboard/flows/${f.id}`} className="font-semibold underline">
-                {f.name}
-              </a>
-              <span
-                className={`rounded px-2 py-0.5 text-xs ${f.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100'}`}
-              >
-                {f.status === 'published'
-                  ? `${t('منشور', 'Published')} v${f.published_version}`
-                  : t('مسودة', 'Draft')}
-              </span>
-            </div>
-            <div className="mt-1 text-xs text-gray-500">
-              {t('المشغّلات:', 'Triggers:')}{' '}
-              {f.triggers.map(trig).join(' | ') || t('لا يوجد', 'None')}
-            </div>
-            <div className="mt-2 flex gap-3 text-xs">
-              <button onClick={() => act(`/flows/${f.id}/duplicate`)} className="underline">
-                {t('نسخ', 'Duplicate')}
-              </button>
-              {f.status === 'published' && (
-                <button onClick={() => act(`/flows/${f.id}/unpublish`)} className="underline">
-                  {t('إيقاف', 'Unpublish')}
-                </button>
+
+      <section aria-labelledby="my-bots">
+        <div className="section-title">
+          <h2 id="my-bots">{t('بوتاتك', 'Your bots')}</h2>
+          {items.length > 0 && (
+            <span>
+              {items.length} {t('بوت', 'bots')} · {published} {t('منشور', 'live')}
+            </span>
+          )}
+        </div>
+        {items.length ? (
+          <ul className="bot-list">
+            {items.map((f) => {
+              const live = f.status === 'published';
+              return (
+                <li key={f.id} className="bot-row">
+                  <span className={`bot-avatar ${live ? '' : 'is-draft'}`}>
+                    <NavIcon name="flows" />
+                  </span>
+                  <div className="bot-main">
+                    <a href={`/dashboard/flows/${f.id}`}>{f.name}</a>
+                    <small>
+                      {t('المشغّلات:', 'Triggers:')}{' '}
+                      {f.triggers.map(trig).join(' | ') || t('لا يوجد', 'None')}
+                    </small>
+                  </div>
+                  <span className={`status-pill ${live ? 'is-live' : 'is-draft'}`}>
+                    {live
+                      ? `${t('منشور', 'Published')} v${f.published_version}`
+                      : t('مسودة', 'Draft')}
+                  </span>
+                  <div className="bot-actions">
+                    <a className="btn btn-primary" href={`/dashboard/flows/${f.id}`}>
+                      {t('تعديل', 'Edit')}
+                    </a>
+                    <button className="btn" onClick={() => act(`/flows/${f.id}/duplicate`)}>
+                      {t('نسخ', 'Duplicate')}
+                    </button>
+                    {live && (
+                      <button className="btn" onClick={() => act(`/flows/${f.id}/unpublish`)}>
+                        {t('إيقاف', 'Unpublish')}
+                      </button>
+                    )}
+                    <button
+                      className="btn btn-danger"
+                      onClick={() =>
+                        confirm(t('حذف السيناريو؟', 'Delete this bot?')) &&
+                        act(`/flows/${f.id}`, 'DELETE')
+                      }
+                    >
+                      {t('حذف', 'Delete')}
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <div className="card">
+            <EmptyState
+              icon="flows"
+              title={t('لا توجد بوتات بعد', 'No bots yet')}
+              description={t(
+                'ابدأ بالمعالج الموجّه أو اختر قالبًا جاهزًا من الأسفل.',
+                'Start with the guided wizard or pick a ready-made template below.',
               )}
-              <button
-                onClick={() =>
-                  confirm(t('حذف السيناريو؟', 'Delete this bot?')) &&
-                  act(`/flows/${f.id}`, 'DELETE')
-                }
-                className="text-red-600 underline"
-              >
-                {t('حذف', 'Delete')}
-              </button>
-            </div>
-          </li>
-        ))}
-        {!items.length && (
-          <li className="text-gray-500">{t('لا توجد سيناريوهات بعد.', 'No bots yet.')}</li>
+              action={
+                <Link className="btn btn-primary" href="/dashboard/flows/new">
+                  {t('إنشاء أول بوت', 'Create your first bot')}
+                </Link>
+              }
+            />
+          </div>
         )}
-      </ul>
+      </section>
+
+      <section aria-labelledby="start-template">
+        <div className="section-title">
+          <h2 id="start-template">{t('ابدأ من قالب جاهز', 'Start from a template')}</h2>
+          <span>{t('اختر قالبًا ثم سمِّ البوت', 'Pick a template, then name your bot')}</span>
+        </div>
+        <div className="template-gallery">
+          {templates.map((x) => (
+            <button
+              type="button"
+              key={x.id}
+              className={`template-card ${templateId === x.id ? 'is-selected' : ''}`}
+              aria-pressed={templateId === x.id}
+              onClick={() => setTemplateId(templateId === x.id ? '' : x.id)}
+            >
+              <span className="tile-icon">
+                <NavIcon name="flows" />
+              </span>
+              <strong>{x.name}</strong>
+              <p>{x.description}</p>
+              <footer>
+                <span>
+                  {x.nodeCount} {t('عقد', 'nodes')}
+                </span>
+                <span>
+                  {templateId === x.id
+                    ? t('✓ تم الاختيار', '✓ Selected')
+                    : t('اختيار القالب', 'Select template')}
+                </span>
+              </footer>
+            </button>
+          ))}
+        </div>
+        <form onSubmit={create} className="card create-bar">
+          <input
+            name="name"
+            required
+            aria-label={t('اسم البوت', 'Bot name')}
+            placeholder={t('اسم البوت الجديد', 'New bot name')}
+          />
+          <select
+            aria-label={t('قالب السيناريو', 'Flow template')}
+            value={templateId}
+            onChange={(e) => setTemplateId(e.target.value)}
+          >
+            <option value="">{t('سيناريو فارغ', 'Blank flow')}</option>
+            {templates.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.name}
+              </option>
+            ))}
+          </select>
+          <label>
+            <input type="checkbox" name="isComponent" />
+            {t('مكوّن قابل لإعادة الاستخدام', 'Reusable component')}
+          </label>
+          <button disabled={busy} className="btn btn-primary">
+            {busy ? t('جارٍ الإنشاء…', 'Creating…') : t('إنشاء البوت', 'Create bot')}
+          </button>
+        </form>
+      </section>
     </main>
   );
 }

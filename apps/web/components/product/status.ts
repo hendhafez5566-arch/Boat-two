@@ -1,4 +1,5 @@
 const labels: Record<string, [string, string]> = {
+  owner: ['مالك الشركة','Owner'], admin: ['مسؤول','Admin'], agent: ['موظف','Agent'],
   lead: ['عميل محتمل', 'Lead'],
   qualified: ['مؤهل', 'Qualified'],
   customer: ['عميل', 'Customer'],

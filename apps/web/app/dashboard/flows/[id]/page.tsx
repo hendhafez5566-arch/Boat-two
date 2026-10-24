@@ -7,9 +7,11 @@ import ReactFlow, {
   Connection,
   Controls,
   MiniMap,
+  Panel,
   MarkerType,
   Node,
   NodeChange,
+  updateEdge,
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
@@ -21,13 +23,26 @@ import { Dialog } from '../../../../components/product/ProductUI';
 import { NavIcon } from '../../../../components/product/NavIcon';
 import { NodeIcon, nodeLabel } from '../../../../components/flow/presentation';
 import FlowNodeView from '../../../../components/flow/FlowNodeView';
+import { FlowAnalyticsContext, ButtonStats, FlowButtonStatsContext, FlowSequencesContext, FlowStatsContext, NodeStats, SeqInfo } from '../../../../components/flow/stats-context';
+import FlowEdge, { ButtonLinkEdge } from '../../../../components/flow/FlowEdge';
+import FlowButtonNode from '../../../../components/flow/FlowButtonNode';
+import { validationMessage } from '../../../../lib/validation-message';
+import UnsavedChangesGuard from '../../../../components/flow/UnsavedChangesGuard';
+import { STEP_GUIDANCE } from '../../../../lib/step-guidance';
+import StepActions from '../../../../components/flow/StepActions';
 import Inspector from '../../../../components/flow/Inspector';
+import type { ConditionVariable } from '../../../../components/business/ConditionModal';
 import TestPanel from '../../../../components/flow/TestPanel';
 import { api, getSession } from '../../../../lib/api';
 import {
+  BUTTON_NODE_TYPE,
+  deriveButtonCards,
   fromFlow,
   handlesFor,
+  hasButtonCards,
   NODE_META,
+  NODE_GROUPS,
+  optionsOf,
   NodeType,
   RFData,
   toFlow,
@@ -35,21 +50,56 @@ import {
   uid,
 } from '../../../../lib/flow-types';
 
-const nodeTypes = { flowNode: FlowNodeView };
+import { computeLayout, hasLayoutOverlap, nodeFootprint } from '../../../../lib/flow-layout';
+
+const inp = 'w-full rounded border p-1.5 text-sm';
+const nodeTypes = { flowNode: FlowNodeView, [BUTTON_NODE_TYPE]: FlowButtonNode };
+const edgeTypes = { smoothstep: FlowEdge, buttonLink: ButtonLinkEdge };
 
 type Issue = { nodeId?: string; message: string };
-const inp = 'w-full rounded border p-1.5 text-sm';
 
 function Editor({ id }: { id: string }) {
   const rf = useReactFlow();
   const { t, language } = useLocale();
   const [nodeSearch, setNodeSearch] = useState('');
+  const [findNode, setFindNode] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
   const [mobilePanel, setMobilePanel] = useState('canvas');
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const selRef = useRef<string | null>(null);
+  const builderRef = useRef<HTMLDivElement>(null);
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    const sync = () => setFocused(document.fullscreenElement === builderRef.current);
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
+  const [zoomPercent, setZoomPercent] = useState(100);
+  const [showMap, setShowMap] = useState(false);
+  const [analytics, setAnalytics] = useState(false);
+  const reviewViewport = useRef<{x:number;y:number;zoom:number} | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewActive, setPreviewActive] = useState<string | null>(null);
+  const previewActiveRef = useRef<string | null>(null);
+  const [previewVisited, setPreviewVisited] = useState<string[]>([]);
+  const lastFocused = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  const [dropMenu, setDropMenu] = useState<{
+    x: number;
+    y: number;
+    source: string;
+    handle: string | null;
+    edgeId?: string;
+  } | null>(null);
+  const [toast, setToast] = useState<{ text: string; undo: boolean } | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const connectFrom = useRef<{ source: string; handle: string | null } | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<RFData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [startId, setStartId] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
-  const [tab, setTab] = useState<'node' | 'settings' | 'test'>('node');
+  const [tab, setTab] = useState<'node' | 'settings'>('node');
   const [meta, setMeta] = useState<{
     name: string;
     priority: number;
@@ -68,11 +118,54 @@ function Editor({ id }: { id: string }) {
   const [channels, setChannels] = useState<{ id: string; name: string; type: string }[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [warnings, setWarnings] = useState<Issue[]>([]);
+  const [validationState, setValidationState] = useState<'unchecked' | 'checking' | 'current' | 'stale'>('unchecked');
+  const validationSnapshot = useRef('');
+  const validationRequest = useRef(0);
   const [dirty, setDirty] = useState(false);
+  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved');
+  const savedContent = useRef('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [updatedAt, setUpdatedAt] = useState('');
   const [loaded, setLoaded] = useState(false);
+  const [nodeStats, setNodeStats] = useState<Record<string, NodeStats>>({});
+  const [buttonStats, setButtonStats] = useState<Record<string, ButtonStats>>({});
+  const [btnDims, setBtnDims] = useState<Record<string, { width: number; height: number }>>({});
+  const [seqInfo, setSeqInfo] = useState<Record<string, SeqInfo>>({});
+  useEffect(() => {
+    let alive = true;
+    api<{ id: string; name: string; status: string; delivery_time?: string | null; timezone?: string }[]>('/sequences')
+      .then((rows) => {
+        if (!alive) return;
+        setSeqInfo(
+          Object.fromEntries(
+            rows.map((s) => [s.id, { name: s.name, status: s.status, deliveryTime: s.delivery_time ?? null, timezone: s.timezone ?? '' }]),
+          ),
+        );
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      Promise.all([
+        api<Record<string, NodeStats>>(`/flows/${id}/stats`)
+          .then((r) => alive && setNodeStats(r))
+          .catch(() => {}),
+        api<Record<string, ButtonStats>>(`/flows/${id}/button-stats`)
+          .then((r) => alive && setButtonStats(r))
+          .catch(() => {}),
+      ]);
+    load();
+    const timer = setInterval(load, 30000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [id]);
   const [autoSave, setAutoSave] = useState(true);
   const [versions, setVersions] = useState<{ id: string; version: number; created_at: string }[]>(
     [],
@@ -86,6 +179,10 @@ function Editor({ id }: { id: string }) {
   const latest = useRef('');
 
   useEffect(() => {
+    setPreviewOpen(window.innerWidth >= 1400);
+  }, []);
+
+  useEffect(() => {
     if (!getSession()) {
       window.location.href = '/login';
       return;
@@ -95,6 +192,12 @@ function Editor({ id }: { id: string }) {
       const g = toFlow(f.draft_graph);
       setUpdatedAt(f.updated_at);
       setLoaded(true);
+      const spots = new Set(g.nodes.map((n) => `${Math.round(n.position.x / 40)},${Math.round(n.position.y / 40)}`));
+      if (g.nodes.length > 1 && (spots.size < g.nodes.length || hasLayoutOverlap(g.nodes, language === 'ar'))) {
+        const pos = computeLayout(g.nodes, g.edges, f.draft_graph.startNodeId, language === 'ar');
+        g.nodes = g.nodes.map((n) => ({ ...n, position: pos[n.id] ?? n.position }));
+        setDirty(true);
+      }
       setNodes(g.nodes);
       setEdges(g.edges);
       setStartId(f.draft_graph.startNodeId);
@@ -112,23 +215,136 @@ function Editor({ id }: { id: string }) {
     })().catch((e) => setMsg(e.message));
   }, [id, setNodes, setEdges]);
 
+  // Stable handler: an inline onSelectionChange makes React Flow re-fire it on every
+  // render, which used to force the tab back to 'node' and broke the Settings tab.
+  const btnIndexRef = useRef<Record<string, { parentId: string; buttonId: string }>>({});
+  const onSelectionChange = useCallback(({ nodes: s }: { nodes: Node[] }) => {
+    const nid = s[0] ? (btnIndexRef.current[s[0].id]?.parentId ?? s[0].id) : null;
+    if (nid === selRef.current) return;
+    selRef.current = nid;
+    setSelected(nid);
+    if (nid) {
+      setTab('node');
+      setPreviewOpen(false);
+      setInspectorOpen(true);
+    }
+  }, []);
+
+  // The "+" on a link asks the editor to insert a step in the middle of it.
+  useEffect(() => {
+    const onInsert = (ev: Event) => {
+      const d = (ev as CustomEvent<{ id: string; source: string; handle: string | null; x: number; y: number }>).detail;
+      const box = (document.querySelector('.builder-canvas') as HTMLElement | null)?.getBoundingClientRect();
+      if (!box) return;
+      setNodeSearch('');
+      setDropMenu({
+        x: Math.max(8, Math.min(d.x - box.left, box.width - 290)),
+        y: Math.max(8, Math.min(d.y - box.top, box.height - 320)),
+        ...(() => {
+          const hit = btnIndexRef.current[d.source];
+          return hit ? { source: hit.parentId, handle: `option:${hit.buttonId}` } : { source: d.source, handle: d.handle };
+        })(),
+        edgeId: d.id,
+      });
+    };
+    window.addEventListener('flow:insert-step', onInsert);
+    return () => window.removeEventListener('flow:insert-step', onInsert);
+  }, []);
+
   const issueMap = useMemo(() => {
     const m: Record<string, string> = {};
-    for (const i of [...issues]) if (i.nodeId && !m[i.nodeId]) m[i.nodeId] = i.message;
+    for (const i of [...issues]) if (i.nodeId && !m[i.nodeId]) m[i.nodeId] = validationMessage(i.message, language);
     return m;
-  }, [issues]);
+  }, [issues, language]);
 
-  const display = useMemo(
-    () =>
-      nodes.map((n) => ({
-        ...n,
-        data: { ...n.data, isStart: n.id === startId, issue: issueMap[n.id] },
-      })),
-    [nodes, startId, issueMap],
+  const actionsRef = useRef<{
+    duplicate: (id: string) => void;
+    remove: (id: string) => void;
+    setStart: (id: string) => void;
+  }>({ duplicate: () => {}, remove: () => {}, setStart: () => {} });
+  const nodeActions = useMemo(
+    () => ({
+      duplicate: (id: string) => actionsRef.current.duplicate(id),
+      remove: (id: string) => actionsRef.current.remove(id),
+      setStart: (id: string) => actionsRef.current.setStart(id),
+    }),
+    [],
   );
+  const display = useMemo(() => {
+    const linkedBy: Record<string, string[]> = {};
+    for (const e of edges) if (e.sourceHandle) (linkedBy[e.source] ??= []).push(e.sourceHandle);
+    return nodes.map((n) => ({
+      ...n,
+      data: {
+        ...n.data,
+        isStart: n.id === startId,
+        issue: issueMap[n.id],
+        preview:
+          n.id === previewActive
+            ? ('active' as const)
+            : previewVisited.includes(n.id)
+              ? ('visited' as const)
+              : undefined,
+        linked: linkedBy[n.id] ?? [],
+        splitButtons: analytics && hasButtonCards(n.data.type, n.data.data),
+        actions: nodeActions,
+      },
+    }));
+  }, [nodes, edges, startId, issueMap, nodeActions, previewActive, previewVisited, analytics]);
 
-  const handleNodesChange = (changes: NodeChange[]) => {
+  // Buttons drawn as their own cards: derived for display only; the saved graph is unchanged.
+  const cards = useMemo(
+    () => analytics ? deriveButtonCards(nodes, edges, language === 'ar', btnDims) : { cardNodes: [], edges, index: {} as Record<string, { parentId: string; buttonId: string }> },
+    [nodes, edges, language, btnDims, analytics],
+  );
+  btnIndexRef.current = cards.index;
+  const canvasNodes = useMemo(() => [...display, ...cards.cardNodes], [display, cards.cardNodes]);
+
+  /** A button card's output is really the message's `option:<buttonId>` output. */
+  const toReal = useCallback((source: string | null | undefined, handle: string | null | undefined) => {
+    const hit = source ? btnIndexRef.current[source] : undefined;
+    return hit
+      ? { source: hit.parentId, handle: `option:${hit.buttonId}` as string | null }
+      : { source: source ?? '', handle: handle ?? null };
+  }, []);
+
+  const handleNodesChange = (incoming: NodeChange[]) => {
+    const idx = btnIndexRef.current;
+    const changes = incoming.filter((c) => !('id' in c && idx[c.id]));
+    const moved = incoming.filter(
+      (c): c is Extract<NodeChange, { type: 'position' }> => c.type === 'position' && !!c.position && !!idx[c.id],
+    );
+    if (moved.length)
+      setNodes((ns) =>
+        ns.map((n) => {
+          const mine = moved.filter((c) => idx[c.id].parentId === n.id);
+          if (!mine.length) return n;
+          const layout = { ...(n.data.layout ?? {}) };
+          for (const c of mine)
+            layout[idx[c.id].buttonId] = { x: c.position!.x - n.position.x, y: c.position!.y - n.position.y };
+          return { ...n, data: { ...n.data, layout } };
+        }),
+      );
+    const sized = incoming.filter(
+      (c): c is Extract<NodeChange, { type: 'dimensions' }> => c.type === 'dimensions' && !!c.dimensions && !!idx[c.id],
+    );
+    if (sized.length)
+      setBtnDims((prev) => {
+        let next = prev;
+        for (const c of sized) {
+          const d = c.dimensions!;
+          if (prev[c.id]?.width !== d.width || prev[c.id]?.height !== d.height)
+            next = { ...next, [c.id]: { width: d.width, height: d.height } };
+        }
+        return next;
+      });
     onNodesChange(changes);
+    if (
+      incoming.some(
+        (c) => 'id' in c && idx[c.id] && c.type === 'position' && !c.dragging,
+      )
+    )
+      setDirty(true);
     if (
       changes.some(
         (c) =>
@@ -138,20 +354,64 @@ function Editor({ id }: { id: string }) {
       setDirty(true);
   };
 
-  const onConnect = useCallback(
+  const notify = (text: string, undo = false) => {
+    setToast({ text, undo });
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 6000);
+  };
+
+  // A connection is valid only between two different, existing steps and from a real output.
+  const isValidConnection = useCallback(
     (c: Connection) => {
+      if (!c.source || !c.target) return false;
+      const real = toReal(c.source, c.sourceHandle);
+      if (real.source === c.target) return false;
+      const from = nodes.find((n) => n.id === real.source);
+      if (!from || !nodes.some((n) => n.id === c.target)) return false;
+      return handlesFor(from.data.type, from.data.data).some((h) => h.id === real.handle);
+    },
+    [nodes, toReal],
+  );
+
+  const onConnect = useCallback(
+    (raw: Connection) => {
+      if (!isValidConnection(raw)) return;
+      const r = toReal(raw.source, raw.sourceHandle);
+      const c: Connection = { ...raw, source: r.source, sourceHandle: r.handle };
+      const previous = edges.find((e) => e.source === c.source && e.sourceHandle === c.sourceHandle);
+      if (previous && previous.target === c.target) return;
       setEdges((es) =>
         addEdge(
           { ...c, type: 'smoothstep' },
           es.filter((e) => !(e.source === c.source && e.sourceHandle === c.sourceHandle)),
         ),
       );
+      if (previous)
+        notify(t('استُبدل التوصيل السابق لهذا المخرج.', 'The previous link from this output was replaced.'), true);
       setDirty(true);
     },
-    [setEdges],
+    [setEdges, edges, isValidConnection, toReal],
   );
 
-  const addNode = (type: NodeType, point?: { x: number; y: number }) => {
+  const onEdgeUpdate = useCallback(
+    (old: any, raw: Connection) => {
+      // Only the target end may move; the output it leaves from never changes.
+      const from = toReal(old.source, old.sourceHandle);
+      const to = toReal(raw.source, raw.sourceHandle);
+      if (to.source !== from.source || to.handle !== from.handle || !isValidConnection(raw)) return;
+      const c: Connection = { ...raw, source: to.source, sourceHandle: to.handle };
+      setEdges((es) => updateEdge({ ...old, source: from.source, sourceHandle: from.handle }, c, es));
+      setDirty(true);
+    },
+    [setEdges, isValidConnection, toReal],
+  );
+
+  const addNode = (
+    type: NodeType,
+    point?: { x: number; y: number },
+    from?: { source: string; handle: string | null },
+    after?: { target: string },
+  ) => {
     const nid = `${type}_${uid(4)}`;
     const pos = rf.screenToFlowPosition(
       point ?? {
@@ -159,6 +419,17 @@ function Editor({ id }: { id: string }) {
         y: window.innerHeight / 2 - 100,
       },
     );
+    const candidate: Node<RFData> = {id: nid, position: pos, data: {type, data: NODE_META[type].defaults(), isStart: false}};
+    let attempts = 0;
+    while (hasLayoutOverlap([...nodes, candidate], language === 'ar') && attempts++ < nodes.length + 1) {
+      // Compare the new card against existing cards without changing user positions.
+      const touching = nodes.some(n => hasLayoutOverlap([n, candidate], language === 'ar'));
+      if (!touching) break;
+      pos.y += 280;
+    }
+    if (nodes.some(n => hasLayoutOverlap([n, candidate], language === 'ar'))) {
+      pos.y = Math.max(...nodes.map(n => n.position.y + nodeFootprint(n, language === 'ar', btnDims).bottom)) + 120;
+    }
     setNodes((ns) => [
       ...ns.map((node) => ({ ...node, selected: false })),
       {
@@ -169,9 +440,27 @@ function Editor({ id }: { id: string }) {
         data: { type, data: NODE_META[type].defaults(), isStart: false },
       },
     ]);
+    if (from) {
+      // Same replacement rule as onConnect: one outgoing edge per source handle.
+      setEdges((es) =>
+        addEdge(
+          { source: from.source, sourceHandle: from.handle, target: nid, targetHandle: null, type: 'smoothstep' },
+          es.filter((e) => !(e.source === from.source && e.sourceHandle === from.handle)),
+        ),
+      );
+    }
+    if (after) {
+      // Inserted on an existing link: new step → the old target keeps the flow intact.
+      const out = handlesFor(type, NODE_META[type].defaults())[0]?.id ?? null;
+      setEdges((es) =>
+        addEdge({ source: nid, sourceHandle: out, target: after.target, targetHandle: null, type: 'smoothstep' }, es),
+      );
+    }
     if (!startId || !nodes.length) setStartId(nid);
     setSelected(nid);
-    setMobilePanel('inspector');
+    selRef.current = nid;
+    setPreviewOpen(false);
+    setInspectorOpen(true);
     setTab('node');
     setDirty(true);
   };
@@ -195,9 +484,129 @@ function Editor({ id }: { id: string }) {
     if (startId === nid) setStartId(rest[0]?.id ?? '');
     setSelected(null);
     setDirty(true);
+    notify(t('حُذفت الخطوة وتوصيلاتها.', 'Step and its links deleted.'), true);
   };
 
+  const clipboard = useRef<{ nodes: Node<RFData>[]; edges: typeof edges } | null>(null);
+
+  const copySelection = (ids?: string[]) => {
+    const chosen = nodes.filter((n) => (ids ? ids.includes(n.id) : n.selected));
+    if (!chosen.length) return false;
+    const keep = new Set(chosen.map((n) => n.id));
+    clipboard.current = {
+      nodes: JSON.parse(JSON.stringify(chosen)),
+      edges: JSON.parse(JSON.stringify(edges.filter((e) => keep.has(e.source) && keep.has(e.target)))),
+    };
+    return true;
+  };
+  const pasteClipboard = () => {
+    const clip = clipboard.current;
+    if (!clip) return;
+    const idMap: Record<string, string> = {};
+    for (const n of clip.nodes) idMap[n.id] = `${n.data.type}_${uid(4)}`;
+    const fresh = clip.nodes.map((n) => ({
+      ...JSON.parse(JSON.stringify(n)),
+      id: idMap[n.id],
+      selected: true,
+      position: { x: n.position.x + 48, y: n.position.y + 48 },
+      data: { ...JSON.parse(JSON.stringify(n.data)), isStart: false },
+    })) as Node<RFData>[];
+    setNodes((ns) => [...ns.map((n) => ({ ...n, selected: false })), ...fresh]);
+    setEdges((es) => [
+      ...es,
+      ...clip.edges.map((e) => ({
+        ...e,
+        id: `${idMap[e.source]}:${e.sourceHandle}`,
+        source: idMap[e.source],
+        target: idMap[e.target],
+      })),
+    ]);
+    // Shift the clipboard so repeated pastes cascade instead of stacking.
+    clip.nodes = clip.nodes.map((n) => ({ ...n, position: { x: n.position.x + 48, y: n.position.y + 48 } }));
+    if (fresh.length === 1) setSelected(fresh[0].id);
+    setDirty(true);
+  };
+  const duplicateNode = (nid: string) => {
+    if (copySelection([nid])) pasteClipboard();
+  };
+
+  const autoLayout = () => {
+    if (!nodes.length) return;
+    const arranged = nodes.map(n => ({...n, data: {...n.data, layout: undefined}}));
+    const pos = computeLayout(arranged, edges, startId, language === 'ar', btnDims);
+    setNodes(arranged.map(n => ({ ...n, position: pos[n.id] ?? n.position })));
+    setDirty(true);
+    setTimeout(() => rf.fitView({ padding: 0.25, maxZoom: 1, duration: 300 }), 50);
+  };
+
+  const focusNode = (nid: string) => {
+    setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === nid })));
+    setSelected(nid);
+    selRef.current = nid;
+    setPreviewOpen(false);
+    setInspectorOpen(true);
+    setTab('node');
+    rf.fitView({ nodes: [{ id: nid }], padding: 1.2, maxZoom: 1.1, duration: 300 });
+  };
+
+  const openReview = () => { reviewViewport.current = rf.getViewport(); setInspectorOpen(false); setPreviewOpen(true); setMobilePanel('preview'); };
+  const closeReview = () => { setPreviewOpen(false); setMobilePanel('canvas'); setInspectorOpen(!!selRef.current); if (reviewViewport.current) void rf.setViewport(reviewViewport.current); };
+
+  const renderStepAction = (handle: string, title: string) => sel ? <StepActions
+    key={`${sel.id}:${handle}`}
+    title={title}
+    target={edges.find(e => e.source === sel.id && e.sourceHandle === handle)?.target}
+    steps={nodes.filter(n => n.id !== sel.id).map(n => ({ id: n.id, type: n.data.type, text: String(n.data.data?.text || n.data.data?.message || n.data.note || '').slice(0, 60) }))}
+    onCreate={type => addNode(type, undefined, { source: sel.id, handle })}
+    onOpen={id => { setSelected(id); selRef.current = id; setNodes(ns => ns.map(n => ({ ...n, selected: n.id === id }))); }}
+    onConnect={target => { if (target) onConnect({ source: sel.id, sourceHandle: handle, target, targetHandle: null }); else { setEdges(es => es.filter(e => e.source !== sel.id || e.sourceHandle !== handle)); setDirty(true); } }}
+  /> : null;
+
+  useEffect(() => {
+    if (!inspectorOpen) return;
+    const escape = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('[aria-modal="true"]')) { setInspectorOpen(false); setMobilePanel('canvas'); } };
+    window.addEventListener('keydown', escape);
+    return () => window.removeEventListener('keydown', escape);
+  }, [inspectorOpen]);
+
   const graph = () => fromFlow(nodes, edges, startId);
+
+  actionsRef.current = {
+    duplicate: duplicateNode,
+    remove: deleteNode,
+    setStart: (nid: string) => {
+      setStartId(nid);
+      setDirty(true);
+    },
+  };
+
+  useEffect(() => {
+    const keys = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable)) return;
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const k = e.key.toLowerCase();
+      if (k === 'c') {
+        if (copySelection()) e.preventDefault();
+      } else if (k === 'v') {
+        if (clipboard.current) {
+          e.preventDefault();
+          pasteClipboard();
+        }
+      } else if (k === 'd') {
+        e.preventDefault();
+        if (copySelection()) pasteClipboard();
+      } else if (k === 'z') {
+        e.preventDefault();
+        travel(e.shiftKey ? 1 : -1);
+      } else if (k === 'y') {
+        e.preventDefault();
+        travel(1);
+      }
+    };
+    window.addEventListener('keydown', keys);
+    return () => window.removeEventListener('keydown', keys);
+  });
 
   const save = async () => {
     if (saving.current)
@@ -205,6 +614,7 @@ function Editor({ id }: { id: string }) {
     saving.current = true;
     const submitted = latest.current;
     setBusy(true);
+    setSaveState('saving');
     setMsg('');
     try {
       const result = await api<{ updated_at: string }>(`/flows/${id}`, {
@@ -219,10 +629,13 @@ function Editor({ id }: { id: string }) {
         }),
       });
       setUpdatedAt(result.updated_at);
+      savedContent.current = submitted;
       if (latest.current === submitted) setDirty(false);
-      setMsg(t('تم الحفظ', 'All changes saved'));
+      setSaveState('saved');
+      setMsg(latest.current === submitted ? t('تم الحفظ', 'All changes saved') : t('تم حفظ النسخة السابقة؛ توجد تعديلات أحدث غير محفوظة', 'Previous version saved; newer changes remain unsaved'));
       return result.updated_at;
     } catch (e: any) {
+      setSaveState('error');
       setMsg(`${t('تعذّر الحفظ', 'Save failed')}: ${e.message}`);
       throw e;
     } finally {
@@ -239,6 +652,12 @@ function Editor({ id }: { id: string }) {
     channelIds: meta.channelIds,
   });
   latest.current = content;
+  useEffect(() => {
+    if (validationSnapshot.current && validationSnapshot.current !== content) {
+      validationRequest.current++;
+      setIssues([]); setWarnings([]); setValidationState('stale'); setMsg('');
+    }
+  }, [content]);
   useEffect(() => {
     if (!loaded) return;
     if (skipHistory.current) {
@@ -278,16 +697,6 @@ function Editor({ id }: { id: string }) {
     return () => clearTimeout(timeout);
     // Saving is scheduled against serialized editor content; failures pause autosave.
   }, [content, dirty, loaded, autoSave, busy]);
-  useEffect(() => {
-    const warn = (e: BeforeUnloadEvent) => {
-      if (dirty) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty]);
   useEffect(() => {
     const shortcut = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
@@ -329,36 +738,47 @@ function Editor({ id }: { id: string }) {
   }
 
   const check = async () => {
+    const submitted = latest.current, request = ++validationRequest.current;
+    validationSnapshot.current = submitted;
+    setValidationState('checking');
     try {
       const r = await api<{ errors: Issue[]; warnings: Issue[] }>('/flows/validate', {
         method: 'POST',
         body: JSON.stringify(graph()),
       });
+      if (request !== validationRequest.current || latest.current !== submitted) return;
+      setValidationState('current');
       setIssues(r.errors);
       setWarnings(r.warnings);
       setMsg(
-        r.errors.length
-          ? `${r.errors.length} ${t('خطأ', 'errors')}`
-          : t('لا توجد أخطاء', 'Validation passed'),
+        `${r.errors.length} ${t('أخطاء', 'errors')}، ${r.warnings.length} ${t('تحذيرات', 'warnings')}` +
+        (!r.errors.length && r.warnings.length ? t(' — اجتاز الفحص مع تحذيرات؛ راجع الخطوات التي تحتاج انتباهًا.', ' — Passed with warnings; review the affected steps.') : ''),
       );
     } catch (e: any) {
-      setMsg(e.message);
+      if (request !== validationRequest.current || latest.current !== submitted) return;
+      setValidationState('unchecked');
+      setMsg(t('تعذر إكمال الفحص. أعد المحاولة.', 'Validation could not finish. Try again.'));
     }
   };
 
   const publish = async () => {
+    const submitted = latest.current;
     try {
       const savedAt = await save();
+      if (submitted !== latest.current) {setMsg(t('توجد تعديلات أحدث. احفظها وأعد الفحص قبل النشر.', 'Newer edits exist. Save and check again before publishing.'));return;}
+      validationSnapshot.current = submitted;
       const r = await api<any>(`/flows/${id}/publish`, {
         method: 'POST',
         body: JSON.stringify({ expectedUpdatedAt: savedAt }),
       });
       setMeta((m) => ({ ...m, status: 'published', version: r.version }));
       setIssues([]);
-      setWarnings(r.warnings ?? []);
+      setWarnings(latest.current === submitted ? r.warnings ?? [] : []);
+      setValidationState(latest.current === submitted ? 'current' : 'stale');
       setMsg(`${t('تم النشر', 'Published')} v${r.version}`);
     } catch (e: any) {
-      if (e.details?.errors) {
+      if (latest.current === submitted && e.details?.errors) {
+        setValidationState('current');
         setIssues(e.details.errors);
         setWarnings(e.details.warnings ?? []);
         setMsg(t('لا يمكن النشر: صحّح الأخطاء', 'Fix validation errors before publishing'));
@@ -375,14 +795,114 @@ function Editor({ id }: { id: string }) {
     }
   };
 
+  const onPreviewProgress = (nid: string | null, reset?: boolean) => {
+    if (reset) {
+      setPreviewVisited([]);
+      previewActiveRef.current = null;
+      setPreviewActive(null);
+      return;
+    }
+    const prev = previewActiveRef.current;
+    if (prev && prev !== nid) setPreviewVisited((v) => (v.includes(prev) ? v : [...v, prev]));
+    previewActiveRef.current = nid;
+    setPreviewActive(nid);
+    if (nid) rf.fitView({ nodes: [{ id: nid }], padding: 1.4, maxZoom: 1, duration: 400 });
+  };
+  const updateNote = (nid: string, note: string) => {
+    setNodes((ns) => ns.map((n) => (n.id === nid ? { ...n, data: { ...n.data, note } } : n)));
+    setDirty(true);
+  };
+  const knownVars = useMemo(() => {
+    const out = new Set<string>(['name', 'contact.name', 'contact.phone', 'contact.email']);
+    for (const n of nodes) {
+      const d: any = n.data.data;
+      if (n.data.type === 'question' && d.saveAs) out.add(d.saveAs);
+      if (n.data.type === 'ai_reply' && d.saveAnswerAs) out.add(d.saveAnswerAs);
+      if (n.data.type === 'set_variable')
+        for (const a of d.assignments ?? []) if (a.name) out.add(a.name);
+      if (n.data.type === 'http_request')
+        for (const m of d.saveAs ?? []) if (m.variable) out.add(m.variable);
+      if (n.data.type === 'sheet_fetch')
+        for (const m of d.saveAs ?? []) if (m.variable) out.add(m.variable);
+    }
+    return [...out];
+  }, [nodes]);
+  const insertVariable = (name: string) => {
+    const el = lastFocused.current;
+    const token = `{{${name}}}`;
+    if (!el || !el.isConnected) {
+      void navigator.clipboard?.writeText(token).catch(() => {});
+      setMsg(t('نُسخ المتغيّر. الصقه في أي حقل.', 'Variable copied. Paste it into any field.'));
+      return;
+    }
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement;
+    // Use the native setter so React's onChange fires with the inserted token.
+    Object.getOwnPropertyDescriptor(proto.prototype, 'value')?.set?.call(
+      el,
+      el.value.slice(0, start) + token + el.value.slice(end),
+    );
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.focus();
+    el.setSelectionRange(start + token.length, start + token.length);
+  };
+
   const sel = nodes.find((n) => n.id === selected);
+  const upstream = new Set<string>();
+  if (sel) {
+    const pending = [sel.id];
+    while (pending.length) {
+      const target = pending.pop()!;
+      for (const edge of edges) if (edge.target === target && edge.source !== sel.id && !upstream.has(edge.source)) { upstream.add(edge.source); pending.push(edge.source); }
+    }
+  }
+  const conditionVariables = nodes.filter((n) => upstream.has(n.id)).flatMap<ConditionVariable>((n) => {
+    const d = n.data.data;
+    const label = `${nodeLabel(n.data.type, language)} — ${String(d.text || n.data.note || '').slice(0, 40)}`;
+    if (d.saveReplyAs && optionsOf(d).length) return [
+      { key: d.saveReplyAs, label: `${label}: ${t('عنوان الاختيار (يتغير عند التسمية)', 'Choice title (changes when renamed)')}`, values: optionsOf(d).map((o) => ({ value: o.title, label: o.title })) },
+      { key: `${d.saveReplyAs}_id`, label: `${label}: ${t('معرّف الاختيار الثابت — موصى به', 'Stable choice ID — recommended')}`, values: optionsOf(d).map((o) => ({ value: o.id, label: o.title })) },
+    ];
+    const keys = [typeof d.saveAs === 'string' ? d.saveAs : '', d.saveAnswerAs, ...(d.assignments ?? []).map((a: any) => a.name), ...(d.questions ?? []).map((q: any) => q.saveAs)].filter(Boolean);
+    return keys.map((key: string) => ({ key, label: `${label}: ${key}` }));
+  }).filter((v, i, all) => all.findIndex((x) => x.key === v.key) === i);
+  const stepCaption = (nid: string) => {
+    const index = nodes.findIndex((n) => n.id === nid), node = nodes[index];
+    if (!node) return t('خطوة غير موجودة', 'Missing step');
+    const excerpt = String(node.data.data?.text || node.data.note || '').slice(0, 55);
+    return `${nodeLabel(node.data.type, language)} ${index + 1}${excerpt ? ` — ${excerpt}` : ''}`;
+  };
+  const triggerLabel = (x: Trigger) =>
+    x.type === 'keyword'
+      ? `${t('كلمة', 'Keyword')}: ${x.keywords.slice(0, 3).join('، ') || '—'}`
+      : x.type === 'event'
+        ? x.event
+        : x.type === 'first_message'
+          ? t('أول رسالة في المحادثة', 'First message')
+          : x.type === 'any_message'
+            ? t('أي رسالة', 'Any message')
+            : t('ضغط زر/قائمة', 'Button or list reply');
+  const stepItems = (onPick: (type: NodeType) => void) =>
+    NODE_GROUPS.map((group) => {
+      const types = group.types.filter((type) => nodeLabel(type, language).toLowerCase().includes(nodeSearch.toLowerCase()));
+      return types.length ? <section key={group.id} role="group" aria-label={t(group.ar, group.en)}>
+        <h3 className="px-3 py-2 text-xs font-semibold">{t(group.ar, group.en)}</h3>
+        {types.map((type) => <button type="button" role="menuitem" key={type} className="add-step-item" draggable
+          onDragStart={(e) => { e.dataTransfer.setData('application/boat-node', type); e.dataTransfer.effectAllowed = 'move'; }}
+          onClick={() => onPick(type)}>
+          <span className="add-step-icon" style={{ background: NODE_META[type].color }}><NodeIcon type={type} /></span>
+          <span>{nodeLabel(type, language)}<small className="smart-step-hint">{t(...STEP_GUIDANCE[type])}</small></span>
+        </button>)}
+      </section> : null;
+    });
   const setTriggers = (triggers: Trigger[]) => {
     setMeta((m) => ({ ...m, triggers }));
     setDirty(true);
   };
 
   return (
-    <div className="premium-builder flex h-screen flex-col">
+    <div ref={builderRef} data-focus={focused} className="premium-builder flex flex-col">
       <header className="builder-toolbar">
         <a href="/dashboard/flows" className="underline">
           {t('السيناريوهات', 'Bots')} /
@@ -403,11 +923,15 @@ function Editor({ id }: { id: string }) {
             ? `${t('منشور', 'Published')} v${meta.version}`
             : t('مسودة', 'Draft')}
         </span>
-        {dirty && (
-          <span className="text-xs text-orange-600">
-            {t('تغييرات غير محفوظة', 'Unsaved changes')}
-          </span>
-        )}
+        <span className="text-xs" role="status" aria-live="polite">
+          {!loaded ? t('جارٍ تحميل المسودة…', 'Loading draft…') : saveState === 'saving' ? t('جارٍ الحفظ…', 'Saving…') : saveState === 'error' ? t('فشل الحفظ — أعد المحاولة', 'Save failed — retry') : dirty ? t('تغييرات غير محفوظة', 'Unsaved changes') : t('تم الحفظ', 'Saved')}
+        </span>
+        {validationState === 'stale' && <span role="status">{t('تغيرت المسودة — أعد فحص البوت', 'Draft changed — run validation again')}</span>}
+        {validationState === 'checking' && <span role="status">{t('جارٍ فحص النسخة الحالية…', 'Checking current draft…')}</span>}
+        <UnsavedChangesGuard dirty={dirty} save={async () => {
+          await save();
+          return savedContent.current === latest.current;
+        }} />
         <span className="builder-save-status" role="status">
           {msg}
         </span>
@@ -417,7 +941,7 @@ function Editor({ id }: { id: string }) {
           onClick={() => travel(-1)}
           className="rounded border px-2 py-1"
         >
-          <NavIcon name="undo" /> {t('تراجع', 'Undo')}
+          <NavIcon name="undo" /> <span className="tb-label">{t('تراجع', 'Undo')}</span>
         </button>
         <button
           title={t('إعادة التعديل', 'Redo change')}
@@ -425,8 +949,52 @@ function Editor({ id }: { id: string }) {
           onClick={() => travel(1)}
           className="rounded border px-2 py-1"
         >
-          <NavIcon name="redo" /> {t('إعادة', 'Redo')}
+          <NavIcon name="redo" /> <span className="tb-label">{t('إعادة', 'Redo')}</span>
         </button>
+        <button
+          type="button"
+          aria-pressed={previewOpen}
+          onClick={() => {
+            if (previewOpen) closeReview(); else openReview();
+          }}
+          className="rounded border px-2 py-1 builder-preview-toggle"
+        >
+          {t('معاينة', 'Preview')}
+        </button>
+        <button disabled={busy} onClick={() => save().catch(() => {})} className="rounded border px-3 py-1 tb-save">
+          {t('حفظ', 'Save')}
+        </button>
+        <button disabled={busy} onClick={publish} className="btn btn-primary">
+          {t('نشر', 'Publish')}
+        </button>
+        <button type="button" aria-pressed={analytics} onClick={() => setAnalytics(!analytics)} className="rounded border px-2 py-1">
+          {analytics ? t('العودة للبناء', 'Back to building') : t('عرض الأداء', 'Show analytics')}
+        </button>
+        <button type="button" onClick={autoLayout} className="rounded border px-2 py-1">
+          {t('تنظيم التدفق', 'Arrange flow')}
+        </button>
+        <button type="button" aria-pressed={showMap} onClick={() => setShowMap(!showMap)} className="rounded border px-2 py-1">
+          {t('الخريطة', 'Minimap')}
+        </button>
+        <button type="button" aria-pressed={focused} className="rounded border px-2 py-1" onClick={async () => {
+          try { if (document.fullscreenElement) await document.exitFullscreen(); else await builderRef.current?.requestFullscreen(); }
+          catch { setMsg(t('تعذّر فتح وضع التركيز في هذا المتصفح.', 'Focus mode is unavailable in this browser.')); }
+        }}>{focused ? t('إنهاء التركيز', 'Exit focus') : t('وضع التركيز', 'Focus mode')}</button>
+        <div className="tb-more">
+          <button
+            type="button"
+            className="tb-more-btn"
+            aria-haspopup="menu"
+            aria-expanded={moreOpen}
+            aria-label={t('المزيد', 'More')}
+            onClick={() => setMoreOpen(!moreOpen)}
+          >
+            ⋯
+          </button>
+          {moreOpen && (
+            <>
+              <div className="tb-more-scrim" onClick={() => setMoreOpen(false)} />
+              <div className="tb-more-menu" role="menu" onClick={() => setMoreOpen(false)}>
         <label className="text-xs flex gap-1">
           <input
             type="checkbox"
@@ -438,25 +1006,62 @@ function Editor({ id }: { id: string }) {
         <button disabled={busy} onClick={loadVersions} className="rounded border px-2 py-1">
           {t('الإصدارات', 'Versions')}
         </button>
-        <button
-          disabled={busy}
-          onClick={() => save().catch(() => {})}
-          className="rounded border px-3 py-1"
-        >
-          {t('حفظ', 'Save')}
-        </button>
         <button onClick={check} className="rounded border px-3 py-1">
           {t('فحص', 'Validate')}
-        </button>
-        <button disabled={busy} onClick={publish} className="btn btn-primary">
-          {t('نشر', 'Publish')}
         </button>
         {meta.status === 'published' && (
           <button onClick={unpublish} className="rounded border px-3 py-1">
             {t('إيقاف النشر', 'Unpublish')}
           </button>
         )}
+              </div>
+            </>
+          )}
+        </div>
       </header>
+
+      <nav className="bot-tabs" aria-label={t('أقسام البوت', 'Bot sections')}>
+        <a className="bot-tab is-active" aria-current="page" href={`/dashboard/flows/${id}`}>
+          {t('الأتمتة', 'Automation')}
+        </a>
+        <a className="bot-tab" href="/dashboard/crm">
+          {t('العملاء', 'Contacts')}
+        </a>
+        <a className="bot-tab" href="/dashboard/inbox">
+          {t('المحادثات', 'Live chat')}
+        </a>
+        <a className="bot-tab" href="/dashboard/campaigns">
+          {t('البث', 'Broadcasting')}
+        </a>
+        <button
+          type="button"
+          className="bot-tab"
+          onClick={() => {
+            setTab('settings');
+            setPreviewOpen(false);
+            setInspectorOpen(true);
+          }}
+        >
+          {t('مشغّلات وقنوات البوت', 'Bot triggers and channels')}
+        </button>
+          <button
+            type="button"
+            className="bot-tab trigger-summary"
+            onClick={() => {
+              setTab('settings');
+              setPreviewOpen(false);
+              setInspectorOpen(true);
+            }}
+          >
+            <span className="font-semibold">{t('البداية', 'Start')}</span>
+            <strong className="sr-only">{t('متى يبدأ البوت؟', 'When does the bot start?')}</strong>
+            <span className="text-xs">
+              {meta.triggers.length
+                ? meta.triggers.slice(0, 3).map((x, i) => <span key={i}>{triggerLabel(x)}</span>)
+                : t('لم يُضبط مشغّل بعد', 'No trigger yet')}
+            </span>
+          </button>
+      </nav>
 
       <Dialog
         open={showVersions}
@@ -492,29 +1097,34 @@ function Editor({ id }: { id: string }) {
         <div className="max-h-24 overflow-y-auto border-b bg-red-50 px-3 py-1 text-xs">
           {issues.map((i, k) => (
             <div key={`e${k}`} className="text-red-700">
-              ⛔ {i.nodeId ? `[${i.nodeId}] ` : ''}
-              {i.message}
+              ⛔{' '}
+              {i.nodeId && (
+                <button type="button" className="underline" onClick={() => focusNode(i.nodeId as string)}>
+                  {stepCaption(i.nodeId)}
+                </button>
+              )}{' '}
+              {validationMessage(i.message, language)}
             </div>
           ))}
           {warnings.map((i, k) => (
             <div key={`w${k}`} className="text-amber-700">
-              ⚠️ {i.nodeId ? `[${i.nodeId}] ` : ''}
-              {i.message}
+              ⚠️{' '}
+              {i.nodeId && (
+                <button type="button" className="underline" onClick={() => focusNode(i.nodeId as string)}>
+                  {stepCaption(i.nodeId)}
+                </button>
+              )}{' '}
+              {validationMessage(i.message, language)}
             </div>
           ))}
         </div>
       )}
 
       <div className="builder-mobile-tools">
-        <button onClick={() => setMobilePanel('canvas')}>{t('اللوحة', 'Canvas')}</button>
-        <button onClick={() => setMobilePanel('palette')}>{t('إضافة عقدة', 'Add a step')}</button>
-        <button onClick={() => setMobilePanel('inspector')}>{t('التفاصيل', 'Inspector')}</button>
-        <button
-          onClick={() => {
-            setTab('test');
-            setMobilePanel('inspector');
-          }}
-        >
+        <button aria-pressed={mobilePanel === 'canvas'} onClick={() => setMobilePanel('canvas')}>
+          {t('اللوحة', 'Canvas')}
+        </button>
+        <button aria-pressed={mobilePanel === 'preview'} onClick={() => setMobilePanel('preview')}>
           {t('تجربة البوت', 'Preview bot')}
         </button>
       </div>
@@ -533,28 +1143,35 @@ function Editor({ id }: { id: string }) {
               onChange={(e) => setNodeSearch(e.target.value)}
             />
           </div>
-          {(Object.keys(NODE_META) as NodeType[])
-            .filter((type) =>
+          {NODE_GROUPS.map((g) => {
+            const types = g.types.filter((type) =>
               nodeLabel(type, language).toLowerCase().includes(nodeSearch.toLowerCase()),
-            )
-            .map((type) => (
-              <button
-                key={type}
-                className="palette-step"
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('application/boat-node', type);
-                  e.dataTransfer.effectAllowed = 'move';
-                }}
-                onClick={() => addNode(type)}
-              >
-                <span style={{ color: NODE_META[type].color }}>
-                  <NodeIcon type={type} />
-                </span>
-                <span>{nodeLabel(type, language)}</span>
-                <small>+</small>
-              </button>
-            ))}
+            );
+            if (!types.length) return null;
+            return (
+              <section key={g.id} className="palette-group" aria-label={language === 'ar' ? g.ar : g.en}>
+                <h3 className="palette-group-title">{language === 'ar' ? g.ar : g.en}</h3>
+                {types.map((type) => (
+                  <button
+                    key={type}
+                    className="palette-step"
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('application/boat-node', type);
+                      e.dataTransfer.effectAllowed = 'move';
+                    }}
+                    onClick={() => addNode(type)}
+                  >
+                    <span style={{ color: NODE_META[type].color }}>
+                      <NodeIcon type={type} />
+                    </span>
+                    <span>{nodeLabel(type, language)}<small className="smart-step-hint">{t(...STEP_GUIDANCE[type])}</small></span>
+                    <small>+</small>
+                  </button>
+                ))}
+              </section>
+            );
+          })}
           <div className="palette-tip">
             {t(
               'ابدأ برسالة ترحيب، ثم سؤال أو شرط. جرّب البوت قبل النشر.',
@@ -564,7 +1181,7 @@ function Editor({ id }: { id: string }) {
         </aside>
 
         <div
-          className="builder-canvas min-w-0 flex-1"
+          className={`builder-canvas min-w-0 flex-1 ${connecting ? 'is-connecting' : ''}`}
           onDragOver={(e) => {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
@@ -576,56 +1193,250 @@ function Editor({ id }: { id: string }) {
               addNode(type as NodeType, { x: e.clientX, y: e.clientY });
           }}
         >
+          <div
+            className="add-step"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setMenuOpen(false);
+            }}
+          >
+            <button
+              type="button"
+              className="btn btn-primary btn-lg add-step-btn"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen(!menuOpen)}
+            >
+              + {t('إضافة خطوة', 'Add step')}
+            </button>
+            {menuOpen && <div className="menu-scrim" onClick={() => setMenuOpen(false)} />}
+            {menuOpen && (
+              <div className="add-step-menu" role="menu">
+                <input
+                  autoFocus
+                  aria-label={t('البحث عن خطوة', 'Search steps')}
+                  placeholder={t('ابحث عن خطوة…', 'Find a step…')}
+                  value={nodeSearch}
+                  onChange={(e) => setNodeSearch(e.target.value)}
+                />
+                {stepItems((type) => { addNode(type); setMenuOpen(false); })}
+              </div>
+            )}
+          </div>
+          {dropMenu && (
+            <>
+              <div className="drop-menu-scrim" onClick={() => setDropMenu(null)} />
+              <div
+                className="add-step-menu drop-menu"
+                role="menu"
+                style={{ left: dropMenu.x, top: dropMenu.y }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setDropMenu(null);
+                }}
+              >
+                <input
+                  autoFocus
+                  aria-label={t('البحث عن خطوة', 'Search steps')}
+                  placeholder={t('ابحث عن خطوة…', 'Find a step…')}
+                  value={nodeSearch}
+                  onChange={(e) => setNodeSearch(e.target.value)}
+                />
+                {stepItems((type) => {
+                  const m = dropMenu;
+                  setDropMenu(null);
+                  const r = (document.querySelector('.builder-canvas') as HTMLElement).getBoundingClientRect();
+                  const oldEdge = m.edgeId ? edges.find((e) => e.id === m.edgeId) : undefined;
+                  addNode(
+                    type,
+                    { x: m.x + r.left, y: m.y + r.top },
+                    { source: m.source, handle: m.handle },
+                    oldEdge ? { target: oldEdge.target } : undefined,
+                  );
+                })}
+              </div>
+            </>
+          )}
+          <div className="node-finder nodrag nopan" style={{position:'absolute',top:12,insetInlineEnd:12,zIndex:10,maxWidth:300}}>
+            <input type="search" className="rounded border p-2" aria-label={t('البحث في عقد البوت', 'Find a bot node')} placeholder={t('ابحث بالنص أو اسم الخطوة…', 'Find by text or step name…')} value={findNode} onChange={e => setFindNode(e.target.value)} />
+            {findNode.trim() && <div className="card stack" style={{maxHeight:280,overflow:'auto'}}>
+              {nodes.filter(n => [nodeLabel(n.data.type, language), n.data.data?.text, n.data.note, n.id].join(' ').toLocaleLowerCase().includes(findNode.trim().toLocaleLowerCase())).map((n) => <button className="btn" key={n.id} onClick={() => {focusNode(n.id);setFindNode('');}}>
+                {nodeLabel(n.data.type, language)} · {String(n.data.data?.text || n.data.note || t('خطوة', 'Step') + ' ' + (nodes.indexOf(n)+1)).slice(0,70)}
+              </button>)}
+              {!nodes.some(n => [nodeLabel(n.data.type, language),n.data.data?.text,n.data.note,n.id].join(' ').toLocaleLowerCase().includes(findNode.trim().toLocaleLowerCase())) && <p role="status">{t('لا توجد خطوة مطابقة', 'No matching step')}</p>}
+            </div>}
+          </div>
+          <FlowAnalyticsContext.Provider value={analytics}>
+          <FlowStatsContext.Provider value={nodeStats}>
+          <FlowSequencesContext.Provider value={seqInfo}>
+          <FlowButtonStatsContext.Provider value={buttonStats}>
           <ReactFlow
-            nodes={display}
-            edges={edges}
+            nodes={canvasNodes}
+            edges={cards.edges}
             nodeTypes={nodeTypes}
             onNodesChange={handleNodesChange}
             onEdgesChange={(c) => {
               onEdgesChange(c);
               if (c.some((x) => x.type === 'remove')) setDirty(true);
             }}
+            onMove={(_, viewport) => setZoomPercent(Math.round(viewport.zoom * 100))}
             onConnect={onConnect}
-            onSelectionChange={({ nodes: s }) => {
-              setSelected(s[0]?.id ?? null);
-              if (s[0]) setTab('node');
+            onConnectStart={(_, p) => {
+              setConnecting(true);
+              connectFrom.current =
+                p.handleType === 'source' && p.nodeId
+                  ? (() => {
+                      const r = toReal(p.nodeId, p.handleId);
+                      return { source: r.source, handle: r.handle };
+                    })()
+                  : null;
             }}
+            onConnectEnd={(ev) => {
+              setConnecting(false);
+              const from = connectFrom.current;
+              connectFrom.current = null;
+              const target = ev.target as HTMLElement | null;
+              if (!from || !target?.classList.contains('react-flow__pane')) return;
+              const pt = 'changedTouches' in ev ? ev.changedTouches[0] : (ev as MouseEvent);
+              const box = (document.querySelector('.builder-canvas') as HTMLElement).getBoundingClientRect();
+              setNodeSearch('');
+              setDropMenu({
+                x: Math.max(8, Math.min(pt.clientX - box.left, box.width - 280)),
+                y: Math.max(8, Math.min(pt.clientY - box.top, box.height - 300)),
+                ...from,
+              });
+            }}
+            onSelectionChange={onSelectionChange}
+            onNodeClick={(_, node) => {
+              // A click on a button card opens its message in the inspector.
+              const hit = btnIndexRef.current[node.id];
+              const nodeId = hit?.parentId ?? node.id;
+              setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === nodeId })));
+              selRef.current = nodeId;
+              setSelected(nodeId);
+              setTab('node');
+              setPreviewOpen(false);
+              setInspectorOpen(true);
+            }}
+            edgeTypes={edgeTypes}
+            isValidConnection={isValidConnection}
+            onEdgeUpdate={onEdgeUpdate}
+            connectionRadius={18}
+            onEdgesDelete={() => notify(t('قُطع التوصيل.', 'Link removed.'), true)}
             onNodesDelete={(del: Node[]) => {
+              notify(t('حُذفت الخطوة وتوصيلاتها.', 'Step and its links deleted.'), true);
               if (del.some((d) => d.id === startId))
                 setStartId(nodes.find((n) => !del.some((d) => d.id === n.id))?.id ?? '');
             }}
             deleteKeyCode={['Backspace', 'Delete']}
             defaultEdgeOptions={{
               type: 'smoothstep',
-              style: { stroke: '#86a9a5', strokeWidth: 2 },
-              markerEnd: { type: MarkerType.ArrowClosed },
+              style: { stroke: '#64748b', strokeWidth: 2.5 },
+              markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b', width: 18, height: 18 },
             }}
-            minZoom={0.2}
+            snapToGrid
+            snapGrid={[16, 16]}
+            selectionOnDrag={false}
+            multiSelectionKeyCode={['Shift', 'Meta', 'Control']}
+            minZoom={0.05}
             maxZoom={2}
             fitView
+            fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
           >
-            <Background color="#c9d7db" gap={24} size={1.2} />
-            <Controls />
-            <MiniMap
+            <Panel position="bottom-center">
+              <div className="rounded border bg-white p-2 text-xs">
+                <span dir="ltr">{zoomPercent}%</span> · {t('اسحب الخلفية للتحريك • عجلة الفأرة للتكبير', 'Drag background to pan • scroll to zoom')}
+                <button type="button" className="ms-2 underline" onClick={() => rf.fitView({ padding: 0.25, maxZoom: 1, duration: 300 })}>{t('إظهار كل الخطوات', 'Show all steps')}</button>
+              </div>
+            </Panel>
+            <Background color="#cdd5e2" gap={22} size={1.4} />
+            <Controls showInteractive={false} position="bottom-left" />
+            {showMap && !previewOpen && <MiniMap
               pannable
               zoomable
               nodeColor={(n) => NODE_META[n.data?.type as NodeType]?.color ?? '#8aa6ad'}
-              maskColor="#eef4f7bb"
-            />
+              maskColor="#f3f5f9bb"
+              style={{ width: 120, height: 80 }}
+            />}
           </ReactFlow>
+          </FlowButtonStatsContext.Provider>
+          </FlowSequencesContext.Provider>
+          </FlowStatsContext.Provider>
+          </FlowAnalyticsContext.Provider>
+          <div className="canvas-tagline" aria-hidden="true">
+            <span>Drag. Connect. Automate.</span>
+            <svg viewBox="0 0 160 12" preserveAspectRatio="none"><path d="M3 8 C 40 2, 90 12, 157 4" /></svg>
+          </div>
+          {toast && (
+            <div className="designer-toast" role="status">
+              <span>{toast.text}</span>
+              {toast.undo && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    travel(-1);
+                    setToast(null);
+                  }}
+                >
+                  {t('تراجع', 'Undo')}
+                </button>
+              )}
+              <button type="button" aria-label={t('إغلاق', 'Close')} onClick={() => setToast(null)}>
+                ✕
+              </button>
+            </div>
+          )}
         </div>
 
-        <aside className="builder-inspector flex w-96 flex-col border-r bg-white">
-          <div className="flex border-b text-sm">
+        <aside className="builder-preview" data-open={previewOpen} aria-label={t('معاينة البوت', 'Bot preview')}>
+          <button type="button" className="smart-review-back" onClick={closeReview}>{t('رجوع للتحرير', 'Back to editing')}</button>
+          <p className="smart-review-label">{t('محاكاة المنطق — بدون إرسال واتساب', 'Logic simulator — no WhatsApp delivery')}</p>
+          <div className="phone-frame">
+            <div className="phone-notch" />
+            <div className="phone-screen">
+              <TestPanel
+                flowId={id}
+                onProgress={onPreviewProgress}
+                beforeRun={async () => {
+                  if (dirty) await save();
+                }}
+              />
+            </div>
+          </div>
+        </aside>
+
+        <div
+          className="inspector-scrim"
+          data-open={inspectorOpen && !previewOpen && (tab === 'settings' || !!sel)}
+          onClick={() => setInspectorOpen(false)}
+        />
+        <aside
+          className="builder-inspector flex flex-col bg-white"
+          data-open={inspectorOpen && !previewOpen && (tab === 'settings' || !!sel)}
+          aria-label={t('تفاصيل الخطوة', 'Step details')}
+        >
+          <header className="sheet-head">
+            <strong>{sel && tab === 'node' ? nodeLabel(sel.data.type, language) : t('إعدادات البوت', 'Bot settings')}</strong>
+            <span className="smart-back-label">{t('رجوع للمخطط', 'Back to canvas')}</span>
+            <button
+              type="button"
+              className="sheet-close"
+              aria-label={t('إغلاق', 'Close')}
+              onClick={() => setInspectorOpen(false)}
+            >
+              ✕
+            </button>
+          </header>
+          <div className="flex border-b text-sm" role="tablist">
             {(
               [
                 ['node', t('العقدة', 'Inspector')],
-                ['settings', t('الإعدادات', 'Settings')],
-                ['test', t('تجربة', 'Preview')],
+                ['settings', t('مشغّلات وقنوات البوت', 'Bot triggers and channels')],
               ] as const
             ).map(([k, l]) => (
               <button
                 key={k}
+                type="button"
+                role="tab"
+                aria-selected={tab === k}
                 onClick={() => setTab(k)}
                 className={`flex-1 px-3 py-2 ${tab === k ? 'border-b-2 border-black font-semibold' : 'text-gray-500'}`}
               >
@@ -633,11 +1444,26 @@ function Editor({ id }: { id: string }) {
               </button>
             ))}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div key={tab === 'node' ? selected : 'settings'} className="min-h-0 flex-1 overflow-y-auto">
             {tab === 'node' &&
               (sel ? (
+                <div
+                  onFocusCapture={(e) => {
+                    const el = e.target as HTMLElement;
+                    if (
+                      (el instanceof HTMLInputElement &&
+                        ['text', 'url', 'search', ''].includes(el.type)) ||
+                      el instanceof HTMLTextAreaElement
+                    )
+                      lastFocused.current = el;
+                  }}
+                >
                 <Inspector
                   key={sel.id}
+                  actionSummary={handle => { const edge = edges.find(e => e.source === sel.id && e.sourceHandle === handle); return edge ? `${t('بعد الضغط:', 'Then:')} ${stepCaption(edge.target)}` : t('لا يوجد إجراء بعد', 'No action yet'); }}
+                  renderAction={(handle, title) => renderStepAction(handle, title)}
+                  nextSteps={<section className="smart-next-steps"><h3>{t('الخطوة التالية', 'Next step')}</h3>{handlesFor(sel.data.type, sel.data.data).filter(h => !h.id.startsWith('option:')).map(h => <div key={h.id}>{renderStepAction(h.id, sel.data.type === 'condition' ? h.id === 'else' ? t('لا — لم يتحقق', 'No — not matched') : `${t('نعم — تحقق الشرط', 'Yes — matched')} ${h.label}` : h.label)}</div>)}</section>}
+                  variables={conditionVariables}
                   type={sel.data.type}
                   data={sel.data.data}
                   isStart={sel.id === startId}
@@ -648,6 +1474,33 @@ function Editor({ id }: { id: string }) {
                   }}
                   onDelete={() => deleteNode(sel.id)}
                 />
+                <details className="m-3 rounded border p-2"><summary>{t('متغيّرات وتعليق داخلي', 'Variables and internal comment')}</summary>
+                <div className="var-picker" aria-label={t('المتغيّرات المتاحة', 'Available variables')}>
+                  <span>{t('أدرج متغيّرًا', 'Insert variable')}</span>
+                  {knownVars.map((v) => (
+                    <button
+                      type="button"
+                      key={v}
+                      className="var-chip"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => insertVariable(v)}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+                <label className="note-field">
+                  {t('تعليق على الخطوة (لا يظهر للعميل)', 'Step comment (never shown to customers)')}
+                  <textarea
+                    maxLength={500}
+                    rows={2}
+                    value={sel.data.note ?? ''}
+                    onChange={(e) => updateNote(sel.id, e.target.value)}
+                  />
+                </label></details>
+
+
+                </div>
               ) : (
                 <p className="p-4 text-sm text-gray-500">
                   {t(
@@ -874,15 +1727,8 @@ function Editor({ id }: { id: string }) {
               </div>
             )}
 
-            {tab === 'test' && (
-              <TestPanel
-                flowId={id}
-                beforeRun={async () => {
-                  if (dirty) await save();
-                }}
-              />
-            )}
           </div>
+          <footer className="smart-editor-footer"><span role="status">{saveState === 'saving' ? t('جارٍ الحفظ…', 'Saving…') : saveState === 'error' ? t('فشل الحفظ', 'Save failed') : dirty ? t('تغييرات غير محفوظة', 'Unsaved changes') : t('تم الحفظ', 'Saved')}</span><button type="button" onClick={openReview}>{t('تجربة', 'Try')}</button><button type="button" className="smart-primary" onClick={async () => { try { if (dirty) await save(); setInspectorOpen(false); setMobilePanel('canvas'); } catch { /* save reports error and keeps editor open */ } }}>{t('تم', 'Done')}</button></footer>
         </aside>
       </div>
     </div>

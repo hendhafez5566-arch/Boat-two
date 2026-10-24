@@ -1,4 +1,5 @@
 'use client';
+import MediaPreview from '../../../components/flow/MediaPreview';
 import { statusLabel } from '../../../components/product/status';
 import { DomainTransfers } from '../../../components/business/DomainTransfers';
 import { useState } from 'react';
@@ -22,6 +23,8 @@ export default function Branding() {
       hosting_error: string | null;
     }[];
   }>('/workspace/branding/domains', { domains: [] });
+  const [preview,setPreview] = useState<Brand | null>(null);
+  const shown = preview || settings.data.branding;
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [message, setMessage] = useState('');
@@ -47,7 +50,8 @@ export default function Branding() {
   }
   return (
     <main className="stack">
-      <h1>{t('هوية الشركة والنطاقات', 'Company branding and domains')}</h1>
+      <h1>{t('هوية شركتك', 'Your company identity')}</h1>
+      <p>{t('خصص الاسم والشعار واللون وعنوان نافذة العملاء، ثم احفظ هويتك.', 'Customize the name, logo, color and customer widget title, then save your identity.')}</p>
       {(error || settings.error || domains.error) && (
         <p className="notice error">{error || settings.error || domains.error}</p>
       )}
@@ -65,6 +69,10 @@ export default function Branding() {
         <form
           key={JSON.stringify(settings.data.branding)}
           className="card stack"
+          onChange={e => {
+            const values=new FormData(e.currentTarget);
+            setPreview({name:String(values.get('name') || ''),logo_url:String(values.get('logo') || '') || null,primary_color:String(values.get('color') || '#3d5afe'),widget_title:String(values.get('title') || '')});
+          }}
           onSubmit={(e) => {
             e.preventDefault();
             const f = new FormData(e.currentTarget);
@@ -81,6 +89,13 @@ export default function Branding() {
             );
           }}
         >
+          <h2>{t('الاسم والشعار والألوان', 'Name, logo and colors')}</h2>
+          <div className="rounded border p-4" style={{borderColor:shown?.primary_color || '#3d5afe'}} aria-label={t('معاينة الهوية قبل الحفظ','Identity preview before saving')}>
+            <small>{t('معاينة قبل الحفظ','Preview before saving')}</small>
+            {shown?.logo_url && <div style={{maxWidth:100}}><MediaPreview media={{kind:'image',url:shown.logo_url,caption:shown.name}} /></div>}
+            <strong className="block" style={{color:shown?.primary_color || '#3d5afe'}}>{shown?.name || t('اسم شركتك','Your company name')}</strong>
+            <p>{shown?.widget_title || t('كيف نساعدك؟','How can we help?')}</p>
+          </div>
           <label className="field">
             {t('اسم العلامة', 'Brand name')}
             <input
@@ -99,7 +114,7 @@ export default function Branding() {
             <input
               name="color"
               type="color"
-              defaultValue={settings.data.branding?.primary_color || '#0f766e'}
+              defaultValue={settings.data.branding?.primary_color || '#3d5afe'}
             />
           </label>
           <label className="field">
@@ -116,7 +131,10 @@ export default function Branding() {
           </button>
         </form>
       )}
-      <section className="card stack">
+      <details className="card stack">
+        <summary>{t('إعدادات النطاقات المتقدمة','Advanced domain settings')}</summary>
+        <p>{t('تخصيص الهوية لا يتطلب نطاقًا مخصصًا. استخدم هذا القسم لربط نطاق تملكه والتحقق منه وطلب استضافته.','Brand customization does not require a custom domain. Use this section to verify and host a domain you own.')}</p>
+      <section className="stack">
         <h2>{t('التحقق من ملكية النطاق', 'Domain ownership verification')}</h2>
         <p className="notice">
           {t(
@@ -217,6 +235,7 @@ export default function Branding() {
         ))}
       </section>
       <DomainTransfers domains={domains.data.domains} onChanged={domains.reload} />
+      </details>
     </main>
   );
 }

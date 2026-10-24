@@ -58,6 +58,19 @@ export class WhatsAppAdapter implements ChannelAdapter {
           ],
         },
       };
+    } else if (c.cta) {
+      payload = {
+        ...base,
+        type: 'interactive',
+        interactive: {
+          type: 'cta_url',
+          ...(c.media?.kind === 'image' && c.media.url
+            ? { header: { type: 'image', image: { link: c.media.url } } }
+            : {}),
+          body: { text: c.text },
+          action: { name: 'cta_url', parameters: { display_text: c.cta.text, url: c.cta.url } },
+        },
+      };
     } else if (c.list) {
       payload = {
         ...base,
@@ -80,13 +93,16 @@ export class WhatsAppAdapter implements ChannelAdapter {
         type: 'interactive',
         interactive: {
           type: 'button',
+          ...(c.media?.kind === 'image' && c.media.url
+            ? { header: { type: 'image', image: { link: c.media.url } } }
+            : {}),
           body: { text: c.text },
           action: {
             buttons: c.buttons.map((b) => ({ type: 'reply', reply: { id: b.id, title: b.title } })),
           },
         },
       };
-    } else if (c.media) {
+    } else if (c.media && !c.buttons?.length) {
       const m = c.media;
       const type = m.kind === 'file' ? 'document' : m.kind;
       payload = {

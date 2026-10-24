@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { BillingModule } from './billing/billing.module';
 import { DatabaseModule } from './database/database.module';
 import { FlowsModule } from './flows/flows.module';
+import { SequencesModule } from './sequences/sequences.module';
 import { InboxModule } from './inbox/inbox.module';
 import { HealthController } from './health/health.controller';
 import { MessagingModule } from './messaging/messaging.module';
@@ -44,6 +45,7 @@ import { WorkspaceModule } from './workspace/workspace.module';
     MessagingModule,
     InboxModule,
     FlowsModule,
+    SequencesModule,
     AiModule,
     BusinessModule,
   ],

@@ -1,3 +1,4 @@
+import { SequencesService } from '../sequences/sequences.service';
 import { ExternalEffects } from '../events/external-effect';
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
@@ -16,6 +17,7 @@ import {
   FlowState,
   matchFlow,
   newState,
+  clickableOptions,
 } from './engine';
 import { safeHttpRequest } from './http-safe';
 
@@ -43,6 +45,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     private readonly events: EventEmitter2,
     private readonly ai: AiService,
     private readonly assignment: AssignmentService,
+    private readonly sequences: SequencesService,
   ) {}
 
   onModuleInit() {
@@ -104,7 +107,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
   private async loadConversation(c: import('pg').PoolClient, conversationId: string) {
     const r = await c.query(
       `SELECT cv.handled_by, cv.status, cv.channel_id, cv.contact_id, ch.type AS channel_type,
-              ct.name, ct.phone, ct.email, ct.attributes
+              ct.name, ct.phone, ct.email, ct.attributes, ct.tags
        FROM conversations cv
        JOIN channels ch ON ch.id = cv.channel_id
        JOIN contacts ct ON ct.id = cv.contact_id
@@ -122,6 +125,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
           phone: string | null;
           email: string | null;
           attributes: Record<string, unknown>;
+          tags: string[] | null;
         }
       | undefined;
   }
@@ -191,6 +195,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         phone: loaded.conv.phone,
         email: loaded.conv.email,
         attributes: { ...(loaded.conv.attributes ?? {}) },
+        tags: loaded.conv.tags ?? [],
       },
       channel: { id: loaded.conv.channel_id, type: loaded.conv.channel_type },
       lastMessage: { text, replyId },
@@ -204,8 +209,10 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     };
 
     if ('session' in loaded && loaded.session && loaded.graph) {
+      const clickId = await this.recordButtonClick(base, loaded.session, loaded.graph, replyId);
       const engine = new FlowEngine(loaded.graph, this.makeDeps(base, loaded.session.flow_id));
       const result = await engine.resume(ctx, loaded.session.state as FlowState);
+      if (clickId && result.status === 'error') await this.markClickErrored(base.tenantId, clickId);
       await this.saveSession(base, {
         existingId: loaded.session.id,
         flowId: loaded.session.flow_id,
@@ -253,6 +260,44 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     const engine = new FlowEngine(graph, this.makeDeps(base, match.flowId));
     const result = await engine.start(ctx, newState());
     await this.saveSession(base, { flowId: match.flowId, versionId: match.versionId, result });
+  }
+
+  /** يسجّل نقرة زر/صف قائمة/اختيار سؤال لو الرد يطابق خيارًا حقيقيًا في الخطوة المنتظِرة (الردود النصية الحرة لا تُعدّ) */
+  private async recordButtonClick(
+    b: Loaded,
+    session: { flow_id: string; state: FlowState },
+    graph: FlowGraph,
+    replyId: string | undefined,
+  ): Promise<string | null> {
+    const w = session.state?.waiting;
+    if (!replyId || !w) return null;
+    const node = graph.nodes.find((n) => n.id === w.nodeId);
+    if (!clickableOptions(node, w).some((o) => o.id === replyId)) return null;
+    try {
+      const r = await this.db.withTenant(b.tenantId, (c) =>
+        c.query(
+          `INSERT INTO flow_button_clicks (tenant_id, flow_id, node_id, option_id, contact_id, conversation_id)
+           VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+          [b.tenantId, session.flow_id, w.nodeId, replyId, b.contactId, b.conversationId],
+        ),
+      );
+      return r.rows[0].id as string;
+    } catch (err) {
+      // الإحصائية لا يجوز أن تعطّل الرد على العميل
+      this.log.warn(`button click not recorded: ${(err as Error).message}`);
+      return null;
+    }
+  }
+
+  /** النقرة التي انتهى تنفيذ ما بعدها بخطأ في الـ flow تُحسب خطأً على هذا الزر */
+  private async markClickErrored(tenantId: string, clickId: string) {
+    try {
+      await this.db.withTenant(tenantId, (c) =>
+        c.query('UPDATE flow_button_clicks SET errored = true WHERE id = $1', [clickId]),
+      );
+    } catch (err) {
+      this.log.warn(`click error flag not saved: ${(err as Error).message}`);
+    }
   }
 
   /** لا يوجد سيناريو مناسب: لو "الرد التلقائي بالذكاء الاصطناعي" مفعّل يجيب الـ AI مباشرة من قاعدة المعرفة */
@@ -329,6 +374,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         phone: loaded.conv.phone,
         email: loaded.conv.email,
         attributes: { ...(loaded.conv.attributes ?? {}) },
+        tags: loaded.conv.tags ?? [],
       },
       channel: { id: loaded.conv.channel_id, type: loaded.conv.channel_type },
       lastMessage: { text: '' },
@@ -367,15 +413,17 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         });
         return { text: r.text, handoff: r.handoff, failed: r.failed };
       },
-      send: async (content) => {
+      send: async (content, meta) => {
         const r = await this.messaging.sendOutbound({
           tenantId: b.tenantId,
           conversationId: b.conversationId,
           content: content as MessageContent,
           senderType: 'bot',
+          ...(flowId ? { flow: { flowId, nodeId: meta?.nodeId } } : {}),
         });
         void r; // Provider delivery is tracked by the durable outbound worker.
       },
+      enrollSequence: (sequenceId) => this.sequences.enroll(b.tenantId, sequenceId, b.contactId),
       http: (spec) => this.effects.execute(b.tenantId, spec, () => safeHttpRequest(spec)),
       setContactAttribute: async (key, value) => {
         const json = JSON.stringify(value ?? null);
@@ -385,6 +433,19 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
             'UPDATE contacts SET attributes = attributes || jsonb_build_object($2::text, $3::jsonb) WHERE id = $1',
             [b.contactId, key, json],
           ),
+        );
+      },
+      updateTags: async ({ add, remove }) => {
+        await this.db.withTenant(b.tenantId, (c) =>
+          c.query(
+            `UPDATE contacts SET tags = (SELECT COALESCE(array_agg(DISTINCT t), '{}') FROM unnest(tags || $2::text[]) t WHERE NOT (t = ANY($3::text[]))), updated_at = now() WHERE id = $1`,
+            [b.contactId, add, remove],
+          ),
+        );
+      },
+      addNote: async (body) => {
+        await this.db.withTenant(b.tenantId, (c) =>
+          c.query('INSERT INTO crm_notes(tenant_id, contact_id, body) VALUES ($1, $2, $3)', [b.tenantId, b.contactId, body]),
         );
       },
       handoff: async ({ assignTo }) => {
