@@ -27,3 +27,5 @@ Constraints: no merge to main, no Railway deployment, no prolonged tests. No app
 
 - UX-20 complete via the audit's explicit-label option: preview clearly states it tests logic with approximate channel appearance; existing F08/F09 list/media renderers reused.
 - UX-21 complete: customer-facing execution status localized; raw status/error details remain in advanced variable view, real-HTTP switch moved into closed Advanced tools. No requests/sends performed. Diff check passed.
+
+- UX-16 complete: expanded condition editor now edits/adds variable, last-message and channel rules instead of silently retaining invisible rules; operator choices match inspector including numeric/regex operations. Variable keys now required before saving. Existing contact-field/attribute/label editors retained. No F01–F19 equivalent. Diff check passed; browser interaction unverified.

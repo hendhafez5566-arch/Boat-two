@@ -13,8 +13,11 @@ export type LabelOption = { label: string; contacts: number };
 
 const MAX_RULES = 10;
 const LABEL_OPS = ['contains', 'not_contains', 'is_set', 'is_not_set'];
-const TEXT_OPS = ['equals', 'not_equals', 'contains', 'not_contains', 'starts_with', 'ends_with', 'is_set', 'is_not_set'];
+const TEXT_OPS = ['equals', 'not_equals', 'contains', 'not_contains', 'starts_with', 'ends_with', 'is_set', 'is_not_set', 'greater_than', 'less_than', 'matches_regex'];
 const OP_LABEL: Record<string, [string, string]> = {
+  greater_than: ['أكبر من', 'Greater than'],
+  less_than: ['أصغر من', 'Less than'],
+  matches_regex: ['يطابق تعبيرًا نمطيًا', 'Matches regex'],
   equals: ['يساوي', 'Equals'],
   not_equals: ['لا يساوي', 'Not equals'],
   contains: ['يحتوي', 'Contains'],
@@ -31,7 +34,7 @@ const sysVar = (c: Cond) => (c.source === 'label' ? 'label' : c.key || 'name');
 
 /** هل الشرط مكتمل بما يكفي للحفظ؟ */
 export function conditionComplete(c: Cond) {
-  if (c.source === 'contact_attribute' && !(c.key ?? '').trim()) return false;
+  if (['variable', 'contact_attribute', 'contact_field'].includes(c.source) && !(c.key ?? '').trim()) return false;
   if (!noValue(c.operator) && !(c.value ?? '').trim()) return false;
   return true;
 }
@@ -98,7 +101,7 @@ export default function ConditionModal({
 
   const sysRows = rows.map((c, i) => ({ c, i })).filter((x) => isSystem(x.c));
   const customRows = rows.map((c, i) => ({ c, i })).filter((x) => x.c.source === 'contact_attribute');
-  const otherCount = rows.length - sysRows.length - customRows.length;
+  const otherRows = rows.map((c, i) => ({ c, i })).filter(({ c }) => !isSystem(c) && c.source !== 'contact_attribute');
 
   const sel = 'cm-input';
   return (
@@ -221,9 +224,29 @@ export default function ConditionModal({
           ))}
         </section>
 
-        {otherCount > 0 && (
-          <p className="cm-hint">{t(`فيه ${otherCount} قاعدة من نوع آخر (متغيّر/آخر رسالة/قناة) محفوظة كما هي.`, `${otherCount} rule(s) of another type (variable/last message/channel) are kept as is.`)}</p>
-        )}
+        <section className="cm-section">
+          <div className="cm-sec-head">
+            <h3>{t('ردود المحادثة والمتغيّرات', 'Conversation replies and variables')}</h3>
+            <button type="button" className="cm-add" disabled={!canAdd} aria-label={t('إضافة قاعدة محادثة', 'Add conversation rule')} onClick={() => setRows((r) => [...r, { source: 'variable', key: '', operator: 'equals', value: '' }])}>+</button>
+          </div>
+          {otherRows.map(({ c, i }) => (
+            <div className="cm-row" key={i}>
+              <label><span>{t('مصدر القيمة', 'Value source')}</span>
+                <select className={sel} value={c.source} onChange={(e) => patch(i, { source: e.target.value as Cond['source'] })}>
+                  <option value="variable">{t('متغيّر من المحادثة', 'Conversation variable')}</option>
+                  <option value="last_message">{t('آخر رسالة للعميل', 'Last customer message')}</option>
+                  <option value="channel">{t('القناة', 'Channel')}</option>
+                </select>
+              </label>
+              {c.source === 'variable' && <label><span>{t('اسم المتغيّر', 'Variable name')}</span><input className={sel} dir="ltr" value={c.key ?? ''} onChange={(e) => patch(i, { key: e.target.value })} /></label>}
+              <label><span>{t('المقارنة', 'Comparison')}</span><select className={sel} value={c.operator} onChange={(e) => patch(i, { operator: e.target.value })}>
+                {TEXT_OPS.map((o) => <option key={o} value={o}>{t(...OP_LABEL[o])}</option>)}
+              </select></label>
+              {!noValue(c.operator) && <label><span>{t('القيمة', 'Value')}</span><input className={sel} value={c.value ?? ''} onChange={(e) => patch(i, { value: e.target.value })} /></label>}
+              <button type="button" className="cm-del" onClick={() => remove(i)} aria-label={t('حذف القاعدة', 'Delete rule')}>✕</button>
+            </div>
+          ))}
+        </section>
         {err && <p className="cm-err" role="alert">{err}</p>}
 
         <footer className="cm-foot">
