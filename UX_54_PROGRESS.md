@@ -18,3 +18,9 @@ Constraints: no merge to main, no Railway deployment, no prolonged tests. No app
 - Audit received at 7aef49a; previous missing-source blocker resolved. Scope remains UX-01–UX-23 only.
 
 - UX-02 complete: default build mode hides step/button statistics and inline click counts; explicit analytics toggle restores all metrics. No counterpart in F01–F19. Diff whitespace check passed; no runtime/browser check yet.
+
+- UX-04/UX-19 complete: desktop inspector now obeys its open/close state, closes for preview, and consumes no space without a selected step (settings excepted). Desktop close control exposed. These gaps were not part of F03 save/navigation protection.
+- UX-06 complete: minimap opt-in, compact, and hidden during preview; not covered by F02 layout.
+- UX-09 complete: settings entry and tab consistently named “Bot triggers and channels”.
+- UX-13 complete: moved existing F02/F10 arrange-and-fit action out of More into toolbar; reused collision-aware implementation. UX-01 already implemented by F02/F10; retained existing tests, browser verification pending.
+- UX-23 complete: validation summary reports both error and warning totals, explains passed-with-warnings. Reuses F06 translated issue details for UX-22 (no duplicate translation layer). Diff whitespace check passed.

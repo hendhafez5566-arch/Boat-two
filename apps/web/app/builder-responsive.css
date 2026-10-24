@@ -212,3 +212,9 @@ img, video, canvas, svg { max-width: 100%; }
 }
 
 .menu-scrim { position: fixed; inset: 0; z-index: -1; }
+
+/* Contextual details must release canvas space on desktop as well. */
+@media (min-width: 1100px) {
+  .builder-main .builder-inspector[data-open='false'] { display: none !important; }
+  .builder-main .builder-inspector .sheet-head { display: flex; justify-content: flex-end; }
+}

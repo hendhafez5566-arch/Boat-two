@@ -62,6 +62,7 @@ function Editor({ id }: { id: string }) {
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const selRef = useRef<string | null>(null);
+  const [showMap, setShowMap] = useState(false);
   const [analytics, setAnalytics] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewActive, setPreviewActive] = useState<string | null>(null);
@@ -712,9 +713,8 @@ function Editor({ id }: { id: string }) {
       setIssues(r.errors);
       setWarnings(r.warnings);
       setMsg(
-        r.errors.length
-          ? `${r.errors.length} ${t('خطأ', 'errors')}`
-          : t('لا توجد أخطاء', 'Validation passed'),
+        `${r.errors.length} ${t('أخطاء', 'errors')}، ${r.warnings.length} ${t('تحذيرات', 'warnings')}` +
+        (!r.errors.length && r.warnings.length ? t(' — اجتاز الفحص مع تحذيرات؛ راجع الخطوات التي تحتاج انتباهًا.', ' — Passed with warnings; review the affected steps.') : ''),
       );
     } catch (e: any) {
       if (request !== validationRequest.current || latest.current !== submitted) return;
@@ -897,6 +897,7 @@ function Editor({ id }: { id: string }) {
           type="button"
           aria-pressed={previewOpen}
           onClick={() => {
+            if (!previewOpen) setInspectorOpen(false);
             setPreviewOpen(!previewOpen);
             setMobilePanel(mobilePanel === 'preview' ? 'canvas' : 'preview');
           }}
@@ -912,6 +913,12 @@ function Editor({ id }: { id: string }) {
         </button>
         <button type="button" aria-pressed={analytics} onClick={() => setAnalytics(!analytics)} className="rounded border px-2 py-1">
           {analytics ? t('العودة للبناء', 'Back to building') : t('عرض الأداء', 'Show analytics')}
+        </button>
+        <button type="button" onClick={autoLayout} className="rounded border px-2 py-1">
+          {t('تنظيم التدفق', 'Arrange flow')}
+        </button>
+        <button type="button" aria-pressed={showMap} onClick={() => setShowMap(!showMap)} className="rounded border px-2 py-1">
+          {t('الخريطة', 'Minimap')}
         </button>
         <div className="tb-more">
           <button
@@ -936,14 +943,6 @@ function Editor({ id }: { id: string }) {
           />
           {t('حفظ تلقائي', 'Autosave')}
         </label>
-        <button
-          type="button"
-          title={t('ترتيب الخطوات تلقائيًا', 'Auto-arrange steps')}
-          onClick={autoLayout}
-          className="rounded border px-2 py-1"
-        >
-          {t('ترتيب', 'Arrange')}
-        </button>
         <button disabled={busy} onClick={loadVersions} className="rounded border px-2 py-1">
           {t('الإصدارات', 'Versions')}
         </button>
@@ -982,7 +981,7 @@ function Editor({ id }: { id: string }) {
             setInspectorOpen(true);
           }}
         >
-          {t('الإعدادات', 'Settings')}
+          {t('مشغّلات وقنوات البوت', 'Bot triggers and channels')}
         </button>
       </nav>
 
@@ -1308,12 +1307,13 @@ function Editor({ id }: { id: string }) {
           >
             <Background color="#cdd5e2" gap={22} size={1.4} />
             <Controls showInteractive={false} position="bottom-left" />
-            <MiniMap
+            {showMap && !previewOpen && <MiniMap
               pannable
               zoomable
               nodeColor={(n) => NODE_META[n.data?.type as NodeType]?.color ?? '#8aa6ad'}
               maskColor="#f3f5f9bb"
-            />
+              style={{ width: 120, height: 80 }}
+            />}
           </ReactFlow>
           </FlowButtonStatsContext.Provider>
           </FlowSequencesContext.Provider>
@@ -1361,12 +1361,12 @@ function Editor({ id }: { id: string }) {
 
         <div
           className="inspector-scrim"
-          data-open={inspectorOpen}
+          data-open={inspectorOpen && !previewOpen && (tab === 'settings' || !!sel)}
           onClick={() => setInspectorOpen(false)}
         />
         <aside
           className="builder-inspector flex flex-col bg-white"
-          data-open={inspectorOpen}
+          data-open={inspectorOpen && !previewOpen && (tab === 'settings' || !!sel)}
           aria-label={t('تفاصيل الخطوة', 'Step details')}
         >
           <header className="sheet-head">
@@ -1384,7 +1384,7 @@ function Editor({ id }: { id: string }) {
             {(
               [
                 ['node', t('العقدة', 'Inspector')],
-                ['settings', t('الإعدادات', 'Settings')],
+                ['settings', t('مشغّلات وقنوات البوت', 'Bot triggers and channels')],
               ] as const
             ).map(([k, l]) => (
               <button
