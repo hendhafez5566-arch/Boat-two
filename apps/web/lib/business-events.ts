@@ -1,0 +1,21 @@
+type T=(ar:string,en:string)=>string;
+export const AUTOMATION_EVENTS = [
+  {id:'crm.contacts.insert',group:'contacts',ar:'إنشاء عميل',en:'Contact created',descriptionAr:'يبدأ عند إضافة ملف عميل جديد إلى الشركة.',descriptionEn:'Starts when a new contact is added to the workspace.'},
+  {id:'crm.contacts.update',group:'contacts',ar:'تحديث بيانات عميل',en:'Contact updated',descriptionAr:'يبدأ عند حفظ تغيير في ملف العميل؛ استخدم الشروط لتحديد التغييرات المطلوبة.',descriptionEn:'Starts when contact data changes; use conditions to select relevant changes.'},
+  {id:'crm.crm_deals.insert',group:'sales',ar:'إنشاء صفقة',en:'Deal created',descriptionAr:'يبدأ عند إضافة صفقة جديدة إلى مسار المبيعات.',descriptionEn:'Starts when a new sales deal is created.'},
+  {id:'crm.crm_deals.update',group:'sales',ar:'تحديث صفقة',en:'Deal updated',descriptionAr:'يبدأ عند تعديل الصفقة، مثل المرحلة أو الحالة أو القيمة.',descriptionEn:'Starts when a deal changes, including its stage, status or value.'},
+  {id:'crm.crm_tasks.update',group:'tasks',ar:'تحديث متابعة',en:'Follow-up updated',descriptionAr:'يبدأ عند حفظ تغيير في متابعة العميل، مثل إكمالها أو تعديل موعدها.',descriptionEn:'Starts when a follow-up changes, including completion or due date.'},
+  {id:'automation.scheduled',group:'schedule',ar:'حلول موعد مجدول',en:'Scheduled time reached',descriptionAr:'يبدأ في الموعد المحدد لجدولة هذه القاعدة.',descriptionEn:'Starts at the time scheduled for this rule.'},
+];
+const resources:Record<string,[string,string]>={
+  tenants:['إعدادات الشركة','Company settings'],memberships:['أعضاء الفريق','Team members'],invitations:['دعوات الفريق','Team invitations'],channels:['القنوات','Channels'],flows:['البوتات','Bots'],flow_versions:['نسخ البوت','Bot versions'],inbox_settings:['إعدادات صندوق الوارد','Inbox settings'],canned_replies:['الردود الجاهزة','Saved replies'],contacts:['العملاء','Contacts'],crm_deals:['الصفقات','Deals'],crm_tasks:['المتابعات','Follow-ups'],crm_fields:['حقول العملاء','Contact fields'],crm_segments:['شرائح العملاء','Contact segments'],automation_rules:['قواعد الأتمتة','Automation rules'],automation_schedule:['جدولة الأتمتة','Automation schedules'],workspace_domains:['نطاقات الشركة','Company domains'],workspace_domain_transfers:['نقل النطاقات','Domain transfers'],crm_history:['سجل العملاء','Contact history'],outbound_jobs:['تسليم الرسائل','Message delivery'],generation_reservations:['استخدام المساعد الذكي','AI usage'],embedding_reservation:['فهرسة المعرفة','Knowledge indexing'],invitation_mail_jobs:['بريد دعوات الفريق','Invitation mail'],sequences:['التسلسلات','Sequences'],campaigns:['الحملات','Campaigns'],
+};
+const actions:Record<string,[string,string]>={insert:['إضافة سجل','Record added'],update:['تحديث سجل','Record updated'],delete:['حذف سجل','Record deleted'],merge:['دمج ملفات العملاء','Contacts merged'],cancel:['إلغاء موعد','Schedule canceled'],reschedule:['تغيير موعد','Schedule changed'],reconcile:['مراجعة وتسوية الاستخدام','Usage reconciled'],delivery_reconciled:['مراجعة حالة التسليم','Delivery reconciled'],generation_release_evidence:['تسجيل دليل تحرير الاستخدام','Usage release evidence recorded'],automation_followup_retarget:['إعادة توجيه متابعة الأتمتة','Automation follow-up retargeted'],mail_evidence_review:['مراجعة دليل تسليم البريد','Mail evidence reviewed'],crm_retention_cleanup:['تنظيف السجل وفق سياسة الاحتفاظ','History retention cleanup'], 'domain.transfer_started':['بدء نقل نطاق','Domain transfer started'],'domain.transfer_canceled':['إلغاء نقل نطاق','Domain transfer canceled'], 'domain.transfer_accepted':['قبول نقل نطاق','Domain transfer accepted']};
+export function resourceLabel(resource:string,t:T) {return resources[resource] ? t(...resources[resource]) : t('سجل في الشركة','Workspace record');}
+export function activityAction(action:string,t:T) {return actions[action] ? t(...actions[action]) : t('إجراء إداري مسجل','Recorded administrative action');}
+export function eventLabel(event:string,t:T) {
+  const known=AUTOMATION_EVENTS.find(item=>item.id===event);if(known)return t(known.ar,known.en);
+  const parts=event.split('.');
+  if(parts[0]==='crm' && resources[parts[1]] && actions[parts[2]])return `${activityAction(parts[2],t)} · ${resourceLabel(parts[1],t)}`;
+  return t('حدث مسجل للعميل','Recorded customer event');
+}

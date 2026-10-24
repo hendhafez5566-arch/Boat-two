@@ -1,4 +1,5 @@
 'use client';
+import { eventLabel } from '../../../lib/business-events';
 import { Dialog } from '../../../components/product/ProductUI';
 import { ContactActivityExport } from '../../../components/business/ContactActivityExport';
 import { statusLabel } from '../../../components/product/status';
@@ -920,7 +921,7 @@ export default function CRM() {
                     {timeline.events.map((x) => (
                       <tr key={x.id}>
                         <td>{new Date(x.created_at).toLocaleString()}</td>
-                        <td>{x.type}</td>
+                        <td>{eventLabel(x.type,t)}<details><summary>{t('تفاصيل تقنية','Technical details')}</summary><code dir="ltr">{x.type} · {x.id}</code></details></td>
                         <td>{statusLabel(x.status, t)}</td>
                       </tr>
                     ))}
