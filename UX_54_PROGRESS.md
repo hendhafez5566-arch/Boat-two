@@ -34,3 +34,5 @@ Constraints: no merge to main, no Railway deployment, no prolonged tests. No app
 - UX-14 complete: live zoom percentage, pan/zoom help and show-all control next to canvas controls. Reuses F02 fit behavior.
 - UX-12 already covered by F10: edge insertion/deletion controls render only for selected edges; retained without duplication.
 - UX-19 follow-up: choosing settings/a step exits preview so contextual details can reopen.
+
+- UX-03 complete: build mode renders each choice as a named port inside its message, using the existing unsplit node renderer. Independent button cards remain in analytics mode. Canonical saved graph/option IDs unchanged, F02/F10 conservative layout bounds retained to avoid introducing collisions.

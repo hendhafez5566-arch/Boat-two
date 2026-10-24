@@ -272,16 +272,16 @@ function Editor({ id }: { id: string }) {
               ? ('visited' as const)
               : undefined,
         linked: linkedBy[n.id] ?? [],
-        splitButtons: hasButtonCards(n.data.type, n.data.data),
+        splitButtons: analytics && hasButtonCards(n.data.type, n.data.data),
         actions: nodeActions,
       },
     }));
-  }, [nodes, edges, startId, issueMap, nodeActions, previewActive, previewVisited]);
+  }, [nodes, edges, startId, issueMap, nodeActions, previewActive, previewVisited, analytics]);
 
   // Buttons drawn as their own cards: derived for display only; the saved graph is unchanged.
   const cards = useMemo(
-    () => deriveButtonCards(nodes, edges, language === 'ar', btnDims),
-    [nodes, edges, language, btnDims],
+    () => analytics ? deriveButtonCards(nodes, edges, language === 'ar', btnDims) : { cardNodes: [], edges, index: {} as Record<string, { parentId: string; buttonId: string }> },
+    [nodes, edges, language, btnDims, analytics],
   );
   btnIndexRef.current = cards.index;
   const canvasNodes = useMemo(() => [...display, ...cards.cardNodes], [display, cards.cardNodes]);
