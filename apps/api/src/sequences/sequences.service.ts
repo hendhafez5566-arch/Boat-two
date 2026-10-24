@@ -76,12 +76,18 @@ export class SequencesService implements OnModuleInit, OnModuleDestroy {
   }
 
   private validate(input: z.infer<typeof sequenceSchema>) {
-    if (!isValidTimezone(input.timezone)) throw new BadRequestException('Invalid timezone');
+    if (!isValidTimezone(input.timezone)) throw new BadRequestException({code: 'VALIDATION', issues: [{path: ['timezone'], message: 'اختر منطقة زمنية صحيحة مثل Africa/Cairo'}]});
     const ids = new Set<string>();
     for (const s of input.steps) {
-      if (ids.has(s.id)) throw new BadRequestException('Step ids must be unique');
+      if (ids.has(s.id)) throw new BadRequestException({code: 'VALIDATION', issues: [{path: ['steps', input.steps.indexOf(s)], message: 'توجد خطوة مكررة؛ احذف النسخة المكررة وأضف خطوة جديدة'}]});
       ids.add(s.id);
-      validateOutbound(s.content as MessageContent);
+      try {
+        validateOutbound(s.content as MessageContent);
+        if (!s.content.template && !s.content.media && !s.content.location && !String(s.content.text || '').trim())
+          throw new BadRequestException('Empty message');
+      } catch {
+        throw new BadRequestException({code: 'VALIDATION', issues: [{path: ['steps', input.steps.indexOf(s), 'content'], message: 'راجع محتوى الرسالة: أدخل نصًا أو قالبًا أو مرفقًا صالحًا، والتزم بحدود أزرار وقوائم القناة'}]});
+      }
     }
   }
 
@@ -89,8 +95,8 @@ export class SequencesService implements OnModuleInit, OnModuleDestroy {
     this.validate(input);
     return this.db.withTenant(tenantId, async (c) => {
       const ch = (await c.query('SELECT type FROM channels WHERE id = $1', [input.channelId])).rows[0];
-      if (!ch) throw new NotFoundException('Channel not found');
-      if (ch.type === 'web') throw new BadRequestException('Sequences need a WhatsApp, Messenger or Instagram channel');
+      if (!ch) throw new BadRequestException({code:'VALIDATION', issues:[{path:['channelId'],message:'القناة غير متاحة؛ اختر قناة أخرى من قنوات الشركة'}]});
+      if (!['whatsapp','facebook','instagram'].includes(ch.type)) throw new BadRequestException({code:'VALIDATION', issues:[{path:['channelId'],message:'التسلسلات تحتاج قناة واتساب أو ماسنجر أو إنستغرام؛ قناة الموقع غير مؤهلة'}]});
       return (
         await c.query(
           `INSERT INTO sequences (tenant_id, name, channel_id, timezone, delivery_time, stop_on_reply, steps)
@@ -104,6 +110,9 @@ export class SequencesService implements OnModuleInit, OnModuleDestroy {
   async update(tenantId: string, id: string, input: z.infer<typeof sequenceSchema>) {
     this.validate(input);
     return this.db.withTenant(tenantId, async (c) => {
+      const existing = (await c.query('SELECT channel_id FROM sequences WHERE id=$1', [id])).rows[0];
+      if (!existing) throw new NotFoundException('Sequence not found');
+      if (input.channelId !== existing.channel_id) throw new BadRequestException({code:'VALIDATION',issues:[{path:['channelId'],message:'لا يمكن تغيير قناة التسلسل بعد إنشائه؛ أنشئ تسلسلاً جديدًا للقناة الأخرى'}]});
       const row = (
         await c.query(
           `UPDATE sequences SET name=$2, timezone=$3, delivery_time=$4, stop_on_reply=$5, steps=$6, updated_at=now()

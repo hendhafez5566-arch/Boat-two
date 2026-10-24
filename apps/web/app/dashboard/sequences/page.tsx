@@ -45,6 +45,11 @@ export default function Sequences() {
   const [stats, setStats] = useState<Stats>({});
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{path: (string | number)[]; message: string}[]>([]);
+  const eligibleChannels = channels.data.filter(c => ['whatsapp','facebook','instagram'].includes(c.type));
+  const issueLabel = (path: (string | number)[]) => path[0] === 'steps' && typeof path[1] === 'number'
+    ? `${t('الخطوة', 'Step')} ${Number(path[1])+1} · ${t('المحتوى أو التوقيت أو الشرط', 'Content, timing or condition')}`
+    : ({name:t('اسم التسلسل','Sequence name'),channelId:t('القناة','Channel'),timezone:t('المنطقة الزمنية','Time zone'),deliveryTime:t('وقت التسليم','Delivery time')} as Record<string,string>)[String(path[0])] || t('إعدادات التسلسل','Sequence settings');
   const labels = useData<LabelOption[]>('/labels', []);
   const [condFor, setCondFor] = useState<number | null>(null);
 
@@ -70,12 +75,17 @@ export default function Sequences() {
   async function run(fn: () => Promise<unknown>, ok: string) {
     setBusy(true);
     setMsg('');
+    setFieldErrors([]);
     try {
       await fn();
       setMsg(ok);
       list.reload?.();
     } catch (e) {
-      setMsg((e as Error).message);
+      const details = (e as Error & {details?: {issues?: {path:(string|number)[];message:string}[]}}).details;
+      if (details?.issues?.length) {
+        setFieldErrors(details.issues.map(issue => ({...issue, message: /[\u0600-\u06ff]/.test(issue.message) ? issue.message : t('راجع هذا الحقل: القيمة مطلوبة ويجب أن تطابق الصيغة والحدود المسموحة.', 'Check this field: a value with the supported format and limits is required.')})));
+        setMsg(t('تعذر الحفظ. صحح الحقول والخطوات الموضحة أدناه.', 'Save failed. Correct the fields and steps below.'));
+      } else setMsg((e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -83,6 +93,11 @@ export default function Sequences() {
   const save = () =>
     run(async () => {
       if (!cur) return;
+      const problems = [];
+      if (!cur.name.trim()) problems.push({path:['name'],message:t('أدخل اسم التسلسل','Enter a sequence name')});
+      if (!eligibleChannels.some(c => c.id === cur.channelId)) problems.push({path:['channelId'],message:t('أضف واختر قناة واتساب أو ماسنجر أو إنستغرام؛ قناة الموقع لا تدعم التسلسلات.','Add and select a WhatsApp, Messenger or Instagram channel; website channels do not support sequences.')});
+      if (!cur.steps.length) problems.push({path:['steps'],message:t('أضف خطوة واحدة على الأقل','Add at least one step')});
+      if (problems.length) throw Object.assign(new Error('VALIDATION'),{details:{issues:problems}});
       const body = JSON.stringify({
         name: cur.name,
         channelId: cur.channelId,
@@ -127,7 +142,7 @@ export default function Sequences() {
         <div className="sq-top">
           <h1>{t('التسلسلات (Sequence)', 'Sequences')}</h1>
           <div className="sq-actions">
-            <button className="sq-btn sq-btn-primary" onClick={() => setCur(blank(channels.data.find((c) => c.type !== 'web')?.id))}>
+            <button className="sq-btn sq-btn-primary" onClick={() => setCur(blank(eligibleChannels[0]?.id))}>
               {t('+ تسلسل جديد', '+ New sequence')}
             </button>
           </div>
@@ -163,6 +178,7 @@ export default function Sequences() {
         </div>
       </div>
       {msg && <p className="sq-msg" role="status">{msg}</p>}
+      {fieldErrors.length > 0 && <div role="alert" className="notice error">{fieldErrors.map((issue,i) => <p key={i}>{issueLabel(issue.path)}: {issue.message}</p>)}</div>}
 
       <div className="sq-layout">
         {/* بطاقة الحملة: New Sequence Campaign */}
@@ -179,8 +195,10 @@ export default function Sequences() {
               <input value={cur.name} placeholder={t('أول تسلسل تسويقي', 'First Marketing Sequence')} onChange={(e) => setCur({ ...cur, name: e.target.value })} />
             </label>
             <label className="sq-field">{t('القناة', 'Channel')}
-              <select value={cur.channelId} disabled={!!cur.id} onChange={(e) => setCur({ ...cur, channelId: e.target.value })}>
-                {channels.data.filter((c) => c.type !== 'web').map((c) => (
+              {!eligibleChannels.length && <p role="alert">{t('لا توجد قناة مؤهلة. أضف قناة واتساب أو ماسنجر أو إنستغرام أولاً.', 'No eligible channel. Add WhatsApp, Messenger or Instagram first.')} <a href="/dashboard/channels">{t('إدارة القنوات', 'Manage channels')}</a></p>}
+              <select aria-invalid={fieldErrors.some(e => e.path[0] === 'channelId')} value={cur.channelId} disabled={!!cur.id} onChange={(e) => setCur({ ...cur, channelId: e.target.value })}>
+                <option value="">{t('اختر القناة', 'Choose a channel')}</option>
+                {eligibleChannels.map((c) => (
                   <option key={c.id} value={c.id}>{c.name} ({c.type})</option>
                 ))}
               </select>
@@ -212,6 +230,7 @@ export default function Sequences() {
             const sum = conditionSummary(s.condition as CondGroup | undefined, t);
             return (
               <div key={s.id} className="sq-row">
+                {fieldErrors.filter(e => e.path[0] === 'steps' && e.path[1] === i).map((e,j) => <p className="notice error" role="alert" key={j}>{e.message}</p>)}
                 {/* Send Message After */}
                 <div className="sq-card">
                   <div className="sq-head">

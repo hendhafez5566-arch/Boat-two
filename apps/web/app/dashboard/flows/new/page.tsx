@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../../../lib/api';
 import { wizardDraftKey, readWizardDraft, writeWizardDraft } from '../../../../lib/wizard-draft';
+import { validationMessage } from '../../../../lib/validation-message';
 import { Graph } from '../../../../lib/flow-types';
 import { useLocale } from '../../../../components/product/locale';
 import { useData } from '../../../../components/business/useData';
@@ -57,6 +58,9 @@ export default function BotWizard() {
     window.addEventListener('pagehide', persist);
     return () => window.removeEventListener('pagehide', persist);
   }, [draftReady, step, goal, template, name, welcome, channel, choices, created, published]);
+  useEffect(() => { setValidation(null); }, [goal, template, name, welcome, channel, choices]);
+  const wizardContent = useRef('');
+  wizardContent.current = JSON.stringify({goal, template, name, welcome, channel, choices});
   const labels = [
     t('الهدف', 'Goal'),
     t('القالب', 'Template'),
@@ -146,6 +150,7 @@ export default function BotWizard() {
     } else setStep(step + 1);
   }
   async function publish() {
+    const submitted = wizardContent.current;
     setBusy(true);
     setError('');
     try {
@@ -154,7 +159,8 @@ export default function BotWizard() {
         '/flows/validate',
         { method: 'POST', body: JSON.stringify(saved.graph) },
       );
-      setValidation(check.errors.map((e) => e.message));
+      if (submitted !== wizardContent.current) {setError(t('تغيرت المسودة أثناء الفحص. أعد الفحص قبل النشر.', 'Draft changed during validation. Check again before publishing.'));return;}
+      setValidation(check.errors.map((e) => validationMessage(e.message, language)));
       if (check.errors.length) return;
       await api(`/flows/${saved.id}/publish`, {
         method: 'POST',

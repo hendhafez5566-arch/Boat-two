@@ -25,6 +25,7 @@ import FlowNodeView from '../../../../components/flow/FlowNodeView';
 import { ButtonStats, FlowButtonStatsContext, FlowSequencesContext, FlowStatsContext, NodeStats, SeqInfo } from '../../../../components/flow/stats-context';
 import FlowEdge, { ButtonLinkEdge } from '../../../../components/flow/FlowEdge';
 import FlowButtonNode from '../../../../components/flow/FlowButtonNode';
+import { validationMessage } from '../../../../lib/validation-message';
 import UnsavedChangesGuard from '../../../../components/flow/UnsavedChangesGuard';
 import Inspector from '../../../../components/flow/Inspector';
 import TestPanel from '../../../../components/flow/TestPanel';
@@ -100,6 +101,9 @@ function Editor({ id }: { id: string }) {
   const [channels, setChannels] = useState<{ id: string; name: string; type: string }[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [warnings, setWarnings] = useState<Issue[]>([]);
+  const [validationState, setValidationState] = useState<'unchecked' | 'checking' | 'current' | 'stale'>('unchecked');
+  const validationSnapshot = useRef('');
+  const validationRequest = useRef(0);
   const [dirty, setDirty] = useState(false);
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved');
   const savedContent = useRef('');
@@ -231,9 +235,9 @@ function Editor({ id }: { id: string }) {
 
   const issueMap = useMemo(() => {
     const m: Record<string, string> = {};
-    for (const i of [...issues]) if (i.nodeId && !m[i.nodeId]) m[i.nodeId] = i.message;
+    for (const i of [...issues]) if (i.nodeId && !m[i.nodeId]) m[i.nodeId] = validationMessage(i.message, language);
     return m;
-  }, [issues]);
+  }, [issues, language]);
 
   const actionsRef = useRef<{
     duplicate: (id: string) => void;
@@ -609,6 +613,12 @@ function Editor({ id }: { id: string }) {
   });
   latest.current = content;
   useEffect(() => {
+    if (validationSnapshot.current && validationSnapshot.current !== content) {
+      validationRequest.current++;
+      setIssues([]); setWarnings([]); setValidationState('stale'); setMsg('');
+    }
+  }, [content]);
+  useEffect(() => {
     if (!loaded) return;
     if (skipHistory.current) {
       skipHistory.current = false;
@@ -688,11 +698,16 @@ function Editor({ id }: { id: string }) {
   }
 
   const check = async () => {
+    const submitted = latest.current, request = ++validationRequest.current;
+    validationSnapshot.current = submitted;
+    setValidationState('checking');
     try {
       const r = await api<{ errors: Issue[]; warnings: Issue[] }>('/flows/validate', {
         method: 'POST',
         body: JSON.stringify(graph()),
       });
+      if (request !== validationRequest.current || latest.current !== submitted) return;
+      setValidationState('current');
       setIssues(r.errors);
       setWarnings(r.warnings);
       setMsg(
@@ -701,23 +716,30 @@ function Editor({ id }: { id: string }) {
           : t('لا توجد أخطاء', 'Validation passed'),
       );
     } catch (e: any) {
-      setMsg(e.message);
+      if (request !== validationRequest.current || latest.current !== submitted) return;
+      setValidationState('unchecked');
+      setMsg(t('تعذر إكمال الفحص. أعد المحاولة.', 'Validation could not finish. Try again.'));
     }
   };
 
   const publish = async () => {
+    const submitted = latest.current;
     try {
       const savedAt = await save();
+      if (submitted !== latest.current) {setMsg(t('توجد تعديلات أحدث. احفظها وأعد الفحص قبل النشر.', 'Newer edits exist. Save and check again before publishing.'));return;}
+      validationSnapshot.current = submitted;
       const r = await api<any>(`/flows/${id}/publish`, {
         method: 'POST',
         body: JSON.stringify({ expectedUpdatedAt: savedAt }),
       });
       setMeta((m) => ({ ...m, status: 'published', version: r.version }));
       setIssues([]);
-      setWarnings(r.warnings ?? []);
+      setWarnings(latest.current === submitted ? r.warnings ?? [] : []);
+      setValidationState(latest.current === submitted ? 'current' : 'stale');
       setMsg(`${t('تم النشر', 'Published')} v${r.version}`);
     } catch (e: any) {
-      if (e.details?.errors) {
+      if (latest.current === submitted && e.details?.errors) {
+        setValidationState('current');
         setIssues(e.details.errors);
         setWarnings(e.details.warnings ?? []);
         setMsg(t('لا يمكن النشر: صحّح الأخطاء', 'Fix validation errors before publishing'));
@@ -845,6 +867,8 @@ function Editor({ id }: { id: string }) {
         <span className="text-xs" role="status" aria-live="polite">
           {!loaded ? t('جارٍ تحميل المسودة…', 'Loading draft…') : saveState === 'saving' ? t('جارٍ الحفظ…', 'Saving…') : saveState === 'error' ? t('فشل الحفظ — أعد المحاولة', 'Save failed — retry') : dirty ? t('تغييرات غير محفوظة', 'Unsaved changes') : t('تم الحفظ', 'Saved')}
         </span>
+        {validationState === 'stale' && <span role="status">{t('تغيرت المسودة — أعد فحص البوت', 'Draft changed — run validation again')}</span>}
+        {validationState === 'checking' && <span role="status">{t('جارٍ فحص النسخة الحالية…', 'Checking current draft…')}</span>}
         <UnsavedChangesGuard dirty={dirty} save={async () => {
           await save();
           return savedContent.current === latest.current;
@@ -995,10 +1019,10 @@ function Editor({ id }: { id: string }) {
               ⛔{' '}
               {i.nodeId && (
                 <button type="button" className="underline" onClick={() => focusNode(i.nodeId as string)}>
-                  [{i.nodeId}]
+                  {nodeLabel(nodes.find(n => n.id === i.nodeId)?.data.type || 'message', language)} · {nodes.findIndex(n => n.id === i.nodeId)+1}
                 </button>
               )}{' '}
-              {i.message}
+              {validationMessage(i.message, language)}
             </div>
           ))}
           {warnings.map((i, k) => (
@@ -1006,10 +1030,10 @@ function Editor({ id }: { id: string }) {
               ⚠️{' '}
               {i.nodeId && (
                 <button type="button" className="underline" onClick={() => focusNode(i.nodeId as string)}>
-                  [{i.nodeId}]
+                  {nodeLabel(nodes.find(n => n.id === i.nodeId)?.data.type || 'message', language)} · {nodes.findIndex(n => n.id === i.nodeId)+1}
                 </button>
               )}{' '}
-              {i.message}
+              {validationMessage(i.message, language)}
             </div>
           ))}
         </div>
