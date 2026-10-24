@@ -22,7 +22,7 @@ import { Dialog } from '../../../../components/product/ProductUI';
 import { NavIcon } from '../../../../components/product/NavIcon';
 import { NodeIcon, nodeLabel } from '../../../../components/flow/presentation';
 import FlowNodeView from '../../../../components/flow/FlowNodeView';
-import { ButtonStats, FlowButtonStatsContext, FlowSequencesContext, FlowStatsContext, NodeStats, SeqInfo } from '../../../../components/flow/stats-context';
+import { FlowAnalyticsContext, ButtonStats, FlowButtonStatsContext, FlowSequencesContext, FlowStatsContext, NodeStats, SeqInfo } from '../../../../components/flow/stats-context';
 import FlowEdge, { ButtonLinkEdge } from '../../../../components/flow/FlowEdge';
 import FlowButtonNode from '../../../../components/flow/FlowButtonNode';
 import { validationMessage } from '../../../../lib/validation-message';
@@ -62,6 +62,7 @@ function Editor({ id }: { id: string }) {
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const selRef = useRef<string | null>(null);
+  const [analytics, setAnalytics] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewActive, setPreviewActive] = useState<string | null>(null);
   const previewActiveRef = useRef<string | null>(null);
@@ -909,6 +910,9 @@ function Editor({ id }: { id: string }) {
         <button disabled={busy} onClick={publish} className="btn btn-primary">
           {t('نشر', 'Publish')}
         </button>
+        <button type="button" aria-pressed={analytics} onClick={() => setAnalytics(!analytics)} className="rounded border px-2 py-1">
+          {analytics ? t('العودة للبناء', 'Back to building') : t('عرض الأداء', 'Show analytics')}
+        </button>
         <div className="tb-more">
           <button
             type="button"
@@ -1227,6 +1231,7 @@ function Editor({ id }: { id: string }) {
               {!nodes.some(n => [nodeLabel(n.data.type, language),n.data.data?.text,n.data.note,n.id].join(' ').toLocaleLowerCase().includes(findNode.trim().toLocaleLowerCase())) && <p role="status">{t('لا توجد خطوة مطابقة', 'No matching step')}</p>}
             </div>}
           </div>
+          <FlowAnalyticsContext.Provider value={analytics}>
           <FlowStatsContext.Provider value={nodeStats}>
           <FlowSequencesContext.Provider value={seqInfo}>
           <FlowButtonStatsContext.Provider value={buttonStats}>
@@ -1313,6 +1318,7 @@ function Editor({ id }: { id: string }) {
           </FlowButtonStatsContext.Provider>
           </FlowSequencesContext.Provider>
           </FlowStatsContext.Provider>
+          </FlowAnalyticsContext.Provider>
           <div className="canvas-tagline" aria-hidden="true">
             <span>Drag. Connect. Automate.</span>
             <svg viewBox="0 0 160 12" preserveAspectRatio="none"><path d="M3 8 C 40 2, 90 12, 157 4" /></svg>

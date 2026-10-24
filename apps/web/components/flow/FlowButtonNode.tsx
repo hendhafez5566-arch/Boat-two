@@ -3,7 +3,7 @@ import { memo, useContext, CSSProperties } from 'react';
 import { Handle, NodeProps, Position } from 'reactflow';
 import { ButtonNodeData } from '../../lib/flow-types';
 import { useLocale } from '../product/locale';
-import { FlowButtonStatsContext } from './stats-context';
+import { FlowAnalyticsContext, FlowButtonStatsContext } from './stats-context';
 
 /**
  * A button of an interactive/message step drawn as its own card (see deriveButtonCards).
@@ -11,6 +11,7 @@ import { FlowButtonStatsContext } from './stats-context';
  */
 function FlowButtonNode({ data, selected }: NodeProps<ButtonNodeData>) {
   const { language, t } = useLocale();
+  const analytics = useContext(FlowAnalyticsContext);
   const stats = useContext(FlowButtonStatsContext)[`${data.parentId}:${data.buttonId}`];
   const rtl = data.rtl;
   return (
@@ -29,7 +30,7 @@ function FlowButtonNode({ data, selected }: NodeProps<ButtonNodeData>) {
         style={{ [rtl ? 'right' : 'left']: -6, top: '50%' }}
       />
       <div className="fn-bcard-head">▣ {t('زر', 'Button')}</div>
-      <div className="fn-bcard-stats" aria-label={t('إحصائيات الزر', 'Button statistics')}>
+      {analytics && <div className="fn-bcard-stats" aria-label={t('إحصائيات الزر', 'Button statistics')}>
         <span title={t('نقرات', 'Clicks')}>
           👆 {t('نقرات', 'Click')}
           <b>{stats?.clicks ?? 0}</b>
@@ -42,7 +43,7 @@ function FlowButtonNode({ data, selected }: NodeProps<ButtonNodeData>) {
           ⚠ {t('أخطاء', 'Errors')}
           <b>{stats?.errors ?? 0}</b>
         </span>
-      </div>
+      </div>}
       <div className="fn-bcard-title">{data.title || '…'}</div>
       <Handle
         type="source"

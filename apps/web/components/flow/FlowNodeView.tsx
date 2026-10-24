@@ -3,7 +3,7 @@ import MediaPreview from './MediaPreview';
 import ListPreview from './ListPreview';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { memo, useContext, useEffect, CSSProperties } from 'react';
-import { FlowButtonStatsContext, FlowSequencesContext, FlowStatsContext } from './stats-context';
+import { FlowAnalyticsContext, FlowButtonStatsContext, FlowSequencesContext, FlowStatsContext } from './stats-context';
 import { Handle, NodeProps, Position, useUpdateNodeInternals } from 'reactflow';
 import { handlesFor, NODE_META, optionsOf, RFData, summary } from '../../lib/flow-types';
 import { useLocale } from '../product/locale';
@@ -30,6 +30,7 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
     cardOption = new Set<string>(optionsOf(data.data ?? {}).map((o) => `option:${o.id}`)),
     shown = cards ? handles.filter((h) => !cardOption.has(h.id)) : handles,
     key = handles.map((h) => h.id).join('|') + (cards ? '|cards' : '');
+  const analytics = useContext(FlowAnalyticsContext);
   const stats = useContext(FlowStatsContext)[id];
   const optionStats = useContext(FlowButtonStatsContext);
   const seq = useContext(FlowSequencesContext)[String(data.data?.sequenceId ?? '')];
@@ -92,7 +93,7 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
         <strong>{nodeLabel(data.type, language)}</strong>
         {data.isStart && <span className="flow-start-badge">{t('بداية', 'Start')}</span>}
       </div>
-      {SENDERS.includes(data.type) && (
+      {analytics && SENDERS.includes(data.type) && (
         <div className="fn-stats" aria-label={t('إحصائيات الخطوة', 'Step statistics')}>
           <span title={t('أُرسلت', 'Sent')}>✈ {t('أُرسلت', 'Sent')}<b>{stats?.sent ?? 0}</b></span>
           <span title={t('وصلت', 'Delivered')}>✓ {t('وصلت', 'Delivered')}<b>{stats?.delivered ?? 0}</b></span>
@@ -143,7 +144,7 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
                   <label className="fn-uiq-opt" key={o.id}>
                     <i aria-hidden="true" />
                     {o.title || '…'}
-                    {optionStats[`${id}:${o.id}`] && <small className="fn-uiq-clicks"> · 👆 {optionStats[`${id}:${o.id}`].clicks}</small>}
+                    {analytics && optionStats[`${id}:${o.id}`] && <small className="fn-uiq-clicks"> · 👆 {analytics && optionStats[`${id}:${o.id}`].clicks}</small>}
                   </label>
                 ))}
               <div className="fn-uiq-save">

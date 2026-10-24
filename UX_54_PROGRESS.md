@@ -16,3 +16,5 @@ Constraints: no merge to main, no Railway deployment, no prolonged tests. No app
 ## Implementation checkpoints
 - UX-10 complete: reply format conversion retains option objects/IDs/titles and therefore canonical `option:<id>` edges. More than three options blocks button conversion without mutation; removing all choices asks explicitly. F07 creates actions but did not cover this conversion; F02/F10 layout remains reused. Reviewed `updateData` handle filtering to confirm retained IDs preserve connections. Short check: `git diff --check`.
 - Audit received at 7aef49a; previous missing-source blocker resolved. Scope remains UX-01–UX-23 only.
+
+- UX-02 complete: default build mode hides step/button statistics and inline click counts; explicit analytics toggle restores all metrics. No counterpart in F01–F19. Diff whitespace check passed; no runtime/browser check yet.

@@ -12,3 +12,6 @@ export const FlowSequencesContext = createContext<Record<string, SeqInfo>>({});
 export type ButtonStats = { clicks: number; subscribers: number; errors: number };
 /** `${nodeId}:${buttonId}` → real tap counts of that button */
 export const FlowButtonStatsContext = createContext<Record<string, ButtonStats>>({});
+
+/** Build mode keeps content primary; analytics remain available on demand. */
+export const FlowAnalyticsContext = createContext(false);
