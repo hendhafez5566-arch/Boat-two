@@ -1,4 +1,6 @@
 'use client';
+import MediaPreview from './MediaPreview';
+import ListPreview from './ListPreview';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { memo, useContext, useEffect, CSSProperties } from 'react';
 import { FlowButtonStatsContext, FlowSequencesContext, FlowStatsContext } from './stats-context';
@@ -178,13 +180,8 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
         </div>
       )}
       </div>
-      {image && (
-        <div className="fn-image-card">
-          <div className="fn-sub-head">🖼️ {t('صورة', 'Image')}</div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="fn-media" src={image} alt="" loading="lazy" onError={(e) => (e.currentTarget.style.display = 'none')} />
-        </div>
-      )}
+      {(image || data.data?.imageUrl || ['image','video','audio','file'].includes(data.type) || data.data?.media) && <MediaPreview media={data.data?.media || {kind: data.type === 'cta_url' ? 'image' : data.type, url: image || data.data?.imageUrl || data.data?.url, caption:data.data?.caption,filename:data.data?.filename}} />}
+      {data.data?.list && <ListPreview list={data.data.list} />}
       {cards && (
         <Handle
           type="source"

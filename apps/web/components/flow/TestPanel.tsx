@@ -2,6 +2,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useLocale } from '../product/locale';
 import { useState } from 'react';
+import MediaPreview from './MediaPreview';
+import ListPreview from './ListPreview';
 import { api } from '../../lib/api';
 
 type Entry = { who: 'you' | 'bot' | 'system'; content: any };
@@ -70,7 +72,7 @@ export default function TestPanel({
   const chips: { id: string; title: string }[] = [];
   if (lastBot && waitKind === 'choice') {
     for (const b of lastBot.content.buttons ?? []) chips.push(b);
-    for (const s of lastBot.content.list?.sections ?? []) for (const r of s.rows) chips.push(r);
+
   }
 
   return (
@@ -100,11 +102,7 @@ export default function TestPanel({
               key={i}
               className={`max-w-[85%] rounded-lg px-3 py-1.5 ${e.who === 'you' ? 'ml-auto bg-blue-600 text-white' : 'bg-white border'}`}
             >
-              {e.content.media && (
-                <div className="text-xs opacity-70">
-                  [{e.content.media.kind}] {e.content.media.url}
-                </div>
-              )}
+              {e.content.media && <MediaPreview media={e.content.media} />}
               {e.content.location && (
                 <div className="text-xs">
                   📍 {e.content.location.name ?? ''} ({e.content.location.lat}, {e.content.location.lng})
@@ -121,16 +119,8 @@ export default function TestPanel({
                   [🔗 {e.content.cta.text}] {e.content.cta.url}
                 </div>
               )}
-              {(e.content.buttons || e.content.list) && (
-                <div className="mt-1 text-xs opacity-60">
-                  {[
-                    ...(e.content.buttons ?? []),
-                    ...(e.content.list?.sections ?? []).flatMap((s: any) => s.rows),
-                  ]
-                    .map((o: any) => `[${o.title}]`)
-                    .join(' ')}
-                </div>
-              )}
+              {e.content.buttons && <div className="mt-1 text-xs">{e.content.buttons.map((b: {id:string;title:string}) => <span className="rounded border px-2" key={b.id}>{b.title}</span>)}</div>}
+              {e.content.list && <ListPreview list={e.content.list} disabled={busy || e !== lastBot || waitKind !== 'choice'} onSelect={send} />}
             </div>
           ),
         )}
