@@ -41,4 +41,16 @@ for (const [group, expected] of groups) {
     console.log('Phase 5 exact: ' + patch.p);
   }
 }
+
+// Source-level correction for Phase 5 TypeScript row shape (not a test alteration).
+if (apiOnly) {
+  const target = path.join(root, 'apps/api/src/flows/flows.service.ts');
+  const original = fs.readFileSync(target, 'utf8');
+  const before = 'r.rows.map((x: { node_id: string }) => [x.node_id, x]),';
+  const after = 'r.rows.map((x: { node_id: string; sent: number; delivered: number; subscribers: number; errors: number }) => [x.node_id, { sent: x.sent, delivered: x.delivered, subscribers: x.subscribers, errors: x.errors }]),';
+  if (!original.includes(before)) throw new Error('Unexpected Phase 5 stats row source');
+  fs.writeFileSync(target, original.replace(before, after));
+  console.log('Phase 5 source fix: typed stats row mapping');
+}
+
 console.log('Phase 5 ZIP sources applied and verified: ' + count + ' files; mode=' + (apiOnly ? 'api' : 'web'));
