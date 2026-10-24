@@ -824,22 +824,18 @@ function Editor({ id }: { id: string }) {
             ? t('أي رسالة', 'Any message')
             : t('ضغط زر/قائمة', 'Button or list reply');
   const stepItems = (onPick: (type: NodeType) => void) =>
-    (Object.keys(NODE_META) as NodeType[])
-      .filter((type) => nodeLabel(type, language).toLowerCase().includes(nodeSearch.toLowerCase()))
-      .map((type) => (
-        <button
-          type="button"
-          role="menuitem"
-          key={type}
-          className="add-step-item"
-          onClick={() => onPick(type)}
-        >
-          <span className="add-step-icon" style={{ background: NODE_META[type].color }}>
-            <NodeIcon type={type} />
-          </span>
+    NODE_GROUPS.map((group) => {
+      const types = group.types.filter((type) => nodeLabel(type, language).toLowerCase().includes(nodeSearch.toLowerCase()));
+      return types.length ? <section key={group.id} role="group" aria-label={t(group.ar, group.en)}>
+        <h3 className="px-3 py-2 text-xs font-semibold">{t(group.ar, group.en)}</h3>
+        {types.map((type) => <button type="button" role="menuitem" key={type} className="add-step-item" draggable
+          onDragStart={(e) => { e.dataTransfer.setData('application/boat-node', type); e.dataTransfer.effectAllowed = 'move'; }}
+          onClick={() => onPick(type)}>
+          <span className="add-step-icon" style={{ background: NODE_META[type].color }}><NodeIcon type={type} /></span>
           {nodeLabel(type, language)}
-        </button>
-      ));
+        </button>)}
+      </section> : null;
+    });
   const setTriggers = (triggers: Trigger[]) => {
     setMeta((m) => ({ ...m, triggers }));
     setDirty(true);
@@ -986,6 +982,23 @@ function Editor({ id }: { id: string }) {
         >
           {t('مشغّلات وقنوات البوت', 'Bot triggers and channels')}
         </button>
+          <button
+            type="button"
+            className="bot-tab trigger-summary"
+            onClick={() => {
+              setTab('settings');
+              setPreviewOpen(false);
+            setInspectorOpen(true);
+            }}
+          >
+            <span className="font-semibold">{t('البداية', 'Start')}</span>
+            <strong className="sr-only">{t('متى يبدأ البوت؟', 'When does the bot start?')}</strong>
+            <span className="text-xs">
+              {meta.triggers.length
+                ? meta.triggers.slice(0, 3).map((x, i) => <span key={i}>{triggerLabel(x)}</span>)
+                : t('لم يُضبط مشغّل بعد', 'No trigger yet')}
+            </span>
+          </button>
       </nav>
 
       <Dialog
@@ -1143,55 +1156,10 @@ function Editor({ id }: { id: string }) {
                   value={nodeSearch}
                   onChange={(e) => setNodeSearch(e.target.value)}
                 />
-                {(Object.keys(NODE_META) as NodeType[])
-                  .filter((type) =>
-                    nodeLabel(type, language).toLowerCase().includes(nodeSearch.toLowerCase()),
-                  )
-                  .map((type) => (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      key={type}
-                      className="add-step-item"
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('application/boat-node', type);
-                        e.dataTransfer.effectAllowed = 'move';
-                      }}
-                      onClick={() => {
-                        addNode(type);
-                        setMenuOpen(false);
-                      }}
-                    >
-                      <span
-                        className="add-step-icon"
-                        style={{ background: NODE_META[type].color }}
-                      >
-                        <NodeIcon type={type} />
-                      </span>
-                      {nodeLabel(type, language)}
-                    </button>
-                  ))}
+                {stepItems((type) => { addNode(type); setMenuOpen(false); })}
               </div>
             )}
           </div>
-          <button
-            type="button"
-            className="start-card"
-            onClick={() => {
-              setTab('settings');
-              setPreviewOpen(false);
-            setInspectorOpen(true);
-            }}
-          >
-            <span className="start-card-badge">{t('البداية', 'Start')}</span>
-            <strong>{t('متى يبدأ البوت؟', 'When does the bot start?')}</strong>
-            <span className="start-card-list">
-              {meta.triggers.length
-                ? meta.triggers.slice(0, 3).map((x, i) => <span key={i}>{triggerLabel(x)}</span>)
-                : t('لم يُضبط مشغّل بعد', 'No trigger yet')}
-            </span>
-          </button>
           {dropMenu && (
             <>
               <div className="drop-menu-scrim" onClick={() => setDropMenu(null)} />
