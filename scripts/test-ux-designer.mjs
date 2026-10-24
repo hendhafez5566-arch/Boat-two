@@ -2,23 +2,22 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
-const source = readFileSync('apps/web/components/flow/Inspector.tsx', 'utf8');
-const start = source.indexOf('on={(m) => {');
-assert.ok(start >= 0);
-const end = source.indexOf('\n              }}\n              opts', start);
-assert.ok(end > start);
-const handler = stripTypeScriptTypes(source.slice(start + 4, end) + '\n}');
+const source = readFileSync('apps/web/components/flow/MessageEditor.tsx', 'utf8');
+const start = source.indexOf('const changeMode = ');
+const end = source.indexOf('\n  const updateRows', start);
+assert.ok(start >= 0 && end > start);
+const handler = stripTypeScriptTypes(source.slice(start + 'const changeMode = '.length, end));
+const pure = readFileSync('apps/web/lib/smart-editor.ts','utf8').replace("import { NodeType } from './flow-types';", '');
+const {convertChoices} = await import('data:text/javascript;base64,'+Buffer.from(stripTypeScriptTypes(pure)).toString('base64'));
 function convert(data, mode, next, approve = true) {
   let patch;
   const alerts = [], confirmations = [];
   const before = structuredClone(data);
-  const fn = new Function('data', 'mode', 't', 'alert', 'confirm', 'uid', 'set', `return (${handler});`)(
-    data, mode, (ar) => ar, (s) => alerts.push(s), (s) => { confirmations.push(s); return approve; },
-    () => 'new-id', (p) => { patch = p; },
-  );
+  const groups = data.list?.sections ?? [{rows:data.buttons ?? []}];
+  const fn = new Function('data','mode','groups','choices','t','confirm','onChange','convertChoices','setError', `return (${handler.replace(/;\s*$/, '')});`)(data,mode,groups,groups.flatMap(s=>s.rows),(ar)=>ar,(s)=>{confirmations.push(s);return approve;},(p)=>{patch=p;},convertChoices,(s)=>alerts.push(s));
   fn(next);
-  assert.deepEqual(data, before, 'conversion must not mutate input');
-  return { patch, alerts, confirmations };
+  assert.deepEqual(data,before);
+  return {patch,alerts,confirmations};
 }
 const buttons = [{ id: 'booking', title: 'حجز عمرة' }, { id: 'flight', title: 'تذاكر الطيران' }];
 const edges = { 'option:booking': 'confirm-booking', 'option:flight': 'confirm-flight' };

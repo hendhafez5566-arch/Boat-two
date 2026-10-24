@@ -5,6 +5,7 @@ import { NodeIcon, nodeLabel, editorLabel } from './presentation';
 import { api } from '../../lib/api';
 import { ReactNode, createContext, useContext, useId, useEffect, useState } from 'react';
 import { NodeType, optionsOf, uid } from '../../lib/flow-types';
+import MessageEditor, { EditorSection, ChatBubble } from './MessageEditor';
 import UserInputPreview, { UIQuestion } from './UserInputPreview';
 import ConditionModal, { CondGroup, LabelOption, ConditionVariable, VariableRulePicker } from '../business/ConditionModal';
 
@@ -159,7 +160,11 @@ export default function Inspector({
   onSetStart,
   onDelete,
   variables = [],
+  renderAction,
+  nextSteps,
 }: {
+  renderAction?: (handle: string, title: string) => ReactNode;
+  nextSteps?: ReactNode;
   variables?: ConditionVariable[];
   type: NodeType;
   data: any;
@@ -213,205 +218,8 @@ export default function Inspector({
           />
         </F>
       )}
-      {(type === 'message' || type === 'interactive') && (
-        <>
-          <F label="نص الرسالة">
-            <Txt v={data.text} on={(text) => set({ text })} rows={4} />
-          </F>
-          <F label="خيارات الرد">
-            <Sel
-              v={mode}
-              on={(m) => {
-                if (m === mode) return;
-                const choices = data.list?.sections?.flatMap((s: any) => s.rows ?? []) ?? data.buttons ?? [];
-                if (m === 'buttons' && choices.length > 3) {
-                  alert(t('القائمة تحتوي أكثر من 3 اختيارات. قلّلها يدويًا قبل التحويل؛ لن يُحذف أي اختيار تلقائيًا.', 'Reduce the list to three choices before converting. No choices were deleted.'));
-                  return;
-                }
-                if (m === 'buttons' && choices.some((c: any) => c.title.length > 20)) {
-                  alert(t('بعض العناوين أطول من حد الأزرار (20 حرفًا). اختصرها أولًا؛ لم يُغيّر أي عنوان.', 'Some titles exceed the 20-character button limit. Shorten them first; no titles were changed.'));
-                  return;
-                }
-                if (m === 'buttons' && (choices.some((c: any) => c.description) || data.list?.sections?.some((s: any) => s.title) || (data.list?.buttonText && data.list.buttonText !== t('القائمة', 'Menu'))) && !confirm(t('الأزرار لا تدعم أوصاف الصفوف أو عناوين الأقسام أو نص فتح القائمة. ستبقى عناوين الاختيارات ومعرّفاتها ووصلاتها. متابعة التحويل؟', 'Buttons do not support row descriptions, section headings or menu-opening text. Choice titles, IDs and links will remain. Continue?'))) return;
-                if (m === 'none' && choices.length && !confirm(t('إزالة جميع الاختيارات ووصلاتها؟ يمكنك التراجع عن هذا التغيير.', 'Remove all choices and their connections? You can undo this change.'))) return;
-                const kept = choices.length ? choices : [{ id: uid(), title: t('خيار 1', 'Option 1') }];
-                set({
-                  buttons: m === 'buttons' ? kept : undefined,
-                  list: m === 'list' ? { buttonText: t('القائمة', 'Menu'), sections: [{ rows: kept }] } : undefined,
-                });
-              }}
-              opts={[
-                ['none', 'بدون (يكمل مباشرة)'],
-                ['buttons', 'أزرار (حتى 3)'],
-                ['list', 'قائمة (حتى 10)'],
-              ]}
-            />
-          </F>
-          {mode === 'buttons' && (
-            <>
-              {data.buttons.map((b: any, i: number) => (
-                <div key={b.id} className="mb-1 flex gap-1">
-                  <In
-                    v={b.title}
-                    on={(title) =>
-                      set({
-                        buttons: data.buttons.map((x: any, j: number) =>
-                          j === i ? { ...x, title: title.slice(0, 20) } : x,
-                        ),
-                      })
-                    }
-                  />
-                  <Btn
-                    danger
-                    on={() => {
-                      const buttons = data.buttons.filter((_: any, j: number) => j !== i);
-                      set({ buttons: buttons.length ? buttons : undefined });
-                    }}
-                  >
-                    ×
-                  </Btn>
-                </div>
-              ))}
-              {data.buttons.length < 3 && (
-                <Btn
-                  on={() =>
-                    set({
-                      buttons: [
-                        ...data.buttons,
-                        { id: uid(), title: `${t('خيار', 'Option')} ${data.buttons.length + 1}` },
-                      ],
-                    })
-                  }
-                >
-                  + زر
-                </Btn>
-              )}
-              <p className="mt-1 text-xs text-gray-400">
-                {t('الحد الأقصى لعنوان الزر 20 حرف.', 'Button titles allow up to 20 characters.')}
-              </p>
-            </>
-          )}
-          {mode === 'list' && (
-            <>
-              <F label="نص زر فتح القائمة">
-                <In
-                  v={data.list.buttonText}
-                  on={(buttonText) =>
-                    set({ list: { ...data.list, buttonText: buttonText.slice(0, 20) } })
-                  }
-                />
-              </F>
-              {data.list.sections[0].rows.map((r: any, i: number) => (
-                <div key={r.id} className="mb-1 flex gap-1">
-                  <In
-                    v={r.title}
-                    on={(title) => {
-                      const rows = data.list.sections[0].rows.map((x: any, j: number) =>
-                        j === i ? { ...x, title: title.slice(0, 24) } : x,
-                      );
-                      set({
-                        list: { ...data.list, sections: [{ ...data.list.sections[0], rows }] },
-                      });
-                    }}
-                  />
-                  <Btn
-                    danger
-                    on={() => {
-                      const rows = data.list.sections[0].rows.filter(
-                        (_: any, j: number) => j !== i,
-                      );
-                      set(
-                        rows.length
-                          ? {
-                              list: {
-                                ...data.list,
-                                sections: [{ ...data.list.sections[0], rows }],
-                              },
-                            }
-                          : { list: undefined },
-                      );
-                    }}
-                  >
-                    ×
-                  </Btn>
-                </div>
-              ))}
-              {data.list.sections[0].rows.length < 10 && (
-                <Btn
-                  on={() =>
-                    set({
-                      list: {
-                        ...data.list,
-                        sections: [
-                          {
-                            ...data.list.sections[0],
-                            rows: [
-                              ...data.list.sections[0].rows,
-                              {
-                                id: uid(),
-                                title: `${t('خيار', 'Option')} ${data.list.sections[0].rows.length + 1}`,
-                              },
-                            ],
-                          },
-                        ],
-                      },
-                    })
-                  }
-                >
-                  + صف
-                </Btn>
-              )}
-            </>
-          )}
-          <details className="mb-3 rounded border p-2"><summary>{t('مرفقات وحفظ الإجابة', 'Attachments and answer storage')}</summary>
-          <F label="مرفق (اختياري)">
-            <Sel
-              v={data.media?.kind ?? ''}
-              on={(k) =>
-                set({
-                  media: k
-                    ? { ...(data.media ?? {}), kind: k, url: data.media?.url ?? '' }
-                    : undefined,
-                })
-              }
-              opts={[
-                ['', 'بدون'],
-                ['image', 'صورة'],
-                ['video', 'فيديو'],
-                ['audio', 'صوت'],
-                ['file', 'ملف'],
-              ]}
-            />
-            {data.media && (
-              <div className="mt-1 space-y-1">
-                <In
-                  v={data.media.url}
-                  on={(url) => set({ media: { ...data.media, url } })}
-                  ph="https://…"
-                  dir="ltr"
-                />
-                <In
-                  v={data.media.caption}
-                  on={(caption) => set({ media: { ...data.media, caption } })}
-                  ph="تعليق"
-                />
-              </div>
-            )}
-          </F>
-          {optionsOf(data).length > 0 && (
-            <F label="حفظ اختيار العميل في متغيّر" hint="يُحفظ العنوان، ويُحفظ المعرّف في {اسم}_id">
-              <In
-                v={data.saveReplyAs}
-                on={(saveReplyAs) => set({ saveReplyAs: saveReplyAs || undefined })}
-                ph="choice"
-                dir="ltr"
-              />
-            </F>
-          )}
-          </details>
-        </>
-      )}
-
+      {(type === 'message' || type === 'interactive') && <MessageEditor data={data} onChange={onChange} variables={variables} renderAction={renderAction} />}
+      {type !== 'message' && type !== 'interactive' && <h2 className="smart-core-title">{type === 'condition' ? t('متى يسلك العميل هذا المسار؟', 'When should the customer take this path?') : type === 'handoff' ? t('تحويل إلى موظف', 'Transfer to staff') : nodeLabel(type, language)}</h2>}
       {type === 'location' && (
         <>
           <F label={t('خط العرض (Latitude)', 'Latitude')} hint={t('يمكن استخدام متغيّر مثل {{lat}}', 'Variables like {{lat}} allowed')}>
@@ -500,6 +308,7 @@ export default function Inspector({
           <F label="احفظ الإجابة في متغيّر">
             <In v={data.saveAs} on={(saveAs) => set({ saveAs })} dir="ltr" />
           </F>
+          <details><summary>{t("لو الإجابة غير صحيحة", "If the answer is invalid")}</summary>
           <F label="عدد المحاولات عند الإجابة الخاطئة">
             <In
               v={data.retries ?? 2}
@@ -513,6 +322,8 @@ export default function Inspector({
               rows={2}
             />
           </F>
+          </details>
+          <ChatBubble text={data.text} />
         </>
       )}
 
@@ -578,7 +389,7 @@ export default function Inspector({
                     />
                     {c.source === 'variable' && <VariableRulePicker rule={c} variables={variables} onChange={upd} />}
                     {['variable', 'contact_field', 'contact_attribute'].includes(c.source) && (
-                      <In v={c.key} on={(key) => upd({ key })} ph="الاسم" dir="ltr" />
+                      c.source === 'contact_field' ? <Sel v={c.key ?? 'name'} on={(key) => upd({ key })} opts={[["name", "الاسم"], ["phone", "الهاتف"], ["email", "البريد"]]} /> : <details><summary>{t('اسم الحقل المتقدم', 'Advanced field key')}</summary><In v={c.key} on={(key) => upd({ key })} ph="الاسم" dir="ltr" /></details>
                     )}
                     <Sel
                       v={c.operator}
@@ -985,6 +796,7 @@ export default function Inspector({
           <F label="الرابط" hint="العناوين الداخلية/المحلية محظورة لأسباب أمنية">
             <In v={data.url} on={(url) => set({ url })} dir="ltr" />
           </F>
+          <details><summary>{t('إعدادات الطلب المتقدمة', 'Advanced request settings')}</summary>
           <F label="Headers">
             {(data.headers ?? []).map((h: any, i: number) => (
               <div key={i} className="mb-1 flex gap-1">
@@ -1029,6 +841,7 @@ export default function Inspector({
               <Txt v={data.body} on={(body) => set({ body })} rows={4} />
             </F>
           )}
+          </details>
           <F label="حفظ من الرد" hint="مثال: المسار data.price ← المتغيّر price">
             {(data.saveAs ?? []).map((m: any, i: number) => (
               <div key={i} className="mb-1 flex gap-1">
@@ -1271,6 +1084,9 @@ export default function Inspector({
           <F label="رسالة للعميل قبل التحويل">
             <Txt v={data.message} on={(message) => set({ message })} rows={2} />
           </F>
+          <ChatBubble text={data.message} />
+          <p>{t('التحويل يوقف البوت وينقل المحادثة إلى الموظفين. بدون تعيين محدد تُترك لفريق الوارد؛ اختيار فريق غير متاح في هذا المحرر.', 'Handoff stops the bot and transfers the conversation to staff. Without an assignee it stays in the inbox; team selection is unavailable here.')}</p>
+          <details><summary>{t('تعيين متقدم', 'Advanced assignment')}</summary>
           <F label="تعيين لموظف (معرّف المستخدم، اختياري)">
             <In
               v={data.assignTo}
@@ -1278,6 +1094,7 @@ export default function Inspector({
               dir="ltr"
             />
           </F>
+          </details>
         </>
       )}
 
@@ -1300,14 +1117,15 @@ export default function Inspector({
           </label>
         </>
       )}
-      <details className="mt-3 rounded border p-2"><summary>{t('أدوات الخطوة والمتغيّرات', 'Step tools and variables')}</summary>
+      {nextSteps}
+      <details className="mt-3 rounded border p-2"><summary>{t('إعدادات متقدمة', 'Advanced settings')}</summary>
       <div className="mb-3 flex items-center justify-between">
         <strong>
           <NodeIcon type={type} /> {nodeLabel(type, language)}
         </strong>
         <div className="flex gap-2">
           {!isStart && <Btn on={onSetStart}>{t('اجعلها البداية', 'Make start')}</Btn>}
-          <Btn on={onDelete} danger>
+          <Btn on={() => { if (confirm(t("حذف الخطوة ووصلاتها؟ يمكنك التراجع.", "Delete step and its links? You can undo."))) onDelete(); }} danger>
             {t('حذف', 'Delete')}
           </Btn>
         </div>

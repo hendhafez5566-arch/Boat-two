@@ -28,6 +28,7 @@ import FlowEdge, { ButtonLinkEdge } from '../../../../components/flow/FlowEdge';
 import FlowButtonNode from '../../../../components/flow/FlowButtonNode';
 import { validationMessage } from '../../../../lib/validation-message';
 import UnsavedChangesGuard from '../../../../components/flow/UnsavedChangesGuard';
+import StepActions from '../../../../components/flow/StepActions';
 import Inspector from '../../../../components/flow/Inspector';
 import type { ConditionVariable } from '../../../../components/business/ConditionModal';
 import TestPanel from '../../../../components/flow/TestPanel';
@@ -545,6 +546,23 @@ function Editor({ id }: { id: string }) {
     setTab('node');
     rf.fitView({ nodes: [{ id: nid }], padding: 1.2, maxZoom: 1.1, duration: 300 });
   };
+
+  const renderStepAction = (handle: string, title: string) => sel ? <StepActions
+    key={`${sel.id}:${handle}`}
+    title={title}
+    target={edges.find(e => e.source === sel.id && e.sourceHandle === handle)?.target}
+    steps={nodes.filter(n => n.id !== sel.id).map(n => ({ id: n.id, type: n.data.type, text: String(n.data.data?.text || n.data.data?.message || n.data.note || '').slice(0, 60) }))}
+    onCreate={type => addNode(type, undefined, { source: sel.id, handle })}
+    onOpen={id => { setSelected(id); selRef.current = id; setNodes(ns => ns.map(n => ({ ...n, selected: n.id === id }))); }}
+    onConnect={target => { if (target) onConnect({ source: sel.id, sourceHandle: handle, target, targetHandle: null }); else { setEdges(es => es.filter(e => e.source !== sel.id || e.sourceHandle !== handle)); setDirty(true); } }}
+  /> : null;
+
+  useEffect(() => {
+    if (!inspectorOpen) return;
+    const escape = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('[aria-modal="true"]')) { setInspectorOpen(false); setMobilePanel('canvas'); } };
+    window.addEventListener('keydown', escape);
+    return () => window.removeEventListener('keydown', escape);
+  }, [inspectorOpen]);
 
   const graph = () => fromFlow(nodes, edges, startId);
 
@@ -1391,7 +1409,8 @@ function Editor({ id }: { id: string }) {
           aria-label={t('تفاصيل الخطوة', 'Step details')}
         >
           <header className="sheet-head">
-            <span className="sheet-grip" aria-hidden="true" />
+            <strong>{sel && tab === 'node' ? nodeLabel(sel.data.type, language) : t('إعدادات البوت', 'Bot settings')}</strong>
+            <span className="smart-back-label">{t('رجوع للمخطط', 'Back to canvas')}</span>
             <button
               type="button"
               className="sheet-close"
@@ -1436,6 +1455,8 @@ function Editor({ id }: { id: string }) {
                 >
                 <Inspector
                   key={sel.id}
+                  renderAction={(handle, title) => renderStepAction(handle, title)}
+                  nextSteps={<section className="smart-next-steps"><h3>{t('الخطوة التالية', 'Next step')}</h3>{handlesFor(sel.data.type, sel.data.data).filter(h => !h.id.startsWith('option:')).map(h => <div key={h.id}>{renderStepAction(h.id, sel.data.type === 'condition' ? h.id === 'else' ? t('لا — لم يتحقق', 'No — not matched') : `${t('نعم — تحقق الشرط', 'Yes — matched')} ${h.label}` : h.label)}</div>)}</section>}
                   variables={conditionVariables}
                   type={sel.data.type}
                   data={sel.data.data}
@@ -1447,21 +1468,6 @@ function Editor({ id }: { id: string }) {
                   }}
                   onDelete={() => deleteNode(sel.id)}
                 />
-                <section className="space-y-2 border-t p-3" aria-label={t('الخطوات التالية', 'Next steps')}>
-                  <h3>{t('اختر الخطوة التالية دون سحب', 'Choose the next step without dragging')}</h3>
-                  {handlesFor(sel.data.type, sel.data.data).map((h) => (
-                    <label key={h.id} className="block text-sm">
-                      <span>{h.label}</span>
-                      <select className="w-full rounded border p-2" value={edges.find((e) => e.source === sel.id && e.sourceHandle === h.id)?.target ?? ''} onChange={(e) => {
-                        if (e.target.value) onConnect({ source: sel.id, sourceHandle: h.id, target: e.target.value, targetHandle: null });
-                        else { setEdges((es) => es.filter((edge) => edge.source !== sel.id || edge.sourceHandle !== h.id)); setDirty(true); }
-                      }}>
-                        <option value="">{t('بلا توصيل', 'Not connected')}</option>
-                        {nodes.filter((n) => n.id !== sel.id).map((n, i) => <option key={n.id} value={n.id}>{i + 1}. {nodeLabel(n.data.type, language)} — {String(n.data.data?.text || n.data.note || '').slice(0, 50)}</option>)}
-                      </select>
-                    </label>
-                  ))}
-                </section>
                 <details className="m-3 rounded border p-2"><summary>{t('متغيّرات وتعليق داخلي', 'Variables and internal comment')}</summary>
                 <div className="var-picker" aria-label={t('المتغيّرات المتاحة', 'Available variables')}>
                   <span>{t('أدرج متغيّرًا', 'Insert variable')}</span>
@@ -1486,7 +1492,7 @@ function Editor({ id }: { id: string }) {
                     onChange={(e) => updateNote(sel.id, e.target.value)}
                   />
                 </label></details>
-                <button type="button" className="btn m-3" onClick={() => setInspectorOpen(false)}>{t('تم — إغلاق التفاصيل', 'Done — close details')}</button>
+
 
                 </div>
               ) : (
@@ -1716,6 +1722,7 @@ function Editor({ id }: { id: string }) {
             )}
 
           </div>
+          <footer className="smart-editor-footer"><span role="status">{saveState === 'saving' ? t('جارٍ الحفظ…', 'Saving…') : saveState === 'error' ? t('فشل الحفظ', 'Save failed') : dirty ? t('تغييرات غير محفوظة', 'Unsaved changes') : t('تم الحفظ', 'Saved')}</span><button type="button" onClick={() => { setInspectorOpen(false); setPreviewOpen(true); setMobilePanel('preview'); }}>{t('تجربة', 'Try')}</button><button type="button" className="smart-primary" onClick={async () => { try { if (dirty) await save(); setInspectorOpen(false); setMobilePanel('canvas'); } catch { /* save reports error and keeps editor open */ } }}>{t('تم', 'Done')}</button></footer>
         </aside>
       </div>
     </div>
