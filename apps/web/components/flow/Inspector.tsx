@@ -5,6 +5,8 @@ import { NodeIcon, nodeLabel, editorLabel } from './presentation';
 import { api } from '../../lib/api';
 import { ReactNode, createContext, useContext, useId, useEffect, useState } from 'react';
 import { NodeType, optionsOf, uid } from '../../lib/flow-types';
+import UserInputPreview, { UIQuestion } from './UserInputPreview';
+import ConditionModal, { CondGroup, LabelOption } from '../business/ConditionModal';
 
 const FieldContext = createContext({ label: '', description: undefined as string | undefined });
 const inp = 'w-full rounded border p-1.5 text-sm';
@@ -164,6 +166,13 @@ export default function Inspector({
   onSetStart: () => void;
   onDelete: () => void;
 }) {
+  const [sequences, setSequences] = useState<{ id: string; name: string; status: string }[]>([]);
+  useEffect(() => {
+    if (type === 'sequence')
+      api<typeof sequences>('/sequences')
+        .then(setSequences)
+        .catch(() => {});
+  }, [type]);
   const [components, setComponents] = useState<
     { id: string; name: string; is_component: boolean; status: string }[]
   >([]);
@@ -173,6 +182,14 @@ export default function Inspector({
         .then(setComponents)
         .catch(() => {});
   }, [type]);
+  const [labels, setLabels] = useState<LabelOption[]>([]);
+  useEffect(() => {
+    if (type === 'condition' || type === 'tag')
+      api<LabelOption[]>('/labels')
+        .then(setLabels)
+        .catch(() => {});
+  }, [type]);
+  const [condRule, setCondRule] = useState<number | null>(null);
   const set = (patch: any) => onChange({ ...data, ...patch });
   const { language, t } = useLocale();
   const mode = data.list?.sections?.length ? 'list' : data.buttons?.length ? 'buttons' : 'none';
@@ -210,7 +227,7 @@ export default function Inspector({
           />
         </F>
       )}
-      {type === 'message' && (
+      {(type === 'message' || type === 'interactive') && (
         <>
           <F label="نص الرسالة">
             <Txt v={data.text} on={(text) => set({ text })} rows={4} />
@@ -401,6 +418,68 @@ export default function Inspector({
         </>
       )}
 
+      {type === 'location' && (
+        <>
+          <F label={t('خط العرض (Latitude)', 'Latitude')} hint={t('يمكن استخدام متغيّر مثل {{lat}}', 'Variables like {{lat}} allowed')}>
+            <In v={data.lat} on={(v) => set({ lat: v })} ph="30.0444" dir="ltr" />
+          </F>
+          <F label={t('خط الطول (Longitude)', 'Longitude')}>
+            <In v={data.lng} on={(v) => set({ lng: v })} ph="31.2357" dir="ltr" />
+          </F>
+          <F label={t('اسم المكان', 'Place name')}>
+            <In v={data.name} on={(v) => set({ name: v })} />
+          </F>
+          <F label={t('العنوان', 'Address')}>
+            <In v={data.address} on={(v) => set({ address: v })} />
+          </F>
+        </>
+      )}
+
+      {type === 'cta_url' && (
+        <>
+          <F label={t('نص الرسالة', 'Message text')}>
+            <Txt v={data.text} on={(v) => set({ text: v })} />
+          </F>
+          <F label={t('صورة الهيدر (رابط HTTPS، اختياري)', 'Header image (HTTPS URL, optional)')}>
+            <In v={data.imageUrl} on={(v) => set({ imageUrl: v })} dir="ltr" />
+          </F>
+          <F label={t('نص الزر', 'Button label')} hint={t('حتى 20 حرفًا', 'Up to 20 characters')}>
+            <In v={data.buttonText} on={(v) => set({ buttonText: v.slice(0, 20) })} />
+          </F>
+          <F label={t('الرابط', 'URL')} hint={t('على ماسنجر وإنستجرام يُرسل الرابط كنص.', 'On Messenger and Instagram the link is sent as text.')}>
+            <In v={data.url} on={(v) => set({ url: v })} dir="ltr" />
+          </F>
+        </>
+      )}
+
+      {type === 'sequence' && (
+        <F label={t('التسلسل', 'Sequence')} hint={t('يُضاف العميل فقط لو وافق على الرسائل التسويقية، وإلا يكمل الـ flow بدون إضافة.', 'The contact is added only if opted in to marketing; otherwise the flow continues.')}>
+          <Sel
+            v={data.sequenceId}
+            on={(v) => set({ sequenceId: v })}
+            opts={[['', t('اختر تسلسلًا', 'Choose a sequence')], ...sequences.map((s): [string, string] => [s.id, `${s.name} (${s.status})`])]}
+            localize={false}
+          />
+        </F>
+      )}
+
+      {type === 'template' && (
+        <>
+          <F label={t('اسم القالب المعتمد', 'Approved template name')} hint={t('حروف إنجليزية صغيرة وأرقام و _ فقط. يعمل على واتساب فقط.', 'Lowercase letters, digits and _ only. WhatsApp only.')}>
+            <In v={data.name} on={(v) => set({ name: v })} dir="ltr" />
+          </F>
+          <F label={t('اللغة', 'Language')}>
+            <In v={data.language} on={(v) => set({ language: v })} ph="ar" dir="ltr" />
+          </F>
+          <F label={t('متغيّرات النص (واحد في كل سطر)', 'Body variables (one per line)')}>
+            <Txt
+              v={(data.bodyParams ?? []).join('\n')}
+              on={(v) => set({ bodyParams: v.split('\n').filter((x) => x.trim()) })}
+            />
+          </F>
+        </>
+      )}
+
       {type === 'question' && (
         <>
           <F label="نص السؤال">
@@ -466,6 +545,7 @@ export default function Inspector({
                       ['any', 'أي شرط'],
                     ]}
                   />
+                  <Btn on={() => setCondRule(ri)}>{t('شاشة الشرط', 'Rule editor')}</Btn>
                   <Btn
                     danger
                     on={() => set({ rules: data.rules.filter((_: any, j: number) => j !== ri) })}
@@ -498,6 +578,7 @@ export default function Inspector({
                         ['last_message', 'آخر رسالة'],
                         ['contact_field', 'حقل العميل (name/phone/email)'],
                         ['contact_attribute', 'بيان مخصص للعميل'],
+                        ['label', 'وسم العميل (Label)'],
                         ['channel', 'القناة'],
                       ]}
                     />
@@ -569,6 +650,25 @@ export default function Inspector({
               </Btn>
             </div>
           ))}
+          <ConditionModal
+            open={condRule !== null}
+            value={
+              condRule !== null && data.rules[condRule]
+                ? { match: data.rules[condRule].match ?? 'all', conditions: data.rules[condRule].conditions }
+                : undefined
+            }
+            labels={labels}
+            onClose={() => setCondRule(null)}
+            onSave={(v: CondGroup | undefined) => {
+              if (condRule !== null && v)
+                set({
+                  rules: data.rules.map((x: any, j: number) =>
+                    j === condRule ? { ...x, match: v.match, conditions: v.conditions } : x,
+                  ),
+                });
+              setCondRule(null);
+            }}
+          />
           {data.rules.length < 15 && (
             <Btn
               on={() =>
@@ -654,6 +754,195 @@ export default function Inspector({
             <In v={data.value} on={(value) => set({ value })} />
           </F>
         </>
+      )}
+
+      {type === 'tag' && (
+        <>
+          <F label="إضافة وسوم" hint="افصل بين الوسوم بفاصلة. يمكن استخدام المتغيّرات.">
+            <In
+              v={(data.add ?? []).join(', ')}
+              on={(v) => set({ add: v.split(',').map((x: string) => x.trim()).filter(Boolean) })}
+            />
+          </F>
+          {labels.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-1" aria-label={t('وسوم موجودة', 'Existing labels')}>
+              {labels.slice(0, 20).map((l) => (
+                <button
+                  key={l.label}
+                  type="button"
+                  className="rounded-full border px-2 py-0.5 text-xs"
+                  disabled={(data.add ?? []).includes(l.label)}
+                  onClick={() => set({ add: [...(data.add ?? []), l.label] })}
+                >
+                  + {l.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <F label="إزالة وسوم">
+            <In
+              v={(data.remove ?? []).join(', ')}
+              on={(v) => set({ remove: v.split(',').map((x: string) => x.trim()).filter(Boolean) })}
+            />
+          </F>
+        </>
+      )}
+
+      {['image', 'audio', 'video', 'file'].includes(type) && (
+        <>
+          <F
+            label={t('رابط الملف', 'Media URL')}
+            hint={t('رابط مباشر يبدأ بـ https. يمكن استخدام المتغيّرات.', 'Direct https link. Variables are allowed.')}
+          >
+            <In v={data.url} on={(url) => set({ url })} ph="https://…" dir="ltr" />
+          </F>
+          {type !== 'audio' && (
+            <F label={t('تعليق', 'Caption')}>
+              <Txt v={data.caption} on={(caption) => set({ caption })} rows={2} />
+            </F>
+          )}
+          {type === 'file' && (
+            <F label={t('اسم الملف', 'File name')}>
+              <In v={data.filename} on={(filename) => set({ filename })} dir="ltr" />
+            </F>
+          )}
+          {type === 'audio' && (
+            <p className="text-xs text-gray-400">
+              {t('الصوت لا يدعم تعليقًا على واتساب.', 'WhatsApp audio does not support captions.')}
+            </p>
+          )}
+        </>
+      )}
+
+      {type === 'user_input' && (
+        <>
+          <F label={t('اسم الحملة', 'Campaign name')}>
+            <In v={data.name} on={(name) => set({ name })} />
+          </F>
+          {(data.questions as UIQuestion[]).map((q, qi, all) => {
+            const upq = (patch: Partial<UIQuestion>) =>
+              set({ questions: all.map((x, k) => (k === qi ? { ...x, ...patch } : x)) });
+            return (
+              <div key={q.id} className="mb-3 rounded border p-2">
+                <div className="mb-1 flex items-center justify-between text-xs">
+                  <strong>
+                    {t('سؤال', 'Question')} {qi + 1}
+                  </strong>
+                  <span className="flex gap-1">
+                    <Btn
+                      on={() =>
+                        qi > 0 && set({ questions: all.map((x, k) => (k === qi - 1 ? all[qi] : k === qi ? all[qi - 1] : x)) })
+                      }
+                    >
+                      ↑
+                    </Btn>
+                    <Btn
+                      on={() =>
+                        qi < all.length - 1 &&
+                        set({ questions: all.map((x, k) => (k === qi + 1 ? all[qi] : k === qi ? all[qi + 1] : x)) })
+                      }
+                    >
+                      ↓
+                    </Btn>
+                    <Btn danger on={() => set({ questions: all.filter((_, k) => k !== qi) })}>
+                      ×
+                    </Btn>
+                  </span>
+                </div>
+                <F label={t('نص السؤال', 'Question text')}>
+                  <Txt v={q.text} on={(text) => upq({ text })} rows={3} />
+                </F>
+                <F label={t('نوع السؤال', 'Question type')}>
+                  <Sel
+                    localize={false}
+                    v={q.kind}
+                    on={(kind) =>
+                      upq({
+                        kind: kind as UIQuestion['kind'],
+                        options:
+                          kind === 'choice' && !(q.options ?? []).length
+                            ? [
+                                { id: uid(), title: '' },
+                                { id: uid(), title: '' },
+                              ]
+                            : q.options,
+                      })
+                    }
+                    opts={[
+                      ['choice', t('اختيار متعدد', 'Multiple choice')],
+                      ['text', t('نص حر', 'Free text')],
+                      ['number', t('رقم', 'Number')],
+                      ['email', t('بريد إلكتروني', 'Email')],
+                      ['phone', t('هاتف', 'Phone')],
+                    ]}
+                  />
+                </F>
+                {q.kind === 'choice' && (
+                  <F
+                    label={t('الاختيارات', 'Options')}
+                    hint={t('حتى 3 اختيارات تظهر كأزرار، ومن 4 إلى 10 تظهر كقائمة. الحد 24 حرف.', 'Up to 3 show as buttons, 4–10 as a list. Max 24 characters.')}
+                  >
+                    {(q.options ?? []).map((o, oi) => (
+                      <div key={o.id} className="mb-1 flex gap-1">
+                        <In
+                          v={o.title}
+                          on={(title) =>
+                            upq({ options: (q.options ?? []).map((x, k) => (k === oi ? { ...x, title: title.slice(0, 24) } : x)) })
+                          }
+                          ph={`${t('اختيار', 'Option')} ${oi + 1}`}
+                        />
+                        <Btn danger on={() => upq({ options: (q.options ?? []).filter((_, k) => k !== oi) })}>
+                          ×
+                        </Btn>
+                      </div>
+                    ))}
+                    {(q.options ?? []).length < 10 && (
+                      <Btn on={() => upq({ options: [...(q.options ?? []), { id: uid(), title: '' }] })}>
+                        {t('+ اختيار', '+ Option')}
+                      </Btn>
+                    )}
+                  </F>
+                )}
+                <F
+                  label={t('حفظ في حقل مخصص', 'Save to custom field')}
+                  hint={t('حروف إنجليزية وأرقام و _ فقط، ويُحفظ على ملف العميل.', 'Letters, digits and _ only. Stored on the contact.')}
+                >
+                  <In v={q.saveAs} on={(saveAs) => upq({ saveAs })} dir="ltr" />
+                </F>
+                {q.kind !== 'choice' && (
+                  <F label={t('رسالة الخطأ', 'Error message')}>
+                    <In v={q.errorText} on={(errorText) => upq({ errorText })} />
+                  </F>
+                )}
+              </div>
+            );
+          })}
+          {data.questions.length < 20 && (
+            <Btn
+              on={() =>
+                set({
+                  questions: [
+                    ...data.questions,
+                    { id: uid(), text: '', kind: 'text', saveAs: `field_${data.questions.length + 1}` },
+                  ],
+                })
+              }
+            >
+              {t('+ سؤال', '+ Question')}
+            </Btn>
+          )}
+          <F label={t('رسالة الشكر بعد آخر سؤال', 'Thank-you message after the last question')} hint={t('يمكن استخدام {{اسم_الحقل}} و {{contact.name}}.', 'You can use {{field_key}} and {{contact.name}}.')}>
+            <Txt v={data.doneText} on={(doneText) => set({ doneText })} rows={3} />
+          </F>
+          <p className="mb-1 mt-3 text-xs font-semibold text-gray-600">{t('معاينة السلسلة', 'Chain preview')}</p>
+          <UserInputPreview name={data.name} questions={data.questions} doneText={data.doneText} />
+        </>
+      )}
+
+      {type === 'note' && (
+        <F label="نص الملاحظة" hint="تُحفظ في ملف العميل ولا تظهر له.">
+          <In v={data.body} on={(body) => set({ body })} />
+        </F>
       )}
 
       {type === 'delay' && (
@@ -786,6 +1075,48 @@ export default function Inspector({
         </>
       )}
 
+      {type === 'sheet_fetch' && (
+        <>
+          <F
+            label="رابط الشيت"
+            hint="الشيت لازم يكون متاح لأي شخص معه الرابط (Anyone with the link). الصف الأول عناوين الأعمدة."
+          >
+            <In v={data.url} on={(url) => set({ url })} dir="ltr" ph="https://docs.google.com/spreadsheets/d/…" />
+          </F>
+          <F label="عمود البحث" hint="لو تركت عمود البحث فاضي بيرجع أول صف.">
+            <In v={data.lookupColumn} on={(lookupColumn) => set({ lookupColumn })} ph="phone" />
+          </F>
+          <F label="قيمة البحث">
+            <In v={data.lookupValue} on={(lookupValue) => set({ lookupValue })} ph="{{contact.phone}}" dir="ltr" />
+          </F>
+          <F label="حفظ أعمدة في متغيّرات" hint="اسم العمود ← اسم المتغيّر">
+            {(data.saveAs ?? []).map((m: any, i: number) => (
+              <div key={i} className="mb-1 flex gap-1">
+                <In
+                  v={m.column}
+                  on={(column) =>
+                    set({ saveAs: data.saveAs.map((x: any, j: number) => (j === i ? { ...x, column } : x)) })
+                  }
+                  ph="plan"
+                />
+                <In
+                  v={m.variable}
+                  on={(variable) =>
+                    set({ saveAs: data.saveAs.map((x: any, j: number) => (j === i ? { ...x, variable } : x)) })
+                  }
+                  ph="plan"
+                  dir="ltr"
+                />
+                <Btn danger on={() => set({ saveAs: data.saveAs.filter((_: any, j: number) => j !== i) })}>
+                  ×
+                </Btn>
+              </div>
+            ))}
+            <Btn on={() => set({ saveAs: [...(data.saveAs ?? []), { column: '', variable: '' }] })}>+ حقل</Btn>
+          </F>
+        </>
+      )}
+
       {type === 'business_hours' && (
         <>
           <F label="المنطقة الزمنية" hint="مثل Africa/Cairo أو Asia/Riyadh">
@@ -806,6 +1137,26 @@ export default function Inspector({
               />
             </F>
           ))}
+        </>
+      )}
+
+      {type === 'random_number' && (
+        <>
+          <F label={t('أقل قيمة', 'Minimum value')}>
+            <In v={data.min} on={(v) => set({ min: v === '' || v === '-' ? v : Math.trunc(Number(v)) || 0 })} dir="ltr" />
+          </F>
+          <F label={t('أعلى قيمة', 'Maximum value')}>
+            <In v={data.max} on={(v) => set({ max: v === '' || v === '-' ? v : Math.trunc(Number(v)) || 0 })} dir="ltr" />
+          </F>
+          <F
+            label={t('احفظ الرقم في متغيّر', 'Save number as variable')}
+            hint={t(
+              'رقم صحيح عشوائي يشمل الحدّين، ويُحفظ لاستخدامه في الشروط والرسائل.',
+              'A random whole number including both limits, saved for conditions and messages.',
+            )}
+          >
+            <In v={data.saveAs} on={(saveAs) => set({ saveAs })} dir="ltr" />
+          </F>
         </>
       )}
 

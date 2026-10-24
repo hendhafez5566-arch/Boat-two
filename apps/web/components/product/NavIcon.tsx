@@ -1,4 +1,5 @@
 const paths: Record<string, string> = {
+  more: 'M5 12h.01M12 12h.01M19 12h.01',
   question: 'M9 8a3 3 0 0 1 6 0c0 2-3 2-3 5M12 17h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
   globe: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3c-4 5-4 13 0 18M12 3c4 5 4 13 0 18',
   variable: 'M8 4H5v16h3M16 4h3v16h-3M10 9l4 6M14 9l-4 6',

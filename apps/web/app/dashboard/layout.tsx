@@ -14,6 +14,7 @@ const links = [
   ['crm', '◉', 'إدارة العملاء', 'CRM'],
   ['flows', '⌘', 'مصمم البوت', 'Bot builder'],
   ['campaigns', '➤', 'الحملات', 'Campaigns'],
+  ['sequences', '⏱', 'التسلسلات', 'Sequences'],
   ['automations', '⚡', 'أتمتة الأعمال', 'Automations'],
   ['agents', '✧', 'مساعدو AI', 'AI agents'],
   ['knowledge', '▣', 'قاعدة المعرفة', 'Knowledge'],
@@ -29,6 +30,18 @@ const links = [
   ['audit', '↗', 'سجل النشاط', 'Activity log'],
   ['ai', '✦', 'المساعد الذكي', 'AI assistant'],
 ];
+const navGroups = [
+  { ar: '', en: '', keys: ['', 'onboarding'] },
+  { ar: 'التواصل', en: 'Engage', keys: ['inbox', 'crm', 'campaigns', 'sequences'] },
+  { ar: 'الأتمتة', en: 'Automate', keys: ['flows', 'automations', 'agents', 'knowledge', 'ai'] },
+  { ar: 'الإدارة', en: 'Manage', keys: ['channels', 'departments', 'team', 'reports'] },
+  {
+    ar: 'الحساب',
+    en: 'Account',
+    keys: ['billing', 'branding', 'settings', 'sessions', 'delivery', 'audit'],
+  },
+];
+const primaryKeys = ['', 'inbox', 'crm', 'flows', 'campaigns', 'reports'];
 const restrictedForAgents = [
   'reports',
   'branding',
@@ -37,6 +50,7 @@ const restrictedForAgents = [
   'audit',
   'onboarding',
   'campaigns',
+  'sequences',
   'automations',
   'agents',
   'departments',
@@ -54,6 +68,7 @@ function Shell({ children }: { children: ReactNode }) {
     primary_color: string;
   } | null>(null);
   const [open, setOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -145,27 +160,75 @@ function Shell({ children }: { children: ReactNode }) {
           </div>
         </div>
         <nav aria-label={t('التنقل الرئيسي', 'Main navigation')}>
-          {links
-            .filter(([key]) => role !== 'agent' || !restrictedForAgents.includes(key))
-            .map(([key, , ar, en]) => (
+          {(() => {
+            const allowed = (key: string) => role !== 'agent' || !restrictedForAgents.includes(key);
+            const isActive = (key: string) =>
+              key ? path.startsWith('/dashboard/' + key) : path === '/dashboard';
+            const renderLink = ([key, , ar, en]: string[]) => (
               <Link
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  setOpen(false);
+                  setMoreOpen(false);
+                }}
                 key={key}
+                title={t(ar, en)}
                 href={`/dashboard${key ? '/' + key : ''}`}
-                className={
-                  key
-                    ? path.startsWith('/dashboard/' + key)
-                      ? 'active'
-                      : ''
-                    : path === '/dashboard'
-                      ? 'active'
-                      : ''
-                }
+                aria-current={isActive(key) ? 'page' : undefined}
+                className={isActive(key) ? 'active' : ''}
               >
                 <NavIcon name={key} />
-                {t(ar, en)}
+                <span className="nav-label">{t(ar, en)}</span>
               </Link>
-            ))}
+            );
+            const primary = primaryKeys
+              .map((key) => links.find(([k]) => k === key))
+              .filter((link): link is string[] => !!link && allowed(link[0]));
+            const moreGroups = navGroups
+              .map((group) => ({
+                group,
+                items: group.keys
+                  .filter((key) => !primaryKeys.includes(key))
+                  .map((key) => links.find(([k]) => k === key))
+                  .filter((link): link is string[] => !!link && allowed(link[0])),
+              }))
+              .filter((entry) => entry.items.length);
+            const moreActive = moreGroups.some(({ items }) => items.some(([k]) => isActive(k)));
+            return (
+              <>
+                <div className="nav-primary">{primary.map(renderLink)}</div>
+                {moreGroups.length > 0 && (
+                  <>
+                    <button
+                      type="button"
+                      className={`nav-more-btn ${moreActive ? 'active' : ''}`}
+                      aria-expanded={moreOpen}
+                      aria-controls="nav-more-panel"
+                      title={t('المزيد', 'More')}
+                      onClick={() => setMoreOpen(!moreOpen)}
+                    >
+                      <NavIcon name="more" />
+                      <span className="nav-label">{t('المزيد', 'More')}</span>
+                    </button>
+                    {moreOpen && <div className="nav-more-scrim" onClick={() => setMoreOpen(false)} />}
+                    <div
+                      id="nav-more-panel"
+                      className={`nav-more-panel ${moreOpen ? 'is-open' : ''}`}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Escape') setMoreOpen(false);
+                      }}
+                    >
+                      {moreGroups.map(({ group, items }) => (
+                        <div key={group.keys.join('|')} role="group">
+                          {group.ar && <p className="nav-group">{t(group.ar, group.en)}</p>}
+                          {items.map(renderLink)}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </>
+            );
+          })()}
         </nav>
         <div className="sidebar-footer">
           <button

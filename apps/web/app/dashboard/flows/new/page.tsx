@@ -155,7 +155,6 @@ export default function BotWizard() {
     <main className="bot-wizard stack">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">YOUR FIRST CONVERSATION</p>
           <h1>{t('من فكرة إلى بوت جاهز', 'From an idea to a ready bot')}</h1>
           <p>
             {t(
@@ -189,7 +188,6 @@ export default function BotWizard() {
         <section className="card wizard-content">
           {step === 1 && (
             <>
-              <p className="eyebrow">01 / 07</p>
               <h2>
                 {t('ما الذي تريد مساعدة عملائك فيه؟', 'How would you like to help your customers?')}
               </h2>
@@ -239,7 +237,6 @@ export default function BotWizard() {
           )}
           {step === 2 && (
             <>
-              <p className="eyebrow">02 / 07</p>
               <h2>{t('ابدأ بقالب، واجعله خاصًا بك', 'Start with a template, make it yours')}</h2>
               <div className="goal-grid">
                 {templates.data.map((item) => (
@@ -268,7 +265,6 @@ export default function BotWizard() {
           )}
           {step === 3 && (
             <div className="stack">
-              <p className="eyebrow">03 / 07</p>
               <h2>{t('رحّب بعميلك بطريقتك', 'Welcome customers in your own voice')}</h2>
               <label>
                 {t('اسم البوت', 'Bot name')}
@@ -297,7 +293,6 @@ export default function BotWizard() {
           )}
           {step === 4 && (
             <div className="stack">
-              <p className="eyebrow">04 / 07</p>
               <h2>{t('اجعل الرد أسهل بأزرار واضحة', 'Make replying easy with clear buttons')}</h2>
               <p className="muted">
                 {t(
@@ -351,7 +346,6 @@ export default function BotWizard() {
           )}
           {step === 5 && (
             <div className="stack">
-              <p className="eyebrow">05 / 07</p>
               <h2>{t('أين تبدأ المحادثة؟', 'Where will conversations start?')}</h2>
               {channels.data.map((c) => (
                 <button
@@ -378,7 +372,6 @@ export default function BotWizard() {
           )}
           {step === 6 && created && (
             <div className="wizard-preview">
-              <p className="eyebrow">06 / 07</p>
               <h2>{t('جرّب كما يفعل عميلك', 'Try it as your customer would')}</h2>
               <p className="muted">
                 {t(
@@ -396,7 +389,6 @@ export default function BotWizard() {
           )}
           {step === 7 && (
             <div className="stack">
-              <p className="eyebrow">07 / 07</p>
               <h2>
                 {published
                   ? t('بوتك منشور', 'Your bot is published')
@@ -454,26 +446,38 @@ export default function BotWizard() {
             <span>{step} / 7</span>
           </footer>
         </section>
-        <aside className="wizard-companion">
-          <span className="empty-icon">
-            <NavIcon name="agents" />
-          </span>
-          <h3>{t('أنت تتحكم في كل خطوة', 'You’re in control at every step')}</h3>
-          <p>
+        <aside className="wizard-companion" aria-label={t('معاينة البوت', 'Bot preview')}>
+          <div className="phone-preview">
+            <header>
+              <span className="bot-avatar">
+                <NavIcon name="agents" />
+              </span>
+              <div>
+                <strong>{name || t('اسم البوت', 'Bot name')}</strong>
+                <small>{t('معاينة مباشرة', 'Live preview')}</small>
+              </div>
+            </header>
+            <div className="phone-body">
+              <p className={`chat-bubble ${welcome ? '' : 'is-placeholder'}`}>
+                {welcome || t('ستظهر رسالة ترحيبك هنا.', 'Your welcome message will appear here.')}
+              </p>
+              {choices.length > 0 && (
+                <div className="chat-chips">
+                  {choices.map((c, i) => (
+                    <span className="chat-chip" key={i}>
+                      {c.title || t('زر رد', 'Reply button')}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <p className="wizard-tip">
             {t(
               'القالب نقطة بداية، وليس قيدًا. يمكنك فتح المصمم لإضافة شروط وذكاء اصطناعي وتحويل إلى فريقك.',
               'A template is a starting point. Open the builder to add conditions, AI and team handoff.',
             )}
           </p>
-          <div className="welcome-preview">
-            <small>{t('معاينة الترحيب', 'Welcome preview')}</small>
-            <p>
-              {welcome || t('ستظهر رسالة ترحيبك هنا.', 'Your welcome message will appear here.')}
-            </p>
-            {choices.map((c, i) => (
-              <span key={i}>{c.title || t('زر رد', 'Reply button')}</span>
-            ))}
-          </div>
         </aside>
       </div>
     </main>

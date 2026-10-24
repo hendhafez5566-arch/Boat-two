@@ -33,6 +33,16 @@ export class FlowsController {
     return this.flows.templates(language);
   }
 
+  @Get(':id/stats')
+  stats(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.flows.stats(req.user.tenantId, id);
+  }
+
+  @Get(':id/button-stats')
+  buttonStats(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.flows.buttonStats(req.user.tenantId, id);
+  }
+
   @Get(':id/versions')
   versions(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.flows.versions(req.user.tenantId, id);

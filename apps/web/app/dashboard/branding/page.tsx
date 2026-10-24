@@ -99,7 +99,7 @@ export default function Branding() {
             <input
               name="color"
               type="color"
-              defaultValue={settings.data.branding?.primary_color || '#0f766e'}
+              defaultValue={settings.data.branding?.primary_color || '#3d5afe'}
             />
           </label>
           <label className="field">

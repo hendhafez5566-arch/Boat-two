@@ -19,7 +19,11 @@ export class MetaAdapter implements ChannelAdapter {
         ? c.list.sections.flatMap((s) => s.rows).slice(0, 13).map((r) => ({ content_type: 'text', title: r.title, payload: r.id }))
         : undefined;
 
-    if (c.media) {
+    if (c.cta) {
+      const r = await post({ text: `${c.text}\n${c.cta.text}: ${c.cta.url}` });
+      return { externalId: r.message_id ?? null };
+    }
+    if (c.media && !quick) {
       const type = c.media.kind === 'file' ? 'file' : c.media.kind;
       const first = await post({ attachment: { type, payload: { url: c.media.url, is_reusable: false } } });
       const caption = c.media.caption ?? c.text;
@@ -31,6 +35,7 @@ export class MetaAdapter implements ChannelAdapter {
       const r = await post({ text });
       return { externalId: r.message_id ?? null };
     }
+    if (c.media && quick) await post({ attachment: { type: 'image', payload: { url: c.media.url, is_reusable: false } } });
     const r = await post({ text: c.text, ...(quick ? { quick_replies: quick } : {}) });
     return { externalId: r.message_id ?? null };
   }

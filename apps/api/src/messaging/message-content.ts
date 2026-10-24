@@ -67,6 +67,12 @@ export const contentSchema = z
           .max(10),
       })
       .optional(),
+    cta: z
+      .object({
+        text: z.string().min(1).max(20),
+        url: z.string().url().max(2000),
+      })
+      .optional(),
     reply: z.object({ id: z.string(), title: z.string() }).optional(),
     location: z
       .object({
@@ -85,19 +91,21 @@ export function messageTypeOf(c: MessageContent): string {
   if (c.reply) return 'interactive_reply';
   if (c.media) return 'media';
   if (c.location) return 'location';
-  if (c.buttons || c.list) return 'interactive';
+  if (c.buttons || c.list || c.cta) return 'interactive';
   return 'text';
 }
 
 /** قواعد الرسائل الصادرة (حدود واتساب هي الأضيق، فنلتزم بها لكل القنوات) */
 export function validateOutbound(c: MessageContent) {
-  if (c.template && (c.text || c.media || c.buttons || c.list || c.location || c.reply))
+  if (c.template && (c.text || c.media || c.buttons || c.list || c.cta || c.location || c.reply))
     throw new BadRequestException('Template must be sent without other content');
   if (c.reply) throw new BadRequestException('reply is only valid for inbound messages');
   if ((c.buttons || c.list) && !c.text) throw new BadRequestException('Buttons/list require text');
   if (c.buttons && c.list) throw new BadRequestException('Use either buttons or list, not both');
-  if ((c.buttons || c.list) && c.media)
-    throw new BadRequestException('Interactive messages cannot carry media');
+  if ((c.buttons || c.list || c.cta) && c.media && c.media.kind !== 'image')
+    throw new BadRequestException('Interactive messages can only carry an image header');
+  if (c.cta && !c.text) throw new BadRequestException('CTA button requires text');
+  if (c.cta && (c.buttons || c.list)) throw new BadRequestException('CTA cannot be combined with buttons or list');
   if (c.media && !c.media.url) throw new BadRequestException('Outbound media requires a url');
   if (c.list) {
     const total = c.list.sections.reduce((n, s) => n + s.rows.length, 0);

@@ -2,22 +2,39 @@
 export type NodeType =
   | 'subflow'
   | 'message'
+  | 'interactive'
+  | 'location'
+  | 'cta_url'
+  | 'template'
+  | 'sequence'
+  | 'user_input'
+  | 'image'
+  | 'audio'
+  | 'video'
+  | 'file'
   | 'question'
   | 'condition'
   | 'set_variable'
   | 'set_attribute'
   | 'delay'
   | 'http_request'
+  | 'sheet_fetch'
   | 'business_hours'
   | 'split'
+  | 'random_number'
   | 'ai_reply'
   | 'handoff'
+  | 'tag'
+  | 'note'
   | 'end';
 
 export interface FlowNode {
   id: string;
   type: NodeType;
   position?: { x: number; y: number };
+  note?: string;
+  /** محرر فقط: مواقع كروت الأزرار على الـ canvas */
+  layout?: Record<string, { x: number; y: number }>;
   data: Record<string, any>;
   /** handle → id العقدة التالية. غياب الحافة يعني نهاية الـ flow */
   edges: Record<string, string>;
@@ -37,6 +54,15 @@ export interface OutContent {
     filename?: string;
   };
   buttons?: { id: string; title: string }[];
+  cta?: { text: string; url: string };
+  location?: { lat: number; lng: number; name?: string; address?: string };
+  template?: {
+    name: string;
+    language: string;
+    bodyParams: string[];
+    header?: { type: 'text'; text: string } | { type: 'image' | 'video' | 'document'; url: string; filename?: string };
+    buttonParams?: { index: number; type: 'quick_reply' | 'url'; value: string }[];
+  };
   list?: {
     buttonText: string;
     sections: { title?: string; rows: { id: string; title: string; description?: string }[] }[];
@@ -49,6 +75,7 @@ export interface FlowContact {
   phone?: string | null;
   email?: string | null;
   attributes: Record<string, unknown>;
+  tags?: string[];
 }
 
 export interface FlowContext {
@@ -64,6 +91,8 @@ export interface FlowState {
     kind: 'choice' | 'answer' | 'delay' | 'ai';
     retries: number;
     until?: string;
+    /** رقم السؤال الحالي داخل بلوك user_input */
+    step?: number;
   };
   totalSteps: number;
 }
@@ -96,11 +125,15 @@ export interface AiResult {
 
 export interface EngineDeps {
   ai(req: AiRequest): Promise<AiResult>;
-  send(content: OutContent): Promise<void>;
+  send(content: OutContent, meta?: { nodeId?: string }): Promise<void>;
   http(req: HttpRequestSpec): Promise<HttpResult>;
   setContactAttribute(key: string, value: unknown): Promise<void>;
+  updateTags(change: { add: string[]; remove: string[] }): Promise<void>;
+  addNote(body: string): Promise<void>;
   handoff(opts: { assignTo?: string }): Promise<void>;
   closeConversation(): Promise<void>;
+  /** يضيف جهة الاتصال الحالية إلى Sequence؛ غير موجودة في وضع التجربة */
+  enrollSequence?(sequenceId: string): Promise<{ enrolled: boolean }>;
   now(): Date;
   random(): number;
 }
@@ -132,9 +165,24 @@ export function optionsOf(data: Record<string, any>): { id: string; title: strin
   return out;
 }
 
+/** الخيارات التي يمكن للعميل الضغط عليها الآن في الخطوة المنتظِرة (أزرار/قوائم، أو اختيارات سؤال user_input الحالي) */
+export function clickableOptions(
+  node: Pick<FlowNode, 'type' | 'data'> | undefined,
+  waiting: FlowState['waiting'],
+): { id: string; title: string }[] {
+  if (!node || !waiting) return [];
+  if (waiting.kind === 'choice') return optionsOf(node.data ?? {});
+  if (waiting.kind === 'answer' && node.type === 'user_input') {
+    const q = (node.data?.questions ?? [])[waiting.step ?? 0];
+    return q?.kind === 'choice' ? (q.options ?? []) : [];
+  }
+  return [];
+}
+
 export function handlesFor(node: Pick<FlowNode, 'type' | 'data'>): string[] {
   const d = node.data ?? {};
   switch (node.type) {
+    case 'interactive':
     case 'message': {
       const opts = optionsOf(d);
       return opts.length ? [...opts.map((o) => `option:${o.id}`), 'fallback'] : ['next'];
@@ -145,6 +193,8 @@ export function handlesFor(node: Pick<FlowNode, 'type' | 'data'>): string[] {
       return [...(d.rules ?? []).map((r: { id: string }) => `rule:${r.id}`), 'else'];
     case 'http_request':
       return ['success', 'error'];
+    case 'sheet_fetch':
+      return ['found', 'not_found', 'error'];
     case 'business_hours':
       return ['open', 'closed'];
     case 'ai_reply':

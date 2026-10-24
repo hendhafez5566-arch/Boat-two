@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { isBlockedIp } from '../http-safe';
-import { evaluateCondition } from './conditions';
+import { evaluateCondition, evaluateRule } from './conditions';
 import { FlowEngine, parseAnswer } from './engine';
 import { isOpenNow } from './hours';
 import { interpolate, interpolateValue, normalizeText } from './text';
@@ -30,6 +30,8 @@ function harness(graph: FlowGraph, opts: { http?: EngineDeps['http']; random?: (
     send: async (c) => void sent.push(c),
     http: opts.http ?? (async () => ({ status: 200, ok: true, body: {} })),
     setContactAttribute: async (k, v) => void (attrs[k] = v),
+    updateTags: async () => {},
+    addNote: async () => {},
     handoff: async () => void calls.handoff++,
     closeConversation: async () => void calls.close++,
     now: () => opts.now ?? new Date('2026-10-20T10:00:00Z'),
@@ -84,6 +86,22 @@ test('conditions: Arabic digits, contains, numeric compare, regex', () => {
   assert.equal(c('variable', 'nope', 'is_not_set'), true);
   assert.equal(c('variable', 'city', 'matches_regex', '^الق'), true);
   assert.equal(c('variable', 'city', 'matches_regex', '('), false);
+});
+
+test('conditions: label matches whole tag, any/all, empty set', () => {
+  const mk = (tags: string[]): any => ({ vars: {}, contact: { attributes: {}, tags }, channelType: 'whatsapp', lastText: '', resolve: () => undefined });
+  const lab = (operator: any, value?: string) => ({ source: 'label' as const, operator, value });
+  const o = mk(['Received-AI Summary', 'vip']);
+  assert.equal(evaluateCondition(lab('contains', 'received-ai summary'), o), true);
+  assert.equal(evaluateCondition(lab('contains', 'vi'), o), false); // وسم كامل وليس جزء نص
+  assert.equal(evaluateCondition(lab('not_contains', 'trial'), o), true);
+  assert.equal(evaluateCondition(lab('is_set'), o), true);
+  assert.equal(evaluateCondition(lab('is_not_set'), mk([])), true);
+  assert.equal(evaluateCondition(lab('contains', ''), o), false);
+  assert.equal(evaluateCondition(lab('greater_than', '1'), o), false);
+  const rule = { id: 'r', match: 'all' as const, conditions: [lab('contains', 'vip'), lab('contains', 'trial')] };
+  assert.equal(evaluateRule(rule, o), false);
+  assert.equal(evaluateRule({ ...rule, match: 'any' }, o), true);
 });
 
 test('parseAnswer validates number/email/phone', () => {
@@ -514,4 +532,324 @@ test('validateGraph: ai_reply warns without handoff/error edges', () => {
   assert.deepEqual(v.errors, []);
   assert.equal(v.warnings.length, 1);
   assert.equal(validateGraph({ startNodeId: 'ai', nodes: [node('ai', 'ai_reply', { maxTurns: 99 })] }).errors.length, 1);
+});
+
+// ------------------------------------------------------------- location / cta_url / template
+
+test('location, cta_url and template nodes send rich content and continue', async () => {
+  const g: FlowGraph = {
+    startNodeId: 'a',
+    nodes: [
+      node('a', 'location', { lat: '30.0444', lng: '31.2357', name: 'Cairo' }, { next: 'b' }),
+      node('b', 'cta_url', { text: 'Hi {{contact.name}}', buttonText: 'Open', url: 'https://x.test/{{contact.name}}' }, { next: 'c' }),
+      node('c', 'template', { name: 'promo_1', language: 'ar', bodyParams: ['{{contact.name}}'] }, {}),
+    ],
+  };
+  const h = harness(g);
+  const res = await h.engine.start(h.ctx, newState());
+  assert.equal(res.status, 'completed');
+  assert.deepEqual(h.sent[0].location, { lat: 30.0444, lng: 31.2357, name: 'Cairo' });
+  assert.equal(h.sent[1].text, 'Hi Ali');
+  assert.deepEqual(h.sent[1].cta, { text: 'Open', url: 'https://x.test/Ali' });
+  assert.deepEqual(h.sent[2].template?.bodyParams, ['Ali']);
+});
+
+test('validate: new nodes require their key fields', () => {
+  const g: FlowGraph = {
+    startNodeId: 'a',
+    nodes: [
+      node('a', 'location', {}, { next: 'b' }),
+      node('b', 'cta_url', { text: 'x', buttonText: 'Go', url: 'ftp://bad' }, { next: 'c' }),
+      node('c', 'template', { name: 'Bad Name' }, {}),
+    ],
+  };
+  const { errors } = validateGraph(g);
+  assert.equal(errors.length, 3);
+});
+
+test('sequence node enrolls the contact and continues; failures do not stop the flow', async () => {
+  const g: FlowGraph = {
+    startNodeId: 'a',
+    nodes: [
+      node('a', 'sequence', { sequenceId: '11111111-1111-1111-1111-111111111111' }, { next: 'b' }),
+      node('b', 'message', { text: 'done' }, {}),
+    ],
+  };
+  const h = harness(g);
+  const enrolled: string[] = [];
+  (h.engine as any).deps.enrollSequence = async (id: string) => {
+    enrolled.push(id);
+    throw new Error('no consent');
+  };
+  const res = await h.engine.start(h.ctx, newState());
+  assert.equal(res.status, 'completed');
+  assert.deepEqual(enrolled, ['11111111-1111-1111-1111-111111111111']);
+  assert.equal(h.sent[0].text, 'done');
+});
+
+// ------------------------------------------------------------- user input flow (chain of questions)
+
+test('user_input: asks questions in order, saves custom fields, then thank-you and next node', async () => {
+  const g: FlowGraph = {
+    startNodeId: 'ui',
+    nodes: [
+      node('ui', 'user_input', {
+        name: 'Order Place',
+        questions: [
+          { id: 'q1', text: 'What would you like to do?', kind: 'choice', saveAs: 'ai_agent', options: [{ id: 'o1', title: 'Order Food' }, { id: 'o2', title: "Today's Offers" }] },
+          { id: 'q2', text: 'Mood?', kind: 'choice', saveAs: 'billing_agent', options: [{ id: 'b', title: 'Burgers' }, { id: 'p', title: 'Pizza' }, { id: 'c', title: 'Chicken' }, { id: 's', title: 'Snacks' }] },
+          { id: 'q3', text: 'How many?', kind: 'number', saveAs: 'qty', errorText: 'numbers only' },
+        ],
+        doneText: 'Thanks {{contact.name}}! {{ai_agent}} / {{billing_agent}} x{{qty}}',
+      }, { next: 'after' }),
+      node('after', 'message', { text: 'done' }, {}),
+    ],
+  };
+  const h = harness(g);
+  const state = newState();
+  let r = await h.engine.start(h.ctx, state);
+  assert.equal(r.status, 'waiting');
+  assert.equal(h.sent[0].text, 'What would you like to do?');
+  assert.equal(h.sent[0].buttons?.length, 2);
+
+  h.say('x', 'zzz'); // اختيار غير صالح: يعيد السؤال بدون حفظ
+  r = await h.engine.resume(h.ctx, state);
+  assert.equal(r.status, 'waiting');
+  assert.equal(h.sent[1].text, 'What would you like to do?');
+  assert.equal(h.attrs.ai_agent, undefined);
+
+  h.say('Order Food', 'o1');
+  r = await h.engine.resume(h.ctx, state);
+  assert.equal(h.attrs.ai_agent, 'Order Food');
+  assert.equal(h.sent[2].list?.sections[0].rows.length, 4); // أكتر من 3 اختيارات → قائمة
+
+  h.say('Pizza', 'p');
+  r = await h.engine.resume(h.ctx, state);
+  assert.equal(h.attrs.billing_agent, 'Pizza');
+  assert.equal(state.waiting?.step, 2);
+
+  h.say('abc');
+  r = await h.engine.resume(h.ctx, state);
+  assert.equal(r.status, 'waiting');
+  assert.equal(h.sent[h.sent.length - 2].text, 'numbers only');
+
+  h.say('٣');
+  r = await h.engine.resume(h.ctx, state);
+  assert.equal(r.status, 'completed');
+  assert.equal(h.attrs.qty, 3);
+  const texts = h.sent.map((s) => s.text);
+  assert.ok(texts.includes('Thanks Ali! Order Food / Pizza x3'));
+  assert.equal(texts[texts.length - 1], 'done');
+});
+
+test('user_input: retries exhausted stops the flow without saving', async () => {
+  const g: FlowGraph = {
+    startNodeId: 'ui',
+    nodes: [node('ui', 'user_input', { questions: [{ id: 'q', text: 'Email?', kind: 'email', saveAs: 'mail', retries: 1 }], doneText: 'ok' }, { next: 'n' }), node('n', 'message', { text: 'never' }, {})],
+  };
+  const h = harness(g);
+  const state = newState();
+  await h.engine.start(h.ctx, state);
+  h.say('bad');
+  let r = await h.engine.resume(h.ctx, state);
+  assert.equal(r.status, 'waiting');
+  h.say('still bad');
+  r = await h.engine.resume(h.ctx, state);
+  assert.equal(r.status, 'completed');
+  assert.equal(h.attrs.mail, undefined);
+  assert.ok(!h.sent.some((s) => s.text === 'never' || s.text === 'ok'));
+});
+
+test('user_input: validation rejects duplicate keys and 1-option choices', () => {
+  const g: FlowGraph = {
+    startNodeId: 'ui',
+    nodes: [node('ui', 'user_input', { questions: [
+      { id: 'a', text: 'A', kind: 'text', saveAs: 'k' },
+      { id: 'b', text: 'B', kind: 'choice', saveAs: 'k', options: [{ id: '1', title: 'x' }] },
+    ] }, {})],
+  };
+  const msgs = validateGraph(g).errors.map((e) => e.message);
+  assert.ok(msgs.includes('Custom field keys must be unique'));
+  assert.ok(msgs.includes('Multiple choice needs at least 2 options'));
+});
+
+test('media blocks: send media with interpolated url, skip caption for audio, reject bad urls', async () => {
+  const g: FlowGraph = {
+    startNodeId: 'i',
+    nodes: [
+      node('i', 'image', { url: 'https://x.test/{{contact.name}}.png', caption: 'Hi {{contact.name}}' }, { next: 'a' }),
+      node('a', 'audio', { url: 'https://x.test/a.mp3', caption: 'ignored' }, { next: 'f' }),
+      node('f', 'file', { url: 'https://x.test/m.pdf', filename: 'menu.pdf', caption: 'menu' }, { next: 'v' }),
+      node('v', 'video', { url: '' }, { next: 'm' }),
+      node('m', 'message', { text: 'end' }, {}),
+    ],
+  };
+  const h = harness(g);
+  const r = await h.engine.start(h.ctx, newState());
+  assert.equal(r.status, 'completed');
+  assert.deepEqual(h.sent[0].media, { kind: 'image', url: 'https://x.test/Ali.png', caption: 'Hi Ali' });
+  assert.deepEqual(h.sent[1].media, { kind: 'audio', url: 'https://x.test/a.mp3' });
+  assert.deepEqual(h.sent[2].media, { kind: 'file', url: 'https://x.test/m.pdf', caption: 'menu', filename: 'menu.pdf' });
+  assert.equal(h.sent.length, 4); // الفيديو بدون رابط يُتخطى
+  assert.equal(h.sent[3].text, 'end');
+  const bad = validateGraph({ startNodeId: 'x', nodes: [node('x', 'image', { url: 'javascript:alert(1)' }, {})] });
+  assert.ok(bad.errors.some((e) => e.message.includes('media URL')));
+});
+
+test('random_number: inclusive integer range saved as variable, validated', async () => {
+  const g: FlowGraph = {
+    startNodeId: 'r',
+    nodes: [
+      node('r', 'random_number', { min: 5, max: 10, saveAs: 'lucky' }, { next: 'm' }),
+      node('m', 'message', { text: 'n={{lucky}}' }, {}),
+    ],
+  };
+  const lo = harness(g, { random: () => 0 });
+  await lo.engine.start(lo.ctx, newState());
+  assert.equal(lo.sent[0].text, 'n=5');
+  const hi = harness(g, { random: () => 0.999999 });
+  await hi.engine.start(hi.ctx, newState());
+  assert.equal(hi.sent[0].text, 'n=10');
+  const same = harness({ startNodeId: 'r', nodes: [node('r', 'random_number', { min: 7, max: 7, saveAs: 'x' }, {})] }, { random: () => 0.99 });
+  const st = newState();
+  await same.engine.start(same.ctx, st);
+  assert.equal(st.vars.x, 7);
+  const bad = validateGraph({ startNodeId: 'r', nodes: [node('r', 'random_number', { min: 9, max: 2, saveAs: '1x' }, {})] });
+  assert.ok(bad.errors.some((e) => e.message === 'Min must not exceed max'));
+  assert.ok(bad.errors.some((e) => e.message.includes('saveAs')));
+});
+
+test('interactive message: routes by chosen button and needs options', async () => {
+  const g: FlowGraph = {
+    startNodeId: 'i',
+    nodes: [
+      node('i', 'interactive', { text: 'Pick', buttons: [{ id: 'a', title: 'A' }, { id: 'b', title: 'B' }] }, { 'option:a': 'x', 'option:b': 'y' }),
+      node('x', 'message', { text: 'got A' }, {}),
+      node('y', 'message', { text: 'got B' }, {}),
+    ],
+  };
+  const h = harness(g);
+  const st = newState();
+  assert.equal((await h.engine.start(h.ctx, st)).status, 'waiting');
+  assert.deepEqual(h.sent[0].buttons, [{ id: 'a', title: 'A' }, { id: 'b', title: 'B' }]);
+  h.ctx.lastMessage = { text: 'B', replyId: 'b' };
+  const r = await h.engine.resume(h.ctx, st);
+  assert.equal(r.status, 'completed');
+  assert.equal(h.sent[1].text, 'got B');
+  const bad = validateGraph({ startNodeId: 'i', nodes: [node('i', 'interactive', { text: 'Hi' }, {})] });
+  assert.ok(bad.errors.some((e) => e.message.includes('Interactive message needs')));
+});
+
+// ------------------------------------------------------------- Google Sheet fetch
+
+import { isAllowedSheetHost, lookupRow, parseCsv, parseSheetUrl } from './sheet';
+
+test('parseSheetUrl: share, gid, published links; rejects other hosts and junk', () => {
+  assert.equal(
+    parseSheetUrl('https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMn/edit?usp=sharing')?.csvUrl,
+    'https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMn/gviz/tq?tqx=out%3Acsv',
+  );
+  assert.match(
+    parseSheetUrl('https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMn/edit#gid=12345')!.csvUrl,
+    /gid=12345/,
+  );
+  assert.match(
+    parseSheetUrl('https://docs.google.com/spreadsheets/d/e/2PACX-1vAbCdEfGhIj/pub?output=csv')!.csvUrl,
+    /\/d\/e\/2PACX-1vAbCdEfGhIj\/pub\?output=csv/,
+  );
+  assert.equal(parseSheetUrl('https://evil.test/spreadsheets/d/1AbCdEfGhIjKlMn/edit'), null);
+  assert.equal(parseSheetUrl('http://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMn/edit'), null);
+  assert.equal(parseSheetUrl('https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMn/edit?gid=1;rm'), null);
+  assert.equal(parseSheetUrl('not a url'), null);
+  assert.ok(isAllowedSheetHost('doc-0g-abc.googleusercontent.com'));
+  assert.ok(!isAllowedSheetHost('googleusercontent.com.evil.test'));
+});
+
+test('parseCsv + lookupRow: quotes, newlines in cells, phone digits, missing column', () => {
+  const rows = parseCsv('\uFEFFname,phone,note\r\n"Ali, K",+20 100-123-456,"line1\nline2"\r\nSara,0111222333,"say ""hi"""\r\n\r\n');
+  assert.equal(rows.length, 3);
+  assert.deepEqual(rows[1], ['Ali, K', '+20 100-123-456', 'line1\nline2']);
+  assert.equal(lookupRow(rows, 'phone', '20100123456').row?.name, 'Ali, K');
+  assert.equal(lookupRow(rows, 'PHONE', '0111222333').row?.note, 'say "hi"');
+  assert.equal(lookupRow(rows, 'phone', '999').row, null);
+  assert.equal(lookupRow(rows, 'nope', 'x').row, null);
+  assert.equal(lookupRow(rows, '', '').row?.name, 'Ali, K');
+  assert.equal(lookupRow(rows, 'name', 'sara').index, 2);
+});
+
+test('sheet_fetch: found maps columns, not_found / error / blocked host take their edges', async () => {
+  const csv = 'name,phone,plan\nAli,2010,gold\nSara,2011,basic\n';
+  const seen: string[] = [];
+  const mk = (http: any, d: any = {}) =>
+    harness(
+      {
+        startNodeId: 's',
+        nodes: [
+          node('s', 'sheet_fetch', { url: 'https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMn/edit', lookupColumn: 'phone', lookupValue: '{{phone}}', saveAs: [{ column: 'plan', variable: 'plan' }], ...d }, { found: 'f', not_found: 'n', error: 'e' }),
+          node('f', 'message', { text: 'plan={{plan}}' }, {}),
+          node('n', 'message', { text: 'none' }, {}),
+          node('e', 'message', { text: 'err' }, {}),
+        ],
+      },
+      { http },
+    );
+  const ok = async (spec: any) => (seen.push(spec.url), { status: 200, ok: true, body: csv });
+  const a = mk(ok);
+  const st = newState();
+  st.vars.phone = '2011';
+  await a.engine.start(a.ctx, st);
+  assert.equal(a.sent[0].text, 'plan=basic');
+  assert.match(seen[0], /^https:\/\/docs\.google\.com\/spreadsheets\/d\/1AbCdEfGhIjKlMn\/gviz\/tq/);
+
+  const b = mk(ok);
+  const st2 = newState();
+  st2.vars.phone = '404';
+  await b.engine.start(b.ctx, st2);
+  assert.equal(b.sent[0].text, 'none');
+
+  const c = mk(async () => ({ status: 200, ok: true, body: '<!DOCTYPE html><html>sign in</html>' }));
+  await c.engine.start(c.ctx, newState());
+  assert.equal(c.sent[0].text, 'err');
+
+  const hops: string[] = [];
+  const d = mk(async (spec: any) => {
+    hops.push(spec.url);
+    return hops.length === 1
+      ? { status: 307, ok: false, body: '', headers: { location: 'https://doc-0g-abc.googleusercontent.com/export/x' } }
+      : { status: 200, ok: true, body: csv };
+  });
+  const st3 = newState();
+  st3.vars.phone = '2010';
+  await d.engine.start(d.ctx, st3);
+  assert.equal(d.sent[0].text, 'plan=gold');
+  assert.equal(hops.length, 2);
+
+  const e = mk(async () => ({ status: 302, ok: false, body: '', headers: { location: 'https://evil.test/x' } }));
+  await e.engine.start(e.ctx, newState());
+  assert.equal(e.sent[0].text, 'err');
+
+  const f = mk(ok, { url: 'https://evil.test/x' });
+  await f.engine.start(f.ctx, newState());
+  assert.equal(f.sent[0].text, 'err');
+});
+
+test('sheet_fetch validation: needs a Google link; button layout is ignored by the engine', () => {
+  const bad = validateGraph({ startNodeId: 's', nodes: [node('s', 'sheet_fetch', { url: 'https://example.com/x' }, {})] });
+  assert.ok(bad.errors.some((e) => e.message.includes('public Google Sheet')));
+  const good = validateGraph({
+    startNodeId: 's',
+    nodes: [node('s', 'sheet_fetch', { url: 'https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMn/edit', saveAs: [{ column: 'a', variable: 'a' }] }, {})],
+  });
+  assert.equal(good.errors.length, 0);
+});
+
+import { clickableOptions } from './types';
+test('clickableOptions: buttons, list rows, and only the current user_input choice question', () => {
+  const m = node('m', 'interactive', { buttons: [{ id: 'a', title: 'A' }], list: { buttonText: 'x', sections: [{ rows: [{ id: 'r1', title: 'R' }] }] } });
+  assert.deepEqual(clickableOptions(m, { nodeId: 'm', kind: 'choice', retries: 0 }).map((o) => o.id), ['a', 'r1']);
+  const u = node('u', 'user_input', { questions: [{ id: 'q1', kind: 'text' }, { id: 'q2', kind: 'choice', options: [{ id: 'o1', title: 'One' }] }] });
+  assert.deepEqual(clickableOptions(u, { nodeId: 'u', kind: 'answer', retries: 0, step: 1 }).map((o) => o.id), ['o1']);
+  assert.deepEqual(clickableOptions(u, { nodeId: 'u', kind: 'answer', retries: 0, step: 0 }), []);
+  assert.deepEqual(clickableOptions(m, { nodeId: 'm', kind: 'delay', retries: 0 }), []);
+  assert.deepEqual(clickableOptions(undefined, null), []);
 });

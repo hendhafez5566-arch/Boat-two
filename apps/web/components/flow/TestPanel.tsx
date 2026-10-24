@@ -9,9 +9,12 @@ type Entry = { who: 'you' | 'bot' | 'system'; content: any };
 export default function TestPanel({
   flowId,
   beforeRun,
+  onProgress,
 }: {
   flowId: string;
   beforeRun: () => Promise<void>;
+  /** Reports the step the bot is waiting at (null when finished) so the canvas can highlight it. */
+  onProgress?: (waitingNodeId: string | null, reset?: boolean) => void;
 }) {
   const { t, language } = useLocale();
   const [busy, setBusy] = useState(false);
@@ -40,6 +43,7 @@ export default function TestPanel({
         ...r.transcript.map((t: any) => ({ who: t.role, content: t.content })),
       ]);
       setState(r.state);
+      onProgress?.(r.state?.waiting?.nodeId ?? null);
       setStatus(r.status + (r.error ? `: ${r.error}` : ''));
       setWaitKind(r.waitKind);
     } catch (e) {
@@ -50,6 +54,7 @@ export default function TestPanel({
   }
 
   const restart = () => {
+    onProgress?.(null, true);
     setLog([]);
     setState(null);
     setStatus('');
@@ -100,7 +105,22 @@ export default function TestPanel({
                   [{e.content.media.kind}] {e.content.media.url}
                 </div>
               )}
+              {e.content.location && (
+                <div className="text-xs">
+                  📍 {e.content.location.name ?? ''} ({e.content.location.lat}, {e.content.location.lng})
+                </div>
+              )}
+              {e.content.template && (
+                <div className="text-xs">
+                  🧩 {e.content.template.name} ({e.content.template.language})
+                </div>
+              )}
               <div className="whitespace-pre-wrap">{e.content.text}</div>
+              {e.content.cta && (
+                <div className="mt-1 text-xs opacity-60">
+                  [🔗 {e.content.cta.text}] {e.content.cta.url}
+                </div>
+              )}
               {(e.content.buttons || e.content.list) && (
                 <div className="mt-1 text-xs opacity-60">
                   {[

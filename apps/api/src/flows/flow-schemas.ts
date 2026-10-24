@@ -11,7 +11,7 @@ const row = z.object({
 });
 
 const condition = z.object({
-  source: z.enum(['variable', 'contact_field', 'contact_attribute', 'last_message', 'channel']),
+  source: z.enum(['variable', 'contact_field', 'contact_attribute', 'last_message', 'channel', 'label']),
   key: z.string().max(100).optional(),
   operator: z.enum([
     'equals',
@@ -35,6 +35,10 @@ const day = z.array(range).max(6).optional();
 const nodeBase = {
   id,
   position: z.object({ x: z.number(), y: z.number() }).optional(),
+  /** Editor-only sticky comment; the engine ignores it. */
+  note: z.string().max(500).optional(),
+  /** Editor-only: canvas position of each button card (buttonId → position); the engine ignores it. */
+  layout: z.record(z.string().max(60), z.object({ x: z.number(), y: z.number() })).optional(),
   edges: z.record(z.string().max(250), id).default({}),
 };
 
@@ -70,6 +74,84 @@ export const nodeSchema = z.discriminatedUnion('type', [
     data: z.object({ flowId: z.string().uuid() }),
   }),
   z.object({ ...nodeBase, type: z.literal('message'), data: messageData }),
+  z.object({ ...nodeBase, type: z.literal('interactive'), data: messageData }),
+  z.object({
+    ...nodeBase,
+    type: z.literal('location'),
+    data: z.object({
+      lat: z.string().max(40),
+      lng: z.string().max(40),
+      name: z.string().max(100).optional(),
+      address: z.string().max(300).optional(),
+    }),
+  }),
+  z.object({
+    ...nodeBase,
+    type: z.literal('cta_url'),
+    data: z.object({
+      text: z.string().min(1).max(1024),
+      buttonText: z.string().min(1).max(20),
+      url: z.string().min(1).max(2000),
+      imageUrl: z.string().max(2000).optional(),
+    }),
+  }),
+  z.object({
+    ...nodeBase,
+    type: z.literal('sequence'),
+    data: z.object({ sequenceId: z.string().uuid().or(z.literal('')) }),
+  }),
+  z.object({
+    ...nodeBase,
+    type: z.literal('template'),
+    data: z.object({
+      name: z.string().regex(/^[a-z0-9_]{1,512}$/),
+      language: z.string().regex(/^[a-z]{2,3}(?:_[A-Z]{2})?$/).default('ar'),
+      bodyParams: z.array(z.string().max(1024)).max(20).default([]),
+      header: z
+        .discriminatedUnion('type', [
+          z.object({ type: z.literal('text'), text: z.string().max(60) }),
+          z.object({
+            type: z.enum(['image', 'video', 'document']),
+            url: z.string().max(2048),
+            filename: z.string().max(200).optional(),
+          }),
+        ])
+        .optional(),
+    }),
+  }),
+  ...(['image', 'audio', 'video', 'file'] as const).map((kind) =>
+    z.object({
+      ...nodeBase,
+      type: z.literal(kind),
+      data: z.object({
+        url: z.string().max(2000).default(''),
+        caption: z.string().max(1024).optional(),
+        filename: z.string().max(200).optional(),
+      }),
+    }),
+  ),
+  z.object({
+    ...nodeBase,
+    type: z.literal('user_input'),
+    data: z.object({
+      name: z.string().max(120).default(''),
+      questions: z
+        .array(
+          z.object({
+            id: z.string().min(1).max(40),
+            text: z.string().max(1024),
+            kind: z.enum(['choice', 'text', 'number', 'email', 'phone']).default('text'),
+            options: z.array(z.object({ id: z.string().min(1).max(200), title: z.string().min(1).max(24) })).max(10).optional(),
+            saveAs: z.string().max(41),
+            errorText: z.string().max(1000).optional(),
+            retries: z.number().int().min(0).max(5).optional(),
+          }),
+        )
+        .max(20)
+        .default([]),
+      doneText: z.string().max(4096).default(''),
+    }),
+  }),
   z.object({
     ...nodeBase,
     type: z.literal('question'),
@@ -120,6 +202,19 @@ export const nodeSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     ...nodeBase,
+    type: z.literal('tag'),
+    data: z.object({
+      add: z.array(z.string().max(40)).max(10).default([]),
+      remove: z.array(z.string().max(40)).max(10).default([]),
+    }),
+  }),
+  z.object({
+    ...nodeBase,
+    type: z.literal('note'),
+    data: z.object({ body: z.string().max(2000) }),
+  }),
+  z.object({
+    ...nodeBase,
     type: z.literal('delay'),
     data: z.object({
       amount: z.number().positive().max(100000),
@@ -146,6 +241,19 @@ export const nodeSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     ...nodeBase,
+    type: z.literal('sheet_fetch'),
+    data: z.object({
+      url: z.string().max(2000),
+      lookupColumn: z.string().max(100).optional(),
+      lookupValue: z.string().max(500).optional(),
+      saveAs: z
+        .array(z.object({ column: z.string().max(100), variable: z.string().max(41) }))
+        .max(20)
+        .optional(),
+    }),
+  }),
+  z.object({
+    ...nodeBase,
     type: z.literal('business_hours'),
     data: z.object({
       timezone: z.string().max(60),
@@ -160,6 +268,15 @@ export const nodeSchema = z.discriminatedUnion('type', [
         .array(z.object({ id, weight: z.number().min(0).max(1000) }))
         .min(1)
         .max(10),
+    }),
+  }),
+  z.object({
+    ...nodeBase,
+    type: z.literal('random_number'),
+    data: z.object({
+      min: z.number().int().min(-1000000000).max(1000000000).default(1),
+      max: z.number().int().min(-1000000000).max(1000000000).default(100),
+      saveAs: z.string().max(41).default('random_number'),
     }),
   }),
   z.object({

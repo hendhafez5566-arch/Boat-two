@@ -2,7 +2,7 @@
 import { statusLabel } from '../../../components/product/status';
 import { SavedAutomationEditor } from '../../../components/business/SavedAutomationEditor';
 import { AutomationCanvas } from '../../../components/business/AutomationCanvas';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
 import { useData } from '../../../components/business/useData';
@@ -32,6 +32,14 @@ export default function Automations() {
   const contacts = useData<{ items: { id: string; name: string }[] }>('/crm/contacts?limit=100', {
     items: [],
   });
+  const [tab, setTab] = useState<'rules' | 'create' | 'saved' | 'history'>('rules');
+  const [createMode, setCreateMode] = useState<'quick' | 'sequence'>('quick');
+  useEffect(() => {
+    if (tab === 'rules') list.reload();
+    if (tab === 'history') history.reload();
+    // reload is stable per hook instance; reacting to tab changes only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
   const [name, setName] = useState('');
   const [trigger, setTrigger] = useState('crm.contacts.insert');
   const [lifecycle, setLifecycle] = useState('');
@@ -60,6 +68,16 @@ export default function Automations() {
     ['crm.crm_tasks.update', t('عند تحديث متابعة', 'Task updated')],
     ['automation.scheduled', t('موعد مخصص', 'Scheduled')],
   ];
+  const actionLabel = (type: string) =>
+    ({
+      tag: t('وسم', 'Tag'),
+      lifecycle: t('مرحلة', 'Lifecycle'),
+      task: t('متابعة', 'Follow-up'),
+      delay: t('انتظار', 'Wait'),
+      note: t('ملاحظة', 'Note'),
+      branch: t('تفرع', 'Branch'),
+      http: 'Webhook',
+    })[type] || type;
   return (
     <main className="stack">
       <div className="page-heading">
@@ -84,213 +102,94 @@ export default function Automations() {
         </button>
       </div>
       {(error || list.error) && <p className="notice error">{error || list.error}</p>}
-      <SavedAutomationEditor />
-      <AutomationCanvas />
-      <form
-        className="card stack"
-        onSubmit={(e) => {
-          e.preventDefault();
-          act(async () => {
-            await api('/automations', {
-              method: 'POST',
-              body: JSON.stringify({
-                name,
-                enabled: false,
-                trigger,
-                conditions: { ...(lifecycle ? { lifecycle } : {}), ...(tag ? { tag } : {}) },
-                actions,
-              }),
-            });
-            setName('');
-          });
-        }}
-      >
-        <h2>{t('قاعدة جديدة', 'New automation rule')}</h2>
-        <div className="form-grid">
-          <label className="field">
-            {t('اسم القاعدة', 'Rule name')}
-            <input required value={name} onChange={(e) => setName(e.target.value)} />
-          </label>
-          <label className="field">
-            {t('عندما', 'When')}
-            <select value={trigger} onChange={(e) => setTrigger(e.target.value)}>
-              {triggers.map(([id, label]) => (
-                <option key={id} value={id}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            {t('بشرط مرحلة العميل', 'With contact lifecycle')}
-            <select value={lifecycle} onChange={(e) => setLifecycle(e.target.value)}>
-              <option value="">{t('أي مرحلة', 'Any lifecycle')}</option>
-              {['lead', 'qualified', 'customer', 'inactive'].map((s) => (
-                <option key={s} value={s}>
-                  {statusLabel(s, t)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            {t('وبوجود وسم (اختياري)', 'And tag (optional)')}
-            <input value={tag} onChange={(e) => setTag(e.target.value)} />
-          </label>
+      <div className="auto-stats">
+        <div>
+          <strong>{list.data.length}</strong>
+          <span>{t('قواعد', 'Rules')}</span>
         </div>
-        <h3 className="font-bold">{t('ثم نفّذ بالترتيب', 'Then, in order')}</h3>
-        {actions.map((a, i) => (
-          <div className="form-grid rounded border p-3" key={i}>
-            <label className="field">
-              {t('الإجراء', 'Action')}
-              <select
-                value={a.type}
-                onChange={(e) =>
-                  setActions((xs) =>
-                    xs.map((x, n) =>
-                      n === i
-                        ? e.target.value === 'tag'
-                          ? { type: 'tag', tag: '' }
-                          : e.target.value === 'lifecycle'
-                            ? { type: 'lifecycle', value: 'qualified' }
-                            : e.target.value === 'task'
-                              ? { type: 'task', title: '', delayMinutes: 60 }
-                              : e.target.value === 'delay'
-                                ? {
-                                    type: 'delay',
-                                    delayMinutes: 60,
-                                    actions: [{ type: 'task', title: '', delayMinutes: 0 }],
-                                  }
-                                : { type: 'note', text: '' }
-                        : x,
-                    ),
-                  )
-                }
-              >
-                <option value="tag">{t('إضافة وسم', 'Add tag')}</option>
-                <option value="lifecycle">{t('تحديث المرحلة', 'Update lifecycle')}</option>
-                <option value="task">{t('إنشاء متابعة', 'Create follow-up')}</option>
-                <option value="delay">
-                  {t('متابعة مؤجلة من الحدث', 'Delayed follow-up from event')}
-                </option>
-                <option value="note">{t('تسجيل ملاحظة', 'Add note')}</option>
-              </select>
-            </label>
-            <label className="field">
-              {t('التفاصيل', 'Details')}
-              {a.type === 'lifecycle' ? (
-                <select
-                  value={a.value}
-                  onChange={(e) =>
-                    setActions((xs) =>
-                      xs.map((x, n) => (n === i ? { ...x, value: e.target.value } : x)),
-                    )
-                  }
-                >
-                  {['lead', 'qualified', 'customer', 'inactive'].map((s) => (
-                    <option key={s} value={s}>
-                      {statusLabel(s, t)}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  required
-                  value={
-                    a.type === 'delay'
-                      ? a.actions?.[0]?.title || ''
-                      : (a.tag ?? a.title ?? a.text ?? '')
-                  }
-                  onChange={(e) =>
-                    setActions((xs) =>
-                      xs.map((x, n) =>
-                        n === i
-                          ? a.type === 'delay'
-                            ? {
-                                ...x,
-                                actions: [{ type: 'task', title: e.target.value, delayMinutes: 0 }],
-                              }
-                            : {
-                                ...x,
-                                [a.type === 'tag' ? 'tag' : a.type === 'task' ? 'title' : 'text']:
-                                  e.target.value,
-                              }
-                          : x,
-                      ),
-                    )
-                  }
-                />
-              )}
-            </label>
-            {(a.type === 'task' || a.type === 'delay') && (
-              <label className="field">
-                {t('موعد المتابعة بعد (دقائق)', 'Follow-up due after (minutes)')}
-                <input
-                  type="number"
-                  min={0}
-                  max={525600}
-                  value={a.delayMinutes}
-                  onChange={(e) =>
-                    setActions((xs) =>
-                      xs.map((x, n) =>
-                        n === i ? { ...x, delayMinutes: Number(e.target.value) } : x,
-                      ),
-                    )
-                  }
-                />
-              </label>
-            )}
-            {actions.length > 1 && (
-              <button
-                type="button"
-                className="btn btn-danger self-end"
-                onClick={() => setActions((xs) => xs.filter((_, n) => n !== i))}
-              >
-                {t('حذف الإجراء', 'Remove action')}
-              </button>
-            )}
-          </div>
-        ))}
-        <div className="form-actions">
+        <div>
+          <strong>{list.data.filter((r) => r.enabled).length}</strong>
+          <span>{t('مفعّلة', 'Active')}</span>
+        </div>
+        <div>
+          <strong>{history.data.filter((h) => h.status === 'failed').length}</strong>
+          <span>{t('تنفيذات فاشلة (آخر 25)', 'Failed runs (last 25)')}</span>
+        </div>
+      </div>
+      <nav className="auto-tabs" role="tablist" aria-label={t('أقسام الأتمتة', 'Automation sections')}>
+        {(
+          [
+            ['rules', t('قواعدي', 'My rules')],
+            ['create', t('إنشاء', 'Create')],
+            ['saved', t('تحرير المسارات والتكاملات', 'Sequences & integrations')],
+            ['history', t('سجل التنفيذ', 'Run history')],
+          ] as const
+        ).map(([key, label]) => (
           <button
+            key={key}
             type="button"
-            disabled={actions.length >= 10}
-            className="btn"
-            onClick={() => setActions((xs) => [...xs, { type: 'tag', tag: '' }])}
+            role="tab"
+            aria-selected={tab === key}
+            className={tab === key ? 'is-active' : ''}
+            onClick={() => setTab(key)}
           >
-            {t('إضافة إجراء', 'Add action')}
+            {label}
           </button>
-          <button disabled={busy} className="btn btn-primary">
-            {t('حفظ القاعدة معطلة للمراجعة', 'Save disabled rule for review')}
-          </button>
-        </div>
-      </form>
-      <section className="card">
-        <h2>{t('قواعد الأتمتة', 'Automation rules')}</h2>
-        {list.data.map((r) => (
-          <div className="stack border-b py-4" key={r.id}>
-            <div className="flex justify-between gap-3">
-              <div>
-                <strong>{r.name}</strong>
-                <p className="muted">
-                  {triggers.find(([id]) => id === r.trigger)?.[1] || r.trigger} · {r.actions.length}{' '}
-                  {t('إجراءات', 'actions')}
-                </p>
+        ))}
+      </nav>
+      {tab === 'rules' && (
+        <section className="stack">
+          {list.data.map((r) => (
+            <article className={`auto-card ${r.enabled ? 'is-on' : ''}`} key={r.id}>
+              <div className="auto-card-main">
+                <div>
+                  <strong>{r.name}</strong>
+                  <p className="muted">
+                    {triggers.find(([id]) => id === r.trigger)?.[1] || r.trigger}
+                  </p>
+                  <div className="auto-chips">
+                    {r.actions.slice(0, 6).map((a, i) => (
+                      <span key={i} className="auto-chip">
+                        {actionLabel(a.type)}
+                      </span>
+                    ))}
+                    {r.actions.length > 6 && <span className="auto-chip">+{r.actions.length - 6}</span>}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={r.enabled}
+                  aria-label={r.enabled ? t('إيقاف القاعدة', 'Disable rule') : t('تفعيل القاعدة', 'Enable rule')}
+                  className="auto-switch"
+                  disabled={busy}
+                  onClick={() => {
+                    if (
+                      !r.enabled &&
+                      !confirm(
+                        t(
+                          'سيبدأ تنفيذ هذه القاعدة فور وقوع الحدث المطابق. تفعيلها؟',
+                          'This rule will run as soon as a matching event occurs. Enable it?',
+                        ),
+                      )
+                    )
+                      return;
+                    void act(() =>
+                      api('/automations/' + r.id, {
+                        method: 'PATCH',
+                        body: JSON.stringify({ ...r, enabled: !r.enabled }),
+                      }),
+                    );
+                  }}
+                >
+                  <span />
+                </button>
               </div>
-              <button
-                className="btn"
-                disabled={busy}
-                onClick={() =>
-                  act(() =>
-                    api('/automations/' + r.id, {
-                      method: 'PATCH',
-                      body: JSON.stringify({ ...r, enabled: !r.enabled }),
-                    }),
-                  )
-                }
-              >
-                {r.enabled ? t('إيقاف', 'Disable') : t('تفعيل', 'Enable')}
-              </button>
-            </div>
+              {!r.enabled && (
+                <p className="auto-hint">
+                  {t('معطّلة: راجعها ثم فعّلها لتبدأ العمل.', 'Disabled: review it, then enable it to start.')}
+                </p>
+              )}
             {r.trigger === 'automation.scheduled' && r.enabled && (
               <form
                 className="form-grid"
@@ -327,14 +226,216 @@ export default function Automations() {
                 </button>
               </form>
             )}
+            </article>
+          ))}
+          {!list.data.length && (
+            <div className="card empty">
+              <p>{t('لا توجد قواعد بعد.', 'No rules yet.')}</p>
+              <button type="button" className="btn btn-primary" onClick={() => setTab('create')}>
+                {t('أنشئ أول قاعدة', 'Create your first rule')}
+              </button>
+            </div>
+          )}
+        </section>
+      )}
+      {tab === 'create' && (
+        <>
+          <div className="auto-seg" role="group" aria-label={t('نوع القاعدة', 'Rule type')}>
+            <button type="button" aria-pressed={createMode === 'quick'} onClick={() => setCreateMode('quick')}>
+              {t('قاعدة سريعة', 'Quick rule')}
+              <small>{t('حدث واحد ← إجراءات بالترتيب', 'One event → ordered actions')}</small>
+            </button>
+            <button type="button" aria-pressed={createMode === 'sequence'} onClick={() => setCreateMode('sequence')}>
+              {t('مسار متعدد الخطوات', 'Multi-step sequence')}
+              <small>{t('شروط AND/OR وتفرعات وانتظار', 'AND/OR conditions, branches, waits')}</small>
+            </button>
           </div>
-        ))}
-        {!list.data.length && (
-          <p className="empty">
-            {t('أنشئ أول قاعدة من النموذج أعلاه.', 'Build your first rule above.')}
-          </p>
-        )}
-      </section>
+          {createMode === 'quick' && (
+        <form
+          className="card stack"
+          onSubmit={(e) => {
+            e.preventDefault();
+            act(async () => {
+              await api('/automations', {
+                method: 'POST',
+                body: JSON.stringify({
+                  name,
+                  enabled: false,
+                  trigger,
+                  conditions: { ...(lifecycle ? { lifecycle } : {}), ...(tag ? { tag } : {}) },
+                  actions,
+                }),
+              });
+              setName('');
+              setTab('rules');
+            });
+          }}
+        >
+          <h2>{t('قاعدة جديدة', 'New automation rule')}</h2>
+          <div className="form-grid">
+            <label className="field">
+              {t('اسم القاعدة', 'Rule name')}
+              <input required value={name} onChange={(e) => setName(e.target.value)} />
+            </label>
+            <label className="field">
+              {t('عندما', 'When')}
+              <select value={trigger} onChange={(e) => setTrigger(e.target.value)}>
+                {triggers.map(([id, label]) => (
+                  <option key={id} value={id}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              {t('بشرط مرحلة العميل', 'With contact lifecycle')}
+              <select value={lifecycle} onChange={(e) => setLifecycle(e.target.value)}>
+                <option value="">{t('أي مرحلة', 'Any lifecycle')}</option>
+                {['lead', 'qualified', 'customer', 'inactive'].map((s) => (
+                  <option key={s} value={s}>
+                    {statusLabel(s, t)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              {t('وبوجود وسم (اختياري)', 'And tag (optional)')}
+              <input value={tag} onChange={(e) => setTag(e.target.value)} />
+            </label>
+          </div>
+          <h3 className="font-bold">{t('ثم نفّذ بالترتيب', 'Then, in order')}</h3>
+          {actions.map((a, i) => (
+            <div className="form-grid rounded border p-3" key={i}>
+              <label className="field">
+                {t('الإجراء', 'Action')}
+                <select
+                  value={a.type}
+                  onChange={(e) =>
+                    setActions((xs) =>
+                      xs.map((x, n) =>
+                        n === i
+                          ? e.target.value === 'tag'
+                            ? { type: 'tag', tag: '' }
+                            : e.target.value === 'lifecycle'
+                              ? { type: 'lifecycle', value: 'qualified' }
+                              : e.target.value === 'task'
+                                ? { type: 'task', title: '', delayMinutes: 60 }
+                                : e.target.value === 'delay'
+                                  ? {
+                                      type: 'delay',
+                                      delayMinutes: 60,
+                                      actions: [{ type: 'task', title: '', delayMinutes: 0 }],
+                                    }
+                                  : { type: 'note', text: '' }
+                          : x,
+                      ),
+                    )
+                  }
+                >
+                  <option value="tag">{t('إضافة وسم', 'Add tag')}</option>
+                  <option value="lifecycle">{t('تحديث المرحلة', 'Update lifecycle')}</option>
+                  <option value="task">{t('إنشاء متابعة', 'Create follow-up')}</option>
+                  <option value="delay">
+                    {t('متابعة مؤجلة من الحدث', 'Delayed follow-up from event')}
+                  </option>
+                  <option value="note">{t('تسجيل ملاحظة', 'Add note')}</option>
+                </select>
+              </label>
+              <label className="field">
+                {t('التفاصيل', 'Details')}
+                {a.type === 'lifecycle' ? (
+                  <select
+                    value={a.value}
+                    onChange={(e) =>
+                      setActions((xs) =>
+                        xs.map((x, n) => (n === i ? { ...x, value: e.target.value } : x)),
+                      )
+                    }
+                  >
+                    {['lead', 'qualified', 'customer', 'inactive'].map((s) => (
+                      <option key={s} value={s}>
+                        {statusLabel(s, t)}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    required
+                    value={
+                      a.type === 'delay'
+                        ? a.actions?.[0]?.title || ''
+                        : (a.tag ?? a.title ?? a.text ?? '')
+                    }
+                    onChange={(e) =>
+                      setActions((xs) =>
+                        xs.map((x, n) =>
+                          n === i
+                            ? a.type === 'delay'
+                              ? {
+                                  ...x,
+                                  actions: [{ type: 'task', title: e.target.value, delayMinutes: 0 }],
+                                }
+                              : {
+                                  ...x,
+                                  [a.type === 'tag' ? 'tag' : a.type === 'task' ? 'title' : 'text']:
+                                    e.target.value,
+                                }
+                            : x,
+                        ),
+                      )
+                    }
+                  />
+                )}
+              </label>
+              {(a.type === 'task' || a.type === 'delay') && (
+                <label className="field">
+                  {t('موعد المتابعة بعد (دقائق)', 'Follow-up due after (minutes)')}
+                  <input
+                    type="number"
+                    min={0}
+                    max={525600}
+                    value={a.delayMinutes}
+                    onChange={(e) =>
+                      setActions((xs) =>
+                        xs.map((x, n) =>
+                          n === i ? { ...x, delayMinutes: Number(e.target.value) } : x,
+                        ),
+                      )
+                    }
+                  />
+                </label>
+              )}
+              {actions.length > 1 && (
+                <button
+                  type="button"
+                  className="btn btn-danger self-end"
+                  onClick={() => setActions((xs) => xs.filter((_, n) => n !== i))}
+                >
+                  {t('حذف الإجراء', 'Remove action')}
+                </button>
+              )}
+            </div>
+          ))}
+          <div className="form-actions">
+            <button
+              type="button"
+              disabled={actions.length >= 10}
+              className="btn"
+              onClick={() => setActions((xs) => [...xs, { type: 'tag', tag: '' }])}
+            >
+              {t('إضافة إجراء', 'Add action')}
+            </button>
+            <button disabled={busy} className="btn btn-primary">
+              {t('حفظ القاعدة معطلة للمراجعة', 'Save disabled rule for review')}
+            </button>
+          </div>
+        </form>
+          )}
+          {createMode === 'sequence' && <AutomationCanvas />}
+        </>
+      )}
+      {tab === 'saved' && <SavedAutomationEditor />}
+      {tab === 'history' && (
       <section className="card table-wrap">
         <h2>{t('آخر 25 تنفيذًا', 'Latest 25 executions')}</h2>
         <table className="product-table">
@@ -366,6 +467,7 @@ export default function Automations() {
           </p>
         )}
       </section>
+      )}
     </main>
   );
 }

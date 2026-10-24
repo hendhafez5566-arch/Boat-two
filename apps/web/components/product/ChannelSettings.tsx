@@ -162,7 +162,7 @@ export default function ChannelSettings({
                   </label>
                   <label className="field">
                     {t('اللون', 'Brand color')}
-                    <input name="color" type="color" defaultValue={String(s.color || '#0f766e')} />
+                    <input name="color" type="color" defaultValue={String(s.color || '#3d5afe')} />
                   </label>
                   <label className="field">
                     {t('رسالة الترحيب', 'Welcome message')}

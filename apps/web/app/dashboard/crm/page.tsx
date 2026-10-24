@@ -3,7 +3,7 @@ import { ContactActivityExport } from '../../../components/business/ContactActiv
 import { statusLabel } from '../../../components/product/status';
 import { CrmJobs } from '../../../components/business/CrmJobs';
 import { ContactLifecycle } from '../../../components/business/ContactLifecycle';
-import { FormEvent, useState } from 'react';
+import { CSSProperties, FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
@@ -55,11 +55,30 @@ const blank = {
   ownerId: '',
   attributes: '{}',
 };
+const COLUMNS = ['contact', 'lifecycle', 'tags', 'id'] as const;
+type Column = (typeof COLUMNS)[number];
+const tagHue = (tag: string) => [...tag].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 7);
+
 export default function CRM() {
   const { t } = useLocale();
   const workspace = useData<{ role: string }>('/workspace', { role: '' });
   const canManage = ['owner', 'admin'].includes(workspace.data.role);
   const [tab, setTab] = useState('contacts');
+  const [cols, setCols] = useState<Column[]>(['contact', 'lifecycle', 'tags']);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('crm.columns') || 'null');
+      if (Array.isArray(saved)) setCols(saved.filter((c): c is Column => COLUMNS.includes(c)));
+    } catch {}
+  }, []);
+  const toggleCol = (c: Column, on: boolean) =>
+    setCols((cur) => {
+      const next = on ? [...cur, c] : cur.filter((x) => x !== c);
+      try {
+        localStorage.setItem('crm.columns', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
   const [q, setQ] = useState('');
   const [bulkIds, setBulkIds] = useState<string[]>([]);
   const [stage, setStage] = useState('');
@@ -301,15 +320,62 @@ export default function CRM() {
               <label className="field">
                 {t('وسم', 'Tag')}
                 <input
+                  list="crm-known-tags"
                   value={tag}
                   onChange={(e) => {
                     setTag(e.target.value);
                     setPage(1);
                   }}
                 />
+                <datalist id="crm-known-tags">
+                  {[...new Set(contacts.data.items.flatMap((c) => c.tags))].sort().map((x) => (
+                    <option key={x} value={x} />
+                  ))}
+                </datalist>
               </label>
             </div>
+            {(q || stage || tag) && (
+              <div className="filter-chips" aria-label={t('التصفية الحالية', 'Active filters')}>
+                {q && (
+                  <button type="button" className="filter-chip" onClick={() => { setQ(''); setPage(1); }}>
+                    {t('بحث', 'Search')}: {q} ×
+                  </button>
+                )}
+                {stage && (
+                  <button type="button" className="filter-chip" onClick={() => { setStage(''); setPage(1); }}>
+                    {statusLabel(stage, t)} ×
+                  </button>
+                )}
+                {tag && (
+                  <button type="button" className="filter-chip" onClick={() => { setTag(''); setPage(1); }}>
+                    # {tag} ×
+                  </button>
+                )}
+              </div>
+            )}
             <div className="form-actions">
+              <details className="col-picker">
+                <summary className="btn">{t('الأعمدة', 'Columns')}</summary>
+                <div className="col-picker-menu">
+                  {(
+                    [
+                      ['contact', t('التواصل', 'Contact')],
+                      ['lifecycle', t('المرحلة', 'Lifecycle')],
+                      ['tags', t('الوسوم', 'Tags')],
+                      ['id', t('المعرّف', 'ID')],
+                    ] as [Column, string][]
+                  ).map(([key, label]) => (
+                    <label key={key}>
+                      <input
+                        type="checkbox"
+                        checked={cols.includes(key)}
+                        onChange={(e) => toggleCol(key, e.target.checked)}
+                      />{' '}
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </details>
               <button className="btn" onClick={exportContacts}>
                 {t('تصدير CSV', 'Export CSV')}
               </button>
@@ -473,9 +539,9 @@ export default function CRM() {
                 <tr>
                   <th>{t('تحديد', 'Select')}</th>
                   <th>{t('العميل', 'Customer')}</th>
-                  <th>{t('التواصل', 'Contact')}</th>
-                  <th>{t('المرحلة', 'Lifecycle')}</th>
-                  <th>{t('الوسوم', 'Tags')}</th>
+                  {cols.includes('contact') && <th>{t('التواصل', 'Contact')}</th>}
+                  {cols.includes('lifecycle') && <th>{t('المرحلة', 'Lifecycle')}</th>}
+                  {cols.includes('tags') && <th>{t('الوسوم', 'Tags')}</th>}
                   <th />
                 </tr>
               </thead>
@@ -500,11 +566,33 @@ export default function CRM() {
                         {c.name}
                       </button>
                     </td>
-                    <td>{c.email || c.phone || '—'}</td>
-                    <td>
-                      <span className="badge">{statusLabel(c.lifecycle, t)}</span>
-                    </td>
-                    <td>{c.tags.join(' · ') || '—'}</td>
+                    {cols.includes('contact') && <td>{c.email || c.phone || '—'}</td>}
+                    {cols.includes('lifecycle') && (
+                      <td>
+                        <span className="badge">{statusLabel(c.lifecycle, t)}</span>
+                      </td>
+                    )}
+                    {cols.includes('tags') && (
+                      <td>
+                        {c.tags.length
+                          ? c.tags.map((x) => (
+                              <button
+                                type="button"
+                                key={x}
+                                className="tag-chip"
+                                title={t('تصفية بهذا الوسم', 'Filter by this tag')}
+                                style={{ '--tag-hue': tagHue(x) } as CSSProperties}
+                                onClick={() => {
+                                  setTag(x);
+                                  setPage(1);
+                                }}
+                              >
+                                {x}
+                              </button>
+                            ))
+                          : '—'}
+                      </td>
+                    )}
                     <td>
                       <button
                         className="btn"
@@ -536,9 +624,11 @@ export default function CRM() {
                       >
                         {c.archived_at ? t('استعادة', 'Restore') : t('أرشفة', 'Archive')}
                       </button>
-                      <small className="block select-all" dir="ltr">
-                        {c.id}
-                      </small>
+                      {cols.includes('id') && (
+                        <small className="block select-all" dir="ltr">
+                          {c.id}
+                        </small>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -9,6 +9,7 @@ import { AiService } from '../ai/ai.service';
 import { DatabaseService } from '../database/database.service';
 import { PlansService } from '../plans/plans.service';
 import { FlowEngine, FlowGraph, FlowState, newState, OutContent, validateGraph } from './engine';
+import { isAllowedSheetHost } from './engine/sheet';
 import { createFlowSchema, testFlowSchema, updateFlowSchema } from './flow-schemas';
 import { localizedFlowTemplates } from './templates';
 import { expandSubflows } from './expand';
@@ -50,6 +51,44 @@ export class FlowsService {
          ORDER BY f.updated_at DESC`,
       );
       return r.rows;
+    });
+  }
+
+  /** إحصائيات كل خطوة: الحالة تتحدّث من webhooks التسليم (delivered/read/failed) في جدول الرسائل */
+  stats(tenantId: string, id: string) {
+    return this.db.withTenant(tenantId, async (c) => {
+      const r = await c.query(
+        `SELECT m.flow_node_id AS node_id,
+                count(*) FILTER (WHERE m.status IN ('sent','delivered','read'))::int AS sent,
+                count(*) FILTER (WHERE m.status IN ('delivered','read'))::int AS delivered,
+                count(DISTINCT cv.contact_id)::int AS subscribers,
+                count(*) FILTER (WHERE m.status = 'failed')::int AS errors
+           FROM messages m JOIN conversations cv ON cv.id = m.conversation_id
+          WHERE m.flow_id = $1 AND m.direction = 'out' AND m.flow_node_id IS NOT NULL
+          GROUP BY m.flow_node_id`,
+        [id],
+      );
+      return Object.fromEntries(
+        r.rows.map((x: { node_id: string; sent: number; delivered: number; subscribers: number; errors: number }) => [x.node_id, { sent: x.sent, delivered: x.delivered, subscribers: x.subscribers, errors: x.errors }]),
+      ) as Record<string, { sent: number; delivered: number; subscribers: number; errors: number }>;
+    });
+  }
+
+  /** نقرات كل زر/صف قائمة: المفتاح `${nodeId}:${optionId}` */
+  buttonStats(tenantId: string, id: string) {
+    return this.db.withTenant(tenantId, async (c) => {
+      const r = await c.query(
+        `SELECT node_id, option_id, count(*)::int AS clicks, count(DISTINCT contact_id)::int AS subscribers,
+                count(*) FILTER (WHERE errored)::int AS errors
+           FROM flow_button_clicks WHERE flow_id = $1 GROUP BY node_id, option_id`,
+        [id],
+      );
+      return Object.fromEntries(
+        r.rows.map((x: { node_id: string; option_id: string; clicks: number; subscribers: number; errors: number }) => [
+          `${x.node_id}:${x.option_id}`,
+          { clicks: x.clicks, subscribers: x.subscribers, errors: x.errors },
+        ]),
+      ) as Record<string, { clicks: number; subscribers: number; errors: number }>;
     });
   }
 
@@ -307,7 +346,14 @@ export class FlowsService {
       },
       send: async (content) => void transcript.push({ role: 'bot', content }),
       http: async (spec) => {
-        if (!input.allowHttp) {
+        // قراءة Google Sheet العام GET فقط ومن مضيف Google فقط، فنسمح بها في وضع التجربة ليرى المستخدم النتيجة الحقيقية
+        let sheetRead = false;
+        try {
+          sheetRead = spec.method === 'GET' && isAllowedSheetHost(new URL(spec.url).hostname);
+        } catch {
+          /* رابط غير صالح: يتبع مسار التخطي */
+        }
+        if (!input.allowHttp && !sheetRead) {
           transcript.push({
             role: 'system',
             content: `HTTP ${spec.method} ${spec.url} (skipped in test mode)`,
@@ -317,6 +363,12 @@ export class FlowsService {
         return safeHttpRequest(spec);
       },
       setContactAttribute: async (k, v) => void (attrs[k] = v),
+      updateTags: async ({ add, remove }) =>
+        void transcript.push({
+          role: 'system',
+          content: `Tags +[${add.join(', ')}] -[${remove.join(', ')}]`,
+        }),
+      addNote: async (body) => void transcript.push({ role: 'system', content: `Internal note: ${body}` }),
       handoff: async () =>
         void transcript.push({ role: 'system', content: 'Handed off to a human agent' }),
       closeConversation: async () =>
