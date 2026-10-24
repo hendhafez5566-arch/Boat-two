@@ -218,3 +218,6 @@ img, video, canvas, svg { max-width: 100%; }
   .builder-main .builder-inspector[data-open='false'] { display: none !important; }
   .builder-main .builder-inspector .sheet-head { display: flex; justify-content: flex-end; }
 }
+
+/* Larger pointer targets without enlarging the visible port dot. */
+.premium-builder .react-flow__handle::after { content: ''; position: absolute; inset: -6px; border-radius: 50%; }

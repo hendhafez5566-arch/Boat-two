@@ -29,3 +29,8 @@ Constraints: no merge to main, no Railway deployment, no prolonged tests. No app
 - UX-21 complete: customer-facing execution status localized; raw status/error details remain in advanced variable view, real-HTTP switch moved into closed Advanced tools. No requests/sends performed. Diff check passed.
 
 - UX-16 complete: expanded condition editor now edits/adds variable, last-message and channel rules instead of silently retaining invisible rules; operator choices match inspector including numeric/regex operations. Variable keys now required before saving. Existing contact-field/attribute/label editors retained. No F01–F19 equivalent. Diff check passed; browser interaction unverified.
+
+- UX-11 complete: each selected step exposes named output → destination selects, including disconnect; uses existing connection validation/replacement/undo path. Handle pointer area enlarged without changing dot size. F10 only adjusted edge hit areas.
+- UX-14 complete: live zoom percentage, pan/zoom help and show-all control next to canvas controls. Reuses F02 fit behavior.
+- UX-12 already covered by F10: edge insertion/deletion controls render only for selected edges; retained without duplication.
+- UX-19 follow-up: choosing settings/a step exits preview so contextual details can reopen.

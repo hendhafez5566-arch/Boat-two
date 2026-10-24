@@ -7,6 +7,7 @@ import ReactFlow, {
   Connection,
   Controls,
   MiniMap,
+  Panel,
   MarkerType,
   Node,
   NodeChange,
@@ -62,6 +63,7 @@ function Editor({ id }: { id: string }) {
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const selRef = useRef<string | null>(null);
+  const [zoomPercent, setZoomPercent] = useState(100);
   const [showMap, setShowMap] = useState(false);
   const [analytics, setAnalytics] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -978,6 +980,7 @@ function Editor({ id }: { id: string }) {
           className="bot-tab"
           onClick={() => {
             setTab('settings');
+            setPreviewOpen(false);
             setInspectorOpen(true);
           }}
         >
@@ -1177,7 +1180,8 @@ function Editor({ id }: { id: string }) {
             className="start-card"
             onClick={() => {
               setTab('settings');
-              setInspectorOpen(true);
+              setPreviewOpen(false);
+            setInspectorOpen(true);
             }}
           >
             <span className="start-card-badge">{t('البداية', 'Start')}</span>
@@ -1243,6 +1247,7 @@ function Editor({ id }: { id: string }) {
               onEdgesChange(c);
               if (c.some((x) => x.type === 'remove')) setDirty(true);
             }}
+            onMove={(_, viewport) => setZoomPercent(Math.round(viewport.zoom * 100))}
             onConnect={onConnect}
             onConnectStart={(_, p) => {
               setConnecting(true);
@@ -1278,7 +1283,8 @@ function Editor({ id }: { id: string }) {
               selRef.current = hit.parentId;
               setSelected(hit.parentId);
               setTab('node');
-              setInspectorOpen(true);
+              setPreviewOpen(false);
+            setInspectorOpen(true);
             }}
             edgeTypes={edgeTypes}
             isValidConnection={isValidConnection}
@@ -1305,6 +1311,12 @@ function Editor({ id }: { id: string }) {
             fitView
             fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
           >
+            <Panel position="bottom-center">
+              <div className="rounded border bg-white p-2 text-xs">
+                <span dir="ltr">{zoomPercent}%</span> · {t('اسحب الخلفية للتحريك • عجلة الفأرة للتكبير', 'Drag background to pan • scroll to zoom')}
+                <button type="button" className="ms-2 underline" onClick={() => rf.fitView({ padding: 0.25, maxZoom: 1, duration: 300 })}>{t('إظهار كل الخطوات', 'Show all steps')}</button>
+              </div>
+            </Panel>
             <Background color="#cdd5e2" gap={22} size={1.4} />
             <Controls showInteractive={false} position="bottom-left" />
             {showMap && !previewOpen && <MiniMap
@@ -1439,6 +1451,21 @@ function Editor({ id }: { id: string }) {
                   }}
                   onDelete={() => deleteNode(sel.id)}
                 />
+                <section className="space-y-2 border-t p-3" aria-label={t('الخطوات التالية', 'Next steps')}>
+                  <h3>{t('اختر الخطوة التالية دون سحب', 'Choose the next step without dragging')}</h3>
+                  {handlesFor(sel.data.type, sel.data.data).map((h) => (
+                    <label key={h.id} className="block text-sm">
+                      <span>{h.label}</span>
+                      <select className="w-full rounded border p-2" value={edges.find((e) => e.source === sel.id && e.sourceHandle === h.id)?.target ?? ''} onChange={(e) => {
+                        if (e.target.value) onConnect({ source: sel.id, sourceHandle: h.id, target: e.target.value, targetHandle: 'in' });
+                        else { setEdges((es) => es.filter((edge) => edge.source !== sel.id || edge.sourceHandle !== h.id)); setDirty(true); }
+                      }}>
+                        <option value="">{t('بلا توصيل', 'Not connected')}</option>
+                        {nodes.filter((n) => n.id !== sel.id).map((n, i) => <option key={n.id} value={n.id}>{i + 1}. {nodeLabel(n.data.type, language)} — {String(n.data.data?.text || n.data.note || '').slice(0, 50)}</option>)}
+                      </select>
+                    </label>
+                  ))}
+                </section>
                 <label className="note-field">
                   {t('تعليق على الخطوة (لا يظهر للعميل)', 'Step comment (never shown to customers)')}
                   <textarea
