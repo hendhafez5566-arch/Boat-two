@@ -41,3 +41,5 @@ Constraints: no merge to main, no Railway deployment, no prolonged tests. No app
 - UX-07 complete: primary add menu and output-drop menu share grouped searchable step rendering using existing NODE_GROUPS; all node types and drag insertion retained. Prior F07 concerned wizard action creation, not this library. Diff check passed.
 
 - UX-08 complete: message text then reply choices lead the editor; attachments/storage, variable chips, internal comment and destructive step tools moved below content into closed disclosures. Explicit Done/close releases canvas. No F01–F19 equivalent; all fields retained. Diff check passed.
+
+- UX-15 complete: explicit fullscreen focus mode removes workspace navigation and bot tabs while retaining editing/actions; exit button/Escape restores normal layout. Browser denial reports a readable message. F18 navigation remains unchanged.

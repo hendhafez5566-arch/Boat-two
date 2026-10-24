@@ -221,3 +221,6 @@ img, video, canvas, svg { max-width: 100%; }
 
 /* Larger pointer targets without enlarging the visible port dot. */
 .premium-builder .react-flow__handle::after { content: ''; position: absolute; inset: -6px; border-radius: 50%; }
+
+.premium-builder:fullscreen { background: var(--surface, white); width: 100%; height: 100dvh; }
+.premium-builder[data-focus='true'] .bot-tabs { display: none; }

@@ -63,6 +63,13 @@ function Editor({ id }: { id: string }) {
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const selRef = useRef<string | null>(null);
+  const builderRef = useRef<HTMLDivElement>(null);
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    const sync = () => setFocused(document.fullscreenElement === builderRef.current);
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
   const [zoomPercent, setZoomPercent] = useState(100);
   const [showMap, setShowMap] = useState(false);
   const [analytics, setAnalytics] = useState(false);
@@ -842,7 +849,7 @@ function Editor({ id }: { id: string }) {
   };
 
   return (
-    <div className="premium-builder flex flex-col">
+    <div ref={builderRef} data-focus={focused} className="premium-builder flex flex-col">
       <header className="builder-toolbar">
         <a href="/dashboard/flows" className="underline">
           {t('السيناريوهات', 'Bots')} /
@@ -918,6 +925,10 @@ function Editor({ id }: { id: string }) {
         <button type="button" aria-pressed={showMap} onClick={() => setShowMap(!showMap)} className="rounded border px-2 py-1">
           {t('الخريطة', 'Minimap')}
         </button>
+        <button type="button" aria-pressed={focused} className="rounded border px-2 py-1" onClick={async () => {
+          try { if (document.fullscreenElement) await document.exitFullscreen(); else await builderRef.current?.requestFullscreen(); }
+          catch { setMsg(t('تعذّر فتح وضع التركيز في هذا المتصفح.', 'Focus mode is unavailable in this browser.')); }
+        }}>{focused ? t('إنهاء التركيز', 'Exit focus') : t('وضع التركيز', 'Focus mode')}</button>
         <div className="tb-more">
           <button
             type="button"
