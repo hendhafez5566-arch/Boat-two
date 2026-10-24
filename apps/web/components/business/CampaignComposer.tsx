@@ -151,13 +151,6 @@ export function CampaignComposer({
         body: JSON.stringify({ channelId: channel, filters }),
       });
       setAudience(current);
-      if (!current.eligible)
-        throw new Error(
-          t(
-            'لا يوجد جمهور مؤهل حاليًا. راجع القناة والموافقة.',
-            'No eligible audience now. Review the channel and consent.',
-          ),
-        );
       await api('/campaigns', {
         method: 'POST',
         body: JSON.stringify({
@@ -196,7 +189,7 @@ export function CampaignComposer({
   return (
     <section className="card stack" aria-label={t('إنشاء حملة', 'Create campaign')}>
       <h2 ref={heading} tabIndex={-1}>
-        {t('حملة جديدة', 'New campaign')} · {step + 1}/3
+        {t('حملة جديدة', 'New campaign')} · {t(`الخطوة ${step + 1} من 3`, `Step ${step + 1} of 3`)}
       </h2>
       <ol className="flex flex-wrap gap-3" aria-label={t('خطوات الإنشاء', 'Creation steps')}>
         {labels.map((label, index) => (
@@ -272,14 +265,14 @@ export function CampaignComposer({
             {t('مراجعة الجمهور', 'Review audience')}
           </button>
           {audience && (
-            <AudienceSummary audience={audience} />
+            <><AudienceSummary audience={audience} />{!audience.eligible && <p className="notice">{t('يمكنك متابعة كتابة الرسالة وحفظ مسودة. الجدولة تتطلب جمهورًا مؤهلًا وتظل مستقلة عن الحفظ.','You can compose and save a draft. Scheduling requires an eligible audience and remains separate from saving.')}</p>}</>
           )}
           <button
             className="btn btn-primary"
             disabled={
               !name.trim() ||
               !channel ||
-              !audience?.eligible ||
+              !audience ||
               !Number.isInteger(frequency) ||
               frequency < 1 ||
               frequency > 720 ||

@@ -90,3 +90,13 @@ Checks: `node scripts/test-ux19.mjs` passed; `node scripts/test-ux-designer.mjs`
 - UX-51: shared searchable city/region selector, localized common-city labels, full supported-zone list, current local-time preview and secondary IANA identifier in Settings and Sequences.
 - UX-52: removed non-operative preferred-plan selector; current plan and billing/upgrade link shown. Workspace save includes identity/language/timezone only and does not modify billing.
 - Check: whitespace and focused timezone checks passed. Full web build not yet available (dependencies absent; initial workspace command unsupported by the old local bootstrap). No deployment.
+
+### Review checkpoint
+- UX-39 follow-up: server create endpoint inspected; it creates a draft without scheduling and does not require eligible contacts. Composer now permits composing/saving after audience review even at zero eligible. Existing scheduling/dispatch eligibility checks unchanged. Actual save handler passes offline tests for eligible=0 and eligible=1 with no schedule/send calls. This supersedes the earlier temporary drafting limitation.
+- UX-29 complete across reviewed scope: direct section titles and shared status translations for shell roles, subscription, CRM and sequence states. Added role labels to existing shared translator rather than duplicating it.
+- Review fixes: Settings save guards unloaded data; custom-field override matches server lowercase/41-character schema; campaign progress uses explicit “step N of 3”.
+- PASS: existing test-ux19.mjs (draft isolation/expiry, five wizard actions, real engine validation, round trip, 40-node RTL/LTR layout, translations and exact monetary units) and test-ux-designer.mjs (conversion preservation/limits/cancellation), run against current HEAD source copies.
+- PASS: new scripts/test-ux-workspace.mjs (local calendar boundaries, DST, invalid dates, empty-audience draft save without sends and widget demo JS syntax). Whitespace check passed.
+- Full Next/TypeScript build unavailable: npm run build --prefix apps/web stops at next: not found; project dependencies are absent and environment Git/network proxy is unreachable. No browser or deployed-preview verification claimed.
+
+Implementation coverage: UX-24–UX-54 implemented or explicitly reused as described above. Remaining verification: full dependency-backed build/typecheck and browser acceptance (RTL/mobile, filters/forms, widget with allowed origins, report presets, draft/test/published onboarding comprehension). PR #2 stays draft; no main merge, Railway deployment, real messages, Meta connection or paid AI activation.

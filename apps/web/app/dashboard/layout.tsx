@@ -1,4 +1,5 @@
 'use client';
+import {statusLabel} from '../../components/product/status';
 import { WorkspaceMenu } from '../../components/product/WorkspaceMenu';
 import { NavIcon } from '../../components/product/NavIcon';
 import { CSSProperties, ReactNode, useEffect, useState } from 'react';
@@ -162,7 +163,7 @@ function Shell({ children }: { children: ReactNode }) {
           <span className="avatar">{name.slice(0, 1)}</span>
           <div>
             <strong>{name}</strong>
-            <small>{({owner:t('مالك الشركة','Owner'),admin:t('مسؤول','Admin'),agent:t('موظف','Agent')} as Record<string,string>)[role] || t('مساحة العمل', 'Workspace')}</small>
+            <small>{role ? statusLabel(role,t) : t('مساحة العمل','Workspace')}</small>
           </div>
         </div>
         <nav aria-label={t('التنقل الرئيسي', 'Main navigation')}>

@@ -40,6 +40,7 @@ export default function Settings() {
   }, []);
   async function save(e: FormEvent) {
     e.preventDefault();
+    if (!data) return;
     setBusy(true);
     setError('');
     setMessage('');

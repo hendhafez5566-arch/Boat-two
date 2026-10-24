@@ -1,4 +1,5 @@
 'use client';
+import {statusLabel} from '../../components/product/status';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
@@ -102,7 +103,7 @@ export default function Dashboard() {
         <section className="card">
           <h2>{t('اشتراكك الحالي', 'Your subscription')}</h2>
           <span className="badge">
-            {w?.plan.plan_name || '—'} · {({trialing:t('فترة تجريبية','Trial'),active:t('نشط','Active'),past_due:t('دفعة مستحقة','Past due'),canceled:t('ملغى','Canceled')} as Record<string,string>)[w?.plan.status || ''] || w?.plan.status || '—'}
+            {w?.plan.plan_name || '—'} · {statusLabel(w?.plan.status,t)}
           </span>
           {w?.plan.trial_ends_at && (
             <p className="muted mt-3">

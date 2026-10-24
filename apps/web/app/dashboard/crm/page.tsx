@@ -1421,7 +1421,7 @@ function CustomFieldForm({onSave}:{onSave:(body:Record<string,string>)=>Promise<
     <label>{t('العنوان','Label')}<input required maxLength={100} value={label} onChange={e=>setLabel(e.target.value)} /></label>
     <label>{t('نوع البيانات','Data type')}<select value={type} onChange={e=>setType(e.target.value)}>{[['text',t('نص','Text')],['number',t('رقم','Number')],['date',t('تاريخ','Date')],['boolean',t('نعم / لا','Yes / no')]].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
     <p>{t('معاينة','Preview')}: {label || t('عنوان الحقل','Field label')} — {type === 'boolean' ? t('نعم / لا','Yes / no') : type === 'number' ? '123' : type === 'date' ? '2026-10-24' : t('قيمة نصية','Text value')}</p>
-    <details><summary>{t('متقدم: مفتاح التكامل','Advanced: integration key')}</summary><input aria-label={t('مفتاح الحقل','Field key')} dir="ltr" pattern="[A-Za-z][A-Za-z0-9_]*" maxLength={50} placeholder={generated} value={key} onChange={e=>setKey(e.target.value)} /><code dir="ltr">{fieldKey}</code></details>
+    <details><summary>{t('متقدم: مفتاح التكامل','Advanced: integration key')}</summary><input aria-label={t('مفتاح الحقل','Field key')} dir="ltr" pattern="[a-z][a-z0-9_]{0,40}" maxLength={41} placeholder={generated} value={key} onChange={e=>setKey(e.target.value)} /><code dir="ltr">{fieldKey}</code></details>
     {error && <p role="alert" className="notice error">{error}</p>}
     <button className="btn btn-primary" disabled={busy}>{busy?t('جارٍ الحفظ…','Saving…'):t('حفظ الحقل','Save field')}</button>
   </form>;

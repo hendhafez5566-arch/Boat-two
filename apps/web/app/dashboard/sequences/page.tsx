@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
+import {statusLabel} from '../../../components/product/status';
 import TimezonePicker from '../../../components/product/TimezonePicker';
 import { useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
@@ -152,7 +153,7 @@ export default function Sequences() {
         <div className="sq-list">
           {list.data.map((s) => (
             <button key={s.id} className="sq-item" onClick={() => open(s.id)}>
-              <strong>{s.name}</strong> <span className="text-xs opacity-60">· {s.status}</span>
+              <strong>{s.name}</strong> <span className="text-xs opacity-60">· {statusLabel(s.status,t)}</span>
               <div className="text-xs opacity-70">
                 {s.channel_name} · {s.step_count} {t('خطوات', 'steps')} · {t('نشط', 'active')} {s.active} · {t('مكتمل', 'completed')} {s.completed}
               </div>
@@ -167,7 +168,7 @@ export default function Sequences() {
       <div className="sq-top">
         <button className="sq-link" onClick={() => setCur(null)}>← {t('رجوع', 'Back')}</button>
         <h1>{cur.name || t('تسلسل جديد', 'New sequence')}</h1>
-        {cur.status && <span className="text-xs opacity-60">{cur.status}</span>}
+        {cur.status && <span className="text-xs opacity-60">{statusLabel(cur.status,t)}</span>}
         <div className="sq-actions">
           <button disabled={busy || !eligibleChannels.some(c=>c.id===cur.channelId)} className="sq-btn" onClick={save}>{t('حفظ', 'Save')}</button>
           {cur.id && cur.status !== 'active' && (
