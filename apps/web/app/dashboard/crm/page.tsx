@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
 import { useData } from '../../../components/business/useData';
-import { download, exportCsv, parseCsv } from '../../../components/business/csv';
+import { download, exportCsv } from '../../../components/business/csv';
 type Contact = {
   id: string;
   name: string;
@@ -119,7 +119,7 @@ export default function CRM() {
     [],
   );
   const segments = useData<
-    { id: string; name: string; filters: { q?: string; lifecycle?: string; tag?: string } }[]
+    { id: string; name: string; filters: { q?: string; lifecycle?: string; tag?: string; archived?: string } }[]
   >('/crm/segments', []);
   const duplicates = useData<{ kind: string; value: string; ids: string[]; count: number }[]>(
     '/crm/contacts/duplicates',
@@ -130,6 +130,7 @@ export default function CRM() {
     { members: [] },
   );
   const channels = useData<{ id: string; name: string }[]>('/channels', []);
+  useEffect(() => { const reload=()=>{void contacts.reload();};window.addEventListener('boat:crm-imported',reload);return ()=>window.removeEventListener('boat:crm-imported',reload); }, [contacts.reload]);
   const refresh = () => {
     contacts.reload();
     deals.reload();
@@ -189,36 +190,6 @@ export default function CRM() {
       setError((e as Error).message);
     }
   }
-  async function importFile(file: File) {
-    setBusy(true);
-    setError('');
-    try {
-      if (file.size > 2_000_000) throw new Error(t('حجم الملف أكبر من 2MB', 'File exceeds 2MB'));
-      const text = await file.text();
-      const rows = file.name.endsWith('.json') ? JSON.parse(text) : parseCsv(text);
-      if (!Array.isArray(rows)) throw new Error('Expected an array');
-      const mapped = rows.map((r) => ({
-        ...r,
-        email: r.email || null,
-        phone: r.phone || null,
-        tags: Array.isArray(r.tags)
-          ? r.tags
-          : String(r.tags || '')
-              .split(';')
-              .filter(Boolean),
-      }));
-      const result = await api<{ imported: number }>('/crm/contacts/import', {
-        method: 'POST',
-        body: JSON.stringify({ contacts: mapped }),
-      });
-      setMessage(`${result.imported} ${t('جهة اتصال مستوردة', 'contacts imported')}`);
-      refresh();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
   async function exportContacts() {
     try {
       const r = await api<{ items: Contact[]; total: number }>(`/crm/contacts/export?${filter}`);
@@ -245,7 +216,7 @@ export default function CRM() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">{t('علاقات العملاء', 'CUSTOMER RELATIONSHIPS')}</p>
-          <h1>{t('كل عميل، بسياقه الكامل', 'Every customer, in context')}</h1>
+          <h1>{t('إدارة العملاء', 'Customer management')}</h1>
           <p>
             {t(
               'العملاء والمحادثات والصفقات والمتابعات مرتبطة ببيانات شركتك.',
@@ -387,25 +358,7 @@ export default function CRM() {
               <button className="btn" onClick={exportContacts}>
                 {t('تصدير CSV', 'Export CSV')}
               </button>
-              <label className="btn">
-                {t('استيراد CSV / JSON', 'Import CSV / JSON')}
-                <input
-                  type="file"
-                  className="hidden"
-                  accept=".csv,.json"
-                  disabled={busy}
-                  onChange={(e) => {
-                    if (e.target.files?.[0]) importFile(e.target.files[0]);
-                    e.target.value = '';
-                  }}
-                />
-              </label>
-              <small className="muted">
-                {t(
-                  'حتى 500 صف للاستيراد. CSV: name,email,phone,lifecycle,tags',
-                  'Import up to 500 rows. CSV: name,email,phone,lifecycle,tags',
-                )}
-              </small>
+
             </div>
           </section>
           <section className="card">
@@ -426,7 +379,7 @@ export default function CRM() {
           </section>
           {canManage && <ContactLifecycle act={act} busy={busy} />}
           {canManage && <CrmJobs />}
-          {canManage && (
+          {canManage && bulkIds.length > 0 && (
             <form
               className="card space-y-3"
               onSubmit={async (event) => {
@@ -476,7 +429,7 @@ export default function CRM() {
                   <select name="lifecycle">
                     <option value="">{t('دون تغيير', 'Keep current')}</option>
                     {['lead', 'qualified', 'customer', 'inactive'].map((value) => (
-                      <option key={value}>{value}</option>
+                      <option key={value} value={value}>{statusLabel(value,t)}</option>
                     ))}
                   </select>
                 </label>
@@ -1313,6 +1266,7 @@ export default function CRM() {
                       setQ(x.filters.q || '');
                       setStage(x.filters.lifecycle || '');
                       setTag(x.filters.tag || '');
+                      setArchiveFilter(x.filters.archived || 'active');
                       setTab('contacts');
                       setPage(1);
                     }}
@@ -1332,20 +1286,17 @@ export default function CRM() {
               ))}
             </section>
           </div>
-          <SimpleForm
-            title={t(
-              'إضافة حقل مخصص',
-              'Add a custom field',
-            )}
-            fields={[
-              ['key', t('مفتاح إنجليزي', 'Field key')],
-              ['label', t('العنوان', 'Label')],
-              ['type', t('النوع', 'Type')],
-            ]}
-            options={{type:[['text',t('نص','Text')],['number',t('رقم','Number')],['date',t('تاريخ','Date')],['boolean',t('نعم / لا','Yes / no')]]}}
-            help={{type:t('نص للأسماء والملاحظات، رقم للكميات، تاريخ للمواعيد، ونعم/لا للاختيارات الثنائية.','Text for names and notes, number for quantities, date for appointments, yes/no for binary choices.')}}
-            onSave={(b) => act('/crm/fields', b)}
-          />
+          <CustomFieldForm onSave={(body) => act('/crm/fields', body)} />
+          <section className="card stack">
+            <h2>{t('مراجعة شروط الشريحة', 'Review segment conditions')}</h2>
+            <p>{contacts.data.total} {t('عميل مطابق حاليًا — تُحفظ الشروط لا قائمة ثابتة من العملاء', 'contacts match now — saves conditions, not a fixed contact list')}</p>
+            <div className="form-grid">
+              <label>{t('البحث','Search')}<input value={q} onChange={e=>{setQ(e.target.value);setPage(1);}} /></label>
+              <label>{t('المرحلة','Lifecycle')}<select value={stage} onChange={e=>{setStage(e.target.value);setPage(1);}}><option value="">{t('كل المراحل','All stages')}</option>{['lead','qualified','customer','inactive'].map(x=><option key={x} value={x}>{statusLabel(x,t)}</option>)}</select></label>
+              <label>{t('الوسم','Tag')}<input value={tag} onChange={e=>{setTag(e.target.value);setPage(1);}} /></label>
+              <label>{t('حالة الملفات','Profile status')}<select value={archiveFilter} onChange={e=>{setArchiveFilter(e.target.value);setPage(1);}}>{['active','archived','all'].map(x=><option key={x} value={x}>{x === 'all' ? t('الكل','All') : statusLabel(x,t)}</option>)}</select></label>
+            </div>
+          </section>
           <SimpleForm
             title={t('احفظ التصفية الحالية كشريحة', 'Save current filters as a segment')}
             fields={[['name', t('اسم الشريحة', 'Segment name')]]}
@@ -1458,4 +1409,20 @@ function SimpleForm({
       </button>
     </form>
   );
+}
+
+function CustomFieldForm({onSave}:{onSave:(body:Record<string,string>)=>Promise<unknown>}) {
+  const {t}=useLocale();
+  const [label,setLabel]=useState(''),[key,setKey]=useState(''),[type,setType]=useState('text'),[busy,setBusy]=useState(false),[error,setError]=useState('');
+  const generated = 'field_' + Array.from(label.trim()).map(c=>c.codePointAt(0)!.toString(16)).join('').slice(0,32);
+  const fieldKey=key || generated;
+  return <form className="card stack" onSubmit={async e=>{e.preventDefault();setBusy(true);setError('');try{await onSave({label,key:fieldKey,type});setLabel('');setKey('');}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}>
+    <h2>{t('إضافة حقل مخصص','Add custom field')}</h2>
+    <label>{t('العنوان','Label')}<input required maxLength={100} value={label} onChange={e=>setLabel(e.target.value)} /></label>
+    <label>{t('نوع البيانات','Data type')}<select value={type} onChange={e=>setType(e.target.value)}>{[['text',t('نص','Text')],['number',t('رقم','Number')],['date',t('تاريخ','Date')],['boolean',t('نعم / لا','Yes / no')]].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
+    <p>{t('معاينة','Preview')}: {label || t('عنوان الحقل','Field label')} — {type === 'boolean' ? t('نعم / لا','Yes / no') : type === 'number' ? '123' : type === 'date' ? '2026-10-24' : t('قيمة نصية','Text value')}</p>
+    <details><summary>{t('متقدم: مفتاح التكامل','Advanced: integration key')}</summary><input aria-label={t('مفتاح الحقل','Field key')} dir="ltr" pattern="[A-Za-z][A-Za-z0-9_]*" maxLength={50} placeholder={generated} value={key} onChange={e=>setKey(e.target.value)} /><code dir="ltr">{fieldKey}</code></details>
+    {error && <p role="alert" className="notice error">{error}</p>}
+    <button className="btn btn-primary" disabled={busy}>{busy?t('جارٍ الحفظ…','Saving…'):t('حفظ الحقل','Save field')}</button>
+  </form>;
 }

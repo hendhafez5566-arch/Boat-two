@@ -55,8 +55,8 @@ export function CrmJobs() {
       <h2>{t('مهام استيراد وتصدير العملاء', 'Contact import and export jobs')}</h2>
       <p>
         {t(
-          'استيراد حتى 10,000 صف على دفعات قابلة للاستعادة، وتصدير حتى 50,000 ملف. الصفوف المرفوضة لا توقف الصفوف الأخرى. يحتفظ الإلغاء بما اكتمل.',
-          'Import up to 10,000 rows in recoverable batches and export up to 50,000 profiles. Rejected rows do not stop other rows. Canceling retains completed work.',
+          'اختر ملفًا واحدًا حتى 10,000 عميل. الملفات الصغيرة تُستورد مباشرة والكبيرة تُعالج على دفعات مع تقدم قابل للمتابعة.',
+          'Choose one file with up to 10,000 contacts. Small files import directly; large files use recoverable batches with progress.',
         )}
       </p>
       <p className="muted">
@@ -70,7 +70,7 @@ export function CrmJobs() {
           {error || jobs.error}
         </p>
       )}
-      <div className="stack">
+      <details className="stack"><summary>{t('تصدير بتاريخ سابق وتفاصيل الاحتفاظ','Historical export and retention details')}</summary>
         <label className="field">
           {t('تصدير تاريخ مسجّل (اختياري)', 'Recorded historical export (optional)')}
           <input type="datetime-local" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
@@ -89,7 +89,7 @@ export function CrmJobs() {
             {history.data.pending_changes}
           </p>
         )}
-      </div>
+      </details>
       <p className="muted">
         {t(
           'يُرفع الملف على دفعات محفوظة قبل بدء الاستيراد. عند انقطاع الرفع، اختر الملف نفسه لاستكماله دون تكرار الصفوف. تعالج المهام البيانات ضمن حدود الخطة.',
@@ -136,6 +136,12 @@ export function CrmJobs() {
                         'Choose a file with 1 to 10,000 contacts.',
                       ),
                     );
+                  if (contacts.length <= 500) {
+                    const result = await api<{imported:number}>('/crm/contacts/import', {method:'POST',body:JSON.stringify({contacts:contacts.map((r:any)=>({...r,email:r.email || null,phone:r.phone || null,tags:Array.isArray(r.tags)?r.tags:String(r.tags || '').split(/[;|]/).filter(Boolean)}))})});
+                    setUploadProgress({done:result.imported,total:contacts.length});
+                    window.dispatchEvent(new Event('boat:crm-imported'));
+                    return;
+                  }
                   const fingerprint = Array.from(
                     new Uint8Array(
                       await window.crypto.subtle.digest('SHA-256', await file.arrayBuffer()),

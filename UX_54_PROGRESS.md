@@ -60,3 +60,11 @@ Checks: `node scripts/test-ux19.mjs` passed; `node scripts/test-ux-designer.mjs`
 - UX-53: wizard says “step N of 7”; onboarding says completed N of 3 essential steps, avoiding ambiguous RTL fractions.
 - UX-54: team excluded from essential progress and explicitly optional; bot step explicitly records draft creation only and explains that testing/publication need separate confirmation in the builder. No inferred tested/published status.
 - Check: whitespace passed. Runtime/build pending; environment Git HTTP proxy unavailable, so checkpoint commits are written through GitHub Git API with expected-HEAD checks on the existing branch. No deployment, paid service or external sends.
+
+- UX-31: reused F11 collapsed advanced tools, search/count and existing Add contact action; table remains visible with tools closed.
+- UX-32: single import picker in CrmJobs routes up to 500 rows directly and larger files through the existing resumable upload path (10,000 maximum); historical export details folded. Preserved APIs and tenant-scoped requests.
+- UX-33: bulk editor mounts only with selected contacts; selection count and clear action retained.
+- UX-34: reviewed/reused F15 eventLabel with collapsible technical event IDs; no second translation layer.
+- UX-35: reused F11 supported type choices; custom form now generates an ASCII integration key from the label, with advanced override and content/type preview.
+- UX-36: editable search/lifecycle/tag/archive conditions and matching count appear alongside segment name; loading a segment restores archive condition too.
+- UX-29: CRM now uses direct section title; lifecycle options reuse shared status labels. Whitespace check passed; full build unavailable.
