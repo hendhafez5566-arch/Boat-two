@@ -68,6 +68,9 @@ function Shell({ children }: { children: ReactNode }) {
     primary_color: string;
   } | null>(null);
   const [open, setOpen] = useState(false);
+  const [collapsed,setCollapsed] = useState(false);
+  useEffect(() => {try {setCollapsed(localStorage.getItem('boat.navigation.collapsed') === 'true');} catch {}}, []);
+  const toggleSidebar = () => setCollapsed(value => {const next=!value;try {localStorage.setItem('boat.navigation.collapsed',String(next));} catch {}return next;});
   const [moreOpen, setMoreOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
@@ -120,7 +123,7 @@ function Shell({ children }: { children: ReactNode }) {
   const focused = path.startsWith('/dashboard/inbox') || /^\/dashboard\/flows\/[^/]+$/.test(path);
   return (
     <div
-      className="product-shell"
+      className={`product-shell ${collapsed ? 'nav-collapsed' : 'nav-expanded'}`}
       style={brand ? ({ '--primary': brand.primary_color } as CSSProperties) : undefined}
     >
       <aside
@@ -136,6 +139,9 @@ function Shell({ children }: { children: ReactNode }) {
           onClick={() => setOpen(false)}
         >
           {t('إغلاق القائمة', 'Close navigation')}
+        </button>
+        <button type="button" className="sidebar-toggle btn" aria-controls="workspace-navigation" aria-expanded={!collapsed} aria-label={collapsed ? t('توسيع القائمة وإظهار الأقسام','Expand navigation labels') : t('تصغير القائمة','Collapse navigation')} onClick={toggleSidebar}>
+          <NavIcon name="menu" /><span>{collapsed ? t('توسيع','Expand') : t('تصغير','Collapse')}</span>
         </button>
         <Link className="brand" href="/dashboard">
           {brand?.logo_url ? (

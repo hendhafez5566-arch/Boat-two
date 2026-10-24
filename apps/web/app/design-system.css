@@ -2320,3 +2320,22 @@ button.underline {
     grid-template-columns: 1fr;
   }
 }
+
+/* Labelled navigation is the default; compact mode is an explicit preference. */
+.sidebar-toggle { display: none; }
+@media (min-width: 701px) {
+  .product-shell.nav-expanded { --sidebar-w: 248px; }
+  .product-shell.nav-collapsed { --sidebar-w: 88px; }
+  .product-sidebar .sidebar-toggle { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; color: #e7edff; background: rgb(255 255 255 / 8%); border-color: transparent; }
+  .product-shell.nav-collapsed .sidebar-toggle { flex-direction: column; font-size: .7rem; }
+  .nav-expanded .product-sidebar .brand { justify-content: flex-start; gap: 10px; padding: 4px 8px; color: #fff; }
+  .nav-expanded .product-sidebar .brand > span:not(.brand-mark),
+  .nav-expanded .product-sidebar .brand img + span { display: block; }
+  .nav-expanded .workspace-chip { justify-content: flex-start; gap: 10px; padding: 8px; }
+  .nav-expanded .workspace-chip > div { display: block; min-width: 0; color: #e7edff; }
+  .nav-expanded .product-sidebar .nav-primary a,
+  .nav-expanded .product-sidebar .nav-more-btn { flex-direction: row; justify-content: flex-start; gap: 12px; padding: 10px 14px; text-align: start; }
+  .nav-expanded .product-sidebar .nav-primary a .nav-label,
+  .nav-expanded .product-sidebar .nav-more-btn .nav-label { position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; font-size: .9rem; }
+  .nav-expanded .sidebar-footer button { font-size: .8rem; padding: 10px 8px; }
+}
