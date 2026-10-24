@@ -1,0 +1,1 @@
+CRM activity: complete 260-note frozen export, merged original consent/history, current tasks/deals, conversation/event metadata without raw event secrets, bounded worker pages, date range, empty export and tenant isolation passed.

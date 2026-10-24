@@ -1,0 +1,1 @@
+Automation debugger Chromium: actual worker exhaustion, nested path/revision, rule review/edit, safe retry, one persisted recovery note, resolved failure and Arabic/mobile passed. No external delivery.

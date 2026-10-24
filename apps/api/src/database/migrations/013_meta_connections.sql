@@ -1,0 +1,6 @@
+CREATE TABLE meta_connections(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,user_id uuid NOT NULL REFERENCES users(id),state_hash text NOT NULL UNIQUE,kind text NOT NULL CHECK(kind IN ('facebook','instagram','whatsapp')),consumed boolean NOT NULL DEFAULT false,assets_enc text,expires_at timestamptz NOT NULL DEFAULT now()+interval '15 minutes',created_at timestamptz NOT NULL DEFAULT now());
+ALTER TABLE meta_connections ENABLE ROW LEVEL SECURITY;ALTER TABLE meta_connections FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON meta_connections USING(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid) WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
+GRANT SELECT,INSERT,UPDATE,DELETE ON meta_connections TO app_user;
+CREATE FUNCTION meta_connection_lookup(p_hash text) RETURNS TABLE(id uuid,tenant_id uuid) LANGUAGE sql SECURITY DEFINER SET search_path=public AS $$ SELECT id,tenant_id FROM meta_connections WHERE state_hash=p_hash AND NOT consumed AND expires_at>now() $$;
+REVOKE ALL ON FUNCTION meta_connection_lookup(text) FROM PUBLIC;GRANT EXECUTE ON FUNCTION meta_connection_lookup(text) TO app_user;

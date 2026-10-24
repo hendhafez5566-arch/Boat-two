@@ -1,4 +1,7 @@
+import { validateTemplateParameters } from './template-contract';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { EventsService } from '../events/events.service';
+import { PlansService } from '../plans/plans.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DatabaseService } from '../database/database.service';
 import { MetaAdapter } from './adapters/meta.adapter';
@@ -15,6 +18,7 @@ export interface InboundMessage {
 }
 
 export interface MessageReceivedEvent {
+  eventName?: string;
   tenantId: string;
   channelId: string;
   channelType: string;
@@ -34,6 +38,8 @@ export class MessagingService {
 
   constructor(
     private readonly db: DatabaseService,
+    private readonly outbox: EventsService,
+    private readonly plans: PlansService,
     private readonly channels: ChannelsService,
     private readonly events: EventEmitter2,
     whatsapp: WhatsAppAdapter,
@@ -47,18 +53,33 @@ export class MessagingService {
     const type = messageTypeOf(msg.content);
 
     const result = await this.db.withTenant(channel.tenant_id, async (c) => {
+      await c.query('SELECT id FROM channels WHERE id=$1 FOR UPDATE', [channel.id]);
+      if (msg.externalMessageId) {
+        const existing = await c.query(
+          'SELECT 1 FROM messages WHERE channel_id=$1 AND external_id=$2',
+          [channel.id, msg.externalMessageId],
+        );
+        if (existing.rowCount) return { duplicate: true as const };
+      }
       // 1) جهة الاتصال
       let contactId: string | undefined = (
-        await c.query('SELECT contact_id FROM contact_channels WHERE channel_id = $1 AND external_id = $2', [
-          channel.id,
-          msg.contactExternalId,
-        ])
+        await c.query(
+          'SELECT contact_id FROM contact_channels WHERE channel_id = $1 AND external_id = $2',
+          [channel.id, msg.contactExternalId],
+        )
       ).rows[0]?.contact_id;
 
       if (!contactId) {
+        await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+        const count = (await c.query('SELECT count(*)::int AS n FROM contacts')).rows[0].n;
+        await this.plans.assertWithinLimit(c, 'contacts', count);
         const created = await c.query(
           'INSERT INTO contacts (tenant_id, name, phone) VALUES ($1, $2, $3) RETURNING id',
-          [channel.tenant_id, msg.contactName ?? null, channel.type === 'whatsapp' ? msg.contactExternalId : null],
+          [
+            channel.tenant_id,
+            msg.contactName ?? null,
+            channel.type === 'whatsapp' ? msg.contactExternalId : null,
+          ],
         );
         const link = await c.query(
           `INSERT INTO contact_channels (tenant_id, contact_id, channel_id, external_id)
@@ -70,12 +91,32 @@ export class MessagingService {
         } else {
           await c.query('DELETE FROM contacts WHERE id = $1', [created.rows[0].id]);
           contactId = (
-            await c.query('SELECT contact_id FROM contact_channels WHERE channel_id = $1 AND external_id = $2', [
-              channel.id,
-              msg.contactExternalId,
-            ])
+            await c.query(
+              'SELECT contact_id FROM contact_channels WHERE channel_id = $1 AND external_id = $2',
+              [channel.id, msg.contactExternalId],
+            )
           ).rows[0].contact_id;
         }
+      }
+
+      // Inbound opt-out is persisted before any bot/campaign reaction. Opt-in always requires explicit evidence elsewhere.
+      const incomingText = msg.content.text?.normalize('NFKC').trim().toLowerCase();
+      if (
+        incomingText &&
+        [
+          'stop',
+          'unsubscribe',
+          'cancel marketing',
+          'إلغاء الاشتراك',
+          'الغاء الاشتراك',
+          'توقف',
+          'إيقاف التسويق',
+        ].includes(incomingText)
+      ) {
+        await c.query(
+          "INSERT INTO contact_consents(tenant_id,contact_id,channel_id,status,evidence) VALUES($1,$2,$3,'opted_out','Inbound channel opt-out keyword') ON CONFLICT(tenant_id,contact_id,channel_id) DO UPDATE SET status='opted_out',evidence=EXCLUDED.evidence,updated_at=now()",
+          [channel.tenant_id, contactId, channel.id],
+        );
       }
 
       // 2) المحادثة المفتوحة (أو فتح واحدة جديدة)
@@ -102,7 +143,14 @@ export class MessagingService {
          VALUES ($1, $2, $3, 'in', 'contact', $4, $5, $6, 'received')
          ON CONFLICT (channel_id, external_id) WHERE external_id IS NOT NULL DO NOTHING
          RETURNING id, seq`,
-        [channel.tenant_id, conv.id, channel.id, type, JSON.stringify(msg.content), msg.externalMessageId ?? null],
+        [
+          channel.tenant_id,
+          conv.id,
+          channel.id,
+          type,
+          JSON.stringify(msg.content),
+          msg.externalMessageId ?? null,
+        ],
       );
       if (!inserted.rows[0]) return { duplicate: true as const };
 
@@ -110,6 +158,21 @@ export class MessagingService {
         `UPDATE conversations SET last_message_at = now(), last_inbound_at = now(), unread_count = unread_count + 1
          WHERE id = $1`,
         [conv.id],
+      );
+      await this.outbox.publish(
+        channel.tenant_id,
+        'message.received',
+        conv.id,
+        {
+          channelId: channel.id,
+          channelType: channel.type,
+          conversationId: conv.id,
+          contactId,
+          messageId: inserted.rows[0].id,
+          handledBy: conv.handled_by,
+          content: msg.content,
+        },
+        `inbound:${inserted.rows[0].id}`,
       );
       return {
         duplicate: false as const,
@@ -150,8 +213,8 @@ export class MessagingService {
       },
     });
     // المعالجة اللاحقة (محرك الـ Flows والـ AI) تشترك في هذا الحدث
-    this.events.emit('message.received', event);
-    return { duplicate: false as const, ...result };
+    void event; // Flow dispatch is persisted atomically with the incoming message.
+    return result;
   }
 
   /** رسالة صادرة (من بوت أو موظف أو النظام) */
@@ -163,8 +226,22 @@ export class MessagingService {
     senderUserId?: string;
   }) {
     validateOutbound(p.content);
+    const effectKey = this.db.effectKey();
 
     const ctx = await this.db.withTenant(p.tenantId, async (c) => {
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+      if (effectKey) {
+        const prior = (
+          await c.query('SELECT id,seq,created_at FROM messages WHERE effect_key=$1', [effectKey])
+        ).rows[0];
+        if (prior) return { row: { type: 'web' }, msg: prior };
+      }
+      const used = (
+        await c.query(
+          "SELECT count(*)::int AS n FROM messages WHERE direction='out' AND NOT is_internal AND created_at>=date_trunc('month',now())",
+        )
+      ).rows[0].n;
+      await this.plans.assertWithinLimit(c, 'messages_per_month', used);
       const row = (
         await c.query(
           `SELECT cv.id, cv.last_inbound_at, ch.id AS channel_id, ch.type, ch.status, ch.credentials_enc,
@@ -181,7 +258,9 @@ export class MessagingService {
 
       if (
         row.type === 'whatsapp' &&
-        (!row.last_inbound_at || Date.now() - new Date(row.last_inbound_at).getTime() > WHATSAPP_WINDOW_MS)
+        !p.content.template &&
+        (!row.last_inbound_at ||
+          Date.now() - new Date(row.last_inbound_at).getTime() > WHATSAPP_WINDOW_MS)
       ) {
         throw new BadRequestException({
           code: 'WINDOW_EXPIRED',
@@ -189,10 +268,22 @@ export class MessagingService {
         });
       }
 
+      if (p.content.template) {
+        if (row.type !== 'whatsapp')
+          throw new BadRequestException('Templates require a WhatsApp channel');
+        const template = (
+          await c.query(
+            "SELECT body,category,components FROM whatsapp_templates WHERE channel_id=$1 AND name=$2 AND language=$3 AND status='APPROVED' AND supported",
+            [row.channel_id, p.content.template.name, p.content.template.language],
+          )
+        ).rows[0];
+        if (!template) throw new BadRequestException('Template is not approved for this channel');
+        validateTemplateParameters(template, p.content.template);
+      }
       const msg = (
         await c.query(
-          `INSERT INTO messages (tenant_id, conversation_id, channel_id, direction, sender_type, sender_user_id, type, content, status)
-           VALUES ($1, $2, $3, 'out', $4, $5, $6, $7, $8) RETURNING id, seq, created_at`,
+          `INSERT INTO messages (tenant_id, conversation_id, channel_id, direction, sender_type, sender_user_id, type, content, status,effect_key)
+           VALUES ($1, $2, $3, 'out', $4, $5, $6, $7, $8,$9) RETURNING id, seq, created_at`,
           [
             p.tenantId,
             p.conversationId,
@@ -202,10 +293,18 @@ export class MessagingService {
             messageTypeOf(p.content),
             JSON.stringify(p.content),
             row.type === 'web' ? 'sent' : 'queued',
+            effectKey,
           ],
         )
       ).rows[0];
-      await c.query('UPDATE conversations SET last_message_at = now() WHERE id = $1', [p.conversationId]);
+      await c.query('UPDATE conversations SET last_message_at = now() WHERE id = $1', [
+        p.conversationId,
+      ]);
+      if (row.type !== 'web')
+        await c.query(
+          'INSERT INTO outbound_jobs(tenant_id,message_id) VALUES($1,$2) ON CONFLICT(message_id) DO NOTHING',
+          [p.tenantId, msg.id],
+        );
       return { row, msg };
     });
 
@@ -231,34 +330,13 @@ export class MessagingService {
           createdAt: base.createdAt.toISOString(),
         },
       });
-    const emitStatus = (status: string, error?: string) =>
-      this.events.emit('message.status', { tenantId: p.tenantId, conversationId: p.conversationId, messageId: base.id, status, error });
-
     if (ctx.row.type === 'web') {
       emitCreated('sent');
       return { ...base, status: 'sent' as const };
     }
     emitCreated('queued');
 
-    // الإرسال الفعلي خارج الـ transaction لأنه نداء شبكة
-    try {
-      const adapter = this.adapters[ctx.row.type as string];
-      const creds = this.channels.credentials({ credentials_enc: ctx.row.credentials_enc } as ChannelRow);
-      const { externalId } = await adapter.send(creds, ctx.row.recipient, p.content);
-      await this.db.withTenant(p.tenantId, (c) =>
-        c.query("UPDATE messages SET status = 'sent', external_id = $2 WHERE id = $1", [base.id, externalId]),
-      );
-      emitStatus('sent');
-      return { ...base, status: 'sent' as const, externalId };
-    } catch (e) {
-      const error = (e as Error).message;
-      this.log.warn(`Outbound failed (${ctx.row.type}): ${error}`);
-      await this.db.withTenant(p.tenantId, (c) =>
-        c.query("UPDATE messages SET status = 'failed', error = $2 WHERE id = $1", [base.id, error.slice(0, 500)]),
-      );
-      emitStatus('failed', error);
-      return { ...base, status: 'failed' as const, error };
-    }
+    return { ...base, status: 'queued' as const };
   }
 
   /** تحديث حالة التسليم/القراءة القادمة من المزوّد */
@@ -282,7 +360,13 @@ export class MessagingService {
       ),
     );
     for (const row of upd.rows) {
-      this.events.emit('message.status', { tenantId: channel.tenant_id, conversationId: row.conversation_id, messageId: row.id, status, error });
+      this.events.emit('message.status', {
+        tenantId: channel.tenant_id,
+        conversationId: row.conversation_id,
+        messageId: row.id,
+        status,
+        error,
+      });
     }
   }
 }

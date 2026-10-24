@@ -1,0 +1,27 @@
+# Custom domain hosting boundary
+
+## Latest continuation status
+
+Migrations 048/051/056 connect delinquency-aware eligibility, explicit owner-approved transfers with fresh receiver TXT/one-use secret, same-owner reclaim and consistent revocation locks. See [verified sprint report](SPRINT_2026-10-23_CONTINUATION.md). Real ingress/ACME, white-label auth and branded email remain open. No production domain, DNS or certificate was activated. Earlier transfer-as-future notes are superseded by the explicit transfer policy below.
+
+Migration 044 connects verified domains to an optional ingress. The owner/admin first registers a hostname, publishes its unique TXT, verifies ownership and requests hosting. All writes retain tenant RLS, audit and white-label entitlement checks. Revocation/disable increments a generation so obsolete recheck events cannot reactivate hosting.
+
+`CUSTOM_DOMAINS_ENABLED=false` is the default. No domain, DNS, ingress or certificate was activated in development. Only after owner authorization, the operator must:
+
+1. Configure the domain's A/AAAA or CNAME to the operator ingress and keep `_boat-verification.<hostname>` TXT present. Configure network/firewall, public ports 80/443 and authoritative DNS outside this application.
+2. Review `deploy/Caddyfile.custom-domains.example`, provide ACME contact email, persistent Caddy data/config volumes, safe internal API/web upstreams and separate canonical-domain serving. Validate with the actual selected Caddy version before enabling; this sprint did not run Caddy or issue certificates.
+3. Set `CUSTOM_DOMAINS_ENABLED=true` on both API and web; configure web `INTERNAL_API_URL` to the fixed trusted API and `BOAT_CANONICAL_HOSTS` to canonical application hostnames. Configure the browser API origin or `/api` proxy at web build time. Never derive upstream URLs from the request Host. Preserve original Host and use the application's middleware; it strips client-supplied custom-host headers.
+4. Enable external services only with explicit authorization if periodic DNS ownership checks are desired. The existing outbox schedules twelve-hour checks, not another scheduler. In development both external delivery and paid AI stay false. Ownership expires after 24 hours regardless of certificate lifetime. Failed checks remove eligibility immediately; successful checks restore it only while hosting remains requested. Manual TXT verification can also refresh ownership.
+
+`GET /domains/tls-allow?domain=...` is the public minimal Caddy ask/forward-auth decision. It returns success only for requested, recently verified, unsuspended, entitled domains with saved branding. The example checks each HTTP request as well as certificate issuance; TLS certificates can outlive revoked ownership. `/domains/resolve` returns public branding only, never tenant credentials, ownership tokens or private records. The web middleware rejects unknown/ineligible hosts, and the root entry page uses verified branding. Normal API authentication/RLS remains authoritative; a hostname is not a user identity or an alternate login credential. Tenant switch/account provisioning and white-label authentication email journeys remain separate work.
+
+There is no claim that a certificate is active: UI/API state says requested/operator-managed. Caddy owns ACME issuance, storage, renewal and certificate diagnostics. Monitor its logs, certificate expiry, ownership event failures and API availability externally. Do not expose the Caddy admin API publicly. Domain transfer/reclaim, full automated DNS onboarding and end-to-end ingress/ACME acceptance remain open. Revalidation uses a conservative 24-hour expiry and may make a domain unavailable during prolonged DNS/API failure.
+
+## Transfer and reclaim policy (migration 051)
+
+Only the current workspace owner may initiate transfer to a known receiving workspace UUID. Hosting immediately stops. Share the displayed one-time secret through a secure channel; the receiver must publish the transfer-specific TXT and accept with that secret within 24 hours while entitled to white label. Acceptance atomically changes ownership, invalidates old hosting generations and leaves hosting disabled. Re-enable hosting explicitly after review. Source cancellation/revocation invalidates pending acceptance. Expired transfers never authorize ownership and must be canceled before a new transfer. Revoked names stay reserved to their current workspace; its owner can reclaim only with a rotated TXT and fresh verification. There is no automatic DNS-only cross-tenant takeover or involuntary administrative reclaim. No production DNS/TLS was changed.
+
+
+## Branded authentication and email — full product sprint
+
+Migration 058 binds login/invitation acceptance to an eligible host and membership. Root rendering uses only middleware-validated host metadata. The external host gate remains false; no real TLS/DNS was activated. Invitation emails may use an eligible domain only after CUSTOM_DOMAINS_ENABLED is explicitly enabled; otherwise links use APP_URL. Mail processing independently rechecks current branding entitlement. Configure the HTTPS invitation gateway and sender-domain authentication only after owner authorization; EMAIL_DELIVERY_ENABLED and EXTERNAL_DELIVERY_ENABLED default false. See sprint report `SPRINT_FULL_PRODUCT_2026-10-23.md` for exact gateway contract and remaining receipts/reconciliation.

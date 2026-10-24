@@ -1,0 +1,1 @@
+Rich campaigns: actual local web worker delivery of buttons/menu/media, consent-filtered audiences, invalid content denial and mocked WhatsApp/Meta adapter payloads passed. No external calls.

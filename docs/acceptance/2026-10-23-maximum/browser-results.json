@@ -1,0 +1,38 @@
+[
+  {
+    "suite": "workspace",
+    "code": 0
+  },
+  {
+    "suite": "crm",
+    "code": 0
+  },
+  {
+    "suite": "inbox",
+    "code": 0
+  },
+  {
+    "suite": "ai-workspace",
+    "code": 0
+  },
+  {
+    "suite": "rich-campaign",
+    "code": 0
+  },
+  {
+    "suite": "provider",
+    "code": 0
+  },
+  {
+    "suite": "campaign",
+    "code": 0
+  },
+  {
+    "suite": "premium",
+    "code": 0
+  },
+  {
+    "suite": "billing-branding",
+    "code": 0
+  }
+]

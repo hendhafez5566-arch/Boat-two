@@ -1,0 +1,1 @@
+Process crash: real child SIGKILL after durable mock attempt; detached started claim survives; replay refuses second provider call; one local attempt. No external calls.

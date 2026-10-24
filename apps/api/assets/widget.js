@@ -9,7 +9,7 @@
   var st = { open: false, visitorId: null, token: null, lastSeq: 0, cfg: null, started: false, unread: 0, timer: null };
 
   function store(get, val) {
-    try { return get ? localStorage.getItem(STORE) : localStorage.setItem(STORE, val); } catch (e) { return null; }
+    try { return get ? localStorage.getItem(STORE) : localStorage.setItem(STORE, val); } catch { return null; }
   }
   function uid() {
     var a = new Uint8Array(12);
@@ -88,6 +88,17 @@
     ui.panel.appendChild(head);
     ui.panel.appendChild(ui.msgs);
     ui.panel.appendChild(ui.form);
+    var optOut = h('button', 'chip', st.cfg.direction === 'rtl' ? 'إيقاف الرسائل التسويقية' : 'Stop marketing messages');
+    optOut.type = 'button';
+    optOut.onclick = function () {
+      optOut.disabled = true;
+      start().then(function () { return req('/widget/' + key + '/opt-out?visitorId=' + encodeURIComponent(st.visitorId), 'POST'); })
+        .then(function () { addBubble('them', { text: st.cfg.direction === 'rtl' ? 'تم إيقاف الرسائل التسويقية لهذه القناة.' : 'Marketing messages for this channel have been stopped.' }); })
+        .catch(function () { addBubble('them', { text: st.cfg.direction === 'rtl' ? 'تعذر الحفظ. حاول مرة أخرى.' : 'Could not save your preference. Please retry.' }); })
+        .finally(function () { optOut.disabled = false; });
+    };
+    ui.panel.appendChild(optOut);
+
 
     root.appendChild(style);
     root.appendChild(ui.launcher);
@@ -109,7 +120,7 @@
     for (var i = 0; i < all.length; i++) all[i].disabled = true;
   }
 
-  function addBubble(who, content, local) {
+  function addBubble(who, content) {
     var b = h('div', 'm ' + who);
     content = content || {};
     if (content.media) {

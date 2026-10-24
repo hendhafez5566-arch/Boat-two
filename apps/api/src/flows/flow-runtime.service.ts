@@ -1,3 +1,4 @@
+import { ExternalEffects } from '../events/external-effect';
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { AiService } from '../ai/ai.service';
@@ -37,6 +38,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly db: DatabaseService,
+    private readonly effects: ExternalEffects,
     private readonly messaging: MessagingService,
     private readonly events: EventEmitter2,
     private readonly ai: AiService,
@@ -67,11 +69,36 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
 
   // ------------------------------------------------------------------ inbound
 
-  @OnEvent('message.received', { async: true })
+  @OnEvent('message.received', { suppressErrors: false })
   onMessage(e: MessageReceivedEvent) {
-    return this.serial(e.conversationId, () => this.handleMessage(e)).catch((err) =>
-      this.log.error(`Flow handling failed: ${(err as Error).message}`),
+    return this.db.conversation(e.tenantId, e.conversationId, () => this.handleMessage(e));
+  }
+
+  @OnEvent('domain.event', { suppressErrors: false })
+  async onDomain(e: import('../events/events.service').DomainEvent) {
+    if (!e.type.startsWith('crm.') || typeof e.payload.contactId !== 'string') return;
+    const conversations = await this.db.withTenant(
+      e.tenantId,
+      async (c) =>
+        (
+          await c.query(
+            "SELECT cv.*,ch.type AS channel_type FROM conversations cv JOIN channels ch ON ch.id=cv.channel_id WHERE cv.contact_id=$1 AND cv.status<>'closed' AND cv.handled_by='bot'",
+            [e.payload.contactId],
+          )
+        ).rows,
     );
+    for (const cv of conversations)
+      await this.onMessage({
+        tenantId: e.tenantId,
+        channelId: cv.channel_id,
+        channelType: cv.channel_type,
+        conversationId: cv.id,
+        contactId: cv.contact_id,
+        messageId: e.id,
+        handledBy: 'bot',
+        content: { text: '' },
+        eventName: e.type,
+      });
   }
 
   private async loadConversation(c: import('pg').PoolClient, conversationId: string) {
@@ -108,16 +135,25 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       if (!conv || conv.handled_by !== 'bot' || conv.status === 'closed') return null;
 
       let session = (
-        await c.query("SELECT * FROM flow_sessions WHERE conversation_id = $1 AND status = 'waiting'", [e.conversationId])
+        await c.query(
+          "SELECT * FROM flow_sessions WHERE conversation_id = $1 AND status = 'waiting'",
+          [e.conversationId],
+        )
       ).rows[0];
       if (session?.expires_at && new Date(session.expires_at) < new Date()) {
-        await c.query("UPDATE flow_sessions SET status = 'expired', updated_at = now() WHERE id = $1", [session.id]);
+        await c.query(
+          "UPDATE flow_sessions SET status = 'expired', updated_at = now() WHERE id = $1",
+          [session.id],
+        );
         session = undefined;
       }
+      if (e.eventName && session) return null;
       if (session?.wait_kind === 'delay') return null; // الـ flow في مرحلة انتظار زمني
 
       if (session) {
-        const g = (await c.query('SELECT graph FROM flow_versions WHERE id = $1', [session.version_id])).rows[0];
+        const g = (
+          await c.query('SELECT graph FROM flow_versions WHERE id = $1', [session.version_id])
+        ).rows[0];
         return { conv, session, graph: g.graph as FlowGraph };
       }
 
@@ -125,14 +161,26 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         await c.query(
           `SELECT f.id AS flow_id, fv.id AS version_id, f.priority, fv.triggers, fv.channel_ids, fv.graph
            FROM flows f JOIN flow_versions fv ON fv.id = f.published_version_id
-           WHERE f.status = 'published' ORDER BY f.priority DESC, f.created_at`,
+           WHERE f.status = 'published' AND NOT f.is_component ORDER BY f.priority DESC, f.created_at`,
         )
       ).rows;
       const inbound = (
-        await c.query("SELECT count(*)::int AS n FROM messages WHERE conversation_id = $1 AND direction = 'in'", [e.conversationId])
+        await c.query(
+          "SELECT count(*)::int AS n FROM messages WHERE conversation_id = $1 AND direction = 'in'",
+          [e.conversationId],
+        )
       ).rows[0].n;
-      const ran = (await c.query('SELECT DISTINCT flow_id FROM flow_sessions WHERE conversation_id = $1', [e.conversationId])).rows;
-      return { conv, cands, isFirst: inbound <= 1, ran: new Set<string>(ran.map((r) => r.flow_id)) };
+      const ran = (
+        await c.query('SELECT DISTINCT flow_id FROM flow_sessions WHERE conversation_id = $1', [
+          e.conversationId,
+        ])
+      ).rows;
+      return {
+        conv,
+        cands,
+        isFirst: inbound <= 1,
+        ran: new Set<string>(ran.map((r) => r.flow_id)),
+      };
     });
     if (!loaded) return;
 
@@ -155,18 +203,41 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       ctx,
     };
 
-    if ('session' in loaded && loaded.session) {
-      const engine = new FlowEngine(loaded.graph, this.makeDeps(base));
+    if ('session' in loaded && loaded.session && loaded.graph) {
+      const engine = new FlowEngine(loaded.graph, this.makeDeps(base, loaded.session.flow_id));
       const result = await engine.resume(ctx, loaded.session.state as FlowState);
-      await this.saveSession(base, { existingId: loaded.session.id, flowId: loaded.session.flow_id, versionId: loaded.session.version_id, result });
+      await this.saveSession(base, {
+        existingId: loaded.session.id,
+        flowId: loaded.session.flow_id,
+        versionId: loaded.session.version_id,
+        result,
+      });
       return;
     }
 
-    const cands = (loaded as { cands: { flow_id: string; version_id: string; priority: number; triggers: FlowCandidate['triggers']; channel_ids: string[]; graph: FlowGraph }[] }).cands;
+    const cands = (
+      loaded as {
+        cands: {
+          flow_id: string;
+          version_id: string;
+          priority: number;
+          triggers: FlowCandidate['triggers'];
+          channel_ids: string[];
+          graph: FlowGraph;
+        }[];
+      }
+    ).cands;
     const match = matchFlow(
-      cands.map((x) => ({ flowId: x.flow_id, versionId: x.version_id, priority: x.priority, triggers: x.triggers, channelIds: x.channel_ids })),
+      cands.map((x) => ({
+        flowId: x.flow_id,
+        versionId: x.version_id,
+        priority: x.priority,
+        triggers: x.triggers,
+        channelIds: x.channel_ids,
+      })),
       {
         text,
+        eventName: e.eventName,
         replyId,
         channelId: loaded.conv.channel_id,
         isFirstMessage: (loaded as { isFirst: boolean }).isFirst,
@@ -179,7 +250,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     }
 
     const graph = cands.find((x) => x.version_id === match.versionId)!.graph;
-    const engine = new FlowEngine(graph, this.makeDeps(base));
+    const engine = new FlowEngine(graph, this.makeDeps(base, match.flowId));
     const result = await engine.start(ctx, newState());
     await this.saveSession(base, { flowId: match.flowId, versionId: match.versionId, result });
   }
@@ -190,8 +261,13 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     const settings = await this.ai.getSettings(b.tenantId);
     if (!settings.enabled || !settings.auto_reply) return;
     const deps = this.makeDeps(b);
-    const r = await this.ai.replyInConversation({ tenantId: b.tenantId, conversationId: b.conversationId, text });
-    if (r.reason && r.failed) this.log.warn(`AI auto-reply fallback (${r.reason}) for conversation ${b.conversationId}`);
+    const r = await this.ai.replyInConversation({
+      tenantId: b.tenantId,
+      conversationId: b.conversationId,
+      text,
+    });
+    if (r.reason && r.failed)
+      this.log.warn(`AI auto-reply fallback (${r.reason}) for conversation ${b.conversationId}`);
     if (r.text) await deps.send({ text: r.text });
     if (r.handoff) await deps.handoff({});
   }
@@ -208,9 +284,11 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       );
       await Promise.all(
         r.rows.map((row) =>
-          this.serial(row.conversation_id, () => this.resumeDelay(row.tenant_id, row.id)).catch((err) =>
-            this.log.error(`Delay resume failed: ${(err as Error).message}`),
-          ),
+          this.db
+            .conversation(row.tenant_id, row.conversation_id, () =>
+              this.resumeDelay(row.tenant_id, row.id),
+            )
+            .catch((err) => this.log.error(`Delay resume failed: ${(err as Error).message}`)),
         ),
       );
     } catch (err) {
@@ -223,15 +301,23 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
   private async resumeDelay(tenantId: string, sessionId: string) {
     const loaded = await this.db.withTenant(tenantId, async (c) => {
       const session = (
-        await c.query("SELECT * FROM flow_sessions WHERE id = $1 AND status = 'waiting' AND wait_kind = 'delay'", [sessionId])
+        await c.query(
+          "SELECT * FROM flow_sessions WHERE id = $1 AND status = 'waiting' AND wait_kind = 'delay'",
+          [sessionId],
+        )
       ).rows[0];
       if (!session) return null;
       const conv = await this.loadConversation(c, session.conversation_id);
       if (!conv || conv.handled_by !== 'bot' || conv.status === 'closed') {
-        await c.query("UPDATE flow_sessions SET status = 'handed_off', updated_at = now() WHERE id = $1", [sessionId]);
+        await c.query(
+          "UPDATE flow_sessions SET status = 'handed_off', updated_at = now() WHERE id = $1",
+          [sessionId],
+        );
         return null;
       }
-      const g = (await c.query('SELECT graph FROM flow_versions WHERE id = $1', [session.version_id])).rows[0];
+      const g = (
+        await c.query('SELECT graph FROM flow_versions WHERE id = $1', [session.version_id])
+      ).rows[0];
       return { session, conv, graph: g.graph as FlowGraph };
     });
     if (!loaded) return;
@@ -254,20 +340,29 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       channelId: loaded.conv.channel_id,
       ctx,
     };
-    const engine = new FlowEngine(loaded.graph, this.makeDeps(base));
-    const result = await engine.resumeDelay(ctx, loaded.session.state as FlowState);
-    await this.saveSession(base, { existingId: sessionId, flowId: loaded.session.flow_id, versionId: loaded.session.version_id, result });
+    const engine = new FlowEngine(loaded.graph, this.makeDeps(base, loaded.session.flow_id));
+    const result = await this.db.eventScope(
+      `delay:${sessionId}:${loaded.session.state.totalSteps}`,
+      () => engine.resumeDelay(ctx, loaded.session.state as FlowState),
+    );
+    await this.saveSession(base, {
+      existingId: sessionId,
+      flowId: loaded.session.flow_id,
+      versionId: loaded.session.version_id,
+      result,
+    });
   }
 
   // ------------------------------------------------------------------ plumbing
 
-  private makeDeps(b: Loaded): EngineDeps {
+  private makeDeps(b: Loaded, flowId?: string): EngineDeps {
     return {
       ai: async (req) => {
         const r = await this.ai.replyInConversation({
           tenantId: b.tenantId,
           conversationId: b.conversationId,
           text: req.text,
+          flowId,
           extraInstructions: req.instructions,
         });
         return { text: r.text, handoff: r.handoff, failed: r.failed };
@@ -279,15 +374,15 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
           content: content as MessageContent,
           senderType: 'bot',
         });
-        if (r.status === 'failed') throw new Error(`Send failed: ${(r as { error?: string }).error ?? 'unknown'}`);
+        void r; // Provider delivery is tracked by the durable outbound worker.
       },
-      http: (spec) => safeHttpRequest(spec),
+      http: (spec) => this.effects.execute(b.tenantId, spec, () => safeHttpRequest(spec)),
       setContactAttribute: async (key, value) => {
         const json = JSON.stringify(value ?? null);
         if (json.length > 2000) throw new Error('Attribute value too large');
         await this.db.withTenant(b.tenantId, (c) =>
           c.query(
-            "UPDATE contacts SET attributes = attributes || jsonb_build_object($2::text, $3::jsonb) WHERE id = $1",
+            'UPDATE contacts SET attributes = attributes || jsonb_build_object($2::text, $3::jsonb) WHERE id = $1',
             [b.contactId, key, json],
           ),
         );
@@ -308,8 +403,12 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
             [b.conversationId, JSON.stringify({ event: 'handoff', assignedTo: assignTo ?? null })],
           );
         });
-        if (!assignTo) await this.assignment.autoAssignIfEnabled(b.tenantId, b.conversationId).catch(() => null);
-        this.events.emit('conversation.handoff', { tenantId: b.tenantId, conversationId: b.conversationId });
+        if (!assignTo)
+          await this.assignment.autoAssignIfEnabled(b.tenantId, b.conversationId).catch(() => null);
+        this.events.emit('conversation.handoff', {
+          tenantId: b.tenantId,
+          conversationId: b.conversationId,
+        });
       },
       closeConversation: async () => {
         await this.db.withTenant(b.tenantId, (c) =>
@@ -338,14 +437,34 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
              expires_at = CASE WHEN $6::int IS NULL THEN NULL ELSE now() + ($6::int || ' hours')::interval END,
              lease_until = NULL, error = $7, updated_at = now()
            WHERE id = $1`,
-          [p.existingId, result.status, JSON.stringify(result.state), waitKind, waitUntil, expiresIn, result.error ?? null],
+          [
+            p.existingId,
+            result.status,
+            JSON.stringify(result.state),
+            waitKind,
+            waitUntil,
+            expiresIn,
+            result.error ?? null,
+          ],
         );
       } else {
         await c.query(
           `INSERT INTO flow_sessions (tenant_id, flow_id, version_id, conversation_id, contact_id, status, state, wait_kind, wait_until, expires_at, error)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
                    CASE WHEN $10::int IS NULL THEN NULL ELSE now() + ($10::int || ' hours')::interval END, $11)`,
-          [b.tenantId, p.flowId, p.versionId, b.conversationId, b.contactId, result.status, JSON.stringify(result.state), waitKind, waitUntil, expiresIn, result.error ?? null],
+          [
+            b.tenantId,
+            p.flowId,
+            p.versionId,
+            b.conversationId,
+            b.contactId,
+            result.status,
+            JSON.stringify(result.state),
+            waitKind,
+            waitUntil,
+            expiresIn,
+            result.error ?? null,
+          ],
         );
       }
     });

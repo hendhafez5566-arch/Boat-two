@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export type NodeType =
+  | 'subflow'
   | 'message'
   | 'question'
   | 'condition'
@@ -29,7 +30,12 @@ export interface FlowGraph {
 
 export interface OutContent {
   text?: string;
-  media?: { kind: 'image' | 'video' | 'audio' | 'file'; url?: string; caption?: string; filename?: string };
+  media?: {
+    kind: 'image' | 'video' | 'audio' | 'file';
+    url?: string;
+    caption?: string;
+    filename?: string;
+  };
   buttons?: { id: string; title: string }[];
   list?: {
     buttonText: string;
@@ -53,7 +59,12 @@ export interface FlowContext {
 
 export interface FlowState {
   vars: Record<string, unknown>;
-  waiting: null | { nodeId: string; kind: 'choice' | 'answer' | 'delay' | 'ai'; retries: number; until?: string };
+  waiting: null | {
+    nodeId: string;
+    kind: 'choice' | 'answer' | 'delay' | 'ai';
+    retries: number;
+    until?: string;
+  };
   totalSteps: number;
 }
 
@@ -116,7 +127,8 @@ export function newState(): FlowState {
 export function optionsOf(data: Record<string, any>): { id: string; title: string }[] {
   const out: { id: string; title: string }[] = [];
   for (const b of data.buttons ?? []) out.push({ id: b.id, title: b.title });
-  for (const s of data.list?.sections ?? []) for (const r of s.rows ?? []) out.push({ id: r.id, title: r.title });
+  for (const s of data.list?.sections ?? [])
+    for (const r of s.rows ?? []) out.push({ id: r.id, title: r.title });
   return out;
 }
 

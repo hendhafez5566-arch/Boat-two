@@ -1,0 +1,1 @@
+CRM Chromium: network failure/retry, actual contact/pipeline/deal/task creation, snapshot export, retention preview, API persistence and desktop/mobile passed. Cleanup was not applied.

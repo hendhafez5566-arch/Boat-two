@@ -9,6 +9,38 @@ const row = z.object({
 
 export const contentSchema = z
   .object({
+    template: z
+      .object({
+        name: z.string().regex(/^[a-z0-9_]{1,512}$/),
+        language: z.string().regex(/^[a-z]{2,3}(?:_[A-Z]{2})?$/),
+        bodyParams: z.array(z.string().min(1).max(1024)).max(20).default([]),
+        header: z
+          .discriminatedUnion('type', [
+            z.object({ type: z.literal('text'), text: z.string().min(1).max(60) }).strict(),
+            z
+              .object({
+                type: z.enum(['image', 'video', 'document']),
+                url: z.string().url().max(2048),
+                filename: z.string().min(1).max(200).optional(),
+              })
+              .strict(),
+          ])
+          .optional(),
+        buttonParams: z
+          .array(
+            z
+              .object({
+                index: z.number().int().min(0).max(9),
+                type: z.enum(['quick_reply', 'url']),
+                value: z.string().min(1).max(1024),
+              })
+              .strict(),
+          )
+          .max(10)
+          .optional(),
+      })
+      .strict()
+      .optional(),
     text: z.string().max(4096).optional(),
     media: z
       .object({
@@ -27,12 +59,22 @@ export const contentSchema = z
     list: z
       .object({
         buttonText: z.string().min(1).max(20),
-        sections: z.array(z.object({ title: z.string().max(24).optional(), rows: z.array(row).min(1).max(10) })).min(1).max(10),
+        sections: z
+          .array(
+            z.object({ title: z.string().max(24).optional(), rows: z.array(row).min(1).max(10) }),
+          )
+          .min(1)
+          .max(10),
       })
       .optional(),
     reply: z.object({ id: z.string(), title: z.string() }).optional(),
     location: z
-      .object({ lat: z.number(), lng: z.number(), name: z.string().optional(), address: z.string().optional() })
+      .object({
+        lat: z.number(),
+        lng: z.number(),
+        name: z.string().optional(),
+        address: z.string().optional(),
+      })
       .optional(),
   })
   .refine((c) => Object.values(c).some((v) => v !== undefined), 'Empty message');
@@ -49,10 +91,13 @@ export function messageTypeOf(c: MessageContent): string {
 
 /** قواعد الرسائل الصادرة (حدود واتساب هي الأضيق، فنلتزم بها لكل القنوات) */
 export function validateOutbound(c: MessageContent) {
+  if (c.template && (c.text || c.media || c.buttons || c.list || c.location || c.reply))
+    throw new BadRequestException('Template must be sent without other content');
   if (c.reply) throw new BadRequestException('reply is only valid for inbound messages');
   if ((c.buttons || c.list) && !c.text) throw new BadRequestException('Buttons/list require text');
   if (c.buttons && c.list) throw new BadRequestException('Use either buttons or list, not both');
-  if ((c.buttons || c.list) && c.media) throw new BadRequestException('Interactive messages cannot carry media');
+  if ((c.buttons || c.list) && c.media)
+    throw new BadRequestException('Interactive messages cannot carry media');
   if (c.media && !c.media.url) throw new BadRequestException('Outbound media requires a url');
   if (c.list) {
     const total = c.list.sections.reduce((n, s) => n + s.rows.length, 0);

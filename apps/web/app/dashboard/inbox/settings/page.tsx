@@ -1,80 +1,273 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from 'react';
-import { api, getSession } from '../../../../lib/api';
-
-const inp = 'w-full rounded border p-2 text-sm';
-
+import Link from 'next/link';
+import { api } from '../../../../lib/api';
+import { useLocale } from '../../../../components/product/locale';
+import { Dialog } from '../../../../components/product/ProductUI';
+type Settings = { auto_assign: boolean; max_open_per_agent: number };
+type Reply = { id: string; shortcut: string; title: string; content: string };
 export default function InboxSettings() {
-  const [s, setS] = useState<any>(null);
-  const [replies, setReplies] = useState<any[]>([]);
-  const [msg, setMsg] = useState('');
-  const [edit, setEdit] = useState<any>(null);
-
-  const load = () => api<any[]>('/canned-replies').then(setReplies).catch((e) => setMsg(e.message));
-  useEffect(() => {
-    if (!getSession()) { window.location.href = '/login'; return; }
-    api('/inbox/settings').then(setS).catch((e) => setMsg(e.message));
-    load();
-  }, []);
-
-  async function saveSettings() {
-    try { setS(await api('/inbox/settings', { method: 'PUT', body: JSON.stringify(s) })); setMsg('تم الحفظ'); } catch (e: any) { setMsg(e.message); }
-  }
-  async function saveReply(e: React.FormEvent) {
-    e.preventDefault();
+  const { t } = useLocale();
+  const [settings, setSettings] = useState<Settings | null>(null),
+    [replies, setReplies] = useState<Reply[]>([]),
+    [error, setError] = useState(''),
+    [saved, setSaved] = useState(false),
+    [busy, setBusy] = useState(false),
+    [loading, setLoading] = useState(true),
+    [edit, setEdit] = useState<Partial<Reply> | null>(null),
+    [deleting, setDeleting] = useState<Reply | null>(null);
+  async function load() {
+    setLoading(true);
+    setError('');
     try {
-      const body = JSON.stringify({ shortcut: edit.shortcut, title: edit.title, content: edit.content });
-      if (edit.id) await api(`/canned-replies/${edit.id}`, { method: 'PATCH', body });
-      else await api('/canned-replies', { method: 'POST', body });
-      setEdit(null); setMsg(''); load();
-    } catch (err: any) { setMsg(err.message); }
+      const [s, r] = await Promise.all([
+        api<Settings>('/inbox/settings'),
+        api<Reply[]>('/canned-replies'),
+      ]);
+      setSettings(s);
+      setReplies(r);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
   }
-
-  if (!s) return <main className="p-6">{msg || 'جارٍ التحميل...'}</main>;
-
+  useEffect(() => {
+    void load();
+  }, []);
+  async function act(fn: () => Promise<unknown>) {
+    setBusy(true);
+    setError('');
+    setSaved(false);
+    try {
+      await fn();
+      setSaved(true);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
-    <main dir="rtl" className="mx-auto max-w-2xl p-6">
-      <a href="/dashboard/inbox" className="text-sm underline">← صندوق الوارد</a>
-      <h1 className="mb-4 mt-2 text-2xl font-bold">إعدادات صندوق الوارد</h1>
-      {msg && <p className="mb-3 text-sm text-red-600">{msg}</p>}
-
-      <section className="mb-8 space-y-3 rounded border p-4">
-        <h2 className="font-semibold">التوزيع التلقائي</h2>
-        <label className="flex items-center gap-2"><input type="checkbox" checked={s.auto_assign} onChange={(e) => setS({ ...s, auto_assign: e.target.checked })} /> عند تحويل البوت لمحادثة، عيّنها تلقائياً لأقل موظف متاح انشغالاً</label>
-        <label className="block text-sm">أقصى عدد محادثات مفتوحة لكل موظف
-          <input type="number" min={1} max={500} className={inp} value={s.max_open_per_agent} onChange={(e) => setS({ ...s, max_open_per_agent: Number(e.target.value) || 1 })} />
-        </label>
-        <p className="text-xs text-gray-500">الموظف الذي يضع نفسه "غير متاح" من أعلى صندوق الوارد لا يدخل في التوزيع.</p>
-        <button onClick={saveSettings} className="rounded bg-black px-4 py-2 text-white">حفظ</button>
-      </section>
-
-      <section className="rounded border p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold">الردود الجاهزة</h2>
-          <button onClick={() => setEdit({ shortcut: '', title: '', content: '' })} className="rounded border px-3 py-1 text-sm">+ رد جديد</button>
+    <main className="stack">
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow">{t('إدارة المحادثات', 'CONVERSATION OPERATIONS')}</p>
+          <h1>{t('إعدادات صندوق الوارد', 'Inbox settings')}</h1>
+          <p>
+            {t(
+              'اضبط توزيع المحادثات والردود المشتركة لفريقك.',
+              'Configure assignment and shared replies for your team.',
+            )}
+          </p>
         </div>
-        <p className="mb-3 text-xs text-gray-500">اكتب <code>/</code> ثم الاختصار في صندوق الرد لإدراجه. يمكنك استخدام {'{{name}}'} لاسم العميل.</p>
+        <Link className="btn" href="/dashboard/inbox">
+          {t('افتح صندوق الوارد', 'Open Inbox')}
+        </Link>
+      </div>
+      {error && (
+        <div role="alert" className="notice error">
+          {error}
+          <button className="btn" disabled={busy || loading} onClick={() => void load()}>
+            {t('إعادة التحميل', 'Reload')}
+          </button>
+        </div>
+      )}
+      {saved && (
+        <p role="status" className="notice">
+          {t('تم حفظ التغيير.', 'Change saved.')}
+        </p>
+      )}
+      {loading && <p role="status">{t('جارٍ التحميل…', 'Loading…')}</p>}
+      {settings && (
+        <form
+          className="card stack"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void act(async () =>
+              setSettings(
+                await api<Settings>('/inbox/settings', {
+                  method: 'PUT',
+                  body: JSON.stringify({
+                    auto_assign: settings.auto_assign,
+                    max_open_per_agent: settings.max_open_per_agent,
+                  }),
+                }),
+              ),
+            );
+          }}
+        >
+          <h2>{t('التوزيع التلقائي', 'Automatic assignment')}</h2>
+          <label className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              checked={settings.auto_assign}
+              onChange={(e) => setSettings({ ...settings, auto_assign: e.target.checked })}
+            />
+            {t(
+              'عند التحويل من البوت، عيّن المحادثة لأقل موظف متاح انشغالاً.',
+              'On bot handoff, assign the conversation to the least busy available agent.',
+            )}
+          </label>
+          <label className="field">
+            {t('أقصى محادثات مفتوحة لكل موظف', 'Maximum open conversations per agent')}
+            <input
+              type="number"
+              required
+              min={1}
+              max={500}
+              value={settings.max_open_per_agent}
+              onChange={(e) =>
+                setSettings({ ...settings, max_open_per_agent: Number(e.target.value) })
+              }
+            />
+          </label>
+          <p className="muted">
+            {t(
+              'الموظف غير المتاح لا يدخل في التوزيع. يمكنه تغيير إتاحته من صندوق الوارد.',
+              'Unavailable agents are excluded. Agents can change availability in Inbox.',
+            )}
+          </p>
+          <button className="btn btn-primary" disabled={busy}>
+            {t('حفظ إعدادات التوزيع', 'Save assignment settings')}
+          </button>
+        </form>
+      )}
+      <section className="card stack">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2>{t('الردود الجاهزة', 'Saved replies')}</h2>
+          <button
+            className="btn"
+            disabled={busy}
+            onClick={() => {
+              setEdit({ shortcut: '', title: '', content: '' });
+              setSaved(false);
+            }}
+          >
+            {t('رد جديد', 'New reply')}
+          </button>
+        </div>
+        <p className="muted">
+          {t(
+            'اكتب / ثم الاختصار في صندوق الرد. استخدم {{name}} لاسم العميل.',
+            'Type / then a shortcut in the reply box. Use {{name}} for the customer name.',
+          )}
+        </p>
         {edit && (
-          <form onSubmit={saveReply} className="mb-4 space-y-2 rounded bg-gray-50 p-3">
-            <input className={inp} dir="ltr" placeholder="الاختصار (مثل hours)" value={edit.shortcut} onChange={(e) => setEdit({ ...edit, shortcut: e.target.value })} required />
-            <input className={inp} placeholder="العنوان" value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} required />
-            <textarea className={inp} rows={4} placeholder="نص الرد" value={edit.content} onChange={(e) => setEdit({ ...edit, content: e.target.value })} required />
-            <div className="flex gap-2"><button className="rounded bg-black px-4 py-1.5 text-white">حفظ</button><button type="button" onClick={() => setEdit(null)} className="rounded border px-4 py-1.5">إلغاء</button></div>
+          <form
+            className="card stack"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void act(async () => {
+                await api(edit.id ? `/canned-replies/${edit.id}` : '/canned-replies', {
+                  method: edit.id ? 'PATCH' : 'POST',
+                  body: JSON.stringify({
+                    shortcut: edit.shortcut,
+                    title: edit.title,
+                    content: edit.content,
+                  }),
+                });
+                setEdit(null);
+                setReplies(await api<Reply[]>('/canned-replies'));
+              });
+            }}
+          >
+            <h3>{edit.id ? t('تعديل الرد', 'Edit reply') : t('إنشاء رد', 'Create reply')}</h3>
+            <label className="field">
+              {t('الاختصار', 'Shortcut')}
+              <input
+                dir="ltr"
+                maxLength={30}
+                required
+                value={edit.shortcut || ''}
+                onChange={(e) => setEdit({ ...edit, shortcut: e.target.value })}
+              />
+            </label>
+            <label className="field">
+              {t('العنوان', 'Title')}
+              <input
+                required
+                maxLength={80}
+                value={edit.title || ''}
+                onChange={(e) => setEdit({ ...edit, title: e.target.value })}
+              />
+            </label>
+            <label className="field">
+              {t('نص الرد', 'Reply text')}
+              <textarea
+                required
+                rows={4}
+                maxLength={4000}
+                value={edit.content || ''}
+                onChange={(e) => setEdit({ ...edit, content: e.target.value })}
+              />
+            </label>
+            <div className="form-actions">
+              <button className="btn btn-primary" disabled={busy}>
+                {t('حفظ الرد', 'Save reply')}
+              </button>
+              <button type="button" className="btn" disabled={busy} onClick={() => setEdit(null)}>
+                {t('إلغاء', 'Cancel')}
+              </button>
+            </div>
           </form>
         )}
-        <ul className="space-y-2">
+        <ul className="stack">
           {replies.map((r) => (
-            <li key={r.id} className="rounded border p-2 text-sm">
-              <div className="flex justify-between"><strong>/{r.shortcut} — {r.title}</strong>
-                <span className="flex gap-3 text-xs"><button onClick={() => setEdit(r)} className="underline">تعديل</button><button onClick={() => confirm('حذف الرد؟') && api(`/canned-replies/${r.id}`, { method: 'DELETE' }).then(load)} className="text-red-600 underline">حذف</button></span>
+            <li key={r.id} className="card stack">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <strong>
+                  <bdi>/{r.shortcut}</bdi> · {r.title}
+                </strong>
+                <div className="flex gap-2">
+                  <button className="btn" disabled={busy} onClick={() => setEdit(r)}>
+                    {t('تعديل', 'Edit')}
+                  </button>
+                  <button className="btn btn-danger" disabled={busy} onClick={() => setDeleting(r)}>
+                    {t('حذف', 'Delete')}
+                  </button>
+                </div>
               </div>
-              <div className="mt-1 whitespace-pre-wrap text-gray-600">{r.content}</div>
+              <p className="whitespace-pre-wrap break-words">{r.content}</p>
             </li>
           ))}
-          {!replies.length && <li className="text-gray-400">لا توجد ردود جاهزة بعد.</li>}
         </ul>
+        {!loading && !replies.length && (
+          <p className="empty">
+            {t(
+              'لا توجد ردود جاهزة بعد. أنشئ ردًا لتسريع المتابعة.',
+              'No saved replies yet. Create one to speed up follow-up.',
+            )}
+          </p>
+        )}
       </section>
+      <Dialog
+        open={!!deleting}
+        onClose={() => {
+          if (!busy) setDeleting(null);
+        }}
+        title={t('حذف الرد الجاهز؟', 'Delete saved reply?')}
+      >
+        <p>{deleting?.title}</p>
+        <div className="form-actions">
+          <button className="btn" disabled={busy} onClick={() => setDeleting(null)}>
+            {t('إلغاء', 'Cancel')}
+          </button>
+          <button
+            className="btn btn-danger"
+            disabled={busy}
+            onClick={() =>
+              void act(async () => {
+                await api(`/canned-replies/${deleting!.id}`, { method: 'DELETE' });
+                setDeleting(null);
+                setReplies(await api<Reply[]>('/canned-replies'));
+              })
+            }
+          >
+            {t('تأكيد الحذف', 'Confirm deletion')}
+          </button>
+        </div>
+      </Dialog>
     </main>
   );
 }

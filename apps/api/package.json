@@ -3,10 +3,10 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "tsx watch --env-file=../../.env src/main.ts",
+    "dev": "node ../../scripts/dev-api.mjs",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
-    "test": "tsx --test src/flows/engine/engine.test.ts src/ai/ai.test.ts src/inbox/inbox.test.ts",
+    "test": "tsx --test src/business/schemas.test.ts src/flows/engine/engine.test.ts src/ai/ai.test.ts src/inbox/inbox.test.ts src/messaging/webhooks.test.ts src/flows/expand.test.ts src/ai/cost.test.ts src/ai/providers/openai.test.ts src/inbox/realtime/realtime.test.ts src/platform/step-up.test.ts src/platform/permissions.test.ts src/platform/totp.test.ts src/billing/invoice-snapshot.test.ts src/messaging/template-contract.test.ts src/messaging/template-draft.test.ts",
     "migrate": "tsx --env-file=../../.env src/database/migrate.ts"
   },
   "dependencies": {

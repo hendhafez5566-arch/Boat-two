@@ -1,0 +1,5 @@
+# Campaign recipient ledger acceptance
+
+The real API and production Chromium used disposable local fixtures: 29 campaign recipients, including an ambiguous job and a failed existing message. Assertions cover bounded paging/counts, combined state/job/name filters, literal wildcard search, tenant isolation, retry denials, retry of pre-message processing failure only, real loaded-page JSON download and no-match state. Desktop/mobile images are synthetic fixtures; no provider calls or production acceptance. Three other campaign browser suites and four backend suites passed. Results are included here; `scripts/smoke-campaign-ledger-browser.mjs` is reproducible with SMOKE_API_URL, SMOKE_WEB_URL and BOAT_PLAYWRIGHT_MODULE.
+
+Downloads contain only the currently loaded page, not a complete or historical recipient snapshot. Page/offset traversal is not a transactionally frozen snapshot. Ambiguous delivery still requires evidence review; this work does not activate delivery or add resend controls for ambiguous jobs.

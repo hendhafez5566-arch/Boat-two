@@ -1,103 +1,312 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useState } from 'react';
-import { api, getSession } from '../../../lib/api';
-
-const inp = 'w-full rounded border p-2 text-sm';
-
+import { useState } from 'react';
+import Link from 'next/link';
+import { api } from '../../../lib/api';
+import { useLocale } from '../../../components/product/locale';
+import { useData } from '../../../components/business/useData';
+type Settings = {
+  enabled: boolean;
+  auto_reply: boolean;
+  business_name: string | null;
+  instructions: string | null;
+  tone: 'friendly' | 'professional' | 'concise';
+  language: 'auto' | 'ar' | 'en';
+  handoff_enabled: boolean;
+  fallback_message: string;
+  handoff_message: string;
+  max_history: number;
+  temperature: number;
+};
+type Answer = {
+  text: string;
+  failed: boolean;
+  handoff: boolean;
+  reason?: string;
+  sources: { title: string }[];
+};
 export default function AiPage() {
-  const [s, setS] = useState<any>(null);
-  const [usage, setUsage] = useState<any>(null);
-  const [status, setStatus] = useState<any>(null);
-  const [msg, setMsg] = useState('');
-  const [q, setQ] = useState('');
-  const [answer, setAnswer] = useState<any>(null);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!getSession()) { window.location.href = '/login'; return; }
-    api('/ai/settings').then(setS).catch((e) => setMsg(e.message));
-    api('/ai/usage').then(setUsage).catch(() => {});
-    api('/ai/status').then(setStatus).catch(() => {});
-  }, []);
-
-  const set = (patch: any) => setS((x: any) => ({ ...x, ...patch }));
-
-  async function save() {
-    setMsg('');
-    try {
-      const { tenant_id, updated_at, ...body } = s;
-      setS(await api('/ai/settings', { method: 'PUT', body: JSON.stringify(body) }));
-      setMsg('تم الحفظ');
-    } catch (e: any) { setMsg(e.message); }
+  const { t } = useLocale(),
+    settings = useData<Settings | null>('/ai/settings', null),
+    usage = useData<{
+      attempts: number;
+      replies: number;
+      limit: number;
+      reservedTokens: number;
+      remaining: number | null;
+    } | null>('/ai/usage', null),
+    status = useData<{ llmConfigured: boolean; generationEnabled: boolean } | null>(
+      '/ai/status',
+      null,
+    ),
+    workspace = useData<{ role: string }>('/workspace', { role: '' });
+  const [draft, setDraft] = useState<Settings | null>(null),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(''),
+    [saved, setSaved] = useState(false),
+    [q, setQ] = useState(''),
+    [answer, setAnswer] = useState<Answer | null>(null);
+  const s = draft ?? settings.data,
+    manage = ['owner', 'admin'].includes(workspace.data.role);
+  function set(patch: Partial<Settings>) {
+    if (s) setDraft({ ...s, ...patch });
+    setSaved(false);
   }
-
-  async function ask(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setAnswer(null);
-    try {
-      setAnswer(await api('/ai/test', { method: 'POST', body: JSON.stringify({ question: q }) }));
-      api('/ai/usage').then(setUsage).catch(() => {});
-    } catch (err: any) { setAnswer({ text: err.message, failed: true }); }
-    setBusy(false);
-  }
-
-  if (!s) return <main className="p-6">{msg || 'جارٍ التحميل...'}</main>;
-
+  if (!s)
+    return (
+      <main className="stack">
+        <h1>{t('المساعد الذكي', 'AI assistant')}</h1>
+        <p role={settings.error ? 'alert' : 'status'}>
+          {settings.error || t('جارٍ التحميل…', 'Loading…')}
+        </p>
+      </main>
+    );
   return (
-    <main dir="rtl" className="mx-auto max-w-2xl p-6">
-      <h1 className="mb-4 text-2xl font-bold">الذكاء الاصطناعي</h1>
-      {status && (!status.llmConfigured || !status.embeddingsConfigured) && (
-        <p className="mb-4 rounded bg-amber-50 p-3 text-sm text-amber-800">
-          الخدمة غير مكتملة على السيرفر: {!status.llmConfigured && 'مفتاح ANTHROPIC_API_KEY غير مضبوط. '}{!status.embeddingsConfigured && 'مفتاح الـ embeddings غير مضبوط.'}
+    <main className="stack">
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow">{t('ذكاء مرتبط بمعرفة شركتك', 'KNOWLEDGE-GROUNDED AI')}</p>
+          <h1>{t('المساعد الذكي', 'AI assistant')}</h1>
+          <p>
+            {t(
+              'اضبط أسلوب الرد وحدود السياق ومسار التحويل البشري.',
+              'Configure replies, conversation context and human escalation.',
+            )}
+          </p>
+        </div>
+        <Link className="btn" href="/dashboard/agents">
+          {t('المساعدون والميزانية', 'Agents & budget')}
+        </Link>
+      </div>
+      {!status.data?.generationEnabled && (
+        <p className="notice">
+          {t(
+            'استدعاءات المزود معطّلة في هذه البيئة. حفظ الإعدادات لا يفعّل خدمة مدفوعة.',
+            'Provider calls are disabled in this environment. Saving settings does not activate paid services.',
+          )}
         </p>
       )}
-      {usage && (
-        <p className="mb-4 text-sm">
-          استهلاك هذا الشهر: <strong>{usage.replies}</strong> / {usage.limit === -1 ? 'غير محدود' : usage.limit} رد (الباقة: {usage.plan})
+      {status.data && !status.data.llmConfigured && (
+        <p className="notice">
+          {t(
+            'أضف مزودًا واضبط المساعد من صفحة المساعدين قبل الاستخدام.',
+            'Set up a provider and agent from the Agents page before use.',
+          )}
         </p>
       )}
-
-      <section className="mb-6 space-y-3 rounded border p-4">
-        <label className="flex items-center gap-2"><input type="checkbox" checked={s.enabled} onChange={(e) => set({ enabled: e.target.checked })} /> تفعيل الذكاء الاصطناعي</label>
-        <label className="flex items-center gap-2"><input type="checkbox" checked={s.auto_reply} onChange={(e) => set({ auto_reply: e.target.checked })} /> رد تلقائي لأي رسالة لا يلتقطها سيناريو</label>
-        <label className="flex items-center gap-2"><input type="checkbox" checked={s.handoff_enabled} onChange={(e) => set({ handoff_enabled: e.target.checked })} /> السماح للمساعد بتحويل المحادثة لموظف</label>
-        <input className={inp} placeholder="اسم النشاط" value={s.business_name ?? ''} onChange={(e) => set({ business_name: e.target.value || null })} />
-        <textarea className={inp} rows={4} placeholder="تعليمات خاصة بنشاطك (اختياري): أسلوب الرد، ما لا يجب قوله، عروض…" value={s.instructions ?? ''} onChange={(e) => set({ instructions: e.target.value || null })} />
-        <div className="flex gap-2">
-          <select className={inp} value={s.tone} onChange={(e) => set({ tone: e.target.value })}>
-            <option value="friendly">ودود</option><option value="professional">رسمي</option><option value="concise">مختصر</option>
-          </select>
-          <select className={inp} value={s.language} onChange={(e) => set({ language: e.target.value })}>
-            <option value="auto">لغة العميل تلقائياً</option><option value="ar">العربية دائماً</option><option value="en">الإنجليزية دائماً</option>
-          </select>
-        </div>
-        <textarea className={inp} rows={2} value={s.fallback_message} onChange={(e) => set({ fallback_message: e.target.value })} />
-        <p className="-mt-2 text-xs text-gray-400">رسالة الاعتذار عند تعذّر الرد (نفاد الرصيد أو عطل مؤقت).</p>
-        <textarea className={inp} rows={2} value={s.handoff_message} onChange={(e) => set({ handoff_message: e.target.value })} />
-        <p className="-mt-2 text-xs text-gray-400">رسالة التحويل لموظف.</p>
-        <div className="flex items-center gap-3">
-          <button onClick={save} className="rounded bg-black px-4 py-2 text-white">حفظ</button>
-          <span className="text-sm text-gray-600">{msg}</span>
-        </div>
-      </section>
-
-      <section className="rounded border p-4">
-        <h2 className="mb-2 font-semibold">جرّب المساعد</h2>
-        <form onSubmit={ask} className="flex gap-2">
-          <input className={inp} value={q} onChange={(e) => setQ(e.target.value)} placeholder="اكتب سؤال عميل…" required />
-          <button disabled={busy} className="rounded bg-blue-600 px-4 text-white">{busy ? '…' : 'اسأل'}</button>
+      {usage.data && (
+        <section className="card">
+          <h2>{t('استهلاك هذا الشهر', 'This month')}</h2>
+          <p>
+            {usage.data.attempts} / {usage.data.limit === -1 ? '∞' : usage.data.limit}{' '}
+            {t(
+              'محاولة؛ الحجوزات المجهولة تظل محسوبة.',
+              'attempts; unknown outcomes remain counted.',
+            )}
+          </p>
+          <p>
+            {t('رموز محجوزة: ', 'Reserved tokens: ')}
+            {usage.data.reservedTokens}
+          </p>
+        </section>
+      )}
+      {(error || settings.error) && (
+        <p className="notice error" role="alert">
+          {error || settings.error}
+        </p>
+      )}
+      {saved && (
+        <p className="notice" role="status">
+          {t('تم حفظ إعدادات المساعد.', 'Assistant settings saved.')}
+        </p>
+      )}
+      <form
+        className="card stack"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setBusy(true);
+          setError('');
+          try {
+            await api('/ai/settings', { method: 'PUT', body: JSON.stringify(s) });
+            await settings.reload();
+            setDraft(null);
+            setSaved(true);
+          } catch (e) {
+            setError((e as Error).message);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <h2>{t('إعدادات الرد', 'Reply settings')}</h2>
+        <fieldset className="stack" disabled={!manage || busy}>
+          <label>
+            <input
+              type="checkbox"
+              checked={s.enabled}
+              onChange={(e) => set({ enabled: e.target.checked })}
+            />{' '}
+            {t('تفعيل المساعد', 'Enable assistant')}
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={s.auto_reply}
+              onChange={(e) => set({ auto_reply: e.target.checked })}
+            />{' '}
+            {t('الرد على الرسائل خارج السيناريوهات', 'Reply outside bot workflows')}
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={s.handoff_enabled}
+              onChange={(e) => set({ handoff_enabled: e.target.checked })}
+            />{' '}
+            {t('السماح بالتحويل البشري', 'Allow human escalation')}
+          </label>
+          <label className="field">
+            {t('اسم النشاط', 'Business name')}
+            <input
+              maxLength={120}
+              value={s.business_name ?? ''}
+              onChange={(e) => set({ business_name: e.target.value || null })}
+            />
+          </label>
+          <label className="field">
+            {t('تعليمات المساعد', 'Assistant instructions')}
+            <textarea
+              maxLength={4000}
+              rows={4}
+              value={s.instructions ?? ''}
+              onChange={(e) => set({ instructions: e.target.value || null })}
+            />
+          </label>
+          <div className="form-grid">
+            <label className="field">
+              {t('أسلوب الرد', 'Tone')}
+              <select
+                aria-label={t('أسلوب الرد', 'Tone')}
+                value={s.tone}
+                onChange={(e) => set({ tone: e.target.value as Settings['tone'] })}
+              >
+                <option value="friendly">{t('ودود', 'Friendly')}</option>
+                <option value="professional">{t('رسمي', 'Professional')}</option>
+                <option value="concise">{t('مختصر', 'Concise')}</option>
+              </select>
+            </label>
+            <label className="field">
+              {t('لغة الرد', 'Reply language')}
+              <select
+                aria-label={t('لغة الرد', 'Reply language')}
+                value={s.language}
+                onChange={(e) => set({ language: e.target.value as Settings['language'] })}
+              >
+                <option value="auto">{t('لغة العميل', 'Customer language')}</option>
+                <option value="ar">العربية</option>
+                <option value="en">English</option>
+              </select>
+            </label>
+            <label className="field">
+              {t('عدد رسائل السياق', 'Conversation history limit')}
+              <input
+                type="number"
+                min={2}
+                max={30}
+                value={s.max_history}
+                onChange={(e) => set({ max_history: Number(e.target.value) })}
+                required
+              />
+            </label>
+            <label className="field">
+              {t('درجة تنوع الرد', 'Response variation')}
+              <input
+                type="number"
+                min={0}
+                max={1}
+                step="0.1"
+                value={s.temperature}
+                onChange={(e) => set({ temperature: Number(e.target.value) })}
+                required
+              />
+            </label>
+          </div>
+          <label className="field">
+            {t('رسالة تعذّر الرد', 'Fallback message')}
+            <textarea
+              maxLength={500}
+              required
+              value={s.fallback_message}
+              onChange={(e) => set({ fallback_message: e.target.value })}
+            />
+          </label>
+          <label className="field">
+            {t('رسالة التحويل البشري', 'Human escalation message')}
+            <textarea
+              maxLength={500}
+              required
+              value={s.handoff_message}
+              onChange={(e) => set({ handoff_message: e.target.value })}
+            />
+          </label>
+          <button className="btn btn-primary" disabled={busy}>
+            {t('حفظ الإعدادات', 'Save settings')}
+          </button>
+        </fieldset>
+      </form>
+      <section className="card stack">
+        <h2>{t('تجربة المساعد', 'Test assistant')}</h2>
+        <p className="muted">
+          {t(
+            'التجربة تستخدم الميزانية نفسها عند السماح بالاتصال بالمزود.',
+            'Tests use the same budget when provider calls are enabled.',
+          )}
+        </p>
+        <form
+          className="stack"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy(true);
+            setError('');
+            setAnswer(null);
+            try {
+              setAnswer(
+                await api('/ai/test', { method: 'POST', body: JSON.stringify({ question: q }) }),
+              );
+              await usage.reload();
+            } catch (e) {
+              setError((e as Error).message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <label className="field">
+            {t('سؤال تجريبي', 'Test question')}
+            <input value={q} maxLength={1000} required onChange={(e) => setQ(e.target.value)} />
+          </label>
+          <button className="btn" disabled={busy || !manage}>
+            {t('اختبار الرد', 'Test reply')}
+          </button>
         </form>
         {answer && (
-          <div className="mt-3 rounded bg-gray-50 p-3 text-sm">
-            <div className="whitespace-pre-wrap">{answer.text}</div>
-            {answer.handoff && <div className="mt-2 text-xs text-orange-600">⚠️ المساعد طلب التحويل لموظف</div>}
-            {answer.failed && <div className="mt-2 text-xs text-red-600">تعذّر الرد{answer.reason ? ` (${answer.reason})` : ''}</div>}
-            {answer.sources?.length > 0 && <div className="mt-2 text-xs text-gray-500">المصادر: {answer.sources.map((x: any) => x.title).join('، ')}</div>}
-          </div>
+          <article className="notice whitespace-pre-wrap" role="status">
+            <p>{answer.text}</p>
+            {answer.failed && (
+              <p>
+                {t(
+                  'تعذّر الرد؛ راجع الإعدادات والميزانية.',
+                  'Could not answer; review settings and budget.',
+                )}
+              </p>
+            )}
+            {answer.handoff && <p>{t('يلزم متابعة بشرية.', 'Human follow-up required.')}</p>}
+            {answer.sources?.length > 0 && (
+              <p>
+                {t('المصادر: ', 'Sources: ')}
+                {answer.sources.map((s) => s.title).join(' · ')}
+              </p>
+            )}
+          </article>
         )}
-        <p className="mt-2 text-xs text-gray-400">كل تجربة تُحسب من رصيد الردود.</p>
       </section>
     </main>
   );

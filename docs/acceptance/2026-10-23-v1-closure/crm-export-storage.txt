@@ -1,0 +1,1 @@
+CRM ordinal storage: 5000 frozen profiles, concurrent workers/replay, constant-size metadata/no result JSON copying, exact complete bounded paging, immutable payload and legacy compatibility passed.

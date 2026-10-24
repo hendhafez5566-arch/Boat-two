@@ -1,0 +1,5 @@
+# Approved template component acceptance
+
+Local Chromium fixtures only; no real provider/customer data or external delivery. New journey fills a document header, filename, indexed URL suffix and quick-reply payload; reviews desktop/mobile; saves and edits via real API; verifies persisted parameters and live Arabic switching. Existing text/rich campaign browser suites also passed. Backend smoke verifies mocked provider synchronization into real PostgreSQL, shared campaign/conversation validation, approval changes, single-job worker revalidation with zero adapter calls, and tenant isolation. Five new unit cases are included in the standard API test command (62 total).
+
+Fresh migrations 001–071 plus no-op repeat, API/web TypeScript, ESLint and production Next build passed. Static text and dynamic text headers and media URL rejection have unit coverage; this document-header browser journey does not certify every template variant or provider account. Rich template drafting/submission, OTP/authentication, carousel/location and unknown component types remain incomplete/unsupported. See current handover.

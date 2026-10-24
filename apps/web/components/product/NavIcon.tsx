@@ -1,0 +1,51 @@
+const paths: Record<string, string> = {
+  question: 'M9 8a3 3 0 0 1 6 0c0 2-3 2-3 5M12 17h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+  globe: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3c-4 5-4 13 0 18M12 3c4 5 4 13 0 18',
+  variable: 'M8 4H5v16h3M16 4h3v16h-3M10 9l4 6M14 9l-4 6',
+  check: 'M5 12l4 4L19 6',
+  undo: 'M9 5 3 11l6 6M3 11h11a6 6 0 0 1 6 6',
+  redo: 'm15 5 6 6-6 6M21 11H10a6 6 0 0 0-6 6',
+  search: 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm5 12 6 6',
+  play: 'm8 4 12 8-12 8V4Z',
+  menu: 'M4 6h16M4 12h16M4 18h16',
+  team: 'M4 20v-3a4 4 0 0 1 4-4h3a4 4 0 0 1 4 4v3M9 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6M18 10a2 2 0 1 0 0-4M18 14a3 3 0 0 1 3 3v3',
+  departments: 'M9 3h6v5H9V3ZM3 16h6v5H3v-5ZM15 16h6v5h-6v-5ZM12 8v4M6 16v-4h12v4',
+  audit: 'M5 3h14v18H5V3ZM8 7h8M8 11h8M8 15h5',
+  ai: 'M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8M9 9h6v6H9V9Z',
+  onboarding: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM8 12l3 3 5-6',
+  crm: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
+  campaigns: 'm3 11 18-8-8 18-2-8-8-2Zm8 2L21 3',
+  automations: 'M12 3v5M5 16v5M19 16v5M5 16h14M12 8H5v8M12 8h7v8',
+  agents: 'M12 3v3M4 10h16v10H4V10ZM8 14h.01M16 14h.01M9 17h6M2 13h2M20 13h2',
+  reports: 'M4 20V4M4 20h17M8 16v-5M13 16V7M18 16v-8',
+  sessions: 'M12 8v4l3 2M21 12a9 9 0 1 1-9-9 9 9 0 0 1 9 9Z',
+  branding:
+    'M12 3a9 9 0 1 0 0 18h2a2 2 0 0 0 0-4h-1a2 2 0 0 1 0-4h3a5 5 0 0 0 0-10h-4ZM7 9h.01M10 6h.01M16 7h.01',
+  inbox: 'M3 4h18v16H3V4Zm0 10h5l2 3h4l2-3h5',
+  flows: 'M4 3h6v6H4V3ZM14 15h6v6h-6v-6ZM7 9v9h7M10 6h7v9',
+  channels: 'M7 7a7 7 0 0 1 10 0M4 4a12 12 0 0 1 16 0M10 10a3 3 0 0 1 4 0M12 14v7',
+  knowledge: 'M3 4h7l2 2 2-2h7v16h-7l-2 2-2-2H3V4ZM12 6v16',
+  delivery:
+    'M3 7h13v10H3V7Zm13 4h3l3 3v3h-6M6 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4M18 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4',
+  billing: 'M3 5h18v14H3V5Zm0 4h18M7 15h4',
+  settings:
+    'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2',
+};
+export function NavIcon({ name }: { name: string }) {
+  return (
+    <svg
+      width="21"
+      height="21"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d={paths[name] || 'M3 3h7v7H3V3ZM14 3h7v7h-7V3ZM3 14h7v7H3v-7ZM14 14h7v7h-7v-7Z'} />
+    </svg>
+  );
+}

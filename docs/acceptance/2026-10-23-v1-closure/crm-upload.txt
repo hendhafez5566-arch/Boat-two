@@ -1,0 +1,1 @@
+CRM upload: durable resume, exact retry verification, concurrent duplicate chunks, ordered offsets, finalize-once, no early processing, 251 rows/250 successes/one duplicate, constant metadata, cancellation, retention and tenant isolation passed.

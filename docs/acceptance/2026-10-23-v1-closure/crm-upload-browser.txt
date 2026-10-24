@@ -1,0 +1,1 @@
+CRM upload Chromium: >900KB JSON, response lost after committed chunk, same-file resume at offset 200, one job/500 exact contacts with full attributes, no early import, completed progress and Arabic/mobile passed.

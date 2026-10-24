@@ -1,0 +1,1 @@
+AI recovery Chromium: real configuration save and API/runtime with isolated mocked provider, persisted fallback/human escalation, one sanitized failure then successful new request, exactly two run records and Arabic/mobile passed. No external requests.

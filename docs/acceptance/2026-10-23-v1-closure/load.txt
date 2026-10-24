@@ -1,0 +1,1 @@
+{"fixtureContacts":2000,"requests":160,"concurrency":8,"elapsedMs":1470,"requestsPerSecond":108.83,"p50Ms":58,"p95Ms":214,"maxMs":333,"tenantIsolation":true,"failures":0,"scope":"Local bounded authenticated CRM reads only; no production capacity claim or provider calls"}

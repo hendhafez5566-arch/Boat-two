@@ -1,16 +1,39 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactFlow, {
-  addEdge, Background, Connection, Controls, MiniMap, Node, NodeChange, ReactFlowProvider,
-  useEdgesState, useNodesState, useReactFlow,
+  addEdge,
+  Background,
+  Connection,
+  Controls,
+  MiniMap,
+  MarkerType,
+  Node,
+  NodeChange,
+  ReactFlowProvider,
+  useEdgesState,
+  useNodesState,
+  useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { useLocale } from '../../../../components/product/locale';
+import { Dialog } from '../../../../components/product/ProductUI';
+import { NavIcon } from '../../../../components/product/NavIcon';
+import { NodeIcon, nodeLabel } from '../../../../components/flow/presentation';
 import FlowNodeView from '../../../../components/flow/FlowNodeView';
 import Inspector from '../../../../components/flow/Inspector';
 import TestPanel from '../../../../components/flow/TestPanel';
 import { api, getSession } from '../../../../lib/api';
-import { fromFlow, handlesFor, NODE_META, NodeType, RFData, toFlow, Trigger, uid } from '../../../../lib/flow-types';
+import {
+  fromFlow,
+  handlesFor,
+  NODE_META,
+  NodeType,
+  RFData,
+  toFlow,
+  Trigger,
+  uid,
+} from '../../../../lib/flow-types';
 
 const nodeTypes = { flowNode: FlowNodeView };
 
@@ -19,13 +42,28 @@ const inp = 'w-full rounded border p-1.5 text-sm';
 
 function Editor({ id }: { id: string }) {
   const rf = useReactFlow();
+  const { t, language } = useLocale();
+  const [nodeSearch, setNodeSearch] = useState('');
+  const [mobilePanel, setMobilePanel] = useState('canvas');
   const [nodes, setNodes, onNodesChange] = useNodesState<RFData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [startId, setStartId] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
   const [tab, setTab] = useState<'node' | 'settings' | 'test'>('node');
-  const [meta, setMeta] = useState<{ name: string; priority: number; triggers: Trigger[]; channelIds: string[]; status: string; version: number | null }>({
-    name: '', priority: 0, triggers: [], channelIds: [], status: 'draft', version: null,
+  const [meta, setMeta] = useState<{
+    name: string;
+    priority: number;
+    triggers: Trigger[];
+    channelIds: string[];
+    status: string;
+    version: number | null;
+  }>({
+    name: '',
+    priority: 0,
+    triggers: [],
+    channelIds: [],
+    status: 'draft',
+    version: null,
   });
   const [channels, setChannels] = useState<{ id: string; name: string; type: string }[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -33,17 +71,44 @@ function Editor({ id }: { id: string }) {
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const [updatedAt, setUpdatedAt] = useState('');
+  const [loaded, setLoaded] = useState(false);
+  const [autoSave, setAutoSave] = useState(true);
+  const [versions, setVersions] = useState<{ id: string; version: number; created_at: string }[]>(
+    [],
+  );
+  const [showVersions, setShowVersions] = useState(false);
+  const history = useRef<string[]>([]);
+  const cursor = useRef(-1);
+  const skipHistory = useRef(false);
+  const [, redrawHistory] = useState(0);
+  const saving = useRef(false);
+  const latest = useRef('');
 
   useEffect(() => {
-    if (!getSession()) { window.location.href = '/login'; return; }
+    if (!getSession()) {
+      window.location.href = '/login';
+      return;
+    }
     (async () => {
       const f = await api<any>(`/flows/${id}`);
       const g = toFlow(f.draft_graph);
+      setUpdatedAt(f.updated_at);
+      setLoaded(true);
       setNodes(g.nodes);
       setEdges(g.edges);
       setStartId(f.draft_graph.startNodeId);
-      setMeta({ name: f.name, priority: f.priority, triggers: f.triggers, channelIds: f.channel_ids ?? [], status: f.status, version: f.published_version });
-      api<any[]>('/channels').then(setChannels).catch(() => {});
+      setMeta({
+        name: f.name,
+        priority: f.priority,
+        triggers: f.triggers,
+        channelIds: f.channel_ids ?? [],
+        status: f.status,
+        version: f.published_version,
+      });
+      api<any[]>('/channels')
+        .then(setChannels)
+        .catch(() => {});
     })().catch((e) => setMsg(e.message));
   }, [id, setNodes, setEdges]);
 
@@ -54,29 +119,59 @@ function Editor({ id }: { id: string }) {
   }, [issues]);
 
   const display = useMemo(
-    () => nodes.map((n) => ({ ...n, data: { ...n.data, isStart: n.id === startId, issue: issueMap[n.id] } })),
+    () =>
+      nodes.map((n) => ({
+        ...n,
+        data: { ...n.data, isStart: n.id === startId, issue: issueMap[n.id] },
+      })),
     [nodes, startId, issueMap],
   );
 
   const handleNodesChange = (changes: NodeChange[]) => {
     onNodesChange(changes);
-    if (changes.some((c) => c.type !== 'select' && c.type !== 'dimensions' && !(c.type === 'position' && c.dragging))) setDirty(true);
+    if (
+      changes.some(
+        (c) =>
+          c.type !== 'select' && c.type !== 'dimensions' && !(c.type === 'position' && c.dragging),
+      )
+    )
+      setDirty(true);
   };
 
   const onConnect = useCallback(
     (c: Connection) => {
-      setEdges((es) => addEdge({ ...c, type: 'smoothstep' }, es.filter((e) => !(e.source === c.source && e.sourceHandle === c.sourceHandle))));
+      setEdges((es) =>
+        addEdge(
+          { ...c, type: 'smoothstep' },
+          es.filter((e) => !(e.source === c.source && e.sourceHandle === c.sourceHandle)),
+        ),
+      );
       setDirty(true);
     },
     [setEdges],
   );
 
-  const addNode = (type: NodeType) => {
+  const addNode = (type: NodeType, point?: { x: number; y: number }) => {
     const nid = `${type}_${uid(4)}`;
-    const pos = rf.screenToFlowPosition({ x: window.innerWidth / 2 - 200, y: window.innerHeight / 2 - 100 });
-    setNodes((ns) => [...ns, { id: nid, type: 'flowNode', position: pos, data: { type, data: NODE_META[type].defaults(), isStart: false } }]);
+    const pos = rf.screenToFlowPosition(
+      point ?? {
+        x: window.innerWidth / 2 - 200,
+        y: window.innerHeight / 2 - 100,
+      },
+    );
+    setNodes((ns) => [
+      ...ns.map((node) => ({ ...node, selected: false })),
+      {
+        id: nid,
+        selected: true,
+        type: 'flowNode',
+        position: pos,
+        data: { type, data: NODE_META[type].defaults(), isStart: false },
+      },
+    ]);
     if (!startId || !nodes.length) setStartId(nid);
     setSelected(nid);
+    setMobilePanel('inspector');
     setTab('node');
     setDirty(true);
   };
@@ -86,7 +181,9 @@ function Editor({ id }: { id: string }) {
     const node = nodes.find((n) => n.id === nid);
     if (node) {
       const valid = new Set(handlesFor(node.data.type, data).map((h) => h.id));
-      setEdges((es) => es.filter((e) => e.source !== nid || (e.sourceHandle && valid.has(e.sourceHandle))));
+      setEdges((es) =>
+        es.filter((e) => e.source !== nid || (e.sourceHandle && valid.has(e.sourceHandle))),
+      );
     }
     setDirty(true);
   };
@@ -103,107 +200,437 @@ function Editor({ id }: { id: string }) {
   const graph = () => fromFlow(nodes, edges, startId);
 
   const save = async () => {
+    if (saving.current)
+      throw new Error(t('انتظر اكتمال الحفظ الحالي', 'Wait for the current save'));
+    saving.current = true;
+    const submitted = latest.current;
     setBusy(true);
     setMsg('');
     try {
-      await api(`/flows/${id}`, {
+      const result = await api<{ updated_at: string }>(`/flows/${id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ name: meta.name, priority: meta.priority, triggers: meta.triggers, channelIds: meta.channelIds, graph: graph() }),
+        body: JSON.stringify({
+          expectedUpdatedAt: updatedAt,
+          name: meta.name,
+          priority: meta.priority,
+          triggers: meta.triggers,
+          channelIds: meta.channelIds,
+          graph: graph(),
+        }),
       });
-      setDirty(false);
-      setMsg('تم الحفظ');
+      setUpdatedAt(result.updated_at);
+      if (latest.current === submitted) setDirty(false);
+      setMsg(t('تم الحفظ', 'All changes saved'));
+      return result.updated_at;
     } catch (e: any) {
-      setMsg(`تعذّر الحفظ: ${e.message}`);
+      setMsg(`${t('تعذّر الحفظ', 'Save failed')}: ${e.message}`);
       throw e;
     } finally {
       setBusy(false);
+      saving.current = false;
     }
   };
 
+  const content = JSON.stringify({
+    graph: graph(),
+    name: meta.name,
+    priority: meta.priority,
+    triggers: meta.triggers,
+    channelIds: meta.channelIds,
+  });
+  latest.current = content;
+  useEffect(() => {
+    if (!loaded) return;
+    if (skipHistory.current) {
+      skipHistory.current = false;
+      return;
+    }
+    if (history.current[cursor.current] === content) return;
+    history.current = [...history.current.slice(0, cursor.current + 1), content].slice(-60);
+    cursor.current = history.current.length - 1;
+    redrawHistory((x) => x + 1);
+  }, [content, loaded]);
+  function travel(offset: number) {
+    const target = cursor.current + offset;
+    if (target < 0 || target >= history.current.length || busy) return;
+    cursor.current = target;
+    skipHistory.current = true;
+    const snapshot = JSON.parse(history.current[target]);
+    const flow = toFlow(snapshot.graph);
+    setNodes(flow.nodes);
+    setEdges(flow.edges);
+    setStartId(snapshot.graph.startNodeId);
+    setMeta((m) => ({
+      ...m,
+      name: snapshot.name,
+      priority: snapshot.priority,
+      triggers: snapshot.triggers,
+      channelIds: snapshot.channelIds,
+    }));
+    setDirty(true);
+    redrawHistory((x) => x + 1);
+  }
+  useEffect(() => {
+    if (!dirty || !loaded || !autoSave || busy) return;
+    const timeout = setTimeout(() => {
+      save().catch(() => setAutoSave(false));
+    }, 1800);
+    return () => clearTimeout(timeout);
+    // Saving is scheduled against serialized editor content; failures pause autosave.
+  }, [content, dirty, loaded, autoSave, busy]);
+  useEffect(() => {
+    const warn = (e: BeforeUnloadEvent) => {
+      if (dirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+  useEffect(() => {
+    const shortcut = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        if (!saving.current) void save().catch(() => {});
+      }
+    };
+    window.addEventListener('keydown', shortcut);
+    return () => window.removeEventListener('keydown', shortcut);
+  }, [content, updatedAt]);
+  async function loadVersions() {
+    try {
+      setVersions(await api<typeof versions>(`/flows/${id}/versions`));
+      setShowVersions(true);
+    } catch (e) {
+      setMsg((e as Error).message);
+    }
+  }
+  async function restoreVersion(versionId: string) {
+    if (
+      dirty &&
+      !confirm(
+        t(
+          'استبدال التعديلات غير المحفوظة بهذه النسخة؟',
+          'Replace unsaved changes with this version?',
+        ),
+      )
+    )
+      return;
+    try {
+      await api(`/flows/${id}/versions/${versionId}/restore`, {
+        method: 'POST',
+        body: JSON.stringify({ expectedUpdatedAt: updatedAt }),
+      });
+      window.location.reload();
+    } catch (e) {
+      setMsg((e as Error).message);
+    }
+  }
+
   const check = async () => {
     try {
-      const r = await api<{ errors: Issue[]; warnings: Issue[] }>('/flows/validate', { method: 'POST', body: JSON.stringify(graph()) });
+      const r = await api<{ errors: Issue[]; warnings: Issue[] }>('/flows/validate', {
+        method: 'POST',
+        body: JSON.stringify(graph()),
+      });
       setIssues(r.errors);
       setWarnings(r.warnings);
-      setMsg(r.errors.length ? `${r.errors.length} خطأ` : 'لا توجد أخطاء');
-    } catch (e: any) { setMsg(e.message); }
+      setMsg(
+        r.errors.length
+          ? `${r.errors.length} ${t('خطأ', 'errors')}`
+          : t('لا توجد أخطاء', 'Validation passed'),
+      );
+    } catch (e: any) {
+      setMsg(e.message);
+    }
   };
 
   const publish = async () => {
     try {
-      await save();
-      const r = await api<any>(`/flows/${id}/publish`, { method: 'POST' });
+      const savedAt = await save();
+      const r = await api<any>(`/flows/${id}/publish`, {
+        method: 'POST',
+        body: JSON.stringify({ expectedUpdatedAt: savedAt }),
+      });
       setMeta((m) => ({ ...m, status: 'published', version: r.version }));
       setIssues([]);
       setWarnings(r.warnings ?? []);
-      setMsg(`تم النشر (النسخة ${r.version})`);
+      setMsg(`${t('تم النشر', 'Published')} v${r.version}`);
     } catch (e: any) {
-      if (e.details?.errors) { setIssues(e.details.errors); setWarnings(e.details.warnings ?? []); setMsg('لا يمكن النشر: صحّح الأخطاء'); }
+      if (e.details?.errors) {
+        setIssues(e.details.errors);
+        setWarnings(e.details.warnings ?? []);
+        setMsg(t('لا يمكن النشر: صحّح الأخطاء', 'Fix validation errors before publishing'));
+      }
     }
   };
 
   const unpublish = async () => {
-    await api(`/flows/${id}/unpublish`, { method: 'POST' }).catch((e) => setMsg(e.message));
-    setMeta((m) => ({ ...m, status: 'draft', version: null }));
+    try {
+      await api(`/flows/${id}/unpublish`, { method: 'POST' });
+      setMeta((m) => ({ ...m, status: 'draft', version: null }));
+    } catch (e) {
+      setMsg((e as Error).message);
+    }
   };
 
   const sel = nodes.find((n) => n.id === selected);
-  const setTriggers = (triggers: Trigger[]) => { setMeta((m) => ({ ...m, triggers })); setDirty(true); };
+  const setTriggers = (triggers: Trigger[]) => {
+    setMeta((m) => ({ ...m, triggers }));
+    setDirty(true);
+  };
 
   return (
-    <div dir="rtl" className="flex h-screen flex-col">
-      <header className="flex flex-wrap items-center gap-2 border-b bg-white p-2 text-sm">
-        <a href="/dashboard/flows" className="underline">← السيناريوهات</a>
-        <input className="w-56 rounded border p-1" value={meta.name} onChange={(e) => { setMeta({ ...meta, name: e.target.value }); setDirty(true); }} />
-        <span className={`rounded px-2 py-0.5 text-xs ${meta.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100'}`}>{meta.status === 'published' ? `منشور v${meta.version}` : 'مسودة'}</span>
-        {dirty && <span className="text-xs text-orange-600">تغييرات غير محفوظة</span>}
-        <span className="flex-1 text-xs text-gray-500">{msg}</span>
-        <button disabled={busy} onClick={() => save().catch(() => {})} className="rounded border px-3 py-1">حفظ</button>
-        <button onClick={check} className="rounded border px-3 py-1">فحص</button>
-        <button onClick={publish} className="rounded bg-green-600 px-3 py-1 text-white">نشر</button>
-        {meta.status === 'published' && <button onClick={unpublish} className="rounded border px-3 py-1">إيقاف النشر</button>}
+    <div className="premium-builder flex h-screen flex-col">
+      <header className="builder-toolbar">
+        <a href="/dashboard/flows" className="underline">
+          {t('السيناريوهات', 'Bots')} /
+        </a>
+        <input
+          aria-label={t('اسم البوت', 'Bot name')}
+          className="builder-title"
+          value={meta.name}
+          onChange={(e) => {
+            setMeta({ ...meta, name: e.target.value });
+            setDirty(true);
+          }}
+        />
+        <span
+          className={`rounded px-2 py-0.5 text-xs ${meta.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100'}`}
+        >
+          {meta.status === 'published'
+            ? `${t('منشور', 'Published')} v${meta.version}`
+            : t('مسودة', 'Draft')}
+        </span>
+        {dirty && (
+          <span className="text-xs text-orange-600">
+            {t('تغييرات غير محفوظة', 'Unsaved changes')}
+          </span>
+        )}
+        <span className="builder-save-status" role="status">
+          {msg}
+        </span>
+        <button
+          title={t('تراجع عن آخر تعديل', 'Undo last change')}
+          disabled={busy || cursor.current <= 0}
+          onClick={() => travel(-1)}
+          className="rounded border px-2 py-1"
+        >
+          <NavIcon name="undo" /> {t('تراجع', 'Undo')}
+        </button>
+        <button
+          title={t('إعادة التعديل', 'Redo change')}
+          disabled={busy || cursor.current >= history.current.length - 1}
+          onClick={() => travel(1)}
+          className="rounded border px-2 py-1"
+        >
+          <NavIcon name="redo" /> {t('إعادة', 'Redo')}
+        </button>
+        <label className="text-xs flex gap-1">
+          <input
+            type="checkbox"
+            checked={autoSave}
+            onChange={(e) => setAutoSave(e.target.checked)}
+          />
+          {t('حفظ تلقائي', 'Autosave')}
+        </label>
+        <button disabled={busy} onClick={loadVersions} className="rounded border px-2 py-1">
+          {t('الإصدارات', 'Versions')}
+        </button>
+        <button
+          disabled={busy}
+          onClick={() => save().catch(() => {})}
+          className="rounded border px-3 py-1"
+        >
+          {t('حفظ', 'Save')}
+        </button>
+        <button onClick={check} className="rounded border px-3 py-1">
+          {t('فحص', 'Validate')}
+        </button>
+        <button disabled={busy} onClick={publish} className="btn btn-primary">
+          {t('نشر', 'Publish')}
+        </button>
+        {meta.status === 'published' && (
+          <button onClick={unpublish} className="rounded border px-3 py-1">
+            {t('إيقاف النشر', 'Unpublish')}
+          </button>
+        )}
       </header>
 
+      <Dialog
+        open={showVersions}
+        onClose={() => setShowVersions(false)}
+        title={t('الإصدارات المنشورة', 'Published versions')}
+      >
+        <div className="border-b bg-white p-3 text-sm flex flex-wrap items-center gap-3">
+          <strong>{t('الإصدارات المنشورة', 'Published versions')}</strong>
+          {!versions.length && (
+            <span>{t('لا توجد إصدارات منشورة بعد.', 'No published versions yet.')}</span>
+          )}
+          {versions.map((v) => (
+            <button
+              className="rounded border px-2 py-1"
+              key={v.id}
+              disabled={busy}
+              onClick={() => restoreVersion(v.id)}
+            >
+              {t('استعادة', 'Restore')} v{v.version} {t('إلى المسودة', 'to draft')} ·{' '}
+              {new Date(v.created_at).toLocaleDateString(language === 'ar' ? 'ar' : 'en')}
+            </button>
+          ))}
+          <button onClick={() => setShowVersions(false)}>{t('إغلاق', 'Close')} ×</button>
+          <small>
+            {t(
+              'الاستعادة لا تغيّر الإصدار المنشور حتى تضغط نشر.',
+              'Restoring changes the draft; publish to replace the live version.',
+            )}
+          </small>
+        </div>
+      </Dialog>
       {(issues.length > 0 || warnings.length > 0) && (
         <div className="max-h-24 overflow-y-auto border-b bg-red-50 px-3 py-1 text-xs">
-          {issues.map((i, k) => <div key={`e${k}`} className="text-red-700">⛔ {i.nodeId ? `[${i.nodeId}] ` : ''}{i.message}</div>)}
-          {warnings.map((i, k) => <div key={`w${k}`} className="text-amber-700">⚠️ {i.nodeId ? `[${i.nodeId}] ` : ''}{i.message}</div>)}
+          {issues.map((i, k) => (
+            <div key={`e${k}`} className="text-red-700">
+              ⛔ {i.nodeId ? `[${i.nodeId}] ` : ''}
+              {i.message}
+            </div>
+          ))}
+          {warnings.map((i, k) => (
+            <div key={`w${k}`} className="text-amber-700">
+              ⚠️ {i.nodeId ? `[${i.nodeId}] ` : ''}
+              {i.message}
+            </div>
+          ))}
         </div>
       )}
 
-      <div className="flex min-h-0 flex-1">
-        <aside className="flex w-36 flex-col gap-1 overflow-y-auto border-l bg-gray-50 p-2">
-          <div className="mb-1 text-xs text-gray-500">إضافة عقدة</div>
-          {(Object.keys(NODE_META) as NodeType[]).map((t) => (
-            <button key={t} onClick={() => addNode(t)} className="rounded border bg-white px-2 py-1.5 text-start text-xs hover:bg-gray-100">
-              {NODE_META[t].icon} {NODE_META[t].label}
-            </button>
-          ))}
+      <div className="builder-mobile-tools">
+        <button onClick={() => setMobilePanel('canvas')}>{t('اللوحة', 'Canvas')}</button>
+        <button onClick={() => setMobilePanel('palette')}>{t('إضافة عقدة', 'Add a step')}</button>
+        <button onClick={() => setMobilePanel('inspector')}>{t('التفاصيل', 'Inspector')}</button>
+        <button
+          onClick={() => {
+            setTab('test');
+            setMobilePanel('inspector');
+          }}
+        >
+          {t('تجربة البوت', 'Preview bot')}
+        </button>
+      </div>
+      <div className="builder-main flex min-h-0 flex-1" data-mobile-panel={mobilePanel}>
+        <aside className="builder-palette flex w-36 flex-col gap-1 overflow-y-auto border-l bg-gray-50 p-2">
+          <div className="palette-heading">
+            <p className="eyebrow">{t('خطوة بخطوة', 'STEP BY STEP')}</p>
+            <h2>{t('أضف خطوة', 'Add a step')}</h2>
+            <p>
+              {t('اسحبها إلى اللوحة أو اضغط لإضافتها.', 'Drag onto the canvas or select to add.')}
+            </p>
+            <input
+              aria-label={t('البحث عن خطوة', 'Search steps')}
+              placeholder={t('ابحث عن إجراء…', 'Find an action…')}
+              value={nodeSearch}
+              onChange={(e) => setNodeSearch(e.target.value)}
+            />
+          </div>
+          {(Object.keys(NODE_META) as NodeType[])
+            .filter((type) =>
+              nodeLabel(type, language).toLowerCase().includes(nodeSearch.toLowerCase()),
+            )
+            .map((type) => (
+              <button
+                key={type}
+                className="palette-step"
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('application/boat-node', type);
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
+                onClick={() => addNode(type)}
+              >
+                <span style={{ color: NODE_META[type].color }}>
+                  <NodeIcon type={type} />
+                </span>
+                <span>{nodeLabel(type, language)}</span>
+                <small>+</small>
+              </button>
+            ))}
+          <div className="palette-tip">
+            {t(
+              'ابدأ برسالة ترحيب، ثم سؤال أو شرط. جرّب البوت قبل النشر.',
+              'Start with a welcome message, then a question or condition. Preview before publishing.',
+            )}
+          </div>
         </aside>
 
-        <div className="min-w-0 flex-1">
+        <div
+          className="builder-canvas min-w-0 flex-1"
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            const type = e.dataTransfer.getData('application/boat-node');
+            if (Object.hasOwn(NODE_META, type))
+              addNode(type as NodeType, { x: e.clientX, y: e.clientY });
+          }}
+        >
           <ReactFlow
             nodes={display}
             edges={edges}
             nodeTypes={nodeTypes}
             onNodesChange={handleNodesChange}
-            onEdgesChange={(c) => { onEdgesChange(c); if (c.some((x) => x.type === 'remove')) setDirty(true); }}
+            onEdgesChange={(c) => {
+              onEdgesChange(c);
+              if (c.some((x) => x.type === 'remove')) setDirty(true);
+            }}
             onConnect={onConnect}
-            onSelectionChange={({ nodes: s }) => { setSelected(s[0]?.id ?? null); if (s[0]) setTab('node'); }}
-            onNodesDelete={(del: Node[]) => { if (del.some((d) => d.id === startId)) setStartId(nodes.find((n) => !del.some((d) => d.id === n.id))?.id ?? ''); }}
+            onSelectionChange={({ nodes: s }) => {
+              setSelected(s[0]?.id ?? null);
+              if (s[0]) setTab('node');
+            }}
+            onNodesDelete={(del: Node[]) => {
+              if (del.some((d) => d.id === startId))
+                setStartId(nodes.find((n) => !del.some((d) => d.id === n.id))?.id ?? '');
+            }}
             deleteKeyCode={['Backspace', 'Delete']}
+            defaultEdgeOptions={{
+              type: 'smoothstep',
+              style: { stroke: '#86a9a5', strokeWidth: 2 },
+              markerEnd: { type: MarkerType.ArrowClosed },
+            }}
+            minZoom={0.2}
+            maxZoom={2}
             fitView
           >
-            <Background />
+            <Background color="#c9d7db" gap={24} size={1.2} />
             <Controls />
-            <MiniMap pannable zoomable />
+            <MiniMap
+              pannable
+              zoomable
+              nodeColor={(n) => NODE_META[n.data?.type as NodeType]?.color ?? '#8aa6ad'}
+              maskColor="#eef4f7bb"
+            />
           </ReactFlow>
         </div>
 
-        <aside className="flex w-96 flex-col border-r bg-white">
+        <aside className="builder-inspector flex w-96 flex-col border-r bg-white">
           <div className="flex border-b text-sm">
-            {([['node', 'العقدة'], ['settings', 'الإعدادات'], ['test', 'تجربة']] as const).map(([k, l]) => (
-              <button key={k} onClick={() => setTab(k)} className={`flex-1 px-3 py-2 ${tab === k ? 'border-b-2 border-black font-semibold' : 'text-gray-500'}`}>{l}</button>
+            {(
+              [
+                ['node', t('العقدة', 'Inspector')],
+                ['settings', t('الإعدادات', 'Settings')],
+                ['test', t('تجربة', 'Preview')],
+              ] as const
+            ).map(([k, l]) => (
+              <button
+                key={k}
+                onClick={() => setTab(k)}
+                className={`flex-1 px-3 py-2 ${tab === k ? 'border-b-2 border-black font-semibold' : 'text-gray-500'}`}
+              >
+                {l}
+              </button>
             ))}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
@@ -215,71 +642,246 @@ function Editor({ id }: { id: string }) {
                   data={sel.data.data}
                   isStart={sel.id === startId}
                   onChange={(d) => updateData(sel.id, d)}
-                  onSetStart={() => { setStartId(sel.id); setDirty(true); }}
+                  onSetStart={() => {
+                    setStartId(sel.id);
+                    setDirty(true);
+                  }}
                   onDelete={() => deleteNode(sel.id)}
                 />
               ) : (
-                <p className="p-4 text-sm text-gray-500">اختر عقدة من اللوحة لتعديلها، أو أضف عقدة من القائمة الجانبية. اسحب من دائرة الخروج (يسار العقدة) إلى عقدة أخرى لربطهما.</p>
+                <p className="p-4 text-sm text-gray-500">
+                  {t(
+                    'اختر خطوة لتعديلها. اسحب بين نقاط الاتصال لربط الخطوات.',
+                    'Select a step to edit it. Drag between connection points to link steps.',
+                  )}
+                </p>
               ))}
 
             {tab === 'settings' && (
               <div className="space-y-4 p-3 text-sm">
                 <div>
-                  <div className="mb-1 text-xs font-semibold text-gray-600">متى يبدأ السيناريو؟</div>
-                  {meta.triggers.map((t, i) => (
+                  <div className="mb-1 text-xs font-semibold text-gray-600">
+                    {t('متى يبدأ السيناريو؟', 'When does the bot start?')}
+                  </div>
+                  {meta.triggers.map((trigger, i) => (
                     <div key={i} className="mb-2 space-y-1 rounded border p-2">
                       <div className="flex gap-1">
-                        <select className={inp} value={t.type} onChange={(e) => {
-                          const type = e.target.value as Trigger['type'];
-                          const nt: Trigger = type === 'keyword' ? { type, keywords: [], match: 'contains' } : type === 'reply_id' ? { type, ids: [] } : ({ type } as Trigger);
-                          setTriggers(meta.triggers.map((x, j) => (j === i ? nt : x)));
-                        }}>
-                          <option value="keyword">كلمة مفتاحية</option>
-                          <option value="first_message">أول رسالة في المحادثة</option>
-                          <option value="any_message">أي رسالة (احتياطي)</option>
-                          <option value="reply_id">ضغط زر/قائمة محدد</option>
+                        <select
+                          className={inp}
+                          aria-label={t('نوع المشغّل', 'Trigger type')}
+                          value={trigger.type}
+                          onChange={(e) => {
+                            const type = e.target.value as Trigger['type'];
+                            const nt: Trigger =
+                              type === 'event'
+                                ? { type, event: 'crm.contacts.insert' }
+                                : type === 'keyword'
+                                  ? { type, keywords: [], match: 'contains' }
+                                  : type === 'reply_id'
+                                    ? { type, ids: [] }
+                                    : ({ type } as Trigger);
+                            setTriggers(meta.triggers.map((x, j) => (j === i ? nt : x)));
+                          }}
+                        >
+                          <option value="event">{t('حدث CRM', 'CRM event')}</option>
+                          <option value="keyword">{t('كلمة مفتاحية', 'Keyword')}</option>
+                          <option value="first_message">
+                            {t('أول رسالة في المحادثة', 'First message in conversation')}
+                          </option>
+                          <option value="any_message">
+                            {t('أي رسالة (احتياطي)', 'Any message (fallback)')}
+                          </option>
+                          <option value="reply_id">
+                            {t('ضغط زر/قائمة محدد', 'Specific button or list selection')}
+                          </option>
                         </select>
-                        <button onClick={() => setTriggers(meta.triggers.filter((_, j) => j !== i))} className="rounded border px-2 text-red-600">×</button>
+                        <button
+                          aria-label={t('حذف المشغّل', 'Remove trigger')}
+                          onClick={() => setTriggers(meta.triggers.filter((_, j) => j !== i))}
+                          className="rounded border px-2 text-red-600"
+                        >
+                          ×
+                        </button>
                       </div>
-                      {t.type === 'keyword' && (
+                      {trigger.type === 'event' && (
+                        <select
+                          className={inp}
+                          aria-label={t('حدث CRM', 'CRM event')}
+                          value={trigger.event}
+                          onChange={(e) =>
+                            setTriggers(
+                              meta.triggers.map((x, j) =>
+                                j === i ? { type: 'event', event: e.target.value } : x,
+                              ),
+                            )
+                          }
+                        >
+                          {[
+                            'crm.contacts.insert',
+                            'crm.contacts.update',
+                            'crm.crm_deals.insert',
+                            'crm.crm_deals.update',
+                            'crm.crm_tasks.update',
+                          ].map((x) => (
+                            <option key={x}>{x}</option>
+                          ))}
+                        </select>
+                      )}
+                      {trigger.type === 'keyword' && (
                         <>
-                          <textarea className={inp} rows={2} placeholder="كلمات مفصولة بفاصلة: سعر، price، كام" defaultValue={t.keywords.join('، ')}
-                            onBlur={(e) => setTriggers(meta.triggers.map((x, j) => (j === i ? { ...t, keywords: e.target.value.split(/[,،\n]/).map((s) => s.trim()).filter(Boolean) } : x)))} />
-                          <select className={inp} value={t.match} onChange={(e) => setTriggers(meta.triggers.map((x, j) => (j === i ? { ...t, match: e.target.value as any } : x)))}>
-                            <option value="contains">تحتوي الرسالة على الكلمة</option>
-                            <option value="exact">الرسالة تطابق الكلمة تماماً</option>
-                            <option value="starts_with">الرسالة تبدأ بالكلمة</option>
+                          <textarea
+                            className={inp}
+                            rows={2}
+                            aria-label={t('الكلمات المفتاحية', 'Keywords')}
+                            placeholder={t(
+                              'كلمات مفصولة بفاصلة: سعر، price، كام',
+                              'Comma-separated keywords: price, cost',
+                            )}
+                            defaultValue={trigger.keywords.join('، ')}
+                            onBlur={(e) =>
+                              setTriggers(
+                                meta.triggers.map((x, j) =>
+                                  j === i
+                                    ? {
+                                        ...trigger,
+                                        keywords: e.target.value
+                                          .split(/[,،\n]/)
+                                          .map((s) => s.trim())
+                                          .filter(Boolean),
+                                      }
+                                    : x,
+                                ),
+                              )
+                            }
+                          />
+                          <select
+                            className={inp}
+                            aria-label={t('مطابقة الكلمة', 'Keyword matching')}
+                            value={trigger.match}
+                            onChange={(e) =>
+                              setTriggers(
+                                meta.triggers.map((x, j) =>
+                                  j === i ? { ...trigger, match: e.target.value as any } : x,
+                                ),
+                              )
+                            }
+                          >
+                            <option value="contains">
+                              {t('تحتوي الرسالة على الكلمة', 'Message contains keyword')}
+                            </option>
+                            <option value="exact">
+                              {t('الرسالة تطابق الكلمة تماماً', 'Message exactly matches keyword')}
+                            </option>
+                            <option value="starts_with">
+                              {t('الرسالة تبدأ بالكلمة', 'Message starts with keyword')}
+                            </option>
                           </select>
                         </>
                       )}
-                      {t.type === 'reply_id' && (
-                        <input className={inp} dir="ltr" placeholder="معرّفات الأزرار مفصولة بفاصلة" defaultValue={t.ids.join(', ')}
-                          onBlur={(e) => setTriggers(meta.triggers.map((x, j) => (j === i ? { ...t, ids: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) } : x)))} />
+                      {trigger.type === 'reply_id' && (
+                        <input
+                          className={inp}
+                          dir="ltr"
+                          aria-label={t('معرّفات الرد', 'Reply identifiers')}
+                          placeholder={t(
+                            'معرّفات الأزرار مفصولة بفاصلة',
+                            'Comma-separated button identifiers',
+                          )}
+                          defaultValue={trigger.ids.join(', ')}
+                          onBlur={(e) =>
+                            setTriggers(
+                              meta.triggers.map((x, j) =>
+                                j === i
+                                  ? {
+                                      ...trigger,
+                                      ids: e.target.value
+                                        .split(',')
+                                        .map((s) => s.trim())
+                                        .filter(Boolean),
+                                    }
+                                  : x,
+                              ),
+                            )
+                          }
+                        />
                       )}
                     </div>
                   ))}
-                  <button onClick={() => setTriggers([...meta.triggers, { type: 'keyword', keywords: [], match: 'contains' }])} className="rounded border px-2 py-1 text-xs">+ مشغّل</button>
-                  <p className="mt-2 text-xs text-gray-400">الأكثر تحديداً يُنفَّذ أولاً: كلمة مفتاحية/زر، ثم أول رسالة، ثم أي رسالة. "أول رسالة" و"أي رسالة" يعملان مرة واحدة لكل محادثة.</p>
+                  <button
+                    onClick={() =>
+                      setTriggers([
+                        ...meta.triggers,
+                        { type: 'keyword', keywords: [], match: 'contains' },
+                      ])
+                    }
+                    className="rounded border px-2 py-1 text-xs"
+                  >
+                    {t('+ مشغّل', '+ Trigger')}
+                  </button>
+                  <p className="mt-2 text-xs text-gray-400">
+                    {t(
+                      'الأكثر تحديداً يُنفَّذ أولاً: كلمة مفتاحية/زر، ثم أول رسالة، ثم أي رسالة. أول رسالة وأي رسالة يعملان مرة واحدة لكل محادثة.',
+                      'Specific triggers run first: keyword or button, then first message, then any message. First and any-message triggers run once per conversation.',
+                    )}
+                  </p>
                 </div>
 
                 <div>
-                  <div className="mb-1 text-xs font-semibold text-gray-600">القنوات (بدون اختيار = كل القنوات)</div>
+                  <div className="mb-1 text-xs font-semibold text-gray-600">
+                    {t(
+                      'القنوات (بدون اختيار = كل القنوات)',
+                      'Channels (none selected = all channels)',
+                    )}
+                  </div>
                   {channels.map((c) => (
                     <label key={c.id} className="flex items-center gap-2 py-0.5">
-                      <input type="checkbox" checked={meta.channelIds.includes(c.id)} onChange={(e) => { setMeta({ ...meta, channelIds: e.target.checked ? [...meta.channelIds, c.id] : meta.channelIds.filter((x) => x !== c.id) }); setDirty(true); }} />
+                      <input
+                        type="checkbox"
+                        checked={meta.channelIds.includes(c.id)}
+                        onChange={(e) => {
+                          setMeta({
+                            ...meta,
+                            channelIds: e.target.checked
+                              ? [...meta.channelIds, c.id]
+                              : meta.channelIds.filter((x) => x !== c.id),
+                          });
+                          setDirty(true);
+                        }}
+                      />
                       {c.name} <span className="text-xs text-gray-400">({c.type})</span>
                     </label>
                   ))}
                 </div>
 
                 <div>
-                  <div className="mb-1 text-xs font-semibold text-gray-600">الأولوية (الأعلى أولاً عند التعارض)</div>
-                  <input className={inp} type="number" value={meta.priority} onChange={(e) => { setMeta({ ...meta, priority: Number(e.target.value) || 0 }); setDirty(true); }} />
+                  <div className="mb-1 text-xs font-semibold text-gray-600">
+                    {t(
+                      'الأولوية (الأعلى أولاً عند التعارض)',
+                      'Priority (highest first when triggers overlap)',
+                    )}
+                  </div>
+                  <input
+                    className={inp}
+                    type="number"
+                    aria-label={t('الأولوية', 'Priority')}
+                    value={meta.priority}
+                    onChange={(e) => {
+                      setMeta({ ...meta, priority: Number(e.target.value) || 0 });
+                      setDirty(true);
+                    }}
+                  />
                 </div>
               </div>
             )}
 
-            {tab === 'test' && <TestPanel flowId={id} beforeRun={async () => { if (dirty) await save(); }} />}
+            {tab === 'test' && (
+              <TestPanel
+                flowId={id}
+                beforeRun={async () => {
+                  if (dirty) await save();
+                }}
+              />
+            )}
           </div>
         </aside>
       </div>

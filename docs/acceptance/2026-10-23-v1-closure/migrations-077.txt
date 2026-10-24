@@ -1,0 +1,2 @@
+Applying 077_automation_failure_context.sql
+Migrations up to date

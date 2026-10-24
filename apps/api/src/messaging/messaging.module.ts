@@ -1,3 +1,7 @@
+import { DeliveryBudget } from './delivery-budget';
+import { OutboundService } from './outbound.service';
+import { TemplatesController } from './templates.controller';
+import { MetaConnectController } from './meta-connect.controller';
 import { Module } from '@nestjs/common';
 import { MetaAdapter } from './adapters/meta.adapter';
 import { WhatsAppAdapter } from './adapters/whatsapp.adapter';
@@ -9,8 +13,23 @@ import { WebhooksController } from './webhooks.controller';
 import { WidgetAssetController, WidgetController } from './widget.controller';
 
 @Module({
-  controllers: [ChannelsController, WebhooksController, WidgetController, WidgetAssetController],
-  providers: [CryptoService, ChannelsService, MessagingService, WhatsAppAdapter, MetaAdapter],
-  exports: [MessagingService, ChannelsService],
+  controllers: [
+    MetaConnectController,
+    TemplatesController,
+    ChannelsController,
+    WebhooksController,
+    WidgetController,
+    WidgetAssetController,
+  ],
+  providers: [
+    DeliveryBudget,
+    OutboundService,
+    CryptoService,
+    ChannelsService,
+    MessagingService,
+    WhatsAppAdapter,
+    MetaAdapter,
+  ],
+  exports: [DeliveryBudget, MessagingService, ChannelsService, OutboundService],
 })
 export class MessagingModule {}

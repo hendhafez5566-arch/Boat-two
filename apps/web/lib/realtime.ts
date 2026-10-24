@@ -10,6 +10,7 @@ export function useRealtime(onEvent: (e: any) => void) {
 
   useEffect(() => {
     let es: EventSource | null = null;
+    let cursor = '';
     let stopped = false;
     let delay = 1000;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -23,19 +24,35 @@ export function useRealtime(onEvent: (e: any) => void) {
     async function connect() {
       try {
         const { ticket } = await api<{ ticket: string }>('/realtime/ticket', { method: 'POST' });
-        es = new EventSource(`${API}/realtime/stream?ticket=${encodeURIComponent(ticket)}`);
+        es = new EventSource(
+          `${API}/realtime/stream?ticket=${encodeURIComponent(ticket)}${cursor ? `&after=${encodeURIComponent(cursor)}` : ''}`,
+        );
         for (const type of ['message', 'message_status', 'conversation']) {
           es.addEventListener(type, (ev) => {
-            try { handler.current(JSON.parse((ev as MessageEvent).data)); } catch { /* تجاهل حدث تالف */ }
+            try {
+              cursor = (ev as MessageEvent).lastEventId || cursor;
+              handler.current(JSON.parse((ev as MessageEvent).data));
+            } catch {
+              /* تجاهل حدث تالف */
+            }
           });
         }
-        es.onopen = () => { delay = 1000; };
-        es.onerror = () => { es?.close(); retry(); };
+        es.onopen = () => {
+          delay = 1000;
+        };
+        es.onerror = () => {
+          es?.close();
+          retry();
+        };
       } catch {
         retry();
       }
     }
     connect();
-    return () => { stopped = true; if (timer) clearTimeout(timer); es?.close(); };
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+      es?.close();
+    };
   }, []);
 }
