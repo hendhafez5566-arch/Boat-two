@@ -299,3 +299,10 @@ img, video, canvas, svg { max-width: 100%; }
   .premium-builder .builder-toolbar .tb-more { margin-inline-start:0; }
   .premium-builder .builder-main { overflow:hidden; }
 }
+.builder-inspector .smart-destructive-menu { position:relative; flex:none; border:0; padding:0; margin:0; }
+.smart-destructive-menu summary { min-width:44px; list-style:none; text-align:center; border:1px solid #bdcbdc; border-radius:8px; }
+.smart-destructive-menu[open] > button { position:absolute; inset-inline-end:0; top:100%; z-index:5; min-width:90px; min-height:44px; background:#fff; border:1px solid #b45454; }
+@media (min-width:701px) and (max-width:1099px) {
+  .premium-builder .builder-toolbar { flex-wrap:wrap; max-width:100%; }
+  .premium-builder .builder-title { min-width:100px; }
+}

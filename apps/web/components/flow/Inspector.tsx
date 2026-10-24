@@ -124,16 +124,17 @@ const Btn = ({
   danger?: boolean;
 }) => {
   const { language, t } = useLocale();
-  return (
+  const button = (
     <button
       aria-label={children === '×' ? t('حذف العنصر', 'Remove item') : undefined}
       type="button"
-      onClick={on}
+      onClick={() => { if (!danger || confirm(t('حذف هذا العنصر ووصلاته إن وجدت؟ يمكنك التراجع.', 'Delete this item and any links? You can undo.'))) on(); }}
       className={`rounded border px-2 py-1 text-xs ${danger ? 'text-red-600' : ''}`}
     >
       {typeof children === 'string' ? editorLabel(children.trim(), language) : children}
     </button>
   );
+  return danger ? <details className="smart-destructive-menu"><summary aria-label={t('المزيد', 'More')}>⋯</summary>{button}</details> : button;
 };
 
 const DAYS: [string, string][] = [
@@ -182,6 +183,14 @@ export default function Inspector({
   onSetStart: () => void;
   onDelete: () => void;
 }) {
+  const [staff, setStaff] = useState<{ user_id: string; full_name: string; email: string; available: boolean }[]>([]);
+  const [staffState, setStaffState] = useState<'loading' | 'ready' | 'error'>('loading');
+  useEffect(() => {
+    if (type !== 'handoff') return;
+    let active = true;
+    api<{ members: typeof staff }>('/team').then(result => { if (active) { setStaff(result.members ?? []); setStaffState('ready'); } }).catch(() => { if (active) setStaffState('error'); });
+    return () => { active = false; };
+  }, [type]);
   const [sequences, setSequences] = useState<{ id: string; name: string; status: string }[]>([]);
   useEffect(() => {
     if (type === 'sequence')
@@ -230,7 +239,7 @@ export default function Inspector({
           />
         </F>
       )}
-      {(type === 'message' || type === 'interactive') && <MessageEditor data={data} onChange={onChange} variables={variables} renderAction={renderAction} actionSummary={actionSummary} onDrillChange={setDrilling} />}
+      {(type === 'message' || type === 'interactive') && <MessageEditor data={data} onChange={onChange} variables={variables} renderAction={renderAction} actionSummary={actionSummary} onDrillChange={open => { setDrilling(open); requestAnimationFrame(() => document.querySelector('.builder-inspector > .overflow-y-auto')?.scrollTo({ top: 0 })); }} />}
       <div hidden={drilling}>
       {type !== 'message' && type !== 'interactive' && <h2 className="smart-core-title">{type === 'condition' ? t('متى يسلك العميل هذا المسار؟', 'When should the customer take this path?') : type === 'handoff' ? t('تحويل إلى موظف', 'Transfer to staff') : nodeLabel(type, language)}</h2>}
       {type === 'location' && (
@@ -664,7 +673,7 @@ export default function Inspector({
                     >
                       ↓
                     </Btn>
-                    <Btn danger on={() => { if (confirm(t('حذف السؤال؟ يمكنك التراجع.', 'Delete question? You can undo.'))) { set({ questions: all.filter((_, k) => k !== qi) }); setActiveQuestion(null); } }}>
+                    <Btn danger on={() => { set({ questions: all.filter((_, k) => k !== qi) }); setActiveQuestion(null); }}>
                       ×
                     </Btn>
                   </span>
@@ -1094,7 +1103,15 @@ export default function Inspector({
             <Txt v={data.message} on={(message) => set({ message })} rows={2} />
           </F>
           <ChatBubble text={data.message} />
-          <p>{t('التحويل يوقف البوت وينقل المحادثة إلى الموظفين. بدون تعيين محدد تُترك لفريق الوارد؛ اختيار فريق غير متاح في هذا المحرر.', 'Handoff stops the bot and transfers the conversation to staff. Without an assignee it stays in the inbox; team selection is unavailable here.')}</p>
+          <p>{t('التحويل يوقف البوت ويسلم المحادثة للموظفين. يمكنك اختيار موظف من فريق العمل الحالي، أو ترك التعيين لصندوق الوارد. تعيين قسم غير مدعوم في هذه العقدة.', 'Handoff stops the bot and transfers the conversation to staff. Select an existing workspace member or leave assignment to the inbox. This node does not support department assignment.')}</p>
+          <F label={t('الموظف المسؤول', 'Assigned employee')}>
+            <select className={inp} aria-label={t('الموظف المسؤول', 'Assigned employee')} value={data.assignTo ?? ''} disabled={staffState !== 'ready'} onChange={e => set({ assignTo: e.target.value || undefined })}>
+              <option value="">{t('بدون تعيين محدد — صندوق الوارد', 'Unassigned — inbox')}</option>
+              {data.assignTo && !staff.some(member => member.user_id === data.assignTo) && <option value={data.assignTo}>{t('التعيين المحفوظ (غير ظاهر في القائمة)', 'Saved assignee (not in current list)')}</option>}
+              {staff.map(member => <option key={member.user_id} value={member.user_id}>{member.full_name || member.email}{member.available ? '' : t(' — غير متاح الآن', ' — currently unavailable')}</option>)}
+            </select>
+          </F>
+          {staffState !== 'ready' && <p role="status">{staffState === 'loading' ? t('جارٍ تحميل الموظفين…', 'Loading employees…') : t('تعذر تحميل الموظفين. التعيين المحفوظ لم يتغير؛ يمكن مراجعته في الإعداد المتقدم.', 'Could not load employees. Saved assignment is unchanged; review it in advanced settings.')}</p>}
           <details><summary>{t('تعيين متقدم', 'Advanced assignment')}</summary>
           <F label="تعيين لموظف (معرّف المستخدم، اختياري)">
             <In
@@ -1134,7 +1151,7 @@ export default function Inspector({
         </strong>
         <div className="flex gap-2">
           {!isStart && <Btn on={onSetStart}>{t('اجعلها البداية', 'Make start')}</Btn>}
-          <Btn on={() => { if (confirm(t("حذف الخطوة ووصلاتها؟ يمكنك التراجع.", "Delete step and its links? You can undo."))) onDelete(); }} danger>
+          <Btn on={onDelete} danger>
             {t('حذف', 'Delete')}
           </Btn>
         </div>

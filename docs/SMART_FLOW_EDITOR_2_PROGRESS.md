@@ -1,20 +1,12 @@
 # Smart Flow Editor 2.0 — progress
 
-Base verified against remote: `145a9864f08bcce365eaa700fdb4320e13b3e36e`.
+Remote base verified: `145a9864f08bcce365eaa700fdb4320e13b3e36e`.
+Branch: `fix/boat-ux-19-one-batch`, existing Draft PR #2. No deploy/merge.
 
-## Group 1 — shared shell, message and graph actions
-- Dedicated message task editor: live bubble, caret-aware canonical variables, choice cards, in-inspector drilldown, reorder and confirmed removal, all list sections editable.
-- Real create/connect/open actions reuse existing graph operations, stable `option:<id>` handles, history and persistence. Existing-step picker has search and replacement confirmation.
-- Shared header/footer and desktop/tablet/phone surfaces; phone is full viewport. Done awaits existing save; failure keeps editor open.
-- Existing NodeType fields retained, condition and expanded modal use same rule data, handoff technical assignment folded, request headers/JSON folded.
-- `test-ux19.mjs` and updated `test-ux-designer.mjs` pass. Production compilation/type checks passed; build finalization and browser acceptance continue in group 2.
-- No API/schema/engine changes, external sends, AI activation, deployment or merge.
+- **Group 1 — `24cc186`, pushed:** task message editor, live bubble and canonical variable insertion, all-section choice editor, contextual graph actions, responsive shared shell/footer. Existing fields retained. Conversion and UX19 tests passed.
+- **Group 2 — `35cf58b`, pushed:** one expanded question at a time, answer destination picker, per-type guidance, branch summaries, preview return/viewport restoration, same-node reopen and phone toolbar overflow fixes. All NodeTypes and rich conditions roundtrip tests passed.
+- **Group 3 — acceptance:** real staff picker using existing `/team`, preserved unavailable assignments, destructive controls folded and confirmed, core content reset on switching nodes, compact connected-outcome cards, tablet toolbar overflow correction. Web production build passed; UX19/designer/smart-editor passed; 39 engine/expansion tests passed.
 
-## Pending acceptance / group 2
-Browser screenshots, full build exit, expanded focused regression checks, question field picker and collapsed question chain. Remaining parity/visual gaps will be recorded explicitly after verification.
+Real Chromium screenshots and the fixture's saved graph are in `docs/screenshots/smart-editor-2/`. Browser verification uses the production app with an isolated in-memory HTTP API, not a live database. It checks message/condition/staff saves, action-to-graph creation, format conversion and stable branches, reload, review/viewport return, phone/tablet width and English.
 
-## Group 2 — in progress
-- Added human answer destination picker with custom key kept under Advanced; one question in a chain expands at a time, stable reorder retained.
-- Added per-type usage guidance to the library and all retained editors, action summaries on choice cards, review return with viewport restoration.
-- Browser review found and fixed duplicated controls during drilldown, toolbar overflow on phones, and same-node reopening after close. Screenshot assertions wait for drawer transitions (subpixel dimensions use tolerance).
-- New offline regression script covers every NodeType roundtrip, all supported action types, multi-section edits, stable handles and rich condition rules.
+Full contract comparison, before/after, covered NodeTypes and exact remaining/unverified items: [SMART_FLOW_EDITOR_2_HANDOFF.md](SMART_FLOW_EDITOR_2_HANDOFF.md). This is a large integrated implementation; the handoff explicitly does not claim complete physical-device, live-database or every-field visual acceptance.

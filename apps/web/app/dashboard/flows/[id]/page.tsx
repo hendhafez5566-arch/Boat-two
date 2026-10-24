@@ -1444,7 +1444,7 @@ function Editor({ id }: { id: string }) {
               </button>
             ))}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div key={tab === 'node' ? selected : 'settings'} className="min-h-0 flex-1 overflow-y-auto">
             {tab === 'node' &&
               (sel ? (
                 <div
