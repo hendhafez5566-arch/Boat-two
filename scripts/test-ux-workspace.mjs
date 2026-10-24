@@ -31,3 +31,15 @@ for(const eligible of [0,1]){
 console.log('PASS: actual campaign save accepts empty/eligible audience as draft; never schedules or sends');
 for(const match of source('apps/web/public/widget-demo.html').matchAll(/<script>([\s\S]*?)<\/script>/g))new Script(match[1]);
 console.log('PASS: widget demo script syntax');
+const controller=source('apps/api/src/business/reports.controller.ts');
+const callback=stripTypeScriptTypes(controller.slice(controller.indexOf('async (c) => {'),controller.lastIndexOf('    });'))+'}');
+for(const [configured,expected] of [['Asia/Dubai','Asia/Dubai'],['Invalid/Zone','Africa/Cairo'],[null,'Africa/Cairo']]){
+ const calls=[];
+ const input=reportRange('2026-10-24','2026-10-24',expected),r={user:{tenantId:'company-a'}};
+ const read=new Function('input','r',`return (${callback});`)(input,r);
+ const result=await read({query:async(sql,params)=>{calls.push({sql,params});return {rows:sql.startsWith('SELECT settings')?[{timezone:configured}]:[]};}});
+ assert.equal(result.timezone,expected);assert.deepEqual(result.range,input);assert.deepEqual(calls[0].params,['company-a']);
+ const daily=calls.find(q=>q.sql.includes('AS day'));assert.ok(daily.sql.includes('AT TIME ZONE $3'));assert.deepEqual(daily.params,[input.from,input.to,expected]);
+ assert.ok(calls.slice(2).every(q=>q.params.length===2));
+}
+console.log('PASS: actual report query callback uses tenant settings and bound timezone parameter; UTC filtering remains exclusive');

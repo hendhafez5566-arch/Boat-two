@@ -45,7 +45,7 @@ export default function Settings() {
     setError('');
     setMessage('');
     try {
-      await api('/workspace', { method: 'PATCH', body: JSON.stringify({name:data.name,industry:data.industry,timezone:data.timezone,language:data.language}) });
+      await api('/workspace', { method: 'PATCH', body: JSON.stringify({name:data.name,industry:data.industry,timezone:data.timezone,language:data.language,preferredPlan:data.preferredPlan}) });
       setMessage(t('تم حفظ إعدادات الشركة.', 'Workspace settings saved.'));
     } catch (e) {
       setError((e as Error).message);
