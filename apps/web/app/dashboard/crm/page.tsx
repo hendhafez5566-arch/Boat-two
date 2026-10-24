@@ -1,4 +1,5 @@
 'use client';
+import { Dialog } from '../../../components/product/ProductUI';
 import { ContactActivityExport } from '../../../components/business/ContactActivityExport';
 import { statusLabel } from '../../../components/product/status';
 import { CrmJobs } from '../../../components/business/CrmJobs';
@@ -89,6 +90,7 @@ export default function CRM() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [edit, setEdit] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState(blank);
   const [selected, setSelected] = useState<Contact | null>(null);
   const [timeline, setTimeline] = useState<Timeline | null>(null);
@@ -181,6 +183,7 @@ export default function CRM() {
       );
       setForm(blank);
       setEdit(null);
+      setShowCreate(false);
     } catch (e) {
       setError((e as Error).message);
     }
@@ -238,9 +241,6 @@ export default function CRM() {
   ];
   return (
     <main className="stack">
-      <Link href="/dashboard/crm/work" className="btn">
-        {t('إدارة المبيعات والمتابعات المتقدمة', 'Manage sales and follow-ups')}
-      </Link>
       <div className="page-heading">
         <div>
           <p className="eyebrow">{t('علاقات العملاء', 'CUSTOMER RELATIONSHIPS')}</p>
@@ -252,6 +252,7 @@ export default function CRM() {
             )}
           </p>
         </div>
+        <button className="btn btn-primary" onClick={() => {setEdit(null);setForm(blank);setShowCreate(true);setTab('contacts');}}>{t('إضافة عميل', 'Add contact')}</button>
         <button className="btn" onClick={refresh}>
           {t('تحديث', 'Refresh')}
         </button>
@@ -287,9 +288,7 @@ export default function CRM() {
       )}
       {tab === 'contacts' && (
         <>
-          <section className="card">
-            <div className="form-grid">
-              <label className="field">
+          <section className="card form-actions">              <label className="field">
                 {t('بحث', 'Search')}
                 <input
                   value={q}
@@ -299,7 +298,15 @@ export default function CRM() {
                   }}
                   placeholder={t('اسم أو بريد أو هاتف', 'Name, email or phone')}
                 />
-              </label>
+              </label><strong>{contacts.data.total} {t('عميل', 'contacts')}</strong>
+            {(q || stage || tag || archiveFilter !== 'active') && <button className="btn" onClick={()=>{setQ('');setStage('');setTag('');setArchiveFilter('active');setPage(1);}}>{t('مسح التصفية', 'Clear filters')}</button>}
+          </section>
+          <details className="card" open={bulkIds.length > 0 || undefined}>
+            <summary>{t('الفلاتر والأدوات المتقدمة', 'Advanced filters and tools')} {(stage || tag || archiveFilter !== 'active') && t('· توجد فلاتر نشطة', '· filters active')}</summary>
+            <Link href="/dashboard/crm/work" className="btn">{t('إدارة المبيعات والمتابعات المتقدمة', 'Manage sales and follow-ups')}</Link>
+          <section className="card">
+            <div className="form-grid">
+
               <label className="field">
                 {t('مرحلة العميل', 'Lifecycle')}
                 <select
@@ -533,6 +540,7 @@ export default function CRM() {
             </form>
           )}
 
+          </details>
           <section className="card table-wrap">
             <table className="product-table">
               <thead>
@@ -647,6 +655,7 @@ export default function CRM() {
               )
             )}
           </section>
+          <Dialog open={showCreate || !!edit} onClose={() => {setShowCreate(false);setEdit(null);}} title={edit ? t('تعديل العميل','Edit contact') : t('إضافة عميل','Add contact')}>
           <form className="card" onSubmit={save}>
             <h2>
               {edit
@@ -781,13 +790,15 @@ export default function CRM() {
                   onClick={() => {
                     setEdit(null);
                     setForm(blank);
+                    setShowCreate(false);
                   }}
                 >
                   {t('إلغاء', 'Cancel')}
                 </button>
               )}
             </div>
-          </form>
+          </form>          </Dialog>
+
         </>
       )}
       {selected && tab === 'contacts' && (
@@ -1288,7 +1299,7 @@ export default function CRM() {
               <h2>{t('الحقول المخصصة', 'Custom fields')}</h2>
               {fields.data.map((x) => (
                 <p className="muted" key={x.id}>
-                  {x.label} · {x.key} · {x.type}
+                  {x.label} · {({text:t('نص','Text'),number:t('رقم','Number'),date:t('تاريخ','Date'),boolean:t('نعم / لا','Yes / no')} as Record<string,string>)[x.type] || x.type} · {x.key}
                 </p>
               ))}
             </section>
@@ -1322,14 +1333,16 @@ export default function CRM() {
           </div>
           <SimpleForm
             title={t(
-              'حقل جديد: text / number / date / boolean',
-              'New field: text / number / date / boolean',
+              'إضافة حقل مخصص',
+              'Add a custom field',
             )}
             fields={[
               ['key', t('مفتاح إنجليزي', 'Field key')],
               ['label', t('العنوان', 'Label')],
               ['type', t('النوع', 'Type')],
             ]}
+            options={{type:[['text',t('نص','Text')],['number',t('رقم','Number')],['date',t('تاريخ','Date')],['boolean',t('نعم / لا','Yes / no')]]}}
+            help={{type:t('نص للأسماء والملاحظات، رقم للكميات، تاريخ للمواعيد، ونعم/لا للاختيارات الثنائية.','Text for names and notes, number for quantities, date for appointments, yes/no for binary choices.')}}
             onSave={(b) => act('/crm/fields', b)}
           />
           <SimpleForm
@@ -1397,10 +1410,14 @@ function ContactSelect({ items }: { items: Contact[] }) {
 function SimpleForm({
   title,
   fields,
+  options = {},
+  help = {},
   onSave,
 }: {
   title: string;
   fields: string[][];
+  options?: Record<string, string[][]>;
+  help?: Record<string,string>;
   onSave: (body: Record<string, string>) => Promise<unknown>;
 }) {
   const { t } = useLocale();
@@ -1429,7 +1446,8 @@ function SimpleForm({
         {fields.map(([key, label]) => (
           <label className="field" key={key}>
             {label}
-            <input required name={key} />
+            {options[key] ? <select required name={key}>{options[key].map(([value,title])=><option key={value} value={value}>{title}</option>)}</select> : <input required name={key} />}
+            {help[key] && <small>{help[key]}</small>}
           </label>
         ))}
       </div>
