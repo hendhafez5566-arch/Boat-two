@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { api } from '../../../../lib/api';
 import { wizardDraftKey, readWizardDraft, writeWizardDraft } from '../../../../lib/wizard-draft';
 import { validationMessage } from '../../../../lib/validation-message';
+import { buildWizardGraph, WizardChoice } from '../../../../lib/wizard-graph';
 import { Graph } from '../../../../lib/flow-types';
 import { useLocale } from '../../../../components/product/locale';
 import { useData } from '../../../../components/business/useData';
@@ -24,7 +25,7 @@ export default function BotWizard() {
     [name, setName] = useState(''),
     [welcome, setWelcome] = useState(''),
     [channel, setChannel] = useState(''),
-    [choices, setChoices] = useState<{ title: string; reply: string }[]>([]),
+    [choices, setChoices] = useState<WizardChoice[]>([]),
     [created, setCreated] = useState(''),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
@@ -32,6 +33,14 @@ export default function BotWizard() {
     [published, setPublished] = useState(false);
   const saving = useRef<Promise<Saved> | null>(null),
     flowId = useRef('');
+  const creating = useRef<Promise<string> | null>(null);
+  const [routeNodes, setRouteNodes] = useState<Graph['nodes']>([]);
+  useEffect(() => {
+    if (!created) return;
+    let alive = true;
+    api<{draft_graph:Graph}>(`/flows/${created}`).then(row => {if(alive)setRouteNodes(row.draft_graph.nodes.filter(n => !n.id.startsWith('__boat_wizard_')));}).catch(() => {});
+    return () => {alive=false;};
+  }, [created]);
   const [draftReady, setDraftReady] = useState(false);
   const [draftNotice, setDraftNotice] = useState('');
   const draftKey = useRef<string | null>(null);
@@ -70,54 +79,19 @@ export default function BotWizard() {
     t('التجربة', 'Preview'),
     t('النشر', 'Publish'),
   ];
+  async function ensureDraft(): Promise<string> {
+    if (flowId.current) return flowId.current;
+    if (!creating.current) creating.current = api<{id:string}>('/flows', {method:'POST', body:JSON.stringify({name:name.trim() || templates.data.find(t => t.id === template)?.name || 'بوت جديد',templateId:template,language})}).then(row => {
+      flowId.current=row.id;setCreated(row.id);return row.id;
+    }).finally(() => {creating.current=null;});
+    return creating.current;
+  }
   async function saveDraft(): Promise<Saved> {
     if (saving.current) return saving.current;
     saving.current = (async () => {
-      if (!flowId.current) {
-        const row = await api<{ id: string }>('/flows', {
-          method: 'POST',
-          body: JSON.stringify({ name, templateId: template, language }),
-        });
-        flowId.current = row.id;
-        setCreated(row.id);
-      }
-      const row = await api<{ draft_graph: Graph; updated_at: string }>(`/flows/${flowId.current}`),
-        graph = row.draft_graph;
-      const prefix = '__boat_wizard_',
-        old = graph.nodes.find((n) => n.id === prefix + 'welcome'),
-        next = old?.edges?.fallback ?? old?.edges?.next ?? graph.startNodeId;
-      graph.nodes = graph.nodes.filter((n) => !n.id.startsWith(prefix));
-      const buttons = choices.filter((c) => c.title.trim());
-      const edges: Record<string, string> = buttons.length ? { fallback: next } : { next };
-      buttons.forEach((choice, index) => {
-        const id = prefix + 'reply_' + index;
-        edges['option:' + id] = id;
-        graph.nodes.push({
-          id,
-          type: 'message',
-          position: { x: 80 + index * 300, y: -90 },
-          data: { text: choice.reply },
-          edges: { next },
-        });
-      });
-      graph.nodes.unshift({
-        id: prefix + 'welcome',
-        type: 'message',
-        position: { x: 200, y: -320 },
-        data: {
-          text: welcome,
-          ...(buttons.length
-            ? {
-                buttons: buttons.map((c, index) => ({
-                  id: prefix + 'reply_' + index,
-                  title: c.title,
-                })),
-              }
-            : {}),
-        },
-        edges,
-      });
-      graph.startNodeId = prefix + 'welcome';
+      await ensureDraft();
+      const row = await api<{ draft_graph: Graph; updated_at: string }>(`/flows/${flowId.current}`);
+      const graph = buildWizardGraph(row.draft_graph, welcome, choices);
       const saved = await api<{ updated_at: string }>(`/flows/${flowId.current}`, {
         method: 'PATCH',
         body: JSON.stringify({
@@ -137,7 +111,10 @@ export default function BotWizard() {
     if (!draftReady) return;
     setError('');
     setValidation(null);
-    if (step === 5) {
+    if (step === 2) {
+      setBusy(true);
+      try {await ensureDraft();setStep(3);} catch(e) {setError((e as Error).message);} finally {setBusy(false);}
+    } else if (step === 5) {
       setBusy(true);
       try {
         await saveDraft();
@@ -181,7 +158,7 @@ export default function BotWizard() {
         : step === 3
           ? !!name.trim() && !!welcome.trim()
           : step === 4
-            ? choices.every((c) => !!c.title.trim() && !!c.reply.trim())
+            ? choices.every((c) => !!c.title.trim() && (c.action === 'route' || !!c.reply.trim()) && (c.action !== 'card' || /^https?:\/\//i.test(c.url || '')) && (c.action !== 'question' || !c.saveAs || /^[A-Za-z_][\w]{0,40}$/.test(c.saveAs)))
             : step === 5
               ? !!channel
               : true;
@@ -331,8 +308,8 @@ export default function BotWizard() {
               <h2>{t('اجعل الرد أسهل بأزرار واضحة', 'Make replying easy with clear buttons')}</h2>
               <p className="muted">
                 {t(
-                  'اختياري: حتى ثلاثة أزرار. بعد الرد يعود العميل إلى القالب الذي اخترته.',
-                  'Optional: up to three replies. After the response, customers continue into your selected template.',
+                  'حتى ثلاثة أزرار، ولكل زر إجراء مستقل. تستخدم هذه الإجراءات نفس خطوات المصمم المرئي.',
+                  'Up to three buttons, each with an independent action using the same nodes as the visual builder.',
                 )}
               </p>
               {choices.map((choice, index) => (
@@ -351,8 +328,28 @@ export default function BotWizard() {
                       }
                     />
                   </label>
-                  <label>
-                    {t('الرد عند الاختيار', 'Response when selected')}
+                  <label>{t('إجراء الزر', 'Button action')}
+                    <select value={choice.action || 'message'} onChange={e => setChoices(choices.map((c,i) => i === index ? {...c,action:e.target.value as WizardChoice['action']} : c))}>
+                      <option value="message">{t('إرسال رسالة', 'Send message')}</option>
+                      <option value="card">{t('عرض بطاقة برابط وصورة اختيارية', 'Show a link card with optional image')}</option>
+                      <option value="route">{t('الانتقال لمسار في القالب', 'Go to a template path')}</option>
+                      <option value="question">{t('سؤال العميل وحفظ الإجابة', 'Ask customer and save answer')}</option>
+                      <option value="handoff">{t('تحويل لموظف', 'Hand off to staff')}</option>
+                    </select>
+                  </label>
+                  {choice.action === 'route' && <label>{t('الخطوة المقصودة', 'Destination step')}
+                    <select value={choice.targetId || ''} onChange={e => setChoices(choices.map((c,i) => i === index ? {...c,targetId:e.target.value} : c))}>
+                      <option value="">{t('بداية القالب', 'Template start')}</option>
+                      {routeNodes.map((node,i) => <option key={node.id} value={node.id}>{String(node.data.text || t('خطوة', 'Step')+' '+(i+1)).slice(0,80)}</option>)}
+                    </select>
+                  </label>}
+                  {choice.action === 'card' && <>
+                    <label>{t('رابط البطاقة', 'Card URL')}<input type="url" value={choice.url || ''} onChange={e=>setChoices(choices.map((c,i)=>i===index?{...c,url:e.target.value}:c))}/></label>
+                    <label>{t('رابط الصورة (اختياري)', 'Image URL (optional)')}<input type="url" value={choice.imageUrl || ''} onChange={e=>setChoices(choices.map((c,i)=>i===index?{...c,imageUrl:e.target.value}:c))}/></label>
+                  </>}
+                  {choice.action === 'question' && <label>{t('حقل حفظ الإجابة', 'Answer field key')}<input dir="ltr" maxLength={41} placeholder={'answer_'+(index+1)} value={choice.saveAs || ''} onChange={e=>setChoices(choices.map((c,i)=>i===index?{...c,saveAs:e.target.value}:c))}/></label>}
+                  <label hidden={choice.action === 'route'}>
+                    {choice.action === 'question' ? t('نص السؤال', 'Question') : choice.action === 'handoff' ? t('رسالة التحويل', 'Handoff message') : t('الرد عند الاختيار', 'Response when selected')}
                     <textarea
                       maxLength={1000}
                       rows={2}

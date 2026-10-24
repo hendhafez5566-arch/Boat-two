@@ -1,9 +1,10 @@
+import type { WizardChoice } from './wizard-graph';
 import { getSession } from './api';
 
 const TTL = 7 * 24 * 60 * 60 * 1000;
 export type WizardDraft = {
   step: number; goal: string; template: string; name: string; welcome: string;
-  channel: string; choices: { title: string; reply: string }[]; created: string;
+  channel: string; choices: WizardChoice[]; created: string;
 };
 export function wizardDraftKey(): string | null {
   try {
