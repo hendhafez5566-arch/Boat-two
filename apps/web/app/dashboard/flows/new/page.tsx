@@ -1,7 +1,8 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../../../lib/api';
+import { wizardDraftKey, readWizardDraft, writeWizardDraft } from '../../../../lib/wizard-draft';
 import { Graph } from '../../../../lib/flow-types';
 import { useLocale } from '../../../../components/product/locale';
 import { useData } from '../../../../components/business/useData';
@@ -30,6 +31,32 @@ export default function BotWizard() {
     [published, setPublished] = useState(false);
   const saving = useRef<Promise<Saved> | null>(null),
     flowId = useRef('');
+  const [draftReady, setDraftReady] = useState(false);
+  const [draftNotice, setDraftNotice] = useState('');
+  const draftKey = useRef<string | null>(null);
+  const draftSnapshot = useRef({ step, goal, template, name, welcome, channel, choices, created });
+  draftSnapshot.current = { step, goal, template, name, welcome, channel, choices, created };
+  useEffect(() => {
+    draftKey.current = wizardDraftKey();
+    const saved = readWizardDraft(draftKey.current);
+    if (saved) {
+      setStep(saved.step); setGoal(saved.goal); setTemplate(saved.template);
+      setName(saved.name); setWelcome(saved.welcome); setChannel(saved.channel);
+      setChoices(saved.choices); setCreated(saved.created); flowId.current = saved.created;
+      setDraftNotice(t('تمت استعادة مسودتك. تُحفظ على هذا الجهاز لمدة ٧ أيام.', 'Draft restored. Kept on this device for 7 days.'));
+    }
+    setDraftReady(true);
+  }, []);
+  useEffect(() => {
+    if (!draftReady) return;
+    const persist = () => {
+      if (!writeWizardDraft(draftKey.current, published ? null : draftSnapshot.current))
+        setDraftNotice(t('تعذر حفظ المسودة على الجهاز. اترك الصفحة مفتوحة حتى تحفظها على الخادم.', 'Device draft unavailable. Keep this page open until saved to the server.'));
+    };
+    persist();
+    window.addEventListener('pagehide', persist);
+    return () => window.removeEventListener('pagehide', persist);
+  }, [draftReady, step, goal, template, name, welcome, channel, choices, created, published]);
   const labels = [
     t('الهدف', 'Goal'),
     t('القالب', 'Template'),
@@ -103,6 +130,7 @@ export default function BotWizard() {
     return saving.current;
   }
   async function next() {
+    if (!draftReady) return;
     setError('');
     setValidation(null);
     if (step === 5) {
@@ -169,6 +197,7 @@ export default function BotWizard() {
             : t('العودة إلى البوتات', 'Back to bots')}
         </Link>
       </div>
+      {draftNotice && <Feedback>{draftNotice}</Feedback>}
       <ol className="wizard-stepper" aria-label={t('مراحل إنشاء البوت', 'Bot creation progress')}>
         {labels.map((label, index) => (
           <li
@@ -437,7 +466,7 @@ export default function BotWizard() {
               </Button>
             )}
             {step < 7 && (
-              <Button variant="primary" busy={busy} disabled={!canContinue} onClick={next}>
+              <Button variant="primary" busy={busy} disabled={!draftReady || !canContinue} onClick={next}>
                 {step === 5
                   ? t('حفظ المسودة وتجربتها', 'Save draft and preview')
                   : t('متابعة', 'Continue')}
