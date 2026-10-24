@@ -269,19 +269,20 @@ export default function Inspector({
           <F label="خيارات الرد">
             <Sel
               v={mode}
-              on={(m) =>
+              on={(m) => {
+                if (m === mode) return;
+                const choices = data.list?.sections?.flatMap((s: any) => s.rows ?? []) ?? data.buttons ?? [];
+                if (m === 'buttons' && choices.length > 3) {
+                  alert(t('القائمة تحتوي أكثر من 3 اختيارات. قلّلها يدويًا قبل التحويل؛ لن يُحذف أي اختيار تلقائيًا.', 'Reduce the list to three choices before converting. No choices were deleted.'));
+                  return;
+                }
+                if (m === 'none' && choices.length && !confirm(t('إزالة جميع الاختيارات ووصلاتها؟ يمكنك التراجع عن هذا التغيير.', 'Remove all choices and their connections? You can undo this change.'))) return;
+                const kept = choices.length ? choices : [{ id: uid(), title: t('خيار 1', 'Option 1') }];
                 set({
-                  buttons:
-                    m === 'buttons' ? [{ id: uid(), title: t('خيار 1', 'Option 1') }] : undefined,
-                  list:
-                    m === 'list'
-                      ? {
-                          buttonText: t('القائمة', 'Menu'),
-                          sections: [{ rows: [{ id: uid(), title: t('خيار 1', 'Option 1') }] }],
-                        }
-                      : undefined,
-                })
-              }
+                  buttons: m === 'buttons' ? kept : undefined,
+                  list: m === 'list' ? { buttonText: t('القائمة', 'Menu'), sections: [{ rows: kept }] } : undefined,
+                });
+              }}
               opts={[
                 ['none', 'بدون (يكمل مباشرة)'],
                 ['buttons', 'أزرار (حتى 3)'],
