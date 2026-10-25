@@ -1,4 +1,5 @@
 'use client';
+import { FlowStatsAvailabilityContext } from './stats-context';
 import MediaPreview from './MediaPreview';
 import ListPreview from './ListPreview';
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -31,6 +32,7 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
     shown = cards ? handles.filter((h) => !cardOption.has(h.id)) : handles,
     key = handles.map((h) => h.id).join('|') + (cards ? '|cards' : '');
   const analytics = useContext(FlowAnalyticsContext);
+  const available = useContext(FlowStatsAvailabilityContext).nodes;
   const stats = useContext(FlowStatsContext)[id];
   const optionStats = useContext(FlowButtonStatsContext);
   const seq = useContext(FlowSequencesContext)[String(data.data?.sequenceId ?? '')];
@@ -93,12 +95,12 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
         <strong>{nodeLabel(data.type, language)}</strong>
         {data.isStart && <span className="flow-start-badge">{t('بداية', 'Start')}</span>}
       </div>
-      {analytics && SENDERS.includes(data.type) && (
-        <div className="fn-stats" aria-label={t('إحصائيات الخطوة', 'Step statistics')}>
-          <span title={t('أُرسلت', 'Sent')}>✈ {t('أُرسلت', 'Sent')}<b>{stats?.sent ?? 0}</b></span>
-          <span title={t('وصلت', 'Delivered')}>✓ {t('وصلت', 'Delivered')}<b>{stats?.delivered ?? 0}</b></span>
-          <span title={t('عملاء', 'Subscribers')}>◉ {t('عملاء', 'Subscribers')}<b>{stats?.subscribers ?? 0}</b></span>
-          <span className={stats?.errors ? 'is-err' : ''} title={t('أخطاء', 'Errors')}>⚠ {t('أخطاء', 'Errors')}<b>{stats?.errors ?? 0}</b></span>
+      {SENDERS.includes(data.type) && (
+        <div className="fn-stats" aria-label={t('إحصائيات الخطوة', 'Step statistics')} title={available ? t('المصدر: حالات الرسائل', 'Source: message statuses') : t('الإحصائيات غير متاحة حاليًا', 'Statistics currently unavailable')}>
+          <span title={t('أُرسلت', 'Sent')}>✈ {t('أُرسلت', 'Sent')}<b>{available ? stats?.sent ?? 0 : '—'}</b></span>
+          <span title={t('وصلت', 'Delivered')}>✓ {t('وصلت', 'Delivered')}<b>{available ? stats?.delivered ?? 0 : '—'}</b></span>
+          <span title={t('عملاء', 'Subscribers')}>◉ {t('عملاء', 'Subscribers')}<b>{available ? stats?.subscribers ?? 0 : '—'}</b></span>
+          <span className={stats?.errors ? 'is-err' : ''} title={t('أخطاء', 'Errors')}>⚠ {t('أخطاء', 'Errors')}<b>{available ? stats?.errors ?? 0 : '—'}</b></span>
         </div>
       )}
       {['audio', 'video', 'file'].includes(data.type) && (

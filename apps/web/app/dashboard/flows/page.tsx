@@ -159,6 +159,7 @@ export default function Flows() {
                       : t('مسودة', 'Draft')}
                   </span>
                   <div className="bot-actions">
+                    <Link className="btn" href={`/dashboard/flows/${f.id}/workspace`}>{t('مساحة عمل البوت', 'Bot workspace')}</Link>
                     <button className="btn" disabled={busy} onClick={()=>void exportFlow(f)}>{t('تصدير', 'Export')}</button>
                     <details><summary>{t('المجلد', 'Folder')}: {f.folder_name || t('دون مجلد', 'Unfiled')}</summary><form className="stack" onSubmit={async e=>{e.preventDefault();if(busy)return;const form=e.currentTarget;setBusy(true);setError('');try{await api(`/flows/${f.id}`,{method:'PATCH',body:JSON.stringify({folderName:String(new FormData(form).get('folder')??'').trim()||null,expectedUpdatedAt:f.updated_at})});await load();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}><label className="field">{t('اسم المجلد (فارغ للإزالة)', 'Folder name (empty to remove)')}<input name="folder" defaultValue={f.folder_name??''} maxLength={80}/></label><button className="btn" disabled={busy}>{t('حفظ المجلد', 'Save folder')}</button></form></details>
                     <a className="btn btn-primary" href={`/dashboard/flows/${f.id}`}>

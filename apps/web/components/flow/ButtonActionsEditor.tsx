@@ -11,6 +11,12 @@ export type ButtonAction =
   | { type: 'assign'; userId?: string; departmentId?: string }
   | { type: 'webhook'; url: string; body: string };
 
+function TagInput({values,onCommit}:{values:string[];onCommit:(values:string[])=>void}) {
+  const [draft,setDraft]=useState(values.join(','));
+  useEffect(()=>setDraft(values.join(',')),[values]);
+  return <input value={draft} onChange={e=>setDraft(e.target.value)} onBlur={()=>onCommit(draft.split(/[,،]/).map(s=>s.trim()).filter(Boolean))}/>;
+}
+
 export default function ButtonActionsEditor({ value = [], onChange }: { value?: ButtonAction[]; onChange: (v: ButtonAction[]) => void }) {
   const { t } = useLocale();
   const [lists, setLists] = useState<{id:string;name:string}[]>([]);
@@ -39,7 +45,7 @@ export default function ButtonActionsEditor({ value = [], onChange }: { value?: 
     {failed && <p role="status">{t('تعذر تحميل بعض قوائم الاختيار. القيم المحفوظة لم تتغير؛ راجع الصلاحيات أو أعد فتح المحرر.','Some selections could not load. Saved values are unchanged; check permissions or reopen the editor.')}</p>}
     {value.map((a,i)=><fieldset className="smart-section" key={i}><legend>{i+1}. {labels[a.type]}</legend>
       {a.type === 'set_field' && <><label>{t('اسم الحقل','Field key')}<input dir="ltr" value={a.key} pattern="[A-Za-z_][A-Za-z0-9_]{0,40}" maxLength={41} onChange={e=>patch(i,{...a,key:e.target.value})}/></label><label>{t('القيمة (تدعم المتغيرات)','Value (supports variables)')}<input value={a.value} maxLength={2000} onChange={e=>patch(i,{...a,value:e.target.value})}/></label></>}
-      {a.type === 'tag' && <><label>{t('إضافة وسوم — افصل بفاصلة','Add labels — comma separated')}<input defaultValue={a.add.join(',')} onBlur={e=>patch(i,{...a,add:e.target.value.split(/[,،]/).map(s=>s.trim()).filter(Boolean)})}/></label><label>{t('إزالة وسوم','Remove labels')}<input defaultValue={a.remove.join(',')} onBlur={e=>patch(i,{...a,remove:e.target.value.split(/[,،]/).map(s=>s.trim()).filter(Boolean)})}/></label></>}
+      {a.type === 'tag' && <><label>{t('إضافة وسوم — افصل بفاصلة','Add labels — comma separated')}<TagInput values={a.add} onCommit={add=>patch(i,{...a,add})}/></label><label>{t('إزالة وسوم','Remove labels')}<TagInput values={a.remove} onCommit={remove=>patch(i,{...a,remove})}/></label></>}
       {a.type === 'list' && <><label>{t('القائمة','List')}{pick(a.listId,lists,id=>patch(i,{...a,listId:id}))}</label><label>{t('العملية','Operation')}<select value={a.operation} onChange={e=>patch(i,{...a,operation:e.target.value as 'add'|'remove'})}><option value="add">{t('إضافة','Add')}</option><option value="remove">{t('إزالة','Remove')}</option></select></label><a href="/dashboard/crm/lists" target="_blank" rel="noopener noreferrer">{t('إدارة القوائم','Manage lists')}</a></>}
       {a.type === 'sequence' && <><label>{t('التسلسل','Sequence')}{pick(a.sequenceId,sequences.filter(s=>a.operation==='unsubscribe'||s.status==='active'),id=>patch(i,{...a,sequenceId:id}))}</label><label>{t('العملية','Operation')}<select value={a.operation} onChange={e=>patch(i,{...a,operation:e.target.value as 'subscribe'|'unsubscribe'})}><option value="subscribe">{t('اشتراك','Subscribe')}</option><option value="unsubscribe">{t('إلغاء الاشتراك','Unsubscribe')}</option></select></label></>}
       {a.type === 'assign' && <><label>{t('القسم (اختياري)','Department (optional)')}{pick(a.departmentId,departments,id=>patch(i,{...a,departmentId:id||undefined,userId:undefined}))}</label><label>{t('الموظف (اختياري)','Employee (optional)')}{pick(a.userId,staff.filter(s=>!a.departmentId||departments.find(d=>d.id===a.departmentId)?.members.includes(s.user_id)).map(s=>({id:s.user_id,name:s.full_name||s.email})),id=>patch(i,{...a,userId:id||undefined}))}</label></>}

@@ -54,6 +54,12 @@ export class FlowsService {
     });
   }
 
+  errors(tenantId: string, id: string) {
+    return this.db.withTenant(tenantId, async c => (await c.query(
+      'SELECT id,status,error,created_at,updated_at FROM flow_sessions WHERE flow_id=$1 AND error IS NOT NULL ORDER BY updated_at DESC LIMIT 50',[id],
+    )).rows);
+  }
+
   /** إحصائيات كل خطوة: الحالة تتحدّث من webhooks التسليم (delivered/read/failed) في جدول الرسائل */
   stats(tenantId: string, id: string) {
     return this.db.withTenant(tenantId, async (c) => {

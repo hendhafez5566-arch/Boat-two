@@ -115,10 +115,11 @@ export class ChannelsService {
     } catch {
       health = { state: 'needs_action', checkedAt, reason: 'provider_unreachable' };
     }
-    await this.db.withTenant(tenantId, (c) => c.query(
-      `UPDATE channels SET settings=jsonb_set(settings,'{connectionHealth}',$2::jsonb) WHERE id=$1 AND credentials_enc IS NOT DISTINCT FROM $3`,
+    const saved = await this.db.withTenant(tenantId, (c) => c.query(
+      `UPDATE channels SET settings=jsonb_set(settings,'{connectionHealth}',$2::jsonb) WHERE id=$1 AND status='active' AND credentials_enc IS NOT DISTINCT FROM $3`,
       [id, JSON.stringify(health), row.credentials_enc],
     ));
+    if (!saved.rowCount) return {state:'needs_action',checkedAt:null,reason:'verification_required'};
     return health;
   }
 

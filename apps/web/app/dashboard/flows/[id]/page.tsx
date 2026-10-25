@@ -1,4 +1,5 @@
 'use client';
+import { FlowStatsAvailabilityContext } from '../../../../components/flow/stats-context';
 import BotPolicyEditor from '../../../../components/flow/BotPolicyEditor';
 import type { BotPolicy } from '../../../../lib/flow-types';
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -101,6 +102,7 @@ function Editor({ id }: { id: string }) {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [startId, setStartId] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
+  const [choiceSelection, setChoiceSelection] = useState<{parentId:string;id:string;nonce:number}|null>(null);
   const [tab, setTab] = useState<'node' | 'settings'>('node');
   const [meta, setMeta] = useState<{
     policy?: BotPolicy;
@@ -133,6 +135,7 @@ function Editor({ id }: { id: string }) {
   const [loaded, setLoaded] = useState(false);
   const [nodeStats, setNodeStats] = useState<Record<string, NodeStats>>({});
   const [buttonStats, setButtonStats] = useState<Record<string, ButtonStats>>({});
+  const [statsAvailable, setStatsAvailable] = useState({nodes:false,buttons:false});
   const [btnDims, setBtnDims] = useState<Record<string, { width: number; height: number }>>({});
   const [seqInfo, setSeqInfo] = useState<Record<string, SeqInfo>>({});
   useEffect(() => {
@@ -156,11 +159,11 @@ function Editor({ id }: { id: string }) {
     const load = () =>
       Promise.all([
         api<Record<string, NodeStats>>(`/flows/${id}/stats`)
-          .then((r) => alive && setNodeStats(r))
-          .catch(() => {}),
+          .then((r) => { if(alive) {setNodeStats(r);setStatsAvailable(s=>({...s,nodes:true}));} })
+          .catch(() => {if(alive)setStatsAvailable(s=>({...s,nodes:false}));}),
         api<Record<string, ButtonStats>>(`/flows/${id}/button-stats`)
-          .then((r) => alive && setButtonStats(r))
-          .catch(() => {}),
+          .then((r) => { if(alive) {setButtonStats(r);setStatsAvailable(s=>({...s,buttons:true}));} })
+          .catch(() => {if(alive)setStatsAvailable(s=>({...s,buttons:false}));}),
       ]);
     load();
     const timer = setInterval(load, 30000);
@@ -909,6 +912,7 @@ function Editor({ id }: { id: string }) {
   return (
     <div ref={builderRef} data-focus={focused} className="premium-builder flex flex-col">
       <header className="builder-toolbar">
+        <a href={`/dashboard/flows/${id}/workspace`} className="btn">{t('مساحة البوت', 'Bot workspace')}</a>
         <a href="/dashboard/flows" className="underline">
           {t('السيناريوهات', 'Bots')} /
         </a>
@@ -1270,6 +1274,7 @@ function Editor({ id }: { id: string }) {
             </div>}
           </div>
           <FlowAnalyticsContext.Provider value={analytics}>
+          <FlowStatsAvailabilityContext.Provider value={statsAvailable}>
           <FlowStatsContext.Provider value={nodeStats}>
           <FlowSequencesContext.Provider value={seqInfo}>
           <FlowButtonStatsContext.Provider value={buttonStats}>
@@ -1313,6 +1318,7 @@ function Editor({ id }: { id: string }) {
             onNodeClick={(_, node) => {
               // A click on a button card opens its message in the inspector.
               const hit = btnIndexRef.current[node.id];
+              setChoiceSelection(hit ? {parentId:hit.parentId,id:hit.buttonId,nonce:Date.now()} : null);
               const nodeId = hit?.parentId ?? node.id;
               setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === nodeId })));
               selRef.current = nodeId;
@@ -1365,6 +1371,7 @@ function Editor({ id }: { id: string }) {
           </FlowButtonStatsContext.Provider>
           </FlowSequencesContext.Provider>
           </FlowStatsContext.Provider>
+          </FlowStatsAvailabilityContext.Provider>
           </FlowAnalyticsContext.Provider>
           <div className="canvas-tagline" aria-hidden="true">
             <span>Drag. Connect. Automate.</span>
@@ -1464,7 +1471,8 @@ function Editor({ id }: { id: string }) {
                   }}
                 >
                 <Inspector
-                  key={sel.id}
+                  key={sel.id + (choiceSelection?.parentId===sel.id ? ':'+choiceSelection.nonce : '')}
+                  initialChoiceId={choiceSelection?.parentId===sel.id ? choiceSelection.id : undefined}
                   actionSummary={handle => { const edge = edges.find(e => e.source === sel.id && e.sourceHandle === handle); return edge ? `${t('بعد الضغط:', 'Then:')} ${stepCaption(edge.target)}` : t('لا يوجد إجراء بعد', 'No action yet'); }}
                   renderAction={(handle, title) => renderStepAction(handle, title)}
                   nextSteps={<section className="smart-next-steps"><h3>{t('الخطوة التالية', 'Next step')}</h3>{handlesFor(sel.data.type, sel.data.data).filter(h => !h.id.startsWith('option:')).map(h => <div key={h.id}>{renderStepAction(h.id, sel.data.type === 'condition' ? h.id === 'else' ? t('لا — لم يتحقق', 'No — not matched') : `${t('نعم — تحقق الشرط', 'Yes — matched')} ${h.label}` : h.label)}</div>)}</section>}

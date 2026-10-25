@@ -1,5 +1,5 @@
 'use client';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../../../lib/api';
 import { useData } from '../../../../components/business/useData';
@@ -13,6 +13,7 @@ export default function ContactLists() {
   const [members,setMembers]=useState<Member[]>([]);
   const [candidates,setCandidates]=useState<Member[]>([]);
   const [contactId,setContactId]=useState('');
+  const searchRequest=useRef(0);
   const [error,setError]=useState('');const [busy,setBusy]=useState(false);
   async function load(id:string) { const result=await api<Member[]>(`/contact-lists/${id}/members`);setMembers(result);setSelected(id); }
   async function create(e:FormEvent<HTMLFormElement>) {
@@ -20,7 +21,8 @@ export default function ContactLists() {
     try { const row=await api<{id:string}>('/contact-lists',{method:'POST',body:JSON.stringify({name:new FormData(form).get('name')})});form.reset();lists.reload();await load(row.id); } catch(e){setError((e as Error).message);}finally{setBusy(false);}
   }
   async function search(q:string){
-    try {const result=await api<{items:Member[]}>(`/crm/contacts?q=${encodeURIComponent(q)}&limit=20`);setCandidates(result.items??[]);}catch(e){setError((e as Error).message);}
+    const request=++searchRequest.current;setContactId('');
+    try {const result=await api<{items:Member[]}>(`/crm/contacts?q=${encodeURIComponent(q)}&limit=20`);if(request===searchRequest.current)setCandidates(result.items??[]);}catch(e){if(request===searchRequest.current)setError((e as Error).message);}
   }
   async function change(id:string,remove=false){setBusy(true);setError('');try{await api(`/contact-lists/${selected}/members${remove?'/'+id:''}`,{method:remove?'DELETE':'POST',...(!remove?{body:JSON.stringify({contactId:id})}:{})});await load(selected);lists.reload();setContactId('');}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
   return <main className="stack"><Link href="/dashboard/crm">← {t('إدارة العملاء','Customer management')}</Link><h1>{t('قوائم المشتركين','Subscriber lists')}</h1><p>{t('قوائم مستقلة عن الوسوم. استخدم أفعال الأزرار لإضافة العميل أو إزالته تلقائيًا.','Lists are separate from labels. Button actions can add or remove a customer automatically.')}</p>

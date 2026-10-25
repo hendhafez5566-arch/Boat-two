@@ -172,7 +172,9 @@ export default function Inspector({
   renderAction,
   actionSummary,
   nextSteps,
+  initialChoiceId,
 }: {
+  initialChoiceId?: string;
   actionSummary?: (handle: string) => string;
   renderAction?: (handle: string, title: string) => ReactNode;
   nextSteps?: ReactNode;
@@ -217,7 +219,7 @@ export default function Inspector({
         .then(setLabels)
         .catch(() => {});
   }, [type]);
-  const [drilling, setDrilling] = useState(false);
+  const [drilling, setDrilling] = useState(!!initialChoiceId);
   const [activeQuestion, setActiveQuestion] = useState<string | null>(null);
   const [condRule, setCondRule] = useState<number | null>(null);
   const set = (patch: any) => onChange({ ...data, ...patch });
@@ -242,7 +244,7 @@ export default function Inspector({
           />
         </F>
       )}
-      {(type === 'message' || type === 'interactive') && <MessageEditor data={data} onChange={onChange} variables={variables} renderAction={renderAction} actionSummary={actionSummary} onDrillChange={open => { setDrilling(open); requestAnimationFrame(() => document.querySelector('.builder-inspector > .overflow-y-auto')?.scrollTo({ top: 0 })); }} />}
+      {(type === 'message' || type === 'interactive') && <MessageEditor initialChoiceId={initialChoiceId} data={data} onChange={onChange} variables={variables} renderAction={renderAction} actionSummary={actionSummary} onDrillChange={open => { setDrilling(open); requestAnimationFrame(() => document.querySelector('.builder-inspector > .overflow-y-auto')?.scrollTo({ top: 0 })); }} />}
       <div hidden={drilling}>
       {type !== 'message' && type !== 'interactive' && <h2 className="smart-core-title">{type === 'condition' ? t('متى يسلك العميل هذا المسار؟', 'When should the customer take this path?') : type === 'handoff' ? t('تحويل إلى موظف', 'Transfer to staff') : nodeLabel(type, language)}</h2>}
       {type === 'location' && (

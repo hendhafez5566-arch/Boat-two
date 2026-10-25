@@ -4,6 +4,7 @@ import { createContext } from 'react';
 export type NodeStats = { sent: number; delivered: number; subscribers: number; errors: number };
 /** nodeId → إحصائيات الإرسال الفعلية لهذه الخطوة */
 export const FlowStatsContext = createContext<Record<string, NodeStats>>({});
+export const FlowStatsAvailabilityContext = createContext({nodes:false,buttons:false});
 
 export type SeqInfo = { name: string; status: string; deliveryTime: string | null; timezone: string };
 /** sequenceId → بيانات التسلسل لعرضها على بطاقة الخطوة */

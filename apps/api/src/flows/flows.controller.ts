@@ -50,6 +50,12 @@ export class FlowsController {
     return this.flows.stats(req.user.tenantId, id);
   }
 
+  @Roles('owner', 'admin')
+  @Get(':id/errors')
+  errors(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.flows.errors(req.user.tenantId,id);
+  }
+
   @Get(':id/button-stats')
   buttonStats(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.flows.buttonStats(req.user.tenantId, id);

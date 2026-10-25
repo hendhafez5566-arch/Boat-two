@@ -14,12 +14,12 @@ export function ChatBubble({ text }: { text?: string }) {
   const { t } = useLocale();
   return <div className="smart-chat"><span>{t('معاينة المحتوى — بدون إرسال', 'Content preview — no delivery')}</span><div className="smart-bubble" dir="auto">{text || t('رسالتك هتظهر هنا…', 'Your message appears here…')}</div></div>;
 }
-export default function MessageEditor({ data, onChange, variables, renderAction, actionSummary, onDrillChange }: { data: ChoiceData; onChange: (data: ChoiceData) => void; variables: ConditionVariable[]; onDrillChange?: (open: boolean) => void; actionSummary?: (handle: string) => string; renderAction?: (handle: string, title: string) => ReactNode }) {
+export default function MessageEditor({ data, onChange, variables, renderAction, actionSummary, onDrillChange, initialChoiceId }: { initialChoiceId?: string; data: ChoiceData; onChange: (data: ChoiceData) => void; variables: ConditionVariable[]; onDrillChange?: (open: boolean) => void; actionSummary?: (handle: string) => string; renderAction?: (handle: string, title: string) => ReactNode }) {
   const { t } = useLocale();
   const input = useRef<HTMLTextAreaElement>(null);
   const caret = useRef({ start: 0, end: 0 });
   const [suggest, setSuggest] = useState(false);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(initialChoiceId ?? null);
   const [error, setError] = useState('');
   const mode = data.list ? 'list' : data.buttons?.length ? 'buttons' : 'none';
   const groups = data.list?.sections ?? [{ rows: data.buttons ?? [] }];

@@ -1,9 +1,10 @@
 'use client';
+import { FlowStatsAvailabilityContext } from './stats-context';
 import { memo, useContext, CSSProperties } from 'react';
 import { Handle, NodeProps, Position } from 'reactflow';
 import { ButtonNodeData } from '../../lib/flow-types';
 import { useLocale } from '../product/locale';
-import { FlowAnalyticsContext, FlowButtonStatsContext } from './stats-context';
+import { FlowButtonStatsContext } from './stats-context';
 
 /**
  * A button of an interactive/message step drawn as its own card (see deriveButtonCards).
@@ -11,7 +12,7 @@ import { FlowAnalyticsContext, FlowButtonStatsContext } from './stats-context';
  */
 function FlowButtonNode({ data, selected }: NodeProps<ButtonNodeData>) {
   const { language, t } = useLocale();
-  const analytics = useContext(FlowAnalyticsContext);
+  const available = useContext(FlowStatsAvailabilityContext).buttons;
   const stats = useContext(FlowButtonStatsContext)[`${data.parentId}:${data.buttonId}`];
   const rtl = data.rtl;
   return (
@@ -30,18 +31,18 @@ function FlowButtonNode({ data, selected }: NodeProps<ButtonNodeData>) {
         style={{ [rtl ? 'right' : 'left']: -6, top: '50%' }}
       />
       <div className="fn-bcard-head">▣ {t('زر', 'Button')}</div>
-      {analytics && <div className="fn-bcard-stats" aria-label={t('إحصائيات الزر', 'Button statistics')}>
+      {<div className="fn-bcard-stats" aria-label={t('إحصائيات الزر', 'Button statistics')} title={available ? t('المصدر: سجل النقرات', 'Source: click ledger') : t('الإحصائيات غير متاحة حاليًا', 'Statistics currently unavailable')}>
         <span title={t('نقرات', 'Clicks')}>
           👆 {t('نقرات', 'Click')}
-          <b>{stats?.clicks ?? 0}</b>
+          <b>{available ? stats?.clicks ?? 0 : '—'}</b>
         </span>
         <span title={t('عملاء', 'Subscribers')}>
           ◉ {t('عملاء', 'Subscribers')}
-          <b>{stats?.subscribers ?? 0}</b>
+          <b>{available ? stats?.subscribers ?? 0 : '—'}</b>
         </span>
         <span className={stats?.errors ? 'is-err' : ''} title={t('أخطاء', 'Errors')}>
           ⚠ {t('أخطاء', 'Errors')}
-          <b>{stats?.errors ?? 0}</b>
+          <b>{available ? stats?.errors ?? 0 : '—'}</b>
         </span>
       </div>}
       <div className="fn-bcard-title">{data.title || '…'}</div>
