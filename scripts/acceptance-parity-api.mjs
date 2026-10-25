@@ -96,6 +96,21 @@ try{
   await assert.rejects(db.withTenant(b.tenantId,c=>c.query('INSERT INTO contact_list_members(tenant_id,list_id,contact_id) VALUES($1,$2,$3)',[b.tenantId,list.id,contactId])),/foreign key|row-level/);
   await assert.rejects(db.withTenant(b.tenantId,c=>c.query('INSERT INTO contact_lists(tenant_id,name) VALUES($1,$2)',[a.tenantId,'Forbidden'])),/row-level/);
  });
+ await check('catalog selection uses real DB products in the simulator and preserves stable IDs across turns',async()=>{
+  const product=await post('/commerce/products',token,{sku:'selectable',name:'رحلة اختبار',priceCents:'199900',currency:'EGP'});
+  const bot=await post('/flows',token,{name:'Catalog DB selection'});
+  await req('/flows/'+bot.id,token,'PATCH',{graph:{startNodeId:'catalog',nodes:[{id:'catalog',type:'catalog',data:{productIds:[product.id],text:'اختر منتجًا',selectable:true,saveAs:'product'},edges:{next:'done'}},{id:'done',type:'message',data:{text:'Selected {{product}}'},edges:{}}]}});
+  const first=await post('/flows/'+bot.id+'/test',token,{text:'hello'});assert.equal(first.status,'waiting');assert.equal(first.state.waiting.catalogOptions[0].id,'product:'+product.id);
+  const next=await post('/flows/'+bot.id+'/test',token,{text:'رحلة اختبار',replyId:'product:'+product.id,state:JSON.parse(JSON.stringify(first.state))});assert.equal(next.status,'completed');assert.equal(next.state.vars.product,product.id);
+ });
+ await check('published off-hours bot keeps its immutable alternate after the alternate is republished',async()=>{
+  const alternate=await post('/flows',token,{name:'Off-hours alternate'});const makeGraph=text=>({startNodeId:'message',nodes:[{id:'message',type:'message',data:{text},edges:{}}]});
+  await req('/flows/'+alternate.id,token,'PATCH',{graph:makeGraph('Original off-hours')});await post('/flows/'+alternate.id+'/publish',token,{});
+  const parent=await post('/flows',token,{name:'Parent frozen off-hours'});await req('/flows/'+parent.id,token,'PATCH',{priority:50,channelIds:[channel.id],graph:{...makeGraph('Normal hours'),policy:{businessHours:{enabled:true,timezone:'UTC',schedule:{[['sun','mon','tue','wed','thu','fri','sat'][(new Date().getUTCDay()+1)%7]]:[['09:00','17:00']]},offHoursFlowId:alternate.id}}}});await post('/flows/'+parent.id+'/publish',token,{});
+  await req('/flows/'+alternate.id,token,'PATCH',{graph:makeGraph('Changed off-hours')});await post('/flows/'+alternate.id+'/publish',token,{});
+  const version=await db.withTenant(a.tenantId,async c=>(await c.query('SELECT v.graph FROM flows f JOIN flow_versions v ON v.id=f.published_version_id WHERE f.id=$1',[parent.id])).rows[0]);assert.equal(version.graph.policy.businessHours.offHoursGraph.nodes[0].data.text,'Original off-hours');
+  const v=await post(`/widget/${channel.external_id}/session`,null,{}),h={'x-visitor-token':v.token},p=`/widget/${channel.external_id}/messages?visitorId=${v.visitorId}`;await post(p,null,{clientMsgId:randomUUID(),text:'After hours'},201,h);await wait(async()=>(await req(p,null,'GET',undefined,200,h)).messages.some(m=>m.content.text==='Original off-hours'));
+ });
  await check('087 own sessions show current device and revoked access is rejected immediately',async()=>{
   const sessions=await req('/auth/sessions',token);assert.ok(sessions.some(s=>s.is_current));const current=sessions.find(s=>s.is_current);assert.ok(current.last_seen_at);
   await post('/auth/sessions/'+current.id+'/revoke',b.accessToken,undefined,404);await post('/auth/sessions/'+current.id+'/revoke',token);await req('/workspace',token,'GET',undefined,401);
