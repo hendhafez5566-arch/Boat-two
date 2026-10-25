@@ -27,3 +27,10 @@ test('message delivery delay resumes that same node once, then enters its choice
   let engine=new FlowEngine(graph,deps);let result=await engine.start(ctx,state);assert.equal(result.waitKind,'delay');assert.equal(sent.length,0);assert.equal(result.waitUntil?.toISOString(),'2026-10-25T12:01:30.000Z');
   engine=new FlowEngine(graph,deps);result=await engine.resumeDelay(ctx,JSON.parse(JSON.stringify(state)));assert.equal(result.waitKind,'choice');assert.equal(sent.length,1);assert.equal(sent[0].header.text,'Title');assert.equal(sent[0].footer,'Footer');assert.equal('delivery' in sent[0],false);
 });
+
+test('post-formatting validation rejects signature overflow for text and media captions',async()=>{
+ const {validateOutbound}=await import('./message-content');
+ assert.doesNotThrow(()=>validateOutbound({text:'x'.repeat(4096)}));
+ assert.throws(()=>validateOutbound({text:'x'.repeat(4097)}),/4096/);
+ assert.throws(()=>validateOutbound({media:{kind:'image',url:'https://example.test/image.png',caption:'x'.repeat(1025)}}),/1024/);
+});

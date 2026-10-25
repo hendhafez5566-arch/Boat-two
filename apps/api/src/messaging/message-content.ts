@@ -107,6 +107,8 @@ export function messageTypeOf(c: MessageContent): string {
 
 /** قواعد الرسائل الصادرة (حدود واتساب هي الأضيق، فنلتزم بها لكل القنوات) */
 export function validateOutbound(c: MessageContent) {
+  if((c.text?.length??0)>4096)throw new BadRequestException('Message text exceeds 4096 characters after formatting');
+  if((c.media?.caption?.length??0)>1024)throw new BadRequestException('Media caption exceeds 1024 characters after formatting');
   if(c.telegramSender||c.flowReply||c.order)throw new BadRequestException('Form replies and orders are inbound-only');
   if(c.product||c.productList||c.whatsappFlow){if(!c.text||c.text.length>1024)throw new BadRequestException('Native interactive body requires 1–1024 characters');if([c.product,c.productList,c.whatsappFlow].filter(Boolean).length>1||c.buttons||c.list||c.cta||c.template||c.media)throw new BadRequestException('Native product/flow cannot be combined with another action');}
   if ((c.header?.type === 'text' && (!c.header.text || c.header.text.length > 60)) || (c.footer?.length ?? 0) > 60) throw new BadRequestException('Interactive header/footer supports at most 60 characters');

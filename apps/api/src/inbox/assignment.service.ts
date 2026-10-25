@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException,Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DatabaseService } from '../database/database.service';
 import { pickLeastLoaded } from './assignment';
@@ -28,7 +28,7 @@ export class AssignmentService {
         [tenantId, m.auto_assign, m.max_open_per_agent],
       ),
     );
-    await this.db.withTenant(tenantId,async c=>{if(m.escalation_user_id&&!(await c.query('SELECT 1 FROM memberships WHERE user_id=$1',[m.escalation_user_id])).rowCount)throw new Error('Escalation employee is not in this workspace');await c.query('UPDATE inbox_settings SET signature_enabled=$1,signature_template=$2,human_session_minutes=$3,delivery_error_tag=$4,sla_escalation_enabled=$5,escalation_user_id=$6,updated_at=now()',[m.signature_enabled,m.signature_template,m.human_session_minutes,m.delivery_error_tag,m.sla_escalation_enabled,m.escalation_user_id]);});
+    await this.db.withTenant(tenantId,async c=>{if(m.escalation_user_id&&!(await c.query('SELECT 1 FROM memberships WHERE user_id=$1',[m.escalation_user_id])).rowCount)throw new BadRequestException('Escalation employee is not in this workspace');await c.query('UPDATE inbox_settings SET signature_enabled=$1,signature_template=$2,human_session_minutes=$3,delivery_error_tag=$4,sla_escalation_enabled=$5,escalation_user_id=$6,updated_at=now()',[m.signature_enabled,m.signature_template,m.human_session_minutes,m.delivery_error_tag,m.sla_escalation_enabled,m.escalation_user_id]);});
     return m;
     });
   }

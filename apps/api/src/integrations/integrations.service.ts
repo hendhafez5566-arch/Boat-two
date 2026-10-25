@@ -1,4 +1,4 @@
-import {BadRequestException,Injectable,OnModuleDestroy,OnModuleInit} from '@nestjs/common';
+import {BadRequestException,Inject,Injectable,OnModuleDestroy,OnModuleInit} from '@nestjs/common';
 import {OnEvent} from '@nestjs/event-emitter';
 import {createHmac} from 'node:crypto';
 import {DatabaseService} from '../database/database.service';
@@ -9,10 +9,11 @@ import {safeHttpRequest} from '../flows/http-safe';
 import {connectionSchema} from './contracts';
 import {z} from 'zod';
 import {providerRequest} from './provider-request';
+export const INTEGRATION_HTTP='BOAT_INTEGRATION_HTTP';
 @Injectable()
 export class IntegrationsService implements OnModuleInit,OnModuleDestroy {
  private timer?:NodeJS.Timeout;private running=false;
- constructor(private db:DatabaseService,private crypto:CryptoService){}
+ constructor(private db:DatabaseService,private crypto:CryptoService,@Inject(INTEGRATION_HTTP) private http:typeof safeHttpRequest){}
  list(tenant:string){return this.db.withTenant(tenant,async c=>(await c.query('SELECT id,provider,name,config,status,enabled,updated_at FROM integration_connections ORDER BY provider,name')).rows);}
  create(tenant:string,input:z.infer<typeof connectionSchema>){return this.db.withTenant(tenant,async c=>(await c.query("INSERT INTO integration_connections(tenant_id,provider,name,credentials_enc,config) VALUES($1,$2,$3,$4,$5) RETURNING id,provider,name,status,enabled",[tenant,input.provider,input.name,this.crypto.encrypt({value:input.credential}),JSON.stringify(input.config)])).rows[0]);}
  async setEnabled(tenant:string,id:string,enabled:boolean){return this.db.withTenant(tenant,async c=>{const r=await c.query('UPDATE integration_connections SET enabled=$2,updated_at=now() WHERE id=$1 RETURNING id,enabled',[id,enabled]);if(!r.rowCount)throw new BadRequestException('Integration not found');return r.rows[0];});}
@@ -30,12 +31,12 @@ export class IntegrationsService implements OnModuleInit,OnModuleDestroy {
   const request=providerRequest(row.provider,row.config,credential,payload);
   if(dryRun)return{mock:true,delivered:false,request:{...request,headers:Object.fromEntries(Object.keys(request.headers).map(k=>[k,k==='Content-Type'?request.headers[k]:'[REDACTED]']))}};
   if(!row.enabled||env.EXTERNAL_DELIVERY_ENABLED!=='true')throw new BadRequestException('Explicit integration and external access enablement required');
-  const result=await safeHttpRequest(request);if(!result.ok){if([401,403].includes(result.status))await this.db.withTenant(tenant,c=>c.query("UPDATE integration_connections SET status='needs_action',updated_at=now() WHERE id=$1",[id]));throw new BadRequestException(`Provider returned ${result.status}`);}await this.db.withTenant(tenant,c=>c.query("UPDATE integration_connections SET status='connected',updated_at=now() WHERE id=$1",[id]));
+  const result=await this.http(request);if(!result.ok){if([401,403].includes(result.status))await this.db.withTenant(tenant,c=>c.query("UPDATE integration_connections SET status='needs_action',updated_at=now() WHERE id=$1",[id]));throw new BadRequestException(`Provider returned ${result.status}`);}await this.db.withTenant(tenant,c=>c.query("UPDATE integration_connections SET status='connected',updated_at=now() WHERE id=$1",[id]));
   const data=result.body as {contact?:{id?:string}};
   if(['activecampaign','mautic'].includes(row.provider)&&row.config.listId){
    const contactId=data.contact?.id;if(!contactId)throw new BadRequestException('Provider returned no contact ID');
    const follow=row.provider==='activecampaign'?{...request,url:String(row.config.url).replace(/\/$/,'')+'/api/3/contactLists',body:JSON.stringify({contactList:{list:String(row.config.listId),contact:contactId,status:1}})}:{...request,url:String(row.config.url).replace(/\/$/,'')+`/api/segments/${encodeURIComponent(String(row.config.listId))}/contact/${encodeURIComponent(contactId)}/add`,body:'{}'};
-   const linked=await safeHttpRequest(follow);if(!linked.ok)throw new BadRequestException('Contact synchronized but list attachment failed; reconcile before retrying');
+   const linked=await this.http(follow);if(!linked.ok)throw new BadRequestException('Contact synchronized but list attachment failed; reconcile before retrying');
   }
   return{mock:false,delivered:true,data:result.body};
  }
@@ -55,7 +56,7 @@ export class IntegrationsService implements OnModuleInit,OnModuleDestroy {
     if(row.status!=='pending'||!row.enabled)return null;await c.query("UPDATE integration_deliveries SET status='sending',attempts=attempts+1,lease_until=now()+interval '60 seconds',updated_at=now() WHERE id=$1",[item.id]);return row;
    });if(!job)continue;
    let status='ambiguous',error:string|null=null;
-   try{const secret=this.crypto.decrypt<{value:string}>(job.credentials_enc).value;const body=JSON.stringify(job.payload);const result=await safeHttpRequest({method:'POST',url:job.config.url,headers:{'Content-Type':'application/json','X-Boat-Event-ID':job.event_key,'Idempotency-Key':job.event_key,'X-Boat-Signature':'sha256='+createHmac('sha256',secret).update(body).digest('hex')},body,timeoutMs:15000});status=result.ok?'completed':'failed';if(!result.ok)error=`HTTP ${result.status}`;}catch{error='Outcome unknown; automatic replay refused';}
+   try{const secret=this.crypto.decrypt<{value:string}>(job.credentials_enc).value;const body=JSON.stringify(job.payload);const result=await this.http({method:'POST',url:job.config.url,headers:{'Content-Type':'application/json','X-Boat-Event-ID':job.event_key,'Idempotency-Key':job.event_key,'X-Boat-Signature':'sha256='+createHmac('sha256',secret).update(body).digest('hex')},body,timeoutMs:15000});status=result.ok?'completed':'failed';if(!result.ok)error=`HTTP ${result.status}`;}catch{error='Outcome unknown; automatic replay refused';}
    await this.db.withTenant(item.tenant_id,c=>c.query('UPDATE integration_deliveries SET status=$2,error=$3,lease_until=NULL,updated_at=now() WHERE id=$1',[item.id,status,error]));
   }
  }finally{this.running=false;}}

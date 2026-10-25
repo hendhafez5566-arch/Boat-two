@@ -1,6 +1,6 @@
 import { z } from 'zod';
 export const providerSchema=z.enum(['google','webhook','mailchimp','brevo','activecampaign','mautic','email','sms','salla']);
-export const EVENT_TYPES=['message.received','message.outbound','message.status','conversation.updated','conversation.handoff','crm.contacts.insert','crm.contacts.update','crm.crm_deals.insert','crm.crm_deals.update','crm.crm_tasks.update','automation.scheduled'] as const;
+export const EVENT_TYPES=['message.received','message.outbound','message.status','conversation.updated','conversation.handoff','crm.contacts.insert','crm.contacts.update','crm.crm_deals.insert','crm.crm_deals.update','crm.crm_tasks.insert','crm.crm_tasks.update','automation.scheduled'] as const;
 export const connectionSchema=z.object({
  provider:providerSchema.exclude(['google']),name:z.string().trim().min(1).max(100),
  credential:z.string().min(1).max(4000),
