@@ -184,8 +184,10 @@ export function clickableOptions(
   if (waiting.kind === 'choice') return optionsOf(node.data ?? {});
   if (waiting.kind === 'answer' && node.type === 'user_input') {
     const q = (node.data?.questions ?? [])[waiting.step ?? 0];
-    return q?.kind === 'choice' ? (q.options ?? []) : [];
+    return [...(q?.kind === 'choice' ? (q.options ?? []) : []), ...(q?.allowSkip ? [{ id: `__boat_skip:${q.id}`, title: q.skipText || '/skip' }] : [])];
   }
+  if (waiting.kind === 'answer' && node.type === 'question' && node.data.allowSkip)
+    return [{ id: `__boat_skip:${waiting.nodeId}`, title: node.data.skipText || '/skip' }];
   return [];
 }
 

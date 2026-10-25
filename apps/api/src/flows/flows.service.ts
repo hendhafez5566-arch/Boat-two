@@ -10,13 +10,13 @@ import { DatabaseService } from '../database/database.service';
 import { PlansService } from '../plans/plans.service';
 import { FlowEngine, FlowGraph, FlowState, newState, OutContent, validateGraph } from './engine';
 import { isAllowedSheetHost } from './engine/sheet';
-import { createFlowSchema, testFlowSchema, updateFlowSchema } from './flow-schemas';
+import { createFlowSchema, testFlowSchema, updateFlowSchema, flowTransferSchema } from './flow-schemas';
 import { localizedFlowTemplates } from './templates';
 import { expandSubflows } from './expand';
 import { safeHttpRequest } from './http-safe';
 
 const LIST_COLS =
-  'id, name, description, status, priority, triggers, channel_ids, published_version_id, created_at, updated_at';
+  'id, name, description, status, priority, triggers, channel_ids, published_version_id, created_at, updated_at, folder_name';
 
 const defaultGraph = (language: 'ar' | 'en' = 'ar'): FlowGraph => ({
   startNodeId: 'start',
@@ -45,7 +45,7 @@ export class FlowsService {
   list(tenantId: string) {
     return this.db.withTenant(tenantId, async (c) => {
       const r = await c.query(
-        `SELECT f.is_component,f.id, f.name, f.description, f.status, f.priority, f.triggers, f.channel_ids, f.updated_at,
+        `SELECT f.folder_name,f.is_component,f.id, f.name, f.description, f.status, f.priority, f.triggers, f.channel_ids, f.updated_at,
                 v.version AS published_version
          FROM flows f LEFT JOIN flow_versions v ON v.id = f.published_version_id
          ORDER BY f.updated_at DESC`,
@@ -157,6 +157,7 @@ export class FlowsService {
            triggers = COALESCE($6::jsonb, triggers),
            channel_ids = COALESCE($7::uuid[], channel_ids),
            draft_graph = COALESCE($8::jsonb, draft_graph),
+           folder_name = CASE WHEN $9::boolean THEN $10::text ELSE folder_name END,
            updated_at = now()
          WHERE id = $1 RETURNING ${LIST_COLS}`,
         [
@@ -168,6 +169,8 @@ export class FlowsService {
           input.triggers ? JSON.stringify(input.triggers) : null,
           input.channelIds ?? null,
           input.graph ? JSON.stringify(input.graph) : null,
+          input.folderName !== undefined,
+          input.folderName ?? null,
         ],
       );
       if (!r.rows[0]) throw new NotFoundException('Flow not found');
@@ -177,6 +180,22 @@ export class FlowsService {
 
   validate(graph: FlowGraph) {
     return validateGraph(graph);
+  }
+
+  async exportFlow(tenantId: string, id: string) {
+    const flow = await this.get(tenantId, id);
+    return flowTransferSchema.parse({ format: 'boat-two-flow', version: 1, name: flow.name, description: flow.description, graph: flow.draft_graph, triggers: flow.triggers });
+  }
+
+  async importFlow(tenantId: string, userId: string, input: z.infer<typeof flowTransferSchema>) {
+    const graph = input.graph as FlowGraph;
+    const { errors } = validateGraph(graph);
+    if (errors.length) throw new BadRequestException({ code:'FLOW_INVALID', errors });
+    return this.db.withTenant(tenantId, async () => {
+      const flow = await this.create(tenantId, userId, { language:'ar', isComponent:false, name:input.name, description:input.description ?? undefined });
+      await this.update(tenantId, flow.id, { graph:input.graph, triggers:input.triggers });
+      return this.get(tenantId, flow.id);
+    });
   }
 
   publish(tenantId: string, userId: string, id: string, expected?: string) {

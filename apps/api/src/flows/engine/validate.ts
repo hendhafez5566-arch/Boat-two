@@ -48,6 +48,7 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
         break;
       }
       case 'question':
+        if (d.allowSkip && (d.buttons?.length ?? 0) >= 3) errors.push({ nodeId: n.id, message: 'At most 3 buttons' });
         if (!d.text) errors.push({ nodeId: n.id, message: 'Question text is required' });
         if (!d.saveAs || !/^[A-Za-z_][\w]{0,40}$/.test(d.saveAs))
           errors.push({ nodeId: n.id, message: 'saveAs must be a valid variable name' });
@@ -134,6 +135,7 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
           else keys.add(q.saveAs);
           if (q.kind === 'choice') {
             const o: any[] = q.options ?? [];
+            if (q.allowSkip && o.length >= 10) errors.push({ nodeId: n.id, message: 'Too many options (max 10)' });
             if (o.length < 2) errors.push({ nodeId: n.id, message: 'Multiple choice needs at least 2 options' });
             if (new Set(o.map((x) => x.id)).size !== o.length)
               errors.push({ nodeId: n.id, message: 'Option ids must be unique' });

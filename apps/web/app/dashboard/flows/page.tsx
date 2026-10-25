@@ -13,6 +13,7 @@ type Flow = {
   published_version: number | null;
   triggers: { type: string; keywords?: string[] }[];
   updated_at: string;
+  folder_name: string | null;
 };
 
 export default function Flows() {
@@ -35,6 +36,30 @@ export default function Flows() {
   const [busy, setBusy] = useState(false);
   const [items, setItems] = useState<Flow[]>([]);
   const [error, setError] = useState('');
+  const [folder, setFolder] = useState('*');
+  const [search, setSearch] = useState('');
+  const visible = items.filter(f => (folder === '*' || (f.folder_name ?? '') === folder) && f.name.toLowerCase().includes(search.toLowerCase()));
+  const folders = [...new Set(items.map(f => f.folder_name).filter((f): f is string => !!f))];
+
+  async function importFile(file: File) {
+    if (busy) return;
+    setBusy(true); setError('');
+    try {
+      if (file.size > 1024 * 1024) throw new Error(t('حجم الملف يتجاوز 1 ميجابايت.', 'File exceeds 1 MB.'));
+      let body: unknown;
+      try { body = JSON.parse(await file.text()); } catch { throw new Error(t('الملف ليس JSON صالحًا.', 'File is not valid JSON.')); }
+      const flow = await api<{id:string}>('/flows/import', { method:'POST', body:JSON.stringify(body) });
+      window.location.assign(`/dashboard/flows/${flow.id}`);
+    } catch(e) { setError((e as Error).message); } finally { setBusy(false); }
+  }
+  async function exportFlow(flow: Flow) {
+    if (busy) return; setBusy(true); setError('');
+    try {
+      const body = await api(`/flows/${flow.id}/export`);
+      const url=URL.createObjectURL(new Blob([JSON.stringify(body,null,2)], {type:'application/json'}));
+      const a=document.createElement('a');a.href=url;a.download=`boat-flow-${flow.id}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    } catch(e) { setError((e as Error).message); } finally { setBusy(false); }
+  }
 
   const load = () =>
     api<Flow[]>('/flows')
@@ -103,6 +128,7 @@ export default function Flows() {
       )}
 
       <section aria-labelledby="my-bots">
+        <div className="card stack"><div className="form-grid"><label className="field">{t('بحث عن بوت', 'Find a bot')}<input type="search" value={search} onChange={e=>setSearch(e.target.value)} /></label><label className="field">{t('المجلد', 'Folder')}<select value={folder} onChange={e=>setFolder(e.target.value)}><option value="*">{t('كل المجلدات', 'All folders')}</option><option value="">{t('دون مجلد', 'Unfiled')}</option>{folders.map(name=><option key={name} value={name}>{name}</option>)}</select></label><label className="field">{t('استيراد ملف Boat Two', 'Import Boat Two file')}<input type="file" accept="application/json,.json" disabled={busy} onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file)void importFile(file);}} /></label></div><p>{t('الاستيراد ينشئ مسودة جديدة دون نشر أو ربط قناة. تبقى معرّفات الخطوات والأزرار ثابتة؛ راجع مراجع القوائم والتسلسلات والموظفين والـWebhook قبل النشر.', 'Import creates a new draft without publishing or connecting channels. Step and button IDs are preserved; review list, sequence, staff and webhook references before publishing.')}</p></div>
         <div className="section-title">
           <h2 id="my-bots">{t('بوتاتك', 'Your bots')}</h2>
           {items.length > 0 && (
@@ -113,7 +139,7 @@ export default function Flows() {
         </div>
         {items.length ? (
           <ul className="bot-list">
-            {items.map((f) => {
+            {visible.map((f) => {
               const live = f.status === 'published';
               return (
                 <li key={f.id} className="bot-row">
@@ -133,6 +159,8 @@ export default function Flows() {
                       : t('مسودة', 'Draft')}
                   </span>
                   <div className="bot-actions">
+                    <button className="btn" disabled={busy} onClick={()=>void exportFlow(f)}>{t('تصدير', 'Export')}</button>
+                    <details><summary>{t('المجلد', 'Folder')}: {f.folder_name || t('دون مجلد', 'Unfiled')}</summary><form className="stack" onSubmit={async e=>{e.preventDefault();if(busy)return;const form=e.currentTarget;setBusy(true);setError('');try{await api(`/flows/${f.id}`,{method:'PATCH',body:JSON.stringify({folderName:String(new FormData(form).get('folder')??'').trim()||null,expectedUpdatedAt:f.updated_at})});await load();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}><label className="field">{t('اسم المجلد (فارغ للإزالة)', 'Folder name (empty to remove)')}<input name="folder" defaultValue={f.folder_name??''} maxLength={80}/></label><button className="btn" disabled={busy}>{t('حفظ المجلد', 'Save folder')}</button></form></details>
                     <a className="btn btn-primary" href={`/dashboard/flows/${f.id}`}>
                       {t('تعديل', 'Edit')}
                     </a>
@@ -175,6 +203,7 @@ export default function Flows() {
             />
           </div>
         )}
+        {items.length > 0 && visible.length === 0 && <p className="empty">{t('لا توجد نتائج لهذا البحث أو المجلد.', 'No results for this search or folder.')}</p>}
       </section>
 
       <section aria-labelledby="start-template">

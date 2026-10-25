@@ -153,6 +153,8 @@ export const nodeSchema = z.discriminatedUnion('type', [
             kind: z.enum(['choice', 'text', 'number', 'email', 'phone']).default('text'),
             options: z.array(z.object({ id: z.string().min(1).max(200), title: z.string().min(1).max(24) })).max(10).optional(),
             saveAs: z.string().max(41),
+            allowSkip: z.boolean().optional(),
+            skipText: z.string().min(1).max(20).optional(),
             errorText: z.string().max(1000).optional(),
             retries: z.number().int().min(0).max(5).optional(),
           }),
@@ -169,6 +171,9 @@ export const nodeSchema = z.discriminatedUnion('type', [
     data: z.object({
       text: z.string().max(4096),
       answerType: z.enum(['text', 'number', 'email', 'phone', 'regex']).default('text'),
+      allowSkip: z.boolean().optional(),
+      skipText: z.string().min(1).max(20).optional(),
+      saveToContact: z.boolean().optional(),
       pattern: z.string().max(200).optional(),
       saveAs: z.string().max(41),
       retries: z.number().int().min(0).max(5).optional(),
@@ -362,7 +367,17 @@ export const createFlowSchema = z.object({
   description: z.string().max(500).optional(),
 });
 
+export const flowTransferSchema = z.object({
+  format: z.literal('boat-two-flow'),
+  version: z.literal(1),
+  name: z.string().min(1).max(120),
+  description: z.string().max(500).nullable().optional(),
+  graph: graphSchema,
+  triggers: triggersSchema.default([]),
+});
+
 export const updateFlowSchema = z.object({
+  folderName: z.string().trim().min(1).max(80).nullable().optional(),
   isComponent: z.boolean().optional(),
   expectedUpdatedAt: z.string().datetime().optional(),
   name: z.string().min(1).max(120).optional(),

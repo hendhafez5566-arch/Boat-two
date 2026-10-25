@@ -48,3 +48,15 @@ test('collection completion actions run only after all validated answers',async(
   h.ctx.lastMessage={text:'invalid'};await engine.resume(h.ctx,s);assert.equal(h.calls.length,0);
   h.ctx.lastMessage={text:'test@example.test'};assert.equal((await engine.resume(h.ctx,s)).status,'completed');assert.equal(h.calls.length,1);
 });
+
+test('optional questions skip without overwriting attributes; ordinary questions save contact fields only when selected',async()=>{
+  const h=setup([]);const attrs:Record<string,unknown>={email:'saved@example.test'};
+  h.deps.setContactAttribute=async(k,v)=>{attrs[k]=v;};
+  h.graph.startNodeId='question';h.graph.nodes=[{id:'question',type:'question',data:{text:'Email?',answerType:'email',saveAs:'email',saveToContact:true,allowSkip:true},edges:{}}];
+  let engine=new FlowEngine(h.graph,h.deps),state=newState();await engine.start(h.ctx,state);
+  assert.deepEqual(h.sent[0].buttons,[{id:'__boat_skip:question',title:'/skip'}]);
+  h.ctx.lastMessage={text:'',replyId:'__boat_skip:question'};assert.equal((await engine.resume(h.ctx,state)).status,'completed');assert.equal(attrs.email,'saved@example.test');assert.equal(state.vars.email_skipped,true);
+  engine=new FlowEngine(h.graph,h.deps);state=newState();await engine.start(h.ctx,state);h.ctx.lastMessage={text:'new@example.test'};await engine.resume(h.ctx,state);assert.equal(attrs.email,'new@example.test');
+  h.graph.nodes=[{id:'question',type:'user_input',data:{questions:[{id:'q',text:'Email?',kind:'email',saveAs:'email',allowSkip:true}]},edges:{}}];
+  engine=new FlowEngine(h.graph,h.deps);state=newState();await engine.start(h.ctx,state);h.ctx.lastMessage={text:'/skip'};assert.equal((await engine.resume(h.ctx,state)).status,'completed');assert.equal(attrs.email,'new@example.test');
+});

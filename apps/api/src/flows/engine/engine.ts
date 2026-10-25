@@ -224,7 +224,7 @@ export class FlowEngine {
   /** يرسل سؤال user_input رقم step: أزرار (≤3 اختيارات) أو قائمة (حتى 10) أو نص */
   private async askUserInput(node: FlowNode, ctx: FlowContext, state: FlowState, step: number) {
     const q = node.data.questions[step];
-    const o: { id: string; title: string }[] = q.kind === 'choice' ? q.options ?? [] : [];
+    const o: { id: string; title: string }[] = [...(q.kind === 'choice' ? q.options ?? [] : []), ...(q.allowSkip ? [{ id: `__boat_skip:${q.id}`, title: q.skipText || '/skip' }] : [])];
     const content = this.buildContent(
       {
         text: q.text,
@@ -248,6 +248,7 @@ export class FlowEngine {
       return this.finish('completed', state);
     }
     const text = this.replyText(ctx);
+    const skipped = q.allowSkip && (ctx.lastMessage.replyId === `__boat_skip:${q.id}` || normalizeText(text) === normalizeText(q.skipText || '/skip'));
     let value: string | number | undefined;
     if (q.kind === 'choice') {
       const { replyId } = ctx.lastMessage;
@@ -263,7 +264,7 @@ export class FlowEngine {
       if (parsed.ok) value = parsed.value;
     }
 
-    if (value === undefined) {
+    if (value === undefined && !skipped) {
       const retries = (state.waiting?.retries ?? 0) + 1;
       if (retries > (q.retries ?? 2)) {
         state.waiting = null;
@@ -274,9 +275,11 @@ export class FlowEngine {
       return this.askAgain(node, ctx, state, step);
     }
 
-    state.vars[q.saveAs] = value;
-    await this.deps.setContactAttribute(q.saveAs, value);
-    ctx.contact.attributes[q.saveAs] = value;
+    if (!skipped) {
+      state.vars[q.saveAs] = value;
+      await this.deps.setContactAttribute(q.saveAs, value);
+      ctx.contact.attributes[q.saveAs] = value;
+    } else state.vars[`${q.saveAs}_skipped`] = true;
     if (step + 1 < qs.length) {
       state.waiting = { nodeId: node.id, kind: 'answer', retries: 0, step: step + 1 };
       await this.askUserInput(node, ctx, state, step + 1);
@@ -299,10 +302,19 @@ export class FlowEngine {
     if (node.type === 'user_input') return this.resumeUserInput(node, ctx, state);
     this.curNode = node.id;
     const d = node.data;
+    if (d.allowSkip && (ctx.lastMessage.replyId === `__boat_skip:${node.id}` || normalizeText(this.replyText(ctx)) === normalizeText(d.skipText || '/skip'))) {
+      state.vars[`${d.saveAs}_skipped`] = true;
+      state.waiting = null;
+      return this.run(ctx, state, node.edges.ok ?? null);
+    }
     const parsed = parseAnswer(this.replyText(ctx), d.answerType ?? 'text', d.pattern);
 
     if (parsed.ok) {
       state.vars[d.saveAs] = parsed.value;
+      if (d.saveToContact) {
+        await this.deps.setContactAttribute(d.saveAs, parsed.value);
+        ctx.contact.attributes[d.saveAs] = parsed.value;
+      }
       state.waiting = null;
       return this.run(ctx, state, node.edges.ok ?? null);
     }
@@ -459,7 +471,7 @@ export class FlowEngine {
       }
 
       case 'question': {
-        const content = this.buildContent({ text: d.text, buttons: d.buttons }, ctx, state);
+        const content = this.buildContent({ text: d.text, buttons: d.allowSkip ? [...(d.buttons ?? []), { id: `__boat_skip:${node.id}`, title: d.skipText || '/skip' }] : d.buttons }, ctx, state);
         await this.send(content);
         state.waiting = { nodeId: node.id, kind: 'answer', retries: 0 };
         return { kind: 'wait' };

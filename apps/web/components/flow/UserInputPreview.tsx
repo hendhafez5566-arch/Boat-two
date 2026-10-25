@@ -8,6 +8,8 @@ export type UIQuestion = {
   kind: 'choice' | 'text' | 'number' | 'email' | 'phone';
   options?: { id: string; title: string }[];
   saveAs: string;
+  allowSkip?: boolean;
+  skipText?: string;
   errorText?: string;
   retries?: number;
 };

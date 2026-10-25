@@ -14,7 +14,7 @@ import { z } from 'zod';
 import { Roles } from '../auth/decorators';
 import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
-import { createFlowSchema, graphSchema, testFlowSchema, updateFlowSchema } from './flow-schemas';
+import { createFlowSchema, graphSchema, testFlowSchema, updateFlowSchema, flowTransferSchema } from './flow-schemas';
 import { FlowsService } from './flows.service';
 import { FlowGraph } from './engine';
 
@@ -31,6 +31,18 @@ export class FlowsController {
   templates(@Query() query: unknown) {
     const { language } = parse(z.object({ language: z.enum(['ar', 'en']).default('ar') }), query);
     return this.flows.templates(language);
+  }
+
+  @Roles('owner', 'admin')
+  @Post('import')
+  importFlow(@Req() req: AuthedRequest, @Body() body: unknown) {
+    return this.flows.importFlow(req.user.tenantId, req.user.userId, parse(flowTransferSchema, body));
+  }
+
+  @Roles('owner', 'admin')
+  @Get(':id/export')
+  exportFlow(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.flows.exportFlow(req.user.tenantId, id);
   }
 
   @Get(':id/stats')
