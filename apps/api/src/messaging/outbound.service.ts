@@ -12,6 +12,7 @@ import { env } from '../config/env';
 import { ChannelsService } from './channels.service';
 import { MetaAdapter } from './adapters/meta.adapter';
 import { WhatsAppAdapter } from './adapters/whatsapp.adapter';
+import { TelegramAdapter } from './adapters/telegram.adapter';
 import { ProviderError } from './adapters/adapter';
 @Injectable()
 export class OutboundService implements OnModuleInit, OnModuleDestroy {
@@ -24,6 +25,7 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
     private channels: ChannelsService,
     private whatsapp: WhatsAppAdapter,
     private meta: MetaAdapter,
+    private telegram: TelegramAdapter,
   ) {}
   onModuleInit() {
     if (process.env.NODE_ENV !== 'test') {
@@ -182,7 +184,7 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
         if (!row) continue;
         try {
           const creds = this.channels.credentials(row);
-          const sent = await (row.channel_type === 'whatsapp' ? this.whatsapp : this.meta).send(
+          const sent = await (row.channel_type === 'whatsapp' ? this.whatsapp : row.channel_type === 'telegram' ? this.telegram : this.meta).send(
             creds,
             row.recipient,
             row.content,

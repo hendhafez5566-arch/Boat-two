@@ -6,7 +6,7 @@
     "dev": "node ../../scripts/dev-api.mjs",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
-    "test": "tsx --test src/business/schemas.test.ts src/flows/engine/engine.test.ts src/ai/ai.test.ts src/inbox/inbox.test.ts src/messaging/webhooks.test.ts src/flows/expand.test.ts src/sequences/schedule.test.ts src/ai/cost.test.ts src/ai/providers/openai.test.ts src/inbox/realtime/realtime.test.ts src/platform/step-up.test.ts src/platform/permissions.test.ts src/platform/totp.test.ts src/billing/invoice-snapshot.test.ts src/messaging/template-contract.test.ts src/messaging/template-draft.test.ts src/flows/engine/button-actions.test.ts src/flows/flow-actions.test.ts src/messaging/connection-health.test.ts src/flows/flow-transfer.test.ts src/flows/engine/bot-policy.test.ts src/messaging/interactive-message.test.ts",
+    "test": "tsx --test src/business/schemas.test.ts src/flows/engine/engine.test.ts src/ai/ai.test.ts src/inbox/inbox.test.ts src/messaging/webhooks.test.ts src/flows/expand.test.ts src/sequences/schedule.test.ts src/ai/cost.test.ts src/ai/providers/openai.test.ts src/inbox/realtime/realtime.test.ts src/platform/step-up.test.ts src/platform/permissions.test.ts src/platform/totp.test.ts src/billing/invoice-snapshot.test.ts src/messaging/template-contract.test.ts src/messaging/template-draft.test.ts src/flows/engine/button-actions.test.ts src/flows/flow-actions.test.ts src/messaging/connection-health.test.ts src/flows/flow-transfer.test.ts src/flows/engine/bot-policy.test.ts src/messaging/interactive-message.test.ts src/messaging/telegram.test.ts",
     "migrate": "tsx --env-file=../../.env src/database/migrate.ts"
   },
   "dependencies": {

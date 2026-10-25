@@ -46,6 +46,13 @@ export class ChannelsController {
     return this.channels.verify(req.user.tenantId, id);
   }
 
+  @Roles('owner','admin')
+  @Post(':id/telegram-webhook')
+  telegramWebhook(@Req() req:AuthedRequest,@Param('id',ParseUUIDPipe) id:string,@Body() body:unknown) {
+    parse(z.object({confirm:z.literal(true)}),body);
+    return this.channels.setupTelegram(req.user.tenantId,id);
+  }
+
   @Roles('owner', 'admin')
   @Post(':id/credentials')
   reconnect(

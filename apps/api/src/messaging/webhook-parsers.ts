@@ -3,7 +3,7 @@ import { MessageContent } from './message-content';
 export type InboundEvent =
   | {
       kind: 'message';
-      channelType: 'whatsapp' | 'facebook' | 'instagram';
+      channelType: 'whatsapp' | 'facebook' | 'instagram' | 'telegram';
       externalChannelId: string;
       contactExternalId: string;
       contactName?: string;
@@ -22,6 +22,21 @@ export type InboundEvent =
 type Obj = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 const UNSUPPORTED: MessageContent = { text: '[unsupported message type]' };
+
+/** Private Telegram chats only; provider file IDs are not exposed as public media URLs. */
+export function parseTelegram(botId:string,body:Obj):InboundEvent[] {
+  if(!Number.isSafeInteger(body.update_id))return[];
+  const callback=body.callback_query;
+  const message=callback?.message??body.message;
+  const from=callback?.from??message?.from;
+  if(!message||message.chat?.type!=='private'||!Number.isSafeInteger(message.chat?.id)||!from||from.is_bot)return[];
+  const content:MessageContent=callback&&typeof callback.data==='string'
+    ?{reply:{id:callback.data,title:''}}
+    :typeof message.text==='string'?{text:message.text}
+    :message.location?{location:{lat:Number(message.location.latitude),lng:Number(message.location.longitude)}}
+    :{text:'[Telegram media received — file download unavailable]'};
+  return[{kind:'message',channelType:'telegram',externalChannelId:botId,contactExternalId:String(message.chat.id),contactName:[from.first_name,from.last_name].filter(Boolean).join(' '),externalMessageId:`tg:${body.update_id}`,content}];
+}
 
 export function parseWhatsApp(body: Obj): InboundEvent[] {
   const out: InboundEvent[] = [];

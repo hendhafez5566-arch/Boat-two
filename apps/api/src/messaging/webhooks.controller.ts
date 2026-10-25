@@ -10,6 +10,7 @@ import {
   OnModuleInit,
   OnModuleDestroy,
   Post,
+  Param,
   Query,
   RawBodyRequest,
   Req,
@@ -21,8 +22,9 @@ import { Public } from '../auth/decorators';
 import { env } from '../config/env';
 import { DatabaseService } from '../database/database.service';
 import { ChannelsService } from './channels.service';
+import {telegramWebhookAuthorized} from './adapters/telegram.adapter';
 import { MessagingService } from './messaging.service';
-import { InboundEvent, parseMeta, parseWhatsApp } from './webhook-parsers';
+import { InboundEvent, parseMeta, parseWhatsApp, parseTelegram } from './webhook-parsers';
 
 @Controller('webhooks')
 export class WebhooksController implements OnModuleInit, OnModuleDestroy {
@@ -87,6 +89,19 @@ export class WebhooksController implements OnModuleInit, OnModuleDestroy {
     this.verifySignature(req, sig);
     await this.enqueue(parseWhatsApp(body));
     return { received: true };
+  }
+
+  @Public()
+  @Post('telegram/:botId')
+  @HttpCode(200)
+  async telegram(@Param('botId') botId:string,@Headers('x-telegram-bot-api-secret-token') secret:string|undefined,@Body() body:Record<string,unknown>) {
+    if(!/^\d{5,20}$/.test(botId))throw new ForbiddenException();
+    const channel=await this.channels.lookup('telegram',botId);
+    if(!channel||channel.status!=='active')throw new ForbiddenException();
+    const expected=this.channels.credentials(channel).webhookSecret;
+    if(!telegramWebhookAuthorized(expected,secret))throw new ForbiddenException('Invalid Telegram webhook secret');
+    await this.enqueue(parseTelegram(botId,body));
+    return{received:true};
   }
 
   @Public()

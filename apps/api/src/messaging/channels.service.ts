@@ -11,9 +11,10 @@ import { DatabaseService } from '../database/database.service';
 import { PlansService } from '../plans/plans.service';
 import { CryptoService } from './crypto.service';
 import { connectionHealth, ConnectionHealth } from './connection-health';
-import { GRAPH } from './adapters/adapter';
+import { GRAPH, ProviderError } from './adapters/adapter';
+import { telegramCall } from './adapters/telegram.adapter';
 
-export type ChannelType = 'web' | 'whatsapp' | 'facebook' | 'instagram';
+export type ChannelType = 'web' | 'whatsapp' | 'facebook' | 'instagram' | 'telegram';
 
 export interface ChannelRow {
   id: string;
@@ -38,6 +39,7 @@ export const widgetSettingsSchema = z.object({
 });
 
 export const createChannelSchema = z.discriminatedUnion('type', [
+  z.object({type:z.literal('telegram'),name:z.string().min(1).max(80),credentials:z.object({botToken:z.string().regex(/^\d{5,20}:[A-Za-z0-9_-]{20,100}$/)})}),
   z.object({
     type: z.literal('web'),
     name: z.string().min(1).max(80),
@@ -105,6 +107,10 @@ export class ChannelsService {
     const checkedAt = new Date().toISOString();
     let health: ConnectionHealth;
     try {
+      if (row.type === 'telegram') {
+        const account=await telegramCall(credentials.botToken,'getMe');
+        health={state:String(account.id)===row.external_id?'connected':'needs_action',checkedAt,reason:String(account.id)===row.external_id?'provider_verified':'provider_rejected'};
+      } else {
       const response = await fetch(`${GRAPH}/${encodeURIComponent(row.external_id)}?fields=id`, {
         headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10000),
       });
@@ -112,8 +118,11 @@ export class ChannelsService {
       health = response.ok && result.id === row.external_id
         ? { state: 'connected', checkedAt, reason: 'provider_verified' }
         : { state: result.error?.code === 190 ? 'expired' : 'needs_action', checkedAt, reason: result.error?.code === 190 ? 'authorization_expired' : 'provider_rejected' };
-    } catch {
-      health = { state: 'needs_action', checkedAt, reason: 'provider_unreachable' };
+      }
+    } catch(e) {
+      health = e instanceof ProviderError && e.status === 401
+        ? {state:'expired',checkedAt,reason:'authorization_expired'}
+        : { state: 'needs_action', checkedAt, reason: e instanceof ProviderError && e.status < 500 ? 'provider_rejected' : 'provider_unreachable' };
     }
     const saved = await this.db.withTenant(tenantId, (c) => c.query(
       `UPDATE channels SET settings=jsonb_set(settings,'{connectionHealth}',$2::jsonb) WHERE id=$1 AND status='active' AND credentials_enc IS NOT DISTINCT FROM $3`,
@@ -151,6 +160,10 @@ export class ChannelsService {
     let settings: Record<string, unknown> = {};
 
     switch (input.type) {
+      case 'telegram':
+        externalId=input.credentials.botToken.split(':')[0];
+        credentialsEnc=this.crypto.encrypt({...input.credentials,webhookSecret:randomBytes(32).toString('hex')});
+        break;
       case 'web':
         externalId = randomBytes(12).toString('hex');
         settings = widgetSettingsSchema.parse(input.settings ?? {});
@@ -206,13 +219,14 @@ export class ChannelsService {
   reconnect(tenantId: string, id: string, accessToken: string, wabaId?: string) {
     return this.db.withTenant(tenantId, async (c) => {
       const row = (
-        await c.query('SELECT type,credentials_enc FROM channels WHERE id=$1 FOR UPDATE', [id])
+        await c.query('SELECT type,external_id,credentials_enc FROM channels WHERE id=$1 FOR UPDATE', [id])
       ).rows[0];
       if (!row) throw new NotFoundException('Channel not found');
       if (row.type === 'web')
         throw new BadRequestException('Website channels do not use provider tokens');
       const credentials = this.credentials(row as ChannelRow);
-      credentials[row.type === 'whatsapp' ? 'accessToken' : 'pageAccessToken'] = accessToken;
+      if(row.type==='telegram'&&(!/^\d{5,20}:[A-Za-z0-9_-]{20,100}$/.test(accessToken)||accessToken.split(':')[0]!==row.external_id))throw new BadRequestException('Token must belong to the same Telegram bot');
+      credentials[row.type === 'telegram'?'botToken':row.type === 'whatsapp' ? 'accessToken' : 'pageAccessToken'] = accessToken;
       if (row.type === 'whatsapp' && wabaId) credentials.wabaId = wabaId;
       await c.query("UPDATE channels SET credentials_enc=$2,status='active',settings=settings-'connectionHealth' WHERE id=$1", [
         id,
@@ -231,6 +245,18 @@ export class ChannelsService {
       if (!r.rowCount) throw new NotFoundException('Failed job not found');
       return { queued: true };
     });
+  }
+
+  async setupTelegram(tenantId:string,id:string) {
+    if(env.EXTERNAL_DELIVERY_ENABLED!=='true')throw new BadRequestException('External access is disabled');
+    if(!env.PUBLIC_API_URL.startsWith('https://'))throw new BadRequestException('Telegram requires a public HTTPS webhook URL');
+    const row=await this.db.withTenant(tenantId,async c=>(await c.query("SELECT * FROM channels WHERE id=$1 AND type='telegram' AND status='active'",[id])).rows[0]);
+    if(!row)throw new NotFoundException('Active Telegram channel not found');
+    const credentials=this.credentials(row);
+    const account=await telegramCall(credentials.botToken,'getMe');
+    if(String(account.id)!==row.external_id)throw new BadRequestException('Telegram bot identity mismatch');
+    await telegramCall(credentials.botToken,'setWebhook',{url:`${env.PUBLIC_API_URL.replace(/\/$/,'')}/webhooks/telegram/${row.external_id}`,secret_token:credentials.webhookSecret,allowed_updates:['message','callback_query'],drop_pending_updates:false});
+    return{configured:true,verifiedBot:true,liveInboundTested:false};
   }
 
   remove(tenantId: string, id: string) {

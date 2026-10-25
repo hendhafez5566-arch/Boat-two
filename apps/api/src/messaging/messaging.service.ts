@@ -6,6 +6,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DatabaseService } from '../database/database.service';
 import { MetaAdapter } from './adapters/meta.adapter';
 import { WhatsAppAdapter } from './adapters/whatsapp.adapter';
+import { TelegramAdapter } from './adapters/telegram.adapter';
 import { ChannelAdapter } from './adapters/adapter';
 import { ChannelRow, ChannelsService } from './channels.service';
 import { MessageContent, messageTypeOf, validateOutbound } from './message-content';
@@ -44,8 +45,9 @@ export class MessagingService {
     private readonly events: EventEmitter2,
     whatsapp: WhatsAppAdapter,
     meta: MetaAdapter,
+    telegram: TelegramAdapter,
   ) {
-    this.adapters = { whatsapp, facebook: meta, instagram: meta };
+    this.adapters = { whatsapp, facebook: meta, instagram: meta, telegram };
   }
 
   /** رسالة واردة من أي قناة: ينشئ جهة الاتصال والمحادثة ويحفظ الرسالة ثم يطلق حدث message.received */

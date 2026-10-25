@@ -21,6 +21,7 @@ type Channel = {
 };
 
 const FIELDS: Record<string, { key: string; label: string }[]> = {
+  telegram: [{key:'botToken',label:'BotFather token'}],
   web: [],
   whatsapp: [
     { key: 'phoneNumberId', label: 'Phone Number ID' },
@@ -131,8 +132,8 @@ export default function Channels() {
           </p>
         </div>
       </div>
-      <ChannelCatalog selected={selected} onSelect={id => { setSelected(id); if (id === 'web') { setType('web'); setAdvanced(false); } requestAnimationFrame(() => document.getElementById(id === 'web' ? 'channel-create' : 'official-connect')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }} />
-      <div id="official-connect">{selected !== 'web' && <MetaConnect onSaved={load} selectedKind={selected} />}</div>
+      <ChannelCatalog selected={selected} onSelect={id => { setSelected(id); if (id === 'web' || id === 'telegram') { setType(id); setAdvanced(false); } requestAnimationFrame(() => document.getElementById(['web','telegram'].includes(id) ? 'channel-create' : 'official-connect')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }} />
+      <div id="official-connect">{!['web','telegram'].includes(selected) && <MetaConnect onSaved={load} selectedKind={selected} />}</div>
       <section className="card stack" aria-label={t('حالة الحسابات', 'Account status')}>
         <h2>{t('حساباتك المتصلة', 'Your connected accounts')}</h2>
         <div className="form-actions">{['all', 'connected', 'needs_action', 'expired', 'disconnected'].map(state => <button type="button" className="btn" key={state} aria-pressed={filter === state} onClick={() => setFilter(state)}>{state === 'all' ? t('الكل', 'All') : stateLabels[state]} · {state === 'all' ? items.length : items.filter(c => stateOf(c) === state).length}</button>)}</div>
@@ -176,6 +177,7 @@ export default function Channels() {
                         whatsapp: 'WhatsApp',
                         facebook: 'Facebook Messenger',
                         instagram: 'Instagram',
+                        telegram: 'Telegram',
                       } as Record<string, string>
                     )[c.type]
                   }
@@ -235,9 +237,11 @@ export default function Channels() {
             className="rounded border p-2"
           >
             <option value="web">{t('ويدجت الموقع', 'Website widget')}</option>
+            <option value="telegram">Telegram Bot API</option>
             {advanced && <><option value="whatsapp">WhatsApp</option><option value="facebook">Facebook Messenger</option><option value="instagram">Instagram</option></>}
           </select>
         </label>
+        {type === 'telegram' && <p className="notice">{t('أنشئ بوتًا من @BotFather وأدخل رمزه. لا تُسجل الإضافة Webhook تلقائيًا؛ افتح إعدادات القناة لتسجيله صراحة بعد توفير عنوان HTTPS عام. المحادثات الخاصة فقط، وتنزيل الوسائط الواردة غير متاح.', 'Create a bot with @BotFather and enter its token. Adding a channel does not register a webhook automatically; open channel settings to explicitly register it after configuring public HTTPS. Private chats only; inbound media downloads are unavailable.')}</p>}
         <label className="field">
           {t('اسم القناة', 'Channel name')}
           <input name="name" required maxLength={80} />
@@ -252,6 +256,7 @@ export default function Channels() {
                 pageId: t('معرّف الصفحة', 'Page ID'),
                 pageAccessToken: t('رمز وصول الصفحة', 'Page Access Token'),
                 igAccountId: t('معرّف حساب Instagram', 'Instagram Account ID'),
+                botToken: t('رمز البوت من BotFather', 'BotFather bot token'),
               } as Record<string, string>
             )[x.key] || x.label}
             <input
