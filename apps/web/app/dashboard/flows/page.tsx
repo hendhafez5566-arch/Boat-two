@@ -1,4 +1,7 @@
 'use client';
+import {useChannelContext} from '../../../components/product/useChannelContext';
+import {useData} from '../../../components/business/useData';
+import {channelHref,matchesFlowChannel} from '../../../lib/channel-context';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useLocale } from '../../../components/product/locale';
@@ -14,6 +17,7 @@ type Flow = {
   triggers: { type: string; keywords?: string[] }[];
   updated_at: string;
   folder_name: string | null;
+  channel_ids:string[];
 };
 
 export default function Flows() {
@@ -38,7 +42,9 @@ export default function Flows() {
   const [error, setError] = useState('');
   const [folder, setFolder] = useState('*');
   const [search, setSearch] = useState('');
-  const visible = items.filter(f => (folder === '*' || (f.folder_name ?? '') === folder) && f.name.toLowerCase().includes(search.toLowerCase()));
+  const [channelId,setChannelId]=useChannelContext();
+  const channels=useData<{id:string;name:string;type:string}[]>('/channels',[]);
+  const visible = items.filter(f => matchesFlowChannel(f.channel_ids,channelId) && (folder === '*' || (f.folder_name ?? '') === folder) && f.name.toLowerCase().includes(search.toLowerCase()));
   const folders = [...new Set(items.map(f => f.folder_name).filter((f): f is string => !!f))];
 
   async function importFile(file: File) {
@@ -128,7 +134,7 @@ export default function Flows() {
       )}
 
       <section aria-labelledby="my-bots">
-        <div className="card stack"><div className="form-grid"><label className="field">{t('بحث عن بوت', 'Find a bot')}<input type="search" value={search} onChange={e=>setSearch(e.target.value)} /></label><label className="field">{t('المجلد', 'Folder')}<select value={folder} onChange={e=>setFolder(e.target.value)}><option value="*">{t('كل المجلدات', 'All folders')}</option><option value="">{t('دون مجلد', 'Unfiled')}</option>{folders.map(name=><option key={name} value={name}>{name}</option>)}</select></label><label className="field">{t('استيراد ملف Boat Two', 'Import Boat Two file')}<input type="file" accept="application/json,.json" disabled={busy} onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file)void importFile(file);}} /></label></div><p>{t('الاستيراد ينشئ مسودة جديدة دون نشر أو ربط قناة. تبقى معرّفات الخطوات والأزرار ثابتة؛ راجع مراجع القوائم والتسلسلات والموظفين والـWebhook قبل النشر.', 'Import creates a new draft without publishing or connecting channels. Step and button IDs are preserved; review list, sequence, staff and webhook references before publishing.')}</p></div>
+        <div className="card stack">{channels.error&&<p role="alert">{channels.error}</p>}<div className="form-grid"><label className="field">{t('اختر القناة أولًا','Choose a channel first')}<select value={channelId} onChange={e=>setChannelId(e.target.value)}><option value="">{t('كل القنوات','All channels')}</option>{channels.data.map(c=><option key={c.id} value={c.id}>{c.name} ({c.type})</option>)}</select></label><label className="field">{t('بحث عن بوت', 'Find a bot')}<input type="search" value={search} onChange={e=>setSearch(e.target.value)} /></label><label className="field">{t('المجلد', 'Folder')}<select value={folder} onChange={e=>setFolder(e.target.value)}><option value="*">{t('كل المجلدات', 'All folders')}</option><option value="">{t('دون مجلد', 'Unfiled')}</option>{folders.map(name=><option key={name} value={name}>{name}</option>)}</select></label><label className="field">{t('استيراد ملف Boat Two', 'Import Boat Two file')}<input type="file" accept="application/json,.json" disabled={busy} onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file)void importFile(file);}} /></label></div><p>{t('الاستيراد ينشئ مسودة جديدة دون نشر أو ربط قناة. تبقى معرّفات الخطوات والأزرار ثابتة؛ راجع مراجع القوائم والتسلسلات والموظفين والـWebhook قبل النشر.', 'Import creates a new draft without publishing or connecting channels. Step and button IDs are preserved; review list, sequence, staff and webhook references before publishing.')}</p></div>
         <div className="section-title">
           <h2 id="my-bots">{t('بوتاتك', 'Your bots')}</h2>
           {items.length > 0 && (
@@ -150,7 +156,7 @@ export default function Flows() {
                     <a href={`/dashboard/flows/${f.id}`}>{f.name}</a>
                     <small>
                       {t('المشغّلات:', 'Triggers:')}{' '}
-                      {f.triggers.map(trig).join(' | ') || t('لا يوجد', 'None')}
+                      {f.triggers.map(trig).join(' | ') || t('لا يوجد', 'None')}<br/>{f.channel_ids.length?channels.data.filter(c=>f.channel_ids.includes(c.id)).map(c=>c.name).join(' · ')||t('قنوات مرتبطة','Bound channels'):t('كل القنوات (دون تقييد)','All channels (unrestricted)')}
                     </small>
                   </div>
                   <span className={`status-pill ${live ? 'is-live' : 'is-draft'}`}>
@@ -159,7 +165,7 @@ export default function Flows() {
                       : t('مسودة', 'Draft')}
                   </span>
                   <div className="bot-actions">
-                    <Link className="btn" href={`/dashboard/flows/${f.id}/workspace`}>{t('مساحة عمل البوت', 'Bot workspace')}</Link>
+                    <Link className="btn" href={channelHref(`/dashboard/flows/${f.id}/workspace`,channelId)}>{t('مساحة عمل البوت', 'Bot workspace')}</Link>
                     <button className="btn" disabled={busy} onClick={()=>void exportFlow(f)}>{t('تصدير', 'Export')}</button>
                     <details><summary>{t('المجلد', 'Folder')}: {f.folder_name || t('دون مجلد', 'Unfiled')}</summary><form className="stack" onSubmit={async e=>{e.preventDefault();if(busy)return;const form=e.currentTarget;setBusy(true);setError('');try{await api(`/flows/${f.id}`,{method:'PATCH',body:JSON.stringify({folderName:String(new FormData(form).get('folder')??'').trim()||null,expectedUpdatedAt:f.updated_at})});await load();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}><label className="field">{t('اسم المجلد (فارغ للإزالة)', 'Folder name (empty to remove)')}<input name="folder" defaultValue={f.folder_name??''} maxLength={80}/></label><button className="btn" disabled={busy}>{t('حفظ المجلد', 'Save folder')}</button></form></details>
                     <a className="btn btn-primary" href={`/dashboard/flows/${f.id}`}>
@@ -204,7 +210,7 @@ export default function Flows() {
             />
           </div>
         )}
-        {items.length > 0 && visible.length === 0 && <p className="empty">{t('لا توجد نتائج لهذا البحث أو المجلد.', 'No results for this search or folder.')}</p>}
+        {items.length > 0 && visible.length === 0 && <p className="empty">{t('لا توجد نتائج لهذه القناة أو البحث أو المجلد.', 'No results for this channel, search or folder.')}</p>}
       </section>
 
       <section aria-labelledby="start-template">

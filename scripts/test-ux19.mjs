@@ -1,7 +1,7 @@
 // Focused UX contracts; Node 22.13+; run from repository root. No network, database or sends.
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {stripTypeScriptTypes} from 'node:module';
+import {stripTypeScriptTypes,createRequire} from 'node:module';
 process.on('uncaughtException',error=>{console.error(error.message);process.exit(1);});
 {
 const source=readFileSync('apps/web/lib/wizard-draft.ts','utf8').replace("import { getSession } from './api';",'const getSession = () => globalThis.testSession;');
@@ -47,8 +47,9 @@ assert.equal(scaledAmount('123456',2,'en-US','EGP'),'1,234.56 EGP');assert.equal
 {
 process.on('uncaughtException',error=>{console.error(error.message);process.exit(1);});
 const url=(path,replace=s=>s)=>'data:text/javascript;base64,'+Buffer.from(stripTypeScriptTypes(replace(readFileSync(path,'utf8')))).toString('base64');
-const types=url('apps/api/src/flows/engine/types.ts'),hours=url('apps/api/src/flows/engine/hours.ts'),sheet=url('apps/api/src/flows/engine/sheet.ts');
-const {validateGraph}=await import(url('apps/api/src/flows/engine/validate.ts',s=>s.replace('{ FlowGraph, handlesFor, optionsOf }','{ handlesFor, optionsOf }').replace("'./types'",JSON.stringify(types)).replace("'./hours'",JSON.stringify(hours)).replace("'./sheet'",JSON.stringify(sheet))));
+const apiRequire=createRequire(new URL('../apps/api/package.json',import.meta.url));
+const {tsImport}=await import(apiRequire.resolve('tsx/esm/api'));
+const {validateGraph}=await tsImport('../apps/api/src/flows/engine/validate.ts',import.meta.url);
 const {buildWizardGraph}=await import(url('apps/web/lib/wizard-graph.ts'));
 const base={startNodeId:'end',nodes:[{id:'end',type:'end',position:{x:0,y:1000},data:{},edges:{}}]};
 for(const action of ['message','card','question','handoff','route']){const g=buildWizardGraph(base,'أهلاً',[{title:'ابدأ',reply:'تفضل',action,url:'https://example.test',targetId:'end',saveAs:'answer'}]);assert.deepEqual(validateGraph(g).errors,[],action+' should satisfy the real engine validator');}

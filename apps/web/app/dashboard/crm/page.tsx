@@ -1,4 +1,5 @@
 'use client';
+import {useChannelContext} from '../../../components/product/useChannelContext';
 import { eventLabel } from '../../../lib/business-events';
 import { Dialog } from '../../../components/product/ProductUI';
 import { ContactActivityExport } from '../../../components/business/ContactActivityExport';
@@ -85,7 +86,8 @@ export default function CRM() {
       return next;
     });
   const [q, setQ] = useState('');
-  const [channelId,setChannelId]=useState(''),[listId,setListId]=useState(''),[sequenceId,setSequenceId]=useState(''),[sequenceStatus,setSequenceStatus]=useState(''),[consentStatus,setConsentStatus]=useState('');
+  const [channelId,setChannelId]=useChannelContext();
+  const [listId,setListId]=useState(''),[sequenceId,setSequenceId]=useState(''),[sequenceStatus,setSequenceStatus]=useState(''),[consentStatus,setConsentStatus]=useState('');
   const filterChannels=useData<{id:string;name:string}[]>('/channels',[]);
   const filterLists=useData<{id:string;name:string}[]>(canManage?'/contact-lists':null,[]);
   const filterSequences=useData<{id:string;name:string}[]>(canManage?'/sequences':null,[]);

@@ -1,4 +1,5 @@
 'use client';
+import {useChannelContext} from '../../../components/product/useChannelContext';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -41,7 +42,7 @@ export default function Inbox() {
   const [tab, setTab] = useState<Tab>('active');
   useEffect(() => { const key = new URLSearchParams(window.location.search).get('tab'); if (key && key in TAB_QUERY) setTab(key as Tab); }, []);
   const [q, setQ] = useState('');
-  const [channelId, setChannelId] = useState('');
+  const [channelId, setChannelId] = useChannelContext();
   const [items, setItems] = useState<any[]>([]);
   const [nextBefore, setNextBefore] = useState<string | null>(null);
   const [checked, setChecked] = useState<string[]>([]);
