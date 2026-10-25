@@ -70,6 +70,7 @@ export class AuthGuard implements CanActivate {
     );
     if (suspended)
       throw new ForbiddenException('Workspace suspended; contact the platform operator');
+    if(sessionId)await this.db.query("UPDATE refresh_tokens SET device_label=CASE WHEN device_label='' THEN $3 ELSE device_label END,last_seen_at=now() WHERE id=$1 AND user_id=$2 AND(last_seen_at IS NULL OR last_seen_at<now()-interval '1 minute')",[sessionId,req.user.userId,String(req.headers['user-agent']??'Unknown device').slice(0,200)]);
     req.user.sessionId = sessionId;
     req.user.sessionVersion = sessionVersion;
     // Membership is authoritative: role changes/removal take effect immediately.

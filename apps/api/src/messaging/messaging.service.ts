@@ -228,6 +228,7 @@ export class MessagingService {
     senderUserId?: string;
     flow?: { flowId: string; nodeId?: string };
   }) {
+    if(p.senderType==='agent'&&p.senderUserId&&!p.content.template){const signature=await this.db.withTenant(p.tenantId,async c=>(await c.query('SELECT s.signature_enabled,s.signature_template,u.full_name FROM inbox_settings s JOIN memberships m ON m.tenant_id=s.tenant_id JOIN users u ON u.id=m.user_id WHERE m.user_id=$1',[p.senderUserId])).rows[0]);if(signature?.signature_enabled){const suffix=signature.signature_template.replaceAll('{{agent.name}}',signature.full_name||'Agent');p.content={...p.content,...(p.content.text?{text:p.content.text+'\n'+suffix}:p.content.media?{media:{...p.content.media,caption:(p.content.media.caption||'')+'\n'+suffix}}:{})};}}
     validateOutbound(p.content);
     const effectKey = this.db.effectKey();
 

@@ -28,6 +28,8 @@ export function eventText(c: any, name: (id?: string) => string): string {
     case 'status': return `${name(c.by)} غيّر الحالة إلى ${({ open: 'مفتوحة', pending: 'معلّقة', closed: 'مغلقة' } as any)[c.status] ?? c.status}`;
     case 'taken_over': return `استلم ${name(c.by)} المحادثة`;
     case 'returned_to_bot': return `أُعيدت المحادثة إلى البوت${c.by ? ` بواسطة ${name(c.by)}` : ''}`;
+    case 'human_session_expired': return 'انتهت جلسة الموظف وأعيدت المحادثة إلى البوت';
+    case 'sla_escalated': return `تجاوز وقت SLA؛ جرى التصعيد${c.assignedTo ? ' إلى '+name(c.assignedTo) : ''}`;
     case 'handoff': return 'حوّل البوت المحادثة إلى موظف';
     default: return String(c?.event ?? '');
   }
@@ -74,6 +76,8 @@ export default function MessageBubble({ m, conversationId, name }: { m: any; con
         {c.media?.caption && <div className="whitespace-pre-wrap">{c.media.caption}</div>}
         {c.text && <div className="whitespace-pre-wrap break-words">{c.text}</div>}
         {c.footer && <small className="block opacity-80">{c.footer}</small>}
+        {c.order&&<section><strong>طلب من الكتالوج</strong>{c.order.items.map((item:any,i:number)=><p key={i}>{item.retailerId} × {item.quantity} · {item.price} {item.currency}</p>)}</section>}
+        {c.flowReply&&<details><summary>بيانات نموذج WhatsApp</summary><pre dir="ltr">{JSON.stringify(c.flowReply,null,2)}</pre></details>}
         {c.location && <div>📍 {c.location.name ?? `${c.location.lat}, ${c.location.lng}`}</div>}
         {c.reply && !c.text && <div>↩ {c.reply.title}</div>}
         {options.length > 0 && <div className="mt-1 flex flex-wrap gap-1">{options.map((o: any) => <span key={o.id} className="rounded-full border border-current px-2 py-0.5 text-xs opacity-80">{o.title}</span>)}</div>}

@@ -43,16 +43,19 @@ export class FlowEngine {
 
   /** بدء flow جديد من عقدة البداية */
   async start(ctx: FlowContext, state: FlowState): Promise<EngineResult> {
+    for(const [key,value] of Object.entries(this.graph.policy?.initialVars??{}))if(state.vars[key]===undefined)state.vars[key]=value;
     if(ctx.lastMessage.order)state.vars.order=ctx.lastMessage.order;
     try {
       const paused = await this.outsideHours(ctx, state, true);
       if (paused) return paused;
+      if(this.graph.policy?.startMessage)await this.send({text:interpolate(this.graph.policy.startMessage,this.resolver(ctx,state))});
       return this.run(ctx, state, this.graph.startNodeId);
     } catch (e) { return this.finish('error', state, (e as Error).message); }
   }
 
   /** رد من العميل أثناء انتظار الـ flow لإجابة أو اختيار */
   async resume(ctx: FlowContext, state: FlowState): Promise<EngineResult> {
+    if(state.offHours&&this.graph.policy?.businessHours?.offHoursGraph)return new FlowEngine(this.graph.policy.businessHours.offHoursGraph,this.deps).resume(ctx,state);
     if(ctx.lastMessage.order)state.vars.order=ctx.lastMessage.order;
     const w = state.waiting;
     if (!w || w.kind === 'delay') return this.finish('error', state, 'Flow is not waiting for a reply');
@@ -72,6 +75,7 @@ export class FlowEngine {
 
   /** انتهاء مهلة عقدة delay */
   async resumeDelay(ctx: FlowContext, state: FlowState): Promise<EngineResult> {
+    if(state.offHours&&this.graph.policy?.businessHours?.offHoursGraph)return new FlowEngine(this.graph.policy.businessHours.offHoursGraph,this.deps).resumeDelay(ctx,state);
     try {
     const w = state.waiting;
     if (!w || w.kind !== 'delay') return Promise.resolve(this.finish('error', state, 'Flow is not in a delay'));
@@ -80,13 +84,14 @@ export class FlowEngine {
     if (paused) return paused;
     state.waiting = null;
     if (w.deliveryPending) this.deliveryReady = w.nodeId;
-    return this.run(ctx, state, w.startPending ? this.graph.startNodeId : w.deliveryPending ? w.nodeId : node?.edges.next ?? null);
+    return w.startPending ? this.start(ctx,state) : this.run(ctx, state, w.deliveryPending ? w.nodeId : node?.edges.next ?? null);
     } catch (e) { return this.finish('error', state, (e as Error).message); }
   }
 
   private async outsideHours(ctx: FlowContext, state: FlowState, start: boolean): Promise<EngineResult | null> {
     const hours = this.graph.policy?.businessHours;
     if (!hours?.enabled || isOpenNow(this.deps.now(), hours.timezone, hours.schedule)) return null;
+    if(hours.offHoursGraph){state.offHours=true;return new FlowEngine(hours.offHoursGraph,this.deps).start(ctx,state);}
     if (start || state.waiting?.kind === 'delay') {
       const next = nextOpening(this.deps.now(), hours.timezone, hours.schedule);
       if (!next) return this.finish('error', state, 'No business opening within eight days');
@@ -307,8 +312,7 @@ export class FlowEngine {
 
     if (!skipped) {
       state.vars[q.saveAs] = value;
-      await this.deps.setContactAttribute(q.saveAs, value);
-      ctx.contact.attributes[q.saveAs] = value;
+      if(q.saveToSystem){if(!this.deps.setContactField)throw new RunError('System field writer unavailable');await this.deps.setContactField(q.saveToSystem,String(value));(ctx.contact as any)[q.saveToSystem]=String(value);}else{await this.deps.setContactAttribute(q.saveAs, value);ctx.contact.attributes[q.saveAs] = value;}
     } else state.vars[`${q.saveAs}_skipped`] = true;
     if (step + 1 < qs.length) {
       state.waiting = { nodeId: node.id, kind: 'answer', retries: 0, step: step + 1 };
@@ -342,7 +346,8 @@ export class FlowEngine {
 
     if (parsed.ok) {
       state.vars[d.saveAs] = parsed.value;
-      if (d.saveToContact) {
+      if(d.saveToSystem){if(!this.deps.setContactField)throw new RunError('System field writer unavailable');await this.deps.setContactField(d.saveToSystem,String(parsed.value));(ctx.contact as any)[d.saveToSystem]=String(parsed.value);}
+      if (d.saveToContact && !d.saveToSystem) {
         await this.deps.setContactAttribute(d.saveAs, parsed.value);
         ctx.contact.attributes[d.saveAs] = parsed.value;
       }

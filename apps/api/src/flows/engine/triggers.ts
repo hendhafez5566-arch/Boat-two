@@ -8,6 +8,7 @@ export type Trigger =
   | { type: 'any_message' };
 
 export interface FlowCandidate {
+  policy?:{startFrequency?:'once'|'always'|'daily'};
   flowId: string;
   versionId: string;
   priority: number;
@@ -16,6 +17,8 @@ export interface FlowCandidate {
 }
 
 export interface TriggerInput {
+  lastRunAt?:Record<string,string>;
+  now?:Date;
   eventName?: string;
   text: string;
   replyId?: string;
@@ -60,8 +63,10 @@ export function matchFlow(cands: FlowCandidate[], input: TriggerInput): FlowCand
     let rank = Infinity;
     for (const t of c.triggers) {
       const once = t.type === 'any_message' || t.type === 'first_message';
-      if (once && input.alreadyRunFlowIds.has(c.flowId)) continue;
-      if (triggerMatches(t, input)) rank = Math.min(rank, RANK[t.type]);
+      const frequency=c.policy?.startFrequency??'once';
+      if(once&&frequency==='once'&&input.alreadyRunFlowIds.has(c.flowId))continue;
+      if(once&&frequency==='daily'&&input.lastRunAt?.[c.flowId]&&new Date(input.lastRunAt[c.flowId]).getTime()+86400000>(input.now??new Date()).getTime())continue;
+      if (triggerMatches(t,once&&frequency!=='once'?{...input,isFirstMessage:true}:input)) rank = Math.min(rank, RANK[t.type]);
     }
     if (rank === Infinity) return;
     if (!best || rank < best.rank || (rank === best.rank && c.priority > best.c.priority)) {

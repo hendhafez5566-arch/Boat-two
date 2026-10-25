@@ -48,9 +48,11 @@ export interface Graph {
 }
 
 export interface BotPolicy {
+  initialVars?:Record<string,string|number|boolean|null>;
+  startMessage?:string;startFrequency?:'once'|'always'|'daily';
   sessionHours?: number;
   noMatchText?: string;
-  businessHours?: { enabled: boolean; timezone: string; schedule: Partial<Record<'mon'|'tue'|'wed'|'thu'|'fri'|'sat'|'sun',[string,string][]>>; offHoursText?: string };
+  businessHours?: { enabled: boolean; timezone: string; schedule: Partial<Record<'mon'|'tue'|'wed'|'thu'|'fri'|'sat'|'sun',[string,string][]>>; offHoursText?: string;offHoursFlowId?:string };
 }
 
 export const uid = (n = 6) =>

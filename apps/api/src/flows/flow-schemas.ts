@@ -162,6 +162,7 @@ export const nodeSchema = z.discriminatedUnion('type', [
             kind: z.enum(['choice', 'text', 'number', 'email', 'phone']).default('text'),
             options: z.array(z.object({ id: z.string().min(1).max(200), title: z.string().min(1).max(24) })).max(10).optional(),
             saveAs: z.string().max(41),
+            saveToSystem:z.enum(['name','email','phone']).optional(),
             allowSkip: z.boolean().optional(),
             skipText: z.string().min(1).max(20).optional(),
             errorText: z.string().max(1000).optional(),
@@ -180,6 +181,7 @@ export const nodeSchema = z.discriminatedUnion('type', [
     data: z.object({
       text: z.string().max(4096),
       answerType: z.enum(['text', 'number', 'email', 'phone', 'regex']).default('text'),
+      saveToSystem:z.enum(['name','email','phone']).optional(),
       allowSkip: z.boolean().optional(),
       skipText: z.string().min(1).max(20).optional(),
       saveToContact: z.boolean().optional(),
@@ -341,6 +343,9 @@ export const nodeSchema = z.discriminatedUnion('type', [
 const clock = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
 const businessDay = z.array(z.tuple([clock, clock])).max(6).optional();
 export const botPolicySchema = z.object({
+  initialVars:z.record(varName,z.union([z.string().max(2000),z.number().finite(),z.boolean(),z.null()])).optional(),
+  startMessage:z.string().max(1000).optional(),
+  startFrequency:z.enum(['once','always','daily']).optional(),
   sessionHours: z.number().int().min(1).max(168).optional(),
   noMatchText: z.string().max(1000).optional(),
   businessHours: z.object({
@@ -348,6 +353,7 @@ export const botPolicySchema = z.object({
     timezone: z.string().refine(isValidTimezone, 'Invalid timezone'),
     schedule: z.object({ mon:businessDay,tue:businessDay,wed:businessDay,thu:businessDay,fri:businessDay,sat:businessDay,sun:businessDay }),
     offHoursText: z.string().max(1000).optional(),
+    offHoursFlowId:z.string().uuid().optional(),
   }).refine(v => !v.enabled || Object.values(v.schedule).some(day => day?.some(([start,end]) => start !== end)), 'Add at least one business-hours interval').optional(),
 });
 

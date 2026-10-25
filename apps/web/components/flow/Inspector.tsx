@@ -340,7 +340,7 @@ export default function Inspector({
               <In v={data.pattern} on={(pattern) => set({ pattern })} dir="ltr" />
             </F>
           )}
-          <AnswerDestination value={data.saveAs} onChange={saveAs => set({ saveAs })} variables={variables} />
+          <AnswerDestination value={data.saveAs} onChange={saveAs => set({ saveAs })} variables={variables} /><label>{t('حفظ في حقل نظام (اختياري)','Save to a system field (optional)')}<select value={data.saveToSystem??''} onChange={e=>set({saveToSystem:e.target.value||undefined,saveToContact:false})}><option value="">{t('متغير/حقل مخصص','Variable / custom field')}</option>{['name','email','phone'].map(v=><option key={v}>{v}</option>)}</select></label>
           <label><input type="checkbox" checked={!!data.saveToContact} onChange={e => set({ saveToContact: e.target.checked })} /> {t('احفظ الإجابة أيضًا كحقل مخصص للعميل', 'Also save the answer as a custom contact field')}</label>
           <label><input type="checkbox" checked={!!data.allowSkip} onChange={e => set({ allowSkip: e.target.checked })} /> {t('السماح بتخطي السؤال دون تغيير الحقل', 'Allow skipping without changing the saved field')}</label>
           {data.allowSkip && <F label={t('نص التخطي', 'Skip label')}><In v={data.skipText || '/skip'} on={skipText => set({ skipText: skipText.slice(0,20) || undefined })} /></F>}
@@ -748,7 +748,7 @@ export default function Inspector({
                     )}
                   </F>
                 )}
-                <AnswerDestination value={q.saveAs} onChange={saveAs => upq({ saveAs })} variables={variables} />
+                <AnswerDestination value={q.saveAs} onChange={saveAs => upq({ saveAs })} variables={variables} /><label>{t('وجهة النظام (فارغة للحقل المخصص)','System destination (empty for custom field)')}<select value={q.saveToSystem??''} onChange={e=>upq({saveToSystem:(e.target.value||undefined) as 'name'|'email'|'phone'|undefined})}><option value="">{t('حقل مخصص','Custom field')}</option>{['name','email','phone'].map(v=><option key={v}>{v}</option>)}</select></label>
                 <label><input type="checkbox" checked={!!q.allowSkip} onChange={e => upq({ allowSkip: e.target.checked })} /> {t('السماح بالتخطي', 'Allow skipping')}</label>
                 {q.allowSkip && <F label={t('نص التخطي', 'Skip label')}><In v={q.skipText || '/skip'} on={skipText => upq({ skipText: skipText.slice(0,20) || undefined })} /></F>}
                 {q.kind !== 'choice' && (

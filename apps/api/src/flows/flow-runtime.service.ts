@@ -184,7 +184,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         )
       ).rows[0].n;
       const ran = (
-        await c.query('SELECT DISTINCT flow_id FROM flow_sessions WHERE conversation_id = $1', [
+        await c.query('SELECT flow_id,max(created_at) AS last_run FROM flow_sessions WHERE conversation_id = $1 GROUP BY flow_id', [
           e.conversationId,
         ])
       ).rows;
@@ -193,6 +193,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         cands,
         isFirst: inbound <= 1,
         ran: new Set<string>(ran.map((r) => r.flow_id)),
+        lastRunAt:Object.fromEntries(ran.map(r=>[r.flow_id,new Date(r.last_run).toISOString()])),
       };
     });
     if (!loaded) return;
@@ -252,6 +253,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         priority: x.priority,
         triggers: x.triggers,
         channelIds: x.channel_ids,
+        policy:x.graph.policy,
       })),
       {
         text,
@@ -260,9 +262,12 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         channelId: loaded.conv.channel_id,
         isFirstMessage: (loaded as { isFirst: boolean }).isFirst,
         alreadyRunFlowIds: (loaded as { ran: Set<string> }).ran,
+        lastRunAt:(loaded as {lastRunAt:Record<string,string>}).lastRunAt,
       },
     );
     if (!match) {
+      const fallback=cands.find(candidate=>(!candidate.channel_ids.length||candidate.channel_ids.includes(base.channelId))&&candidate.graph.policy?.noMatchText);
+      if(fallback?.graph.policy?.noMatchText&&!e.eventName){await this.makeDeps(base).send({text:fallback.graph.policy.noMatchText});return;}
       await this.autoReply(base, text);
       return;
     }
@@ -281,6 +286,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     graph: FlowGraph,
     replyId: string | undefined,
   ): Promise<string | null> {
+    if(session.state.offHours&&graph.policy?.businessHours?.offHoursGraph)graph=graph.policy.businessHours.offHoursGraph;
     const w = session.state?.waiting;
     if (!replyId || !w) return null;
     const node = graph.nodes.find((n) => n.id === w.nodeId);
@@ -417,6 +423,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
 
   private makeDeps(b: Loaded, flowId?: string): EngineDeps {
     return {
+      setContactField:(key,value)=>this.actions.writeSystemField(b,key,value),
       productContent:(id,native)=>{if(native&&b.ctx.channel.type!=='whatsapp')throw new Error('Native products require WhatsApp');return this.commerce.productContent(b.tenantId,id,native);},
       catalogContent:(ids,native,text)=>{if(native&&b.ctx.channel.type!=='whatsapp')throw new Error('Native catalogs require WhatsApp');return this.commerce.catalogContent(b.tenantId,ids,native,text);},
       bookAppointment:(serviceId,start,key)=>this.commerce.book(b.tenantId,{serviceId,contactId:b.contactId,start,eventKey:`flow:${b.conversationId}:${b.eventId}:${key}`,dryRun:false}),

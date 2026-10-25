@@ -58,6 +58,7 @@ const patchSchema = z.object({
 const noteSchema = z.object({ text: z.string().min(1).max(2000) });
 const availabilitySchema = z.object({ available: z.boolean() });
 const settingsSchema = z.object({
+ signature_enabled:z.boolean().optional(),signature_template:z.string().max(200).optional(),human_session_minutes:z.number().int().min(0).max(10080).optional(),delivery_error_tag:z.string().max(50).optional(),sla_escalation_enabled:z.boolean().optional(),escalation_user_id:z.string().uuid().nullable().optional(),
   auto_assign: z.boolean().optional(),
   max_open_per_agent: z.number().int().min(1).max(500).optional(),
 });

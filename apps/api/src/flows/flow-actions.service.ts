@@ -17,6 +17,13 @@ export interface ActionScope { tenantId: string; contactId: string; conversation
 export class FlowActionsService {
   constructor(private db: DatabaseService, private effects: ExternalEffects, private sequences: SequencesService, private events: EventEmitter2,private google?:GoogleService,private integrations?:IntegrationsService) {}
 
+  async writeSystemField(scope:ActionScope,field:'name'|'email'|'phone',value:string){
+    if(!['name','email','phone'].includes(field)||!value.trim()||value.length>200)throw new Error('Invalid system field');
+    if(field==='email'&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))throw new Error('Invalid email');
+    if(field==='phone'&&!/^\+?[0-9]{7,15}$/.test(value))throw new Error('Invalid phone');
+    await this.db.withTenant(scope.tenantId,async c=>{if(field!=='name'&&(await c.query(`SELECT 1 FROM contacts WHERE ${field}=$1 AND id<>$2 AND merged_into_id IS NULL LIMIT 1`,[value,scope.contactId])).rowCount)throw new Error('Another contact already uses this system field value');await c.query(`UPDATE contacts SET ${field}=$2,updated_at=now() WHERE id=$1`,[scope.contactId,value]);});
+  }
+
   async assign(scope: ActionScope, opts: { userId?: string; departmentId?: string }) {
     await this.db.withTenant(scope.tenantId, async c => {
       if (opts.departmentId && !(await c.query('SELECT 1 FROM departments WHERE id=$1 AND archived_at IS NULL FOR SHARE', [opts.departmentId])).rowCount)

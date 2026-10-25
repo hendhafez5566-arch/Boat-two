@@ -134,6 +134,10 @@ export class FlowsController {
     return this.flows.duplicate(req.user.tenantId, req.user.userId, id);
   }
 
+  @Roles('owner','admin')
+  @Post(':id/reset-actions')
+  resetActions(@Req() req:AuthedRequest,@Param('id',ParseUUIDPipe) id:string,@Body() body:unknown){const input=parse(z.object({confirm:z.literal(true),expectedUpdatedAt:z.string().datetime()}),body);return this.flows.resetActions(req.user.tenantId,id,input.expectedUpdatedAt);}
+
   @Roles('owner', 'admin')
   @Post(':id/test')
   test(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {

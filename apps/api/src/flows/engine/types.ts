@@ -48,9 +48,12 @@ export interface FlowGraph {
 }
 
 export interface BotPolicy {
+  initialVars?:Record<string,string|number|boolean|null>;
+  startMessage?:string;
+  startFrequency?:'once'|'always'|'daily';
   sessionHours?: number;
   noMatchText?: string;
-  businessHours?: { enabled: boolean; timezone: string; schedule: import('./hours').Schedule; offHoursText?: string };
+  businessHours?: { enabled: boolean; timezone: string; schedule: import('./hours').Schedule; offHoursText?: string;offHoursFlowId?:string;offHoursGraph?:FlowGraph };
 }
 
 export interface OutContent {
@@ -98,6 +101,7 @@ export interface FlowContext {
 }
 
 export interface FlowState {
+  offHours?:boolean;
   vars: Record<string, unknown>;
   waiting: null | {
     nodeId: string;
@@ -140,6 +144,7 @@ export interface AiResult {
 }
 
 export interface EngineDeps {
+  setContactField?(field:'name'|'email'|'phone',value:string):Promise<void>;
   productContent?(id:string,native:boolean):Promise<OutContent>;
   catalogContent?(ids:string[],native:boolean,text:string):Promise<OutContent>;
   bookAppointment?(serviceId:string,start:string,eventKey:string):Promise<Record<string,unknown>>;

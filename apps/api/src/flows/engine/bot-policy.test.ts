@@ -29,3 +29,9 @@ test('opening calculation handles overnight ranges, timezone offsets and invalid
   assert.equal(botPolicySchema.safeParse({businessHours:{enabled:true,timezone:'Mars/Base',schedule:{}}}).success,false);
   assert.equal(botPolicySchema.safeParse({businessHours:{enabled:true,timezone:'UTC',schedule:{}}}).success,false);
 });
+
+test('off-hours routing resumes its frozen alternate graph and system fields keep their destination',async()=>{
+ const h=setup();const fields:Record<string,string>={};h.deps.setContactField=async(k,v)=>{fields[k]=v;};
+ h.graph.policy!.initialVars={welcome:'Hello'};h.graph.policy!.businessHours!.offHoursGraph={startNodeId:'offhours__q',nodes:[{id:'offhours__q',type:'question',data:{text:'Email?',answerType:'email',saveAs:'email',saveToSystem:'email'},edges:{ok:'offhours__end'}},{id:'offhours__end',type:'message',data:{text:'{{welcome}}'},edges:{}}]};
+ const engine=new FlowEngine(h.graph,h.deps),state=newState();await engine.start(h.ctx,state);assert.equal(state.offHours,true);assert.equal(state.waiting?.nodeId,'offhours__q');h.ctx.lastMessage={text:'ada@example.test'};assert.equal((await engine.resume(h.ctx,state)).status,'completed');assert.equal(fields.email,'ada@example.test');assert.equal(h.sent.at(-1)?.text,'Hello');
+});

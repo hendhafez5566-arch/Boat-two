@@ -193,6 +193,10 @@ export class FlowsService {
     return validateGraph(graph);
   }
 
+  private async prepareAlternate(tenantId:string,id:string,graph:FlowGraph){const alternateId=graph.policy?.businessHours?.offHoursFlowId;if(!alternateId)return;if(alternateId===id)throw new BadRequestException('Off-hours bot must be a different published flow');const alt=await this.db.withTenant(tenantId,async c=>(await c.query("SELECT v.graph FROM flows f JOIN flow_versions v ON v.id=f.published_version_id WHERE f.id=$1 AND f.status='published'",[alternateId])).rows[0]);if(!alt||alt.graph.policy?.businessHours?.offHoursFlowId)throw new BadRequestException('Choose a published off-hours bot without recursive routing');graph.policy!.businessHours!.offHoursGraph=await expandSubflows(alt.graph,async()=>{throw new BadRequestException('Published subflow must already be expanded');},[],'offhours__');}
+
+  async resetActions(tenantId:string,id:string,expectedUpdatedAt:string){const current=await this.get(tenantId,id);const graph=structuredClone(current.draft_graph) as FlowGraph;for(const node of graph.nodes){for(const button of node.data.buttons??[])delete button.actions;for(const section of node.data.list?.sections??[])for(const row of section.rows??[])delete row.actions;}return this.update(tenantId,id,{expectedUpdatedAt,graph:graph as z.infer<typeof updateFlowSchema>['graph']});}
+
   async exportFlow(tenantId: string, id: string) {
     const flow = await this.get(tenantId, id);
     return flowTransferSchema.parse({ format: 'boat-two-flow', version: 1, name: flow.name, description: flow.description, graph: flow.draft_graph, triggers: flow.triggers });
@@ -222,6 +226,7 @@ export class FlowsService {
         throw new ConflictException('Draft changed before publishing');
 
       const expanded = await this.expand(tenantId, f.draft_graph, id);
+      await this.prepareAlternate(tenantId,id,expanded);
       const { errors, warnings } = validateGraph(expanded);
       if (!(f.triggers ?? []).length)
         errors.push({ message: 'Add at least one trigger before publishing' });
@@ -361,11 +366,13 @@ export class FlowsService {
   async test(tenantId: string, id: string, input: z.infer<typeof testFlowSchema>) {
     const flow = await this.get(tenantId, id);
     const graph = await this.expand(tenantId, flow.draft_graph as FlowGraph, id);
+    await this.prepareAlternate(tenantId,id,graph);
     const state = (input.state as FlowState | undefined) ?? newState();
     const transcript: { role: 'bot' | 'system'; content: OutContent | string }[] = [];
     const attrs: Record<string, unknown> = { ...(input.contactAttributes ?? {}) };
 
     const engine = new FlowEngine(graph, {
+      setContactField:async(key,value)=>{attrs['system.'+key]=value;transcript.push({role:'system',content:`MOCK system field ${key}: ${value}`});},
       productContent:async(id,native)=>{if(!this.commerce)throw new Error('Commerce unavailable');transcript.push({role:'system',content:'MOCK product preview; no external delivery'});return this.commerce.productContent(tenantId,id,native);},
       catalogContent:async(ids,native,text)=>{if(!this.commerce)throw new Error('Commerce unavailable');transcript.push({role:'system',content:'MOCK catalog preview; no external delivery'});return this.commerce.catalogContent(tenantId,ids,native,text);},
       bookAppointment:async(serviceId,start)=>{transcript.push({role:'system',content:'MOCK booking — not persisted; no Calendar request'});return{mock:true,persisted:false,serviceId,start};},
@@ -416,9 +423,9 @@ export class FlowsService {
     });
 
     const ctx = {
-      contact: { name: 'Test User', phone: '+201000000000', email: null, attributes: attrs },
+      contact: { name: String(attrs['system.name']??'Test User'), phone: String(attrs['system.phone']??'+201000000000'), email: attrs['system.email']?String(attrs['system.email']):null, attributes: attrs },
       channel: { type: 'test' },
-      lastMessage: { text: input.text, replyId: input.replyId, ...(graph.nodes.find(n=>n.id===state.waiting?.nodeId)?.type==='whatsapp_flow'?{formReply:(()=>{try{return{...JSON.parse(input.text),flow_token:`${state.waiting?.nodeId}:${state.totalSteps}`};}catch{return undefined;}})()}:{} ) },
+      lastMessage: { text: input.text, replyId: input.replyId, ...((state.offHours?graph.policy?.businessHours?.offHoursGraph??graph:graph).nodes.find(n=>n.id===state.waiting?.nodeId)?.type==='whatsapp_flow'?{formReply:(()=>{try{return{...JSON.parse(input.text),flow_token:`${state.waiting?.nodeId}:${state.totalSteps}`};}catch{return undefined;}})()}:{} ) },
     };
 
     const result = !input.state
