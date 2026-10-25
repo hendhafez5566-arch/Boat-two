@@ -276,6 +276,7 @@ export default function CRM() {
           <details className="card" open={bulkIds.length > 0 || undefined}>
             <summary>{t('الفلاتر والأدوات المتقدمة', 'Advanced filters and tools')} {(stage || tag || archiveFilter !== 'active') && t('· توجد فلاتر نشطة', '· filters active')}</summary>
             <Link href="/dashboard/crm/work" className="btn">{t('إدارة المبيعات والمتابعات المتقدمة', 'Manage sales and follow-ups')}</Link>
+            <Link href="/dashboard/crm/lists" className="btn">{t('قوائم المشتركين', 'Subscriber lists')}</Link>
           <section className="card">
             <div className="form-grid">
 

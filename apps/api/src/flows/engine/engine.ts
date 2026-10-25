@@ -16,6 +16,7 @@ import {
   MAX_TOTAL_STEPS,
   OutContent,
   optionsOf,
+  ButtonAction,
 } from './types';
 
 type Outcome =
@@ -149,8 +150,9 @@ export class FlowEngine {
         ...(d.media.filename ? { filename: d.media.filename } : {}),
       };
     }
-    if (d.buttons?.length) c.buttons = d.buttons;
-    if (d.list?.sections?.length) c.list = d.list;
+    // Action configuration is private: only provider-supported fields leave the engine.
+    if (d.buttons?.length) c.buttons = d.buttons.map((b: any) => ({ id: b.id, title: b.title }));
+    if (d.list?.sections?.length) c.list = { buttonText: d.list.buttonText, sections: d.list.sections.map((s: any) => ({ ...(s.title ? { title: s.title } : {}), rows: s.rows.map((b: any) => ({ id: b.id, title: b.title, ...(b.description ? { description: b.description } : {}) })) })) };
     return c;
   }
 
@@ -180,7 +182,9 @@ export class FlowEngine {
         state.vars[d.saveReplyAs] = chosen.title;
         state.vars[`${d.saveReplyAs}_id`] = chosen.id;
       }
+      const handedOff = await this.executeActions(chosen.actions, `${node.id}:option:${chosen.id}`, ctx, state);
       state.waiting = null;
+      if (handedOff) return this.finish('handed_off', state);
       return this.run(ctx, state, node.edges[`option:${chosen.id}`] ?? null);
     }
 
@@ -198,6 +202,23 @@ export class FlowEngine {
     state.waiting = { nodeId: node.id, kind: 'choice', retries };
     await this.send(this.buildContent(d, ctx, state));
     return this.finish('waiting', state);
+  }
+
+  private async executeActions(actions: ButtonAction[] | undefined, occurrence: string, ctx: FlowContext, state: FlowState) {
+    if (!actions?.length) return false;
+    if (!this.deps.executeButtonAction) throw new RunError('Button action executor unavailable');
+    if (actions.length > 20) throw new RunError('Too many button actions');
+    let handedOff = false;
+    for (const [index, raw] of actions.entries()) {
+      const resolve = this.resolver(ctx, state);
+      const action = raw.type === 'set_field' ? { ...raw, value: interpolate(raw.value, resolve) }
+        : raw.type === 'webhook' ? { ...raw, body: interpolate(raw.body, resolve) } : raw;
+      await this.deps.executeButtonAction(action, `${occurrence}:${index}`);
+      if (action.type === 'set_field') ctx.contact.attributes[action.key] = action.value;
+      if (action.type === 'tag') ctx.contact.tags = [...new Set([...(ctx.contact.tags ?? []), ...action.add])].filter(t => !action.remove.includes(t));
+      if (action.type === 'assign') handedOff = true;
+    }
+    return handedOff;
   }
 
   /** يرسل سؤال user_input رقم step: أزرار (≤3 اختيارات) أو قائمة (حتى 10) أو نص */
@@ -262,8 +283,10 @@ export class FlowEngine {
       return this.finish('waiting', state);
     }
     state.waiting = null;
+    const handedOff = await this.executeActions(node.data.completionActions, `${node.id}:complete`, ctx, state);
     const done = interpolate(String(node.data.doneText ?? ''), this.resolver(ctx, state)).trim();
     if (done) await this.send({ text: done });
+    if (handedOff) return this.finish('handed_off', state);
     return this.run(ctx, state, node.edges.next ?? null);
   }
 
@@ -613,7 +636,7 @@ export class FlowEngine {
 
       case 'handoff': {
         if (d.message) await this.send({ text: interpolate(String(d.message), r) });
-        await this.deps.handoff({ assignTo: d.assignTo || undefined });
+        await this.deps.handoff({ assignTo: d.assignTo || undefined, departmentId: d.departmentId || undefined });
         state.waiting = null;
         return { kind: 'end', status: 'handed_off' };
       }

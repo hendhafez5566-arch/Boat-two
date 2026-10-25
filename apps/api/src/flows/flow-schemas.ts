@@ -3,11 +3,21 @@ import { z } from 'zod';
 const varName = z.string().regex(/^[A-Za-z_][\w]{0,40}$/);
 const id = z.string().min(1).max(60);
 
-const button = z.object({ id: z.string().min(1).max(200), title: z.string().min(1).max(20) });
+export const buttonActionSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('set_field'), key: varName, value: z.string().max(2000) }),
+  z.object({ type: z.literal('tag'), add: z.array(z.string().min(1).max(80)).max(30), remove: z.array(z.string().min(1).max(80)).max(30) }),
+  z.object({ type: z.literal('list'), listId: z.string().uuid(), operation: z.enum(['add', 'remove']) }),
+  z.object({ type: z.literal('sequence'), sequenceId: z.string().uuid(), operation: z.enum(['subscribe', 'unsubscribe']) }),
+  z.object({ type: z.literal('assign'), userId: z.string().uuid().optional(), departmentId: z.string().uuid().optional() }),
+  z.object({ type: z.literal('webhook'), url: z.string().url().max(2000).refine(v => v.startsWith('https://')), body: z.string().max(10000).default('{}') }),
+]);
+const actions = z.array(buttonActionSchema).max(20).optional();
+const button = z.object({ id: z.string().min(1).max(200), title: z.string().min(1).max(20), actions });
 const row = z.object({
   id: z.string().min(1).max(200),
   title: z.string().min(1).max(24),
   description: z.string().max(72).optional(),
+  actions,
 });
 
 const condition = z.object({
@@ -150,6 +160,7 @@ export const nodeSchema = z.discriminatedUnion('type', [
         .max(20)
         .default([]),
       doneText: z.string().max(4096).default(''),
+      completionActions: actions,
     }),
   }),
   z.object({
@@ -297,6 +308,7 @@ export const nodeSchema = z.discriminatedUnion('type', [
     data: z.object({
       message: z.string().max(2000).optional(),
       assignTo: z.string().uuid().optional().or(z.literal('')),
+      departmentId: z.string().uuid().optional().or(z.literal('')),
     }),
   }),
   z.object({

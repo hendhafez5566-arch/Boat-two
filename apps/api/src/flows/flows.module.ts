@@ -6,10 +6,11 @@ import { SequencesModule } from '../sequences/sequences.module';
 import { FlowRuntimeService } from './flow-runtime.service';
 import { FlowsController } from './flows.controller';
 import { FlowsService } from './flows.service';
+import { FlowActionsService } from './flow-actions.service';
 
 @Module({
   imports: [MessagingModule, AiModule, InboxModule, SequencesModule],
   controllers: [FlowsController],
-  providers: [FlowsService, FlowRuntimeService],
+  providers: [FlowsService, FlowRuntimeService, FlowActionsService],
 })
 export class FlowsModule {}

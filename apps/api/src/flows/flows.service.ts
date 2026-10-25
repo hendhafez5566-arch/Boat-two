@@ -336,6 +336,10 @@ export class FlowsService {
     const attrs: Record<string, unknown> = {};
 
     const engine = new FlowEngine(graph, {
+      executeButtonAction: async (action, occurrence) => {
+        if (action.type === 'set_field') attrs[action.key] = action.value;
+        transcript.push({ role: 'system', content: `MOCK action ${occurrence}: ${JSON.stringify(action)} — no external delivery or database change` });
+      },
       ai: async (req) => {
         const r = await this.ai.playground(tenantId, req.text);
         transcript.push({

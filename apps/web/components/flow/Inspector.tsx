@@ -7,6 +7,7 @@ import { ReactNode, createContext, useContext, useId, useEffect, useState } from
 import { NodeType, optionsOf, uid } from '../../lib/flow-types';
 import { STEP_GUIDANCE } from '../../lib/step-guidance';
 import MessageEditor, { EditorSection, ChatBubble } from './MessageEditor';
+import ButtonActionsEditor from './ButtonActionsEditor';
 import UserInputPreview, { UIQuestion } from './UserInputPreview';
 import ConditionModal, { CondGroup, LabelOption, ConditionVariable, VariableRulePicker } from '../business/ConditionModal';
 
@@ -184,6 +185,8 @@ export default function Inspector({
   onDelete: () => void;
 }) {
   const [staff, setStaff] = useState<{ user_id: string; full_name: string; email: string; available: boolean }[]>([]);
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => { if (type === 'handoff') api<typeof departments>('/departments').then(setDepartments).catch(() => {}); }, [type]);
   const [staffState, setStaffState] = useState<'loading' | 'ready' | 'error'>('loading');
   useEffect(() => {
     if (type !== 'handoff') return;
@@ -760,6 +763,7 @@ export default function Inspector({
             <Txt v={data.doneText} on={(doneText) => set({ doneText })} rows={3} />
           </F>
           <p className="mb-1 mt-3 text-xs font-semibold text-gray-600">{t('معاينة السلسلة', 'Chain preview')}</p>
+          <ButtonActionsEditor value={data.completionActions} onChange={completionActions => set({ completionActions })} />
           <UserInputPreview name={data.name} questions={data.questions} doneText={data.doneText} />
         </>
       )}
@@ -1103,7 +1107,8 @@ export default function Inspector({
             <Txt v={data.message} on={(message) => set({ message })} rows={2} />
           </F>
           <ChatBubble text={data.message} />
-          <p>{t('التحويل يوقف البوت ويسلم المحادثة للموظفين. يمكنك اختيار موظف من فريق العمل الحالي، أو ترك التعيين لصندوق الوارد. تعيين قسم غير مدعوم في هذه العقدة.', 'Handoff stops the bot and transfers the conversation to staff. Select an existing workspace member or leave assignment to the inbox. This node does not support department assignment.')}</p>
+          <p>{t('التحويل يوقف البوت ويسلم المحادثة للموظفين. اختر قسمًا أو موظفًا من فريق العمل؛ عند الجمع بينهما يجب أن يكون الموظف عضوًا في القسم.', 'Handoff stops the bot and transfers the conversation to staff. Choose a department or employee; when both are selected the employee must belong to that department.')}</p>
+          <F label={t('القسم المسؤول', 'Assigned department')}><select className={inp} value={data.departmentId ?? ''} onChange={e => set({ departmentId: e.target.value || undefined, assignTo: undefined })}><option value="">{t('بدون قسم محدد', 'No specific department')}</option>{data.departmentId && !departments.some(d => d.id === data.departmentId) && <option value={data.departmentId}>{t('القسم المحفوظ غير متاح', 'Saved department unavailable')}</option>}{departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></F>
           <F label={t('الموظف المسؤول', 'Assigned employee')}>
             <select className={inp} aria-label={t('الموظف المسؤول', 'Assigned employee')} value={data.assignTo ?? ''} disabled={staffState !== 'ready'} onChange={e => set({ assignTo: e.target.value || undefined })}>
               <option value="">{t('بدون تعيين محدد — صندوق الوارد', 'Unassigned — inbox')}</option>

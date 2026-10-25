@@ -1,4 +1,5 @@
 import { CrmRetentionController } from './crm-retention.controller';
+import { ContactListsController } from './contact-lists.controller';
 import { IntegrationSecretsController } from './integration-secrets.controller';
 import { CryptoService } from '../messaging/crypto.service';
 import { DeliveryPolicyController } from './delivery-policy.controller';
@@ -16,6 +17,7 @@ import { OperationsController } from './operations.controller';
   imports: [MessagingModule],
   providers: [CryptoService, CrmJobs, CrmService, CampaignsService, AutomationService],
   controllers: [
+    ContactListsController,
     CrmRetentionController,
     IntegrationSecretsController,
     DeliveryPolicyController,

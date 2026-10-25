@@ -124,19 +124,29 @@ export interface AiResult {
 }
 
 export interface EngineDeps {
+  /** Durable production execution; the simulator supplies an explicitly mocked executor. */
+  executeButtonAction?(action: ButtonAction, occurrence: string): Promise<void>;
   ai(req: AiRequest): Promise<AiResult>;
   send(content: OutContent, meta?: { nodeId?: string }): Promise<void>;
   http(req: HttpRequestSpec): Promise<HttpResult>;
   setContactAttribute(key: string, value: unknown): Promise<void>;
   updateTags(change: { add: string[]; remove: string[] }): Promise<void>;
   addNote(body: string): Promise<void>;
-  handoff(opts: { assignTo?: string }): Promise<void>;
+  handoff(opts: { assignTo?: string; departmentId?: string }): Promise<void>;
   closeConversation(): Promise<void>;
   /** يضيف جهة الاتصال الحالية إلى Sequence؛ غير موجودة في وضع التجربة */
   enrollSequence?(sequenceId: string): Promise<{ enrolled: boolean }>;
   now(): Date;
   random(): number;
 }
+
+export type ButtonAction =
+  | { type: 'set_field'; key: string; value: string }
+  | { type: 'tag'; add: string[]; remove: string[] }
+  | { type: 'list'; listId: string; operation: 'add' | 'remove' }
+  | { type: 'sequence'; sequenceId: string; operation: 'subscribe' | 'unsubscribe' }
+  | { type: 'assign'; userId?: string; departmentId?: string }
+  | { type: 'webhook'; url: string; body: string };
 
 export type EngineStatus = 'waiting' | 'completed' | 'handed_off' | 'error';
 
@@ -157,11 +167,11 @@ export function newState(): FlowState {
 }
 
 /** المخارج (handles) الصالحة لكل عقدة، وهي نفسها المستخدمة في المحرر المرئي */
-export function optionsOf(data: Record<string, any>): { id: string; title: string }[] {
-  const out: { id: string; title: string }[] = [];
-  for (const b of data.buttons ?? []) out.push({ id: b.id, title: b.title });
+export function optionsOf(data: Record<string, any>): { id: string; title: string; actions?: ButtonAction[] }[] {
+  const out: { id: string; title: string; actions?: ButtonAction[] }[] = [];
+  for (const b of data.buttons ?? []) out.push({ id: b.id, title: b.title, ...(b.actions ? { actions: b.actions } : {}) });
   for (const s of data.list?.sections ?? [])
-    for (const r of s.rows ?? []) out.push({ id: r.id, title: r.title });
+    for (const r of s.rows ?? []) out.push({ id: r.id, title: r.title, ...(r.actions ? { actions: r.actions } : {}) });
   return out;
 }
 

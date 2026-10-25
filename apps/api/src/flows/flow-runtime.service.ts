@@ -1,4 +1,5 @@
 import { SequencesService } from '../sequences/sequences.service';
+import { FlowActionsService } from './flow-actions.service';
 import { ExternalEffects } from '../events/external-effect';
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
@@ -24,6 +25,7 @@ import { safeHttpRequest } from './http-safe';
 const REPLY_WAIT_HOURS = 24;
 
 interface Loaded {
+  eventId?: string;
   tenantId: string;
   conversationId: string;
   contactId: string;
@@ -46,6 +48,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     private readonly ai: AiService,
     private readonly assignment: AssignmentService,
     private readonly sequences: SequencesService,
+    private readonly actions: FlowActionsService,
   ) {}
 
   onModuleInit() {
@@ -201,6 +204,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       lastMessage: { text, replyId },
     };
     const base: Loaded = {
+      eventId: e.messageId,
       tenantId: e.tenantId,
       conversationId: e.conversationId,
       contactId: loaded.conv.contact_id,
@@ -403,6 +407,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
 
   private makeDeps(b: Loaded, flowId?: string): EngineDeps {
     return {
+      executeButtonAction: (action, occurrence) => this.actions.execute(b, action, occurrence),
       ai: async (req) => {
         const r = await this.ai.replyInConversation({
           tenantId: b.tenantId,
@@ -448,7 +453,11 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
           c.query('INSERT INTO crm_notes(tenant_id, contact_id, body) VALUES ($1, $2, $3)', [b.tenantId, b.contactId, body]),
         );
       },
-      handoff: async ({ assignTo }) => {
+      handoff: async ({ assignTo, departmentId }) => {
+        if (departmentId) {
+          await this.actions.assign(b, { userId: assignTo, departmentId });
+          return;
+        }
         await this.db.withTenant(b.tenantId, async (c) => {
           if (assignTo) {
             const ok = await c.query('SELECT 1 FROM memberships WHERE user_id = $1', [assignTo]);
