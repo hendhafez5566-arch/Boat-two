@@ -91,3 +91,20 @@ test('signature covers exact raw body rather than parsed representation', async 
   );
   assert.equal(writes, 0);
 });
+
+test('Telegram persists callback before answering it and ignores acknowledgement failure',async()=>{
+ const {WebhooksController}=await import('./webhooks.controller');
+ const calls:string[]=[];
+ const channels={lookup:async()=>({id:'channel',tenant_id:'tenant',status:'active'}),credentials:()=>({webhookSecret:'secret',botToken:'mock'})};
+ let failWrite=false;
+ const db={withTenant:async(_tenant:string,fn:(c:unknown)=>Promise<unknown>)=>fn({query:async()=>{calls.push('persist');if(failWrite)throw new Error('database unavailable');}})};
+ const controller=new WebhooksController(db as never,channels as never,{} as never);
+ const original=globalThis.fetch;
+ globalThis.fetch=async(url,options)=>{assert.match(String(url),/answerCallbackQuery$/);assert.deepEqual(JSON.parse(String(options?.body)),{callback_query_id:'query'});calls.push('ack');return new Response(JSON.stringify({ok:false,error_code:400}),{status:400});};
+ const body={update_id:1,callback_query:{id:'query',from:{id:123},message:{chat:{id:123,type:'private'}},data:'choice'}};
+ try{
+  await assert.rejects(controller.telegram('12345','wrong',body));assert.deepEqual(calls,[]);
+  assert.deepEqual(await controller.telegram('12345','secret',body),{received:true});assert.deepEqual(calls,['persist','ack']);
+  calls.length=0;failWrite=true;await assert.rejects(controller.telegram('12345','secret',body),/database unavailable/);assert.deepEqual(calls,['persist']);
+ }finally{globalThis.fetch=original;}
+});

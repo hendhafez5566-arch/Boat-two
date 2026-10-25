@@ -8,9 +8,9 @@ export function telegramWebhookAuthorized(expected:string|undefined,provided:str
   return !!a.length&&a.length===b.length&&timingSafeEqual(a,b);
 }
 
-export async function telegramCall(token:string,method:string,body:Record<string,unknown>={}) {
+export async function telegramCall(token:string,method:string,body:Record<string,unknown>={},timeoutMs=15000) {
   let response:Response;
-  try { response=await fetch(`https://api.telegram.org/bot${token}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)}); }
+  try { response=await fetch(`https://api.telegram.org/bot${token}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(timeoutMs)}); }
   catch { throw new ProviderError('Telegram provider unreachable',503); }
   const data=await response.json() as {ok:boolean;result?:Record<string,unknown>;error_code?:number};
   if(!response.ok||!data.ok)throw new ProviderError('Telegram rejected the request',data.error_code??response.status);

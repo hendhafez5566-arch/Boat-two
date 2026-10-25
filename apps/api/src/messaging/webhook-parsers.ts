@@ -30,6 +30,8 @@ export function parseTelegram(botId:string,body:Obj):InboundEvent[] {
   const message=callback?.message??body.message;
   const from=callback?.from??message?.from;
   if(!message||message.chat?.type!=='private'||!Number.isSafeInteger(message.chat?.id)||!from||from.is_bot)return[];
+  // A callback must belong to this private-chat participant, not a forwarded payload.
+  if(callback&&(!Number.isSafeInteger(from.id)||from.id!==message.chat.id||typeof callback.data!=='string'||!callback.data.length||Buffer.byteLength(callback.data)>64))return[];
   const content:MessageContent=callback&&typeof callback.data==='string'
     ?{reply:{id:callback.data,title:''}}
     :typeof message.text==='string'?{text:message.text}

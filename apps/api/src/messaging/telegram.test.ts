@@ -23,3 +23,9 @@ test('Telegram outbound mock sends stable callback IDs and rejects truncation or
     await assert.rejects(adapter.send({botToken:'mock'},'123',{template:{name:'x',language:'en',bodyParams:[]}}),/unavailable/);assert.equal(bodies.length,1);
   }finally{globalThis.fetch=original;}
 });
+
+test('Telegram rejects forged callback participants, empty and oversized callback values',()=>{
+ const callback={id:'query',from:{id:123},message:{chat:{id:123,type:'private'}},data:'stable'};
+ assert.equal(parseTelegram('12345',{update_id:1,callback_query:callback}).length,1);
+ for(const value of [{...callback,from:{id:456}},{...callback,data:''},{...callback,data:'ع'.repeat(33)}])assert.deepEqual(parseTelegram('12345',{update_id:1,callback_query:value}),[]);
+});

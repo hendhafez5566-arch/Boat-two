@@ -22,7 +22,7 @@ import { Public } from '../auth/decorators';
 import { env } from '../config/env';
 import { DatabaseService } from '../database/database.service';
 import { ChannelsService } from './channels.service';
-import {telegramWebhookAuthorized} from './adapters/telegram.adapter';
+import {telegramCall,telegramWebhookAuthorized} from './adapters/telegram.adapter';
 import { MessagingService } from './messaging.service';
 import { InboundEvent, parseMeta, parseWhatsApp, parseTelegram } from './webhook-parsers';
 
@@ -100,7 +100,15 @@ export class WebhooksController implements OnModuleInit, OnModuleDestroy {
     if(!channel||channel.status!=='active')throw new ForbiddenException();
     const expected=this.channels.credentials(channel).webhookSecret;
     if(!telegramWebhookAuthorized(expected,secret))throw new ForbiddenException('Invalid Telegram webhook secret');
-    await this.enqueue(parseTelegram(botId,body));
+    const events=parseTelegram(botId,body);
+    await this.enqueue(events);
+    // Acknowledge the spinner only after the choice is durable. Failure here must
+    // never replay a successfully accepted choice or disclose provider credentials.
+    const callback=body.callback_query as {id?:unknown}|undefined;
+    if(events.length&&typeof callback?.id==='string'&&callback.id.length<=200){
+      try{await telegramCall(this.channels.credentials(channel).botToken,'answerCallbackQuery',{callback_query_id:callback.id},3000);}
+      catch{this.log.warn('Telegram callback acknowledgement unavailable; inbound choice remains queued');}
+    }
     return{received:true};
   }
 
