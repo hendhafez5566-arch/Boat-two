@@ -374,7 +374,7 @@ export class FlowsService {
     const engine = new FlowEngine(graph, {
       setContactField:async(key,value)=>{attrs['system.'+key]=value;transcript.push({role:'system',content:`MOCK system field ${key}: ${value}`});},
       productContent:async(id,native)=>{if(!this.commerce)throw new Error('Commerce unavailable');transcript.push({role:'system',content:'MOCK product preview; no external delivery'});return this.commerce.productContent(tenantId,id,native);},
-      catalogContent:async(ids,native,text)=>{if(!this.commerce)throw new Error('Commerce unavailable');transcript.push({role:'system',content:'MOCK catalog preview; no external delivery'});return this.commerce.catalogContent(tenantId,ids,native,text);},
+      catalogContent:async(ids,native,text,selectable)=>{if(!this.commerce)throw new Error('Commerce unavailable');transcript.push({role:'system',content:'MOCK catalog preview; no external delivery'});return this.commerce.catalogContent(tenantId,ids,native,text,selectable);},
       bookAppointment:async(serviceId,start)=>{transcript.push({role:'system',content:'MOCK booking — not persisted; no Calendar request'});return{mock:true,persisted:false,serviceId,start};},
       readGoogleSheet:async(connectionId,spreadsheetId,range)=>{if(!input.allowHttp){transcript.push({role:'system',content:'MOCK private Google Sheet read: no request sent, empty fixture'});return '';}if(!this.google)throw new Error('Google reader unavailable');const result=await this.google.execute(tenantId,connectionId,{operation:'sheet_read',spreadsheetId,range}) as {data?:{values?:unknown[][]}};return valuesCsv(result.data?.values??[]);},
       executeButtonAction: async (action, occurrence) => {

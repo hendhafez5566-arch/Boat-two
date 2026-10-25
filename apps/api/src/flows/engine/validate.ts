@@ -38,6 +38,7 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
       case 'whatsapp_flow': {
         const parsed=nodeSchema.safeParse(n);
         if(!parsed.success)for(const issue of parsed.error.issues)errors.push({nodeId:n.id,message:`${issue.path.join('.')}: ${issue.message}`});
+        if(n.type==='catalog'&&d.selectable&&(d.native||(d.productIds??[]).length>10))errors.push({nodeId:n.id,message:'Selectable catalogs require 1–10 non-native products'});
         if(n.type==='catalog'&&new Set(d.productIds??[]).size!==(d.productIds??[]).length)errors.push({nodeId:n.id,message:'Catalog products must be unique'});
         break;
       }

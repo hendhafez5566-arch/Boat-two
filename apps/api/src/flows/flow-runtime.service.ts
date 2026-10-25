@@ -425,7 +425,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     return {
       setContactField:(key,value)=>this.actions.writeSystemField(b,key,value),
       productContent:(id,native)=>{if(native&&b.ctx.channel.type!=='whatsapp')throw new Error('Native products require WhatsApp');return this.commerce.productContent(b.tenantId,id,native);},
-      catalogContent:(ids,native,text)=>{if(native&&b.ctx.channel.type!=='whatsapp')throw new Error('Native catalogs require WhatsApp');return this.commerce.catalogContent(b.tenantId,ids,native,text);},
+      catalogContent:(ids,native,text,selectable)=>{if(native&&b.ctx.channel.type!=='whatsapp')throw new Error('Native catalogs require WhatsApp');return this.commerce.catalogContent(b.tenantId,ids,native,text,selectable);},
       bookAppointment:(serviceId,start,key)=>this.commerce.book(b.tenantId,{serviceId,contactId:b.contactId,start,eventKey:`flow:${b.conversationId}:${b.eventId}:${key}`,dryRun:false}),
       readGoogleSheet:async(connectionId,spreadsheetId,range)=>{const result=await this.google.execute(b.tenantId,connectionId,{operation:'sheet_read',spreadsheetId,range}) as {data?:{values?:unknown[][]}};return valuesCsv(result.data?.values??[]);},
       executeButtonAction: (action, occurrence) => this.actions.execute(b, action, occurrence),

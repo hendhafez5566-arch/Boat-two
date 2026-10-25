@@ -335,6 +335,13 @@ export class FlowEngine {
   }
 
   private async resumeAnswer(node: FlowNode, ctx: FlowContext, state: FlowState): Promise<EngineResult> {
+    if(node.type==='catalog'){
+      const chosen=state.waiting?.catalogOptions?.find(o=>o.id===ctx.lastMessage.replyId);
+      if(!chosen)return this.finish('waiting',state);
+      state.vars[node.data.saveAs||'selectedProductId']=chosen.id.slice('product:'.length);
+      state.vars[(node.data.saveAs||'selectedProductId')+'_name']=chosen.title;
+      state.waiting=null;return this.run(ctx,state,node.edges.next??null);
+    }
     if(node.type==='whatsapp_flow'){
       const value=ctx.lastMessage.formReply;
       const token=state.waiting?.formToken??`${node.id}:${state.totalSteps}`;
@@ -430,7 +437,16 @@ export class FlowEngine {
 
     switch (node.type) {
       case 'product':if(!this.deps.productContent)throw new RunError('Product adapter unavailable');await this.send(await this.deps.productContent(d.productId,!!d.native));return{kind:'goto',handle:'next'};
-      case 'catalog':if(!this.deps.catalogContent)throw new RunError('Catalog adapter unavailable');await this.send(await this.deps.catalogContent(d.productIds,!!d.native,interpolate(d.text,r)));return{kind:'goto',handle:'next'};
+      case 'catalog':{
+        if(!this.deps.catalogContent)throw new RunError('Catalog adapter unavailable');
+        if(d.selectable&&d.native)throw new RunError('Selectable catalogs use list rows; native catalogs return provider orders');
+        const content=await this.deps.catalogContent(d.productIds,!!d.native,interpolate(d.text,r),!!d.selectable);
+        const choices=content.list?.sections.flatMap(s=>s.rows)??[];
+        if(d.selectable&&!choices.length)throw new RunError('Selectable catalog has no products');
+        await this.send(content);
+        if(d.selectable){state.waiting={nodeId:node.id,kind:'answer',retries:0,catalogOptions:choices.map(o=>({id:o.id,title:o.title}))};return{kind:'wait'};}
+        return{kind:'goto',handle:'next'};
+      }
       case 'appointment':{if(!this.deps.bookAppointment)throw new RunError('Appointment adapter unavailable');try{state.vars[d.saveAs||'appointment']=await this.deps.bookAppointment(d.serviceId,interpolate(d.start,r),`${node.id}:${state.totalSteps}`);return{kind:'goto',handle:'success'};}catch(e){state.vars.appointment_error=(e as Error).message;return{kind:'goto',handle:/unavailable|hours|future/i.test((e as Error).message)?'unavailable':'error'};}}
       case 'whatsapp_flow':{
         if(!['whatsapp','test'].includes(ctx.channel.type))throw new RunError('WhatsApp Flows require a WhatsApp channel');

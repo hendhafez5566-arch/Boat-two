@@ -84,7 +84,7 @@ const messageData = z.object({
 
 export const nodeSchema = z.discriminatedUnion('type', [
   z.object({...nodeBase,type:z.literal('product'),data:z.object({productId:z.string().uuid(),native:z.boolean().default(false)})}),
-  z.object({...nodeBase,type:z.literal('catalog'),data:z.object({productIds:z.array(z.string().uuid()).min(1).max(30),native:z.boolean().default(false),text:z.string().min(1).max(1024)})}),
+  z.object({...nodeBase,type:z.literal('catalog'),data:z.object({productIds:z.array(z.string().uuid()).min(1).max(30),native:z.boolean().default(false),text:z.string().min(1).max(1024),selectable:z.boolean().optional(),saveAs:varName.optional()})}),
   z.object({...nodeBase,type:z.literal('appointment'),data:z.object({serviceId:z.string().uuid(),start:z.string().min(1).max(200),saveAs:varName.default('appointment')})}),
   z.object({...nodeBase,type:z.literal('whatsapp_flow'),data:z.object({text:z.string().min(1).max(1024),flowId:z.string().regex(/^\d+$/),cta:z.string().min(1).max(20),screen:z.string().min(1).max(80),saveAs:varName.default('form')})}),
   z.object({

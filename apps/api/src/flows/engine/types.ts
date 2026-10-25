@@ -115,6 +115,7 @@ export interface FlowState {
     startPending?: boolean;
     deliveryPending?: boolean;
     formToken?: string;
+    catalogOptions?:{id:string;title:string}[];
   };
   totalSteps: number;
 }
@@ -148,7 +149,7 @@ export interface AiResult {
 export interface EngineDeps {
   setContactField?(field:'name'|'email'|'phone',value:string):Promise<void>;
   productContent?(id:string,native:boolean):Promise<OutContent>;
-  catalogContent?(ids:string[],native:boolean,text:string):Promise<OutContent>;
+  catalogContent?(ids:string[],native:boolean,text:string,selectable?:boolean):Promise<OutContent>;
   bookAppointment?(serviceId:string,start:string,eventKey:string):Promise<Record<string,unknown>>;
   readGoogleSheet?(connectionId:string,spreadsheetId:string,range:string):Promise<string>;
   /** Durable production execution; the simulator supplies an explicitly mocked executor. */
@@ -209,6 +210,7 @@ export function clickableOptions(
   waiting: FlowState['waiting'],
 ): { id: string; title: string }[] {
   if (!node || !waiting) return [];
+  if(waiting.kind==='answer'&&node.type==='catalog')return waiting.catalogOptions??[];
   if (waiting.kind === 'choice') return optionsOf(node.data ?? {});
   if (waiting.kind === 'answer' && node.type === 'user_input') {
     const q = (node.data?.questions ?? [])[waiting.step ?? 0];

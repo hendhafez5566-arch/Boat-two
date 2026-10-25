@@ -17,12 +17,13 @@ const node = (id: string, type: any, data: any = {}, edges: Record<string, strin
   edges,
 });
 
-function harness(graph: FlowGraph, opts: { http?: EngineDeps['http']; random?: () => number; now?: Date; ai?: EngineDeps['ai'] } = {}) {
+function harness(graph: FlowGraph, opts: { catalogContent?:EngineDeps['catalogContent']; http?: EngineDeps['http']; random?: () => number; now?: Date; ai?: EngineDeps['ai'] } = {}) {
   const sent: OutContent[] = [];
   const attrs: Record<string, unknown> = {};
   const calls = { handoff: 0, close: 0 };
   const aiCalls: { instructions?: string; text: string }[] = [];
   const deps: EngineDeps = {
+    catalogContent:opts.catalogContent,
     ai: async (req) => {
       aiCalls.push(req);
       return opts.ai ? opts.ai(req) : { text: `AI:${req.text}`, handoff: false };
@@ -871,4 +872,13 @@ test('commerce nodes reject missing product/service/form configuration before pu
   const productId='00000000-0000-4000-8000-000000000001';
   assert.equal(validateGraph({startNodeId:'x',nodes:[node('x','product',{productId,native:false})]}).errors.length,0);
   assert.ok(validateGraph({startNodeId:'x',nodes:[node('x','catalog',{productIds:[productId,productId],text:'Catalog',native:false})]}).errors.some(e=>/unique/.test(e.message)));
+});
+
+test('selectable catalog persists canonical product ID and branches using the saved choice after reopening',async()=>{
+ const productId='00000000-0000-4000-8000-000000000001';
+ const graph:FlowGraph={startNodeId:'catalog',nodes:[node('catalog','catalog',{productIds:[productId],text:'Choose',selectable:true,saveAs:'product'},{next:'condition'}),node('condition','condition',{rules:[{id:'selected',conditions:[{source:'variable',key:'product',operator:'equals',value:productId}]}]},{'rule:selected':'chosen',else:'wrong'}),node('chosen','message',{text:'Selected {{product_name}}'}),node('wrong','message',{text:'Wrong'})]};
+ const catalogContent:EngineDeps['catalogContent']=async(ids,native,text,selectable)=>{assert.deepEqual(ids,[productId]);assert.equal(native,false);assert.equal(selectable,true);return{text,list:{buttonText:'Products',sections:[{rows:[{id:'product:'+productId,title:'Umrah'}]}]}};};
+ const h=harness(graph,{catalogContent});const first=await h.engine.start(h.ctx,newState());assert.equal(first.status,'waiting');assert.deepEqual(clickableOptions(graph.nodes[0],first.state.waiting),[{id:'product:'+productId,title:'Umrah'}]);
+ const state=JSON.parse(JSON.stringify(first.state));h.say('invalid','product:other');assert.equal((await h.engine.resume(h.ctx,state)).status,'waiting');assert.equal(state.vars.product,undefined);
+ const reopened=harness(graph,{catalogContent});reopened.say('Umrah','product:'+productId);const done=await reopened.engine.resume(reopened.ctx,state);assert.equal(done.status,'completed');assert.equal(done.state.vars.product,productId);assert.equal(reopened.sent[0].text,'Selected Umrah');
 });
