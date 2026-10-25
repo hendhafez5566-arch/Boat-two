@@ -241,7 +241,7 @@ export default function Channels() {
             {advanced && <><option value="whatsapp">WhatsApp</option><option value="facebook">Facebook Messenger</option><option value="instagram">Instagram</option></>}
           </select>
         </label>
-        {type === 'telegram' && <p className="notice">{t('أنشئ بوتًا من @BotFather وأدخل رمزه. لا تُسجل الإضافة Webhook تلقائيًا؛ افتح إعدادات القناة لتسجيله صراحة بعد توفير عنوان HTTPS عام. المحادثات الخاصة فقط، وتنزيل الوسائط الواردة غير متاح.', 'Create a bot with @BotFather and enter its token. Adding a channel does not register a webhook automatically; open channel settings to explicitly register it after configuring public HTTPS. Private chats only; inbound media downloads are unavailable.')}</p>}
+        {type === 'telegram' && <p className="notice">{t('أنشئ بوتًا من @BotFather وأدخل رمزه. لا تُسجل الإضافة Webhook تلقائيًا؛ افتح إعدادات القناة لتسجيله صراحة بعد توفير عنوان HTTPS عام. المجموعات اختيارية من إعدادات القناة؛ تُحمّل الوسائط عبر مسار محمي دون إظهار الرمز.', 'Create a bot with @BotFather and enter its token. Adding a channel does not register a webhook automatically; open channel settings to explicitly register it after configuring public HTTPS. Groups are opt-in in channel settings; media downloads use an authenticated route without exposing the bot token.')}</p>}
         <label className="field">
           {t('اسم القناة', 'Channel name')}
           <input name="name" required maxLength={80} />

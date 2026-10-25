@@ -15,7 +15,7 @@ const channels = [
   { id: 'whatsapp', name: 'WhatsApp', mark: '◉', color: '#128c4a', ar: 'ربط رقم الأعمال عبر Meta', en: 'Connect your business number through Meta' },
   { id: 'facebook', name: 'Facebook Messenger', mark: 'f', color: '#0866ff', ar: 'رسائل صفحة نشاطك', en: 'Messages from your business page' },
   { id: 'instagram', name: 'Instagram', mark: '◎', color: '#c13584', ar: 'رسائل حسابك الاحترافي', en: 'Messages from your professional account' },
-  { id: 'telegram', name: 'Telegram', mark: '➤', color: '#0088cc', ar: 'موصل Bot API للمحادثات الخاصة — يحتاج إعداد Webhook واختبارًا حيًا', en: 'Bot API adapter for private chats — requires webhook setup and live validation' },
+  { id: 'telegram', name: 'Telegram', mark: '➤', color: '#0088cc', ar: 'موصل Bot API للمحادثات والوسائط والمجموعات الاختيارية — يحتاج إعداد Webhook واختبارًا حيًا', en: 'Bot API adapter with media and opt-in groups — requires webhook setup and live validation' },
   { id: 'web', name: 'Webchat', mark: '▣', color: '#2563eb', ar: 'ابدأ الآن بويدجت موقعك', en: 'Start now with your website widget' },
   { id: 'google', name: 'Google Sheets', mark: 'G', color: '#188038', ar: 'تفويض مستقل للقراءة وكتابة Sheets وCalendar بأقل صلاحية.', en: 'Separate authorization for Sheets reads, writes and Calendar with purpose-specific scopes.' },
 ];

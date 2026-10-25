@@ -70,7 +70,7 @@ export type CreateChannelInput = z.infer<typeof createChannelSchema>;
 export const updateChannelSchema = z.object({
   name: z.string().min(1).max(80).optional(),
   status: z.enum(['active', 'disabled']).optional(),
-  settings: widgetSettingsSchema.partial().optional(),
+  settings: widgetSettingsSchema.partial().extend({telegramAllowGroups:z.boolean().optional()}).optional(),
 });
 
 const PUBLIC_COLS = 'id, type, name, external_id, settings, status, created_at';

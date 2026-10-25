@@ -10,6 +10,7 @@ const row = z.object({
 export const contentSchema = z
   .object({
     typingSeconds:z.number().int().min(0).max(5).optional(),
+    telegramSender:z.object({id:z.string().max(30),name:z.string().max(200)}).optional(),
     flowReply:z.record(z.unknown()).optional(),
     order:z.object({catalogId:z.string(),items:z.array(z.object({retailerId:z.string(),quantity:z.number().int().positive(),price:z.string(),currency:z.string()})).max(30)}).optional(),
     product:z.object({catalogId:z.string().min(1).max(200),retailerId:z.string().min(1).max(200)}).optional(),
@@ -106,7 +107,7 @@ export function messageTypeOf(c: MessageContent): string {
 
 /** قواعد الرسائل الصادرة (حدود واتساب هي الأضيق، فنلتزم بها لكل القنوات) */
 export function validateOutbound(c: MessageContent) {
-  if(c.flowReply||c.order)throw new BadRequestException('Form replies and orders are inbound-only');
+  if(c.telegramSender||c.flowReply||c.order)throw new BadRequestException('Form replies and orders are inbound-only');
   if(c.product||c.productList||c.whatsappFlow){if(!c.text||c.text.length>1024)throw new BadRequestException('Native interactive body requires 1–1024 characters');if([c.product,c.productList,c.whatsappFlow].filter(Boolean).length>1||c.buttons||c.list||c.cta||c.template||c.media)throw new BadRequestException('Native product/flow cannot be combined with another action');}
   if ((c.header?.type === 'text' && (!c.header.text || c.header.text.length > 60)) || (c.footer?.length ?? 0) > 60) throw new BadRequestException('Interactive header/footer supports at most 60 characters');
   if ((c.header || c.footer) && !(c.buttons || c.list || c.cta)) throw new BadRequestException('Header/footer require an interactive message');

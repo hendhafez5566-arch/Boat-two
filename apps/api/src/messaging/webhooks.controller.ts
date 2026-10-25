@@ -100,7 +100,7 @@ export class WebhooksController implements OnModuleInit, OnModuleDestroy {
     if(!channel||channel.status!=='active')throw new ForbiddenException();
     const expected=this.channels.credentials(channel).webhookSecret;
     if(!telegramWebhookAuthorized(expected,secret))throw new ForbiddenException('Invalid Telegram webhook secret');
-    const events=parseTelegram(botId,body);
+    const events=parseTelegram(botId,body,{allowGroups:channel.settings?.telegramAllowGroups===true});
     await this.enqueue(events);
     // Acknowledge the spinner only after the choice is durable. Failure here must
     // never replay a successfully accepted choice or disclose provider credentials.

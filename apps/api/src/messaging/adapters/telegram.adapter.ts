@@ -36,3 +36,19 @@ export class TelegramAdapter implements ChannelAdapter {
     return{externalId:result.message_id==null?null:String(result.message_id)};
   }
 }
+
+/** Download through the authenticated API; never expose a token-bearing file URL. */
+export async function telegramFile(token:string,fileId:string){
+ const limit=16*1024*1024;
+ const meta=await telegramCall(token,'getFile',{file_id:fileId});
+ const path=String(meta.file_path??'');
+ if(!/^[A-Za-z0-9_./-]+$/.test(path)||path.startsWith('/')||path.split('/').includes('..'))throw new ProviderError('Telegram file unavailable',404);
+ if(Number(meta.file_size)>limit)throw new ProviderError('Telegram media exceeds 16 MB',400);
+ let response:Response;
+ try{response=await fetch(`https://api.telegram.org/file/bot${token}/${path}`,{signal:AbortSignal.timeout(30000),redirect:'error'});}catch{throw new ProviderError('Telegram media unavailable',503);}
+ if(!response.ok||!response.body)throw new ProviderError('Telegram media unavailable',404);
+ if(Number(response.headers.get('content-length'))>limit){await response.body.cancel();throw new ProviderError('Telegram media exceeds 16 MB',400);}
+ const reader=response.body.getReader(),chunks:Buffer[]=[];let size=0;
+ try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>limit){await reader.cancel();throw new ProviderError('Telegram media exceeds 16 MB',400);}chunks.push(Buffer.from(value));}}finally{reader.releaseLock();}
+ return{buffer:Buffer.concat(chunks),mimeType:response.headers.get('content-type')?.split(';')[0]??'application/octet-stream'};
+}

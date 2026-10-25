@@ -62,6 +62,7 @@ export default function MessageBubble({ m, conversationId, name }: { m: any; con
     <div className={`my-1 flex ${mine ? 'justify-start' : 'justify-end'}`}>
       <div className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${mine ? 'bg-blue-600 text-white' : 'border bg-white'}`}>
         {mine && who && <div className="mb-0.5 text-xs opacity-80">{who}</div>}
+        {c.telegramSender&&<small className="block">{c.telegramSender.name}</small>}
         {c.header?.type === 'text' && <strong className="block">{c.header.text}</strong>}
         {c.header?.type === 'image' && <img src={c.header.url} alt="" className="mb-1 max-h-64 rounded" />}
         {c.media &&

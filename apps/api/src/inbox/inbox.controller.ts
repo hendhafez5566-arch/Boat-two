@@ -22,6 +22,7 @@ import { Roles } from '../auth/decorators';
 import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
 import { DatabaseService } from '../database/database.service';
+import {telegramFile} from '../messaging/adapters/telegram.adapter';
 import { GRAPH } from '../messaging/adapters/adapter';
 import { ChannelRow, ChannelsService } from '../messaging/channels.service';
 import { contentSchema } from '../messaging/message-content';
@@ -483,10 +484,16 @@ export class InboxController {
       return r.rows[0];
     });
     const media = row?.content?.media;
-    if (!media?.providerMediaId || row.type !== 'whatsapp')
+    if (!media?.providerMediaId || !['whatsapp','telegram'].includes(row.type))
       throw new NotFoundException('No downloadable media');
 
     const creds = this.channels.credentials({ credentials_enc: row.credentials_enc } as ChannelRow);
+    if(row.type==='telegram'){
+      const file=await telegramFile(creds.botToken,media.providerMediaId);
+      const mime=MEDIA_TYPES.test(file.mimeType)?file.mimeType:'application/octet-stream';
+      res.set({'Content-Type':mime,'X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; sandbox",'Cache-Control':'private, max-age=300',...(mime==='application/octet-stream'?{'Content-Disposition':'attachment'}:{})});
+      res.send(file.buffer);return;
+    }
     const auth = { Authorization: `Bearer ${creds.accessToken}` };
     const meta: any = await fetch(`${GRAPH}/${encodeURIComponent(media.providerMediaId)}`, {
       headers: auth,

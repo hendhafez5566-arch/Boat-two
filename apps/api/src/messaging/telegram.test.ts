@@ -29,3 +29,14 @@ test('Telegram rejects forged callback participants, empty and oversized callbac
  assert.equal(parseTelegram('12345',{update_id:1,callback_query:callback}).length,1);
  for(const value of [{...callback,from:{id:456}},{...callback,data:''},{...callback,data:'ع'.repeat(33)}])assert.deepEqual(parseTelegram('12345',{update_id:1,callback_query:value}),[]);
 });
+
+test('Telegram media retain private provider IDs; opted-in groups share the chat but retain the sender',()=>{
+ const body={update_id:99,message:{chat:{id:-123,type:'supergroup',title:'Travel group'},from:{id:42,first_name:'Ada'},caption:'A picture',photo:[{file_id:'small'},{file_id:'large'}]}};
+ assert.deepEqual(parseTelegram('12345',body),[]);
+ const [event]=parseTelegram('12345',body,{allowGroups:true});if(event.kind!=='message')throw Error('Expected message');assert.equal(event.contactExternalId,'-123');assert.equal(event.contactName,'Travel group');assert.deepEqual(event.content.media,{kind:'image',providerMediaId:'large',caption:'A picture'});assert.deepEqual(event.content.telegramSender,{id:'42',name:'Ada'});assert.equal(JSON.stringify(event).includes('botToken'),false);
+});
+test('Telegram file download is bounded, rejects traversal/oversize and never returns its credential URL',async()=>{
+ const {telegramFile}=await import('./adapters/telegram.adapter');const original=globalThis.fetch;let path='photos/file.png',size=3;
+ globalThis.fetch=async(url)=>String(url).endsWith('/getFile')?new Response(JSON.stringify({ok:true,result:{file_path:path,file_size:size}})):new Response(new Uint8Array([1,2,3]),{headers:{'content-type':'image/png'}});
+ try{const file=await telegramFile('mock-secret','file-id');assert.deepEqual([...file.buffer],[1,2,3]);assert.equal(file.mimeType,'image/png');assert.equal('url' in file,false);path='../escape';await assert.rejects(telegramFile('mock-secret','file-id'),/unavailable/);path='photos/file.png';size=17*1024*1024;await assert.rejects(telegramFile('mock-secret','file-id'),/16 MB/);}finally{globalThis.fetch=original;}
+});

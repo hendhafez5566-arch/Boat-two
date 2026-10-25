@@ -23,21 +23,25 @@ type Obj = Record<string, any>; // eslint-disable-line @typescript-eslint/no-exp
 
 const UNSUPPORTED: MessageContent = { text: '[unsupported message type]' };
 
-/** Private Telegram chats only; provider file IDs are not exposed as public media URLs. */
-export function parseTelegram(botId:string,body:Obj):InboundEvent[] {
+/** Groups are opt-in per channel. Provider file IDs never become public URLs. */
+export function parseTelegram(botId:string,body:Obj,options:{allowGroups?:boolean}={}):InboundEvent[] {
   if(!Number.isSafeInteger(body.update_id))return[];
   const callback=body.callback_query;
   const message=callback?.message??body.message;
   const from=callback?.from??message?.from;
-  if(!message||message.chat?.type!=='private'||!Number.isSafeInteger(message.chat?.id)||!from||from.is_bot)return[];
+  const isPrivate=message?.chat?.type==='private';const isGroup=['group','supergroup'].includes(message?.chat?.type);
+  if(!message||(!isPrivate&&!(options.allowGroups&&isGroup))||!Number.isSafeInteger(message.chat?.id)||!from||from.is_bot)return[];
   // A callback must belong to this private-chat participant, not a forwarded payload.
-  if(callback&&(!Number.isSafeInteger(from.id)||from.id!==message.chat.id||typeof callback.data!=='string'||!callback.data.length||Buffer.byteLength(callback.data)>64))return[];
+  if(callback&&(!Number.isSafeInteger(from.id)||(isPrivate&&from.id!==message.chat.id)||typeof callback.data!=='string'||!callback.data.length||Buffer.byteLength(callback.data)>64))return[];
+  const attachment=message.photo?.at(-1)?{...message.photo.at(-1),kind:'image'}:message.video?{...message.video,kind:'video'}:message.audio||message.voice?{...(message.audio??message.voice),kind:'audio'}:message.document?{...message.document,kind:'file'}:null;
   const content:MessageContent=callback&&typeof callback.data==='string'
     ?{reply:{id:callback.data,title:''}}
     :typeof message.text==='string'?{text:message.text}
+    :attachment&&typeof attachment.file_id==='string'?{media:{kind:attachment.kind,providerMediaId:attachment.file_id,...(message.caption?{caption:String(message.caption).slice(0,1024)}:{}),...(attachment.file_name?{filename:String(attachment.file_name).slice(0,200)}:{})}}
     :message.location?{location:{lat:Number(message.location.latitude),lng:Number(message.location.longitude)}}
-    :{text:'[Telegram media received — file download unavailable]'};
-  return[{kind:'message',channelType:'telegram',externalChannelId:botId,contactExternalId:String(message.chat.id),contactName:[from.first_name,from.last_name].filter(Boolean).join(' '),externalMessageId:`tg:${body.update_id}`,content}];
+    :{text:'[unsupported Telegram message type]'};
+  if(isGroup)content.telegramSender={id:String(from.id),name:[from.first_name,from.last_name].filter(Boolean).join(' ')};
+  return[{kind:'message',channelType:'telegram',externalChannelId:botId,contactExternalId:String(message.chat.id),contactName:isPrivate?[from.first_name,from.last_name].filter(Boolean).join(' '):String(message.chat.title??'Telegram group'),externalMessageId:`tg:${body.update_id}`,content}];
 }
 
 export function parseWhatsApp(body: Obj): InboundEvent[] {
