@@ -161,6 +161,43 @@ function AnswerDestination({ value, onChange, variables }: { value?: string; onC
   return <div className="smart-answer-destination"><label>{t('مكان حفظ الإجابة', 'Where to save the answer')}<select value={value ?? ''} onChange={e => onChange(e.target.value)}><option value="">{t('اختر مكان الحفظ', 'Choose answer storage')}</option>{value && !keys.some(v => v.key === value) && <option value={value}>{t('الحقل الحالي', 'Current field')}: {value}</option>}{keys.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}</select></label><details><summary>{t('اسم حقل جديد أو إعداد متقدم', 'New field name or advanced setting')}</summary><label>{t('اسم الحقل (إنجليزي وأرقام و _)', 'Field key (letters, numbers and _)')}<input dir="ltr" value={value ?? ''} onChange={e => onChange(e.target.value)} /></label></details></div>;
 }
 
+const COND_OPS: Record<string, [string, string]> = {
+  equals: ['يساوي', 'equals'], not_equals: ['لا يساوي', 'does not equal'], contains: ['يحتوي', 'contains'], not_contains: ['لا يحتوي', 'does not contain'],
+  starts_with: ['يبدأ بـ', 'starts with'], ends_with: ['ينتهي بـ', 'ends with'], greater_than: ['أكبر من', 'is greater than'], less_than: ['أصغر من', 'is less than'],
+  is_set: ['موجود', 'is set'], is_not_set: ['غير موجود', 'is not set'], matches_regex: ['يطابق النمط', 'matches pattern'],
+};
+function condText(c: any, variables: { key: string; label: string }[], t: (ar: string, en: string) => string) {
+  const field =
+    c.source === 'variable' ? variables.find((v) => v.key === c.key)?.label || c.key || t('(اختر الحقل)', '(choose a field)')
+    : c.source === 'last_message' ? t('آخر رسالة', 'Last message')
+    : c.source === 'contact_field' ? ({ name: t('اسم العميل', 'Customer name'), phone: t('هاتف العميل', 'Customer phone'), email: t('بريد العميل', 'Customer email') } as Record<string, string>)[c.key ?? 'name'] ?? c.key
+    : c.source === 'contact_attribute' ? c.key || t('(اختر الحقل)', '(choose a field)')
+    : c.source === 'label' ? t('وسم العميل', 'Customer label')
+    : t('القناة', 'Channel');
+  const op = COND_OPS[c.operator] ? t(COND_OPS[c.operator][0], COND_OPS[c.operator][1]) : c.operator;
+  const noVal = c.operator === 'is_set' || c.operator === 'is_not_set';
+  return `${field} ${op}${noVal ? '' : ` «${c.value || '…'}»`}`;
+}
+type AnswerKind = 'choice' | 'text' | 'number' | 'email' | 'phone' | 'regex';
+function answerHint(kind: string, t: (ar: string, en: string) => string) {
+  return ({
+    text: t('يقبل أي نص.', 'Accepts any text.'),
+    number: t('يقبل أرقامًا فقط، مثل 25.', 'Accepts numbers only, e.g. 25.'),
+    email: t('يقبل بريدًا إلكترونيًا صحيحًا، مثل name@example.com.', 'Accepts a valid email, e.g. name@example.com.'),
+    phone: t('يقبل رقم هاتف صحيحًا.', 'Accepts a valid phone number.'),
+    regex: t('يقبل ما يطابق النمط الذي تكتبه (للمتقدمين).', 'Accepts what matches your pattern (advanced).'),
+    choice: t('يختار العميل من القائمة أو الأزرار.', 'The customer picks from buttons or a list.'),
+  } as Record<string, string>)[kind] ?? '';
+}
+function AnswerTypeChips({ value, onChange, kinds, t }: { value: string; onChange: (kind: string) => void; kinds: [AnswerKind, string, string][]; t: (ar: string, en: string) => string }) {
+  return (
+    <div className="qa-types" role="radiogroup" aria-label={t('نوع الإجابة', 'Answer type')}>
+      {kinds.map(([k, ar, en]) => (
+        <button type="button" key={k} role="radio" aria-checked={value === k} className={value === k ? 'is-on' : ''} onClick={() => onChange(k)}>{t(ar, en)}</button>
+      ))}
+    </div>
+  );
+}
 export default function Inspector({
   type,
   data,
@@ -319,82 +356,72 @@ export default function Inspector({
 
       {type === 'question' && (
         <>
-          <F label="نص السؤال">
-            <Txt v={data.text} on={(text) => set({ text })} />
-          </F>
-          <F label="نوع الإجابة المقبولة">
-            <Sel
-              v={data.answerType}
-              on={(answerType) => set({ answerType })}
-              opts={[
-                ['text', 'نص حر'],
-                ['number', 'رقم'],
-                ['email', 'إيميل'],
-                ['phone', 'رقم هاتف'],
-                ['regex', 'نمط مخصص (Regex)'],
-              ]}
-            />
-          </F>
-          {data.answerType === 'regex' && (
-            <F label="النمط">
-              <In v={data.pattern} on={(pattern) => set({ pattern })} dir="ltr" />
+          <EditorSection title={t('١ — السؤال الذي سيراه العميل', '1 — The question your customer sees')}>
+            <F label={t('نص السؤال', 'Question text')}>
+              <Txt v={data.text} on={(text) => set({ text })} />
             </F>
-          )}
-          <AnswerDestination value={data.saveAs} onChange={saveAs => set({ saveAs })} variables={variables} /><label>{t('حفظ في حقل نظام (اختياري)','Save to a system field (optional)')}<select value={data.saveToSystem??''} onChange={e=>set({saveToSystem:e.target.value||undefined,saveToContact:false})}><option value="">{t('متغير/حقل مخصص','Variable / custom field')}</option>{['name','email','phone'].map(v=><option key={v}>{v}</option>)}</select></label>
-          <label><input type="checkbox" checked={!!data.saveToContact} onChange={e => set({ saveToContact: e.target.checked })} /> {t('احفظ الإجابة أيضًا كحقل مخصص للعميل', 'Also save the answer as a custom contact field')}</label>
-          <label><input type="checkbox" checked={!!data.allowSkip} onChange={e => set({ allowSkip: e.target.checked })} /> {t('السماح بتخطي السؤال دون تغيير الحقل', 'Allow skipping without changing the saved field')}</label>
-          {data.allowSkip && <F label={t('نص التخطي', 'Skip label')}><In v={data.skipText || '/skip'} on={skipText => set({ skipText: skipText.slice(0,20) || undefined })} /></F>}
-          <details><summary>{t("لو الإجابة غير صحيحة", "If the answer is invalid")}</summary>
-          <F label="عدد المحاولات عند الإجابة الخاطئة">
-            <In
-              v={data.retries ?? 2}
-              on={(n) => set({ retries: Math.max(0, Math.min(5, Number(n) || 0)) })}
-            />
-          </F>
-          <F label="رسالة الخطأ (اختياري)" hint="لو تُركت فارغة يُعاد السؤال نفسه">
-            <Txt
-              v={data.errorText}
-              on={(errorText) => set({ errorText: errorText || undefined })}
-              rows={2}
-            />
-          </F>
+            <ChatBubble text={data.text} />
+          </EditorSection>
+          <EditorSection title={t('٢ — نوع الإجابة', '2 — Answer type')}>
+            <AnswerTypeChips t={t} value={data.answerType ?? 'text'} onChange={(answerType) => set({ answerType })} kinds={[['text', 'نص', 'Text'], ['number', 'رقم', 'Number'], ['phone', 'هاتف', 'Phone'], ['email', 'إيميل', 'Email'], ['regex', 'نمط مخصص', 'Custom pattern']]} />
+            <p className="qa-hint">{answerHint(data.answerType ?? 'text', t)}</p>
+            {data.answerType === 'regex' && (
+              <F label={t('النمط (Regex)', 'Pattern (Regex)')}>
+                <In v={data.pattern} on={(pattern) => set({ pattern })} dir="ltr" />
+              </F>
+            )}
+          </EditorSection>
+          <EditorSection title={t('٣ — أين تُحفظ الإجابة؟', '3 — Where is the answer saved?')}>
+            <AnswerDestination value={data.saveAs} onChange={saveAs => set({ saveAs })} variables={variables} /><label>{t('حفظ في حقل نظام (اختياري)','Save to a system field (optional)')}<select value={data.saveToSystem??''} onChange={e=>set({saveToSystem:e.target.value||undefined,saveToContact:false})}><option value="">{t('متغير/حقل مخصص','Variable / custom field')}</option>{['name','email','phone'].map(v=><option key={v} value={v}>{({name:t('اسم العميل','Customer name'),email:t('بريد العميل','Customer email'),phone:t('هاتف العميل','Customer phone')} as Record<string,string>)[v]} ({v})</option>)}</select></label>
+          </EditorSection>
+          <EditorSection title={t('٤ — لو كانت الإجابة غير صحيحة', '4 — If the answer is invalid')}>
+            <p className="qa-hint">{t('يُعاد السؤال تلقائيًا. اكتب رسالة توضح للعميل الصيغة المطلوبة.', 'The question is asked again. Write a message that explains the expected format.')}</p>
+            <F label={t('رسالة الخطأ (اختياري)', 'Error message (optional)')} hint={t('لو تُركت فارغة يُعاد السؤال نفسه', 'If empty, the same question is repeated')}>
+              <Txt
+                v={data.errorText}
+                on={(errorText) => set({ errorText: errorText || undefined })}
+                rows={2}
+              />
+            </F>
+            <div className="qa-error-preview" aria-label={t('معاينة رسالة الخطأ', 'Error message preview')}><small>{t('معاينة الخطأ', 'Error preview')}</small><div>{data.errorText || data.text || t('(يُعاد نص السؤال)', '(the question text is repeated)')}</div></div>
+          </EditorSection>
+          <details className="smart-advanced">
+            <summary>{t('خيارات متقدمة', 'Advanced options')}</summary>
+            <F label={t('عدد المحاولات عند الإجابة الخاطئة', 'Retries after an invalid answer')}>
+              <In
+                v={data.retries ?? 2}
+                on={(n) => set({ retries: Math.max(0, Math.min(5, Number(n) || 0)) })}
+              />
+            </F>
+            <label><input type="checkbox" checked={!!data.saveToContact} onChange={e => set({ saveToContact: e.target.checked })} /> {t('احفظ الإجابة أيضًا كحقل مخصص للعميل', 'Also save the answer as a custom contact field')}</label>
+            <label><input type="checkbox" checked={!!data.allowSkip} onChange={e => set({ allowSkip: e.target.checked })} /> {t('السماح بتخطي السؤال دون تغيير الحقل', 'Allow skipping without changing the saved field')}</label>
+            {data.allowSkip && <F label={t('نص التخطي', 'Skip label')}><In v={data.skipText || '/skip'} on={skipText => set({ skipText: skipText.slice(0,20) || undefined })} /></F>}
           </details>
-          <ChatBubble text={data.text} />
         </>
       )}
 
       {type === 'condition' && (
         <>
           {data.rules.map((r: any, ri: number) => (
-            <div key={r.id} className="mb-3 rounded border p-2">
-              <div className="mb-1 flex items-center justify-between text-xs">
-                <strong>
-                  {t('شرط', 'Condition')} {ri + 1}
-                </strong>
-                <span className="flex items-center gap-1">
-                  <Sel
-                    v={r.match}
-                    on={(match) =>
-                      set({
-                        rules: data.rules.map((x: any, j: number) =>
-                          j === ri ? { ...x, match } : x,
-                        ),
-                      })
-                    }
-                    opts={[
-                      ['all', 'كل الشروط'],
-                      ['any', 'أي شرط'],
-                    ]}
-                  />
-                  <Btn on={() => setCondRule(ri)}>{t('شاشة الشرط', 'Rule editor')}</Btn>
-                  <Btn
-                    danger
-                    on={() => set({ rules: data.rules.filter((_: any, j: number) => j !== ri) })}
-                  >
-                    ×
-                  </Btn>
-                </span>
+            <div key={r.id} className="cd-rule">
+              <div className="cd-rule-head">
+                <strong>{t('المسار', 'Path')} {ri + 1}: {t('إذا تحقق', 'If')}</strong>
+                <Btn
+                  danger
+                  on={() => set({ rules: data.rules.filter((_: any, j: number) => j !== ri) })}
+                >
+                  ×
+                </Btn>
               </div>
+              {r.conditions.length > 1 && (
+                <div className="qa-types" role="radiogroup" aria-label={t('طريقة المطابقة', 'Match mode')}>
+                  {([['all', 'كل الشروط (و)', 'All (AND)'], ['any', 'أي شرط (أو)', 'Any (OR)']] as const).map(([m, ar, en]) => (
+                    <button type="button" key={m} role="radio" aria-checked={(r.match ?? 'all') === m} className={(r.match ?? 'all') === m ? 'is-on' : ''} onClick={() => set({ rules: data.rules.map((x: any, j: number) => (j === ri ? { ...x, match: m } : x)) })}>{t(ar, en)}</button>
+                  ))}
+                </div>
+              )}
+              <p className="cd-summary">{r.conditions.map((c: any) => condText(c, variables, t)).join(` ${(r.match ?? 'all') === 'any' ? t('أو', 'OR') : t('و', 'AND')} `) || t('أضف شرطًا', 'Add a condition')}</p>
+              <p className="cd-dest"><span>{t('نعم ←', 'Yes →')}</span> {actionSummary?.(`rule:${r.id}`) ?? t('لا توجد وجهة بعد', 'No destination yet')}</p>
               {r.conditions.map((c: any, ci: number) => {
                 const upd = (patch: any) =>
                   set({
@@ -410,7 +437,8 @@ export default function Inspector({
                     ),
                   });
                 return (
-                  <div key={ci} className="mb-2 space-y-1 border-b pb-2">
+                  <div key={ci} className="cd-cond">
+                    {ci > 0 && <span className="cd-connector">{(r.match ?? 'all') === 'any' ? t('أو', 'OR') : t('و', 'AND')}</span>}
                     <Sel
                       v={c.source}
                       on={(source) => upd({ source })}
@@ -465,12 +493,13 @@ export default function Inspector({
                           })
                         }
                       >
-                        حذف الشرط
+                        {t('حذف الشرط', 'Delete condition')}
                       </Btn>
                     )}
                   </div>
                 );
               })}
+              <details className="smart-advanced"><summary>{t('خيارات متقدمة', 'Advanced options')}</summary><Btn on={() => setCondRule(ri)}>{t('فتح شاشة الشرط الكاملة', 'Open full rule editor')}</Btn></details>
               <Btn
                 on={() =>
                   set({
@@ -488,7 +517,7 @@ export default function Inspector({
                   })
                 }
               >
-                + شرط داخل المجموعة
+                + {t('إضافة شرط', 'Add condition')}
               </Btn>
             </div>
           ))}
@@ -527,9 +556,13 @@ export default function Inspector({
                 })
               }
             >
-              + مجموعة شروط
+              + {t('مسار شرط جديد', 'New condition path')}
             </Btn>
           )}
+          <div className="cd-rule cd-else">
+            <strong>{t('وإلا (لا يتحقق أي مسار)', 'Otherwise (no path matches)')}</strong>
+            <p className="cd-dest"><span>{t('لا ←', 'No →')}</span> {actionSummary?.('else') ?? t('لا توجد وجهة بعد', 'No destination yet')}</p>
+          </div>
           <p className="mt-2 text-xs text-gray-400">
             {t(
               'تُفحص المجموعات بالترتيب، وأول مجموعة تتحقق هي التي تُتبع.',
@@ -697,31 +730,26 @@ export default function Inspector({
                 <F label={t('نص السؤال', 'Question text')}>
                   <Txt v={q.text} on={(text) => upq({ text })} rows={3} />
                 </F>
-                <F label={t('نوع السؤال', 'Question type')}>
-                  <Sel
-                    localize={false}
-                    v={q.kind}
-                    on={(kind) =>
-                      upq({
-                        kind: kind as UIQuestion['kind'],
-                        options:
-                          kind === 'choice' && !(q.options ?? []).length
-                            ? [
-                                { id: uid(), title: '' },
-                                { id: uid(), title: '' },
-                              ]
-                            : q.options,
-                      })
-                    }
-                    opts={[
-                      ['choice', t('اختيار متعدد', 'Multiple choice')],
-                      ['text', t('نص حر', 'Free text')],
-                      ['number', t('رقم', 'Number')],
-                      ['email', t('بريد إلكتروني', 'Email')],
-                      ['phone', t('هاتف', 'Phone')],
-                    ]}
-                  />
-                </F>
+                <ChatBubble text={q.text} choices={q.kind === 'choice' ? (q.options ?? []).map(o => o.title) : undefined} list={(q.options ?? []).length > 3} />
+                <p className="qa-label">{t('نوع الإجابة', 'Answer type')}</p>
+                <AnswerTypeChips
+                  t={t}
+                  value={q.kind}
+                  kinds={[['text', 'نص', 'Text'], ['number', 'رقم', 'Number'], ['phone', 'هاتف', 'Phone'], ['email', 'إيميل', 'Email'], ['choice', 'اختيار', 'Choice']]}
+                  onChange={(kind) =>
+                    upq({
+                      kind: kind as UIQuestion['kind'],
+                      options:
+                        kind === 'choice' && !(q.options ?? []).length
+                          ? [
+                              { id: uid(), title: '' },
+                              { id: uid(), title: '' },
+                            ]
+                          : q.options,
+                    })
+                  }
+                />
+                <p className="qa-hint">{answerHint(q.kind, t)}</p>
                 {q.kind === 'choice' && (
                   <F
                     label={t('الاختيارات', 'Options')}
@@ -748,14 +776,17 @@ export default function Inspector({
                     )}
                   </F>
                 )}
-                <AnswerDestination value={q.saveAs} onChange={saveAs => upq({ saveAs })} variables={variables} /><label>{t('وجهة النظام (فارغة للحقل المخصص)','System destination (empty for custom field)')}<select value={q.saveToSystem??''} onChange={e=>upq({saveToSystem:(e.target.value||undefined) as 'name'|'email'|'phone'|undefined})}><option value="">{t('حقل مخصص','Custom field')}</option>{['name','email','phone'].map(v=><option key={v}>{v}</option>)}</select></label>
-                <label><input type="checkbox" checked={!!q.allowSkip} onChange={e => upq({ allowSkip: e.target.checked })} /> {t('السماح بالتخطي', 'Allow skipping')}</label>
-                {q.allowSkip && <F label={t('نص التخطي', 'Skip label')}><In v={q.skipText || '/skip'} on={skipText => upq({ skipText: skipText.slice(0,20) || undefined })} /></F>}
+                <AnswerDestination value={q.saveAs} onChange={saveAs => upq({ saveAs })} variables={variables} /><label>{t('وجهة النظام (فارغة للحقل المخصص)','System destination (empty for custom field)')}<select value={q.saveToSystem??''} onChange={e=>upq({saveToSystem:(e.target.value||undefined) as 'name'|'email'|'phone'|undefined})}><option value="">{t('حقل مخصص','Custom field')}</option>{['name','email','phone'].map(v=><option key={v} value={v}>{({name:t('اسم العميل','Customer name'),email:t('بريد العميل','Customer email'),phone:t('هاتف العميل','Customer phone')} as Record<string,string>)[v]} ({v})</option>)}</select></label>
                 {q.kind !== 'choice' && (
-                  <F label={t('رسالة الخطأ', 'Error message')}>
+                  <F label={t('رسالة الخطأ عند إجابة غير صحيحة', 'Error message for an invalid answer')} hint={t('لو تُركت فارغة يُعاد السؤال نفسه', 'If empty, the same question is repeated')}>
                     <In v={q.errorText} on={(errorText) => upq({ errorText })} />
                   </F>
                 )}
+                <details className="smart-advanced">
+                  <summary>{t('خيارات متقدمة', 'Advanced options')}</summary>
+                  <label><input type="checkbox" checked={!!q.allowSkip} onChange={e => upq({ allowSkip: e.target.checked })} /> {t('السماح بالتخطي', 'Allow skipping')}</label>
+                  {q.allowSkip && <F label={t('نص التخطي', 'Skip label')}><In v={q.skipText || '/skip'} on={skipText => upq({ skipText: skipText.slice(0,20) || undefined })} /></F>}
+                </details>
                 </>}
               </div>
             );

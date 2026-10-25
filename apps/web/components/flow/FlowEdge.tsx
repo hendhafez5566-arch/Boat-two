@@ -1,11 +1,23 @@
 'use client';
-import { BaseEdge, EdgeLabelRenderer, EdgeProps, getSmoothStepPath, useReactFlow } from 'reactflow';
+import { BaseEdge, EdgeLabelRenderer, EdgeProps, getSmoothStepPath, useReactFlow, useStore } from 'reactflow';
 import { useLocale } from '../product/locale';
 
 /** Smooth-step edge with an explicit delete control shown while the connection is selected. */
 export default function FlowEdge(props: EdgeProps) {
   const { id, source, sourceHandleId, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style, selected } = props;
   const { deleteElements } = useReactFlow();
+  // Highlight links touching the selected step; dim the rest while something is selected.
+  const focus = useStore((s) => {
+    let any = false;
+    let touches = false;
+    s.nodeInternals.forEach((n) => {
+      if (n.selected) {
+        any = true;
+        if (n.id === source || n.id === props.target) touches = true;
+      }
+    });
+    return !any ? '' : touches ? 'hot' : 'dim';
+  });
   const { t } = useLocale();
   const [path, labelX, labelY] = getSmoothStepPath({
     sourceX,
@@ -19,7 +31,14 @@ export default function FlowEdge(props: EdgeProps) {
   });
   return (
     <>
-      <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} interactionWidth={14} />
+      <BaseEdge
+        id={id}
+        path={path}
+        markerEnd={markerEnd}
+        className={focus ? `fe-${focus}` : undefined}
+        style={focus === 'hot' ? { ...style, stroke: 'var(--primary)', strokeWidth: 3.5 } : focus === 'dim' ? { ...style, opacity: 0.3 } : style}
+        interactionWidth={22}
+      />
       {selected && <EdgeLabelRenderer>
         <button
           type="button"

@@ -8,6 +8,7 @@ import ReactFlow, {
   addEdge,
   Background,
   Connection,
+  ConnectionLineType,
   Controls,
   MiniMap,
   Panel,
@@ -70,6 +71,9 @@ function Editor({ id }: { id: string }) {
   const [mobilePanel, setMobilePanel] = useState('canvas');
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  // A preview only counts as tested after the simulator successfully processes a request.
+  const [testedSnapshot, setTestedSnapshot] = useState<string | null>(null);
+  const pendingTestSnapshot = useRef('');
   const selRef = useRef<string | null>(null);
   const builderRef = useRef<HTMLDivElement>(null);
   const [focused, setFocused] = useState(false);
@@ -131,6 +135,8 @@ function Editor({ id }: { id: string }) {
   const savedContent = useRef('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const [confirmPublish, setConfirmPublish] = useState(false);
+  const [publishOutcome, setPublishOutcome] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
   const [updatedAt, setUpdatedAt] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [nodeStats, setNodeStats] = useState<Record<string, NodeStats>>({});
@@ -771,9 +777,16 @@ function Editor({ id }: { id: string }) {
 
   const publish = async () => {
     const submitted = latest.current;
+    let draftSaved = false;
     try {
       const savedAt = await save();
-      if (submitted !== latest.current) {setMsg(t('توجد تعديلات أحدث. احفظها وأعد الفحص قبل النشر.', 'Newer edits exist. Save and check again before publishing.'));return;}
+      draftSaved = true;
+      if (submitted !== latest.current) {
+        const notice = t('توجد تعديلات أحدث. احفظها وأعد الفحص قبل النشر.', 'Newer edits exist. Save and check again before publishing.');
+        setMsg(notice);
+        setPublishOutcome({ kind: 'error', text: notice });
+        return;
+      }
       validationSnapshot.current = submitted;
       const r = await api<any>(`/flows/${id}/publish`, {
         method: 'POST',
@@ -784,12 +797,24 @@ function Editor({ id }: { id: string }) {
       setWarnings(latest.current === submitted ? r.warnings ?? [] : []);
       setValidationState(latest.current === submitted ? 'current' : 'stale');
       setMsg(`${t('تم النشر', 'Published')} v${r.version}`);
+      setPublishOutcome({ kind: 'success', text: `${t('تم نشر نسخة البوت', 'Bot version published')} v${r.version}. ${t('تأكد من تفعيل القناة قبل استقبال محادثات العملاء.', 'Make sure a channel is active before expecting live customer conversations.')}` });
     } catch (e: any) {
       if (latest.current === submitted && e.details?.errors) {
         setValidationState('current');
         setIssues(e.details.errors);
         setWarnings(e.details.warnings ?? []);
         setMsg(t('لا يمكن النشر: صحّح الأخطاء', 'Fix validation errors before publishing'));
+        setPublishOutcome({ kind: 'error', text: t('لم يتم النشر: في البوت أخطاء يجب إصلاحها أولًا. اضغط على اسم الخطوة للوصول إليها.', 'Not published: fix the errors listed below first. Tap a step name to jump to it.') });
+      } else if (!draftSaved) {
+        setPublishOutcome({
+          kind: 'error',
+          text: `${t('تعذّر حفظ المسودة؛ لم نرسل طلب النشر. تعديلاتك ما زالت داخل المحرر. حاول الحفظ مجددًا.', 'The draft could not be saved; publishing was not requested. Your edits remain in the editor. Retry saving.')}${e?.message ? ` (${e.message})` : ''}`,
+        });
+      } else {
+        setPublishOutcome({
+          kind: 'error',
+          text: `${t('لم نستطع تأكيد نتيجة طلب النشر. تم حفظ المسودة؛ راجع حالة البوت قبل إعادة المحاولة.', 'The publish result could not be confirmed. The draft was saved; check the bot status before retrying.')}${e?.message ? ` (${e.message})` : ''}`,
+        });
       }
     }
   };
@@ -904,6 +929,22 @@ function Editor({ id }: { id: string }) {
         </button>)}
       </section> : null;
     });
+  const quickTypes: [NodeType, string, string][] = [
+    ['message', 'رسالة', 'Message'],
+    ['question', 'سؤال', 'Question'],
+    ['condition', 'شرط', 'Condition'],
+    ['interactive', 'أزرار', 'Buttons'],
+  ];
+  const quickAdd = (cls: string) => (
+    <div className={cls} role="group" aria-label={t('إضافة سريعة', 'Quick add')}>
+      {quickTypes.filter(([type]) => Object.hasOwn(NODE_META, type)).map(([type, ar, en]) => (
+        <button type="button" key={type} className="quick-add-btn" onClick={() => addNode(type)}>
+          <span className="quick-add-icon" style={{ background: NODE_META[type].color }}><NodeIcon type={type} /></span>
+          <span>+ {t(ar, en)}</span>
+        </button>
+      ))}
+    </div>
+  );
   const setTriggers = (triggers: Trigger[]) => {
     setMeta((m) => ({ ...m, triggers }));
     setDirty(true);
@@ -932,9 +973,11 @@ function Editor({ id }: { id: string }) {
             ? `${t('منشور', 'Published')} v${meta.version}`
             : t('مسودة', 'Draft')}
         </span>
-        <span className="text-xs" role="status" aria-live="polite">
-          {!loaded ? t('جارٍ تحميل المسودة…', 'Loading draft…') : saveState === 'saving' ? t('جارٍ الحفظ…', 'Saving…') : saveState === 'error' ? t('فشل الحفظ — أعد المحاولة', 'Save failed — retry') : dirty ? t('تغييرات غير محفوظة', 'Unsaved changes') : t('تم الحفظ', 'Saved')}
+        <span className="save-chip" data-state={!loaded ? 'loading' : saveState === 'saving' ? 'saving' : saveState === 'error' ? 'error' : dirty ? 'dirty' : 'saved'} role="status" aria-live="polite">
+          <i aria-hidden="true" />
+          {!loaded ? t('جارٍ تحميل المسودة…', 'Loading draft…') : saveState === 'saving' ? t('جارٍ الحفظ…', 'Saving…') : saveState === 'error' ? t('فشل الحفظ', 'Save failed') : dirty ? t('تغييرات غير محفوظة', 'Unsaved changes') : t('محفوظ', 'Saved')}
         </span>
+        {saveState === 'error' && loaded && <button type="button" className="save-retry" disabled={busy} onClick={() => save().catch(() => {})}>{t('إعادة المحاولة', 'Retry')}</button>}
         {validationState === 'stale' && <span role="status">{t('تغيرت المسودة — أعد فحص البوت', 'Draft changed — run validation again')}</span>}
         {validationState === 'checking' && <span role="status">{t('جارٍ فحص النسخة الحالية…', 'Checking current draft…')}</span>}
         <UnsavedChangesGuard dirty={dirty} save={async () => {
@@ -970,25 +1013,12 @@ function Editor({ id }: { id: string }) {
         >
           {t('معاينة', 'Preview')}
         </button>
-        <button disabled={busy} onClick={() => save().catch(() => {})} className="rounded border px-3 py-1 tb-save">
-          {t('حفظ', 'Save')}
+        <button disabled={busy} onClick={() => save().catch(() => {})} className="rounded border px-3 py-1 tb-save" title={t('يحفظ المسودة فقط — لا يغيّر البوت المنشور للعملاء', 'Saves the draft only — the live bot is not changed')}>
+          {t('حفظ المسودة', 'Save draft')}
         </button>
-        <button disabled={busy} onClick={publish} className="btn btn-primary">
-          {t('نشر', 'Publish')}
+        <button disabled={busy} onClick={() => { setPublishOutcome(null); setConfirmPublish(true); }} className="btn btn-primary tb-publish" title={t('يحفظ ويفحص ثم يجعل هذه النسخة هي التي يراها العملاء', 'Saves, checks, then makes this version live for customers')}>
+          {meta.status === 'published' ? t('نشر التحديث', 'Publish update') : t('نشر', 'Publish')}
         </button>
-        <button type="button" aria-pressed={analytics} onClick={() => setAnalytics(!analytics)} className="rounded border px-2 py-1">
-          {analytics ? t('العودة للبناء', 'Back to building') : t('عرض الأداء', 'Show analytics')}
-        </button>
-        <button type="button" onClick={autoLayout} className="rounded border px-2 py-1">
-          {t('تنظيم التدفق', 'Arrange flow')}
-        </button>
-        <button type="button" aria-pressed={showMap} onClick={() => setShowMap(!showMap)} className="rounded border px-2 py-1">
-          {t('الخريطة', 'Minimap')}
-        </button>
-        <button type="button" aria-pressed={focused} className="rounded border px-2 py-1" onClick={async () => {
-          try { if (document.fullscreenElement) await document.exitFullscreen(); else await builderRef.current?.requestFullscreen(); }
-          catch { setMsg(t('تعذّر فتح وضع التركيز في هذا المتصفح.', 'Focus mode is unavailable in this browser.')); }
-        }}>{focused ? t('إنهاء التركيز', 'Exit focus') : t('وضع التركيز', 'Focus mode')}</button>
         <div className="tb-more">
           <button
             type="button"
@@ -1004,6 +1034,19 @@ function Editor({ id }: { id: string }) {
             <>
               <div className="tb-more-scrim" onClick={() => setMoreOpen(false)} />
               <div className="tb-more-menu" role="menu" onClick={() => setMoreOpen(false)}>
+        <button type="button" aria-pressed={analytics} onClick={() => setAnalytics(!analytics)} className="rounded border px-2 py-1">
+          {analytics ? t('العودة للبناء', 'Back to building') : t('عرض الأداء', 'Show analytics')}
+        </button>
+        <button type="button" onClick={autoLayout} className="rounded border px-2 py-1">
+          {t('تنظيم التدفق', 'Arrange flow')}
+        </button>
+        <button type="button" aria-pressed={showMap} onClick={() => setShowMap(!showMap)} className="rounded border px-2 py-1">
+          {t('الخريطة', 'Minimap')}
+        </button>
+        <button type="button" aria-pressed={focused} className="rounded border px-2 py-1" onClick={async () => {
+          try { if (document.fullscreenElement) await document.exitFullscreen(); else await builderRef.current?.requestFullscreen(); }
+          catch { setMsg(t('تعذّر فتح وضع التركيز في هذا المتصفح.', 'Focus mode is unavailable in this browser.')); }
+        }}>{focused ? t('إنهاء التركيز', 'Exit focus') : t('وضع التركيز', 'Focus mode')}</button>
         <label className="text-xs flex gap-1">
           <input
             type="checkbox"
@@ -1072,6 +1115,33 @@ function Editor({ id }: { id: string }) {
           </button>
       </nav>
 
+      {loaded && (() => {
+        const live = meta.status === 'published';
+        const tried = testedSnapshot === content;
+        const hasSteps = nodes.length > 0;
+        const hasTrigger = meta.triggers.length > 0;
+        const stage = !hasSteps || !hasTrigger ? 0 : dirty || saveState === 'error' ? 1 : !tried && !live ? 2 : 3;
+        const stages = [t('١ البناء', '1 Build'), t('٢ الحفظ', '2 Save'), t('٣ التجربة', '3 Try'), t('٤ النشر', '4 Publish')];
+        const firstIssue = issues.find((i) => i.nodeId);
+        let text: string, label: string, run: () => void;
+        if (!hasSteps) { text = t('ابدأ بإضافة أول خطوة: رسالة ترحيب يراها العميل.', 'Start by adding the first step: a welcome message your customer sees.'); label = t('أضف رسالة ترحيب', 'Add a welcome message'); run = () => addNode('message'); }
+        else if (!hasTrigger) { text = t('حدّد متى يبدأ البوت (مثلًا: عند أول رسالة).', 'Choose when the bot starts (for example, on the first message).'); label = t('ضبط البداية', 'Set the start'); run = () => { setTab('settings'); setPreviewOpen(false); setInspectorOpen(true); }; }
+        else if (dirty || saveState === 'error') { text = t('لديك تعديلات غير محفوظة. احفظ المسودة؛ العملاء لا يرونها قبل النشر.', 'You have unsaved edits. Save the draft; customers will not see it until you publish.'); label = t('حفظ المسودة', 'Save draft'); run = () => { save().catch(() => {}); }; }
+        else if (issues.length) { text = `${t('يوجد', 'There are')} ${issues.length} ${t('خطأ يمنع النشر. ابدأ بأولها.', 'error(s) blocking publishing. Start with the first.')}`; label = firstIssue ? t('اذهب إلى الخطأ', 'Go to the error') : t('أعد الفحص', 'Check again'); run = () => { if (firstIssue?.nodeId) focusNode(firstIssue.nodeId); else void check(); }; }
+        else if (!tried && !live) { text = t('المسودة محفوظة. جرّب البوت هنا قبل أن يراه العملاء.', 'Draft saved. Try the bot here before customers see it.'); label = t('جرّب البوت', 'Try the bot'); run = openReview; }
+        else if (!live) { text = t('جرّبت البوت. إذا كان جاهزًا انشره ليصبح مباشرًا للعملاء.', 'You tried the bot. If it is ready, publish it to go live for customers.'); label = t('نشر البوت', 'Publish bot'); run = () => { setPublishOutcome(null); setConfirmPublish(true); }; }
+        else { text = t('البوت منشور. تأكد أن قناة مفعّلة ومربوطة حتى يصل إليه العملاء.', 'The bot is live. Make sure a channel is connected and active so customers can reach it.'); label = t('إدارة القنوات', 'Manage channels'); run = () => { window.location.href = '/dashboard/channels'; }; }
+        return (
+          <section className="next-step" aria-label={t('الخطوة التالية', 'Next step')}>
+            <ol className="next-step-stages" aria-label={t('مراحل إنشاء البوت', 'Bot setup stages')}>
+              {stages.map((s2, i) => <li key={i} data-state={i < stage || (live && i === 3) ? 'done' : i === stage ? 'now' : 'todo'} aria-current={i === stage ? 'step' : undefined}>{s2}</li>)}
+            </ol>
+            <p><b>{t('الخطوة التالية:', 'Next:')}</b> {text}</p>
+            <button type="button" className="btn btn-primary" disabled={busy} onClick={run}>{label}</button>
+          </section>
+        );
+      })()}
+
       <Dialog
         open={showVersions}
         onClose={() => setShowVersions(false)}
@@ -1102,31 +1172,60 @@ function Editor({ id }: { id: string }) {
           </small>
         </div>
       </Dialog>
-      {(issues.length > 0 || warnings.length > 0) && (
-        <div className="max-h-24 overflow-y-auto border-b bg-red-50 px-3 py-1 text-xs">
-          {issues.map((i, k) => (
-            <div key={`e${k}`} className="text-red-700">
-              ⛔{' '}
-              {i.nodeId && (
-                <button type="button" className="underline" onClick={() => focusNode(i.nodeId as string)}>
-                  {stepCaption(i.nodeId)}
-                </button>
-              )}{' '}
-              {validationMessage(i.message, language)}
-            </div>
-          ))}
-          {warnings.map((i, k) => (
-            <div key={`w${k}`} className="text-amber-700">
-              ⚠️{' '}
-              {i.nodeId && (
-                <button type="button" className="underline" onClick={() => focusNode(i.nodeId as string)}>
-                  {stepCaption(i.nodeId)}
-                </button>
-              )}{' '}
-              {validationMessage(i.message, language)}
-            </div>
-          ))}
+      <Dialog open={confirmPublish} onClose={() => setConfirmPublish(false)} title={t('نشر البوت', 'Publish bot')}>
+        <div className="publish-confirm" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+          <ol className="publish-steps">
+            <li><b>{t('١. حفظ المسودة', '1. Save draft')}</b><span>{t('يحفظ تعديلاتك فقط، ولا يراه العملاء.', 'Stores your edits only; customers do not see it.')}</span></li>
+            <li><b>{t('٢. تجربة البوت', '2. Try the bot')}</b><span>{t('جرّبه في المعاينة قبل النشر — لا يرسل رسائل حقيقية.', 'Test it in Preview first — no real messages are sent.')}</span></li>
+            <li><b>{t('٣. النشر', '3. Publish')}</b><span>{t('يجعل هذه النسخة هي النسخة الحية للعملاء.', 'Makes this version the live one for customers.')}</span></li>
+          </ol>
+          <p className="publish-note" data-tone={issues.length ? 'bad' : dirty ? 'warn' : 'ok'}>
+            {issues.length
+              ? `${t('يوجد', 'There are')} ${issues.length} ${t('خطأ في الفحص السابق. سيتم فحص البوت مجددًا ولن يُنشر إلا إذا زالت الأخطاء.', 'error(s) from the last check. The bot is re-checked and only publishes if they are fixed.')}`
+              : dirty
+                ? t('توجد تغييرات غير محفوظة — سيتم حفظها تلقائيًا ثم فحص البوت قبل النشر.', 'You have unsaved changes — they will be saved and the bot checked before publishing.')
+                : t('سيتم فحص البوت قبل النشر.', 'The bot will be checked before publishing.')}
+            {meta.status === 'published' && ` ${t('النسخة المنشورة الحالية', 'Current live version')}: v${meta.version}.`}
+          </p>
+          <div className="publish-actions">
+            <button type="button" className="rounded border px-3 py-1" onClick={() => setConfirmPublish(false)}>{t('رجوع', 'Cancel')}</button>
+            <button type="button" className="rounded border px-3 py-1" onClick={() => { setConfirmPublish(false); openReview(); }}>{t('جرّب أولًا', 'Try first')}</button>
+            <button type="button" className="btn btn-primary" disabled={busy} onClick={async () => { setConfirmPublish(false); await publish(); }}>{t('تأكيد النشر', 'Confirm publish')}</button>
+          </div>
         </div>
+      </Dialog>
+      {publishOutcome && (
+        <div className="publish-outcome" data-kind={publishOutcome.kind} role={publishOutcome.kind === 'error' ? 'alert' : 'status'}>
+          <span>{publishOutcome.kind === 'success' ? '✓' : '!'} {publishOutcome.text}</span>
+          <button type="button" aria-label={t('إغلاق', 'Close')} onClick={() => setPublishOutcome(null)}>×</button>
+        </div>
+      )}
+      {(issues.length > 0 || warnings.length > 0) && (
+        <section className="check-panel" aria-label={t('نتيجة فحص البوت', 'Bot check result')}>
+          <header>
+            <strong>{issues.length
+              ? `${t('يلزم إصلاح', 'Fix')} ${issues.length} ${t('مشكلة قبل النشر', 'issue(s) before publishing')}`
+              : validationState === 'current'
+                ? t('اجتاز الفحص؛ راجع التنبيهات قبل النشر', 'Validation passed; review warnings before publishing')
+                : t('نتائج الفحص السابقة — أعد الفحص للتأكد', 'Previous validation results — recheck to confirm')}</strong>
+            {warnings.length > 0 && <span>{warnings.length} {t('تنبيه (لا يمنع النشر)', 'warning(s) (do not block publishing)')}</span>}
+            {validationState === 'stale' && <span>{t('تغيّرت المسودة بعد الفحص', 'Draft changed since the check')}</span>}
+          </header>
+          <ul>
+            {issues.map((i, k) => (
+              <li key={`e${k}`} data-kind="error">
+                <span>{validationMessage(i.message, language)}</span>
+                {i.nodeId && <button type="button" onClick={() => focusNode(i.nodeId as string)}>{t('اذهب إلى', 'Go to')}: {stepCaption(i.nodeId)}</button>}
+              </li>
+            ))}
+            {warnings.map((i, k) => (
+              <li key={`w${k}`} data-kind="warning">
+                <span>{validationMessage(i.message, language)}</span>
+                {i.nodeId && <button type="button" onClick={() => focusNode(i.nodeId as string)}>{t('اذهب إلى', 'Go to')}: {stepCaption(i.nodeId)}</button>}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       <div className="builder-mobile-tools">
@@ -1152,14 +1251,15 @@ function Editor({ id }: { id: string }) {
               onChange={(e) => setNodeSearch(e.target.value)}
             />
           </div>
+          {quickAdd('quick-add quick-add-palette')}
           {NODE_GROUPS.map((g) => {
             const types = g.types.filter((type) =>
               nodeLabel(type, language).toLowerCase().includes(nodeSearch.toLowerCase()),
             );
             if (!types.length) return null;
             return (
-              <section key={g.id} className="palette-group" aria-label={language === 'ar' ? g.ar : g.en}>
-                <h3 className="palette-group-title">{language === 'ar' ? g.ar : g.en}</h3>
+              <details key={g.id} className="palette-group" open={['messages', 'interactive', 'data'].includes(g.id) || !!nodeSearch.trim()}>
+                <summary className="palette-group-title">{language === 'ar' ? g.ar : g.en}</summary>
                 {types.map((type) => (
                   <button
                     key={type}
@@ -1171,14 +1271,14 @@ function Editor({ id }: { id: string }) {
                     }}
                     onClick={() => addNode(type)}
                   >
-                    <span style={{ color: NODE_META[type].color }}>
+                    <span style={{ color: NODE_META[type].color, background: `${NODE_META[type].color}1f` }}>
                       <NodeIcon type={type} />
                     </span>
                     <span>{nodeLabel(type, language)}<small className="smart-step-hint">{t(...STEP_GUIDANCE[type])}</small></span>
                     <small>+</small>
                   </button>
                 ))}
-              </section>
+              </details>
             );
           })}
           <div className="palette-tip">
@@ -1217,6 +1317,7 @@ function Editor({ id }: { id: string }) {
             >
               + {t('إضافة خطوة', 'Add step')}
             </button>
+            {quickAdd('quick-add quick-add-canvas')}
             {menuOpen && <div className="menu-scrim" onClick={() => setMenuOpen(false)} />}
             {menuOpen && (
               <div className="add-step-menu" role="menu">
@@ -1330,7 +1431,11 @@ function Editor({ id }: { id: string }) {
             edgeTypes={edgeTypes}
             isValidConnection={isValidConnection}
             onEdgeUpdate={onEdgeUpdate}
-            connectionRadius={18}
+            connectionRadius={24}
+            zoomOnDoubleClick={false}
+            connectionLineType={ConnectionLineType.SmoothStep}
+            connectionLineStyle={{ stroke: 'var(--primary)', strokeWidth: 3, strokeDasharray: '6 4' }}
+            elevateEdgesOnSelect
             onEdgesDelete={() => notify(t('قُطع التوصيل.', 'Link removed.'), true)}
             onNodesDelete={(del: Node[]) => {
               notify(t('حُذفت الخطوة وتوصيلاتها.', 'Step and its links deleted.'), true);
@@ -1353,9 +1458,12 @@ function Editor({ id }: { id: string }) {
             fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
           >
             <Panel position="bottom-center">
-              <div className="rounded border bg-white p-2 text-xs">
-                <span dir="ltr">{zoomPercent}%</span> · {t('اسحب الخلفية للتحريك • عجلة الفأرة للتكبير', 'Drag background to pan • scroll to zoom')}
-                <button type="button" className="ms-2 underline" onClick={() => rf.fitView({ padding: 0.25, maxZoom: 1, duration: 300 })}>{t('إظهار كل الخطوات', 'Show all steps')}</button>
+              <div className="canvas-zoombar" role="group" aria-label={t('التحكم في العرض', 'View controls')}>
+                <button type="button" onClick={() => rf.zoomOut({ duration: 200 })} aria-label={t('تصغير', 'Zoom out')}>−</button>
+                <span dir="ltr" aria-live="off">{zoomPercent}%</span>
+                <button type="button" onClick={() => rf.zoomIn({ duration: 200 })} aria-label={t('تكبير', 'Zoom in')}>+</button>
+                <button type="button" className="canvas-fit" onClick={() => rf.fitView({ padding: 0.25, maxZoom: 1, duration: 300 })}>{t('إظهار كل الخطوات', 'Fit all steps')}</button>
+                <small className="canvas-hint">{t('اسحب الخلفية للتحريك • العجلة للتكبير', 'Drag to pan • scroll to zoom')}</small>
               </div>
             </Panel>
             <Background color="#cdd5e2" gap={22} size={1.4} />
@@ -1365,7 +1473,9 @@ function Editor({ id }: { id: string }) {
               zoomable
               nodeColor={(n) => NODE_META[n.data?.type as NodeType]?.color ?? '#8aa6ad'}
               maskColor="#f3f5f9bb"
-              style={{ width: 120, height: 80 }}
+              nodeStrokeWidth={3}
+              ariaLabel={t('خريطة مصغرة للبوت', 'Bot minimap')}
+              style={{ width: 160, height: 110, borderRadius: 12 }}
             />}
           </ReactFlow>
           </FlowButtonStatsContext.Provider>
@@ -1409,7 +1519,9 @@ function Editor({ id }: { id: string }) {
                 onProgress={onPreviewProgress}
                 beforeRun={async () => {
                   if (dirty) await save();
+                  pendingTestSnapshot.current = latest.current;
                 }}
+                onTestSuccess={() => setTestedSnapshot(pendingTestSnapshot.current)}
               />
             </div>
           </div>
@@ -1742,7 +1854,7 @@ function Editor({ id }: { id: string }) {
             )}
 
           </div>
-          <footer className="smart-editor-footer"><span role="status">{saveState === 'saving' ? t('جارٍ الحفظ…', 'Saving…') : saveState === 'error' ? t('فشل الحفظ', 'Save failed') : dirty ? t('تغييرات غير محفوظة', 'Unsaved changes') : t('تم الحفظ', 'Saved')}</span><button type="button" onClick={openReview}>{t('تجربة', 'Try')}</button><button type="button" className="smart-primary" onClick={async () => { try { if (dirty) await save(); setInspectorOpen(false); setMobilePanel('canvas'); } catch { /* save reports error and keeps editor open */ } }}>{t('تم', 'Done')}</button></footer>
+          <footer className="smart-editor-footer"><span role="status">{saveState === 'saving' ? t('جارٍ الحفظ…', 'Saving…') : saveState === 'error' ? t('فشل الحفظ', 'Save failed') : dirty ? t('تغييرات غير محفوظة', 'Unsaved changes') : t('محفوظ', 'Saved')}</span><button type="button" onClick={openReview} title={t('جرّب البوت بدون إرسال رسائل حقيقية', 'Try the bot without sending real messages')}>{t('تجربة', 'Try')}</button><button type="button" className="smart-primary" onClick={async () => { try { if (dirty) await save(); setInspectorOpen(false); setMobilePanel('canvas'); } catch { /* save reports error and keeps editor open */ } }}>{t('تم', 'Done')}</button></footer>
         </aside>
       </div>
     </div>

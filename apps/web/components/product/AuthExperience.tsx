@@ -55,7 +55,7 @@ export function AuthExperience({
     }
   }
   return (
-    <main className="auth-experience">
+    <main className="auth-experience auth-v2">
       <section className="auth-story">
         <Link href="/" className="brand">
           {brand?.logoUrl ? (
@@ -65,13 +65,13 @@ export function AuthExperience({
               <NavIcon name="flows" />
             </span>
           )}
-          <strong>{brand?.name ?? 'ELHAFEZ BOAT'}</strong>
+          <strong>{brand?.name ?? 'Boat Two'}</strong>
         </Link>
         <span className="auth-orbit" aria-hidden="true">
           <NavIcon name="automations" />
         </span>
         <p className="eyebrow">
-          {t('محادثات تفتح فرصًا جديدة', 'CONVERSATIONS THAT OPEN POSSIBILITIES')}
+          {t('محادثات تفتح فرصًا جديدة', 'Conversations that open possibilities')}
         </p>
         <h1>
           {brand?.widgetTitle ??
@@ -101,7 +101,7 @@ export function AuthExperience({
           العربية / English
         </button>
         <div className="auth-form-content">
-          <p className="eyebrow">{brand?.name ?? 'YOUR BUSINESS, CONNECTED'}</p>
+          <p className="eyebrow">{brand?.name ?? t('شركتك، متصلة', 'Your business, connected')}</p>
           <h2>
             {joining
               ? t('انضم إلى فريقك', 'Join your team')
@@ -171,7 +171,7 @@ export function AuthExperience({
                   maxLength={128}
                   autoComplete={register ? 'new-password' : 'current-password'}
                 />
-                <button type="button" aria-pressed={visible} onClick={() => setVisible(!visible)}>
+                <button type="button" aria-pressed={visible} aria-label={visible ? t('إخفاء كلمة المرور', 'Hide password') : t('إظهار كلمة المرور', 'Show password')} onClick={() => setVisible(!visible)}>
                   {visible ? t('إخفاء', 'Hide') : t('إظهار', 'Show')}
                 </button>
               </div>

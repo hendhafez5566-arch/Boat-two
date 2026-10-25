@@ -53,7 +53,7 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
       style={{ '--node-color': meta.color } as CSSProperties}
       aria-label={nodeLabel(data.type, language)}
     >
-      <Handle type="target" position={Position.Top} />
+      <Handle type="target" position={Position.Top} title={t('نقطة الدخول: أسقط التوصيل هنا', 'Entry point: drop a link here')} />
       {data.actions && (
         <div className="flow-node-tools" role="toolbar" aria-label={t('إجراءات الخطوة', 'Step actions')}>
           {!data.isStart && (
@@ -207,6 +207,7 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
               type="source"
               position={Position.Bottom}
               id={h.id}
+              title={t('نقطة الخروج: اسحب منها إلى الخطوة التالية', 'Exit point: drag to the next step')}
               style={{ left: '50%', bottom: -6, top: 'auto' }}
             />
           ) : (
@@ -214,6 +215,7 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
               type="source"
               position={language === 'ar' ? Position.Left : Position.Right}
               id={h.id}
+              title={t('نقطة الخروج: اسحب منها إلى الخطوة التالية', 'Exit point: drag to the next step')}
               style={{ [language === 'ar' ? 'left' : 'right']: -6, top: '50%' }}
             />
           )}
