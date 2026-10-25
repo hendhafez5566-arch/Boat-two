@@ -35,7 +35,6 @@ export default function FlowEdge(props: EdgeProps) {
         id={id}
         path={path}
         markerEnd={markerEnd}
-        className={focus ? `fe-${focus}` : undefined}
         style={focus === 'hot' ? { ...style, stroke: 'var(--primary)', strokeWidth: 3.5 } : focus === 'dim' ? { ...style, opacity: 0.3 } : style}
         interactionWidth={22}
       />
