@@ -15,7 +15,7 @@ test('cards derive, re-source edges and keep the saved graph identical', () => {
   const d = deriveButtonCards(nodes, edges, false);
   assert.equal(d.cardNodes.length, 2);
   assert.deepEqual(d.cardNodes[0].position, { x: 600, y: 60 });          // stored offset 500,10 + parent 100,50
-  assert.deepEqual(d.cardNodes[1].position, { x: 100 + 360, y: 50 + 24 + 104 }); // default offset
+  assert.deepEqual(d.cardNodes[1].position, { x: 100 + 360, y: 50 + 10 + 140 + 28 }); // follows the stored first card without overlap
   const a = d.edges.find((e) => e.id === 'i:option:a')!;
   assert.equal(a.source, buttonNodeId('i', 'a')); assert.equal(a.sourceHandle, 'out'); assert.equal(a.target, 'x');
   assert.equal(d.edges.find((e) => e.id === 'i:fallback')!.source, 'i');    // fallback stays on the message
