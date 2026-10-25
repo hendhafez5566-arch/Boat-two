@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 const schema = z.object({
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
   EMAIL_RECEIPTS_ENABLED: z.enum(['true', 'false']).default('false'),
   EMAIL_RECEIPT_SECRET: z.string().min(32).optional(),
   EMAIL_DELIVERY_ENABLED: z.enum(['true', 'false']).default('false'),

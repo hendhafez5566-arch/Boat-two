@@ -9,6 +9,15 @@ const row = z.object({
 
 export const contentSchema = z
   .object({
+    typingSeconds:z.number().int().min(0).max(5).optional(),
+    telegramSender:z.object({id:z.string().max(30),name:z.string().max(200)}).optional(),
+    flowReply:z.record(z.unknown()).optional(),
+    order:z.object({catalogId:z.string(),items:z.array(z.object({retailerId:z.string(),quantity:z.number().int().positive(),price:z.string(),currency:z.string()})).max(30)}).optional(),
+    product:z.object({catalogId:z.string().min(1).max(200),retailerId:z.string().min(1).max(200)}).optional(),
+    productList:z.object({catalogId:z.string().min(1).max(200),sections:z.array(z.object({title:z.string().min(1).max(24),retailerIds:z.array(z.string().min(1).max(200)).min(1).max(30)})).min(1).max(10)}).optional(),
+    whatsappFlow:z.object({flowId:z.string().regex(/^\d+$/),token:z.string().min(1).max(200),cta:z.string().min(1).max(20),screen:z.string().min(1).max(80),data:z.record(z.unknown()).optional()}).optional(),
+    header: z.discriminatedUnion('type',[z.object({type:z.literal('text'),text:z.string().min(1).max(60)}),z.object({type:z.literal('image'),url:z.string().url().max(2000)})]).optional(),
+    footer: z.string().max(60).optional(),
     template: z
       .object({
         name: z.string().regex(/^[a-z0-9_]{1,512}$/),
@@ -67,6 +76,12 @@ export const contentSchema = z
           .max(10),
       })
       .optional(),
+    cta: z
+      .object({
+        text: z.string().min(1).max(20),
+        url: z.string().url().max(2000),
+      })
+      .optional(),
     reply: z.object({ id: z.string(), title: z.string() }).optional(),
     location: z
       .object({
@@ -82,22 +97,33 @@ export const contentSchema = z
 export type MessageContent = z.infer<typeof contentSchema>;
 
 export function messageTypeOf(c: MessageContent): string {
+  if(c.product||c.productList||c.whatsappFlow)return 'interactive';
   if (c.reply) return 'interactive_reply';
   if (c.media) return 'media';
   if (c.location) return 'location';
-  if (c.buttons || c.list) return 'interactive';
+  if (c.buttons || c.list || c.cta) return 'interactive';
   return 'text';
 }
 
 /** قواعد الرسائل الصادرة (حدود واتساب هي الأضيق، فنلتزم بها لكل القنوات) */
 export function validateOutbound(c: MessageContent) {
-  if (c.template && (c.text || c.media || c.buttons || c.list || c.location || c.reply))
+  if((c.text?.length??0)>4096)throw new BadRequestException('Message text exceeds 4096 characters after formatting');
+  if((c.media?.caption?.length??0)>1024)throw new BadRequestException('Media caption exceeds 1024 characters after formatting');
+  if(c.telegramSender||c.flowReply||c.order)throw new BadRequestException('Form replies and orders are inbound-only');
+  if(c.product||c.productList||c.whatsappFlow){if(!c.text||c.text.length>1024)throw new BadRequestException('Native interactive body requires 1–1024 characters');if([c.product,c.productList,c.whatsappFlow].filter(Boolean).length>1||c.buttons||c.list||c.cta||c.template||c.media)throw new BadRequestException('Native product/flow cannot be combined with another action');}
+  if ((c.header?.type === 'text' && (!c.header.text || c.header.text.length > 60)) || (c.footer?.length ?? 0) > 60) throw new BadRequestException('Interactive header/footer supports at most 60 characters');
+  if ((c.header || c.footer) && !(c.buttons || c.list || c.cta)) throw new BadRequestException('Header/footer require an interactive message');
+  if (c.header && c.media) throw new BadRequestException('Choose either an explicit header or media header');
+  if ((c.buttons || c.list || c.cta) && (c.text?.length ?? 0) > 1024) throw new BadRequestException('Interactive body supports at most 1024 characters');
+  if (c.template && (c.text || c.media || c.buttons || c.list || c.cta || c.location || c.reply))
     throw new BadRequestException('Template must be sent without other content');
   if (c.reply) throw new BadRequestException('reply is only valid for inbound messages');
   if ((c.buttons || c.list) && !c.text) throw new BadRequestException('Buttons/list require text');
   if (c.buttons && c.list) throw new BadRequestException('Use either buttons or list, not both');
-  if ((c.buttons || c.list) && c.media)
-    throw new BadRequestException('Interactive messages cannot carry media');
+  if ((c.buttons || c.list || c.cta) && c.media && c.media.kind !== 'image')
+    throw new BadRequestException('Interactive messages can only carry an image header');
+  if (c.cta && !c.text) throw new BadRequestException('CTA button requires text');
+  if (c.cta && (c.buttons || c.list)) throw new BadRequestException('CTA cannot be combined with buttons or list');
   if (c.media && !c.media.url) throw new BadRequestException('Outbound media requires a url');
   if (c.list) {
     const total = c.list.sections.reduce((n, s) => n + s.rows.length, 0);

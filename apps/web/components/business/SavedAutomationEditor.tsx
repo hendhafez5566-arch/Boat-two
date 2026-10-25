@@ -2,7 +2,7 @@
 import { automationLabel } from './automation-labels';
 import { statusLabel } from '../product/status';
 import { WorkflowCanvas } from './WorkflowCanvas';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { useData } from './useData';
 import { useLocale } from '../product/locale';
@@ -343,7 +343,7 @@ function Steps({
     </div>
   );
 }
-export function SavedAutomationEditor() {
+export function SavedAutomationEditor({initialRuleId = ''}:{initialRuleId?:string}) {
   const { t } = useLocale();
   const rules = useData<Rule[]>('/automations', []),
     secrets = useData<
@@ -377,6 +377,7 @@ export function SavedAutomationEditor() {
     [error, setError] = useState(''),
     [message, setMessage] = useState(''),
     [busy, setBusy] = useState(false);
+  useEffect(() => { if(initialRuleId){const target=rules.data.find(row=>row.id===initialRuleId);if(target)setRule(target);} }, [initialRuleId, rules.data]);
   const [versions, setVersions] = useState<
     { revision: number; snapshot: Partial<Rule>; created_at: string }[]
   >([]);

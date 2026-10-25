@@ -98,7 +98,7 @@ try {
   await page
     .getByRole('spinbutton', { name: 'Maximum open conversations per agent', exact: true })
     .fill('7');
-  await page.getByRole('checkbox').check();
+  await page.getByRole('checkbox', {name:/On bot handoff, assign/}).check();
   const [settings] = await Promise.all([
     page.waitForResponse(
       (r) => r.url().endsWith('/inbox/settings') && r.request().method() === 'PUT',

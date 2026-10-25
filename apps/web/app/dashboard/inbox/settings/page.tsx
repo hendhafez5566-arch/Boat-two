@@ -4,10 +4,12 @@ import Link from 'next/link';
 import { api } from '../../../../lib/api';
 import { useLocale } from '../../../../components/product/locale';
 import { Dialog } from '../../../../components/product/ProductUI';
-type Settings = { auto_assign: boolean; max_open_per_agent: number };
+type Settings = {signature_enabled:boolean;signature_template:string;human_session_minutes:number;delivery_error_tag:string;sla_escalation_enabled:boolean;escalation_user_id:string|null; auto_assign: boolean; max_open_per_agent: number };
 type Reply = { id: string; shortcut: string; title: string; content: string };
 export default function InboxSettings() {
   const { t } = useLocale();
+  const [team,setTeam]=useState<{user_id:string;full_name:string;email:string}[]>([]);
+  useEffect(()=>{api<{members:typeof team}>('/team').then(r=>setTeam(r.members)).catch(()=>{});},[]);
   const [settings, setSettings] = useState<Settings | null>(null),
     [replies, setReplies] = useState<Reply[]>([]),
     [error, setError] = useState(''),
@@ -89,6 +91,7 @@ export default function InboxSettings() {
                 await api<Settings>('/inbox/settings', {
                   method: 'PUT',
                   body: JSON.stringify({
+                    ...settings,
                     auto_assign: settings.auto_assign,
                     max_open_per_agent: settings.max_open_per_agent,
                   }),
@@ -97,6 +100,7 @@ export default function InboxSettings() {
             );
           }}
         >
+          <h2>{t('التوقيع والجلسات وأخطاء التسليم','Signature, sessions and delivery errors')}</h2><label><input type="checkbox" checked={settings.signature_enabled} onChange={e=>setSettings({...settings,signature_enabled:e.target.checked})}/>{t('توقيع الموظف على الرسائل العادية','Employee signature on regular messages')}</label><label className="field">{t('نص التوقيع — {{agent.name}} لاسم الموظف','Signature template — {{agent.name}} inserts the employee name')}<input maxLength={200} value={settings.signature_template} onChange={e=>setSettings({...settings,signature_template:e.target.value})}/></label><label className="field">{t('مدة جلسة الموظف بالدقائق (0 = دون انتهاء تلقائي)','Human session minutes (0 = no automatic expiry)')}<input type="number" min={0} max={10080} value={settings.human_session_minutes} onChange={e=>setSettings({...settings,human_session_minutes:Number(e.target.value)})}/></label><label className="field">{t('وسم عند فشل تسليم رسالة (فارغ للتعطيل)','Delivery failure label (empty disables)')}<input maxLength={50} value={settings.delivery_error_tag} onChange={e=>setSettings({...settings,delivery_error_tag:e.target.value})}/></label><label><input type="checkbox" checked={settings.sla_escalation_enabled} onChange={e=>setSettings({...settings,sla_escalation_enabled:e.target.checked})}/>{t('تصعيد تجاوز SLA للقسم عند غياب رد موظف','Escalate a department SLA breach without an employee response')}</label><label className="field">{t('موظف التصعيد (فارغ يسجل التجاوز دون تغيير التعيين)','Escalation employee (empty records a breach without reassigning)')}<select value={settings.escalation_user_id??''} onChange={e=>setSettings({...settings,escalation_user_id:e.target.value||null})}><option value="">{t('دون تعيين جديد','No reassignment')}</option>{team.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name||m.email}</option>)}</select></label>
           <h2>{t('التوزيع التلقائي', 'Automatic assignment')}</h2>
           <label className="flex items-start gap-2">
             <input

@@ -1,14 +1,16 @@
-import '@fontsource-variable/dm-sans';
-import '@fontsource-variable/noto-sans-arabic';
 import './globals.css';
 import './design-system.css';
+import './builder-responsive.css';
+import './sequence-builder.css';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { BrandProvider, PublicBrand } from '../components/product/BrandContext';
 import { LocaleProvider } from '../components/product/locale';
 import type { ReactNode } from 'react';
+import type { Viewport } from 'next';
 
 export const metadata = { title: 'ELHAFEZ BOAT | المحادثات والأتمتة' };
+export const viewport: Viewport = { width: 'device-width', initialScale: 1, viewportFit: 'cover' };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   let brand: PublicBrand | null = null;

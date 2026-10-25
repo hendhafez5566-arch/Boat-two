@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import MetaConnect from '../../../components/product/MetaConnect';
+import ChannelCatalog from '../../../components/product/ChannelCatalog';
 import ChannelSettings from '../../../components/product/ChannelSettings';
 import { useLocale } from '../../../components/product/locale';
 import { statusLabel } from '../../../components/product/status';
@@ -16,9 +17,11 @@ type Channel = {
   status: string;
   widgetSnippet?: string;
   settings?: Record<string, unknown>;
+  connectionHealth?: { state: string; checkedAt: string | null; reason: string };
 };
 
 const FIELDS: Record<string, { key: string; label: string }[]> = {
+  telegram: [{key:'botToken',label:'BotFather token'}],
   web: [],
   whatsapp: [
     { key: 'phoneNumberId', label: 'Phone Number ID' },
@@ -41,9 +44,24 @@ export default function Channels() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<Channel | null>(null);
   const [saved, setSaved] = useState(false);
+  const [copied,setCopied]=useState('');
   const [items, setItems] = useState<Channel[]>([]);
   const [type, setType] = useState('web');
   const [error, setError] = useState('');
+  const [selected, setSelected] = useState('whatsapp');
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [advanced, setAdvanced] = useState(false);
+  const stateOf = (c: Channel) => c.connectionHealth?.state ?? (c.status === 'disabled' ? 'disconnected' : 'needs_action');
+  const stateLabels: Record<string, string> = { connected: t('اتصال متحقق', 'Verified connection'), needs_action: t('يحتاج إجراء', 'Needs action'), expired: t('تفويض منتهٍ', 'Authorization expired'), disconnected: t('متوقف', 'Disconnected') };
+  const visible = items.filter(c => (filter === 'all' || stateOf(c) === filter) && `${c.name} ${c.type}`.toLowerCase().includes(search.toLowerCase()));
+  async function verify(c: Channel) {
+    setBusy(true); setError('');
+    try {
+      const health = await api<NonNullable<Channel['connectionHealth']>>(`/channels/${c.id}/verify`, { method: 'POST' });
+      setItems(rows => rows.map(row => row.id === c.id ? { ...row, connectionHealth: health } : row));
+    } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+  }
 
   const load = () =>
     api<Channel[]>('/channels')
@@ -114,7 +132,14 @@ export default function Channels() {
           </p>
         </div>
       </div>
-      <MetaConnect onSaved={load} />
+      <ChannelCatalog selected={selected} onSelect={id => { setSelected(id); if (id === 'web' || id === 'telegram') { setType(id); setAdvanced(false); } requestAnimationFrame(() => document.getElementById(['web','telegram'].includes(id) ? 'channel-create' : 'official-connect')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }} />
+      <div id="official-connect">{!['web','telegram'].includes(selected) && <MetaConnect onSaved={load} selectedKind={selected} />}</div>
+      <section className="card stack" aria-label={t('حالة الحسابات', 'Account status')}>
+        <h2>{t('حساباتك المتصلة', 'Your connected accounts')}</h2>
+        <div className="form-actions">{['all', 'connected', 'needs_action', 'expired', 'disconnected'].map(state => <button type="button" className="btn" key={state} aria-pressed={filter === state} onClick={() => setFilter(state)}>{state === 'all' ? t('الكل', 'All') : stateLabels[state]} · {state === 'all' ? items.length : items.filter(c => stateOf(c) === state).length}</button>)}</div>
+        <label className="field">{t('بحث بالاسم أو القناة', 'Search by name or channel')}<input type="search" value={search} onChange={e => setSearch(e.target.value)} /></label>
+        <p className="muted">{t('تفعيل القناة محليًا لا يثبت الاتصال بالمزود. أعد الفحص بعد تغيير التفويض؛ صلاحية نتيجة الفحص 24 ساعة. ويدجت الموقع يحتاج تثبيتًا وتجربة.', 'Local activation does not prove provider connectivity. Recheck after authorization changes; evidence expires after 24 hours. Website widgets need installation and a test.')}</p>
+      </section>
       {error && (
         <p className="notice error" role="alert">
           {error}{' '}
@@ -138,7 +163,7 @@ export default function Channels() {
       {loading && <p role="status">{t('جارٍ تحميل القنوات…', 'Loading channels…')}</p>}
 
       <ul className="mb-8 flex flex-col gap-3">
-        {items.map((c) => (
+        {visible.map((c) => (
           <li key={c.id} className="card">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <strong>
@@ -152,16 +177,20 @@ export default function Channels() {
                         whatsapp: 'WhatsApp',
                         facebook: 'Facebook Messenger',
                         instagram: 'Instagram',
+                        telegram: 'Telegram',
                       } as Record<string, string>
                     )[c.type]
                   }
-                  ) · {statusLabel(c.status, t)}
+                  ) · {statusLabel(c.status, t)} · {stateLabels[stateOf(c)]}
                 </span>
               </strong>
               <button disabled={busy} onClick={() => setDeleting(c)} className="btn btn-danger">
                 {t('حذف', 'Delete')}
               </button>
             </div>
+            {c.connectionHealth?.checkedAt && <p>{t('آخر فحص', 'Last check')}: <time dateTime={c.connectionHealth.checkedAt}>{new Date(c.connectionHealth.checkedAt).toLocaleString()}</time></p>}
+            {c.type !== 'web' && <button type="button" className="btn" disabled={busy || c.status !== 'active'} onClick={() => verify(c)}>{t('فحص الاتصال بالمزود', 'Verify provider connection')}</button>}
+            {c.connectionHealth?.reason && <p className="muted">{({ provider_verified: t('تم التحقق من الحساب لدى المزود.', 'Provider account verified.'), authorization_expired: t('أعد التفويض من مسار الربط الرسمي.', 'Authorize again through the official connection.'), provider_unreachable: t('تعذر الوصول للمزود. أعد المحاولة لاحقًا.', 'Provider unreachable. Try later.'), provider_rejected: t('راجع صلاحيات الحساب ثم أعد التفويض.', 'Review account permissions and authorize again.'), external_access_disabled: t('الفحص الخارجي غير مفعّل لدى مسؤول المنصة.', 'External verification is disabled by the operator.'), verification_required: t('يلزم فحص حديث للمزود.', 'A recent provider check is required.'), widget_installation_required: t('ثبّت الويدجت ثم جرّب المحادثة.', 'Install the widget and try a conversation.'), disabled_locally: t('القناة متوقفة محليًا.', 'Channel disabled locally.') } as Record<string, string>)[c.connectionHealth.reason]}</p>}
             <ChannelSettings channel={c} onSaved={load} />
             {c.type === 'whatsapp' && (
               <Link className="btn mt-3" href={`/dashboard/channels/${c.id}/templates`}>
@@ -179,6 +208,7 @@ export default function Channels() {
                 <pre dir="ltr" className="overflow-x-auto rounded bg-gray-100 p-2 text-xs">
                   {c.widgetSnippet}
                 </pre>
+                <div className="form-actions"><button className="btn" onClick={async()=>{try{await navigator.clipboard.writeText(c.widgetSnippet!);setCopied(c.id);}catch{setError(t('تعذر النسخ التلقائي. انسخ الكود الظاهر يدويًا.','Automatic copy failed. Copy the displayed code manually.'));}}}>{copied === c.id ? t('تم نسخ الكود','Code copied') : t('نسخ كود التثبيت','Copy installation code')}</button><a className="btn" target="_blank" rel="noopener noreferrer" href={'/widget-demo.html?key='+encodeURIComponent(c.external_id)}>{t('جرّب الويدجت','Try widget')}</a></div><p role="status">{copied === c.id && t('أرسل الكود لمسؤول موقعك وأضفه قبل إغلاق body. اضبط المواقع المسموحة من إعدادات القناة.','Share the code with your website administrator and insert before closing body. Set allowed origins in channel settings.')}</p>
                 <p className="mt-1 text-xs">
                   {t('للتجربة:', 'Try it:')} <code>/widget-demo.html?key={c.external_id}</code>
                 </p>
@@ -186,7 +216,7 @@ export default function Channels() {
             )}
           </li>
         ))}
-        {!loading && !items.length && (
+        {!loading && !visible.length && (
           <li className="empty">
             {t(
               'لا توجد قنوات بعد. أضف ويدجت لتجربة أول محادثة.',
@@ -196,7 +226,8 @@ export default function Channels() {
         )}
       </ul>
 
-      <h2>{t('إضافة قناة', 'Add a channel')}</h2>
+      <h2 id="channel-create">{t('ويدجت الموقع أو إعداد يدوي متقدم', 'Website widget or advanced manual setup')}</h2>
+      <label><input type="checkbox" checked={advanced} onChange={e => { setAdvanced(e.target.checked); setType('web'); }} /> {t('إظهار الإعداد اليدوي المتقدم (للمسؤول)', 'Show advanced manual setup (administrator)')}</label>
       <form onSubmit={create} className="card stack">
         <label className="field">
           {t('نوع القناة', 'Channel type')}
@@ -206,11 +237,11 @@ export default function Channels() {
             className="rounded border p-2"
           >
             <option value="web">{t('ويدجت الموقع', 'Website widget')}</option>
-            <option value="whatsapp">WhatsApp</option>
-            <option value="facebook">Facebook Messenger</option>
-            <option value="instagram">Instagram</option>
+            <option value="telegram">Telegram Bot API</option>
+            {advanced && <><option value="whatsapp">WhatsApp</option><option value="facebook">Facebook Messenger</option><option value="instagram">Instagram</option></>}
           </select>
         </label>
+        {type === 'telegram' && <p className="notice">{t('أنشئ بوتًا من @BotFather وأدخل رمزه. لا تُسجل الإضافة Webhook تلقائيًا؛ افتح إعدادات القناة لتسجيله صراحة بعد توفير عنوان HTTPS عام. المجموعات اختيارية من إعدادات القناة؛ تُحمّل الوسائط عبر مسار محمي دون إظهار الرمز.', 'Create a bot with @BotFather and enter its token. Adding a channel does not register a webhook automatically; open channel settings to explicitly register it after configuring public HTTPS. Groups are opt-in in channel settings; media downloads use an authenticated route without exposing the bot token.')}</p>}
         <label className="field">
           {t('اسم القناة', 'Channel name')}
           <input name="name" required maxLength={80} />
@@ -225,6 +256,7 @@ export default function Channels() {
                 pageId: t('معرّف الصفحة', 'Page ID'),
                 pageAccessToken: t('رمز وصول الصفحة', 'Page Access Token'),
                 igAccountId: t('معرّف حساب Instagram', 'Instagram Account ID'),
+                botToken: t('رمز البوت من BotFather', 'BotFather bot token'),
               } as Record<string, string>
             )[x.key] || x.label}
             <input

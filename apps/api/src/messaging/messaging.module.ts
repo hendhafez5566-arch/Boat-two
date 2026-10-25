@@ -5,6 +5,7 @@ import { MetaConnectController } from './meta-connect.controller';
 import { Module } from '@nestjs/common';
 import { MetaAdapter } from './adapters/meta.adapter';
 import { WhatsAppAdapter } from './adapters/whatsapp.adapter';
+import { TelegramAdapter } from './adapters/telegram.adapter';
 import { ChannelsController } from './channels.controller';
 import { ChannelsService } from './channels.service';
 import { CryptoService } from './crypto.service';
@@ -28,6 +29,7 @@ import { WidgetAssetController, WidgetController } from './widget.controller';
     ChannelsService,
     MessagingService,
     WhatsAppAdapter,
+    TelegramAdapter,
     MetaAdapter,
   ],
   exports: [DeliveryBudget, MessagingService, ChannelsService, OutboundService],

@@ -10,6 +10,7 @@ import {
   OnModuleInit,
   OnModuleDestroy,
   Post,
+  Param,
   Query,
   RawBodyRequest,
   Req,
@@ -21,8 +22,9 @@ import { Public } from '../auth/decorators';
 import { env } from '../config/env';
 import { DatabaseService } from '../database/database.service';
 import { ChannelsService } from './channels.service';
+import {telegramCall,telegramWebhookAuthorized} from './adapters/telegram.adapter';
 import { MessagingService } from './messaging.service';
-import { InboundEvent, parseMeta, parseWhatsApp } from './webhook-parsers';
+import { InboundEvent, parseMeta, parseWhatsApp, parseTelegram } from './webhook-parsers';
 
 @Controller('webhooks')
 export class WebhooksController implements OnModuleInit, OnModuleDestroy {
@@ -87,6 +89,27 @@ export class WebhooksController implements OnModuleInit, OnModuleDestroy {
     this.verifySignature(req, sig);
     await this.enqueue(parseWhatsApp(body));
     return { received: true };
+  }
+
+  @Public()
+  @Post('telegram/:botId')
+  @HttpCode(200)
+  async telegram(@Param('botId') botId:string,@Headers('x-telegram-bot-api-secret-token') secret:string|undefined,@Body() body:Record<string,unknown>) {
+    if(!/^\d{5,20}$/.test(botId))throw new ForbiddenException();
+    const channel=await this.channels.lookup('telegram',botId);
+    if(!channel||channel.status!=='active')throw new ForbiddenException();
+    const expected=this.channels.credentials(channel).webhookSecret;
+    if(!telegramWebhookAuthorized(expected,secret))throw new ForbiddenException('Invalid Telegram webhook secret');
+    const events=parseTelegram(botId,body,{allowGroups:channel.settings?.telegramAllowGroups===true});
+    await this.enqueue(events);
+    // Acknowledge the spinner only after the choice is durable. Failure here must
+    // never replay a successfully accepted choice or disclose provider credentials.
+    const callback=body.callback_query as {id?:unknown}|undefined;
+    if(events.length&&typeof callback?.id==='string'&&callback.id.length<=200){
+      try{await telegramCall(this.channels.credentials(channel).botToken,'answerCallbackQuery',{callback_query_id:callback.id},3000);}
+      catch{this.log.warn('Telegram callback acknowledgement unavailable; inbound choice remains queued');}
+    }
+    return{received:true};
   }
 
   @Public()

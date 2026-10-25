@@ -1705,3 +1705,36 @@ textarea::placeholder {
 /* Keep the navigation dismissal inside the drawer and readable on its light surface. */
 .product-sidebar .mobile-menu { display:none; color:var(--ink); }
 @media (max-width:700px) { .product-sidebar .mobile-menu { display:inline-flex; } }
+
+/* Channel discovery stays readable at phone, tablet and desktop widths. */
+.channel-catalog { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.channel-catalog article { min-width:0; align-content:start; }
+.channel-catalog h2 { overflow-wrap:anywhere; font-size:1.15rem; text-align:start; }
+.channel-catalog .btn { margin-top:auto; min-height:44px; }
+#official-connect, #channel-create { scroll-margin-top:90px; }
+@media(max-width:900px) { .channel-catalog { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:480px) { .channel-catalog { grid-template-columns:1fr; } }
+
+.sequence-path { list-style:none; margin:0; padding:0; display:flex; gap:16px; overflow-x:auto; align-items:stretch; }
+.sequence-path > li { min-width:220px; max-width:300px; flex:1 0 220px; position:relative; }
+.sequence-path button { width:100%; height:calc(100% - 28px); text-align:start; border:1px solid #adc1d3; color:#18334a; }
+.sequence-path strong { overflow-wrap:anywhere; }
+.sequence-connector { display:block; text-align:center; font-size:22px; color:#17658b; }
+.sq-row:focus { outline:3px solid #2563eb; outline-offset:5px; }
+@media(max-width:600px) { .sequence-path { flex-direction:column; overflow-x:visible; } .sequence-path > li { width:100%; min-width:0; max-width:none; flex:auto; } .sequence-path button { height:auto; } }
+.task-launch-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.task-launch-grid a{font-size:1.1rem;min-height:100px;justify-content:space-between}.growth-chart{display:flex;align-items:flex-end;gap:8px;overflow-x:auto;min-height:160px}.growth-chart>div{flex:1;min-width:45px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px}.growth-chart>div>div{background:var(--primary);width:24px;max-height:100px;border-radius:6px}.usage-strip{display:flex;gap:16px;flex-wrap:wrap;font-size:.85rem}.account-actions{position:relative;margin-inline-start:auto}.account-actions>div{position:absolute;inset-inline-end:0;min-width:220px;z-index:60;background:white;box-shadow:0 8px 30px #0002}@media(max-width:768px){.task-launch-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.usage-strip{gap:8px}.product-topbar{flex-wrap:wrap}}@media(max-width:390px){.task-launch-grid{grid-template-columns:1fr}}
+
+/* Event names and OAuth callback URLs must wrap at 320px in either direction. */
+.integrations-page :is(fieldset, label, p, code, bdi) {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.social-posting-modes {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:16px;}
+.social-posting-modes article {min-width:0;align-items:start;}
+.social-posting-modes h2 {font-size:1.1rem;}
+
+.page-workspace .btn, .focused-workspace .btn {white-space:normal;max-inline-size:100%;overflow-wrap:anywhere;}
+
+/* Allow the header to grow when translated text or text zoom wraps. */
+.product-content > .product-topbar {height:auto;min-height:var(--topbar-h);padding-block:8px;flex-wrap:wrap;}

@@ -1,0 +1,37 @@
+{
+  "results": [
+    {
+      "name": "082/083 flow persistence, conflicts, import/export and reset keep IDs and edges",
+      "status": "PASS"
+    },
+    {
+      "name": "published widget journey → button actions → system/custom CRM → all-condition branch",
+      "status": "PASS"
+    },
+    {
+      "name": "085 event webhook queue is durable, deduplicated and isolated without network",
+      "status": "PASS"
+    },
+    {
+      "name": "086 products, selectable catalogs, social drafts and cross-tenant denial",
+      "status": "PASS"
+    },
+    {
+      "name": "086 concurrent appointments conflict safely, replays deduplicate and cancel releases slot",
+      "status": "PASS"
+    },
+    {
+      "name": "087 signature, human takeover, expiry and delivery-error labels execute against PostgreSQL",
+      "status": "PASS"
+    },
+    {
+      "name": "082–087 RLS denies foreign reads, writes and cross-tenant foreign keys",
+      "status": "PASS"
+    },
+    {
+      "name": "087 own sessions show current device and revoked access is rejected immediately",
+      "status": "PASS"
+    }
+  ],
+  "externalDelivery": false
+}

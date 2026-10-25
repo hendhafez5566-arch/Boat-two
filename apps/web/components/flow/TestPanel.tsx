@@ -2,6 +2,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useLocale } from '../product/locale';
 import { useState } from 'react';
+import MediaPreview from './MediaPreview';
+import ListPreview from './ListPreview';
 import { api } from '../../lib/api';
 
 type Entry = { who: 'you' | 'bot' | 'system'; content: any };
@@ -9,9 +11,12 @@ type Entry = { who: 'you' | 'bot' | 'system'; content: any };
 export default function TestPanel({
   flowId,
   beforeRun,
+  onProgress,
 }: {
   flowId: string;
   beforeRun: () => Promise<void>;
+  /** Reports the step the bot is waiting at (null when finished) so the canvas can highlight it. */
+  onProgress?: (waitingNodeId: string | null, reset?: boolean) => void;
 }) {
   const { t, language } = useLocale();
   const [busy, setBusy] = useState(false);
@@ -21,7 +26,10 @@ export default function TestPanel({
   const [waitKind, setWaitKind] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [allowHttp, setAllowHttp] = useState(false);
+  const [simulateAt, setSimulateAt] = useState('');
+  const [contactAttributes, setContactAttributes] = useState<Record<string,unknown>>({});
   const [error, setError] = useState('');
+  const [statusError, setStatusError] = useState('');
   const [showVars, setShowVars] = useState(false);
 
   async function run(body: Record<string, unknown>, youSaid?: string) {
@@ -32,7 +40,7 @@ export default function TestPanel({
       await beforeRun();
       const r = await api<any>(`/flows/${flowId}/test`, {
         method: 'POST',
-        body: JSON.stringify({ ...body, allowHttp }),
+        body: JSON.stringify({ ...body, contactAttributes: body.state ? contactAttributes : {}, allowHttp, ...(simulateAt ? { simulateAt: new Date(simulateAt).toISOString() } : {}) }),
       });
       setLog((l) => [
         ...l,
@@ -40,7 +48,10 @@ export default function TestPanel({
         ...r.transcript.map((t: any) => ({ who: t.role, content: t.content })),
       ]);
       setState(r.state);
-      setStatus(r.status + (r.error ? `: ${r.error}` : ''));
+      setContactAttributes(r.contactAttributes ?? {});
+      onProgress?.(r.state?.waiting?.nodeId ?? null);
+      setStatus(r.status);
+      setStatusError(r.error ?? '');
       setWaitKind(r.waitKind);
     } catch (e) {
       setError((e as Error).message);
@@ -50,9 +61,11 @@ export default function TestPanel({
   }
 
   const restart = () => {
+    onProgress?.(null, true);
     setLog([]);
     setState(null);
     setStatus('');
+    setStatusError('');
     setWaitKind(null);
     run({ text: 'hi' });
   };
@@ -63,9 +76,9 @@ export default function TestPanel({
   };
   const lastBot = [...log].reverse().find((e) => e.who === 'bot');
   const chips: { id: string; title: string }[] = [];
-  if (lastBot && waitKind === 'choice') {
+  if (lastBot && (waitKind === 'choice' || waitKind === 'answer')) {
     for (const b of lastBot.content.buttons ?? []) chips.push(b);
-    for (const s of lastBot.content.list?.sections ?? []) for (const r of s.rows) chips.push(r);
+
   }
 
   return (
@@ -74,6 +87,8 @@ export default function TestPanel({
         <button onClick={restart} disabled={busy} className="btn btn-primary">
           {state ? t('إعادة', 'Restart') : t('ابدأ التجربة', 'Start preview')}
         </button>
+        <details className="text-xs"><summary>{t('أدوات متقدمة', 'Advanced tools')}</summary>
+        <label className="field">{t('وقت وهمي لاختبار ساعات العمل (محلي)', 'Simulated time for business hours (local)')}<input type="datetime-local" value={simulateAt} disabled={busy} onChange={e=>setSimulateAt(e.target.value)} /></label>
         <label className="flex items-center gap-1 text-xs">
           <input
             type="checkbox"
@@ -82,7 +97,9 @@ export default function TestPanel({
           />{' '}
           {t('تنفيذ طلبات API فعليًا', 'Allow real HTTP requests')}
         </label>
+        </details>
       </div>
+      <p className="mb-2 text-xs text-gray-500">{t('اختبار المنطق — شكل الرسائل تقريبي وقد يختلف حسب القناة. لا تُرسل رسائل للعملاء.', 'Logic test — message appearance is approximate and varies by channel. No customer messages are sent.')}</p>
       {error && <p className="mb-2 text-red-600">{error}</p>}
       <div className="flex-1 space-y-2 overflow-y-auto rounded bg-gray-50 p-2">
         {log.map((e, i) =>
@@ -95,22 +112,30 @@ export default function TestPanel({
               key={i}
               className={`max-w-[85%] rounded-lg px-3 py-1.5 ${e.who === 'you' ? 'ml-auto bg-blue-600 text-white' : 'bg-white border'}`}
             >
-              {e.content.media && (
-                <div className="text-xs opacity-70">
-                  [{e.content.media.kind}] {e.content.media.url}
+              {(e.content.product||e.content.productList)&&<pre className="text-xs" dir="ltr">{JSON.stringify(e.content.product??e.content.productList,null,2)}</pre>}
+              {e.content.whatsappFlow&&<p>{t('معاينة نموذج WhatsApp — أدخل JSON للرد التجريبي أدناه','WhatsApp form preview — enter JSON as a simulated reply below')}: {e.content.whatsappFlow.cta}</p>}
+              {e.content.media && <MediaPreview media={e.content.media} />}
+              {e.content.header?.type === 'text' && <strong>{e.content.header.text}</strong>}
+              {e.content.header?.type === 'image' && <MediaPreview media={{kind:'image',url:e.content.header.url}} />}
+              {e.content.location && (
+                <div className="text-xs">
+                  📍 {e.content.location.name ?? ''} ({e.content.location.lat}, {e.content.location.lng})
+                </div>
+              )}
+              {e.content.template && (
+                <div className="text-xs">
+                  🧩 {e.content.template.name} ({e.content.template.language})
                 </div>
               )}
               <div className="whitespace-pre-wrap">{e.content.text}</div>
-              {(e.content.buttons || e.content.list) && (
+              {e.content.footer && <small className="block opacity-70">{e.content.footer}</small>}
+              {e.content.cta && (
                 <div className="mt-1 text-xs opacity-60">
-                  {[
-                    ...(e.content.buttons ?? []),
-                    ...(e.content.list?.sections ?? []).flatMap((s: any) => s.rows),
-                  ]
-                    .map((o: any) => `[${o.title}]`)
-                    .join(' ')}
+                  [🔗 {e.content.cta.text}] {e.content.cta.url}
                 </div>
               )}
+              {e.content.buttons && <div className="mt-1 text-xs">{e.content.buttons.map((b: {id:string;title:string}) => <span className="rounded border px-2" key={b.id}>{b.title}</span>)}</div>}
+              {e.content.list && <ListPreview list={e.content.list} disabled={busy || e !== lastBot || !['choice','answer'].includes(waitKind ?? '')} onSelect={send} />}
             </div>
           ),
         )}
@@ -130,7 +155,7 @@ export default function TestPanel({
         </div>
       )}
       <div className="mt-2 text-xs text-gray-500">
-        {t('الحالة', 'Status')}: {status || '—'}
+        {t('الحالة', 'Status')}: {({ handed_off: t('تم التحويل إلى موظف', 'Handed off to staff'), waiting: t('بانتظار رد أو متابعة', 'Waiting for a reply or continuation'), ended: t('انتهت التجربة', 'Test ended'), done: t('اكتملت التجربة', 'Test complete'), completed: t('اكتملت التجربة', 'Test complete'), error: t('تعذّر إكمال التجربة', 'Test failed'), running: t('جارٍ التنفيذ', 'Running') } as Record<string, string>)[status] ?? (status ? t('حالة غير معروفة؛ راجع التفاصيل المتقدمة', 'Unknown status; see advanced details') : '—')}
       </div>
       {waitKind === 'delay' && (
         <button
@@ -168,7 +193,7 @@ export default function TestPanel({
           </button>
           {showVars && (
             <pre dir="ltr" className="mt-1 max-h-32 overflow-auto rounded bg-gray-100 p-2 text-xs">
-              {JSON.stringify(state.vars, null, 2)}
+              {JSON.stringify({ status, error: statusError || undefined, variables: state.vars }, null, 2)}
             </pre>
           )}
         </>

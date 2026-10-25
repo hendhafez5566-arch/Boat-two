@@ -1,0 +1,13 @@
+import {assertLocalAcceptance} from './acceptance-local.mjs';
+assertLocalAcceptance();
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url),{chromium}=require(process.env.BOAT_PLAYWRIGHT_MODULE||'playwright-core');
+if(process.env.BOAT_PREVIEW_ONLY!=='true')throw Error('Local preview required');
+const base=process.env.SMOKE_API_URL||'http://localhost:4000',web=process.env.SMOKE_WEB_URL||'http://localhost:3000';
+async function call(path,token,method='GET',body){const r=await fetch(base+path,{method,headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:body?JSON.stringify(body):undefined});const data=await r.json();assert.ok(r.ok,JSON.stringify(data));return data;}
+const a=await call('/auth/register',null,'POST',{email:randomUUID()+'@example.test',password:'local-widget-12345',fullName:'Widget tester',workspaceName:'Widget typing'}),ch=await call('/channels',a.accessToken,'POST',{type:'web',name:'Widget preview'}),flow=await call('/flows',a.accessToken,'POST',{name:'Typing flow'});
+await call('/flows/'+flow.id,a.accessToken,'PATCH',{channelIds:[ch.id],graph:{startNodeId:'hello',nodes:[{id:'hello',type:'message',data:{text:'رسالة بعد مؤشر الكتابة',delivery:{delaySeconds:0,typingSeconds:2}},edges:{}}]}});await call('/flows/'+flow.id+'/publish',a.accessToken,'POST',{});
+const browser=await chromium.launch({executablePath:process.env.BOAT_CHROMIUM||'/usr/bin/chromium',args:['--no-sandbox']});
+try{const page=await browser.newPage({viewport:{width:390,height:844}});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(web+'/widget-demo.html?key='+ch.external_id);await page.locator('.launcher').click();await page.getByRole('textbox',{name:'اكتب رسالة',exact:true}).fill('hello');await page.getByRole('button',{name:'إرسال',exact:true}).click();await page.locator('.typing').waitFor();assert.equal(await page.getByText('رسالة بعد مؤشر الكتابة',{exact:true}).count(),0);await page.getByText('رسالة بعد مؤشر الكتابة',{exact:true}).waitFor();assert.equal(await page.locator('.typing').count(),0);assert.equal(await page.getByText('رسالة بعد مؤشر الكتابة',{exact:true}).count(),1);await page.reload();await page.locator('.launcher').click();await page.getByText('رسالة بعد مؤشر الكتابة',{exact:true}).waitFor();assert.equal(await page.locator('.typing').count(),0);assert.deepEqual(errors,[]);console.log('PASS live Webchat Chromium: typing appears before the configured reply, then disappears; reload renders history immediately without duplicate message or indicator.');}finally{await browser.close();}

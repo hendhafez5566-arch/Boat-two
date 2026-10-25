@@ -1,0 +1,6 @@
+Production build: pnpm --filter web build — exit 0
+Offline: test-ux19, test-ux-designer, test-smart-editor — passed
+Engine/expansion: 39 passed, 0 failed
+Chromium browser: PASS: actual message editing, live preview, action creates connected node, stable branches, reversible conversion, save/reopen, desktop/mobile/tablet, no browser errors
+
+Fixture persistence only: no live database or external messages.

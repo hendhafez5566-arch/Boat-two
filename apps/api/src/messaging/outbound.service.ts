@@ -12,7 +12,8 @@ import { env } from '../config/env';
 import { ChannelsService } from './channels.service';
 import { MetaAdapter } from './adapters/meta.adapter';
 import { WhatsAppAdapter } from './adapters/whatsapp.adapter';
-import { ProviderError } from './adapters/adapter';
+import { TelegramAdapter } from './adapters/telegram.adapter';
+import { ProviderError,sendWithTyping } from './adapters/adapter';
 @Injectable()
 export class OutboundService implements OnModuleInit, OnModuleDestroy {
   private timer?: NodeJS.Timeout;
@@ -24,6 +25,7 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
     private channels: ChannelsService,
     private whatsapp: WhatsAppAdapter,
     private meta: MetaAdapter,
+    private telegram: TelegramAdapter,
   ) {}
   onModuleInit() {
     if (process.env.NODE_ENV !== 'test') {
@@ -59,7 +61,7 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
           }
           const message = (
             await c.query(
-              `SELECT m.*,ch.type AS channel_type,ch.status AS channel_status,ch.credentials_enc,cv.last_inbound_at,cc.external_id AS recipient FROM messages m JOIN channels ch ON ch.id=m.channel_id JOIN conversations cv ON cv.id=m.conversation_id JOIN contact_channels cc ON cc.channel_id=m.channel_id AND cc.contact_id=cv.contact_id WHERE m.id=$1`,
+              `SELECT m.*,ch.type AS channel_type,ch.status AS channel_status,ch.credentials_enc,cv.last_inbound_at,(SELECT im.external_id FROM messages im WHERE im.conversation_id=m.conversation_id AND im.direction='in' AND im.external_id IS NOT NULL ORDER BY im.created_at DESC LIMIT 1) AS last_inbound_message_id,cc.external_id AS recipient FROM messages m JOIN channels ch ON ch.id=m.channel_id JOIN conversations cv ON cv.id=m.conversation_id JOIN contact_channels cc ON cc.channel_id=m.channel_id AND cc.contact_id=cv.contact_id WHERE m.id=$1`,
               [j.message_id],
             )
           ).rows[0];
@@ -182,10 +184,12 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
         if (!row) continue;
         try {
           const creds = this.channels.credentials(row);
-          const sent = await (row.channel_type === 'whatsapp' ? this.whatsapp : this.meta).send(
+          const sent = await sendWithTyping(row.channel_type === 'whatsapp' ? this.whatsapp : row.channel_type === 'telegram' ? this.telegram : this.meta,
             creds,
             row.recipient,
             row.content,
+            undefined,
+            {lastInboundMessageId:row.last_inbound_message_id},
           );
           if (!sent.externalId) throw new Error('Provider did not return a message identifier');
           await this.db.withTenant(job.tenant_id, async (c) => {

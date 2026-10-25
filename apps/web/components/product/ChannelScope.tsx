@@ -1,0 +1,8 @@
+'use client';
+import Link from 'next/link';
+import {channelHref} from '../../lib/channel-context';
+import {useLocale} from './locale';
+export default function ChannelScope({value,onChange,channels,workspaceWide=false}:{value:string;onChange:(value:string)=>void;channels:{id:string;name:string;type:string}[];workspaceWide?:boolean}){
+ const {t}=useLocale();
+ return <section className="card stack"><label className="field">{t('سياق القناة','Channel context')}<select aria-label={t('سياق القناة','Channel context')} value={value} onChange={e=>onChange(e.target.value)}><option value="">{t('كل القنوات','All channels')}</option>{value&&!channels.some(c=>c.id===value)&&<option value={value}>{t('قناة غير متاحة','Unavailable channel')}</option>}{channels.map(c=><option key={c.id} value={c.id}>{c.name} ({c.type})</option>)}</select></label>{workspaceWide&&<p className="muted">{t('المنتجات والمواعيد والتكاملات مشتركة داخل مساحة العمل. يُستخدم سياق القناة لتصفية المنشورات والانتقال بين الوظائف.','Products, appointments and integrations are shared within the workspace. Channel context filters social posts and follows feature navigation.')}</p>}<div className="form-actions">{[['/dashboard/flows','البوتات','Bots'],['/dashboard/crm','العملاء','Contacts'],['/dashboard/inbox','الوارد','Inbox'],['/dashboard/campaigns','الحملات','Campaigns'],['/dashboard/sequences','التسلسلات','Sequences'],['/dashboard/commerce','التجارة','Commerce'],['/dashboard/integrations','التكاملات','Integrations']].map(([href,ar,en])=><Link className="btn" href={channelHref(href,value)} key={href}>{t(ar,en)}</Link>)}</div></section>;
+}

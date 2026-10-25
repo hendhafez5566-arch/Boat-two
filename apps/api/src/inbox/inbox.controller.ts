@@ -22,6 +22,7 @@ import { Roles } from '../auth/decorators';
 import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
 import { DatabaseService } from '../database/database.service';
+import {telegramFile} from '../messaging/adapters/telegram.adapter';
 import { GRAPH } from '../messaging/adapters/adapter';
 import { ChannelRow, ChannelsService } from '../messaging/channels.service';
 import { contentSchema } from '../messaging/message-content';
@@ -58,6 +59,7 @@ const patchSchema = z.object({
 const noteSchema = z.object({ text: z.string().min(1).max(2000) });
 const availabilitySchema = z.object({ available: z.boolean() });
 const settingsSchema = z.object({
+ signature_enabled:z.boolean().optional(),signature_template:z.string().max(200).optional(),human_session_minutes:z.number().int().min(0).max(10080).optional(),delivery_error_tag:z.string().max(50).optional(),sla_escalation_enabled:z.boolean().optional(),escalation_user_id:z.string().uuid().nullable().optional(),
   auto_assign: z.boolean().optional(),
   max_open_per_agent: z.number().int().min(1).max(500).optional(),
 });
@@ -482,10 +484,16 @@ export class InboxController {
       return r.rows[0];
     });
     const media = row?.content?.media;
-    if (!media?.providerMediaId || row.type !== 'whatsapp')
+    if (!media?.providerMediaId || !['whatsapp','telegram'].includes(row.type))
       throw new NotFoundException('No downloadable media');
 
     const creds = this.channels.credentials({ credentials_enc: row.credentials_enc } as ChannelRow);
+    if(row.type==='telegram'){
+      const file=await telegramFile(creds.botToken,media.providerMediaId);
+      const mime=MEDIA_TYPES.test(file.mimeType)?file.mimeType:'application/octet-stream';
+      res.set({'Content-Type':mime,'X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; sandbox",'Cache-Control':'private, max-age=300',...(mime==='application/octet-stream'?{'Content-Disposition':'attachment'}:{})});
+      res.send(file.buffer);return;
+    }
     const auth = { Authorization: `Bearer ${creds.accessToken}` };
     const meta: any = await fetch(`${GRAPH}/${encodeURIComponent(media.providerMediaId)}`, {
       headers: auth,

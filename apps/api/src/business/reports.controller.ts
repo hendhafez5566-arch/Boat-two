@@ -21,11 +21,14 @@ export class ReportsController {
       query,
     );
     return this.db.withTenant(r.user.tenantId, async (c) => {
+      const workspace = await c.query<{timezone:string | null}>("SELECT settings->>'timezone' AS timezone FROM tenants WHERE id=$1", [r.user.tenantId]);
+      let timezone = workspace.rows[0]?.timezone || 'Africa/Cairo';
+      try { new Intl.DateTimeFormat('en', {timeZone:timezone}); } catch { timezone='Africa/Cairo'; }
       const params = [input.from, input.to];
       const rows = async (sql: string) => (await c.query(sql, params)).rows;
-      const daily = await rows(
-        `SELECT date_trunc('day',created_at AT TIME ZONE 'UTC')::date::text AS day,count(*) FILTER(WHERE direction='in')::int AS inbound,count(*) FILTER(WHERE direction='out' AND NOT is_internal)::int AS outbound,count(*) FILTER(WHERE status='failed')::int AS failed FROM messages WHERE created_at >= $1 AND created_at < $2 GROUP BY 1 ORDER BY 1`,
-      );
+      const daily = (await c.query(
+        `SELECT date_trunc('day',created_at AT TIME ZONE $3)::date::text AS day,count(*) FILTER(WHERE direction='in')::int AS inbound,count(*) FILTER(WHERE direction='out' AND NOT is_internal)::int AS outbound,count(*) FILTER(WHERE status='failed')::int AS failed FROM messages WHERE created_at >= $1 AND created_at < $2 GROUP BY 1 ORDER BY 1`, [...params, timezone],
+      )).rows;
       const channels = await rows(
         `SELECT ch.name,ch.type,count(m.id)::int AS messages,count(m.id) FILTER(WHERE m.direction='in')::int AS inbound,count(m.id) FILTER(WHERE m.direction='out' AND NOT m.is_internal)::int AS outbound,count(m.id) FILTER(WHERE m.status='failed')::int AS failed FROM channels ch LEFT JOIN messages m ON m.channel_id=ch.id AND m.created_at >= $1 AND m.created_at < $2 GROUP BY ch.id ORDER BY messages DESC`,
       );
@@ -58,7 +61,7 @@ export class ReportsController {
       );
       return {
         range: input,
-        timezone: 'UTC',
+        timezone,
         daily,
         channels,
         employees,
@@ -74,3 +77,4 @@ export class ReportsController {
     });
   }
 }
+

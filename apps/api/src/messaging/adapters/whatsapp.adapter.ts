@@ -4,11 +4,21 @@ import { ChannelAdapter, GRAPH, graphPost } from './adapter';
 
 @Injectable()
 export class WhatsAppAdapter implements ChannelAdapter {
+  async typing(creds:Record<string,string>,_to:string,context?:{lastInboundMessageId?:string}){
+    if(!context?.lastInboundMessageId)return false;
+    await graphPost(`${GRAPH}/${creds.phoneNumberId}/messages`,creds.accessToken,{messaging_product:'whatsapp',status:'read',message_id:context.lastInboundMessageId,typing_indicator:{type:'text'}});
+  }
   async send(creds: Record<string, string>, to: string, c: MessageContent) {
     const base = { messaging_product: 'whatsapp', recipient_type: 'individual', to };
     let payload: Record<string, unknown>;
+    const header = c.header?.type === 'text' ? {type:'text',text:c.header.text}
+      : c.header?.type === 'image' ? {type:'image',image:{link:c.header.url}}
+      : c.media?.kind === 'image' && c.media.url ? {type:'image',image:{link:c.media.url}} : undefined;
+    const decorations = { ...(header ? {header} : {}), ...(c.footer ? {footer:{text:c.footer}} : {}) };
 
-    if (c.template) {
+    if(c.product||c.productList||c.whatsappFlow){
+      payload={...base,type:'interactive',interactive:c.product?{type:'product',body:{text:c.text},action:{catalog_id:c.product.catalogId,product_retailer_id:c.product.retailerId}}:c.productList?{type:'product_list',header:{type:'text',text:'Products'},body:{text:c.text},action:{catalog_id:c.productList.catalogId,sections:c.productList.sections.map(s=>({title:s.title,product_items:s.retailerIds.map(id=>({product_retailer_id:id}))}))}}:{type:'flow',body:{text:c.text},action:{name:'flow',parameters:{flow_message_version:'3',flow_token:c.whatsappFlow!.token,flow_id:c.whatsappFlow!.flowId,flow_cta:c.whatsappFlow!.cta,flow_action:'navigate',flow_action_payload:{screen:c.whatsappFlow!.screen,data:c.whatsappFlow!.data??{}}}}}};
+    } else if (c.template) {
       payload = {
         ...base,
         type: 'template',
@@ -58,12 +68,27 @@ export class WhatsAppAdapter implements ChannelAdapter {
           ],
         },
       };
+    } else if (c.cta) {
+      payload = {
+        ...base,
+        type: 'interactive',
+        interactive: {
+          type: 'cta_url',
+          ...decorations,
+          ...(c.media?.kind === 'image' && c.media.url
+            ? { header: { type: 'image', image: { link: c.media.url } } }
+            : {}),
+          body: { text: c.text },
+          action: { name: 'cta_url', parameters: { display_text: c.cta.text, url: c.cta.url } },
+        },
+      };
     } else if (c.list) {
       payload = {
         ...base,
         type: 'interactive',
         interactive: {
           type: 'list',
+          ...decorations,
           body: { text: c.text },
           action: {
             button: c.list.buttonText,
@@ -80,13 +105,17 @@ export class WhatsAppAdapter implements ChannelAdapter {
         type: 'interactive',
         interactive: {
           type: 'button',
+          ...decorations,
+          ...(c.media?.kind === 'image' && c.media.url
+            ? { header: { type: 'image', image: { link: c.media.url } } }
+            : {}),
           body: { text: c.text },
           action: {
             buttons: c.buttons.map((b) => ({ type: 'reply', reply: { id: b.id, title: b.title } })),
           },
         },
       };
-    } else if (c.media) {
+    } else if (c.media && !c.buttons?.length) {
       const m = c.media;
       const type = m.kind === 'file' ? 'document' : m.kind;
       payload = {

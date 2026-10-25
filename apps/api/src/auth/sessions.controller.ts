@@ -15,8 +15,8 @@ export class SessionsController {
   @Get() async list(@Req() r: AuthedRequest) {
     return (
       await this.db.query(
-        'SELECT id,tenant_id,created_at,expires_at FROM refresh_tokens WHERE user_id=$1 AND revoked_at IS NULL AND expires_at>now() ORDER BY created_at DESC LIMIT 100',
-        [r.user.userId],
+        'SELECT id,tenant_id,created_at,expires_at,revoked_at,device_label,last_seen_at,(id=$2::uuid) AS is_current FROM refresh_tokens WHERE user_id=$1 ORDER BY created_at DESC LIMIT 100',
+        [r.user.userId,r.user.sessionId??null],
       )
     ).rows;
   }

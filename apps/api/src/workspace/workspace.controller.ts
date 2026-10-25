@@ -21,6 +21,8 @@ import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
 import { DatabaseService } from '../database/database.service';
 import { PlansService } from '../plans/plans.service';
+import {env} from '../config/env';
+import {connectionHealth} from '../messaging/connection-health';
 
 const inviteSchema = z.object({
   email: z.string().email(),
@@ -55,9 +57,21 @@ export class WorkspaceController {
         (SELECT count(*)::int FROM flows) AS flows,
         (SELECT count(*)::int FROM messages WHERE created_at>=date_trunc('month',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AND direction='out' AND NOT is_internal) AS messages_per_month`)
       ).rows[0];
-      return { tenant, role: req.user.role, plan, usage: { agents, ...counts } };
+      const ai=(await c.query('SELECT enabled FROM ai_settings')).rows[0];
+      const aiEnabled=!!ai?.enabled&&env.AI_PROVIDER_CALLS_ENABLED==='true';
+      const tokens=aiEnabled?(await c.query("SELECT COALESCE(sum(input_tokens+output_tokens),0)::text AS n FROM ai_usage WHERE period=date_trunc('month',now())::date")).rows[0].n:undefined;
+      return { tenant, role: req.user.role, plan, aiEnabled,usage: { agents, ...counts,...(aiEnabled?{ai_tokens:tokens}:{}) } };
     });
   }
+
+  @Get('workspace/overview')
+  overview(@Req() req:AuthedRequest){return this.db.withTenant(req.user.tenantId,async c=>{
+    const channels=(await c.query('SELECT id,type,name,status,settings FROM channels ORDER BY created_at')).rows.map(row=>({...row,health:connectionHealth(row)}));
+    const growth=(await c.query("SELECT day::date::text AS day,(SELECT count(*)::int FROM contacts WHERE created_at>=day AND created_at<day+interval '1 day') AS contacts,(SELECT count(*)::int FROM messages WHERE created_at>=day AND created_at<day+interval '1 day' AND direction='out' AND NOT is_internal) AS messages FROM generate_series((now() AT TIME ZONE 'UTC')::date-13,(now() AT TIME ZONE 'UTC')::date,interval '1 day') day")).rows;
+    const delivery=(await c.query("SELECT status,count(*)::int AS count FROM messages WHERE direction='out' AND NOT is_internal AND created_at>=now()-interval '30 days' GROUP BY status")).rows;
+    const drafts=(await c.query("SELECT id,name,status FROM flows ORDER BY updated_at DESC LIMIT 5")).rows;
+    return{channels,growth,delivery,drafts,timezone:'UTC'};
+  });}
 
   @Roles('owner', 'admin')
   @Patch('workspace')

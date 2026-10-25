@@ -1,0 +1,311 @@
+/* ═══════════════════════════════════════════════════════════════════
+   Flow builder — responsive layer (phone / tablet / laptop).
+   Loaded last on purpose: it supersedes the older per-breakpoint rules
+   in globals.css and design-system.css for the builder only.
+   Layout model
+     ≥ 1100px   inspector docked on the side, 360px
+     701–1099   inspector = slide-over drawer, canvas keeps full width
+     ≤ 700px    inspector = bottom sheet, "+" becomes a floating button
+   ═══════════════════════════════════════════════════════════════════ */
+
+.premium-builder {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+}
+.builder-main { position: relative; min-width: 0; }
+.builder-canvas { min-width: 0; touch-action: none; }
+
+/* ── Toolbar ───────────────────────────────────────────────────── */
+.builder-toolbar { align-items: center; gap: 8px; }
+.builder-toolbar .builder-title { min-width: 0; flex: 1 1 140px; max-width: 280px; text-overflow: ellipsis; }
+.tb-more { position: relative; margin-inline-start: auto; }
+.builder-toolbar .tb-more-btn {
+  width: 38px; height: 38px; padding: 0; display: grid; place-items: center;
+  font-size: 1.3rem; line-height: 1; font-weight: 700;
+}
+.tb-more-scrim { position: fixed; inset: 0; z-index: 70; }
+.tb-more-menu {
+  position: absolute; z-index: 71; top: calc(100% + 6px); inset-inline-end: 0;
+  min-width: 210px; padding: 8px; display: flex; flex-direction: column; gap: 4px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: var(--shadow-lg);
+}
+.builder-toolbar .tb-more-menu button,
+.builder-toolbar .tb-more-menu label {
+  display: flex !important; align-items: center; gap: 8px; width: 100%;
+  min-height: 42px; padding: 8px 12px; border: 0; border-radius: 10px;
+  background: transparent; font-size: 0.9rem; text-align: start; cursor: pointer;
+}
+.builder-toolbar .tb-more-menu button:hover:not(:disabled),
+.builder-toolbar .tb-more-menu label:hover { background: var(--primary-soft); }
+
+/* ── Inspector: docked on laptop/desktop ───────────────────────── */
+.inspector-scrim, .sheet-head { display: none; }
+@media (min-width: 1100px) {
+  .builder-inspector { width: 360px !important; flex: 0 0 360px; }
+}
+
+/* ── Inspector: drawer + sheet below 1100px ────────────────────── */
+@media (max-width: 1099px) {
+  .builder-toolbar { flex-wrap: nowrap; overflow: visible; padding: 8px 12px; }
+  .builder-save-status { display: none; }
+  .builder-main .builder-minimap, .react-flow__minimap { display: none !important; }
+
+  .inspector-scrim {
+    display: block; position: fixed; inset: 0; z-index: 58;
+    background: rgba(15, 22, 48, 0.38); opacity: 0; pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .inspector-scrim[data-open='true'] { opacity: 1; pointer-events: auto; }
+
+  .builder-main .builder-inspector {
+    display: flex !important; position: fixed; z-index: 60;
+    top: 0; bottom: 0; inset-inline-end: 0; inset-inline-start: auto;
+    width: min(420px, 92vw) !important; max-width: none; height: auto;
+    border: 0; border-inline-start: 1px solid var(--line);
+    box-shadow: var(--shadow-lg);
+    transform: translateX(105%); visibility: hidden;
+    transition: transform 0.24s ease, visibility 0s linear 0.24s;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  [dir='rtl'] .builder-main .builder-inspector { transform: translateX(-105%); }
+  .builder-main .builder-inspector[data-open='true'] {
+    transform: none; visibility: visible; transition: transform 0.24s ease;
+  }
+  .sheet-head { display: flex; align-items: center; justify-content: flex-end; padding: 6px 8px 0; }
+  .sheet-grip { display: none; }
+  .sheet-close {
+    width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+    color: var(--muted); font-size: 1rem; cursor: pointer;
+  }
+  .sheet-close:hover { background: var(--primary-soft); color: var(--ink); }
+}
+
+/* ── Phone: bottom sheet ───────────────────────────────────────── */
+@media (max-width: 700px) {
+  .builder-main .builder-inspector {
+    top: auto; bottom: 0; inset-inline: 0; width: 100% !important;
+    height: min(74dvh, 680px); border: 0; border-top: 1px solid var(--line);
+    border-radius: 20px 20px 0 0; transform: translateY(105%) !important;
+  }
+  .builder-main .builder-inspector[data-open='true'] { transform: none !important; }
+  .sheet-head { position: relative; justify-content: center; padding: 8px 8px 0; }
+  .sheet-grip { display: block; width: 40px; height: 4px; border-radius: 4px; background: var(--line-strong, #cbd5e1); }
+  .sheet-close { position: absolute; inset-inline-end: 8px; top: 4px; }
+
+  .builder-toolbar > a { font-size: 0; }
+  .builder-toolbar > a::before { content: '‹'; font-size: 1.7rem; line-height: 1; color: var(--ink); }
+  [dir='rtl'] .builder-toolbar > a::before { content: '›'; }
+  .builder-toolbar .tb-label,
+  .builder-toolbar .builder-preview-toggle,
+  .builder-toolbar .text-orange-600 { display: none; }
+  .builder-toolbar .builder-title { flex: 1 1 0; max-width: none; }
+  .builder-toolbar button { min-height: 38px; }
+
+  /* "+" becomes a floating action button; its menu opens upward. */
+  .builder-canvas .add-step {
+    display: block; top: auto; bottom: calc(16px + env(safe-area-inset-bottom, 0));
+    inset-inline-start: auto; inset-inline-end: 16px; z-index: 14;
+  }
+  .builder-canvas .add-step-btn { height: 52px; padding-inline: 20px; border-radius: 26px; box-shadow: var(--shadow-lg); }
+  .builder-canvas .add-step-menu {
+    position: absolute; bottom: calc(100% + 10px); inset-inline-end: 0; margin: 0;
+    width: min(300px, calc(100vw - 32px)); max-height: 55dvh;
+  }
+  /* Start card: compact pill instead of a 230px card covering the canvas. */
+  .builder-canvas .start-card {
+    display: flex; top: 10px; inset-inline: 10px; width: auto; flex-direction: row;
+    align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px;
+  }
+  .builder-canvas .start-card-list { display: none; }
+  .builder-canvas .start-card strong { flex: 1; font-size: 0.82rem; }
+  .builder-mobile-tools { display: flex; gap: 8px; padding: 8px 12px; }
+  .builder-mobile-tools button { flex: 1; min-height: 40px; }
+  .builder-mobile-tools button[aria-pressed='true'] { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
+  .bot-tabs { padding: 0 8px; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+  .react-flow__controls { margin-bottom: 84px; }
+}
+
+/* ── Tablet ────────────────────────────────────────────────────── */
+@media (min-width: 701px) and (max-width: 1099px) {
+  .builder-canvas .start-card { width: 210px; }
+  .builder-canvas .add-step { top: 14px; }
+  /* Preview floats over the canvas instead of squeezing it. */
+  .builder-main .builder-preview[data-open='true'] {
+    position: fixed; z-index: 55; top: 0; bottom: 0; inset-inline-start: 0;
+    width: 360px; max-width: 92vw; flex: none; box-shadow: var(--shadow-lg);
+  }
+}
+
+/* ── Inspector content ─────────────────────────────────────────── */
+.builder-inspector [role='tablist'] { position: sticky; top: 0; z-index: 2; background: var(--surface); border-bottom: 1px solid var(--line); }
+.builder-inspector [role='tab'] { padding: 12px 10px; font-size: 0.88rem; }
+.builder-inspector [role='tab'] { min-height: 46px; }
+.builder-inspector [role='tab'][aria-selected='true'] { color: var(--primary); border-bottom: 2px solid var(--primary); font-weight: 700; }
+.flow-inspector-content > div:first-child { flex-wrap: wrap; gap: 8px; }
+.flow-inspector-content > div:first-child .flex { margin-inline-start: auto; }
+.flow-inspector-content > div:first-child button[class*='text-red'] { border-color: #f3c4c4; background: #fff5f5; }
+.var-picker { flex-wrap: wrap; gap: 6px; padding: 10px 14px; }
+.var-chip { padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); cursor: pointer; }
+.var-chip:hover { border-color: var(--primary); background: var(--primary-soft); }
+.note-field { display: block; margin: 12px 14px 20px; font-size: 0.78rem; color: var(--muted); }
+.note-field textarea { width: 100%; margin-top: 6px; }
+
+/* ── Touch ergonomics ──────────────────────────────────────────── */
+@media (pointer: coarse) {
+  .builder-inspector :where(input:not([type='checkbox']):not([type='radio']), select, textarea) {
+    min-height: 44px; font-size: 16px; /* 16px stops iOS zoom-on-focus */
+  }
+  .builder-inspector :where(button) { min-height: 40px; min-width: 40px; padding-inline: 12px; }
+  .react-flow__controls button { width: 40px; height: 40px; }
+  .react-flow__handle { width: 18px; height: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .builder-main .builder-inspector, .inspector-scrim { transition: none; }
+}
+
+/* ── Nodes: readable, with clear incomplete state ──────────────── */
+.premium-flow-node { width: 280px; font-size: 0.9rem; }
+.premium-flow-node .flow-node-heading strong { font-size: 0.95rem; }
+.premium-flow-node .flow-node-summary { font-size: 0.85rem; color: var(--ink-soft, #52687a); }
+.premium-flow-node .flow-node-port { font-size: 0.8rem; }
+.premium-flow-node .flow-node-port.is-single { text-align: center; padding-bottom: 12px; }
+.premium-flow-node .react-flow__handle { width: 14px; height: 14px; }
+.premium-flow-node.is-incomplete { border-color: #e8a53a; border-style: dashed; background: #fffdf7; }
+.flow-node-empty { color: #a56a00; font-weight: 600; }
+.react-flow__edge-path { stroke-linecap: round; }
+.react-flow__edge.selected .react-flow__edge-path { stroke: var(--primary); }
+.react-flow__controls { box-shadow: var(--shadow-sm); border-radius: 12px; overflow: hidden; }
+
+/* ── Duplicate navigation: the left rail already links these ───── */
+.bot-tabs .bot-tab[href='/dashboard/crm'],
+.bot-tabs .bot-tab[href='/dashboard/inbox'],
+.bot-tabs .bot-tab[href='/dashboard/campaigns'] { display: none; }
+@media (max-width: 700px) {
+  .premium-flow-node { width: 250px; }
+  .react-flow__controls-zoomin, .react-flow__controls-zoomout { display: none; }
+}
+
+/* ── "+" on a link: insert a step between two steps ────────────── */
+.edge-add {
+  position: absolute; pointer-events: all; width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 16px; line-height: 1; font-weight: 700;
+  color: var(--primary); background: var(--surface); border: 1.5px solid var(--primary);
+  cursor: pointer; opacity: 0.85; transition: transform 0.12s ease, opacity 0.12s ease;
+}
+.edge-add:hover, .edge-add:focus-visible { opacity: 1; background: var(--primary); color: #fff; }
+@media (pointer: coarse) { .edge-add { width: 32px; height: 32px; font-size: 20px; } }
+
+/* ── System-wide safety nets (all dashboard pages) ─────────────── */
+img, video, canvas, svg { max-width: 100%; }
+.product-main, .product-content, main { min-width: 0; }
+@media (max-width: 900px) {
+  /* Wide tables scroll sideways instead of stretching the page. */
+  .product-table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .product-table th, .product-table td { white-space: nowrap; }
+}
+@media (max-width: 700px) {
+  [role='dialog'] { max-width: 100vw; max-height: 100dvh; }
+  :where(input, select, textarea) { font-size: max(16px, 1em); }
+}
+
+.menu-scrim { position: fixed; inset: 0; z-index: -1; }
+
+/* Contextual details must release canvas space on desktop as well. */
+@media (min-width: 1100px) {
+  .builder-main .builder-inspector[data-open='false'] { display: none !important; }
+  .builder-main .builder-inspector .sheet-head { display: flex; justify-content: flex-end; }
+}
+
+/* Larger pointer targets without enlarging the visible port dot. */
+.premium-builder .react-flow__handle::after { content: ''; position: absolute; inset: -6px; border-radius: 50%; }
+
+.premium-builder:fullscreen { background: var(--surface, white); width: 100%; height: 100dvh; }
+.premium-builder[data-focus='true'] .bot-tabs { display: none; }
+
+/* Smart Flow Editor 2.0: shared task forms and dedicated phone surface. */
+@media (min-width:1100px) {
+  .builder-main .builder-inspector { width:clamp(380px,31vw,460px)!important; flex:0 0 clamp(380px,31vw,460px); }
+}
+.builder-inspector { min-width:0; overflow:hidden; color:#162641; }
+.builder-main .builder-inspector .sheet-head { display:flex; flex:none; align-items:center; justify-content:space-between; gap:8px; padding:12px 16px; border-bottom:1px solid #d7e0ec; background:#fff; }
+.sheet-head strong { font-size:18px; }
+.smart-back-label { font-size:13px; color:#334e73; }
+.builder-inspector :where(input:not([type='checkbox']):not([type='radio']),textarea,select) { width:100%; min-width:0; max-width:100%; min-height:44px; border:1px solid #aab9cc; border-radius:9px; padding:10px; font-size:14px; background:white; color:#162641; }
+.builder-inspector :where(button,summary) { min-height:44px; cursor:pointer; }
+.builder-inspector :where(button):disabled { opacity:.45; cursor:not-allowed; }
+.builder-inspector :where(button,input,textarea,select,summary):focus-visible { outline:3px solid #2563eb; outline-offset:2px; }
+.builder-inspector :where(p,legend,label,small) { font-size:14px; color:#334e57; line-height:1.8; }
+.builder-inspector :where(h2,h3) { font-size:17px; font-weight:700; margin-bottom:12px; }
+.builder-inspector .flow-inspector-content { padding:16px!important; }
+.builder-inspector .flow-inspector-content > fieldset { padding:12px; border:1px solid #d7e0ec; border-radius:12px; margin-bottom:16px; }
+.builder-inspector details { border:1px solid #d7e0ec; border-radius:10px; padding:8px 10px; margin-block:10px; }
+.builder-inspector summary { display:list-item; align-content:center; font-size:14px; font-weight:600; }
+.smart-section { padding:16px 0; border-bottom:1px solid #d7e0ec; min-width:0; }
+.smart-section:first-child { padding-top:0; }
+.smart-section label,.smart-drill label { display:block; margin-block:12px; font-weight:600; }
+.smart-section label :where(input,textarea,select),.smart-drill label :where(input,textarea) { margin-top:6px; font-weight:400; }
+.smart-section button,.smart-drill > button { padding:8px 12px; border:1px solid #bbc9dc; border-radius:9px; background:white; text-align:start; }
+.smart-chat { padding:14px; margin-block:16px; border-radius:12px; background:#edf3f7; }
+.smart-chat > span { display:block; font-size:13px; color:#43576d; margin-bottom:10px; }
+.smart-bubble { background:white; border:1px solid #c5d6cd; border-radius:12px 12px 2px 12px; padding:14px; white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.9; font-size:16px; }
+.smart-segments { display:flex; gap:6px; margin-block:12px; }
+.smart-segments button { flex:1; text-align:center; }
+.smart-segments button[aria-pressed='true'] { background:#e7efff; border-color:#2563eb; color:#173e8a; font-weight:700; }
+.smart-choice { border:1px solid #c6d3e3; border-radius:12px; margin-block:12px; background:#fff; overflow:hidden; }
+.smart-choice .smart-choice-main { display:flex; flex-direction:column; width:100%; border:0; gap:6px; padding:16px; }
+.smart-choice-main strong { font-size:16px; }
+.smart-choice-main span { font-size:13px; color:#334e73; }
+.smart-choice-tools { display:flex; align-items:center; gap:8px; padding:0 12px 10px; flex-wrap:wrap; }
+.smart-choice-tools details { margin:0; padding:0 10px; }
+.smart-action-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-block:12px; }
+.smart-action-grid button { display:flex; align-items:center; gap:8px; min-height:68px; font-size:14px; overflow-wrap:anywhere; }
+.smart-actions h4 { margin-top:14px; font-weight:600; }
+.smart-connected { color:#15623f!important; }
+.smart-unconnected { color:#80520c!important; }
+.smart-variable-picker { display:flex; flex-wrap:wrap; gap:8px; padding-block:12px; }
+.smart-next-steps { margin-top:20px; }
+.smart-editor-footer { display:flex; flex:none; align-items:center; gap:8px; padding:12px 16px; padding-bottom:max(12px,env(safe-area-inset-bottom)); border-top:1px solid #d7e0ec; background:white; }
+.smart-editor-footer span { flex:1; font-size:13px; }
+.smart-editor-footer button { border:1px solid #9ab0cd; border-radius:10px; padding:8px 16px; }
+.smart-editor-footer .smart-primary { color:white; background:#1d4ed8; border-color:#1d4ed8; }
+@media (min-width:701px) and (max-width:1099px) {
+  .builder-main .builder-inspector { width:min(460px,90vw)!important; }
+}
+@media (max-width:700px) {
+  .builder-main .builder-inspector { top:0!important; bottom:0!important; inset-inline:0!important; width:100%!important; max-width:100vw!important; height:100dvh!important; border-radius:0!important; padding-top:env(safe-area-inset-top); box-shadow:none; z-index:100; }
+  .builder-main .builder-inspector .sheet-head { justify-content:space-between; }
+  .builder-inspector .sheet-close { position:static; flex:none; }
+  .builder-inspector :where(input:not([type='checkbox']):not([type='radio']),textarea,select) { font-size:16px!important; }
+  .builder-inspector :where(button,summary) { min-height:44px; }
+  .builder-inspector .smart-action-grid { grid-template-columns:1fr; }
+  .inspector-scrim { display:none!important; }
+  .premium-builder:has(.builder-inspector[data-open='true']) :where(.react-flow__minimap,.builder-mobile-tools) { visibility:hidden; }
+  .smart-editor-footer { flex-wrap:wrap; }
+  .smart-editor-footer span { min-width:100px; }
+}
+.smart-step-hint { display:block!important; font-size:13px!important; font-weight:400; color:#43576d!important; white-space:normal; line-height:1.6; margin-top:4px; }
+.smart-question-heading { width:100%; text-align:start; padding:12px; font-size:16px; font-weight:600; border-radius:8px; background:#eef3ff; }
+.smart-answer-destination { margin-block:16px; }
+.smart-answer-destination > label { display:block; font-size:14px; font-weight:600; }
+.smart-step-intro { padding:12px; background:#eef3ff; border-radius:10px; margin-bottom:16px; }
+.smart-review-back { margin:8px 12px; padding:10px 16px; min-height:44px; border:1px solid #abbdd3; border-radius:8px; background:white; }
+.smart-review-label { margin:8px 12px; color:#334e73; font-size:14px; }
+@media (max-width:700px) {
+  .premium-builder .builder-toolbar { flex-wrap:wrap; max-width:100%; }
+  .premium-builder .builder-title { min-width:100px; }
+  .premium-builder .builder-toolbar .tb-more { margin-inline-start:0; }
+  .premium-builder .builder-main { overflow:hidden; }
+}
+.builder-inspector .smart-destructive-menu { position:relative; flex:none; border:0; padding:0; margin:0; }
+.smart-destructive-menu summary { min-width:44px; list-style:none; text-align:center; border:1px solid #bdcbdc; border-radius:8px; }
+.smart-destructive-menu[open] > button { position:absolute; inset-inline-end:0; top:100%; z-index:5; min-width:90px; min-height:44px; background:#fff; border:1px solid #b45454; }
+@media (min-width:701px) and (max-width:1099px) {
+  .premium-builder .builder-toolbar { flex-wrap:wrap; max-width:100%; }
+  .premium-builder .builder-title { min-width:100px; }
+}
+
+/* Keep absolute screen-reader labels within the scrollable tab strip. */
+.premium-builder .bot-tabs, .premium-builder .bot-tab {position:relative;}

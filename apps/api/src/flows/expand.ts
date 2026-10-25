@@ -48,5 +48,5 @@ export async function expandSubflows(
     if (!node.edges.next) output.push({ id: next, type: 'end', data: {}, edges: {} });
     if (output.length > 300) throw new BadRequestException('Expanded flow exceeds 300 nodes');
   }
-  return { startNodeId: prefix + graph.startNodeId, nodes: output };
+  return { startNodeId: prefix + graph.startNodeId, nodes: output, ...(!prefix && graph.policy ? { policy: structuredClone(graph.policy) } : {}) };
 }

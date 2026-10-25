@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException,Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DatabaseService } from '../database/database.service';
 import { pickLeastLoaded } from './assignment';
@@ -12,12 +12,13 @@ export class AssignmentService {
 
   async getSettings(tenantId: string) {
     return this.db.withTenant(tenantId, async (c) => {
-      const r = (await c.query('SELECT auto_assign, max_open_per_agent FROM inbox_settings')).rows[0];
-      return { auto_assign: r?.auto_assign ?? false, max_open_per_agent: r?.max_open_per_agent ?? 15 };
+      const r = (await c.query('SELECT * FROM inbox_settings')).rows[0];
+      return {signature_enabled:r?.signature_enabled??false,signature_template:r?.signature_template??'— {{agent.name}}',human_session_minutes:r?.human_session_minutes??0,delivery_error_tag:r?.delivery_error_tag??'',sla_escalation_enabled:r?.sla_escalation_enabled??false,escalation_user_id:r?.escalation_user_id??null, auto_assign: r?.auto_assign ?? false, max_open_per_agent: r?.max_open_per_agent ?? 15 };
     });
   }
 
-  async saveSettings(tenantId: string, s: { auto_assign?: boolean; max_open_per_agent?: number }) {
+  async saveSettings(tenantId: string, s: { auto_assign?: boolean; max_open_per_agent?: number;signature_enabled?:boolean;signature_template?:string;human_session_minutes?:number;delivery_error_tag?:string;sla_escalation_enabled?:boolean;escalation_user_id?:string|null }) {
+    return this.db.withTenant(tenantId,async()=>{
     const cur = await this.getSettings(tenantId);
     const m = { ...cur, ...s };
     await this.db.withTenant(tenantId, (c) =>
@@ -27,7 +28,9 @@ export class AssignmentService {
         [tenantId, m.auto_assign, m.max_open_per_agent],
       ),
     );
+    await this.db.withTenant(tenantId,async c=>{if(m.escalation_user_id&&!(await c.query('SELECT 1 FROM memberships WHERE user_id=$1',[m.escalation_user_id])).rowCount)throw new BadRequestException('Escalation employee is not in this workspace');await c.query('UPDATE inbox_settings SET signature_enabled=$1,signature_template=$2,human_session_minutes=$3,delivery_error_tag=$4,sla_escalation_enabled=$5,escalation_user_id=$6,updated_at=now()',[m.signature_enabled,m.signature_template,m.human_session_minutes,m.delivery_error_tag,m.sla_escalation_enabled,m.escalation_user_id]);});
     return m;
+    });
   }
 
   /** أقل موظف متاح انشغالاً. يرجع null لو لا أحد متاح أو الكل وصل للحد الأقصى */

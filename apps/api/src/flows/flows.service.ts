@@ -5,17 +5,21 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { z } from 'zod';
+import {CommerceService} from '../commerce/commerce.service';
+import {GoogleService} from '../integrations/google.service';
+import {valuesCsv} from '../integrations/contracts';
 import { AiService } from '../ai/ai.service';
 import { DatabaseService } from '../database/database.service';
 import { PlansService } from '../plans/plans.service';
 import { FlowEngine, FlowGraph, FlowState, newState, OutContent, validateGraph } from './engine';
-import { createFlowSchema, testFlowSchema, updateFlowSchema } from './flow-schemas';
+import { isAllowedSheetHost } from './engine/sheet';
+import { createFlowSchema, testFlowSchema, updateFlowSchema, flowTransferSchema } from './flow-schemas';
 import { localizedFlowTemplates } from './templates';
 import { expandSubflows } from './expand';
 import { safeHttpRequest } from './http-safe';
 
 const LIST_COLS =
-  'id, name, description, status, priority, triggers, channel_ids, published_version_id, created_at, updated_at';
+  'id, name, description, status, priority, triggers, channel_ids, published_version_id, created_at, updated_at, folder_name';
 
 const defaultGraph = (language: 'ar' | 'en' = 'ar'): FlowGraph => ({
   startNodeId: 'start',
@@ -39,17 +43,63 @@ export class FlowsService {
     private readonly db: DatabaseService,
     private readonly plans: PlansService,
     private readonly ai: AiService,
+    private readonly google?:GoogleService,
+    private readonly commerce?:CommerceService,
   ) {}
 
   list(tenantId: string) {
     return this.db.withTenant(tenantId, async (c) => {
       const r = await c.query(
-        `SELECT f.is_component,f.id, f.name, f.description, f.status, f.priority, f.triggers, f.channel_ids, f.updated_at,
+        `SELECT f.folder_name,f.is_component,f.id, f.name, f.description, f.status, f.priority, f.triggers, f.channel_ids, f.updated_at,
                 v.version AS published_version
          FROM flows f LEFT JOIN flow_versions v ON v.id = f.published_version_id
          ORDER BY f.updated_at DESC`,
       );
       return r.rows;
+    });
+  }
+
+  errors(tenantId: string, id: string) {
+    return this.db.withTenant(tenantId, async c => (await c.query(
+      'SELECT id,status,error,created_at,updated_at FROM flow_sessions WHERE flow_id=$1 AND error IS NOT NULL ORDER BY updated_at DESC LIMIT 50',[id],
+    )).rows);
+  }
+
+  /** إحصائيات كل خطوة: الحالة تتحدّث من webhooks التسليم (delivered/read/failed) في جدول الرسائل */
+  stats(tenantId: string, id: string) {
+    return this.db.withTenant(tenantId, async (c) => {
+      const r = await c.query(
+        `SELECT m.flow_node_id AS node_id,
+                count(*) FILTER (WHERE m.status IN ('sent','delivered','read'))::int AS sent,
+                count(*) FILTER (WHERE m.status IN ('delivered','read'))::int AS delivered,
+                count(DISTINCT cv.contact_id)::int AS subscribers,
+                count(*) FILTER (WHERE m.status = 'failed')::int AS errors
+           FROM messages m JOIN conversations cv ON cv.id = m.conversation_id
+          WHERE m.flow_id = $1 AND m.direction = 'out' AND m.flow_node_id IS NOT NULL
+          GROUP BY m.flow_node_id`,
+        [id],
+      );
+      return Object.fromEntries(
+        r.rows.map((x: { node_id: string; sent: number; delivered: number; subscribers: number; errors: number }) => [x.node_id, { sent: x.sent, delivered: x.delivered, subscribers: x.subscribers, errors: x.errors }]),
+      ) as Record<string, { sent: number; delivered: number; subscribers: number; errors: number }>;
+    });
+  }
+
+  /** نقرات كل زر/صف قائمة: المفتاح `${nodeId}:${optionId}` */
+  buttonStats(tenantId: string, id: string) {
+    return this.db.withTenant(tenantId, async (c) => {
+      const r = await c.query(
+        `SELECT node_id, option_id, count(*)::int AS clicks, count(DISTINCT contact_id)::int AS subscribers,
+                count(*) FILTER (WHERE errored)::int AS errors
+           FROM flow_button_clicks WHERE flow_id = $1 GROUP BY node_id, option_id`,
+        [id],
+      );
+      return Object.fromEntries(
+        r.rows.map((x: { node_id: string; option_id: string; clicks: number; subscribers: number; errors: number }) => [
+          `${x.node_id}:${x.option_id}`,
+          { clicks: x.clicks, subscribers: x.subscribers, errors: x.errors },
+        ]),
+      ) as Record<string, { clicks: number; subscribers: number; errors: number }>;
     });
   }
 
@@ -118,6 +168,7 @@ export class FlowsService {
            triggers = COALESCE($6::jsonb, triggers),
            channel_ids = COALESCE($7::uuid[], channel_ids),
            draft_graph = COALESCE($8::jsonb, draft_graph),
+           folder_name = CASE WHEN $9::boolean THEN $10::text ELSE folder_name END,
            updated_at = now()
          WHERE id = $1 RETURNING ${LIST_COLS}`,
         [
@@ -129,6 +180,8 @@ export class FlowsService {
           input.triggers ? JSON.stringify(input.triggers) : null,
           input.channelIds ?? null,
           input.graph ? JSON.stringify(input.graph) : null,
+          input.folderName !== undefined,
+          input.folderName ?? null,
         ],
       );
       if (!r.rows[0]) throw new NotFoundException('Flow not found');
@@ -138,6 +191,26 @@ export class FlowsService {
 
   validate(graph: FlowGraph) {
     return validateGraph(graph);
+  }
+
+  private async prepareAlternate(tenantId:string,id:string,graph:FlowGraph){const alternateId=graph.policy?.businessHours?.offHoursFlowId;if(!alternateId)return;if(alternateId===id)throw new BadRequestException('Off-hours bot must be a different published flow');const alt=await this.db.withTenant(tenantId,async c=>(await c.query("SELECT v.graph FROM flows f JOIN flow_versions v ON v.id=f.published_version_id WHERE f.id=$1 AND f.status='published'",[alternateId])).rows[0]);if(!alt||alt.graph.policy?.businessHours?.offHoursFlowId)throw new BadRequestException('Choose a published off-hours bot without recursive routing');graph.policy!.businessHours!.offHoursGraph=await expandSubflows(alt.graph,async()=>{throw new BadRequestException('Published subflow must already be expanded');},[],'offhours__');}
+
+  async resetActions(tenantId:string,id:string,expectedUpdatedAt:string){const current=await this.get(tenantId,id);const graph=structuredClone(current.draft_graph) as FlowGraph;for(const node of graph.nodes){for(const button of node.data.buttons??[])delete button.actions;for(const section of node.data.list?.sections??[])for(const row of section.rows??[])delete row.actions;}return this.update(tenantId,id,{expectedUpdatedAt,graph:graph as z.infer<typeof updateFlowSchema>['graph']});}
+
+  async exportFlow(tenantId: string, id: string) {
+    const flow = await this.get(tenantId, id);
+    return flowTransferSchema.parse({ format: 'boat-two-flow', version: 1, name: flow.name, description: flow.description, graph: flow.draft_graph, triggers: flow.triggers });
+  }
+
+  async importFlow(tenantId: string, userId: string, input: z.infer<typeof flowTransferSchema>) {
+    const graph = input.graph as FlowGraph;
+    const { errors } = validateGraph(graph);
+    if (errors.length) throw new BadRequestException({ code:'FLOW_INVALID', errors });
+    return this.db.withTenant(tenantId, async () => {
+      const flow = await this.create(tenantId, userId, { language:'ar', isComponent:false, name:input.name, description:input.description ?? undefined });
+      await this.update(tenantId, flow.id, { graph:input.graph, triggers:input.triggers });
+      return this.get(tenantId, flow.id);
+    });
   }
 
   publish(tenantId: string, userId: string, id: string, expected?: string) {
@@ -153,6 +226,7 @@ export class FlowsService {
         throw new ConflictException('Draft changed before publishing');
 
       const expanded = await this.expand(tenantId, f.draft_graph, id);
+      await this.prepareAlternate(tenantId,id,expanded);
       const { errors, warnings } = validateGraph(expanded);
       if (!(f.triggers ?? []).length)
         errors.push({ message: 'Add at least one trigger before publishing' });
@@ -292,11 +366,21 @@ export class FlowsService {
   async test(tenantId: string, id: string, input: z.infer<typeof testFlowSchema>) {
     const flow = await this.get(tenantId, id);
     const graph = await this.expand(tenantId, flow.draft_graph as FlowGraph, id);
+    await this.prepareAlternate(tenantId,id,graph);
     const state = (input.state as FlowState | undefined) ?? newState();
     const transcript: { role: 'bot' | 'system'; content: OutContent | string }[] = [];
-    const attrs: Record<string, unknown> = {};
+    const attrs: Record<string, unknown> = { ...(input.contactAttributes ?? {}) };
 
     const engine = new FlowEngine(graph, {
+      setContactField:async(key,value)=>{attrs['system.'+key]=value;transcript.push({role:'system',content:`MOCK system field ${key}: ${value}`});},
+      productContent:async(id,native)=>{if(!this.commerce)throw new Error('Commerce unavailable');transcript.push({role:'system',content:'MOCK product preview; no external delivery'});return this.commerce.productContent(tenantId,id,native);},
+      catalogContent:async(ids,native,text,selectable)=>{if(!this.commerce)throw new Error('Commerce unavailable');transcript.push({role:'system',content:'MOCK catalog preview; no external delivery'});return this.commerce.catalogContent(tenantId,ids,native,text,selectable);},
+      bookAppointment:async(serviceId,start)=>{transcript.push({role:'system',content:'MOCK booking — not persisted; no Calendar request'});return{mock:true,persisted:false,serviceId,start};},
+      readGoogleSheet:async(connectionId,spreadsheetId,range)=>{if(!input.allowHttp){transcript.push({role:'system',content:'MOCK private Google Sheet read: no request sent, empty fixture'});return '';}if(!this.google)throw new Error('Google reader unavailable');const result=await this.google.execute(tenantId,connectionId,{operation:'sheet_read',spreadsheetId,range}) as {data?:{values?:unknown[][]}};return valuesCsv(result.data?.values??[]);},
+      executeButtonAction: async (action, occurrence) => {
+        if (action.type === 'set_field') attrs[action.key] = action.value;
+        transcript.push({ role: 'system', content: `MOCK action ${occurrence}: ${JSON.stringify(action)} — no external delivery or database change` });
+      },
       ai: async (req) => {
         const r = await this.ai.playground(tenantId, req.text);
         transcript.push({
@@ -307,7 +391,14 @@ export class FlowsService {
       },
       send: async (content) => void transcript.push({ role: 'bot', content }),
       http: async (spec) => {
-        if (!input.allowHttp) {
+        // قراءة Google Sheet العام GET فقط ومن مضيف Google فقط، فنسمح بها في وضع التجربة ليرى المستخدم النتيجة الحقيقية
+        let sheetRead = false;
+        try {
+          sheetRead = spec.method === 'GET' && isAllowedSheetHost(new URL(spec.url).hostname);
+        } catch {
+          /* رابط غير صالح: يتبع مسار التخطي */
+        }
+        if (!input.allowHttp && !sheetRead) {
           transcript.push({
             role: 'system',
             content: `HTTP ${spec.method} ${spec.url} (skipped in test mode)`,
@@ -317,18 +408,24 @@ export class FlowsService {
         return safeHttpRequest(spec);
       },
       setContactAttribute: async (k, v) => void (attrs[k] = v),
+      updateTags: async ({ add, remove }) =>
+        void transcript.push({
+          role: 'system',
+          content: `Tags +[${add.join(', ')}] -[${remove.join(', ')}]`,
+        }),
+      addNote: async (body) => void transcript.push({ role: 'system', content: `Internal note: ${body}` }),
       handoff: async () =>
         void transcript.push({ role: 'system', content: 'Handed off to a human agent' }),
       closeConversation: async () =>
         void transcript.push({ role: 'system', content: 'Conversation closed' }),
-      now: () => new Date(),
+      now: () => input.simulateAt ? new Date(input.simulateAt) : new Date(),
       random: Math.random,
     });
 
     const ctx = {
-      contact: { name: 'Test User', phone: '+201000000000', email: null, attributes: attrs },
+      contact: { name: String(attrs['system.name']??'Test User'), phone: String(attrs['system.phone']??'+201000000000'), email: attrs['system.email']?String(attrs['system.email']):null, attributes: attrs },
       channel: { type: 'test' },
-      lastMessage: { text: input.text, replyId: input.replyId },
+      lastMessage: { text: input.text, replyId: input.replyId, ...((state.offHours?graph.policy?.businessHours?.offHoursGraph??graph:graph).nodes.find(n=>n.id===state.waiting?.nodeId)?.type==='whatsapp_flow'?{formReply:(()=>{try{return{...JSON.parse(input.text),flow_token:state.waiting?.formToken??`${state.waiting?.nodeId}:${state.totalSteps}`};}catch{return undefined;}})()}:{} ) },
     };
 
     const result = !input.state

@@ -1,4 +1,5 @@
 'use client';
+import AudienceSummary, { Audience } from './AudienceSummary';
 import {
   RichCampaignContent,
   CampaignContentPreview,
@@ -81,11 +82,12 @@ export function CampaignComposer({
     });
   const [templates, setTemplates] = useState<Template[]>([]),
     [loading, setLoading] = useState(false);
-  const [audience, setAudience] = useState<{ matched: number; eligible: number } | null>(null);
+  const [audience, setAudience] = useState<Audience | null>(null);
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
   const review = useRef(0),
     heading = useRef<HTMLHeadingElement>(null);
+  useEffect(()=>{if(channel&&!channels.some(c=>c.id===channel)){setChannel('');setAudience(null);setStep(0);}},[channels,channel]);
   const selectedChannel = channels.find((c) => c.id === channel),
     filters = segments.find((s) => s.id === segment)?.filters || {};
   const selectedTemplate = templates.find((x) => x.name + '|' + x.language === template);
@@ -124,7 +126,7 @@ export function CampaignComposer({
     setBusy(true);
     setError('');
     try {
-      const result = await api<{ matched: number; eligible: number }>('/campaigns/audience', {
+      const result = await api<Audience>('/campaigns/audience', {
         method: 'POST',
         body: JSON.stringify({ channelId: channel, filters }),
       });
@@ -145,18 +147,11 @@ export function CampaignComposer({
     setError('');
     try {
       // Counts are advisory; scheduling and each send still recheck consent and channel policy.
-      const current = await api<{ eligible: number; matched: number }>('/campaigns/audience', {
+      const current = await api<Audience>('/campaigns/audience', {
         method: 'POST',
         body: JSON.stringify({ channelId: channel, filters }),
       });
       setAudience(current);
-      if (!current.eligible)
-        throw new Error(
-          t(
-            'لا يوجد جمهور مؤهل حاليًا. راجع القناة والموافقة.',
-            'No eligible audience now. Review the channel and consent.',
-          ),
-        );
       await api('/campaigns', {
         method: 'POST',
         body: JSON.stringify({
@@ -195,7 +190,7 @@ export function CampaignComposer({
   return (
     <section className="card stack" aria-label={t('إنشاء حملة', 'Create campaign')}>
       <h2 ref={heading} tabIndex={-1}>
-        {t('حملة جديدة', 'New campaign')} · {step + 1}/3
+        {t('حملة جديدة', 'New campaign')} · {t(`الخطوة ${step + 1} من 3`, `Step ${step + 1} of 3`)}
       </h2>
       <ol className="flex flex-wrap gap-3" aria-label={t('خطوات الإنشاء', 'Creation steps')}>
         {labels.map((label, index) => (
@@ -271,16 +266,14 @@ export function CampaignComposer({
             {t('مراجعة الجمهور', 'Review audience')}
           </button>
           {audience && (
-            <p role="status">
-              {audience.eligible} {t('مؤهل من', 'eligible of')} {audience.matched}
-            </p>
+            <><AudienceSummary audience={audience} />{!audience.eligible && <p className="notice">{t('يمكنك متابعة كتابة الرسالة وحفظ مسودة. الجدولة تتطلب جمهورًا مؤهلًا وتظل مستقلة عن الحفظ.','You can compose and save a draft. Scheduling requires an eligible audience and remains separate from saving.')}</p>}</>
           )}
           <button
             className="btn btn-primary"
             disabled={
               !name.trim() ||
               !channel ||
-              !audience?.eligible ||
+              !audience ||
               !Number.isInteger(frequency) ||
               frequency < 1 ||
               frequency > 720 ||

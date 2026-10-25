@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import {nodeSchema} from '../flow-schemas';
 import { isValidTimezone } from './hours';
+import { parseSheetUrl } from './sheet';
 import { FlowGraph, handlesFor, optionsOf } from './types';
 
 export interface Issue {
@@ -30,8 +32,24 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
     }
 
     switch (n.type) {
+      case 'product':
+      case 'catalog':
+      case 'appointment':
+      case 'whatsapp_flow': {
+        const parsed=nodeSchema.safeParse(n);
+        if(!parsed.success)for(const issue of parsed.error.issues)errors.push({nodeId:n.id,message:`${issue.path.join('.')}: ${issue.message}`});
+        if(n.type==='catalog'&&d.selectable&&(d.native||(d.productIds??[]).length>10))errors.push({nodeId:n.id,message:'Selectable catalogs require 1–10 non-native products'});
+        if(n.type==='catalog'&&new Set(d.productIds??[]).size!==(d.productIds??[]).length)errors.push({nodeId:n.id,message:'Catalog products must be unique'});
+        break;
+      }
+      case 'interactive':
       case 'message': {
         const opts = optionsOf(d);
+        if ((d.header || d.footer) && !opts.length) errors.push({nodeId:n.id,message:'Header/footer require interactive choices'});
+        if (d.header && d.media) errors.push({nodeId:n.id,message:'Choose either an explicit header or media'});
+        if (opts.length && String(d.text ?? '').length > 1024) errors.push({nodeId:n.id,message:'Interactive body supports at most 1024 characters'});
+        if (n.type === 'interactive' && !opts.length)
+          errors.push({ nodeId: n.id, message: 'Interactive message needs at least one button or list option' });
         const hasContent = d.text || d.media?.url;
         if (!hasContent) errors.push({ nodeId: n.id, message: 'Message is empty' });
         if (opts.length && !d.text) errors.push({ nodeId: n.id, message: 'Buttons/list require message text' });
@@ -44,11 +62,27 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
         break;
       }
       case 'question':
+        if (d.allowSkip && (d.buttons?.length ?? 0) >= 3) errors.push({ nodeId: n.id, message: 'At most 3 buttons' });
         if (!d.text) errors.push({ nodeId: n.id, message: 'Question text is required' });
         if (!d.saveAs || !/^[A-Za-z_][\w]{0,40}$/.test(d.saveAs))
           errors.push({ nodeId: n.id, message: 'saveAs must be a valid variable name' });
         if (d.answerType === 'regex' && !d.pattern)
           errors.push({ nodeId: n.id, message: 'Regex pattern is required' });
+        break;
+      case 'location':
+        if (!d.lat || !d.lng) errors.push({ nodeId: n.id, message: 'Latitude and longitude are required' });
+        break;
+      case 'cta_url':
+        if (!d.text) errors.push({ nodeId: n.id, message: 'CTA message text is required' });
+        if (!d.buttonText) errors.push({ nodeId: n.id, message: 'Button label is required' });
+        if (!/^https?:\/\//i.test(d.url ?? '') && !String(d.url ?? '').includes('{{'))
+          errors.push({ nodeId: n.id, message: 'URL must start with http:// or https://' });
+        break;
+      case 'sequence':
+        if (!d.sequenceId) errors.push({ nodeId: n.id, message: 'Choose a sequence' });
+        break;
+      case 'template':
+        if (!/^[a-z0-9_]{1,512}$/.test(d.name ?? '')) errors.push({ nodeId: n.id, message: 'Template name is invalid' });
         break;
       case 'condition':
         if (!(d.rules ?? []).length) errors.push({ nodeId: n.id, message: 'Add at least one rule' });
@@ -59,6 +93,14 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
       case 'http_request':
         if (!/^https?:\/\//i.test(d.url ?? '') && !String(d.url ?? '').includes('{{'))
           errors.push({ nodeId: n.id, message: 'URL must start with http:// or https://' });
+        break;
+      case 'sheet_fetch':
+        if (!d.connectionId && !parseSheetUrl(String(d.url ?? '')))
+          errors.push({ nodeId: n.id, message: 'Use a public Google Sheet link (docs.google.com/spreadsheets/...)' });
+        if (String(d.lookupColumn ?? '').trim() && !String(d.lookupValue ?? '').trim())
+          errors.push({ nodeId: n.id, message: 'Lookup value is required when a lookup column is set' });
+        if (!(d.saveAs ?? []).some((m: any) => m?.column && m?.variable))
+          warnings.push({ nodeId: n.id, message: 'No column is saved to a variable' });
         break;
       case 'business_hours':
         if (!d.timezone || !isValidTimezone(d.timezone))
@@ -71,11 +113,53 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
           errors.push({ nodeId: n.id, message: 'Split weights must be positive' });
         break;
       }
+      case 'random_number':
+        if (!Number.isInteger(Number(d.min)) || !Number.isInteger(Number(d.max)) || d.min === '' || d.max === '')
+          errors.push({ nodeId: n.id, message: 'Min and max must be whole numbers' });
+        else if (Number(d.min) > Number(d.max)) errors.push({ nodeId: n.id, message: 'Min must not exceed max' });
+        if (!/^[A-Za-z_][\w]{0,40}$/.test(d.saveAs ?? ''))
+          errors.push({ nodeId: n.id, message: 'saveAs must be a valid variable name' });
+        break;
       case 'ai_reply':
         if (d.maxTurns !== undefined && !(Number(d.maxTurns) >= 1 && Number(d.maxTurns) <= 50))
           errors.push({ nodeId: n.id, message: 'Max turns must be between 1 and 50' });
         if (!n.edges?.handoff && !n.edges?.error)
           warnings.push({ nodeId: n.id, message: 'Connect "handoff" and "error" outputs to a handoff node so customers are never stuck' });
+        break;
+      case 'tag':
+        if (!(d.add ?? []).length && !(d.remove ?? []).length)
+          errors.push({ nodeId: n.id, message: 'Add or remove at least one tag' });
+        break;
+      case 'image':
+      case 'audio':
+      case 'video':
+      case 'file':
+        if (!/^https?:\/\/\S+$/i.test(String(d.url ?? '').trim()) && !/^\{\{[^}]+\}\}/.test(String(d.url ?? '').trim()))
+          errors.push({ nodeId: n.id, message: 'A valid media URL (https://…) is required' });
+        break;
+      case 'user_input': {
+        const qs: any[] = d.questions ?? [];
+        if (!qs.length) errors.push({ nodeId: n.id, message: 'User input flow needs at least one question' });
+        const keys = new Set<string>();
+        for (const q of qs) {
+          if (!String(q.text ?? '').trim()) errors.push({ nodeId: n.id, message: 'Question text is required' });
+          if (!/^[A-Za-z_][\w]{0,40}$/.test(q.saveAs ?? ''))
+            errors.push({ nodeId: n.id, message: 'Custom field key is invalid' });
+          else if (keys.has(q.saveAs)) errors.push({ nodeId: n.id, message: 'Custom field keys must be unique' });
+          else keys.add(q.saveAs);
+          if (q.kind === 'choice') {
+            const o: any[] = q.options ?? [];
+            if (q.allowSkip && o.length >= 10) errors.push({ nodeId: n.id, message: 'Too many options (max 10)' });
+            if (o.length < 2) errors.push({ nodeId: n.id, message: 'Multiple choice needs at least 2 options' });
+            if (new Set(o.map((x) => x.id)).size !== o.length)
+              errors.push({ nodeId: n.id, message: 'Option ids must be unique' });
+          }
+        }
+        break;
+      }
+      case 'note':
+        if (!String(d.body ?? '').trim())
+          errors.push({ nodeId: n.id, message: 'Note text is empty' });
         break;
       case 'set_attribute':
         if (!/^[A-Za-z_][\w]{0,40}$/.test(d.key ?? ''))

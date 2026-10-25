@@ -1,8 +1,13 @@
 'use client';
+import {useChannelContext} from '../../../components/product/useChannelContext';
+import {useData} from '../../../components/business/useData';
+import {channelHref,matchesFlowChannel} from '../../../lib/channel-context';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useLocale } from '../../../components/product/locale';
 import { api, getSession } from '../../../lib/api';
+import { NavIcon } from '../../../components/product/NavIcon';
+import { EmptyState } from '../../../components/product/ProductUI';
 
 type Flow = {
   id: string;
@@ -11,6 +16,8 @@ type Flow = {
   published_version: number | null;
   triggers: { type: string; keywords?: string[] }[];
   updated_at: string;
+  folder_name: string | null;
+  channel_ids:string[];
 };
 
 export default function Flows() {
@@ -33,6 +40,32 @@ export default function Flows() {
   const [busy, setBusy] = useState(false);
   const [items, setItems] = useState<Flow[]>([]);
   const [error, setError] = useState('');
+  const [folder, setFolder] = useState('*');
+  const [search, setSearch] = useState('');
+  const [channelId,setChannelId]=useChannelContext();
+  const channels=useData<{id:string;name:string;type:string}[]>('/channels',[]);
+  const visible = items.filter(f => matchesFlowChannel(f.channel_ids,channelId) && (folder === '*' || (f.folder_name ?? '') === folder) && f.name.toLowerCase().includes(search.toLowerCase()));
+  const folders = [...new Set(items.map(f => f.folder_name).filter((f): f is string => !!f))];
+
+  async function importFile(file: File) {
+    if (busy) return;
+    setBusy(true); setError('');
+    try {
+      if (file.size > 1024 * 1024) throw new Error(t('حجم الملف يتجاوز 1 ميجابايت.', 'File exceeds 1 MB.'));
+      let body: unknown;
+      try { body = JSON.parse(await file.text()); } catch { throw new Error(t('الملف ليس JSON صالحًا.', 'File is not valid JSON.')); }
+      const flow = await api<{id:string}>('/flows/import', { method:'POST', body:JSON.stringify(body) });
+      window.location.assign(`/dashboard/flows/${flow.id}`);
+    } catch(e) { setError((e as Error).message); } finally { setBusy(false); }
+  }
+  async function exportFlow(flow: Flow) {
+    if (busy) return; setBusy(true); setError('');
+    try {
+      const body = await api(`/flows/${flow.id}/export`);
+      const url=URL.createObjectURL(new Blob([JSON.stringify(body,null,2)], {type:'application/json'}));
+      const a=document.createElement('a');a.href=url;a.download=`boat-flow-${flow.id}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    } catch(e) { setError((e as Error).message); } finally { setBusy(false); }
+  }
 
   const load = () =>
     api<Flow[]>('/flows')
@@ -76,122 +109,170 @@ export default function Flows() {
     load();
   };
 
+  const published = items.filter((f) => f.status === 'published').length;
   return (
     <main className="stack">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">{t('استوديو البوت', 'BOT STUDIO')}</p>
           <h1>{t('مصمم البوت', 'Bot builder')}</h1>
           <p>
             {t(
-              'ابدأ بقالب، عدّل محتواه، ثم جرّبه قبل النشر.',
-              'Choose a template, customize its content and test before publishing.',
+              'أنشئ بوتات تحادث عملاءك، وعدّلها بالسحب والإفلات، وجرّبها قبل النشر.',
+              'Create bots that talk to your customers, edit them by drag and drop, and test before you publish.',
             )}
           </p>
         </div>
-      </div>
-      <Link className="btn btn-primary mb-6" href="/dashboard/flows/new">
-        {t('معالج إنشاء بوت للمبتدئين', 'Beginner bot wizard')} ↗
-      </Link>
-      <div className="card-grid mb-6">
-        {templates.map((x) => (
-          <button
-            key={x.id}
-            className="card text-start"
-            style={{ borderColor: templateId === x.id ? '#0f766e' : undefined }}
-            onClick={() => setTemplateId(x.id)}
-          >
-            <span className="badge">
-              {x.nodeCount} {t('عقد', 'nodes')}
-            </span>
-            <h2 className="mt-3">{x.name}</h2>
-            <p className="muted">{x.description}</p>
-            <span className="muted">
-              {templateId === x.id
-                ? t('✓ تم الاختيار', '✓ Selected')
-                : t('اختيار القالب', 'Select template')}
-            </span>
-          </button>
-        ))}
+        <Link className="btn btn-primary btn-lg" href="/dashboard/flows/new">
+          <NavIcon name="ai" />
+          {t('إنشاء بوت جديد', 'Create a new bot')}
+        </Link>
       </div>
       {error && (
         <p role="alert" className="notice error">
           {error}
         </p>
       )}
-      <form onSubmit={create} className="card mb-6 flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-1 text-xs">
-          <input type="checkbox" name="isComponent" />
-          {t('مكوّن قابل لإعادة الاستخدام', 'Reusable component')}
-        </label>
-        <input
-          name="name"
-          required
-          aria-label={t('اسم البوت', 'Bot name')}
-          placeholder={t('اسم سيناريو جديد', 'New bot name')}
-          className="flex-1 rounded border p-2"
-        />
-        <select
-          aria-label={t('قالب السيناريو', 'Flow template')}
-          className="rounded border p-2"
-          value={templateId}
-          onChange={(e) => setTemplateId(e.target.value)}
-        >
-          <option value="">{t('سيناريو فارغ', 'Blank flow')}</option>
-          {templates.map((x) => (
-            <option key={x.id} value={x.id}>
-              {x.name}
-            </option>
-          ))}
-        </select>
-        <button disabled={busy} className="btn btn-primary">
-          {busy ? t('جارٍ الإنشاء…', 'Creating…') : t('إنشاء البوت', 'Create bot')}
-        </button>
-      </form>
-      <ul className="flex flex-col gap-3">
-        {items.map((f) => (
-          <li key={f.id} className="rounded border p-3">
-            <div className="flex items-center justify-between">
-              <a href={`/dashboard/flows/${f.id}`} className="font-semibold underline">
-                {f.name}
-              </a>
-              <span
-                className={`rounded px-2 py-0.5 text-xs ${f.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100'}`}
-              >
-                {f.status === 'published'
-                  ? `${t('منشور', 'Published')} v${f.published_version}`
-                  : t('مسودة', 'Draft')}
-              </span>
-            </div>
-            <div className="mt-1 text-xs text-gray-500">
-              {t('المشغّلات:', 'Triggers:')}{' '}
-              {f.triggers.map(trig).join(' | ') || t('لا يوجد', 'None')}
-            </div>
-            <div className="mt-2 flex gap-3 text-xs">
-              <button onClick={() => act(`/flows/${f.id}/duplicate`)} className="underline">
-                {t('نسخ', 'Duplicate')}
-              </button>
-              {f.status === 'published' && (
-                <button onClick={() => act(`/flows/${f.id}/unpublish`)} className="underline">
-                  {t('إيقاف', 'Unpublish')}
-                </button>
+
+      <section aria-labelledby="my-bots">
+        <div className="card stack">{channels.error&&<p role="alert">{channels.error}</p>}<div className="form-grid"><label className="field">{t('اختر القناة أولًا','Choose a channel first')}<select value={channelId} onChange={e=>setChannelId(e.target.value)}><option value="">{t('كل القنوات','All channels')}</option>{channels.data.map(c=><option key={c.id} value={c.id}>{c.name} ({c.type})</option>)}</select></label><label className="field">{t('بحث عن بوت', 'Find a bot')}<input type="search" value={search} onChange={e=>setSearch(e.target.value)} /></label><label className="field">{t('المجلد', 'Folder')}<select value={folder} onChange={e=>setFolder(e.target.value)}><option value="*">{t('كل المجلدات', 'All folders')}</option><option value="">{t('دون مجلد', 'Unfiled')}</option>{folders.map(name=><option key={name} value={name}>{name}</option>)}</select></label><label className="field">{t('استيراد ملف Boat Two', 'Import Boat Two file')}<input type="file" accept="application/json,.json" disabled={busy} onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file)void importFile(file);}} /></label></div><p>{t('الاستيراد ينشئ مسودة جديدة دون نشر أو ربط قناة. تبقى معرّفات الخطوات والأزرار ثابتة؛ راجع مراجع القوائم والتسلسلات والموظفين والـWebhook قبل النشر.', 'Import creates a new draft without publishing or connecting channels. Step and button IDs are preserved; review list, sequence, staff and webhook references before publishing.')}</p></div>
+        <div className="section-title">
+          <h2 id="my-bots">{t('بوتاتك', 'Your bots')}</h2>
+          {items.length > 0 && (
+            <span>
+              {items.length} {t('بوت', 'bots')} · {published} {t('منشور', 'live')}
+            </span>
+          )}
+        </div>
+        {items.length ? (
+          <ul className="bot-list">
+            {visible.map((f) => {
+              const live = f.status === 'published';
+              return (
+                <li key={f.id} className="bot-row">
+                  <span className={`bot-avatar ${live ? '' : 'is-draft'}`}>
+                    <NavIcon name="flows" />
+                  </span>
+                  <div className="bot-main">
+                    <a href={`/dashboard/flows/${f.id}`}>{f.name}</a>
+                    <small>
+                      {t('المشغّلات:', 'Triggers:')}{' '}
+                      {f.triggers.map(trig).join(' | ') || t('لا يوجد', 'None')}<br/>{f.channel_ids.length?channels.data.filter(c=>f.channel_ids.includes(c.id)).map(c=>c.name).join(' · ')||t('قنوات مرتبطة','Bound channels'):t('كل القنوات (دون تقييد)','All channels (unrestricted)')}
+                    </small>
+                  </div>
+                  <span className={`status-pill ${live ? 'is-live' : 'is-draft'}`}>
+                    {live
+                      ? `${t('منشور', 'Published')} v${f.published_version}`
+                      : t('مسودة', 'Draft')}
+                  </span>
+                  <div className="bot-actions">
+                    <Link className="btn" href={channelHref(`/dashboard/flows/${f.id}/workspace`,channelId)}>{t('مساحة عمل البوت', 'Bot workspace')}</Link>
+                    <button className="btn" disabled={busy} onClick={()=>void exportFlow(f)}>{t('تصدير', 'Export')}</button>
+                    <details><summary>{t('المجلد', 'Folder')}: {f.folder_name || t('دون مجلد', 'Unfiled')}</summary><form className="stack" onSubmit={async e=>{e.preventDefault();if(busy)return;const form=e.currentTarget;setBusy(true);setError('');try{await api(`/flows/${f.id}`,{method:'PATCH',body:JSON.stringify({folderName:String(new FormData(form).get('folder')??'').trim()||null,expectedUpdatedAt:f.updated_at})});await load();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}><label className="field">{t('اسم المجلد (فارغ للإزالة)', 'Folder name (empty to remove)')}<input name="folder" defaultValue={f.folder_name??''} maxLength={80}/></label><button className="btn" disabled={busy}>{t('حفظ المجلد', 'Save folder')}</button></form></details>
+                    <a className="btn btn-primary" href={`/dashboard/flows/${f.id}`}>
+                      {t('تعديل', 'Edit')}
+                    </a>
+                    <button className="btn" onClick={() => act(`/flows/${f.id}/duplicate`)}>
+                      {t('نسخ', 'Duplicate')}
+                    </button>
+                    {live && (
+                      <button className="btn" onClick={() => act(`/flows/${f.id}/unpublish`)}>
+                        {t('إيقاف', 'Unpublish')}
+                      </button>
+                    )}
+                    <button
+                      className="btn btn-danger"
+                      onClick={() =>
+                        confirm(t('حذف السيناريو؟', 'Delete this bot?')) &&
+                        act(`/flows/${f.id}`, 'DELETE')
+                      }
+                    >
+                      {t('حذف', 'Delete')}
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <div className="card">
+            <EmptyState
+              icon="flows"
+              title={t('لا توجد بوتات بعد', 'No bots yet')}
+              description={t(
+                'ابدأ بالمعالج الموجّه أو اختر قالبًا جاهزًا من الأسفل.',
+                'Start with the guided wizard or pick a ready-made template below.',
               )}
-              <button
-                onClick={() =>
-                  confirm(t('حذف السيناريو؟', 'Delete this bot?')) &&
-                  act(`/flows/${f.id}`, 'DELETE')
-                }
-                className="text-red-600 underline"
-              >
-                {t('حذف', 'Delete')}
-              </button>
-            </div>
-          </li>
-        ))}
-        {!items.length && (
-          <li className="text-gray-500">{t('لا توجد سيناريوهات بعد.', 'No bots yet.')}</li>
+              action={
+                <Link className="btn btn-primary" href="/dashboard/flows/new">
+                  {t('إنشاء أول بوت', 'Create your first bot')}
+                </Link>
+              }
+            />
+          </div>
         )}
-      </ul>
+        {items.length > 0 && visible.length === 0 && <p className="empty">{t('لا توجد نتائج لهذه القناة أو البحث أو المجلد.', 'No results for this channel, search or folder.')}</p>}
+      </section>
+
+      <section aria-labelledby="start-template">
+        <div className="section-title">
+          <h2 id="start-template">{t('ابدأ من قالب جاهز', 'Start from a template')}</h2>
+          <span>{t('اختر قالبًا ثم سمِّ البوت', 'Pick a template, then name your bot')}</span>
+        </div>
+        <div className="template-gallery">
+          {templates.map((x) => (
+            <button
+              type="button"
+              key={x.id}
+              className={`template-card ${templateId === x.id ? 'is-selected' : ''}`}
+              aria-pressed={templateId === x.id}
+              onClick={() => setTemplateId(templateId === x.id ? '' : x.id)}
+            >
+              <span className="tile-icon">
+                <NavIcon name="flows" />
+              </span>
+              <strong>{x.name}</strong>
+              <p>{x.description}</p>
+              <footer>
+                <span>
+                  {x.nodeCount} {t('عقد', 'nodes')}
+                </span>
+                <span>
+                  {templateId === x.id
+                    ? t('✓ تم الاختيار', '✓ Selected')
+                    : t('اختيار القالب', 'Select template')}
+                </span>
+              </footer>
+            </button>
+          ))}
+        </div>
+        <form onSubmit={create} className="card create-bar">
+          <input
+            name="name"
+            required
+            aria-label={t('اسم البوت', 'Bot name')}
+            placeholder={t('اسم البوت الجديد', 'New bot name')}
+          />
+          <select
+            aria-label={t('قالب السيناريو', 'Flow template')}
+            value={templateId}
+            onChange={(e) => setTemplateId(e.target.value)}
+          >
+            <option value="">{t('سيناريو فارغ', 'Blank flow')}</option>
+            {templates.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.name}
+              </option>
+            ))}
+          </select>
+          <label>
+            <input type="checkbox" name="isComponent" />
+            {t('مكوّن قابل لإعادة الاستخدام', 'Reusable component')}
+          </label>
+          <button disabled={busy} className="btn btn-primary">
+            {busy ? t('جارٍ الإنشاء…', 'Creating…') : t('إنشاء البوت', 'Create bot')}
+          </button>
+        </form>
+      </section>
     </main>
   );
 }

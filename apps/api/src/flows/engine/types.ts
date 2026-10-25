@@ -1,34 +1,68 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export type NodeType =
+  | 'product' | 'catalog' | 'appointment' | 'whatsapp_flow'
   | 'subflow'
   | 'message'
+  | 'interactive'
+  | 'location'
+  | 'cta_url'
+  | 'template'
+  | 'sequence'
+  | 'user_input'
+  | 'image'
+  | 'audio'
+  | 'video'
+  | 'file'
   | 'question'
   | 'condition'
   | 'set_variable'
   | 'set_attribute'
   | 'delay'
   | 'http_request'
+  | 'sheet_fetch'
   | 'business_hours'
   | 'split'
+  | 'random_number'
   | 'ai_reply'
   | 'handoff'
+  | 'tag'
+  | 'note'
   | 'end';
 
 export interface FlowNode {
   id: string;
   type: NodeType;
   position?: { x: number; y: number };
+  note?: string;
+  /** محرر فقط: مواقع كروت الأزرار على الـ canvas */
+  layout?: Record<string, { x: number; y: number }>;
   data: Record<string, any>;
   /** handle → id العقدة التالية. غياب الحافة يعني نهاية الـ flow */
   edges: Record<string, string>;
 }
 
 export interface FlowGraph {
+  policy?: BotPolicy;
   startNodeId: string;
   nodes: FlowNode[];
 }
 
+export interface BotPolicy {
+  initialVars?:Record<string,string|number|boolean|null>;
+  startMessage?:string;
+  startFrequency?:'once'|'always'|'daily';
+  sessionHours?: number;
+  noMatchText?: string;
+  businessHours?: { enabled: boolean; timezone: string; schedule: import('./hours').Schedule; offHoursText?: string;offHoursFlowId?:string;offHoursGraph?:FlowGraph };
+}
+
 export interface OutContent {
+  typingSeconds?:number;
+  product?:{catalogId:string;retailerId:string};
+  productList?:{catalogId:string;sections:{title:string;retailerIds:string[]}[]};
+  whatsappFlow?:{flowId:string;token:string;cta:string;screen:string;data?:Record<string,unknown>};
+  header?: { type:'text'; text:string } | { type:'image'; url:string };
+  footer?: string;
   text?: string;
   media?: {
     kind: 'image' | 'video' | 'audio' | 'file';
@@ -37,6 +71,15 @@ export interface OutContent {
     filename?: string;
   };
   buttons?: { id: string; title: string }[];
+  cta?: { text: string; url: string };
+  location?: { lat: number; lng: number; name?: string; address?: string };
+  template?: {
+    name: string;
+    language: string;
+    bodyParams: string[];
+    header?: { type: 'text'; text: string } | { type: 'image' | 'video' | 'document'; url: string; filename?: string };
+    buttonParams?: { index: number; type: 'quick_reply' | 'url'; value: string }[];
+  };
   list?: {
     buttonText: string;
     sections: { title?: string; rows: { id: string; title: string; description?: string }[] }[];
@@ -49,21 +92,30 @@ export interface FlowContact {
   phone?: string | null;
   email?: string | null;
   attributes: Record<string, unknown>;
+  tags?: string[];
 }
 
 export interface FlowContext {
   contact: FlowContact;
   channel: { id?: string; type: string };
-  lastMessage: { text: string; replyId?: string };
+  lastMessage: { text: string; replyId?: string;formReply?:Record<string,unknown>;order?:unknown };
 }
 
 export interface FlowState {
+  offHours?:boolean;
   vars: Record<string, unknown>;
   waiting: null | {
     nodeId: string;
     kind: 'choice' | 'answer' | 'delay' | 'ai';
     retries: number;
     until?: string;
+    /** رقم السؤال الحالي داخل بلوك user_input */
+    step?: number;
+    /** Outside-hours start is deferred without skipping the start node. */
+    startPending?: boolean;
+    deliveryPending?: boolean;
+    formToken?: string;
+    catalogOptions?:{id:string;title:string}[];
   };
   totalSteps: number;
 }
@@ -95,15 +147,35 @@ export interface AiResult {
 }
 
 export interface EngineDeps {
+  setContactField?(field:'name'|'email'|'phone',value:string):Promise<void>;
+  productContent?(id:string,native:boolean):Promise<OutContent>;
+  catalogContent?(ids:string[],native:boolean,text:string,selectable?:boolean):Promise<OutContent>;
+  bookAppointment?(serviceId:string,start:string,eventKey:string):Promise<Record<string,unknown>>;
+  readGoogleSheet?(connectionId:string,spreadsheetId:string,range:string):Promise<string>;
+  /** Durable production execution; the simulator supplies an explicitly mocked executor. */
+  executeButtonAction?(action: ButtonAction, occurrence: string): Promise<void>;
   ai(req: AiRequest): Promise<AiResult>;
-  send(content: OutContent): Promise<void>;
+  send(content: OutContent, meta?: { nodeId?: string }): Promise<void>;
   http(req: HttpRequestSpec): Promise<HttpResult>;
   setContactAttribute(key: string, value: unknown): Promise<void>;
-  handoff(opts: { assignTo?: string }): Promise<void>;
+  updateTags(change: { add: string[]; remove: string[] }): Promise<void>;
+  addNote(body: string): Promise<void>;
+  handoff(opts: { assignTo?: string; departmentId?: string }): Promise<void>;
   closeConversation(): Promise<void>;
+  /** يضيف جهة الاتصال الحالية إلى Sequence؛ غير موجودة في وضع التجربة */
+  enrollSequence?(sequenceId: string): Promise<{ enrolled: boolean }>;
   now(): Date;
   random(): number;
 }
+
+export type ButtonAction =
+  | {type:'integration';connectionId:string;payload:string}
+  | { type: 'set_field'; key: string; value: string }
+  | { type: 'tag'; add: string[]; remove: string[] }
+  | { type: 'list'; listId: string; operation: 'add' | 'remove' }
+  | { type: 'sequence'; sequenceId: string; operation: 'subscribe' | 'unsubscribe' }
+  | { type: 'assign'; userId?: string; departmentId?: string }
+  | { type: 'webhook'; url: string; body: string };
 
 export type EngineStatus = 'waiting' | 'completed' | 'handed_off' | 'error';
 
@@ -124,17 +196,37 @@ export function newState(): FlowState {
 }
 
 /** المخارج (handles) الصالحة لكل عقدة، وهي نفسها المستخدمة في المحرر المرئي */
-export function optionsOf(data: Record<string, any>): { id: string; title: string }[] {
-  const out: { id: string; title: string }[] = [];
-  for (const b of data.buttons ?? []) out.push({ id: b.id, title: b.title });
+export function optionsOf(data: Record<string, any>): { id: string; title: string; actions?: ButtonAction[] }[] {
+  const out: { id: string; title: string; actions?: ButtonAction[] }[] = [];
+  for (const b of data.buttons ?? []) out.push({ id: b.id, title: b.title, ...(b.actions ? { actions: b.actions } : {}) });
   for (const s of data.list?.sections ?? [])
-    for (const r of s.rows ?? []) out.push({ id: r.id, title: r.title });
+    for (const r of s.rows ?? []) out.push({ id: r.id, title: r.title, ...(r.actions ? { actions: r.actions } : {}) });
   return out;
+}
+
+/** الخيارات التي يمكن للعميل الضغط عليها الآن في الخطوة المنتظِرة (أزرار/قوائم، أو اختيارات سؤال user_input الحالي) */
+export function clickableOptions(
+  node: Pick<FlowNode, 'type' | 'data'> | undefined,
+  waiting: FlowState['waiting'],
+): { id: string; title: string }[] {
+  if (!node || !waiting) return [];
+  if(waiting.kind==='answer'&&node.type==='catalog')return waiting.catalogOptions??[];
+  if (waiting.kind === 'choice') return optionsOf(node.data ?? {});
+  if (waiting.kind === 'answer' && node.type === 'user_input') {
+    const q = (node.data?.questions ?? [])[waiting.step ?? 0];
+    return [...(q?.kind === 'choice' ? (q.options ?? []) : []), ...(q?.allowSkip ? [{ id: `__boat_skip:${q.id}`, title: q.skipText || '/skip' }] : [])];
+  }
+  if (waiting.kind === 'answer' && node.type === 'question' && node.data.allowSkip)
+    return [{ id: `__boat_skip:${waiting.nodeId}`, title: node.data.skipText || '/skip' }];
+  return [];
 }
 
 export function handlesFor(node: Pick<FlowNode, 'type' | 'data'>): string[] {
   const d = node.data ?? {};
   switch (node.type) {
+    case 'appointment':return ['success','unavailable','error'];
+    case 'whatsapp_flow':return ['ok','fail'];
+    case 'interactive':
     case 'message': {
       const opts = optionsOf(d);
       return opts.length ? [...opts.map((o) => `option:${o.id}`), 'fallback'] : ['next'];
@@ -145,6 +237,8 @@ export function handlesFor(node: Pick<FlowNode, 'type' | 'data'>): string[] {
       return [...(d.rules ?? []).map((r: { id: string }) => `rule:${r.id}`), 'else'];
     case 'http_request':
       return ['success', 'error'];
+    case 'sheet_fetch':
+      return ['found', 'not_found', 'error'];
     case 'business_hours':
       return ['open', 'closed'];
     case 'ai_reply':

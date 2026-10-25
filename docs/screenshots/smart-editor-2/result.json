@@ -1,0 +1,112 @@
+{
+  "fixture": "in-memory HTTP; actual production UI; no DB, delivery or external APIs",
+  "writes": 4,
+  "savedGraph": {
+    "startNodeId": "welcome",
+    "nodes": [
+      {
+        "id": "welcome",
+        "type": "message",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "data": {
+          "text": "أهلًا بيك في شركتنا 👋\nاختار الخدمة اللي محتاجها:\nجاهزين نساعدك",
+          "saveReplyAs": "service",
+          "buttons": [
+            {
+              "id": "booking",
+              "title": "حجز عمرة"
+            },
+            {
+              "id": "staff",
+              "title": "التحدث مع موظف"
+            },
+            {
+              "id": "faq",
+              "title": "الأسئلة الشائعة"
+            }
+          ]
+        },
+        "edges": {
+          "option:staff": "staff",
+          "option:faq": "check",
+          "option:booking": "message_0ic0"
+        }
+      },
+      {
+        "id": "staff",
+        "type": "handoff",
+        "position": {
+          "x": 600,
+          "y": 0
+        },
+        "data": {
+          "message": "هنوصلك بموظف يساعدك",
+          "assignTo": "agent-fixture"
+        },
+        "edges": {}
+      },
+      {
+        "id": "check",
+        "type": "condition",
+        "position": {
+          "x": 600,
+          "y": 500
+        },
+        "data": {
+          "rules": [
+            {
+              "id": "book-rule",
+              "match": "any",
+              "conditions": [
+                {
+                  "source": "variable",
+                  "key": "service_id",
+                  "operator": "equals",
+                  "value": "booking"
+                }
+              ]
+            }
+          ]
+        },
+        "edges": {
+          "rule:book-rule": "question",
+          "else": "staff"
+        }
+      },
+      {
+        "id": "question",
+        "type": "question",
+        "position": {
+          "x": 1200,
+          "y": 500
+        },
+        "data": {
+          "text": "تحب تسافر إمتى؟",
+          "answerType": "text",
+          "saveAs": "departure_preference",
+          "retries": 2
+        },
+        "edges": {
+          "ok": "staff",
+          "fail": "staff"
+        }
+      },
+      {
+        "id": "message_0ic0",
+        "type": "message",
+        "position": {
+          "x": -464,
+          "y": 744
+        },
+        "data": {
+          "text": "تحب تسافر إمتى؟"
+        },
+        "edges": {}
+      }
+    ]
+  },
+  "errors": []
+}

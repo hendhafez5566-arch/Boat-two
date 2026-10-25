@@ -19,7 +19,7 @@ export class CrmService {
     return this.db.withTenant(tenant, async (c) => {
       const items = (
         await c.query(
-          `SELECT id,name,email,phone,lifecycle,tags,owner_id,attributes,archived_at,merged_into_id,created_at,updated_at FROM contacts WHERE ${w.sql} ORDER BY created_at DESC,id LIMIT $5 OFFSET $6`,
+          `SELECT id,name,email,phone,lifecycle,tags,owner_id,attributes,archived_at,merged_into_id,created_at,updated_at,(SELECT COALESCE(jsonb_agg(jsonb_build_object('id',l.id,'name',l.name)),'[]') FROM contact_list_members lm JOIN contact_lists l ON l.id=lm.list_id WHERE lm.contact_id=contacts.id) AS lists,(SELECT COALESCE(jsonb_agg(jsonb_build_object('id',s.id,'name',s.name,'status',se.status)),'[]') FROM sequence_enrollments se JOIN sequences s ON s.id=se.sequence_id WHERE se.contact_id=contacts.id) AS sequences,(SELECT COALESCE(jsonb_agg(jsonb_build_object('channelId',cc.channel_id,'status',cc.status)),'[]') FROM contact_consents cc WHERE cc.contact_id=contacts.id) AS consents FROM contacts WHERE ${w.sql} ORDER BY created_at DESC,id LIMIT $${w.params.length+1} OFFSET $${w.params.length+2}`,
           [...w.params, limit, (page - 1) * limit],
         )
       ).rows;

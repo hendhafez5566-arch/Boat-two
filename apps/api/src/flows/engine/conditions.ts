@@ -15,7 +15,7 @@ export type Operator =
   | 'matches_regex';
 
 export interface Condition {
-  source: 'variable' | 'contact_field' | 'contact_attribute' | 'last_message' | 'channel';
+  source: 'variable' | 'contact_field' | 'contact_attribute' | 'last_message' | 'channel' | 'label';
   key?: string;
   operator: Operator;
   value?: string;
@@ -29,7 +29,7 @@ export interface Rule {
 
 export interface Operands {
   vars: Record<string, unknown>;
-  contact: { name?: string | null; phone?: string | null; email?: string | null; attributes: Record<string, unknown> };
+  contact: { name?: string | null; phone?: string | null; email?: string | null; attributes: Record<string, unknown>; tags?: string[] };
   channelType: string;
   lastText: string;
   resolve: Resolver;
@@ -52,12 +52,37 @@ function operand(c: Condition, o: Operands): unknown {
       return o.lastText;
     case 'channel':
       return o.channelType;
+    case 'label':
+      return o.contact.tags ?? [];
   }
+}
+
+/** شرط الوسم: يطابق وسمًا كاملًا (وليس جزءًا من نص) بعد تطبيع الحروف */
+function labelHas(tags: unknown, wanted: string): boolean {
+  const w = normalizeText(wanted);
+  return w !== '' && (Array.isArray(tags) ? tags : []).some((t) => normalizeText(String(t)) === w);
 }
 
 export function evaluateCondition(c: Condition, o: Operands): boolean {
   const a = operand(c, o);
   const bRaw = interpolate(c.value ?? '', o.resolve);
+
+  if (c.source === 'label') {
+    switch (c.operator) {
+      case 'contains':
+      case 'equals':
+        return labelHas(a, bRaw);
+      case 'not_contains':
+      case 'not_equals':
+        return !labelHas(a, bRaw);
+      case 'is_set':
+        return (a as unknown[]).length > 0;
+      case 'is_not_set':
+        return (a as unknown[]).length === 0;
+      default:
+        return false;
+    }
+  }
 
   switch (c.operator) {
     case 'is_set':

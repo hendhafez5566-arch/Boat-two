@@ -1,0 +1,24 @@
+import {assertLocalAcceptance} from './acceptance-local.mjs';
+assertLocalAcceptance();
+// Exercise the actual social worker/effect ledger with real PostgreSQL and fake Meta HTTP.
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {createRequire} from 'node:module';
+const require=createRequire(new URL('../apps/api/package.json',import.meta.url));
+const {DatabaseService}=require('./dist/database/database.service.js'),{CryptoService}=require('./dist/messaging/crypto.service.js'),{ExternalEffects}=require('./dist/events/external-effect.js'),{SocialService}=require('./dist/commerce/social.service.js'),{env}=require('./dist/config/env.js');
+if(process.env.BOAT_PREVIEW_ONLY!=='true'||env.EXTERNAL_DELIVERY_ENABLED!=='false')throw Error('Isolated preview required');
+const db=new DatabaseService(),crypto=new CryptoService(),base=process.env.SMOKE_API_URL||'http://localhost:4000',original=globalThis.fetch;
+async function call(path,token,body){const r=await original(base+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:body?JSON.stringify(body):undefined});const data=await r.json();assert.ok(r.ok,JSON.stringify(data));return data;}
+try{
+ const a=await call('/auth/register',null,{email:randomUUID()+'@example.test',password:'local-social-12345',fullName:'Social Mock',workspaceName:'Social DB'});
+ const fb=await call('/channels',a.accessToken,{type:'facebook',name:'Mock Facebook',credentials:{pageId:randomUUID(),pageAccessToken:'mock-provider-token'}}),ig=await call('/channels',a.accessToken,{type:'instagram',name:'Mock Instagram',credentials:{igAccountId:randomUUID(),pageAccessToken:'mock-provider-token'}});
+ const scoped={withTenant:db.withTenant.bind(db),eventScope:db.eventScope.bind(db),query:()=>db.withTenant(a.tenantId,c=>c.query("SELECT id,tenant_id FROM social_posts WHERE status='scheduled' AND scheduled_at<=now() OR status='sending' AND lease_until<now()"))};
+ const social=new SocialService(scoped,{credentials:row=>crypto.decrypt(row.credentials_enc)},new ExternalEffects(db));const requests=[];let readiness=0;
+ globalThis.fetch=async(url,options)=>{assert.match(String(url),/^https:\/\/graph.facebook.com\/v21.0\//);const body=options?.body?JSON.parse(String(options.body)):null;requests.push({url:String(url),body});if(body?.message==='ambiguous mock')throw Error('Lost response');if(String(url).includes('fields=status_code'))return new Response(JSON.stringify({status_code:readiness++===0?'IN_PROGRESS':'FINISHED'}));return new Response(JSON.stringify({id:'mock-'+requests.length}));};
+ env.EXTERNAL_DELIVERY_ENABLED='true';
+ const carousel=await social.save(a.tenantId,{channelId:fb.id,kind:'carousel',body:'Mock carousel',mediaUrls:['https://example.test/a.png','https://example.test/b.png']});await social.queue(a.tenantId,carousel.id,new Date().toISOString());await social.tick();const record=await db.withTenant(a.tenantId,async c=>(await c.query('SELECT * FROM social_posts WHERE id=$1',[carousel.id])).rows[0]);assert.equal(record.status,'published');assert.ok(requests.some(r=>r.body?.attached_media?.length===2));
+ const video=await social.save(a.tenantId,{channelId:ig.id,kind:'video',body:'Mock reel',mediaUrls:['https://example.test/video.mp4']});await social.queue(a.tenantId,video.id,new Date().toISOString());await social.tick();assert.equal((await db.withTenant(a.tenantId,async c=>(await c.query('SELECT status FROM social_posts WHERE id=$1',[video.id])).rows[0])).status,'scheduled');
+ await db.withTenant(a.tenantId,c=>c.query('UPDATE social_posts SET scheduled_at=now() WHERE id=$1',[video.id]));await social.tick();assert.equal((await db.withTenant(a.tenantId,async c=>(await c.query('SELECT status FROM social_posts WHERE id=$1',[video.id])).rows[0])).status,'published');assert.equal(requests.filter(r=>r.body?.media_type==='REELS').length,1);assert.equal(requests.filter(r=>r.url.endsWith('/media_publish')).length,1);
+ const ambiguous=await social.save(a.tenantId,{channelId:fb.id,kind:'text',body:'ambiguous mock',mediaUrls:[]});await social.queue(a.tenantId,ambiguous.id,new Date().toISOString());await social.tick();assert.equal((await db.withTenant(a.tenantId,async c=>(await c.query('SELECT status FROM social_posts WHERE id=$1',[ambiguous.id])).rows[0])).status,'ambiguous');const count=requests.length;await social.tick();assert.equal(requests.length,count);const draft=await social.retry(a.tenantId,ambiguous.id);assert.equal(draft.status,'draft');assert.equal(requests.length,count);
+ console.log('PASS social DB/Mock Meta: Facebook carousel, Instagram video processing resumes without duplicate containers, published IDs, ambiguous send not replayed and retry creates draft only. No real provider calls.');
+}finally{globalThis.fetch=original;await db.onModuleDestroy();}

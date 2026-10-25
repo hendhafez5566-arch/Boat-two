@@ -28,6 +28,8 @@ test('published component expands into an executable immutable parent graph', as
     ai: async () => ({ text: '', handoff: false }),
     http: async () => ({ ok: true, status: 200, body: {} }),
     setContactAttribute: async () => {},
+    updateTags: async () => {},
+    addNote: async () => {},
     handoff: async () => {},
     closeConversation: async () => {},
     now: () => new Date(),

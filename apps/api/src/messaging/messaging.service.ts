@@ -6,6 +6,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DatabaseService } from '../database/database.service';
 import { MetaAdapter } from './adapters/meta.adapter';
 import { WhatsAppAdapter } from './adapters/whatsapp.adapter';
+import { TelegramAdapter } from './adapters/telegram.adapter';
 import { ChannelAdapter } from './adapters/adapter';
 import { ChannelRow, ChannelsService } from './channels.service';
 import { MessageContent, messageTypeOf, validateOutbound } from './message-content';
@@ -44,8 +45,9 @@ export class MessagingService {
     private readonly events: EventEmitter2,
     whatsapp: WhatsAppAdapter,
     meta: MetaAdapter,
+    telegram: TelegramAdapter,
   ) {
-    this.adapters = { whatsapp, facebook: meta, instagram: meta };
+    this.adapters = { whatsapp, facebook: meta, instagram: meta, telegram };
   }
 
   /** رسالة واردة من أي قناة: ينشئ جهة الاتصال والمحادثة ويحفظ الرسالة ثم يطلق حدث message.received */
@@ -224,7 +226,9 @@ export class MessagingService {
     content: MessageContent;
     senderType: 'bot' | 'agent' | 'system';
     senderUserId?: string;
+    flow?: { flowId: string; nodeId?: string };
   }) {
+    if(p.senderType==='agent'&&p.senderUserId&&!p.content.template){const signature=await this.db.withTenant(p.tenantId,async c=>(await c.query('SELECT s.signature_enabled,s.signature_template,u.full_name FROM inbox_settings s JOIN memberships m ON m.tenant_id=s.tenant_id JOIN users u ON u.id=m.user_id WHERE m.user_id=$1',[p.senderUserId])).rows[0]);if(signature?.signature_enabled){const suffix=signature.signature_template.replaceAll('{{agent.name}}',signature.full_name||'Agent');p.content={...p.content,...(p.content.text?{text:p.content.text+'\n'+suffix}:p.content.media?{media:{...p.content.media,caption:(p.content.media.caption||'')+'\n'+suffix}}:{})};}}
     validateOutbound(p.content);
     const effectKey = this.db.effectKey();
 
@@ -282,8 +286,8 @@ export class MessagingService {
       }
       const msg = (
         await c.query(
-          `INSERT INTO messages (tenant_id, conversation_id, channel_id, direction, sender_type, sender_user_id, type, content, status,effect_key)
-           VALUES ($1, $2, $3, 'out', $4, $5, $6, $7, $8,$9) RETURNING id, seq, created_at`,
+          `INSERT INTO messages (tenant_id, conversation_id, channel_id, direction, sender_type, sender_user_id, type, content, status,effect_key, flow_id, flow_node_id)
+           VALUES ($1, $2, $3, 'out', $4, $5, $6, $7, $8,$9,$10,$11) RETURNING id, seq, created_at`,
           [
             p.tenantId,
             p.conversationId,
@@ -294,6 +298,8 @@ export class MessagingService {
             JSON.stringify(p.content),
             row.type === 'web' ? 'sent' : 'queued',
             effectKey,
+            p.flow?.flowId ?? null,
+            p.flow?.nodeId ?? null,
           ],
         )
       ).rows[0];

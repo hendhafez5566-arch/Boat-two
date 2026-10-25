@@ -1,4 +1,6 @@
 'use client';
+import Link from 'next/link';
+import TimezonePicker from '../../../components/product/TimezonePicker';
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
@@ -10,6 +12,7 @@ export default function Settings() {
     timezone: string;
     language: string;
     preferredPlan: string;
+    currentPlan: string;
   } | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -21,25 +24,28 @@ export default function Settings() {
         settings: { industry?: string; timezone?: string; language?: string };
         preferred_plan: string;
       };
+      plan?: {plan_name:string};
     }>('/workspace')
-      .then(({ tenant: w }) =>
+      .then(({ tenant: w, plan }) =>
         setData({
           name: w.name,
           industry: w.settings.industry || '',
           timezone: w.settings.timezone || 'Africa/Cairo',
           language: w.settings.language || 'ar',
           preferredPlan: w.preferred_plan,
+          currentPlan: plan?.plan_name || '—',
         }),
       )
       .catch((e) => setError(e.message));
   }, []);
   async function save(e: FormEvent) {
     e.preventDefault();
+    if (!data) return;
     setBusy(true);
     setError('');
     setMessage('');
     try {
-      await api('/workspace', { method: 'PATCH', body: JSON.stringify(data) });
+      await api('/workspace', { method: 'PATCH', body: JSON.stringify({name:data.name,industry:data.industry,timezone:data.timezone,language:data.language,preferredPlan:data.preferredPlan}) });
       setMessage(t('تم حفظ إعدادات الشركة.', 'Workspace settings saved.'));
     } catch (e) {
       setError((e as Error).message);
@@ -93,15 +99,7 @@ export default function Settings() {
                 onChange={(e) => setData({ ...data, industry: e.target.value })}
               />
             </label>
-            <label className="field">
-              {t('المنطقة الزمنية', 'Timezone')}
-              <input
-                required
-                dir="ltr"
-                value={data.timezone}
-                onChange={(e) => setData({ ...data, timezone: e.target.value })}
-              />
-            </label>
+            <TimezonePicker value={data.timezone} onChange={timezone=>setData({...data,timezone})} />
             <label className="field">
               {t('لغة الشركة', 'Workspace language')}
               <select
@@ -112,24 +110,8 @@ export default function Settings() {
                 <option value="en">English</option>
               </select>
             </label>
-            <label className="field">
-              {t('الخطة المفضلة', 'Preferred plan')}
-              <select
-                value={data.preferredPlan}
-                onChange={(e) => setData({ ...data, preferredPlan: e.target.value })}
-              >
-                {['free', 'starter', 'pro', 'business'].map((x) => (
-                  <option key={x}>{x}</option>
-                ))}
-              </select>
-            </label>
+            <div className="field"><strong>{t('الخطة الحالية','Current plan')}: {data.currentPlan}</strong><Link className="btn" href="/dashboard/billing">{t('إدارة الاشتراك وطلب ترقية','Manage subscription and request upgrade')}</Link></div>
           </div>
-          <p className="muted mt-4">
-            {t(
-              'اختيار الخطة المفضلة لا يغيّر اشتراكك أو يخصم أي مبلغ. إدارة الاشتراك من صفحة الباقات.',
-              'A preferred plan does not change your subscription or charge you. Manage payments on the plan page.',
-            )}
-          </p>
           <div className="form-actions">
             <button disabled={busy} className="btn btn-primary">
               {busy ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ الإعدادات', 'Save settings')}
