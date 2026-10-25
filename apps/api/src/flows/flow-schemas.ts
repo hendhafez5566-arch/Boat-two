@@ -5,6 +5,7 @@ const varName = z.string().regex(/^[A-Za-z_][\w]{0,40}$/);
 const id = z.string().min(1).max(60);
 
 export const buttonActionSchema = z.discriminatedUnion('type', [
+  z.object({type:z.literal('integration'),connectionId:z.string().uuid(),payload:z.string().min(2).max(10000)}),
   z.object({ type: z.literal('set_field'), key: varName, value: z.string().max(2000) }),
   z.object({ type: z.literal('tag'), add: z.array(z.string().min(1).max(80)).max(30), remove: z.array(z.string().min(1).max(80)).max(30) }),
   z.object({ type: z.literal('list'), listId: z.string().uuid(), operation: z.enum(['add', 'remove']) }),
@@ -263,6 +264,9 @@ export const nodeSchema = z.discriminatedUnion('type', [
     ...nodeBase,
     type: z.literal('sheet_fetch'),
     data: z.object({
+      connectionId:z.string().uuid().optional(),
+      spreadsheetId:z.string().max(200).optional(),
+      range:z.string().max(200).optional(),
       url: z.string().max(2000),
       lookupColumn: z.string().max(100).optional(),
       lookupValue: z.string().max(500).optional(),

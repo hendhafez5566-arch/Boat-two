@@ -20,6 +20,7 @@ const links = [
   ['agents', '✧', 'مساعدو AI', 'AI agents'],
   ['knowledge', '▣', 'قاعدة المعرفة', 'Knowledge'],
   ['reports', '▤', 'التقارير والتحليلات', 'Reports & analytics'],
+  ['integrations', '⇄', 'التكاملات وWebhooks', 'Integrations & webhooks'],
   ['channels', '◎', 'القنوات', 'Channels'],
   ['departments', '♧', 'الأقسام وSLA', 'Departments & SLA'],
   ['team', '♧', 'الفريق والصلاحيات', 'Team & roles'],
@@ -35,7 +36,7 @@ const navGroups = [
   { ar: '', en: '', keys: ['', 'onboarding'] },
   { ar: 'التواصل', en: 'Engage', keys: ['inbox', 'crm', 'campaigns', 'sequences'] },
   { ar: 'الأتمتة', en: 'Automate', keys: ['flows', 'automations', 'agents', 'knowledge', 'ai'] },
-  { ar: 'الإدارة', en: 'Manage', keys: ['channels', 'departments', 'team', 'reports'] },
+  { ar: 'الإدارة', en: 'Manage', keys: ['channels', 'integrations', 'departments', 'team', 'reports'] },
   {
     ar: 'الحساب',
     en: 'Account',
@@ -43,7 +44,7 @@ const navGroups = [
   },
 ];
 const primaryKeys = ['', 'inbox', 'crm', 'flows', 'campaigns', 'sequences', 'channels', 'reports', 'settings'];
-const restrictedForAgents = [
+const restrictedForAgents = ['integrations',
   'reports',
   'branding',
   'team',

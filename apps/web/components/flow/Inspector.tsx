@@ -186,6 +186,8 @@ export default function Inspector({
   onSetStart: () => void;
   onDelete: () => void;
 }) {
+  const [googleConnections,setGoogleConnections]=useState<{id:string;provider:string;name:string;enabled:boolean}[]>([]);
+  useEffect(()=>{if(type==='sheet_fetch')api<typeof googleConnections>('/integrations').then(rows=>setGoogleConnections(rows.filter(r=>r.provider==='google'&&r.enabled))).catch(()=>{});},[type]);
   const [staff, setStaff] = useState<{ user_id: string; full_name: string; email: string; available: boolean }[]>([]);
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   useEffect(() => { if (type === 'handoff') api<typeof departments>('/departments').then(setDepartments).catch(() => {}); }, [type]);
@@ -915,6 +917,8 @@ export default function Inspector({
 
       {type === 'sheet_fetch' && (
         <>
+          <label>{t('الحساب الخاص (فارغ للرابط العام)','Private account (empty for public link)')}<select value={data.connectionId??''} onChange={e=>set({connectionId:e.target.value||undefined})}><option value="">{t('رابط عام','Public link')}</option>{googleConnections.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+          {data.connectionId&&<><F label={t('معرف الشيت','Spreadsheet ID')}><In v={data.spreadsheetId} on={spreadsheetId=>set({spreadsheetId})}/></F><F label={t('النطاق','Range')}><In v={data.range||'A:ZZ'} on={range=>set({range})}/></F></>}
           <F
             label="رابط الشيت"
             hint="الشيت لازم يكون متاح لأي شخص معه الرابط (Anyone with the link). الصف الأول عناوين الأعمدة."

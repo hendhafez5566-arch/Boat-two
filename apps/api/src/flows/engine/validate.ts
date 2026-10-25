@@ -84,7 +84,7 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
           errors.push({ nodeId: n.id, message: 'URL must start with http:// or https://' });
         break;
       case 'sheet_fetch':
-        if (!parseSheetUrl(String(d.url ?? '')))
+        if (!d.connectionId && !parseSheetUrl(String(d.url ?? '')))
           errors.push({ nodeId: n.id, message: 'Use a public Google Sheet link (docs.google.com/spreadsheets/...)' });
         if (String(d.lookupColumn ?? '').trim() && !String(d.lookupValue ?? '').trim())
           errors.push({ nodeId: n.id, message: 'Lookup value is required when a lookup column is set' });

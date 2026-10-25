@@ -240,7 +240,7 @@ export class FlowEngine {
     for (const [index, raw] of actions.entries()) {
       const resolve = this.resolver(ctx, state);
       const action = raw.type === 'set_field' ? { ...raw, value: interpolate(raw.value, resolve) }
-        : raw.type === 'webhook' ? { ...raw, body: interpolate(raw.body, resolve) } : raw;
+        : raw.type === 'webhook' ? { ...raw, body: interpolate(raw.body, resolve) } : raw.type==='integration'?{...raw,payload:interpolate(raw.payload,resolve,'json')}:raw;
       await this.deps.executeButtonAction(action, `${occurrence}:${index}`);
       if (action.type === 'set_field') ctx.contact.attributes[action.key] = action.value;
       if (action.type === 'tag') ctx.contact.tags = [...new Set([...(ctx.contact.tags ?? []), ...action.add])].filter(t => !action.remove.includes(t));
@@ -604,12 +604,14 @@ export class FlowEngine {
 
       case 'sheet_fetch': {
         const ref = parseSheetUrl(String(d.url ?? ''));
-        if (!ref) {
+        if (!ref && !d.connectionId) {
           state.vars.sheet = { found: false, error: 'Invalid Google Sheet link' };
           return { kind: 'goto', handle: 'error' };
         }
         try {
-          let url = ref.csvUrl;
+          let text:string;
+          if(d.connectionId){if(!this.deps.readGoogleSheet)throw new Error('Google private reader unavailable');text=await this.deps.readGoogleSheet(d.connectionId,d.spreadsheetId,d.range||'A:ZZ');}else{
+          let url = ref!.csvUrl;
           let res = await this.sheetGet(url);
           for (let hop = 0; hop < 2 && res.status >= 300 && res.status < 400; hop++) {
             const loc = res.headers?.location;
@@ -618,8 +620,9 @@ export class FlowEngine {
             url = next.toString();
             res = await this.sheetGet(url);
           }
-          const text = typeof res.body === 'string' ? res.body : JSON.stringify(res.body ?? '');
+          text = typeof res.body === 'string' ? res.body : JSON.stringify(res.body ?? '');
           if (!res.ok || /^\s*</.test(text)) throw new Error('Sheet is not public or was not found');
+          }
           const found = lookupRow(
             parseCsv(text),
             String(d.lookupColumn ?? ''),

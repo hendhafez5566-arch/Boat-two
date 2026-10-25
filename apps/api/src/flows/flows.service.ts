@@ -5,6 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { z } from 'zod';
+import {GoogleService} from '../integrations/google.service';
+import {valuesCsv} from '../integrations/contracts';
 import { AiService } from '../ai/ai.service';
 import { DatabaseService } from '../database/database.service';
 import { PlansService } from '../plans/plans.service';
@@ -40,6 +42,7 @@ export class FlowsService {
     private readonly db: DatabaseService,
     private readonly plans: PlansService,
     private readonly ai: AiService,
+    private readonly google?:GoogleService,
   ) {}
 
   list(tenantId: string) {
@@ -361,6 +364,7 @@ export class FlowsService {
     const attrs: Record<string, unknown> = { ...(input.contactAttributes ?? {}) };
 
     const engine = new FlowEngine(graph, {
+      readGoogleSheet:async(connectionId,spreadsheetId,range)=>{if(!input.allowHttp){transcript.push({role:'system',content:'MOCK private Google Sheet read: no request sent, empty fixture'});return '';}if(!this.google)throw new Error('Google reader unavailable');const result=await this.google.execute(tenantId,connectionId,{operation:'sheet_read',spreadsheetId,range}) as {data?:{values?:unknown[][]}};return valuesCsv(result.data?.values??[]);},
       executeButtonAction: async (action, occurrence) => {
         if (action.type === 'set_field') attrs[action.key] = action.value;
         transcript.push({ role: 'system', content: `MOCK action ${occurrence}: ${JSON.stringify(action)} — no external delivery or database change` });

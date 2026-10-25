@@ -136,6 +136,7 @@ export interface AiResult {
 }
 
 export interface EngineDeps {
+  readGoogleSheet?(connectionId:string,spreadsheetId:string,range:string):Promise<string>;
   /** Durable production execution; the simulator supplies an explicitly mocked executor. */
   executeButtonAction?(action: ButtonAction, occurrence: string): Promise<void>;
   ai(req: AiRequest): Promise<AiResult>;
@@ -153,6 +154,7 @@ export interface EngineDeps {
 }
 
 export type ButtonAction =
+  | {type:'integration';connectionId:string;payload:string}
   | { type: 'set_field'; key: string; value: string }
   | { type: 'tag'; add: string[]; remove: string[] }
   | { type: 'list'; listId: string; operation: 'add' | 'remove' }

@@ -1,5 +1,7 @@
 import { SequencesService } from '../sequences/sequences.service';
 import { FlowActionsService } from './flow-actions.service';
+import {GoogleService} from '../integrations/google.service';
+import {valuesCsv} from '../integrations/contracts';
 import { ExternalEffects } from '../events/external-effect';
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
@@ -50,6 +52,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     private readonly assignment: AssignmentService,
     private readonly sequences: SequencesService,
     private readonly actions: FlowActionsService,
+    private readonly google:GoogleService,
   ) {}
 
   onModuleInit() {
@@ -411,6 +414,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
 
   private makeDeps(b: Loaded, flowId?: string): EngineDeps {
     return {
+      readGoogleSheet:async(connectionId,spreadsheetId,range)=>{const result=await this.google.execute(b.tenantId,connectionId,{operation:'sheet_read',spreadsheetId,range}) as {data?:{values?:unknown[][]}};return valuesCsv(result.data?.values??[]);},
       executeButtonAction: (action, occurrence) => this.actions.execute(b, action, occurrence),
       ai: async (req) => {
         const r = await this.ai.replyInConversation({

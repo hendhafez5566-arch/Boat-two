@@ -1,4 +1,5 @@
 import { InvitationMailModule } from './mail/invitation-mail';
+import { IntegrationsModule } from './integrations/integrations.module';
 import { PlatformModule } from './platform/platform.module';
 import { EventsModule } from './events/events.service';
 import { BusinessModule } from './business/business.module';
@@ -19,6 +20,7 @@ import { WorkspaceModule } from './workspace/workspace.module';
 
 @Module({
   imports: [
+    IntegrationsModule,
     InvitationMailModule,
     LoggerModule.forRoot({
       pinoHttp: {

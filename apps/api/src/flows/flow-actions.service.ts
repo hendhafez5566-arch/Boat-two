@@ -7,12 +7,15 @@ import { SequencesService } from '../sequences/sequences.service';
 import { ButtonAction } from './engine/types';
 import { buttonActionSchema } from './flow-schemas';
 import { safeHttpRequest } from './http-safe';
+import {GoogleService} from '../integrations/google.service';
+import {IntegrationsService} from '../integrations/integrations.service';
+import {googleOperationSchema} from '../integrations/contracts';
 
 export interface ActionScope { tenantId: string; contactId: string; conversationId: string; eventId?: string }
 
 @Injectable()
 export class FlowActionsService {
-  constructor(private db: DatabaseService, private effects: ExternalEffects, private sequences: SequencesService, private events: EventEmitter2) {}
+  constructor(private db: DatabaseService, private effects: ExternalEffects, private sequences: SequencesService, private events: EventEmitter2,private google?:GoogleService,private integrations?:IntegrationsService) {}
 
   async assign(scope: ActionScope, opts: { userId?: string; departmentId?: string }) {
     await this.db.withTenant(scope.tenantId, async c => {
@@ -42,6 +45,13 @@ export class FlowActionsService {
         return;
       }
       switch (action.type) {
+        case 'integration': {
+          const provider=(await c.query('SELECT provider FROM integration_connections WHERE id=$1 AND enabled',[action.connectionId])).rows[0];
+          if(!provider||!this.google||!this.integrations)throw new Error('Enabled integration unavailable');
+          const payload=JSON.parse(action.payload);
+          await this.db.eventScope(`flow-action:${key}`,()=>this.effects.execute<unknown>(scope.tenantId,action,()=>provider.provider==='google'?this.google!.execute(scope.tenantId,action.connectionId,googleOperationSchema.parse(payload)):this.integrations!.execute(scope.tenantId,action.connectionId,{...payload,contactId:scope.contactId},false)));
+          break;
+        }
         case 'set_field':
           await c.query('UPDATE contacts SET attributes=attributes || jsonb_build_object($2::text,$3::text),updated_at=now() WHERE id=$1',[scope.contactId,action.key,action.value]); break;
         case 'tag':
