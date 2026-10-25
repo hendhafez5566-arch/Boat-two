@@ -113,6 +113,7 @@ export interface FlowState {
     /** Outside-hours start is deferred without skipping the start node. */
     startPending?: boolean;
     deliveryPending?: boolean;
+    formToken?: string;
   };
   totalSteps: number;
 }

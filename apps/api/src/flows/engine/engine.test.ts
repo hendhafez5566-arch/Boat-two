@@ -853,3 +853,22 @@ test('clickableOptions: buttons, list rows, and only the current user_input choi
   assert.deepEqual(clickableOptions(m, { nodeId: 'm', kind: 'delay', retries: 0 }), []);
   assert.deepEqual(clickableOptions(undefined, null), []);
 });
+
+test('WhatsApp form waits through unrelated/stale replies, isolates sessions and resumes after reopening', async () => {
+  const graph:FlowGraph={startNodeId:'form',nodes:[node('form','whatsapp_flow',{text:'Book',flowId:'123',cta:'Open',screen:'START',saveAs:'booking'},{ok:'done'}),node('done','message',{text:'Received'})]};
+  const a=harness(graph),b=harness(graph);a.ctx.channel.type=b.ctx.channel.type='whatsapp';
+  const first=await a.engine.start(a.ctx,newState());const other=await b.engine.start(b.ctx,newState());
+  assert.equal(first.status,'waiting');assert.ok(first.state.waiting?.formToken);assert.notEqual(first.state.waiting?.formToken,other.state.waiting?.formToken);
+  const saved=JSON.parse(JSON.stringify(first.state));
+  a.say('hello');assert.equal((await a.engine.resume(a.ctx,saved)).status,'waiting');assert.equal(a.sent.length,1);
+  a.ctx.lastMessage={text:'',formReply:{flow_token:other.state.waiting?.formToken}};assert.equal((await a.engine.resume(a.ctx,saved)).status,'waiting');
+  a.ctx.lastMessage={text:'',formReply:{flow_token:saved.waiting.formToken,date:'2026-11-01'}};
+  const reopened=harness(graph);const result=await reopened.engine.resume(a.ctx,saved);
+  assert.equal(result.status,'completed');assert.equal((result.state.vars.booking as Record<string,unknown>).date,'2026-11-01');assert.equal(reopened.sent[0].text,'Received');
+});
+test('commerce nodes reject missing product/service/form configuration before publication',()=>{
+  for(const type of ['product','catalog','appointment','whatsapp_flow'])assert.ok(validateGraph({startNodeId:'x',nodes:[node('x',type,{})]}).errors.length,type);
+  const productId='00000000-0000-4000-8000-000000000001';
+  assert.equal(validateGraph({startNodeId:'x',nodes:[node('x','product',{productId,native:false})]}).errors.length,0);
+  assert.ok(validateGraph({startNodeId:'x',nodes:[node('x','catalog',{productIds:[productId,productId],text:'Catalog',native:false})]}).errors.some(e=>/unique/.test(e.message)));
+});

@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import {nodeSchema} from '../flow-schemas';
 import { isValidTimezone } from './hours';
 import { parseSheetUrl } from './sheet';
 import { FlowGraph, handlesFor, optionsOf } from './types';
@@ -31,6 +32,15 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
     }
 
     switch (n.type) {
+      case 'product':
+      case 'catalog':
+      case 'appointment':
+      case 'whatsapp_flow': {
+        const parsed=nodeSchema.safeParse(n);
+        if(!parsed.success)for(const issue of parsed.error.issues)errors.push({nodeId:n.id,message:`${issue.path.join('.')}: ${issue.message}`});
+        if(n.type==='catalog'&&new Set(d.productIds??[]).size!==(d.productIds??[]).length)errors.push({nodeId:n.id,message:'Catalog products must be unique'});
+        break;
+      }
       case 'interactive':
       case 'message': {
         const opts = optionsOf(d);

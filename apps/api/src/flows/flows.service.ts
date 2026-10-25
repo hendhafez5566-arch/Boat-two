@@ -425,7 +425,7 @@ export class FlowsService {
     const ctx = {
       contact: { name: String(attrs['system.name']??'Test User'), phone: String(attrs['system.phone']??'+201000000000'), email: attrs['system.email']?String(attrs['system.email']):null, attributes: attrs },
       channel: { type: 'test' },
-      lastMessage: { text: input.text, replyId: input.replyId, ...((state.offHours?graph.policy?.businessHours?.offHoursGraph??graph:graph).nodes.find(n=>n.id===state.waiting?.nodeId)?.type==='whatsapp_flow'?{formReply:(()=>{try{return{...JSON.parse(input.text),flow_token:`${state.waiting?.nodeId}:${state.totalSteps}`};}catch{return undefined;}})()}:{} ) },
+      lastMessage: { text: input.text, replyId: input.replyId, ...((state.offHours?graph.policy?.businessHours?.offHoursGraph??graph:graph).nodes.find(n=>n.id===state.waiting?.nodeId)?.type==='whatsapp_flow'?{formReply:(()=>{try{return{...JSON.parse(input.text),flow_token:state.waiting?.formToken??`${state.waiting?.nodeId}:${state.totalSteps}`};}catch{return undefined;}})()}:{} ) },
     };
 
     const result = !input.state
