@@ -13,3 +13,9 @@ test('mailing adapters build provider-specific requests rather than generic succ
  const brevo=providerRequest('brevo',{listId:'2'},'secret',{email:'ada@example.test'});assert.equal(brevo.headers['api-key'],'secret');assert.deepEqual(JSON.parse(brevo.body!).listIds,[2]);
  assert.throws(()=>providerRequest('mailchimp',{listId:'x'},'invalid',{}));assert.throws(()=>providerRequest('brevo',{listId:'abc'},'secret',{}));
 });
+
+test('Google contacts request has read-only scope, bounded pagination and safe normalized CRM data',async()=>{
+ const {googleContactsPage}=await import('./contracts');
+ const request=googleRequest(googleOperationSchema.parse({operation:'contacts_import',pageToken:'next+page'}));assert.match(request.scope,/contacts.readonly$/);assert.equal(request.method,'GET');assert.equal(new URL(request.url).searchParams.get('pageToken'),'next+page');assert.equal(new URL(request.url).searchParams.get('pageSize'),'100');
+ const page=googleContactsPage({connections:[{resourceName:'people/123',names:[{displayName:' Ada '}],emailAddresses:[{value:'ADA@EXAMPLE.TEST'}],phoneNumbers:[{canonicalForm:'+201234567890'}]},{resourceName:'people/123'},{resourceName:'bad'},{resourceName:'people/empty'}],nextPageToken:'next'});assert.deepEqual(page.contacts,[{resourceName:'people/123',name:'Ada',email:'ada@example.test',phone:'+201234567890'}]);assert.equal(page.skipped,3);assert.equal(page.nextPageToken,'next');
+});

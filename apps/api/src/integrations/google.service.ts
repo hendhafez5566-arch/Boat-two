@@ -2,17 +2,18 @@ import {BadRequestException,Injectable,NotFoundException,ServiceUnavailableExcep
 import {createHash,randomBytes} from 'node:crypto';
 import {DatabaseService} from '../database/database.service';
 import {CryptoService} from '../messaging/crypto.service';
+import {PlansService} from '../plans/plans.service';
 import {env} from '../config/env';
-import {GoogleOperation,googleRequest} from './contracts';
+import {GoogleOperation,googleRequest,googleContactsPage} from './contracts';
 const hash=(v:string)=>createHash('sha256').update(v).digest('hex');
 class GoogleAuthorizationError extends BadRequestException {}
 @Injectable()
 export class GoogleService {
- constructor(private db:DatabaseService,private crypto:CryptoService){}
+ constructor(private db:DatabaseService,private crypto:CryptoService,private plans:PlansService){}
  config(){return{configured:!!env.GOOGLE_CLIENT_ID&&!!env.GOOGLE_CLIENT_SECRET,externalEnabled:env.EXTERNAL_DELIVERY_ENABLED==='true',redirectUri:`${env.PUBLIC_API_URL}/integrations/google/callback`};}
  private ready(){if(!this.config().configured||!this.config().externalEnabled)throw new ServiceUnavailableException('Google OAuth requires operator configuration and explicitly enabled external access');}
  async start(tenant:string,user:string,purposes:string[]){
-  this.ready();const scopes=[...new Set(purposes.map(p=>p==='calendar'?'https://www.googleapis.com/auth/calendar.events':p==='sheets_write'?'https://www.googleapis.com/auth/spreadsheets':'https://www.googleapis.com/auth/spreadsheets.readonly'))];
+  this.ready();const scopes=[...new Set(purposes.map(p=>p==='contacts_read'?'https://www.googleapis.com/auth/contacts.readonly':p==='calendar'?'https://www.googleapis.com/auth/calendar.events':p==='sheets_write'?'https://www.googleapis.com/auth/spreadsheets':'https://www.googleapis.com/auth/spreadsheets.readonly'))];
   const state=randomBytes(32).toString('hex');await this.db.withTenant(tenant,c=>c.query('INSERT INTO integration_oauth_states(tenant_id,user_id,state_hash,scopes) VALUES($1,$2,$3,$4)',[tenant,user,hash(state),scopes]));
   const params=new URLSearchParams({client_id:env.GOOGLE_CLIENT_ID!,redirect_uri:this.config().redirectUri,response_type:'code',scope:scopes.join(' '),state,access_type:'offline',prompt:'consent',include_granted_scopes:'true'});
   return{authorizeUrl:`https://accounts.google.com/o/oauth2/v2/auth?${params}`};
@@ -40,7 +41,23 @@ export class GoogleService {
     const next=await refreshed.json() as Record<string,unknown>;Object.assign(token,next,{expiresAt:Date.now()+Number(next.expires_in??3600)*1000});await c.query('UPDATE integration_connections SET credentials_enc=$2,updated_at=now() WHERE id=$1',[id,this.crypto.encrypt(token)]);
    }
    const response=await fetch(request.url,{method:request.method,headers:{Authorization:`Bearer ${token.access_token}`,'Content-Type':'application/json'},...(request.body?{body:JSON.stringify(request.body)}:{}),signal:AbortSignal.timeout(15000)});
-   if(!response.ok)throw new BadRequestException(`Google request failed (${response.status})`);return{mock:false,delivered:true,data:await response.json()};
+   if(!response.ok)throw new BadRequestException(`Google request failed (${response.status})`);
+   const data=await response.json();
+   if(input.operation==='contacts_import'){
+    const page=googleContactsPage(data);let imported=0,linked=0,skipped=page.skipped;
+    await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+    let contactCount=(await c.query('SELECT count(*)::int AS n FROM contacts')).rows[0].n;
+    // Serialise imports within this workspace; identifiers never confer marketing consent.
+    await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7))',[tenant]);
+    for(const person of page.contacts){
+     const matches=(await c.query("SELECT id FROM contacts WHERE merged_into_id IS NULL AND archived_at IS NULL AND (attributes->'googleContacts'->>$1=$2 OR ($3::text IS NOT NULL AND lower(email)=$3) OR ($4::text IS NOT NULL AND phone=$4)) LIMIT 2",[id,person.resourceName,person.email,person.phone])).rows;
+     if(matches.length>1){skipped++;continue;}
+     if(matches.length){await c.query("UPDATE contacts SET attributes=jsonb_set(attributes,'{googleContacts}',COALESCE(attributes->'googleContacts','{}'::jsonb)||jsonb_build_object($2::text,$3::text)),updated_at=now() WHERE id=$1",[matches[0].id,id,person.resourceName]);linked++;}
+     else{await this.plans.assertWithinLimit(c,'contacts',contactCount++);await c.query("INSERT INTO contacts(tenant_id,name,email,phone,attributes) VALUES($1,$2,$3,$4,jsonb_build_object('googleContacts',jsonb_build_object($5::text,$6::text)))",[tenant,person.name,person.email,person.phone,id,person.resourceName]);imported++;}
+    }
+    return{mock:false,delivered:true,data:{imported,linked,skipped,nextPageToken:page.nextPageToken,marketingConsentGranted:false}};
+   }
+   return{mock:false,delivered:true,data};
   }).catch(async error=>{if(error instanceof GoogleAuthorizationError)await this.db.withTenant(tenant,c=>c.query("UPDATE integration_connections SET status='needs_action',updated_at=now() WHERE id=$1",[id]));throw error;});
  }
 }
