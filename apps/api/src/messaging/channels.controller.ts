@@ -41,6 +41,12 @@ export class ChannelsController {
   }
 
   @Roles('owner', 'admin')
+  @Post(':id/verify')
+  verify(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.channels.verify(req.user.tenantId, id);
+  }
+
+  @Roles('owner', 'admin')
   @Post(':id/credentials')
   reconnect(
     @Req() req: AuthedRequest,

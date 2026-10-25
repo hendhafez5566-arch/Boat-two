@@ -10,7 +10,7 @@ type SDK = {
     options: Record<string, unknown>,
   ) => void;
 };
-export default function MetaConnect({ onSaved }: { onSaved: () => void }) {
+export default function MetaConnect({ onSaved, selectedKind }: { onSaved: () => void; selectedKind?: string }) {
   const { t } = useLocale();
   const config = useData<{
     configured: boolean;
@@ -34,6 +34,7 @@ export default function MetaConnect({ onSaved }: { onSaved: () => void }) {
   >('/channels/meta/connections', []);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [whatsappMode, setWhatsappMode] = useState('cloud');
   async function connect(kind: string) {
     setBusy(true);
     setError('');
@@ -80,7 +81,7 @@ export default function MetaConnect({ onSaved }: { onSaved: () => void }) {
             config_id: config.data.embeddedConfigId,
             response_type: 'code',
             override_default_response_type: true,
-            extras: { setup: {}, sessionInfoVersion: '3' },
+            extras: { setup: {}, sessionInfoVersion: '3', ...(whatsappMode === 'coexistence' ? { featureType: 'whatsapp_business_app_onboarding' } : {}) },
           }),
         );
         if (!response.authResponse?.code)
@@ -128,6 +129,11 @@ export default function MetaConnect({ onSaved }: { onSaved: () => void }) {
           )}
         </p>
       </div>
+      {(!selectedKind || selectedKind === 'whatsapp') && <fieldset className="stack"><legend>{t('كيف تريد استخدام WhatsApp؟', 'How will you use WhatsApp?')}</legend>
+        <label><input type="radio" name="whatsapp-mode" checked={whatsappMode === 'cloud'} onChange={() => setWhatsappMode('cloud')} /> {t('رقم WhatsApp Cloud', 'WhatsApp Cloud number')}</label>
+        <label><input type="radio" name="whatsapp-mode" checked={whatsappMode === 'coexistence'} onChange={() => setWhatsappMode('coexistence')} /> {t('رقم موجود في تطبيق WhatsApp Business — تعايش', 'Existing WhatsApp Business app number — coexistence')}</label>
+        <p className="muted">{t('تتحقق Meta من أهلية الرقم والتعايش أثناء التفويض. اختيار هذا المسار لا يؤكد الأهلية ولا ينقل الرقم تلقائيًا.', 'Meta checks number and coexistence eligibility during authorization. Selecting this path does not confirm eligibility or automatically migrate the number.')}</p>
+      </fieldset>}
       {(!config.data.configured || !config.data.externalEnabled) && (
         <div className="notice"><strong>{t('بانتظار تجهيز الربط','Connection setup pending')}</strong><p>{t('تواصل مع مسؤول المنصة لتجهيز الربط الرسمي. يمكنك استخدام قناة الموقع الآن دون حساب خارجي.','Contact the platform administrator to prepare the official connection. Website chat is available without an external account.')}</p><details><summary>{t('تفاصيل للمسؤول','Administrator details')}</summary>{t(
             'يلزم إعداد تطبيق Meta ومعرّف Embedded Signup وRedirect URI والصلاحيات المعتمدة بواسطة المشغّل.',
@@ -141,7 +147,7 @@ export default function MetaConnect({ onSaved }: { onSaved: () => void }) {
         </p>
       )}
       <div className="flex flex-wrap gap-2">
-        {['facebook', 'instagram', 'whatsapp'].map((kind) => (
+        {['facebook', 'instagram', 'whatsapp'].filter(kind => !selectedKind || selectedKind === kind).map((kind) => (
           <button
             key={kind}
             className="btn"

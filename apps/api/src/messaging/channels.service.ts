@@ -10,6 +10,8 @@ import { env } from '../config/env';
 import { DatabaseService } from '../database/database.service';
 import { PlansService } from '../plans/plans.service';
 import { CryptoService } from './crypto.service';
+import { connectionHealth, ConnectionHealth } from './connection-health';
+import { GRAPH } from './adapters/adapter';
 
 export type ChannelType = 'web' | 'whatsapp' | 'facebook' | 'instagram';
 
@@ -79,13 +81,45 @@ export class ChannelsService {
     private readonly crypto: CryptoService,
   ) {}
 
-  private view<T extends { type: string; external_id: string }>(row: T) {
+  private view<T extends { type: string; external_id: string; status: string; settings?: Record<string, unknown> }>(row: T) {
+    const health = connectionHealth(row);
     return row.type === 'web'
       ? {
           ...row,
+          connectionHealth: health,
           widgetSnippet: `<script src="${env.PUBLIC_API_URL}/widget.js" data-key="${row.external_id}" async></script>`,
         }
-      : row;
+      : { ...row, connectionHealth: health };
+  }
+
+  /** Read-only provider request. Never subscribes, disconnects or sends a message. */
+  async verify(tenantId: string, id: string) {
+    const row = await this.db.withTenant(tenantId, async (c) =>
+      (await c.query('SELECT * FROM channels WHERE id=$1', [id])).rows[0]);
+    if (!row) throw new NotFoundException('Channel not found');
+    if (row.type === 'web' || row.status !== 'active') return connectionHealth(row);
+    if (env.EXTERNAL_DELIVERY_ENABLED !== 'true')
+      return { state: 'needs_action', checkedAt: null, reason: 'external_access_disabled' };
+    const credentials = this.credentials(row);
+    const token = credentials.accessToken || credentials.pageAccessToken;
+    const checkedAt = new Date().toISOString();
+    let health: ConnectionHealth;
+    try {
+      const response = await fetch(`${GRAPH}/${encodeURIComponent(row.external_id)}?fields=id`, {
+        headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10000),
+      });
+      const result = await response.json() as { id?: string; error?: { code?: number } };
+      health = response.ok && result.id === row.external_id
+        ? { state: 'connected', checkedAt, reason: 'provider_verified' }
+        : { state: result.error?.code === 190 ? 'expired' : 'needs_action', checkedAt, reason: result.error?.code === 190 ? 'authorization_expired' : 'provider_rejected' };
+    } catch {
+      health = { state: 'needs_action', checkedAt, reason: 'provider_unreachable' };
+    }
+    await this.db.withTenant(tenantId, (c) => c.query(
+      `UPDATE channels SET settings=jsonb_set(settings,'{connectionHealth}',$2::jsonb) WHERE id=$1 AND credentials_enc IS NOT DISTINCT FROM $3`,
+      [id, JSON.stringify(health), row.credentials_enc],
+    ));
+    return health;
   }
 
   /** من الـ webhook أو الويدجت: بدون سياق شركة */
@@ -179,7 +213,7 @@ export class ChannelsService {
       const credentials = this.credentials(row as ChannelRow);
       credentials[row.type === 'whatsapp' ? 'accessToken' : 'pageAccessToken'] = accessToken;
       if (row.type === 'whatsapp' && wabaId) credentials.wabaId = wabaId;
-      await c.query("UPDATE channels SET credentials_enc=$2,status='active' WHERE id=$1", [
+      await c.query("UPDATE channels SET credentials_enc=$2,status='active',settings=settings-'connectionHealth' WHERE id=$1", [
         id,
         this.crypto.encrypt(credentials),
       ]);

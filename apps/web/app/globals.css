@@ -1705,3 +1705,12 @@ textarea::placeholder {
 /* Keep the navigation dismissal inside the drawer and readable on its light surface. */
 .product-sidebar .mobile-menu { display:none; color:var(--ink); }
 @media (max-width:700px) { .product-sidebar .mobile-menu { display:inline-flex; } }
+
+/* Channel discovery stays readable at phone, tablet and desktop widths. */
+.channel-catalog { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.channel-catalog article { min-width:0; align-content:start; }
+.channel-catalog h2 { overflow-wrap:anywhere; font-size:1.15rem; text-align:start; }
+.channel-catalog .btn { margin-top:auto; min-height:44px; }
+#official-connect, #channel-create { scroll-margin-top:90px; }
+@media(max-width:900px) { .channel-catalog { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:480px) { .channel-catalog { grid-template-columns:1fr; } }
