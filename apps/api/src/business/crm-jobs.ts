@@ -243,6 +243,7 @@ export class CrmJobsController {
       let total = input.kind === 'import' ? input.contacts.length : 0;
       if (input.kind === 'export') {
         const where = contactWhere(input.filters);
+        if(input.asOf && (input.filters.channelId||input.filters.listId||input.filters.sequenceId||input.filters.sequenceStatus||input.filters.consentStatus))throw new BadRequestException('Historical exports cannot use live list/sequence/consent relationships; remove asOf or these filters');
         if (input.asOf) {
           if (new Date(input.asOf).getTime() > Date.now())
             throw new BadRequestException('Historical time cannot be in the future');

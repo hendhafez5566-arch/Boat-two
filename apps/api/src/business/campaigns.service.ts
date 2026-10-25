@@ -26,9 +26,9 @@ export class CampaignsService {
       const counts = (await c.query(
         `WITH classified AS (
           SELECT CASE
-            WHEN NOT EXISTS(SELECT 1 FROM contact_channels cc WHERE cc.contact_id=contacts.id AND cc.channel_id=$5) THEN 'not_linked'
-            WHEN EXISTS(SELECT 1 FROM contact_consents s WHERE s.contact_id=contacts.id AND s.channel_id=$5 AND s.status='opted_in') THEN 'eligible'
-            WHEN EXISTS(SELECT 1 FROM contact_consents s WHERE s.contact_id=contacts.id AND s.channel_id=$5 AND s.status='opted_out') THEN 'opted_out'
+            WHEN NOT EXISTS(SELECT 1 FROM contact_channels cc WHERE cc.contact_id=contacts.id AND cc.channel_id=$${w.params.length+1}) THEN 'not_linked'
+            WHEN EXISTS(SELECT 1 FROM contact_consents s WHERE s.contact_id=contacts.id AND s.channel_id=$${w.params.length+1} AND s.status='opted_in') THEN 'eligible'
+            WHEN EXISTS(SELECT 1 FROM contact_consents s WHERE s.contact_id=contacts.id AND s.channel_id=$${w.params.length+1} AND s.status='opted_out') THEN 'opted_out'
             ELSE 'no_consent' END AS reason FROM contacts WHERE ${w.sql}
         ) SELECT count(*)::int AS matched,count(*) FILTER(WHERE reason='eligible')::int AS eligible,
           count(*) FILTER(WHERE reason='not_linked')::int AS not_linked,
@@ -111,7 +111,7 @@ export class CampaignsService {
       if (!row) return;
       const w = contactWhere(row.filters);
       await c.query(
-        `INSERT INTO campaign_recipients(tenant_id,campaign_id,contact_id) SELECT $5,$6,id FROM contacts WHERE ${w.sql} AND EXISTS(SELECT 1 FROM contact_consents s JOIN contact_channels cc ON cc.contact_id=s.contact_id AND cc.channel_id=s.channel_id WHERE s.contact_id=contacts.id AND s.channel_id=$7 AND s.status='opted_in') ON CONFLICT(campaign_id,contact_id) DO NOTHING`,
+        `INSERT INTO campaign_recipients(tenant_id,campaign_id,contact_id) SELECT $${w.params.length+1},$${w.params.length+2},id FROM contacts WHERE ${w.sql} AND EXISTS(SELECT 1 FROM contact_consents s JOIN contact_channels cc ON cc.contact_id=s.contact_id AND cc.channel_id=s.channel_id WHERE s.contact_id=contacts.id AND s.channel_id=$${w.params.length+3} AND s.status='opted_in') ON CONFLICT(campaign_id,contact_id) DO NOTHING`,
         [...w.params, e.tenantId, row.id, row.channel_id],
       );
       await c.query(

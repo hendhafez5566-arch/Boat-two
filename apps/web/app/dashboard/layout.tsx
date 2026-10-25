@@ -70,6 +70,9 @@ function Shell({ children }: { children: ReactNode }) {
     logo_url: string | null;
     primary_color: string;
   } | null>(null);
+  const [usage,setUsage]=useState<Record<string,string|number>>({});
+  const [limits,setLimits]=useState<Record<string,number>>({});
+  const [aiEnabled,setAiEnabled]=useState(false);
   const [open, setOpen] = useState(false);
   const [collapsed,setCollapsed] = useState(false);
   useEffect(() => {try {setCollapsed(localStorage.getItem('boat.navigation.collapsed') === 'true');} catch {}}, []);
@@ -94,13 +97,13 @@ function Shell({ children }: { children: ReactNode }) {
           if (result.enabled) setBrand(result.branding);
         })
         .catch(() => {});
-    api<{ tenant: { id: string; name: string }; role: string }>('/workspace')
+    api<{ tenant: { id: string; name: string }; role: string;usage:Record<string,string|number>;plan:{limits:Record<string,number>};aiEnabled:boolean }>('/workspace')
       .then((w) => {
         if (hostBrand && w.tenant.id !== hostBrand.tenantId)
           throw new Error(
             t('سجّل الدخول إلى مساحة هذا النطاق', 'Sign in to this domain’s workspace'),
           );
-        setName(w.tenant.name);
+        setName(w.tenant.name);setUsage(w.usage);setLimits(w.plan.limits);setAiEnabled(w.aiEnabled);
         setRole(w.role);
         setReady(true);
       })
@@ -263,6 +266,8 @@ function Shell({ children }: { children: ReactNode }) {
             <NavIcon name="menu" />
           </button>
           <WorkspaceMenu name={name} />
+          <div className="usage-strip"><Link href="/dashboard/crm">{t('عملاء','Contacts')}: {usage.contacts??'—'} / {limits.contacts===-1?'∞':limits.contacts??'—'}</Link><Link href="/dashboard/billing">{t('رسائل','Messages')}: {usage.messages_per_month??'—'} / {limits.messages_per_month===-1?'∞':limits.messages_per_month??'—'}</Link>{aiEnabled&&<span>AI tokens: {usage.ai_tokens??'—'}</span>}</div>
+          <details className="account-actions"><summary>{t('الحساب','Account')}</summary><div className="card stack">{[['settings','حسابي','My account'],['billing','الاشتراك والترقية','Billing and upgrade'],['sessions','الأمان والأجهزة','Security and sessions'],['support','المساعدة','Support'],['developer','API للمطور','Developer API'],['integrations','التكاملات','Integrations']].map(([path,ar,en])=><Link key={path} href={'/dashboard/'+path}>{t(ar,en)}</Link>)}</div></details>
           <span className="badge">{t('بيئة العمل', 'Workspace')}</span>
         </header>
         {error ? (

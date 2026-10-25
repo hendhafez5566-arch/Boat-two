@@ -1,5 +1,10 @@
 import { z } from 'zod';
 export const filtersSchema = z.object({
+  channelId:z.string().uuid().optional(),
+  listId:z.string().uuid().optional(),
+  sequenceId:z.string().uuid().optional(),
+  sequenceStatus:z.enum(['active','completed','stopped']).optional(),
+  consentStatus:z.enum(['opted_in','opted_out','unknown']).optional(),
   q: z.string().max(100).optional(),
   lifecycle: z.enum(['lead', 'qualified', 'customer', 'inactive']).optional(),
   tag: z.string().max(50).optional(),
@@ -155,7 +160,7 @@ export const ruleSchema = z.object({
 });
 export type Filters = z.infer<typeof filtersSchema>;
 export function contactWhere(filters: Filters) {
-  return {
+  const base = {
     sql: `merged_into_id IS NULL AND ${filters.archived === 'all' ? 'true' : filters.archived === 'archived' ? 'archived_at IS NOT NULL' : 'archived_at IS NULL'} AND ($1::text IS NULL OR name ILIKE $1 ESCAPE '\\' OR email ILIKE $1 ESCAPE '\\' OR phone ILIKE $1 ESCAPE '\\') AND ($2::text IS NULL OR lifecycle=$2) AND ($3::text IS NULL OR $3=ANY(tags)) AND ($4::uuid IS NULL OR owner_id=$4)`,
     params: [
       filters.q ? '%' + filters.q.replace(/[\\%_]/g, '\\$&') + '%' : null,
@@ -164,4 +169,11 @@ export function contactWhere(filters: Filters) {
       filters.ownerId ?? null,
     ],
   };
+  const clauses:string[]=[];
+  const bind=(value:string)=>{base.params.push(value);return '$'+base.params.length;};
+  if(filters.channelId)clauses.push(`EXISTS(SELECT 1 FROM contact_channels fcc WHERE fcc.contact_id=contacts.id AND fcc.channel_id=${bind(filters.channelId)}::uuid)`);
+  if(filters.listId)clauses.push(`EXISTS(SELECT 1 FROM contact_list_members flm WHERE flm.contact_id=contacts.id AND flm.list_id=${bind(filters.listId)}::uuid)`);
+  if(filters.sequenceId||filters.sequenceStatus){const conditions=['fse.contact_id=contacts.id'];if(filters.sequenceId)conditions.push(`fse.sequence_id=${bind(filters.sequenceId)}::uuid`);if(filters.sequenceStatus)conditions.push(`fse.status=${bind(filters.sequenceStatus)}`);clauses.push(`EXISTS(SELECT 1 FROM sequence_enrollments fse WHERE ${conditions.join(' AND ')})`);}
+  if(filters.consentStatus){const channel=filters.channelId?` AND fcs.channel_id=${bind(filters.channelId)}::uuid`:'';clauses.push(filters.consentStatus==='unknown'?`NOT EXISTS(SELECT 1 FROM contact_consents fcs WHERE fcs.contact_id=contacts.id${channel})`:`EXISTS(SELECT 1 FROM contact_consents fcs WHERE fcs.contact_id=contacts.id${channel} AND fcs.status=${bind(filters.consentStatus)})`);}
+  return{sql:base.sql+(clauses.length?' AND '+clauses.join(' AND '):''),params:base.params};
 }

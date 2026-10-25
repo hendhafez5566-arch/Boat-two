@@ -12,6 +12,9 @@ import { useLocale } from '../../../components/product/locale';
 import { useData } from '../../../components/business/useData';
 import { download, exportCsv } from '../../../components/business/csv';
 type Contact = {
+  lists?:{id:string;name:string}[];
+  sequences?:{id:string;name:string;status:string}[];
+  consents?:{channelId:string;status:string}[];
   id: string;
   name: string;
   email: string | null;
@@ -82,6 +85,10 @@ export default function CRM() {
       return next;
     });
   const [q, setQ] = useState('');
+  const [channelId,setChannelId]=useState(''),[listId,setListId]=useState(''),[sequenceId,setSequenceId]=useState(''),[sequenceStatus,setSequenceStatus]=useState(''),[consentStatus,setConsentStatus]=useState('');
+  const filterChannels=useData<{id:string;name:string}[]>('/channels',[]);
+  const filterLists=useData<{id:string;name:string}[]>(canManage?'/contact-lists':null,[]);
+  const filterSequences=useData<{id:string;name:string}[]>(canManage?'/sequences':null,[]);
   const [bulkIds, setBulkIds] = useState<string[]>([]);
   const [stage, setStage] = useState('');
   const [tag, setTag] = useState('');
@@ -97,6 +104,7 @@ export default function CRM() {
   const [timeline, setTimeline] = useState<Timeline | null>(null);
   const filter = new URLSearchParams({
     q,
+    ...(channelId?{channelId}:{}),...(listId?{listId}:{}),...(sequenceId?{sequenceId}:{}),...(sequenceStatus?{sequenceStatus}:{}),...(consentStatus?{consentStatus}:{}),
     archived: archiveFilter,
     ...(stage ? { lifecycle: stage } : {}),
     ...(tag ? { tag } : {}),
@@ -119,7 +127,7 @@ export default function CRM() {
     [],
   );
   const segments = useData<
-    { id: string; name: string; filters: { q?: string; lifecycle?: string; tag?: string; archived?: string } }[]
+    { id: string; name: string; filters: { q?: string; lifecycle?: string; tag?: string; archived?: string;channelId?:string;listId?:string;sequenceId?:string;sequenceStatus?:string;consentStatus?:string } }[]
   >('/crm/segments', []);
   const duplicates = useData<{ kind: string; value: string; ids: string[]; count: number }[]>(
     '/crm/contacts/duplicates',
@@ -271,7 +279,7 @@ export default function CRM() {
                   placeholder={t('اسم أو بريد أو هاتف', 'Name, email or phone')}
                 />
               </label><strong>{contacts.data.total} {t('عميل', 'contacts')}</strong>
-            {(q || stage || tag || archiveFilter !== 'active') && <button className="btn" onClick={()=>{setQ('');setStage('');setTag('');setArchiveFilter('active');setPage(1);}}>{t('مسح التصفية', 'Clear filters')}</button>}
+            {(q || stage || tag || channelId || listId || sequenceId || sequenceStatus || consentStatus || archiveFilter !== 'active') && <button className="btn" onClick={()=>{setQ('');setStage('');setTag('');setArchiveFilter('active');setChannelId('');setListId('');setSequenceId('');setSequenceStatus('');setConsentStatus('');setPage(1);}}>{t('مسح التصفية', 'Clear filters')}</button>}
           </section>
           <details className="card" open={bulkIds.length > 0 || undefined}>
             <summary>{t('الفلاتر والأدوات المتقدمة', 'Advanced filters and tools')} {(stage || tag || archiveFilter !== 'active') && t('· توجد فلاتر نشطة', '· filters active')}</summary>
@@ -279,7 +287,9 @@ export default function CRM() {
             <Link href="/dashboard/crm/lists" className="btn">{t('قوائم المشتركين', 'Subscriber lists')}</Link>
           <section className="card">
             <div className="form-grid">
-
+              {[[t('القناة','Channel'),channelId,setChannelId,filterChannels.data],[t('القائمة','List'),listId,setListId,filterLists.data],[t('التسلسل','Sequence'),sequenceId,setSequenceId,filterSequences.data]].map(([label,value,setter,rows],i)=><label key={i} className="field">{label as string}<select value={value as string} onChange={e=>{(setter as (v:string)=>void)(e.target.value);setPage(1);}}><option value="">{t('الكل','All')}</option>{(rows as {id:string;name:string}[]).map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>)}
+              <label className="field">{t('حالة التسلسل','Sequence status')}<select value={sequenceStatus} onChange={e=>{setSequenceStatus(e.target.value);setPage(1);}}><option value="">{t('الكل','All')}</option>{['active','completed','stopped'].map(v=><option key={v}>{v}</option>)}</select></label>
+              <label className="field">{t('موافقة التسويق (مستقلة عن القوائم)','Marketing consent (independent of lists)')}<select value={consentStatus} onChange={e=>{setConsentStatus(e.target.value);setPage(1);}}><option value="">{t('الكل','All')}</option>{['opted_in','opted_out','unknown'].map(v=><option key={v}>{v}</option>)}</select></label>
               <label className="field">
                 {t('مرحلة العميل', 'Lifecycle')}
                 <select
@@ -314,8 +324,8 @@ export default function CRM() {
                 </datalist>
               </label>
             </div>
-            {(q || stage || tag) && (
-              <div className="filter-chips" aria-label={t('التصفية الحالية', 'Active filters')}>
+            {(q || stage || tag || channelId || listId || sequenceId || sequenceStatus || consentStatus) && (
+              <div className="filter-chips" aria-label={t('التصفية الحالية', 'Active filters')}>{[[channelId,setChannelId,t('القناة','Channel')],[listId,setListId,t('القائمة','List')],[sequenceId,setSequenceId,t('التسلسل','Sequence')],[sequenceStatus,setSequenceStatus,t('حالة التسلسل','Sequence status')],[consentStatus,setConsentStatus,t('الموافقة','Consent')]].filter(([v])=>!!v).map(([value,setter,label],i)=><button className="filter-chip" key={'extended'+i} onClick={()=>{(setter as (v:string)=>void)('');setPage(1);}}>{label as string}: {([...filterChannels.data,...filterLists.data,...filterSequences.data].find(x=>x.id===value)?.name??value) as string} ×</button>)}
                 {q && (
                   <button type="button" className="filter-chip" onClick={() => { setQ(''); setPage(1); }}>
                     {t('بحث', 'Search')}: {q} ×
@@ -527,7 +537,7 @@ export default function CRM() {
                     <td>
                       <button className="font-bold underline" onClick={() => view(c)}>
                         {c.name}
-                      </button>
+                      </button><div className="stack text-xs">{(c.lists??[]).map(l=><span key={l.id}>{t('قائمة','List')}: {l.name}</span>)}{(c.sequences??[]).map(seq=><span key={seq.id}>{seq.name}: {seq.status}</span>)}{(c.consents??[]).map(consent=><span key={consent.channelId}>{filterChannels.data.find(ch=>ch.id===consent.channelId)?.name??t('قناة','Channel')}: {consent.status}</span>)}{!(c.consents??[]).length&&<span>{t('لا توجد موافقة تسويق موثقة','No documented marketing consent')}</span>}</div>
                     </td>
                     {cols.includes('contact') && <td>{c.email || c.phone || '—'}</td>}
                     {cols.includes('lifecycle') && (
@@ -1264,7 +1274,7 @@ export default function CRM() {
                 <div className="step" key={x.id}>
                   <button
                     onClick={() => {
-                      setQ(x.filters.q || '');
+                      setQ(x.filters.q || '');setChannelId(x.filters.channelId||'');setListId(x.filters.listId||'');setSequenceId(x.filters.sequenceId||'');setSequenceStatus(x.filters.sequenceStatus||'');setConsentStatus(x.filters.consentStatus||'');
                       setStage(x.filters.lifecycle || '');
                       setTag(x.filters.tag || '');
                       setArchiveFilter(x.filters.archived || 'active');

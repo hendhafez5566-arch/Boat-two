@@ -1,6 +1,7 @@
 'use client';
 import {statusLabel} from '../../components/product/status';
 import Link from 'next/link';
+import {useData} from '../../components/business/useData';
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { useLocale } from '../../components/product/locale';
@@ -11,6 +12,7 @@ type Workspace = {
 };
 export default function Dashboard() {
   const { t } = useLocale();
+  const overview=useData<{channels:{id:string;name:string;type:string;health:{state:string;reason:string}}[];growth:{day:string;contacts:number;messages:number}[];delivery:{status:string;count:number}[];drafts:{id:string;name:string;status:string}[]}>('/workspace/overview',{channels:[],growth:[],delivery:[],drafts:[]});
   const [w, setW] = useState<Workspace | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [error, setError] = useState('');
@@ -33,6 +35,12 @@ export default function Dashboard() {
   ];
   return (
     <main className="stack">
+      <section className="task-launch-grid" aria-label={t('مهامك الأساسية','Your main tasks')}>{[['/dashboard/channels','ربط قناة','Connect channel'],['/dashboard/flows/new','إنشاء بوت','Create bot'],['/dashboard/inbox','فتح الوارد','Open inbox'],['/dashboard/campaigns','حملة جديدة','New broadcast']].map(([href,ar,en])=><Link className="card stack" key={href} href={href}><strong>{t(ar,en)}</strong><span>↗</span></Link>)}</section>
+      {overview.error&&<p className="notice error" role="alert">{overview.error}</p>}
+      <section className="card stack"><h2>{t('اتصالات تحتاج إجراءً','Connections requiring attention')}</h2>{overview.data.channels.filter(ch=>ch.health.state!=='connected').map(ch=><Link key={ch.id} className="step" href="/dashboard/channels"><strong>{ch.name} · {ch.type}</strong><span>{ch.health.state} · {ch.health.reason}</span></Link>)}{!overview.loading&&!overview.error&&!overview.data.channels.length&&<Link href="/dashboard/channels">{t('ابدأ بقناة موقع لتجربة البوت دون حساب خارجي','Start with website chat to test without an external account')}</Link>}</section>
+      <section className="card stack"><h2>{t('نمو العملاء والرسائل خلال 14 يومًا (UTC)','Contacts and messages over 14 days (UTC)')}</h2><div className="growth-chart">{overview.data.growth.map(day=><div key={day.day} title={`${day.day}: ${day.contacts} / ${day.messages}`}><div style={{height:Math.max(3,day.contacts/Math.max(1,...overview.data.growth.map(d=>d.contacts))*100)}}/><strong>{day.contacts}</strong><small>{day.day.slice(5)}</small><small>{day.messages} {t('رسالة','messages')}</small></div>)}</div><p>{t('المصدر: جهات الاتصال والرسائل المحفوظة. الأرقام لا تثبت التسليم.','Source: persisted contacts and messages. Counts do not establish delivery.')}</p></section>
+      <section className="card stack"><h2>{t('حالات الرسائل — آخر 30 يومًا','Message statuses — last 30 days')}</h2><div className="form-actions">{overview.data.delivery.map(row=><Link href="/dashboard/delivery" className="badge" key={row.status}>{statusLabel(row.status,t)}: {row.count}</Link>)}</div></section>
+      <section className="card stack"><h2>{t('تابع العمل على بوتاتك','Continue working on your bots')}</h2>{overview.data.drafts.map(f=><Link key={f.id} href={`/dashboard/flows/${f.id}/workspace`}>{f.name} · {statusLabel(f.status,t)}</Link>)}</section>
       <div className="page-heading">
         <div>
           <p className="eyebrow">YOUR WORKSPACE, CONNECTED</p>
