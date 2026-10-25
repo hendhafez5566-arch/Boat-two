@@ -1,5 +1,3 @@
-import '@fontsource-variable/dm-sans';
-import '@fontsource-variable/noto-sans-arabic';
 import './globals.css';
 import './design-system.css';
 import './builder-responsive.css';
