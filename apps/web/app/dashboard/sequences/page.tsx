@@ -223,13 +223,18 @@ export default function Sequences() {
           <div className="sq-node"><i /> {t('إعداد التسلسل', 'Set-up New Sequence')} — {t('جدولة رسائل التسلسل', 'Schedule Sequence Message')}</div>
         </div>
 
+        <nav className="card stack" aria-label={t('مخطط التسلسل المحفوظ في المحرر', 'Sequence graph in the editor')}>
+          <h3>{t('مسار التسلسل', 'Sequence path')}</h3>
+          <p>{t('كل بطاقة تمثل خطوة فعلية بالترتيب الحالي. اضغطها لتحريرها؛ إعادة الترتيب والحفظ من محرر الخطوات أدناه.', 'Each card represents a real step in its current order. Select it to edit; reorder and save with the step editor below.')}</p>
+          <ol className="sequence-path">{cur.steps.map((s,i)=><li key={s.id}><button type="button" className="card stack" onClick={()=>{const target=document.getElementById('sequence-step-'+s.id);target?.scrollIntoView({behavior:'smooth',block:'center'});target?.focus({preventScroll:true});}}><strong>{i+1}. {s.content.template?.name||s.content.text?.slice(0,60)||t('رسالة جديدة', 'New message')}</strong><span>{t('انتظار بعد الخطوة السابقة', 'Wait after the previous step')}: {s.delay.amount} {({minutes:t('دقيقة','minutes'),hours:t('ساعة','hours'),days:t('يوم','days')} as Record<string,string>)[s.delay.unit]}</span>{s.condition&&<small>{conditionSummary(s.condition as CondGroup,t)?.title}</small>}</button>{i<cur.steps.length-1&&<span className="sequence-connector" aria-hidden="true">↓</span>}</li>)}</ol>
+        </nav>
         <div className="sq-steps">
           {cur.steps.map((s, i) => {
             const kind = kindOf(s.content);
             const st = stats[s.id];
             const sum = conditionSummary(s.condition as CondGroup | undefined, t);
             return (
-              <div key={s.id} className="sq-row">
+              <div key={s.id} className="sq-row" id={'sequence-step-'+s.id} tabIndex={-1}>
                 {fieldErrors.filter(e => e.path[0] === 'steps' && e.path[1] === i).map((e,j) => <p className="notice error" role="alert" key={j}>{e.message}</p>)}
                 {/* Send Message After */}
                 <div className="sq-card">

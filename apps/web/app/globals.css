@@ -1714,3 +1714,11 @@ textarea::placeholder {
 #official-connect, #channel-create { scroll-margin-top:90px; }
 @media(max-width:900px) { .channel-catalog { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:480px) { .channel-catalog { grid-template-columns:1fr; } }
+
+.sequence-path { list-style:none; margin:0; padding:0; display:flex; gap:16px; overflow-x:auto; align-items:stretch; }
+.sequence-path > li { min-width:220px; max-width:300px; flex:1 0 220px; position:relative; }
+.sequence-path button { width:100%; height:calc(100% - 28px); text-align:start; border:1px solid #adc1d3; color:#18334a; }
+.sequence-path strong { overflow-wrap:anywhere; }
+.sequence-connector { display:block; text-align:center; font-size:22px; color:#17658b; }
+.sq-row:focus { outline:3px solid #2563eb; outline-offset:5px; }
+@media(max-width:600px) { .sequence-path { flex-direction:column; overflow-x:visible; } .sequence-path > li { width:100%; min-width:0; max-width:none; flex:auto; } .sequence-path button { height:auto; } }
