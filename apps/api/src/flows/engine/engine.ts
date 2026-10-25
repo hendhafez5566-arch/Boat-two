@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { evaluateRule, Operands } from './conditions';
-import { isOpenNow } from './hours';
+import { isOpenNow, nextOpening } from './hours';
 import { isAllowedSheetHost, lookupRow, parseCsv, parseSheetUrl } from './sheet';
 import { getPath, interpolate, interpolateValue, normalizeDigits, normalizeText, Resolver } from './text';
 import {
@@ -41,8 +41,12 @@ export class FlowEngine {
   }
 
   /** بدء flow جديد من عقدة البداية */
-  start(ctx: FlowContext, state: FlowState): Promise<EngineResult> {
-    return this.run(ctx, state, this.graph.startNodeId);
+  async start(ctx: FlowContext, state: FlowState): Promise<EngineResult> {
+    try {
+      const paused = await this.outsideHours(ctx, state, true);
+      if (paused) return paused;
+      return this.run(ctx, state, this.graph.startNodeId);
+    } catch (e) { return this.finish('error', state, (e as Error).message); }
   }
 
   /** رد من العميل أثناء انتظار الـ flow لإجابة أو اختيار */
@@ -53,6 +57,8 @@ export class FlowEngine {
     if (!node) return this.finish('error', state, `Node ${w.nodeId} not found`);
 
     try {
+      const paused = await this.outsideHours(ctx, state, false);
+      if (paused) return paused;
       if (w.kind === 'choice') return await this.resumeChoice(node, ctx, state);
       if (w.kind === 'answer') return await this.resumeAnswer(node, ctx, state);
       return await this.resumeAi(node, ctx, state);
@@ -62,12 +68,29 @@ export class FlowEngine {
   }
 
   /** انتهاء مهلة عقدة delay */
-  resumeDelay(ctx: FlowContext, state: FlowState): Promise<EngineResult> {
+  async resumeDelay(ctx: FlowContext, state: FlowState): Promise<EngineResult> {
+    try {
     const w = state.waiting;
     if (!w || w.kind !== 'delay') return Promise.resolve(this.finish('error', state, 'Flow is not in a delay'));
     const node = this.nodes.get(w.nodeId);
+    const paused = await this.outsideHours(ctx, state, !!w.startPending);
+    if (paused) return paused;
     state.waiting = null;
-    return this.run(ctx, state, node?.edges.next ?? null);
+    return this.run(ctx, state, w.startPending ? this.graph.startNodeId : node?.edges.next ?? null);
+    } catch (e) { return this.finish('error', state, (e as Error).message); }
+  }
+
+  private async outsideHours(ctx: FlowContext, state: FlowState, start: boolean): Promise<EngineResult | null> {
+    const hours = this.graph.policy?.businessHours;
+    if (!hours?.enabled || isOpenNow(this.deps.now(), hours.timezone, hours.schedule)) return null;
+    if (start || state.waiting?.kind === 'delay') {
+      const next = nextOpening(this.deps.now(), hours.timezone, hours.schedule);
+      if (!next) return this.finish('error', state, 'No business opening within eight days');
+      if (start) state.waiting = { nodeId:this.graph.startNodeId,kind:'delay',retries:0,startPending:true,until:next.toISOString() };
+      else if (state.waiting) state.waiting.until = next.toISOString();
+    }
+    if (hours.offHoursText && ctx.lastMessage.text) await this.send({text:interpolate(hours.offHoursText,this.resolver(ctx,state))});
+    return this.finish('waiting',state);
   }
 
   // ---------------------------------------------------------------- loop
@@ -200,7 +223,7 @@ export class FlowEngine {
       return this.finish('completed', state);
     }
     state.waiting = { nodeId: node.id, kind: 'choice', retries };
-    await this.send(this.buildContent(d, ctx, state));
+    await this.send(this.buildContent({ ...d, text: this.graph.policy?.noMatchText || d.text }, ctx, state));
     return this.finish('waiting', state);
   }
 

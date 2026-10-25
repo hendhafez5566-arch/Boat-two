@@ -396,7 +396,7 @@ export class FlowsService {
         void transcript.push({ role: 'system', content: 'Handed off to a human agent' }),
       closeConversation: async () =>
         void transcript.push({ role: 'system', content: 'Conversation closed' }),
-      now: () => new Date(),
+      now: () => input.simulateAt ? new Date(input.simulateAt) : new Date(),
       random: Math.random,
     });
 

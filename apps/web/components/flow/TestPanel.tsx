@@ -26,6 +26,7 @@ export default function TestPanel({
   const [waitKind, setWaitKind] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [allowHttp, setAllowHttp] = useState(false);
+  const [simulateAt, setSimulateAt] = useState('');
   const [error, setError] = useState('');
   const [statusError, setStatusError] = useState('');
   const [showVars, setShowVars] = useState(false);
@@ -38,7 +39,7 @@ export default function TestPanel({
       await beforeRun();
       const r = await api<any>(`/flows/${flowId}/test`, {
         method: 'POST',
-        body: JSON.stringify({ ...body, allowHttp }),
+        body: JSON.stringify({ ...body, allowHttp, ...(simulateAt ? { simulateAt: new Date(simulateAt).toISOString() } : {}) }),
       });
       setLog((l) => [
         ...l,
@@ -85,6 +86,7 @@ export default function TestPanel({
           {state ? t('إعادة', 'Restart') : t('ابدأ التجربة', 'Start preview')}
         </button>
         <details className="text-xs"><summary>{t('أدوات متقدمة', 'Advanced tools')}</summary>
+        <label className="field">{t('وقت وهمي لاختبار ساعات العمل (محلي)', 'Simulated time for business hours (local)')}<input type="datetime-local" value={simulateAt} disabled={busy} onChange={e=>setSimulateAt(e.target.value)} /></label>
         <label className="flex items-center gap-1 text-xs">
           <input
             type="checkbox"

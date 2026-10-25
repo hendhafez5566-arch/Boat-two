@@ -41,8 +41,15 @@ export interface FlowNode {
 }
 
 export interface FlowGraph {
+  policy?: BotPolicy;
   startNodeId: string;
   nodes: FlowNode[];
+}
+
+export interface BotPolicy {
+  sessionHours?: number;
+  noMatchText?: string;
+  businessHours?: { enabled: boolean; timezone: string; schedule: import('./hours').Schedule; offHoursText?: string };
 }
 
 export interface OutContent {
@@ -93,6 +100,8 @@ export interface FlowState {
     until?: string;
     /** رقم السؤال الحالي داخل بلوك user_input */
     step?: number;
+    /** Outside-hours start is deferred without skipping the start node. */
+    startPending?: boolean;
   };
   totalSteps: number;
 }

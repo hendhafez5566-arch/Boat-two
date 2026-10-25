@@ -25,6 +25,7 @@ import { safeHttpRequest } from './http-safe';
 const REPLY_WAIT_HOURS = 24;
 
 interface Loaded {
+  replyWaitHours?: number;
   eventId?: string;
   tenantId: string;
   conversationId: string;
@@ -213,6 +214,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     };
 
     if ('session' in loaded && loaded.session && loaded.graph) {
+      base.replyWaitHours = loaded.graph.policy?.sessionHours;
       const clickId = await this.recordButtonClick(base, loaded.session, loaded.graph, replyId);
       const engine = new FlowEngine(loaded.graph, this.makeDeps(base, loaded.session.flow_id));
       const result = await engine.resume(ctx, loaded.session.state as FlowState);
@@ -261,6 +263,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     }
 
     const graph = cands.find((x) => x.version_id === match.versionId)!.graph;
+    base.replyWaitHours = graph.policy?.sessionHours;
     const engine = new FlowEngine(graph, this.makeDeps(base, match.flowId));
     const result = await engine.start(ctx, newState());
     await this.saveSession(base, { flowId: match.flowId, versionId: match.versionId, result });
@@ -385,6 +388,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     };
     const base: Loaded = {
       tenantId,
+      replyWaitHours: loaded.graph.policy?.sessionHours,
       conversationId: loaded.session.conversation_id,
       contactId: loaded.conv.contact_id,
       channelId: loaded.conv.channel_id,
@@ -498,7 +502,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     if (result.status === 'error') this.log.warn(`Flow ${p.flowId} errored: ${result.error}`);
     const waitKind = result.status === 'waiting' ? (result.waitKind ?? null) : null;
     const waitUntil = waitKind === 'delay' ? (result.waitUntil ?? null) : null;
-    const expiresIn = waitKind && waitKind !== 'delay' ? REPLY_WAIT_HOURS : null;
+    const expiresIn = waitKind && waitKind !== 'delay' ? (b.replyWaitHours ?? REPLY_WAIT_HOURS) : null;
 
     await this.db.withTenant(b.tenantId, async (c) => {
       if (p.existingId) {

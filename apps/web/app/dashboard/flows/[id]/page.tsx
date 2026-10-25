@@ -1,4 +1,6 @@
 'use client';
+import BotPolicyEditor from '../../../../components/flow/BotPolicyEditor';
+import type { BotPolicy } from '../../../../lib/flow-types';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactFlow, {
@@ -101,6 +103,7 @@ function Editor({ id }: { id: string }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [tab, setTab] = useState<'node' | 'settings'>('node');
   const [meta, setMeta] = useState<{
+    policy?: BotPolicy;
     name: string;
     priority: number;
     triggers: Trigger[];
@@ -202,6 +205,7 @@ function Editor({ id }: { id: string }) {
       setEdges(g.edges);
       setStartId(f.draft_graph.startNodeId);
       setMeta({
+        policy: f.draft_graph.policy,
         name: f.name,
         priority: f.priority,
         triggers: f.triggers,
@@ -569,7 +573,7 @@ function Editor({ id }: { id: string }) {
     return () => window.removeEventListener('keydown', escape);
   }, [inspectorOpen]);
 
-  const graph = () => fromFlow(nodes, edges, startId);
+  const graph = () => ({ ...fromFlow(nodes, edges, startId), ...(meta.policy ? { policy: meta.policy } : {}) });
 
   actionsRef.current = {
     duplicate: duplicateNode,
@@ -681,6 +685,7 @@ function Editor({ id }: { id: string }) {
     setStartId(snapshot.graph.startNodeId);
     setMeta((m) => ({
       ...m,
+      policy: snapshot.graph.policy,
       name: snapshot.name,
       priority: snapshot.priority,
       triggers: snapshot.triggers,
@@ -1512,6 +1517,7 @@ function Editor({ id }: { id: string }) {
 
             {tab === 'settings' && (
               <div className="space-y-4 p-3 text-sm">
+                <details className="smart-section"><summary>{t('السياسات العامة وساعات العمل', 'General policies and business hours')}</summary><BotPolicyEditor value={meta.policy} onChange={policy=>{setMeta(m=>({...m,policy}));setDirty(true);}} /></details>
                 <div>
                   <div className="mb-1 text-xs font-semibold text-gray-600">
                     {t('متى يبدأ السيناريو؟', 'When does the bot start?')}

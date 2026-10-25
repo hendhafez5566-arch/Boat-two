@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidTimezone } from './engine/hours';
 
 const varName = z.string().regex(/^[A-Za-z_][\w]{0,40}$/);
 const id = z.string().min(1).max(60);
@@ -326,7 +327,21 @@ export const nodeSchema = z.discriminatedUnion('type', [
   }),
 ]);
 
+const clock = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
+const businessDay = z.array(z.tuple([clock, clock])).max(6).optional();
+export const botPolicySchema = z.object({
+  sessionHours: z.number().int().min(1).max(168).optional(),
+  noMatchText: z.string().max(1000).optional(),
+  businessHours: z.object({
+    enabled: z.boolean(),
+    timezone: z.string().refine(isValidTimezone, 'Invalid timezone'),
+    schedule: z.object({ mon:businessDay,tue:businessDay,wed:businessDay,thu:businessDay,fri:businessDay,sat:businessDay,sun:businessDay }),
+    offHoursText: z.string().max(1000).optional(),
+  }).refine(v => !v.enabled || Object.values(v.schedule).some(day => day?.some(([start,end]) => start !== end)), 'Add at least one business-hours interval').optional(),
+});
+
 export const graphSchema = z.object({
+  policy: botPolicySchema.optional(),
   startNodeId: z.string().max(60),
   nodes: z.array(nodeSchema).max(300),
 });
@@ -394,4 +409,5 @@ export const testFlowSchema = z.object({
   replyId: z.string().max(200).optional(),
   advanceDelay: z.boolean().optional(),
   allowHttp: z.boolean().optional(),
+  simulateAt: z.string().datetime().optional(),
 });

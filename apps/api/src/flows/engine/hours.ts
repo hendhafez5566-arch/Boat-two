@@ -19,13 +19,21 @@ export function isValidTimezone(tz: string): boolean {
 
 /** هل الوقت الحالي داخل ساعات العمل؟ يدعم الفترات التي تعبر منتصف الليل (مثل 22:00 → 02:00) */
 export function isOpenNow(now: Date, timezone: string, schedule: Schedule): boolean {
-  const parts = new Intl.DateTimeFormat('en-US', {
+  return openAt(now, makeFormatter(timezone), schedule);
+}
+
+function makeFormatter(timezone: string) {
+  return new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
     weekday: 'short',
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
-  }).formatToParts(now);
+  });
+}
+
+function openAt(now: Date, formatter: Intl.DateTimeFormat, schedule: Schedule): boolean {
+  const parts = formatter.formatToParts(now);
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '0';
   const day = WEEKDAY_IDX[get('weekday')];
   const minutes = (Number(get('hour')) % 24) * 60 + Number(get('minute'));
@@ -42,4 +50,15 @@ export function isOpenNow(now: Date, timezone: string, schedule: Schedule): bool
     if (s > e && minutes < e) return true;
   }
   return false;
+}
+
+/** Minute precision, including DST and overnight intervals; bounded to eight days. */
+export function nextOpening(now: Date, timezone: string, schedule: Schedule): Date | null {
+  const formatter = makeFormatter(timezone);
+  const first = Math.ceil((now.getTime() + 1) / 60000) * 60000;
+  for (let i = 0; i <= 8 * 24 * 60; i++) {
+    const date = new Date(first + i * 60000);
+    if (openAt(date, formatter, schedule)) return date;
+  }
+  return null;
 }

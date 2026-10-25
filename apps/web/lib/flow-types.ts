@@ -41,8 +41,15 @@ export interface GNode {
   edges: Record<string, string>;
 }
 export interface Graph {
+  policy?: BotPolicy;
   startNodeId: string;
   nodes: GNode[];
+}
+
+export interface BotPolicy {
+  sessionHours?: number;
+  noMatchText?: string;
+  businessHours?: { enabled: boolean; timezone: string; schedule: Partial<Record<'mon'|'tue'|'wed'|'thu'|'fri'|'sat'|'sun',[string,string][]>>; offHoursText?: string };
 }
 
 export const uid = (n = 6) =>
