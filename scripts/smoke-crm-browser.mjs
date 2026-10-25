@@ -56,6 +56,7 @@ try {
   await page.goto(web + '/dashboard/crm');
   await page.getByRole('alert').waitFor();
   await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+  await page.getByRole('button', {name:'Add contact',exact:true}).click();
   const contactForm = page
     .locator('form')
     .filter({ has: page.getByRole('heading', { name: 'New contact', exact: true }) });
