@@ -60,6 +60,8 @@ export default function MessageBubble({ m, conversationId, name }: { m: any; con
     <div className={`my-1 flex ${mine ? 'justify-start' : 'justify-end'}`}>
       <div className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${mine ? 'bg-blue-600 text-white' : 'border bg-white'}`}>
         {mine && who && <div className="mb-0.5 text-xs opacity-80">{who}</div>}
+        {c.header?.type === 'text' && <strong className="block">{c.header.text}</strong>}
+        {c.header?.type === 'image' && <img src={c.header.url} alt="" className="mb-1 max-h-64 rounded" />}
         {c.media &&
           (c.media.url ? (
             c.media.kind === 'image' ? <a href={c.media.url} target="_blank" rel="noreferrer"><img src={c.media.url} alt="" className="mb-1 max-h-64 rounded" /></a>
@@ -71,6 +73,7 @@ export default function MessageBubble({ m, conversationId, name }: { m: any; con
           ) : null)}
         {c.media?.caption && <div className="whitespace-pre-wrap">{c.media.caption}</div>}
         {c.text && <div className="whitespace-pre-wrap break-words">{c.text}</div>}
+        {c.footer && <small className="block opacity-80">{c.footer}</small>}
         {c.location && <div>📍 {c.location.name ?? `${c.location.lat}, ${c.location.lng}`}</div>}
         {c.reply && !c.text && <div>↩ {c.reply.title}</div>}
         {options.length > 0 && <div className="mt-1 flex flex-wrap gap-1">{options.map((o: any) => <span key={o.id} className="rounded-full border border-current px-2 py-0.5 text-xs opacity-80">{o.title}</span>)}</div>}

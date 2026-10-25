@@ -34,6 +34,9 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
       case 'interactive':
       case 'message': {
         const opts = optionsOf(d);
+        if ((d.header || d.footer) && !opts.length) errors.push({nodeId:n.id,message:'Header/footer require interactive choices'});
+        if (d.header && d.media) errors.push({nodeId:n.id,message:'Choose either an explicit header or media'});
+        if (opts.length && String(d.text ?? '').length > 1024) errors.push({nodeId:n.id,message:'Interactive body supports at most 1024 characters'});
         if (n.type === 'interactive' && !opts.length)
           errors.push({ nodeId: n.id, message: 'Interactive message needs at least one button or list option' });
         const hasContent = d.text || d.media?.url;

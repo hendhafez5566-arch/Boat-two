@@ -9,6 +9,8 @@ const row = z.object({
 
 export const contentSchema = z
   .object({
+    header: z.discriminatedUnion('type',[z.object({type:z.literal('text'),text:z.string().min(1).max(60)}),z.object({type:z.literal('image'),url:z.string().url().max(2000)})]).optional(),
+    footer: z.string().max(60).optional(),
     template: z
       .object({
         name: z.string().regex(/^[a-z0-9_]{1,512}$/),
@@ -97,6 +99,10 @@ export function messageTypeOf(c: MessageContent): string {
 
 /** قواعد الرسائل الصادرة (حدود واتساب هي الأضيق، فنلتزم بها لكل القنوات) */
 export function validateOutbound(c: MessageContent) {
+  if ((c.header?.type === 'text' && (!c.header.text || c.header.text.length > 60)) || (c.footer?.length ?? 0) > 60) throw new BadRequestException('Interactive header/footer supports at most 60 characters');
+  if ((c.header || c.footer) && !(c.buttons || c.list || c.cta)) throw new BadRequestException('Header/footer require an interactive message');
+  if (c.header && c.media) throw new BadRequestException('Choose either an explicit header or media header');
+  if ((c.buttons || c.list || c.cta) && (c.text?.length ?? 0) > 1024) throw new BadRequestException('Interactive body supports at most 1024 characters');
   if (c.template && (c.text || c.media || c.buttons || c.list || c.cta || c.location || c.reply))
     throw new BadRequestException('Template must be sent without other content');
   if (c.reply) throw new BadRequestException('reply is only valid for inbound messages');

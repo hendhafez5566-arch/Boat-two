@@ -135,7 +135,10 @@
       }
       if (content.media.caption) b.appendChild(document.createTextNode(content.media.caption));
     }
+    if (content.header && content.header.type === 'text') b.appendChild(h('strong', '', content.header.text));
+    if (content.header && content.header.type === 'image' && /^https:\/\//i.test(content.header.url)) { var headerImage = h('img'); headerImage.src = content.header.url; b.appendChild(headerImage); }
     if (content.text) b.appendChild(document.createTextNode(content.text));
+    if (content.footer) b.appendChild(h('small', '', content.footer));
     if (content.location) b.appendChild(document.createTextNode('\uD83D\uDCCD ' + (content.location.name || 'Location')));
 
     var options = [];

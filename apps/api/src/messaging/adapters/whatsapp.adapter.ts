@@ -7,6 +7,10 @@ export class WhatsAppAdapter implements ChannelAdapter {
   async send(creds: Record<string, string>, to: string, c: MessageContent) {
     const base = { messaging_product: 'whatsapp', recipient_type: 'individual', to };
     let payload: Record<string, unknown>;
+    const header = c.header?.type === 'text' ? {type:'text',text:c.header.text}
+      : c.header?.type === 'image' ? {type:'image',image:{link:c.header.url}}
+      : c.media?.kind === 'image' && c.media.url ? {type:'image',image:{link:c.media.url}} : undefined;
+    const decorations = { ...(header ? {header} : {}), ...(c.footer ? {footer:{text:c.footer}} : {}) };
 
     if (c.template) {
       payload = {
@@ -64,6 +68,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
         type: 'interactive',
         interactive: {
           type: 'cta_url',
+          ...decorations,
           ...(c.media?.kind === 'image' && c.media.url
             ? { header: { type: 'image', image: { link: c.media.url } } }
             : {}),
@@ -77,6 +82,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
         type: 'interactive',
         interactive: {
           type: 'list',
+          ...decorations,
           body: { text: c.text },
           action: {
             button: c.list.buttonText,
@@ -93,6 +99,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
         type: 'interactive',
         interactive: {
           type: 'button',
+          ...decorations,
           ...(c.media?.kind === 'image' && c.media.url
             ? { header: { type: 'image', image: { link: c.media.url } } }
             : {}),

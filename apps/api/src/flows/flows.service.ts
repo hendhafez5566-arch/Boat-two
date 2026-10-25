@@ -352,7 +352,7 @@ export class FlowsService {
     const graph = await this.expand(tenantId, flow.draft_graph as FlowGraph, id);
     const state = (input.state as FlowState | undefined) ?? newState();
     const transcript: { role: 'bot' | 'system'; content: OutContent | string }[] = [];
-    const attrs: Record<string, unknown> = {};
+    const attrs: Record<string, unknown> = { ...(input.contactAttributes ?? {}) };
 
     const engine = new FlowEngine(graph, {
       executeButtonAction: async (action, occurrence) => {

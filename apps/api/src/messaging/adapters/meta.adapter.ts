@@ -6,6 +6,9 @@ import { ChannelAdapter, GRAPH, graphPost } from './adapter';
 @Injectable()
 export class MetaAdapter implements ChannelAdapter {
   async send(creds: Record<string, string>, recipientId: string, c: MessageContent) {
+    // Messenger/Instagram have no WhatsApp header/footer fields: preserve their content as text/media.
+    c = { ...c, text:[c.header?.type === 'text' ? c.header.text : '',c.text,c.footer].filter(Boolean).join('\n'),
+      ...(c.header?.type === 'image' && !c.media ? {media:{kind:'image' as const,url:c.header.url}} : {}) };
     const url = `${GRAPH}/me/messages`;
     const token = creds.pageAccessToken;
     const recipient = { id: recipientId };

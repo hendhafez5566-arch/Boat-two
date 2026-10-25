@@ -32,6 +32,7 @@ class RunError extends Error {}
 export class FlowEngine {
   private readonly nodes: Map<string, FlowNode>;
   private httpCalls = 0;
+  private deliveryReady?: string;
 
   constructor(
     private readonly graph: FlowGraph,
@@ -76,7 +77,8 @@ export class FlowEngine {
     const paused = await this.outsideHours(ctx, state, !!w.startPending);
     if (paused) return paused;
     state.waiting = null;
-    return this.run(ctx, state, w.startPending ? this.graph.startNodeId : node?.edges.next ?? null);
+    if (w.deliveryPending) this.deliveryReady = w.nodeId;
+    return this.run(ctx, state, w.startPending ? this.graph.startNodeId : w.deliveryPending ? w.nodeId : node?.edges.next ?? null);
     } catch (e) { return this.finish('error', state, (e as Error).message); }
   }
 
@@ -164,6 +166,9 @@ export class FlowEngine {
   private buildContent(d: Record<string, any>, ctx: FlowContext, state: FlowState): OutContent {
     const r = this.resolver(ctx, state);
     const c: OutContent = {};
+    if (d.header?.type === 'text') c.header = { type:'text',text:interpolate(String(d.header.text),r) };
+    if (d.header?.type === 'image') c.header = { type:'image',url:interpolate(String(d.header.url),r) };
+    if (d.footer) c.footer = interpolate(String(d.footer),r);
     if (d.text) c.text = interpolate(String(d.text), r);
     if (d.media?.url) {
       c.media = {
@@ -408,6 +413,12 @@ export class FlowEngine {
     switch (node.type) {
       case 'interactive':
       case 'message': {
+        const delay = Number(d.delivery?.delaySeconds) || 0;
+        if (delay > 0 && this.deliveryReady !== node.id) {
+          state.waiting = {nodeId:node.id,kind:'delay',retries:0,deliveryPending:true,until:new Date(this.deps.now().getTime()+Math.min(delay,MAX_DELAY_SECONDS)*1000).toISOString()};
+          return {kind:'wait'};
+        }
+        this.deliveryReady = undefined;
         await this.send(this.buildContent(d, ctx, state));
         if (optionsOf(d).length) {
           state.waiting = { nodeId: node.id, kind: 'choice', retries: 0 };

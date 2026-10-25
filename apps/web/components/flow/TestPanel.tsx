@@ -27,6 +27,7 @@ export default function TestPanel({
   const [text, setText] = useState('');
   const [allowHttp, setAllowHttp] = useState(false);
   const [simulateAt, setSimulateAt] = useState('');
+  const [contactAttributes, setContactAttributes] = useState<Record<string,unknown>>({});
   const [error, setError] = useState('');
   const [statusError, setStatusError] = useState('');
   const [showVars, setShowVars] = useState(false);
@@ -39,7 +40,7 @@ export default function TestPanel({
       await beforeRun();
       const r = await api<any>(`/flows/${flowId}/test`, {
         method: 'POST',
-        body: JSON.stringify({ ...body, allowHttp, ...(simulateAt ? { simulateAt: new Date(simulateAt).toISOString() } : {}) }),
+        body: JSON.stringify({ ...body, contactAttributes: body.state ? contactAttributes : {}, allowHttp, ...(simulateAt ? { simulateAt: new Date(simulateAt).toISOString() } : {}) }),
       });
       setLog((l) => [
         ...l,
@@ -47,6 +48,7 @@ export default function TestPanel({
         ...r.transcript.map((t: any) => ({ who: t.role, content: t.content })),
       ]);
       setState(r.state);
+      setContactAttributes(r.contactAttributes ?? {});
       onProgress?.(r.state?.waiting?.nodeId ?? null);
       setStatus(r.status);
       setStatusError(r.error ?? '');
@@ -74,7 +76,7 @@ export default function TestPanel({
   };
   const lastBot = [...log].reverse().find((e) => e.who === 'bot');
   const chips: { id: string; title: string }[] = [];
-  if (lastBot && waitKind === 'choice') {
+  if (lastBot && (waitKind === 'choice' || waitKind === 'answer')) {
     for (const b of lastBot.content.buttons ?? []) chips.push(b);
 
   }
@@ -111,6 +113,8 @@ export default function TestPanel({
               className={`max-w-[85%] rounded-lg px-3 py-1.5 ${e.who === 'you' ? 'ml-auto bg-blue-600 text-white' : 'bg-white border'}`}
             >
               {e.content.media && <MediaPreview media={e.content.media} />}
+              {e.content.header?.type === 'text' && <strong>{e.content.header.text}</strong>}
+              {e.content.header?.type === 'image' && <MediaPreview media={{kind:'image',url:e.content.header.url}} />}
               {e.content.location && (
                 <div className="text-xs">
                   📍 {e.content.location.name ?? ''} ({e.content.location.lat}, {e.content.location.lng})
@@ -122,13 +126,14 @@ export default function TestPanel({
                 </div>
               )}
               <div className="whitespace-pre-wrap">{e.content.text}</div>
+              {e.content.footer && <small className="block opacity-70">{e.content.footer}</small>}
               {e.content.cta && (
                 <div className="mt-1 text-xs opacity-60">
                   [🔗 {e.content.cta.text}] {e.content.cta.url}
                 </div>
               )}
               {e.content.buttons && <div className="mt-1 text-xs">{e.content.buttons.map((b: {id:string;title:string}) => <span className="rounded border px-2" key={b.id}>{b.title}</span>)}</div>}
-              {e.content.list && <ListPreview list={e.content.list} disabled={busy || e !== lastBot || waitKind !== 'choice'} onSelect={send} />}
+              {e.content.list && <ListPreview list={e.content.list} disabled={busy || e !== lastBot || !['choice','answer'].includes(waitKind ?? '')} onSelect={send} />}
             </div>
           ),
         )}

@@ -53,6 +53,8 @@ export interface BotPolicy {
 }
 
 export interface OutContent {
+  header?: { type:'text'; text:string } | { type:'image'; url:string };
+  footer?: string;
   text?: string;
   media?: {
     kind: 'image' | 'video' | 'audio' | 'file';
@@ -102,6 +104,7 @@ export interface FlowState {
     step?: number;
     /** Outside-hours start is deferred without skipping the start node. */
     startPending?: boolean;
+    deliveryPending?: boolean;
   };
   totalSteps: number;
 }

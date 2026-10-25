@@ -1,4 +1,7 @@
 const messages: Record<string, string> = {
+  'Header/footer require interactive choices': 'أضف أزرارًا أو قائمة لاستخدام عنوان الرسالة وتذييلها، أو أزلهما.',
+  'Choose either an explicit header or media': 'اختر عنوان الرسالة أو المرفق؛ لا تجمعهما في نفس الرسالة.',
+  'Interactive body supports at most 1024 characters': 'قلّل نص الرسالة التفاعلية إلى ١٠٢٤ حرفًا بحد أقصى.',
   "Duplicate node id": "توجد خطوة مكررة. احذف النسخة المكررة ثم أضف خطوة جديدة.",
   "Flow has no nodes": "البوت فارغ. أضف رسالة بداية قبل النشر.",
   "Start node does not exist": "خطوة البداية غير موجودة. حدد خطوة موجودة واجعلها بداية البوت.",
