@@ -38,6 +38,8 @@
   document.body.appendChild(host);
   var root = host.attachShadow({ mode: 'open' });
   var ui = {};
+  var displayQueue = Promise.resolve();
+  var historyBoundary = 0;
 
   function build(cfg) {
     var side = cfg.position === 'left' ? 'left' : 'right';
@@ -75,14 +77,17 @@
     var head = h('div', 'head');
     head.appendChild(h('span', '', cfg.title));
     ui.close = h('button', 'close', '\u00D7');
+    ui.close.setAttribute('aria-label', cfg.direction === 'rtl' ? 'إغلاق المحادثة' : 'Close conversation');
     head.appendChild(ui.close);
     ui.msgs = h('div', 'msgs');
     ui.form = h('form');
     ui.input = h('input');
+    ui.input.setAttribute('aria-label', cfg.direction === 'rtl' ? 'اكتب رسالة' : 'Message');
     ui.input.setAttribute('maxlength', '2000');
     ui.input.setAttribute('autocomplete', 'off');
     ui.send = h('button', 'send', '\u27A4');
     ui.send.type = 'submit';
+    ui.send.setAttribute('aria-label', cfg.direction === 'rtl' ? 'إرسال' : 'Send');
     ui.form.appendChild(ui.input);
     ui.form.appendChild(ui.send);
     ui.panel.appendChild(head);
@@ -164,6 +169,23 @@
     ui.msgs.scrollTop = ui.msgs.scrollHeight;
   }
 
+  // Local display timing only: provider delivery status remains unchanged.
+  function displayMessage(m) {
+    var seconds = Math.min(5, Math.max(0, Number(m.content.typingSeconds) || 0));
+    var recent = Date.now() - new Date(m.createdAt).getTime() < 30000;
+    var typing = seconds && st.open && recent && m.seq > historyBoundary && m.senderType !== 'contact';
+    displayQueue = displayQueue.then(function () {
+      if (!typing) { addBubble(m.senderType === 'contact' ? 'me' : 'them', m.content); return; }
+      var indicator = h('div', 'm them typing', st.cfg.direction === 'rtl' ? 'يكتب الآن…' : 'Typing…');
+      indicator.setAttribute('role', 'status');
+      ui.msgs.appendChild(indicator);
+      ui.msgs.scrollTop = ui.msgs.scrollHeight;
+      return new Promise(function (resolve) { setTimeout(function () {
+        indicator.remove(); addBubble('them', m.content); resolve();
+      }, seconds * 1000); });
+    }).catch(function () {});
+  }
+
   function poll() {
     if (!st.token) return Promise.resolve();
     return req('/widget/' + key + '/messages?visitorId=' + encodeURIComponent(st.visitorId) + '&after=' + st.lastSeq)
@@ -172,7 +194,7 @@
         (d.messages || []).forEach(function (m) {
           if (m.seq <= st.lastSeq) return;
           st.lastSeq = m.seq;
-          addBubble(m.senderType === 'contact' ? 'me' : 'them', m.content);
+          displayMessage(m);
           if (m.senderType !== 'contact') fresh++;
         });
         if (fresh && !st.open) {
@@ -199,6 +221,7 @@
       st.token = d.token;
       store(false, d.visitorId);
       return req('/widget/' + key + '/messages?visitorId=' + encodeURIComponent(st.visitorId)).then(function (r) {
+        historyBoundary = Math.max.apply(null, [0].concat((r.messages || []).map(function(m) { return m.seq; })));
         if (!r.messages || !r.messages.length) addBubble('them', { text: st.cfg.welcomeMessage });
         return poll();
       });

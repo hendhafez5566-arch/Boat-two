@@ -4,6 +4,10 @@ import { ChannelAdapter, GRAPH, graphPost } from './adapter';
 
 @Injectable()
 export class WhatsAppAdapter implements ChannelAdapter {
+  async typing(creds:Record<string,string>,_to:string,context?:{lastInboundMessageId?:string}){
+    if(!context?.lastInboundMessageId)return false;
+    await graphPost(`${GRAPH}/${creds.phoneNumberId}/messages`,creds.accessToken,{messaging_product:'whatsapp',status:'read',message_id:context.lastInboundMessageId,typing_indicator:{type:'text'}});
+  }
   async send(creds: Record<string, string>, to: string, c: MessageContent) {
     const base = { messaging_product: 'whatsapp', recipient_type: 'individual', to };
     let payload: Record<string, unknown>;

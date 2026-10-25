@@ -3,7 +3,7 @@ import { MessageContent } from '../message-content';
 export const GRAPH = 'https://graph.facebook.com/v21.0';
 
 export interface ChannelAdapter {
-  typing?(credentials:Record<string,string>,recipientId:string):Promise<void>;
+  typing?(credentials:Record<string,string>,recipientId:string,context?:{lastInboundMessageId?:string}):Promise<void|boolean>;
   /** يرسل الرسالة ويرجع معرّفها عند المزوّد */
   send(
     credentials: Record<string, string>,
@@ -38,11 +38,11 @@ export async function graphPost(url: string, token: string, body: unknown) {
 }
 
 /** Run only inside the outbound worker, after policy checks and durable claim. */
-export async function sendWithTyping(adapter:ChannelAdapter,credentials:Record<string,string>,recipientId:string,content:MessageContent,wait:(ms:number)=>Promise<void>=ms=>new Promise(resolve=>setTimeout(resolve,ms))) {
+export async function sendWithTyping(adapter:ChannelAdapter,credentials:Record<string,string>,recipientId:string,content:MessageContent,wait:(ms:number)=>Promise<void>=ms=>new Promise(resolve=>setTimeout(resolve,ms)),context?:{lastInboundMessageId?:string}) {
   const seconds=Math.min(5,Math.max(0,Number(content.typingSeconds)||0));
   if(seconds&&adapter.typing){
     // A cosmetic provider failure must not prevent delivery or replay the message.
-    try{await adapter.typing(credentials,recipientId);await wait(seconds*1000);}catch{}
+    try{if(await adapter.typing(credentials,recipientId,context)!==false)await wait(seconds*1000);}catch{}
   }
   const {typingSeconds:_typing,...message}=content;
   return adapter.send(credentials,recipientId,message);
