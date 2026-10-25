@@ -1,3 +1,5 @@
+import {assertLocalAcceptance} from './acceptance-local.mjs';
+assertLocalAcceptance();
 // Real local PostgreSQL, fake Google transport in this process only. No external requests.
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';

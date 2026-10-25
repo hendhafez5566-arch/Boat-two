@@ -74,7 +74,7 @@ try {
   await composer.getByLabel('Campaign name', { exact: true }).fill('Browser draft');
   await composer.getByLabel('Channel', { exact: true }).selectOption(channel.id);
   await composer.getByRole('button', { name: 'Review audience', exact: true }).click();
-  await composer.getByText('1 eligible of 1', { exact: true }).waitFor();
+  await composer.getByText(/Matching filters: 1.*Eligible by identity and consent: 1/).waitFor();
   await composer.getByRole('button', { name: 'Next', exact: true }).click();
   await composer.getByRole('button', { name: 'Welcome', exact: true }).click();
   await composer

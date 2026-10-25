@@ -1,3 +1,5 @@
+import {assertLocalAcceptance} from './acceptance-local.mjs';
+assertLocalAcceptance();
 // Exercise the actual social worker/effect ledger with real PostgreSQL and fake Meta HTTP.
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';

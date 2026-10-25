@@ -1,3 +1,5 @@
+import {assertLocalAcceptance} from './acceptance-local.mjs';
+assertLocalAcceptance();
 // Durable webhook worker + SLA with PostgreSQL and an injected fake HTTP transport.
 import assert from 'node:assert/strict';
 import {createHmac,randomUUID} from 'node:crypto';

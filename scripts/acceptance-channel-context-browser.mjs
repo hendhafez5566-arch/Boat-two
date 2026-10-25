@@ -1,3 +1,5 @@
+import {assertLocalAcceptance} from './acceptance-local.mjs';
+assertLocalAcceptance();
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {randomUUID} from 'node:crypto';

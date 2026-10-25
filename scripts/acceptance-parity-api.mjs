@@ -1,3 +1,5 @@
+import {assertLocalAcceptance} from './acceptance-local.mjs';
+assertLocalAcceptance();
 // Isolated PostgreSQL + API acceptance. Never enable external providers here.
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -18,6 +20,7 @@ async function wait(fn){for(let i=0;i<80;i++){const r=await fn();if(r)return r;a
 const register=()=>post('/auth/register',null,{email:`parity-${randomUUID()}@example.test`,password:'local-test-only-12345',fullName:'Parity owner',workspaceName:'شركة سياحة تجريبية'});
 try{
  const a=await register(),b=await register(),token=a.accessToken;
+ await check('dashboard usage starts at zero, real growth rows are empty and disabled AI has no token counter',async()=>{const workspace=await req('/workspace',token);assert.equal(Number(workspace.usage.contacts),0);assert.equal(Number(workspace.usage.messages_per_month),0);assert.equal(workspace.aiEnabled,false);assert.equal('ai_tokens' in workspace.usage,false);const overview=await req('/workspace/overview',token);assert.equal(overview.growth.length,14);assert.ok(overview.growth.every(row=>row.contacts===0&&row.messages===0));});
  const channel=await post('/channels',token,{type:'web',name:'قناة محاكاة السفر'});
  const list=await post('/contact-lists',token,{name:'مهتمو العمرة'});
  const hook=await post('/integrations',token,{provider:'webhook',name:'Mock webhook',credential:'local-mock-secret',config:{url:'https://example.test/mock',eventTypes:['message.received','message.outbound','message.status','conversation.updated','crm.contacts.insert','crm.contacts.update']}});
@@ -51,7 +54,7 @@ try{
   await send({text:'4'});await wait(async()=>(await messages()).messages.some(m=>m.content.text==='عرض المجموعة مريم'));
   const contacts=await req('/crm/contacts?listId='+list.id+'&channelId='+channel.id,token);assert.equal(contacts.items.length,1);const contact=contacts.items[0];assert.equal(contact.name,'مريم');assert.equal(Number(contact.attributes.travelers),4);assert.ok(contact.tags.includes('عمرة'));assert.equal(contact.consents.length,0);
   const clicks=await req('/flows/'+flow.id+'/button-stats',token);assert.equal(clicks['menu:umrah'].clicks,1);
-  const stats=await req('/flows/'+flow.id+'/stats',token);assert.ok(stats.menu.sent>0);assert.equal(stats.menu.delivered,0);
+  const stats=await req('/flows/'+flow.id+'/stats',token);assert.ok(stats.menu.sent>0);assert.equal(stats.menu.delivered,0);const usage=(await req('/workspace',token)).usage;assert.equal(Number(usage.contacts),1);assert.ok(Number(usage.messages_per_month)>0);
  });
  const conversation=(await req('/conversations',token)).items.find(c=>c.channel_id===channel.id);assert.ok(conversation);
  const contactId=conversation.contact_id;

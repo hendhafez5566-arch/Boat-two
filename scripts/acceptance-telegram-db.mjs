@@ -1,3 +1,5 @@
+import {assertLocalAcceptance} from './acceptance-local.mjs';
+assertLocalAcceptance();
 // Telegram webhook → durable queue → real PostgreSQL. Media HTTP is mocked locally.
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';

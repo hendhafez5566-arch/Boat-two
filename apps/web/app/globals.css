@@ -1734,4 +1734,7 @@ textarea::placeholder {
 .social-posting-modes article {min-width:0;align-items:start;}
 .social-posting-modes h2 {font-size:1.1rem;}
 
-.commerce-page .btn, .integrations-page .btn {white-space:normal;max-inline-size:100%;overflow-wrap:anywhere;}
+.page-workspace .btn, .focused-workspace .btn {white-space:normal;max-inline-size:100%;overflow-wrap:anywhere;}
+
+/* Allow the header to grow when translated text or text zoom wraps. */
+.product-content > .product-topbar {height:auto;min-height:var(--topbar-h);padding-block:8px;flex-wrap:wrap;}

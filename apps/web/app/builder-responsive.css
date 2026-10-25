@@ -306,3 +306,6 @@ img, video, canvas, svg { max-width: 100%; }
   .premium-builder .builder-toolbar { flex-wrap:wrap; max-width:100%; }
   .premium-builder .builder-title { min-width:100px; }
 }
+
+/* Keep absolute screen-reader labels within the scrollable tab strip. */
+.premium-builder .bot-tabs, .premium-builder .bot-tab {position:relative;}

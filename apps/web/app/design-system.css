@@ -2344,3 +2344,10 @@ button.underline {
   .nav-expanded .product-sidebar .nav-more-btn .nav-label { position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; font-size: .9rem; }
   .nav-expanded .sidebar-footer button { font-size: .8rem; padding: 10px 8px; }
 }
+
+@media (max-width:480px) {
+  .wizard-stepper {gap:4px;padding:8px;}
+  .wizard-stepper li {gap:0;min-width:0;justify-content:center;}
+  .wizard-stepper li:not(:last-child)::after {display:none;}
+  .account-actions > div {position:fixed;inset-inline:12px;top:calc(var(--topbar-h) + 8px);min-width:0;width:auto;}
+}
