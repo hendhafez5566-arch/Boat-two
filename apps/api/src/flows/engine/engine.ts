@@ -174,6 +174,7 @@ export class FlowEngine {
   private buildContent(d: Record<string, any>, ctx: FlowContext, state: FlowState): OutContent {
     const r = this.resolver(ctx, state);
     const c: OutContent = {};
+    if(d.delivery?.typingSeconds)c.typingSeconds=Math.min(5,Math.max(0,Number(d.delivery.typingSeconds)||0));
     if (d.header?.type === 'text') c.header = { type:'text',text:interpolate(String(d.header.text),r) };
     if (d.header?.type === 'image') c.header = { type:'image',url:interpolate(String(d.header.url),r) };
     if (d.footer) c.footer = interpolate(String(d.footer),r);

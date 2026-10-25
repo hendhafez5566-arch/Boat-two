@@ -13,7 +13,7 @@ import { ChannelsService } from './channels.service';
 import { MetaAdapter } from './adapters/meta.adapter';
 import { WhatsAppAdapter } from './adapters/whatsapp.adapter';
 import { TelegramAdapter } from './adapters/telegram.adapter';
-import { ProviderError } from './adapters/adapter';
+import { ProviderError,sendWithTyping } from './adapters/adapter';
 @Injectable()
 export class OutboundService implements OnModuleInit, OnModuleDestroy {
   private timer?: NodeJS.Timeout;
@@ -184,7 +184,7 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
         if (!row) continue;
         try {
           const creds = this.channels.credentials(row);
-          const sent = await (row.channel_type === 'whatsapp' ? this.whatsapp : row.channel_type === 'telegram' ? this.telegram : this.meta).send(
+          const sent = await sendWithTyping(row.channel_type === 'whatsapp' ? this.whatsapp : row.channel_type === 'telegram' ? this.telegram : this.meta,
             creds,
             row.recipient,
             row.content,

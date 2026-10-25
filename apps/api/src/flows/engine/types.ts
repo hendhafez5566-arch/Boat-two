@@ -57,6 +57,7 @@ export interface BotPolicy {
 }
 
 export interface OutContent {
+  typingSeconds?:number;
   product?:{catalogId:string;retailerId:string};
   productList?:{catalogId:string;sections:{title:string;retailerIds:string[]}[]};
   whatsappFlow?:{flowId:string;token:string;cta:string;screen:string;data?:Record<string,unknown>};

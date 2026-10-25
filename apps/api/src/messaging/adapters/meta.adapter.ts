@@ -5,6 +5,7 @@ import { ChannelAdapter, GRAPH, graphPost, ProviderError } from './adapter';
 /** فيسبوك ماسنجر وإنستجرام يستخدمان نفس واجهة الإرسال */
 @Injectable()
 export class MetaAdapter implements ChannelAdapter {
+  async typing(creds:Record<string,string>,recipientId:string){await graphPost(`${GRAPH}/me/messages`,creds.pageAccessToken,{recipient:{id:recipientId},sender_action:'typing_on'});}
   async send(creds: Record<string, string>, recipientId: string, c: MessageContent) {
     if(c.product||c.productList||c.whatsappFlow)throw new ProviderError('Native commerce/flows require WhatsApp; use a fallback product card',400);
     // Messenger/Instagram have no WhatsApp header/footer fields: preserve their content as text/media.

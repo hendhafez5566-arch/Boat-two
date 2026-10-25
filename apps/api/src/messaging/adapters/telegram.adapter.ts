@@ -19,6 +19,7 @@ export async function telegramCall(token:string,method:string,body:Record<string
 
 @Injectable()
 export class TelegramAdapter implements ChannelAdapter {
+  async typing(credentials:Record<string,string>,chatId:string){await telegramCall(credentials.botToken,'sendChatAction',{chat_id:chatId,action:'typing'},3000);}
   async send(credentials:Record<string,string>,chatId:string,c:MessageContent) {
     if(c.product||c.productList||c.whatsappFlow)throw new ProviderError('Native commerce/flows require WhatsApp; use a fallback product card',400);
     if(c.template)throw new ProviderError('WhatsApp templates are unavailable on Telegram',400);

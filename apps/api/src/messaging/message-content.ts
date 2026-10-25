@@ -9,6 +9,7 @@ const row = z.object({
 
 export const contentSchema = z
   .object({
+    typingSeconds:z.number().int().min(0).max(5).optional(),
     flowReply:z.record(z.unknown()).optional(),
     order:z.object({catalogId:z.string(),items:z.array(z.object({retailerId:z.string(),quantity:z.number().int().positive(),price:z.string(),currency:z.string()})).max(30)}).optional(),
     product:z.object({catalogId:z.string().min(1).max(200),retailerId:z.string().min(1).max(200)}).optional(),

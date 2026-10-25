@@ -57,7 +57,7 @@ const nodeBase = {
 const messageData = z.object({
   header: z.discriminatedUnion('type',[z.object({type:z.literal('text'),text:z.string().max(60)}),z.object({type:z.literal('image'),url:z.string().url().max(2000)})]).optional(),
   footer: z.string().max(60).optional(),
-  delivery: z.object({delaySeconds:z.number().int().min(0).max(604800)}).optional(),
+  delivery: z.object({delaySeconds:z.number().int().min(0).max(604800),typingSeconds:z.number().int().min(0).max(5).optional()}).optional(),
   text: z.string().max(4096).optional(),
   media: z
     .object({
