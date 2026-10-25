@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {googleOperationSchema,googleRequest,valuesCsv} from './contracts';
-import {providerRequest} from './integrations.service';
+import {providerRequest} from './provider-request';
 test('Google read/write/calendar requests preserve scope boundaries and never invite attendees',()=>{
  const read=googleRequest(googleOperationSchema.parse({operation:'sheet_read',spreadsheetId:'abcdefghijk',range:'A1:B2'}));assert.equal(read.method,'GET');assert.match(read.scope,/readonly$/);
  const write=googleRequest(googleOperationSchema.parse({operation:'sheet_append',spreadsheetId:'abcdefghijk',range:'Sheet1!A:B',values:[['Ada',1]]}));assert.equal(write.method,'POST');assert.match(write.url,/valueInputOption=RAW/);assert.deepEqual(write.body,{values:[['Ada',1]]});
