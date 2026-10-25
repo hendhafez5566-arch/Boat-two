@@ -87,6 +87,7 @@ export function CampaignComposer({
     [busy, setBusy] = useState(false);
   const review = useRef(0),
     heading = useRef<HTMLHeadingElement>(null);
+  useEffect(()=>{if(channel&&!channels.some(c=>c.id===channel)){setChannel('');setAudience(null);setStep(0);}},[channels,channel]);
   const selectedChannel = channels.find((c) => c.id === channel),
     filters = segments.find((s) => s.id === segment)?.filters || {};
   const selectedTemplate = templates.find((x) => x.name + '|' + x.language === template);

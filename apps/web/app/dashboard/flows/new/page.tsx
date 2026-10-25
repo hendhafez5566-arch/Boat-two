@@ -332,7 +332,7 @@ export default function BotWizard() {
                     />
                   </label>
                   <label>{t('إجراء الزر', 'Button action')}
-                    <select value={choice.action || 'message'} onChange={e => setChoices(choices.map((c,i) => i === index ? {...c,action:e.target.value as WizardChoice['action']} : c))}>
+                    <select aria-label={t('إجراء الزر', 'Button action')} value={choice.action || 'message'} onChange={e => setChoices(choices.map((c,i) => i === index ? {...c,action:e.target.value as WizardChoice['action']} : c))}>
                       <option value="message">{t('إرسال رسالة', 'Send message')}</option>
                       <option value="card">{t('عرض بطاقة برابط وصورة اختيارية', 'Show a link card with optional image')}</option>
                       <option value="route">{t('الانتقال لمسار في القالب', 'Go to a template path')}</option>
@@ -341,7 +341,7 @@ export default function BotWizard() {
                     </select>
                   </label>
                   {choice.action === 'route' && <label>{t('الخطوة المقصودة', 'Destination step')}
-                    <select value={choice.targetId || ''} onChange={e => setChoices(choices.map((c,i) => i === index ? {...c,targetId:e.target.value} : c))}>
+                    <select aria-label={t('الخطوة المقصودة', 'Destination step')} value={choice.targetId || ''} onChange={e => setChoices(choices.map((c,i) => i === index ? {...c,targetId:e.target.value} : c))}>
                       <option value="">{t('بداية القالب', 'Template start')}</option>
                       {routeNodes.map((node,i) => <option key={node.id} value={node.id}>{String(node.data.text || t('خطوة', 'Step')+' '+(i+1)).slice(0,80)}</option>)}
                     </select>

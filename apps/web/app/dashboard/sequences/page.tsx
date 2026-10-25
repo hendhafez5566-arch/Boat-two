@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
+import ChannelScope from '../../../components/product/ChannelScope';
+import {useChannelContext} from '../../../components/product/useChannelContext';
+
 import {statusLabel} from '../../../components/product/status';
 import TimezonePicker from '../../../components/product/TimezonePicker';
 import { useEffect, useState } from 'react';
@@ -41,6 +44,7 @@ const blank = (channelId = ''): Seq => ({
 
 export default function Sequences() {
   const { t } = useLocale();
+  const [channelId,setChannelId]=useChannelContext();
   const list = useData<any[]>('/sequences', []);
   const channels = useData<{ id: string; name: string; type: string }[]>('/channels', []);
   const [cur, setCur] = useState<Seq | null>(null);
@@ -48,7 +52,7 @@ export default function Sequences() {
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{path: (string | number)[]; message: string}[]>([]);
-  const eligibleChannels = channels.data.filter(c => ['whatsapp','facebook','instagram'].includes(c.type));
+  const eligibleChannels = channels.data.filter(c => (!channelId||c.id===channelId)&&['whatsapp','facebook','instagram'].includes(c.type));
   const issueLabel = (path: (string | number)[]) => path[0] === 'steps' && typeof path[1] === 'number'
     ? `${t('الخطوة', 'Step')} ${Number(path[1])+1} · ${t('المحتوى أو التوقيت أو الشرط', 'Content, timing or condition')}`
     : ({name:t('اسم التسلسل','Sequence name'),channelId:t('القناة','Channel'),timezone:t('المنطقة الزمنية','Time zone'),deliveryTime:t('وقت التسليم','Delivery time')} as Record<string,string>)[String(path[0])] || t('إعدادات التسلسل','Sequence settings');
@@ -140,7 +144,7 @@ export default function Sequences() {
 
   if (!cur)
     return (
-      <div className="sq-page">
+      <div className="sq-page"><ChannelScope value={channelId} onChange={value=>{setChannelId(value);setCur(null);}} channels={channels.data}/>
         <div className="sq-top">
           <h1>{t('التسلسلات (Sequence)', 'Sequences')}</h1>
           <div className="sq-actions">
@@ -149,9 +153,9 @@ export default function Sequences() {
             </button>
           </div>
         </div>
-        {!list.data.length && <p className="sq-note">{t('لا توجد تسلسلات بعد.', 'No sequences yet.')}</p>}
+        {!list.data.filter(s=>!channelId||s.channel_id===channelId).length && <p className="sq-note">{t('لا توجد تسلسلات بعد.', 'No sequences yet.')}</p>}
         <div className="sq-list">
-          {list.data.map((s) => (
+          {list.data.filter(s=>!channelId||s.channel_id===channelId).map((s) => (
             <button key={s.id} className="sq-item" onClick={() => open(s.id)}>
               <strong>{s.name}</strong> <span className="text-xs opacity-60">· {statusLabel(s.status,t)}</span>
               <div className="text-xs opacity-70">
@@ -164,7 +168,7 @@ export default function Sequences() {
     );
 
   return (
-    <div className="sq-page">
+    <div className="sq-page"><ChannelScope value={channelId} onChange={value=>{setChannelId(value);setCur(null);}} channels={channels.data}/>
       <div className="sq-top">
         <button className="sq-link" onClick={() => setCur(null)}>← {t('رجوع', 'Back')}</button>
         <h1>{cur.name || t('تسلسل جديد', 'New sequence')}</h1>

@@ -27,6 +27,7 @@ const a = await call('/auth/register', {
   fullName: 'CRM fixture',
   workspaceName: 'CRM acceptance',
 });
+let debugPage;
 const browser = await chromium.launch({
   executablePath: process.env.BOAT_CHROMIUM || '/usr/bin/chromium',
   headless: true,
@@ -34,6 +35,7 @@ const browser = await chromium.launch({
 });
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  debugPage=page;
   page.setDefaultTimeout(15000);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -107,18 +109,16 @@ try {
     .filter({ has: page.getByRole('heading', { name: 'New follow-up', exact: true }) });
   await task.getByRole('textbox', { name: 'Task', exact: true }).fill('Browser follow-up');
   await task.locator('select[name=contactId]').selectOption(contact.id);
-  await task.locator('input[name=dueAt]').fill('2026-10-24T12:00');
+  await task.locator('input[name=dueAt]').fill(new Date(Date.now()+86400000).toISOString().slice(0,16));
   const [savedTask] = await Promise.all([
     page.waitForResponse((r) => r.url().endsWith('/crm/tasks') && r.request().method() === 'POST'),
     task.getByRole('button', { name: 'Save follow-up', exact: true }).click(),
   ]);
   assert.equal(savedTask.status(), 201);
   await page.getByRole('button', { name: 'Contacts', exact: true }).click();
-  const exported = page.waitForResponse(
-    (r) => r.url().endsWith('/crm/jobs') && r.request().method() === 'POST',
-  );
-  await page.getByRole('button', { name: 'Create snapshot export', exact: true }).click();
-  assert.equal((await exported).status(), 201);
+  await page.getByText('Advanced filters and tools',{exact:true}).click();
+  const [exported] = await Promise.all([page.waitForResponse(r => r.url().endsWith('/crm/jobs') && r.request().method() === 'POST'),page.getByRole('button', {name:'Create snapshot export',exact:true}).click()]);
+  assert.equal(exported.status(),201);
   const jobs = await call('/crm/jobs', undefined, a.accessToken);
   assert.ok(jobs.some((j) => j.kind === 'export'));
   for (let attempt = 0; attempt < 50; attempt++) {
@@ -180,6 +180,9 @@ try {
   console.log(
     'CRM Chromium: network failure/retry, actual contact/pipeline/deal/task creation, snapshot/activity downloads, retained profile history and current work, retention preview, API persistence and desktop/mobile passed. Cleanup was not applied.',
   );
+} catch(error) {
+  if(debugPage){console.error(await debugPage.locator('body').innerText());await debugPage.screenshot({path:'/tmp/boat-crm-failure.png',fullPage:true});}
+  throw error;
 } finally {
   await browser.close();
 }

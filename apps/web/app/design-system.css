@@ -722,6 +722,7 @@ button.card:hover {
 }
 .bot-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 16px;
   padding: 14px 18px;
@@ -756,7 +757,7 @@ button.card:hover {
   color: var(--muted);
 }
 .bot-main {
-  flex: 1;
+  flex: 1 1 180px;
   min-width: 0;
 }
 .bot-main a {
@@ -782,6 +783,10 @@ button.card:hover {
 }
 .bot-actions {
   display: flex;
+  flex: 1 1 100%;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: 6px;
 }

@@ -1,4 +1,7 @@
 'use client';
+import ChannelScope from '../../../components/product/ChannelScope';
+import {useChannelContext} from '../../../components/product/useChannelContext';
+
 import AudienceSummary, { Audience } from '../../../components/business/AudienceSummary';
 import { statusLabel } from '../../../components/product/status';
 import { DeliveryPolicies } from '../../../components/business/DeliveryPolicies';
@@ -33,12 +36,14 @@ type Recipient = {
 };
 export default function Campaigns() {
   const { t } = useLocale();
+  const [channelId,setChannelId]=useChannelContext();
   const list = useData<Campaign[]>('/campaigns', []);
   const channels = useData<{ id: string; name: string; type: string }[]>('/channels', []);
   const segments = useData<{ id: string; name: string; filters: Record<string, string> }[]>(
     '/crm/segments',
     [],
   );
+  const visible=list.data.filter(c=>!channelId||c.channel_id===channelId);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState('');
@@ -164,8 +169,9 @@ export default function Campaigns() {
           )}
         </p>
       )}
+      <ChannelScope value={channelId} onChange={value=>{setChannelId(value);setSelected('');setLedger(null);ledgerVersion.current++;}} channels={channels.data}/>
       <CampaignComposer
-        channels={channels.data}
+        channels={channels.data.filter(c=>!channelId||c.id===channelId)}
         segments={segments.data}
         onSaved={async () => {
           await list.reload();
@@ -185,7 +191,7 @@ export default function Campaigns() {
             </tr>
           </thead>
           <tbody>
-            {list.data.map((c) => (
+            {visible.map((c) => (
               <tr key={c.id}>
                 <td>
                   <strong>{c.name}</strong>
@@ -257,7 +263,7 @@ export default function Campaigns() {
         {list.loading ? (
           <p className="empty">{t('جارٍ التحميل…', 'Loading…')}</p>
         ) : (
-          !list.data.length && (
+          !visible.length && (
             <p className="empty">
               {t(
                 'لا توجد حملات. أنشئ أول مسودة أعلاه.',
