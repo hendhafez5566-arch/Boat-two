@@ -92,11 +92,13 @@ function whatsappContent(m: Obj): MessageContent {
       };
     }
     case 'interactive': {
+      if(m.interactive?.nfm_reply?.response_json){try{return{flowReply:JSON.parse(m.interactive.nfm_reply.response_json),text:'WhatsApp Flow submitted'};}catch{return UNSUPPORTED;}}
       const r = m.interactive?.button_reply ?? m.interactive?.list_reply;
       return r ? { text: r.title, reply: { id: r.id, title: r.title } } : UNSUPPORTED;
     }
     case 'button':
       return { text: m.button?.text, reply: { id: m.button?.payload ?? m.button?.text, title: m.button?.text } };
+    case 'order':return{order:{catalogId:String(m.order?.catalog_id??''),items:(m.order?.product_items??[]).map((p:Obj)=>({retailerId:String(p.product_retailer_id),quantity:Number(p.quantity),price:String(p.item_price),currency:String(p.currency)}))},text:JSON.stringify(m.order??{})};
     case 'location':
       return { location: { lat: m.location.latitude, lng: m.location.longitude, name: m.location.name, address: m.location.address } };
     default:

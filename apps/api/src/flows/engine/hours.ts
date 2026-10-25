@@ -62,3 +62,5 @@ export function nextOpening(now: Date, timezone: string, schedule: Schedule): Da
   }
   return null;
 }
+
+export function isIntervalOpen(start:Date,end:Date,timezone:string,schedule:Schedule){const formatter=makeFormatter(timezone);for(let time=start.getTime();time<end.getTime();time+=60000)if(!openAt(new Date(time),formatter,schedule))return false;return openAt(new Date(end.getTime()-1),formatter,schedule);}

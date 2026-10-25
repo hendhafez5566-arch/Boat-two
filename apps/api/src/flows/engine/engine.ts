@@ -43,6 +43,7 @@ export class FlowEngine {
 
   /** بدء flow جديد من عقدة البداية */
   async start(ctx: FlowContext, state: FlowState): Promise<EngineResult> {
+    if(ctx.lastMessage.order)state.vars.order=ctx.lastMessage.order;
     try {
       const paused = await this.outsideHours(ctx, state, true);
       if (paused) return paused;
@@ -52,6 +53,7 @@ export class FlowEngine {
 
   /** رد من العميل أثناء انتظار الـ flow لإجابة أو اختيار */
   async resume(ctx: FlowContext, state: FlowState): Promise<EngineResult> {
+    if(ctx.lastMessage.order)state.vars.order=ctx.lastMessage.order;
     const w = state.waiting;
     if (!w || w.kind === 'delay') return this.finish('error', state, 'Flow is not waiting for a reply');
     const node = this.nodes.get(w.nodeId);
@@ -327,6 +329,7 @@ export class FlowEngine {
   }
 
   private async resumeAnswer(node: FlowNode, ctx: FlowContext, state: FlowState): Promise<EngineResult> {
+    if(node.type==='whatsapp_flow'){try{const value=ctx.lastMessage.formReply;if(!value||value.flow_token!==`${node.id}:${state.totalSteps}`)throw new Error('Expected matching provider form response');state.vars[node.data.saveAs||'form']=value;state.waiting=null;return this.run(ctx,state,node.edges.ok??null);}catch{state.waiting=null;return this.run(ctx,state,node.edges.fail??null);}}
     if (node.type === 'user_input') return this.resumeUserInput(node, ctx, state);
     this.curNode = node.id;
     const d = node.data;
@@ -411,6 +414,10 @@ export class FlowEngine {
     const r = this.resolver(ctx, state);
 
     switch (node.type) {
+      case 'product':if(!this.deps.productContent)throw new RunError('Product adapter unavailable');await this.send(await this.deps.productContent(d.productId,!!d.native));return{kind:'goto',handle:'next'};
+      case 'catalog':if(!this.deps.catalogContent)throw new RunError('Catalog adapter unavailable');await this.send(await this.deps.catalogContent(d.productIds,!!d.native,interpolate(d.text,r)));return{kind:'goto',handle:'next'};
+      case 'appointment':{if(!this.deps.bookAppointment)throw new RunError('Appointment adapter unavailable');try{state.vars[d.saveAs||'appointment']=await this.deps.bookAppointment(d.serviceId,interpolate(d.start,r),`${node.id}:${state.totalSteps}`);return{kind:'goto',handle:'success'};}catch(e){state.vars.appointment_error=(e as Error).message;return{kind:'goto',handle:/unavailable|hours|future/i.test((e as Error).message)?'unavailable':'error'};}}
+      case 'whatsapp_flow':if(!['whatsapp','test'].includes(ctx.channel.type))throw new RunError('WhatsApp Flows require a WhatsApp channel');await this.send({text:interpolate(d.text,r),whatsappFlow:{flowId:d.flowId,token:`${node.id}:${state.totalSteps}`,cta:d.cta,screen:d.screen}});state.waiting={nodeId:node.id,kind:'answer',retries:0};return{kind:'wait'};
       case 'interactive':
       case 'message': {
         const delay = Number(d.delivery?.delaySeconds) || 0;

@@ -10,7 +10,7 @@ import { handlesFor, NODE_META, optionsOf, RFData, summary } from '../../lib/flo
 import { useLocale } from '../product/locale';
 import { NodeIcon, nodeLabel, editorLabel } from './presentation';
 /** الخطوات التي ترسل رسائل للعميل فتظهر لها إحصائيات الإرسال */
-const SENDERS = ['message', 'interactive', 'image', 'audio', 'video', 'file', 'location', 'cta_url', 'template', 'question', 'user_input', 'ai_reply', 'handoff'];
+const SENDERS = ['product','catalog','whatsapp_flow','message', 'interactive', 'image', 'audio', 'video', 'file', 'location', 'cta_url', 'template', 'question', 'user_input', 'ai_reply', 'handoff'];
 const safeImg = (u: unknown) => (typeof u === "string" && /^https?:\/\//i.test(u) ? u : "");
 const attachName = (type: string, d: Record<string, unknown> | undefined) => {
   const raw = String((type === 'file' && d?.filename) || d?.url || '').trim();

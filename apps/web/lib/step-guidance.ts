@@ -1,5 +1,9 @@
 import { NodeType } from './flow-types';
 export const STEP_GUIDANCE: Record<NodeType,[string,string]> = {
+ product:['منتج محفوظ؛ أضف معرفات Meta للعرض الأصلي أو استخدم بطاقة رابط.','Persisted product; configure Meta IDs for native delivery or use a link card.'],
+ catalog:['اختر صفوف المنتجات من كتالوج واحد معتمد.','Choose product rows from one approved catalog.'],
+ appointment:['يمنع الحجز المتعارض ويحفظ نتيجة في متغير.','Rejects overlapping bookings and saves the result to a variable.'],
+ whatsapp_flow:['يلزم نموذج منشور لدى Meta؛ يتحقق المحرك من token الاستجابة.','Requires a Meta-published form; the engine checks its response token.'],
  message:['استخدمها لعرض رسالة وترتيب اختيارات العميل.','Use to send content and offer customer choices.'],
  interactive:['استخدمها عندما يحتاج العميل يختار خدمة أو مسار.','Use when customers choose a service or path.'],
  question:['استخدمها لسؤال العميل وحفظ إجابته.','Use to ask a question and store the answer.'],

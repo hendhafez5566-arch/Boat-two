@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export type NodeType =
+  | 'product' | 'catalog' | 'appointment' | 'whatsapp_flow'
   | 'subflow'
   | 'message'
   | 'interactive'
@@ -53,6 +54,9 @@ export interface BotPolicy {
 }
 
 export interface OutContent {
+  product?:{catalogId:string;retailerId:string};
+  productList?:{catalogId:string;sections:{title:string;retailerIds:string[]}[]};
+  whatsappFlow?:{flowId:string;token:string;cta:string;screen:string;data?:Record<string,unknown>};
   header?: { type:'text'; text:string } | { type:'image'; url:string };
   footer?: string;
   text?: string;
@@ -90,7 +94,7 @@ export interface FlowContact {
 export interface FlowContext {
   contact: FlowContact;
   channel: { id?: string; type: string };
-  lastMessage: { text: string; replyId?: string };
+  lastMessage: { text: string; replyId?: string;formReply?:Record<string,unknown>;order?:unknown };
 }
 
 export interface FlowState {
@@ -136,6 +140,9 @@ export interface AiResult {
 }
 
 export interface EngineDeps {
+  productContent?(id:string,native:boolean):Promise<OutContent>;
+  catalogContent?(ids:string[],native:boolean,text:string):Promise<OutContent>;
+  bookAppointment?(serviceId:string,start:string,eventKey:string):Promise<Record<string,unknown>>;
   readGoogleSheet?(connectionId:string,spreadsheetId:string,range:string):Promise<string>;
   /** Durable production execution; the simulator supplies an explicitly mocked executor. */
   executeButtonAction?(action: ButtonAction, occurrence: string): Promise<void>;
@@ -208,6 +215,8 @@ export function clickableOptions(
 export function handlesFor(node: Pick<FlowNode, 'type' | 'data'>): string[] {
   const d = node.data ?? {};
   switch (node.type) {
+    case 'appointment':return ['success','unavailable','error'];
+    case 'whatsapp_flow':return ['ok','fail'];
     case 'interactive':
     case 'message': {
       const opts = optionsOf(d);

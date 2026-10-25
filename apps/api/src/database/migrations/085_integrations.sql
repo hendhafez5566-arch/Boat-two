@@ -31,13 +31,13 @@ CREATE INDEX integration_delivery_due ON integration_deliveries(status,available
 CREATE FUNCTION integration_source_event() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
  IF TG_TABLE_NAME='messages' THEN
   IF TG_OP='INSERT' AND NEW.direction='out' AND NOT NEW.is_internal THEN
-   INSERT INTO domain_events(tenant_id,type,aggregate_id,payload,dedupe_key) VALUES(NEW.tenant_id,'message.outbound',NEW.conversation_id,jsonb_build_object('messageId',NEW.id,'conversationId',NEW.conversation_id,'channelId',NEW.channel_id,'status',NEW.status,'content',NEW.content),'outbound:'||NEW.id);
+   INSERT INTO domain_events(tenant_id,type,aggregate_id,payload,dedupe_key) VALUES(NEW.tenant_id,'message.outbound',NEW.conversation_id::text,jsonb_build_object('messageId',NEW.id,'conversationId',NEW.conversation_id,'channelId',NEW.channel_id,'status',NEW.status,'content',NEW.content),'outbound:'||NEW.id);
   ELSIF TG_OP='UPDATE' AND NEW.status IS DISTINCT FROM OLD.status THEN
-   INSERT INTO domain_events(tenant_id,type,aggregate_id,payload,dedupe_key) VALUES(NEW.tenant_id,'message.status',NEW.conversation_id,jsonb_build_object('messageId',NEW.id,'conversationId',NEW.conversation_id,'status',NEW.status),'status:'||NEW.id||':'||NEW.status) ON CONFLICT(tenant_id,dedupe_key) DO NOTHING;
+   INSERT INTO domain_events(tenant_id,type,aggregate_id,payload,dedupe_key) VALUES(NEW.tenant_id,'message.status',NEW.conversation_id::text,jsonb_build_object('messageId',NEW.id,'conversationId',NEW.conversation_id,'status',NEW.status),'status:'||NEW.id||':'||NEW.status) ON CONFLICT(tenant_id,dedupe_key) DO NOTHING;
   END IF;
  ELSE
   IF ROW(NEW.status,NEW.handled_by,NEW.assigned_to,NEW.department_id) IS DISTINCT FROM ROW(OLD.status,OLD.handled_by,OLD.assigned_to,OLD.department_id) THEN
-   INSERT INTO domain_events(tenant_id,type,aggregate_id,payload,dedupe_key) VALUES(NEW.tenant_id,'conversation.updated',NEW.id,jsonb_build_object('conversationId',NEW.id,'contactId',NEW.contact_id,'status',NEW.status,'handledBy',NEW.handled_by,'assignedTo',NEW.assigned_to,'departmentId',NEW.department_id),gen_random_uuid()::text);
+   INSERT INTO domain_events(tenant_id,type,aggregate_id,payload,dedupe_key) VALUES(NEW.tenant_id,'conversation.updated',NEW.id::text,jsonb_build_object('conversationId',NEW.id,'contactId',NEW.contact_id,'status',NEW.status,'handledBy',NEW.handled_by,'assignedTo',NEW.assigned_to,'departmentId',NEW.department_id),gen_random_uuid()::text);
   END IF;
  END IF;RETURN NEW;END $$;
 CREATE TRIGGER integration_message_insert AFTER INSERT ON messages FOR EACH ROW EXECUTE FUNCTION integration_source_event();

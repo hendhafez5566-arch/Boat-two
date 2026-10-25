@@ -2,6 +2,7 @@
 import type { Edge, Node } from 'reactflow';
 
 export type NodeType =
+  | 'product' | 'catalog' | 'appointment' | 'whatsapp_flow'
   | 'subflow'
   | 'message'
   | 'interactive'
@@ -61,6 +62,10 @@ export const NODE_META: Record<
   NodeType,
   { label: string; icon: string; color: string; defaults: () => Record<string, any> }
 > = {
+  product:{label:'منتج',icon:'▣',color:'#188038',defaults:()=>({productId:'',native:false})},
+  catalog:{label:'كتالوج / أقسام المنتجات',icon:'▦',color:'#188038',defaults:()=>({productIds:[],native:false,text:'منتجاتنا'})},
+  appointment:{label:'حجز موعد',icon:'◷',color:'#7950c1',defaults:()=>({serviceId:'',start:'{{appointment_start}}',saveAs:'appointment'})},
+  whatsapp_flow:{label:'نموذج WhatsApp Flow',icon:'▤',color:'#128c4a',defaults:()=>({text:'أكمل النموذج',flowId:'',cta:'فتح النموذج',screen:'START',saveAs:'form'})},
   subflow: {
     label: 'مكوّن قابل لإعادة الاستخدام',
     icon: '↗',
@@ -243,6 +248,7 @@ export const NODE_GROUPS: { id: string; ar: string; en: string; types: NodeType[
     en: 'FLOW CONTROL',
     types: ['condition', 'sequence', 'tag', 'random_number', 'split', 'delay', 'business_hours', 'handoff', 'subflow', 'end'],
   },
+  {id:'commerce',ar:'التجارة والمواعيد',en:'COMMERCE & APPOINTMENTS',types:['product','catalog','appointment','whatsapp_flow']},
   { id: 'integrations', ar: 'التكاملات', en: 'INTEGRATIONS', types: ['http_request', 'sheet_fetch'] },
 ];
 
@@ -259,6 +265,8 @@ export function handlesFor(
   data: Record<string, any>,
 ): { id: string; label: string }[] {
   switch (type) {
+    case 'appointment':return [{id:'success',label:'تم الحجز'},{id:'unavailable',label:'غير متاح'},{id:'error',label:'خطأ'}];
+    case 'whatsapp_flow':return [{id:'ok',label:'اكتمل النموذج'},{id:'fail',label:'فشل التحقق'}];
     case 'interactive':
     case 'message': {
       const o = optionsOf(data);
@@ -320,6 +328,10 @@ export function handlesFor(
 export function summary(type: NodeType, d: Record<string, any>, language = 'ar'): string {
   const en = language === 'en';
   switch (type) {
+    case 'product':return d.productId||'اختر منتجًا';
+    case 'catalog':return `${(d.productIds??[]).length} products · ${d.text??''}`;
+    case 'appointment':return d.start||'اختر خدمة وموعدًا';
+    case 'whatsapp_flow':return d.text||'WhatsApp Flow';
     case 'subflow':
       return en ? 'Run published component' : 'تشغيل مكوّن منشور';
     case 'location':

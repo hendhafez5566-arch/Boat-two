@@ -1,6 +1,7 @@
 import { NavIcon } from '../product/NavIcon';
 import { NodeType, NODE_META } from '../../lib/flow-types';
 export const NODE_EN: Record<NodeType, string> = {
+  product:'Product',catalog:'Catalog / product sections',appointment:'Book appointment',whatsapp_flow:'WhatsApp Flow',
   message: 'Send message',
   interactive: 'Interactive Message',
   location: 'Location',
@@ -33,6 +34,7 @@ export function nodeLabel(type: NodeType, language: string) {
   return language === 'en' ? NODE_EN[type] : NODE_META[type].label;
 }
 export const nodeIcon: Record<NodeType, string> = {
+  product:'crm',catalog:'crm',appointment:'sessions',whatsapp_flow:'inbox',
   message: 'inbox',
   interactive: 'inbox',
   location: 'globe',

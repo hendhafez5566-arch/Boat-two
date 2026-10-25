@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { z } from 'zod';
+import {CommerceService} from '../commerce/commerce.service';
 import {GoogleService} from '../integrations/google.service';
 import {valuesCsv} from '../integrations/contracts';
 import { AiService } from '../ai/ai.service';
@@ -43,6 +44,7 @@ export class FlowsService {
     private readonly plans: PlansService,
     private readonly ai: AiService,
     private readonly google?:GoogleService,
+    private readonly commerce?:CommerceService,
   ) {}
 
   list(tenantId: string) {
@@ -364,6 +366,9 @@ export class FlowsService {
     const attrs: Record<string, unknown> = { ...(input.contactAttributes ?? {}) };
 
     const engine = new FlowEngine(graph, {
+      productContent:async(id,native)=>{if(!this.commerce)throw new Error('Commerce unavailable');transcript.push({role:'system',content:'MOCK product preview; no external delivery'});return this.commerce.productContent(tenantId,id,native);},
+      catalogContent:async(ids,native,text)=>{if(!this.commerce)throw new Error('Commerce unavailable');transcript.push({role:'system',content:'MOCK catalog preview; no external delivery'});return this.commerce.catalogContent(tenantId,ids,native,text);},
+      bookAppointment:async(serviceId,start)=>{transcript.push({role:'system',content:'MOCK booking — not persisted; no Calendar request'});return{mock:true,persisted:false,serviceId,start};},
       readGoogleSheet:async(connectionId,spreadsheetId,range)=>{if(!input.allowHttp){transcript.push({role:'system',content:'MOCK private Google Sheet read: no request sent, empty fixture'});return '';}if(!this.google)throw new Error('Google reader unavailable');const result=await this.google.execute(tenantId,connectionId,{operation:'sheet_read',spreadsheetId,range}) as {data?:{values?:unknown[][]}};return valuesCsv(result.data?.values??[]);},
       executeButtonAction: async (action, occurrence) => {
         if (action.type === 'set_field') attrs[action.key] = action.value;
@@ -413,7 +418,7 @@ export class FlowsService {
     const ctx = {
       contact: { name: 'Test User', phone: '+201000000000', email: null, attributes: attrs },
       channel: { type: 'test' },
-      lastMessage: { text: input.text, replyId: input.replyId },
+      lastMessage: { text: input.text, replyId: input.replyId, ...(graph.nodes.find(n=>n.id===state.waiting?.nodeId)?.type==='whatsapp_flow'?{formReply:(()=>{try{return{...JSON.parse(input.text),flow_token:`${state.waiting?.nodeId}:${state.totalSteps}`};}catch{return undefined;}})()}:{} ) },
     };
 
     const result = !input.state

@@ -20,6 +20,7 @@ export async function telegramCall(token:string,method:string,body:Record<string
 @Injectable()
 export class TelegramAdapter implements ChannelAdapter {
   async send(credentials:Record<string,string>,chatId:string,c:MessageContent) {
+    if(c.product||c.productList||c.whatsappFlow)throw new ProviderError('Native commerce/flows require WhatsApp; use a fallback product card',400);
     if(c.template)throw new ProviderError('WhatsApp templates are unavailable on Telegram',400);
     const choices=c.buttons??c.list?.sections.flatMap(s=>s.rows)??[];
     if(choices.some(b=>Buffer.byteLength(b.id)>64))throw new ProviderError('Telegram callback IDs must fit 64 bytes; IDs were not truncated',400);

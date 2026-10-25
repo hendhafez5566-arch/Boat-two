@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import {IntegrationsModule} from '../integrations/integrations.module';
+import {CommerceModule} from '../commerce/commerce.module';
 import { AiModule } from '../ai/ai.module';
 import { InboxModule } from '../inbox/inbox.module';
 import { MessagingModule } from '../messaging/messaging.module';
@@ -10,7 +11,7 @@ import { FlowsService } from './flows.service';
 import { FlowActionsService } from './flow-actions.service';
 
 @Module({
-  imports: [MessagingModule, AiModule, InboxModule, SequencesModule,IntegrationsModule],
+  imports: [MessagingModule, AiModule, InboxModule, SequencesModule,IntegrationsModule,CommerceModule],
   controllers: [FlowsController],
   providers: [FlowsService, FlowRuntimeService, FlowActionsService],
 })

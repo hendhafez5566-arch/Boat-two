@@ -1,5 +1,6 @@
 import { SequencesService } from '../sequences/sequences.service';
 import { FlowActionsService } from './flow-actions.service';
+import {CommerceService} from '../commerce/commerce.service';
 import {GoogleService} from '../integrations/google.service';
 import {valuesCsv} from '../integrations/contracts';
 import { ExternalEffects } from '../events/external-effect';
@@ -53,6 +54,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     private readonly sequences: SequencesService,
     private readonly actions: FlowActionsService,
     private readonly google:GoogleService,
+    private readonly commerce:CommerceService,
   ) {}
 
   onModuleInit() {
@@ -205,7 +207,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         tags: loaded.conv.tags ?? [],
       },
       channel: { id: loaded.conv.channel_id, type: loaded.conv.channel_type },
-      lastMessage: { text, replyId },
+      lastMessage: { text, replyId,formReply:e.content.flowReply,order:e.content.order },
     };
     const base: Loaded = {
       eventId: e.messageId,
@@ -391,6 +393,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     };
     const base: Loaded = {
       tenantId,
+      eventId:`delay:${sessionId}:${loaded.session.state.totalSteps}`,
       replyWaitHours: loaded.graph.policy?.sessionHours,
       conversationId: loaded.session.conversation_id,
       contactId: loaded.conv.contact_id,
@@ -414,6 +417,9 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
 
   private makeDeps(b: Loaded, flowId?: string): EngineDeps {
     return {
+      productContent:(id,native)=>{if(native&&b.ctx.channel.type!=='whatsapp')throw new Error('Native products require WhatsApp');return this.commerce.productContent(b.tenantId,id,native);},
+      catalogContent:(ids,native,text)=>{if(native&&b.ctx.channel.type!=='whatsapp')throw new Error('Native catalogs require WhatsApp');return this.commerce.catalogContent(b.tenantId,ids,native,text);},
+      bookAppointment:(serviceId,start,key)=>this.commerce.book(b.tenantId,{serviceId,contactId:b.contactId,start,eventKey:`flow:${b.conversationId}:${b.eventId}:${key}`,dryRun:false}),
       readGoogleSheet:async(connectionId,spreadsheetId,range)=>{const result=await this.google.execute(b.tenantId,connectionId,{operation:'sheet_read',spreadsheetId,range}) as {data?:{values?:unknown[][]}};return valuesCsv(result.data?.values??[]);},
       executeButtonAction: (action, occurrence) => this.actions.execute(b, action, occurrence),
       ai: async (req) => {

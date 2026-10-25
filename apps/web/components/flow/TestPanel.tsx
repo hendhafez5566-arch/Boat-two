@@ -112,6 +112,8 @@ export default function TestPanel({
               key={i}
               className={`max-w-[85%] rounded-lg px-3 py-1.5 ${e.who === 'you' ? 'ml-auto bg-blue-600 text-white' : 'bg-white border'}`}
             >
+              {(e.content.product||e.content.productList)&&<pre className="text-xs" dir="ltr">{JSON.stringify(e.content.product??e.content.productList,null,2)}</pre>}
+              {e.content.whatsappFlow&&<p>{t('معاينة نموذج WhatsApp — أدخل JSON للرد التجريبي أدناه','WhatsApp form preview — enter JSON as a simulated reply below')}: {e.content.whatsappFlow.cta}</p>}
               {e.content.media && <MediaPreview media={e.content.media} />}
               {e.content.header?.type === 'text' && <strong>{e.content.header.text}</strong>}
               {e.content.header?.type === 'image' && <MediaPreview media={{kind:'image',url:e.content.header.url}} />}

@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { MessageContent } from '../message-content';
-import { ChannelAdapter, GRAPH, graphPost } from './adapter';
+import { ChannelAdapter, GRAPH, graphPost, ProviderError } from './adapter';
 
 /** فيسبوك ماسنجر وإنستجرام يستخدمان نفس واجهة الإرسال */
 @Injectable()
 export class MetaAdapter implements ChannelAdapter {
   async send(creds: Record<string, string>, recipientId: string, c: MessageContent) {
+    if(c.product||c.productList||c.whatsappFlow)throw new ProviderError('Native commerce/flows require WhatsApp; use a fallback product card',400);
     // Messenger/Instagram have no WhatsApp header/footer fields: preserve their content as text/media.
     c = { ...c, text:[c.header?.type === 'text' ? c.header.text : '',c.text,c.footer].filter(Boolean).join('\n'),
       ...(c.header?.type === 'image' && !c.media ? {media:{kind:'image' as const,url:c.header.url}} : {}) };

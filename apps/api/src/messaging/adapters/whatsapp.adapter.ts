@@ -12,7 +12,9 @@ export class WhatsAppAdapter implements ChannelAdapter {
       : c.media?.kind === 'image' && c.media.url ? {type:'image',image:{link:c.media.url}} : undefined;
     const decorations = { ...(header ? {header} : {}), ...(c.footer ? {footer:{text:c.footer}} : {}) };
 
-    if (c.template) {
+    if(c.product||c.productList||c.whatsappFlow){
+      payload={...base,type:'interactive',interactive:c.product?{type:'product',body:{text:c.text},action:{catalog_id:c.product.catalogId,product_retailer_id:c.product.retailerId}}:c.productList?{type:'product_list',header:{type:'text',text:'Products'},body:{text:c.text},action:{catalog_id:c.productList.catalogId,sections:c.productList.sections.map(s=>({title:s.title,product_items:s.retailerIds.map(id=>({product_retailer_id:id}))}))}}:{type:'flow',body:{text:c.text},action:{name:'flow',parameters:{flow_message_version:'3',flow_token:c.whatsappFlow!.token,flow_id:c.whatsappFlow!.flowId,flow_cta:c.whatsappFlow!.cta,flow_action:'navigate',flow_action_payload:{screen:c.whatsappFlow!.screen,data:c.whatsappFlow!.data??{}}}}}};
+    } else if (c.template) {
       payload = {
         ...base,
         type: 'template',

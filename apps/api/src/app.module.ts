@@ -1,5 +1,6 @@
 import { InvitationMailModule } from './mail/invitation-mail';
 import { IntegrationsModule } from './integrations/integrations.module';
+import {CommerceModule} from './commerce/commerce.module';
 import { PlatformModule } from './platform/platform.module';
 import { EventsModule } from './events/events.service';
 import { BusinessModule } from './business/business.module';
@@ -20,6 +21,7 @@ import { WorkspaceModule } from './workspace/workspace.module';
 
 @Module({
   imports: [
+    CommerceModule,
     IntegrationsModule,
     InvitationMailModule,
     LoggerModule.forRoot({
