@@ -51,7 +51,7 @@ export default function UserInputPreview({
             ❓ {t('سؤال جديد', 'New Question')} <small>{i + 1}</small>
           </h4>
           <Stats />
-          <div className="ui-tag">{q.kind === 'choice' ? t('اختيار متعدد', 'Multiple Choice') : t('نص حر', 'Free input')}</div>
+          <div className="ui-tag">{({ choice: t('اختيار متعدد', 'Multiple Choice'), text: t('نص حر', 'Free text'), number: t('رقم', 'Number'), email: t('بريد إلكتروني', 'Email'), phone: t('هاتف', 'Phone') } as Record<string, string>)[q.kind] ?? q.kind}</div>
           <div className="ui-body">
             <p>{q.text || t('(بدون نص)', '(no text)')}</p>
             {q.kind === 'choice' &&
@@ -61,7 +61,7 @@ export default function UserInputPreview({
           </div>
           <div className="ui-field">
             <small>{t('نوع الرد', 'Reply type')}</small>
-            {q.kind === 'choice' ? t('نص', 'Text') : q.kind}
+            {({ choice: t('اختيار', 'Choice'), text: t('نص', 'Text'), number: t('رقم', 'Number'), email: t('بريد إلكتروني', 'Email'), phone: t('هاتف', 'Phone') } as Record<string, string>)[q.kind] ?? q.kind}
             <small>{t('حفظ في حقل مخصص', 'Save to custom field')}</small>
             <code>{q.saveAs || '—'}</code>
           </div>

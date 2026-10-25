@@ -2,8 +2,8 @@
 import {statusLabel} from '../../components/product/status';
 import { WorkspaceMenu } from '../../components/product/WorkspaceMenu';
 import { NavIcon } from '../../components/product/NavIcon';
-import { CSSProperties, ReactNode, useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { CSSProperties, ReactNode, useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api, getSession, setSession } from '../../lib/api';
 import { useBrand } from '../../components/product/BrandContext';
@@ -59,6 +59,20 @@ const restrictedForAgents = ['commerce','integrations',
   'departments',
   'delivery',
 ];
+function Meter({ label, used, limit, href }: { label: string; used?: string | number; limit?: number; href: string }) {
+  const u = Number(used ?? 0) || 0;
+  const unlimited = limit === -1;
+  const pct = typeof limit === 'number' && Number.isFinite(limit) && limit > 0
+    ? Math.min(100, Math.round((u / limit) * 100))
+    : null;
+  const tone = pct !== null && pct >= 90 ? 'is-danger' : pct !== null && pct >= 70 ? 'is-warn' : '';
+  return (
+    <Link className={`bs-meter ${tone}`} href={href} title={`${label}: ${used ?? '—'} / ${unlimited ? '∞' : (limit ?? '—')}`}>
+      <span className="bs-ring" style={{ '--p': pct ?? 0 } as CSSProperties}><b>{unlimited ? '∞' : pct === null ? '—' : `${pct}%`}</b></span>
+      <span className="bs-meter-text"><small>{label}</small><strong>{used ?? '—'}/{unlimited ? '∞' : (limit ?? '—')}</strong></span>
+    </Link>
+  );
+}
 function Shell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const hostBrand = useBrand();
@@ -78,6 +92,17 @@ function Shell({ children }: { children: ReactNode }) {
   useEffect(() => {try {setCollapsed(localStorage.getItem('boat.navigation.collapsed') === 'true');} catch {}}, []);
   const toggleSidebar = () => setCollapsed(value => {const next=!value;try {localStorage.setItem('boat.navigation.collapsed',String(next));} catch {}return next;});
   const [moreOpen, setMoreOpen] = useState(false);
+  const [acctOpen, setAcctOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const router = useRouter();
+  const acctRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!acctOpen) return;
+    const close = (e: MouseEvent) => { if (!acctRef.current?.contains(e.target as Node)) setAcctOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [acctOpen]);
+  useEffect(() => { setAcctOpen(false); setQ(''); }, [path]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -127,11 +152,28 @@ function Shell({ children }: { children: ReactNode }) {
     (restrictedForAgents.includes(path.split('/')[2] ?? '') ||
       path.startsWith('/dashboard/inbox/settings'));
   const focused = path.startsWith('/dashboard/inbox') || /^\/dashboard\/flows\/[^/]+$/.test(path);
+  const allowedKey = (key: string) => role !== 'agent' || !restrictedForAgents.includes(key);
+  const isActive = (key: string) => (key ? path.startsWith('/dashboard/' + key) : path === '/dashboard');
+  const searchHits = q.trim()
+    ? links
+        .filter(([k, , ar, en]) => allowedKey(k) && (ar + ' ' + en).toLowerCase().includes(q.trim().toLowerCase()))
+        .slice(0, 8)
+    : [];
+  const accountLinks = [
+    ['settings', 'user', 'حسابي', 'My account'],
+    ['billing', 'billing', 'الفوترة', 'Billing'],
+    ['sessions', 'shield', 'الأمان والأجهزة', 'Security and sessions'],
+    ['billing', 'upgrade', 'الترقية إلى Pro', 'Upgrade to Pro'],
+    ['integrations', 'integrations', 'التكاملات', 'Integrations'],
+    ['support', 'support', 'تذاكر الدعم', 'Support'],
+    ['developer', 'developer', 'API للمطور', 'Developer API'],
+  ].filter(([k]) => allowedKey(k));
   return (
     <div
-      className={`product-shell ${collapsed ? 'nav-collapsed' : 'nav-expanded'}`}
+      className={`product-shell bs-shell ${collapsed ? 'nav-collapsed' : 'nav-expanded'}`}
       style={brand ? ({ '--primary': brand.primary_color } as CSSProperties) : undefined}
     >
+      {open && <div className="bs-scrim" onClick={() => setOpen(false)} />}
       <aside
         id="workspace-navigation"
         className={`product-sidebar ${open ? 'is-open' : ''}`}
@@ -140,14 +182,11 @@ function Shell({ children }: { children: ReactNode }) {
         }}
       >
         <button
-          className="mobile-menu btn"
+          className="mobile-menu btn bs-close"
           aria-label={t('إغلاق القائمة', 'Close navigation')}
           onClick={() => setOpen(false)}
         >
-          {t('إغلاق القائمة', 'Close navigation')}
-        </button>
-        <button type="button" className="sidebar-toggle btn" aria-controls="workspace-navigation" aria-expanded={!collapsed} aria-label={collapsed ? t('توسيع القائمة وإظهار الأقسام','Expand navigation labels') : t('تصغير القائمة','Collapse navigation')} onClick={toggleSidebar}>
-          <NavIcon name="menu" /><span>{collapsed ? t('توسيع','Expand') : t('تصغير','Collapse')}</span>
+          <NavIcon name="close" />
         </button>
         <Link className="brand" href="/dashboard">
           {brand?.logo_url ? (
@@ -158,29 +197,18 @@ function Shell({ children }: { children: ReactNode }) {
           <span>
             {brand?.name || (
               <>
-                ELHAFEZ <b>BOAT</b>
+                BOAT <b>TWO</b>
               </>
             )}
             <small>{t('منصة المحادثات والأتمتة', 'Messaging & automation')}</small>
           </span>
         </Link>
-        <div className="workspace-chip">
-          <span className="avatar">{name.slice(0, 1)}</span>
-          <div>
-            <strong>{name}</strong>
-            <small>{role ? statusLabel(role,t) : t('مساحة العمل','Workspace')}</small>
-          </div>
-        </div>
         <nav aria-label={t('التنقل الرئيسي', 'Main navigation')}>
           {(() => {
-            const allowed = (key: string) => role !== 'agent' || !restrictedForAgents.includes(key);
-            const isActive = (key: string) =>
-              key ? path.startsWith('/dashboard/' + key) : path === '/dashboard';
             const renderLink = ([key, , ar, en]: string[]) => (
               <Link
                 onClick={() => {
                   setOpen(false);
-                  setMoreOpen(false);
                 }}
                 key={key}
                 title={t(ar, en)}
@@ -194,17 +222,18 @@ function Shell({ children }: { children: ReactNode }) {
             );
             const primary = primaryKeys
               .map((key) => links.find(([k]) => k === key))
-              .filter((link): link is string[] => !!link && allowed(link[0]));
+              .filter((link): link is string[] => !!link && allowedKey(link[0]));
             const moreGroups = navGroups
               .map((group) => ({
                 group,
                 items: group.keys
                   .filter((key) => !primaryKeys.includes(key))
                   .map((key) => links.find(([k]) => k === key))
-                  .filter((link): link is string[] => !!link && allowed(link[0])),
+                  .filter((link): link is string[] => !!link && allowedKey(link[0])),
               }))
               .filter((entry) => entry.items.length);
             const moreActive = moreGroups.some(({ items }) => items.some(([k]) => isActive(k)));
+            const expandedMore = moreOpen || moreActive;
             return (
               <>
                 <div className="nav-primary">{primary.map(renderLink)}</div>
@@ -213,22 +242,16 @@ function Shell({ children }: { children: ReactNode }) {
                     <button
                       type="button"
                       className={`nav-more-btn ${moreActive ? 'active' : ''}`}
-                      aria-expanded={moreOpen}
+                      aria-expanded={expandedMore}
                       aria-controls="nav-more-panel"
-                      title={t('المزيد', 'More')}
-                      onClick={() => setMoreOpen(!moreOpen)}
+                      title={t('لوحة التحكم', 'Control panel')}
+                      onClick={() => setMoreOpen(!expandedMore)}
                     >
                       <NavIcon name="more" />
-                      <span className="nav-label">{t('المزيد', 'More')}</span>
+                      <span className="nav-label">{t('لوحة التحكم', 'Control panel')}</span>
+                      <span className="nav-chevron"><NavIcon name="chevron" /></span>
                     </button>
-                    {moreOpen && <div className="nav-more-scrim" onClick={() => setMoreOpen(false)} />}
-                    <div
-                      id="nav-more-panel"
-                      className={`nav-more-panel ${moreOpen ? 'is-open' : ''}`}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Escape') setMoreOpen(false);
-                      }}
-                    >
+                    <div id="nav-more-panel" className={`nav-more-panel ${expandedMore ? 'is-open' : ''}`}>
                       {moreGroups.map(({ group, items }) => (
                         <div key={group.keys.join('|')} role="group">
                           {group.ar && <p className="nav-group">{t(group.ar, group.en)}</p>}
@@ -249,26 +272,89 @@ function Shell({ children }: { children: ReactNode }) {
               setOpen(false);
             }}
           >
-            العربية / English
+            <NavIcon name="globe" /> <span>العربية / English</span>
           </button>
-          <button onClick={logout}>{t('تسجيل الخروج', 'Sign out')}</button>
         </div>
       </aside>
       <div className="product-content">
-        <header className="product-topbar">
+        <header className="product-topbar bs-topbar">
           <button
-            className="mobile-menu"
-            aria-expanded={open}
+            className="bs-iconbtn bs-burger"
+            aria-expanded={open || !collapsed}
             aria-controls="workspace-navigation"
-            aria-label={t('فتح القائمة', 'Open navigation')}
-            onClick={() => setOpen(!open)}
+            aria-label={t('القائمة', 'Navigation')}
+            onClick={() => {
+              if (window.matchMedia('(max-width: 700px)').matches) setOpen(!open);
+              else toggleSidebar();
+            }}
           >
             <NavIcon name="menu" />
           </button>
+          <div className="bs-meters usage-strip">
+            <Meter label={t('عملاء', 'Contacts')} used={usage.contacts} limit={limits.contacts} href="/dashboard/crm" />
+            <Meter label={t('رسائل', 'Messages')} used={usage.messages_per_month} limit={limits.messages_per_month} href="/dashboard/billing" />
+            {aiEnabled && <Meter label="AI Token" used={usage.ai_tokens} limit={limits.ai_tokens} href="/dashboard/billing" />}
+          </div>
+          <div className="bs-spacer" />
           <WorkspaceMenu name={name} />
-          <div className="usage-strip"><Link href="/dashboard/crm">{t('عملاء','Contacts')}: {usage.contacts??'—'} / {limits.contacts===-1?'∞':limits.contacts??'—'}</Link><Link href="/dashboard/billing">{t('رسائل','Messages')}: {usage.messages_per_month??'—'} / {limits.messages_per_month===-1?'∞':limits.messages_per_month??'—'}</Link>{aiEnabled&&<span>AI tokens: {usage.ai_tokens??'—'}</span>}</div>
-          <details className="account-actions"><summary>{t('الحساب','Account')}</summary><div className="card stack">{[['settings','حسابي','My account'],['billing','الاشتراك والترقية','Billing and upgrade'],['sessions','الأمان والأجهزة','Security and sessions'],['support','المساعدة','Support'],['developer','API للمطور','Developer API'],['integrations','التكاملات','Integrations']].map(([path,ar,en])=><Link key={path} href={'/dashboard/'+path}>{t(ar,en)}</Link>)}</div></details>
-          <span className="badge">{t('بيئة العمل', 'Workspace')}</span>
+          <div className="bs-search" role="search">
+            <NavIcon name="search" />
+            <input
+              type="search"
+              value={q}
+              aria-label={t('بحث في القوائم', 'Search menus')}
+              placeholder={t('ابحث في القوائم…', 'Search menus…')}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && searchHits[0]) router.push(`/dashboard${searchHits[0][0] ? '/' + searchHits[0][0] : ''}`);
+                if (e.key === 'Escape') setQ('');
+              }}
+            />
+            {searchHits.length > 0 && (
+              <div className="bs-search-results" role="listbox">
+                {searchHits.map(([k, , ar, en]) => (
+                  <Link key={k} href={`/dashboard${k ? '/' + k : ''}`} role="option" aria-selected="false">
+                    <NavIcon name={k} />
+                    {t(ar, en)}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+          <Link className="bs-iconbtn bs-bell" href="/dashboard/inbox" aria-label={t('الإشعارات وصندوق الوارد', 'Notifications and inbox')} title={t('صندوق الوارد', 'Inbox')}>
+            <NavIcon name="bell" />
+          </Link>
+          <div className="account-actions bs-account" ref={acctRef}>
+            <button
+              type="button"
+              className="bs-avatar"
+              aria-haspopup="menu"
+              aria-expanded={acctOpen}
+              aria-label={t('قائمة الحساب', 'Account menu')}
+              title={name}
+              onClick={() => setAcctOpen(!acctOpen)}
+            >
+              {brand?.logo_url ? <img src={brand.logo_url} alt="" /> : <span>{name.slice(0, 1)}</span>}
+            </button>
+            {acctOpen && (
+              <div className="bs-menu" role="menu">
+                <div className="bs-menu-head">
+                  <strong>{name}</strong>
+                  <small>{role ? statusLabel(role, t) : t('مساحة العمل', 'Workspace')}</small>
+                </div>
+                {accountLinks.map(([k, icon, ar, en], i) => (
+                  <Link key={k + i} role="menuitem" href={'/dashboard/' + k} className={icon === 'upgrade' ? 'is-strong' : ''} onClick={() => setAcctOpen(false)}>
+                    <NavIcon name={icon} />
+                    {t(ar, en)}
+                  </Link>
+                ))}
+                <button type="button" role="menuitem" className="is-danger" onClick={() => void logout()}>
+                  <NavIcon name="logout" />
+                  {t('تسجيل الخروج', 'Logout')}
+                </button>
+              </div>
+            )}
+          </div>
         </header>
         {error ? (
           <div className="notice error" role="alert">
