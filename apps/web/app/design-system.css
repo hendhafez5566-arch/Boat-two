@@ -1,3 +1,4 @@
+@import '@fontsource-variable/plus-jakarta-sans';
 /*
  * ELHAFEZ BOAT — design system v2
  * Loaded after globals.css. Everything keys off the tokens below, so a tenant's
@@ -2105,71 +2106,57 @@ button.underline {
   .account-actions > div {position:fixed;inset-inline:12px;top:calc(var(--topbar-h) + 8px);min-width:0;width:auto;}
 }
 
-/* ───────────── 99. Stage 1 — BotSailor-style light sidebar + topbar (Boat Two identity, RTL-safe) ───────────── */
-.product-shell.bs-shell { --bs-line: #e8ecf4; --bs-soft: color-mix(in srgb, var(--primary) 10%, #fff); }
+/* Reference navigation: measured 260px expanded / 90px rail, 70px brand row. */
+.product-shell.bs-shell { --bs-line: #e8ecf4; --bs-soft: #f1efff; }
 .bs-shell .product-sidebar {
-  background: #fff; color: var(--ink-2); border-inline-end: 1px solid var(--bs-line);
-  padding: 14px 12px; display: flex; flex-direction: column; gap: 6px;
+  background: #fff; color: #25313b; border-inline-end: 1px solid #e6e8ec;
+  padding: 0; display: flex; flex-direction: column; gap: 0;
   position: sticky; top: 0; height: 100dvh; overflow-y: auto; z-index: 40; box-shadow: none;
+  font: 400 14px/21px 'Plus Jakarta Sans Variable', Arial, sans-serif;
 }
-.bs-shell .product-sidebar .brand { color: var(--ink); justify-content: flex-start; gap: 10px; padding: 6px 8px 14px; font-weight: 800; }
+.bs-shell .product-sidebar .brand {
+  color: #080d14; justify-content: center; gap: 6px; padding: 0 16px; height: 70px; min-height: 70px;
+  border-bottom: 1px solid #e6e8ec; font: 800 22px/1.2 'Plus Jakarta Sans Variable', Arial, sans-serif;
+}
 .bs-shell .product-sidebar .brand > span:not(.brand-mark),
-.bs-shell .product-sidebar .brand img + span { display: block; line-height: 1.2; }
-.bs-shell .product-sidebar .brand small { display: block; font-weight: 500; color: var(--faint); font-size: .7rem; }
-.bs-shell .product-sidebar .brand-mark { background: var(--primary); color: #fff; border-radius: 10px; }
-.bs-shell .product-sidebar nav { display: flex; flex-direction: column; gap: 2px; margin: 0; flex: 1; }
-.bs-shell .nav-primary { display: flex; flex-direction: column; gap: 2px; }
+.bs-shell .product-sidebar .brand img + span { display: block; }
+.bs-shell .product-sidebar .brand-mark { width: 32px; height: 32px; border-radius: 5px; background: #1237aa; color: #fff; box-shadow: none; font-size: 22px; }
+.bs-shell .product-sidebar .brand img { width: 32px; height: 32px; object-fit: contain; }
+.bs-shell .product-sidebar nav { display: flex; flex-direction: column; gap: 0; margin: 0; padding: 12px 16px 8px; flex: 1; }
+.bs-shell .nav-primary { display: flex; flex-direction: column; gap: 1px; }
 .bs-shell .product-sidebar nav a,
 .bs-shell .nav-more-btn {
-  display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 12px;
-  min-height: 42px; padding: 9px 12px; margin: 0; width: 100%; border: 0; background: transparent;
-  border-radius: 10px; color: var(--ink-2); font-size: .9rem; font-weight: 500; text-align: start; cursor: pointer;
+  display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 8px;
+  min-height: 39.2px; padding: 9.6px 12px; margin: 0; width: 100%; border: 0; background: transparent;
+  border-radius: 4px; color: #25313b; font: inherit; font-weight: 400; text-align: start; cursor: pointer;
 }
-.bs-shell .product-sidebar nav a svg,
-.bs-shell .nav-more-btn svg { width: 19px; height: 19px; flex: none; color: var(--faint); }
+.bs-shell .product-sidebar .nav-reference-icon { width: 20px; height: 20px; flex: none; object-fit: contain; }
 .bs-shell .product-sidebar nav a:hover,
-.bs-shell .nav-more-btn:hover { background: #f5f7fb; color: var(--ink); }
+.bs-shell .nav-more-btn:hover { background: #f8f9fa; color: #25313b; }
 .bs-shell .product-sidebar nav a.active,
-.bs-shell .nav-more-btn.active { background: var(--bs-soft); color: var(--primary-deep, var(--primary)); font-weight: 700; }
-.bs-shell .product-sidebar nav a.active svg,
-.bs-shell .nav-more-btn.active svg { color: var(--primary); }
+.bs-shell .nav-more-btn.active { background: #f8f9fa; color: #5141e3; font-weight: 400; box-shadow: none; }
 .bs-shell .product-sidebar nav .nav-label,
-.bs-shell .nav-more-btn .nav-label { position: static; width: auto; height: auto; clip-path: none; overflow: visible; flex: 1; white-space: normal; font-size: .9rem; }
-.bs-shell .nav-more-btn .nav-chevron { margin-inline-start: auto; display: inline-flex; transition: transform .2s; }
+.bs-shell .nav-more-btn .nav-label { position: static; width: auto; height: auto; clip-path: none; overflow: visible; flex: 1; white-space: nowrap; font: inherit; }
+.bs-shell .nav-more-btn .nav-chevron { margin-inline-start: auto; display: inline-flex; transition: transform .2s; color: #85909a; }
+.bs-shell .nav-chevron svg { width: 12px; height: 12px; }
 .bs-shell .nav-more-btn[aria-expanded='true'] .nav-chevron { transform: rotate(180deg); }
-.bs-shell .nav-more-scrim { display: none; }
-.bs-shell .nav-more-panel {
-  display: none; position: static; width: auto; inset: auto; overflow: visible; padding: 0 0 0 0;
-  background: transparent; border: 0; border-radius: 0; box-shadow: none; margin-inline-start: 10px;
-  padding-inline-start: 8px; border-inline-start: 1px dashed var(--bs-line);
-}
+.bs-shell .nav-more-panel { display: none; margin: 0; padding: 0 0 8px; border: 0; background: transparent; box-shadow: none; }
 .bs-shell .nav-more-panel.is-open { display: block; }
-.bs-shell .product-sidebar .nav-more-panel .nav-group { color: var(--faint); font-size: .7rem; font-weight: 700; padding: 10px 12px 4px; }
-.bs-shell .sidebar-footer { border-top: 1px solid var(--bs-line); margin-top: 8px; padding-top: 10px; display: flex; gap: 8px; }
-.bs-shell .sidebar-footer button {
-  display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1; min-height: 38px;
-  border: 1px solid var(--bs-line); border-radius: 10px; background: #fff; color: var(--ink-2); font-size: .8rem; font-weight: 600;
-}
-.bs-shell .sidebar-footer button svg { width: 16px; height: 16px; }
-.bs-shell .sidebar-footer button:hover { background: #f5f7fb; }
+.bs-shell .product-sidebar .nav-more-panel a { padding-inline-start: 36px; gap: 8px; }
+.bs-shell .product-sidebar .nav-more-panel .nav-reference-icon { width: 17px; height: 17px; }
 .bs-shell .sidebar-toggle, .bs-shell .workspace-chip { display: none !important; }
 .bs-shell .bs-close { display: none; }
-
-/* collapsed rail (desktop) */
 @media (min-width: 701px) {
-  .product-shell.bs-shell.nav-expanded { --sidebar-w: 256px; }
-  .product-shell.bs-shell.nav-collapsed { --sidebar-w: 76px; }
+  .product-shell.bs-shell.nav-expanded { --sidebar-w: 260px; }
+  .product-shell.bs-shell.nav-collapsed { --sidebar-w: 90px; }
   .bs-shell .product-sidebar { width: var(--sidebar-w); flex: none; }
   .bs-shell.nav-collapsed .product-sidebar .brand > span:not(.brand-mark),
   .bs-shell.nav-collapsed .product-sidebar .brand img + span,
   .bs-shell.nav-collapsed .nav-label,
   .bs-shell.nav-collapsed .nav-chevron,
-  .bs-shell.nav-collapsed .nav-group,
-  .bs-shell.nav-collapsed .sidebar-footer button span { display: none; }
-  .bs-shell.nav-collapsed .product-sidebar .brand { justify-content: center; padding-inline: 0; }
+  .bs-shell.nav-collapsed .nav-more-panel { display: none; }
   .bs-shell.nav-collapsed .product-sidebar nav a,
   .bs-shell.nav-collapsed .nav-more-btn { justify-content: center; padding-inline: 0; }
-  .bs-shell.nav-collapsed .nav-more-panel { margin-inline-start: 0; padding-inline-start: 0; border: 0; }
 }
 
 /* topbar */

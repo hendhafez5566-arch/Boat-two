@@ -9,12 +9,12 @@ import { api, getSession, setSession } from '../../lib/api';
 import { useBrand } from '../../components/product/BrandContext';
 import { useLocale } from '../../components/product/locale';
 const links = [
-  ['', '◈', 'نظرة عامة', 'Overview'],
+  ['', '◈', 'لوحة المعلومات', 'Dashboard'],
   ['onboarding', '◷', 'دليل البداية', 'Getting started'],
-  ['inbox', '▤', 'صندوق الوارد', 'Inbox'],
-  ['crm', '◉', 'المشتركون', 'Subscribers'],
+  ['inbox', '▤', 'صندوق الوارد المشترك', 'Shared Inbox'],
+  ['crm', '◉', 'مدير المشتركين', 'Subscriber Manager'],
   ['flows', '⌘', 'مدير البوت', 'Chatbot Manager'],
-  ['campaigns', '➤', 'مركز البث', 'Broadcast Center'],
+  ['campaigns', '➤', 'البث', 'Broadcasting'],
   ['sequences', '⏱', 'التسلسلات', 'Sequences'],
   ['automations', '⚡', 'أتمتة الأعمال', 'Automations'],
   ['agents', '✧', 'مساعدو AI', 'AI agents'],
@@ -23,10 +23,11 @@ const links = [
   ['commerce', '▣', 'التجارة والمواعيد والنشر', 'Commerce, bookings & social'],
   ['social', '▣', 'النشر الاجتماعي', 'Social Posting'],
   ['integrations', '⇄', 'التكاملات وWebhooks', 'Integrations & webhooks'],
-  ['channels', '◎', 'ربط الحسابات', 'Connect Accounts'],
+  ['channels', '◎', 'ربط الحساب', 'Connect Account'],
   ['departments', '♧', 'الأقسام وSLA', 'Departments & SLA'],
-  ['team', '♧', 'الفريق والصلاحيات', 'Team & roles'],
-  ['billing', '◇', 'الاشتراك والاستهلاك', 'Plan & usage'],
+  ['team', '♧', 'مدير المستخدمين', 'User Manager'],
+  ['packages', '◇', 'مدير الباقات', 'Package Manager'],
+  ['billing', '◇', 'الفوترة', 'Billing'],
   ['branding', '◈', 'هوية الشركة', 'Branding'],
   ['settings', '⚙', 'الإعدادات والتكاملات', 'Settings & Integration'],
   ['sessions', '◷', 'جلسات الحساب', 'Account sessions'],
@@ -34,24 +35,11 @@ const links = [
   ['audit', '↗', 'سجل النشاط', 'Activity log'],
   ['ai', '✦', 'المساعد الذكي', 'AI assistant'],
 ];
-const navGroups = [
-  { ar: '', en: '', keys: ['', 'onboarding'] },
-  { ar: 'التواصل', en: 'Engage', keys: ['inbox', 'crm', 'campaigns', 'sequences'] },
-  { ar: 'الأتمتة', en: 'Automate', keys: ['flows', 'automations', 'agents', 'knowledge', 'ai'] },
-  {
-    ar: 'الإدارة',
-    en: 'Manage',
-    keys: ['channels', 'integrations', 'commerce', 'departments', 'team', 'reports'],
-  },
-  {
-    ar: 'الحساب',
-    en: 'Account',
-    keys: ['billing', 'branding', 'settings', 'sessions', 'delivery', 'audit'],
-  },
-];
+const controlKeys = ['settings', 'packages', 'team', 'billing'];
 const primaryKeys = ['', 'inbox', 'channels', 'flows', 'crm', 'campaigns', 'social'];
 const restrictedForAgents = [
   'social',
+  'packages',
   'commerce',
   'integrations',
   'reports',
@@ -118,10 +106,10 @@ function Shell({ children }: { children: ReactNode }) {
   const [limits, setLimits] = useState<Record<string, number>>({});
   const [aiEnabled, setAiEnabled] = useState(false);
   const [open, setOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   useEffect(() => {
     try {
-      setCollapsed(localStorage.getItem('boat.navigation.collapsed') === 'true');
+      setCollapsed(localStorage.getItem('boat.navigation.collapsed') !== 'false');
     } catch {
       /* Device preferences are optional. */
     }
@@ -136,7 +124,7 @@ function Shell({ children }: { children: ReactNode }) {
       }
       return next;
     });
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState<boolean | null>(null);
   const [acctOpen, setAcctOpen] = useState(false);
   const [q, setQ] = useState('');
   const router = useRouter();
@@ -152,6 +140,8 @@ function Shell({ children }: { children: ReactNode }) {
   useEffect(() => {
     setAcctOpen(false);
     setQ('');
+    setMoreOpen(null);
+    setOpen(false);
   }, [path]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
@@ -264,7 +254,6 @@ function Shell({ children }: { children: ReactNode }) {
                 BOAT <b>TWO</b>
               </>
             )}
-            <small>{t('منصة المحادثات والأتمتة', 'Messaging & automation')}</small>
           </span>
         </Link>
         <nav aria-label={t('التنقل الرئيسي', 'Main navigation')}>
@@ -280,28 +269,26 @@ function Shell({ children }: { children: ReactNode }) {
                 aria-current={isActive(key) ? 'page' : undefined}
                 className={isActive(key) ? 'active' : ''}
               >
-                <NavIcon name={key} />
+                <img
+                  className="nav-reference-icon"
+                  src={`/navigation/${key || 'dashboard'}.svg`}
+                  alt=""
+                />
                 <span className="nav-label">{t(ar, en)}</span>
               </Link>
             );
             const primary = primaryKeys
               .map((key) => links.find(([k]) => k === key))
               .filter((link): link is string[] => !!link && allowedKey(link[0]));
-            const moreGroups = navGroups
-              .map((group) => ({
-                group,
-                items: group.keys
-                  .filter((key) => !primaryKeys.includes(key))
-                  .map((key) => links.find(([k]) => k === key))
-                  .filter((link): link is string[] => !!link && allowedKey(link[0])),
-              }))
-              .filter((entry) => entry.items.length);
-            const moreActive = moreGroups.some(({ items }) => items.some(([k]) => isActive(k)));
-            const expandedMore = moreOpen || moreActive;
+            const controlLinks = controlKeys
+              .map((key) => links.find(([k]) => k === key))
+              .filter((link): link is string[] => !!link && allowedKey(link[0]));
+            const moreActive = controlLinks.some(([k]) => isActive(k));
+            const expandedMore = moreOpen ?? moreActive;
             return (
               <>
                 <div className="nav-primary">{primary.map(renderLink)}</div>
-                {moreGroups.length > 0 && (
+                {controlLinks.length > 0 && (
                   <>
                     <button
                       type="button"
@@ -309,9 +296,12 @@ function Shell({ children }: { children: ReactNode }) {
                       aria-expanded={expandedMore}
                       aria-controls="nav-more-panel"
                       title={t('لوحة التحكم', 'Control panel')}
-                      onClick={() => setMoreOpen(!expandedMore)}
+                      onClick={() => {
+                        if (collapsed && !isFlowEditor) toggleSidebar();
+                        setMoreOpen(!expandedMore);
+                      }}
                     >
-                      <NavIcon name="more" />
+                      <img className="nav-reference-icon" src="/navigation/control.svg" alt="" />
                       <span className="nav-label">{t('لوحة التحكم', 'Control panel')}</span>
                       <span className="nav-chevron">
                         <NavIcon name="chevron" />
@@ -321,12 +311,7 @@ function Shell({ children }: { children: ReactNode }) {
                       id="nav-more-panel"
                       className={`nav-more-panel ${expandedMore ? 'is-open' : ''}`}
                     >
-                      {moreGroups.map(({ group, items }) => (
-                        <div key={group.keys.join('|')} role="group">
-                          {group.ar && <p className="nav-group">{t(group.ar, group.en)}</p>}
-                          {items.map(renderLink)}
-                        </div>
-                      ))}
+                      {controlLinks.map(renderLink)}
                     </div>
                   </>
                 )}
@@ -334,16 +319,6 @@ function Shell({ children }: { children: ReactNode }) {
             );
           })()}
         </nav>
-        <div className="sidebar-footer">
-          <button
-            onClick={() => {
-              toggle();
-              setOpen(false);
-            }}
-          >
-            <NavIcon name="globe" /> <span>العربية / English</span>
-          </button>
-        </div>
       </aside>
       <div className="product-content">
         {!isFlowEditor && (
@@ -418,7 +393,7 @@ function Shell({ children }: { children: ReactNode }) {
               className="bs-iconbtn bs-bell"
               href="/dashboard/inbox"
               aria-label={t('الإشعارات وصندوق الوارد', 'Notifications and inbox')}
-              title={t('صندوق الوارد', 'Inbox')}
+              title={t('صندوق الوارد المشترك', 'Shared Inbox')}
             >
               <NavIcon name="bell" />
             </Link>
@@ -444,6 +419,16 @@ function Shell({ children }: { children: ReactNode }) {
                     <strong>{name}</strong>
                     <small>{role ? statusLabel(role, t) : t('مساحة العمل', 'Workspace')}</small>
                   </div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      toggle();
+                      setAcctOpen(false);
+                    }}
+                  >
+                    <NavIcon name="globe" /> العربية / English
+                  </button>
                   {accountLinks.map(([k, icon, ar, en], i) => (
                     <Link
                       key={k + i}
