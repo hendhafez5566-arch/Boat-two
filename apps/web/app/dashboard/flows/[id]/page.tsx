@@ -45,8 +45,8 @@ import FlowEdge, { ButtonLinkEdge } from '../../../../components/flow/FlowEdge';
 import FlowButtonNode from '../../../../components/flow/FlowButtonNode';
 import { validationMessage } from '../../../../lib/validation-message';
 import UnsavedChangesGuard from '../../../../components/flow/UnsavedChangesGuard';
+import { convertChoices } from '../../../../lib/smart-editor';
 import { STEP_GUIDANCE } from '../../../../lib/step-guidance';
-import StepActions from '../../../../components/flow/StepActions';
 import Inspector from '../../../../components/flow/Inspector';
 import type { ConditionVariable } from '../../../../components/business/ConditionModal';
 import TestPanel from '../../../../components/flow/TestPanel';
@@ -116,7 +116,6 @@ function Editor({ id }: { id: string }) {
   const [previewActive, setPreviewActive] = useState<string | null>(null);
   const previewActiveRef = useRef<string | null>(null);
   const [previewVisited, setPreviewVisited] = useState<string[]>([]);
-  const lastFocused = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [dropMenu, setDropMenu] = useState<{
     x: number;
     y: number;
@@ -137,6 +136,11 @@ function Editor({ id }: { id: string }) {
     id: string;
     nonce: number;
   } | null>(null);
+  const [inspectorDraft, setInspectorDraft] = useState<{
+    id: string;
+    data: Record<string, any>;
+  } | null>(null);
+  const [choicePanel, setChoicePanel] = useState<string | null>(null);
   const [tab, setTab] = useState<'node' | 'settings'>('node');
   const [meta, setMeta] = useState<{
     policy?: BotPolicy;
@@ -349,10 +353,18 @@ function Editor({ id }: { id: string }) {
     remove: (id: string) => void;
     setStart: (id: string) => void;
     open: (id: string) => void;
-  }>({ duplicate: () => {}, remove: () => {}, setStart: () => {}, open: () => {} });
+    choices: (id: string, kind: 'buttons' | 'list') => void;
+  }>({
+    duplicate: () => {},
+    remove: () => {},
+    setStart: () => {},
+    open: () => {},
+    choices: () => {},
+  });
   const nodeActions = useMemo(
     () => ({
       open: (id: string) => actionsRef.current.open(id),
+      choices: (id: string, kind: 'buttons' | 'list') => actionsRef.current.choices(id, kind),
       duplicate: (id: string) => actionsRef.current.duplicate(id),
       remove: (id: string) => actionsRef.current.remove(id),
       setStart: (id: string) => actionsRef.current.setStart(id),
@@ -630,6 +642,7 @@ function Editor({ id }: { id: string }) {
     if (!startId || !nodes.length) setStartId(nid);
     setSelected(nid);
     selRef.current = nid;
+    setInspectorDraft(null);
     setPreviewOpen(false);
     setInspectorOpen(true);
     setTab('node');
@@ -716,7 +729,9 @@ function Editor({ id }: { id: string }) {
   };
 
   const focusNode = (nid: string) => {
+    setInspectorDraft(null);
     setChoiceSelection(null);
+    setChoicePanel(null);
     setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === nid })));
     setSelected(nid);
     selRef.current = nid;
@@ -737,45 +752,52 @@ function Editor({ id }: { id: string }) {
     if (reviewViewport.current) void rf.setViewport(reviewViewport.current);
   };
 
-  const renderStepAction = (handle: string, title: string) =>
-    sel ? (
-      <StepActions
-        key={`${sel.id}:${handle}`}
-        title={title}
-        target={edges.find((e) => e.source === sel.id && e.sourceHandle === handle)?.target}
-        steps={nodes
-          .filter((n) => n.id !== sel.id)
-          .map((n) => ({
-            id: n.id,
-            type: n.data.type,
-            text: String(n.data.data?.text || n.data.data?.message || n.data.note || '').slice(
-              0,
-              60,
-            ),
-          }))}
-        onCreate={(type) => addNode(type, undefined, { source: sel.id, handle })}
-        onOpen={(id) => {
-          setSelected(id);
-          selRef.current = id;
-          setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === id })));
-        }}
-        onConnect={(target) => {
-          if (target)
-            onConnect({ source: sel.id, sourceHandle: handle, target, targetHandle: null });
-          else {
-            setEdges((es) => es.filter((e) => e.source !== sel.id || e.sourceHandle !== handle));
-            setDirty(true);
-          }
-        }}
-      />
-    ) : null;
-
   const graph = () => ({
     ...fromFlow(nodes, edges, startId),
     ...(meta.policy ? { policy: meta.policy } : {}),
   });
 
   actionsRef.current = {
+    choices: (nid, kind) => {
+      const node = nodes.find((n) => n.id === nid);
+      if (!node) return;
+      const current = node.data.data.list
+        ? 'list'
+        : node.data.data.buttons?.length
+          ? 'buttons'
+          : 'none';
+      if (current !== kind) {
+        if (
+          current !== 'none' &&
+          !confirm(
+            t(
+              'تغيير نوع الاختيارات؟ تظل المعرّفات والوصلات محفوظة.',
+              'Change reply type? IDs and links stay.',
+            ),
+          )
+        )
+          return;
+        try {
+          const next = convertChoices(node.data.data, kind);
+          if (!optionsOf(next).length) {
+            const first = { id: uid(), title: t('اختيار جديد', 'New Choice') };
+            if (kind === 'buttons') next.buttons = [first];
+            else next.list = { buttonText: t('القائمة', 'Menu'), sections: [{ rows: [first] }] };
+          }
+          updateData(nid, next);
+        } catch {
+          setMsg(
+            t(
+              'راجع عدد الاختيارات وطول العناوين قبل التحويل.',
+              'Review choice count and title lengths before converting.',
+            ),
+          );
+          return;
+        }
+      }
+      focusNode(nid);
+      setChoicePanel(nid);
+    },
     open: focusNode,
     duplicate: duplicateNode,
     remove: deleteNode,
@@ -1067,46 +1089,6 @@ function Editor({ id }: { id: string }) {
     setPreviewActive(nid);
     if (nid) rf.fitView({ nodes: [{ id: nid }], padding: 1.4, maxZoom: 1, duration: 400 });
   };
-  const updateNote = (nid: string, note: string) => {
-    setNodes((ns) => ns.map((n) => (n.id === nid ? { ...n, data: { ...n.data, note } } : n)));
-    setDirty(true);
-  };
-  const knownVars = useMemo(() => {
-    const out = new Set<string>(['name', 'contact.name', 'contact.phone', 'contact.email']);
-    for (const n of nodes) {
-      const d: any = n.data.data;
-      if (n.data.type === 'question' && d.saveAs) out.add(d.saveAs);
-      if (n.data.type === 'ai_reply' && d.saveAnswerAs) out.add(d.saveAnswerAs);
-      if (n.data.type === 'set_variable')
-        for (const a of d.assignments ?? []) if (a.name) out.add(a.name);
-      if (n.data.type === 'http_request')
-        for (const m of d.saveAs ?? []) if (m.variable) out.add(m.variable);
-      if (n.data.type === 'sheet_fetch')
-        for (const m of d.saveAs ?? []) if (m.variable) out.add(m.variable);
-    }
-    return [...out];
-  }, [nodes]);
-  const insertVariable = (name: string) => {
-    const el = lastFocused.current;
-    const token = `{{${name}}}`;
-    if (!el || !el.isConnected) {
-      void navigator.clipboard?.writeText(token).catch(() => {});
-      setMsg(t('نُسخ المتغيّر. الصقه في أي حقل.', 'Variable copied. Paste it into any field.'));
-      return;
-    }
-    const start = el.selectionStart ?? el.value.length;
-    const end = el.selectionEnd ?? el.value.length;
-    const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement;
-    // Use the native setter so React's onChange fires with the inserted token.
-    Object.getOwnPropertyDescriptor(proto.prototype, 'value')?.set?.call(
-      el,
-      el.value.slice(0, start) + token + el.value.slice(end),
-    );
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.focus();
-    el.setSelectionRange(start + token.length, start + token.length);
-  };
-
   const sel = nodes.find((n) => n.id === selected);
   const upstream = new Set<string>();
   if (sel) {
@@ -1737,8 +1719,12 @@ function Editor({ id }: { id: string }) {
                         setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === nodeId })));
                         selRef.current = nodeId;
                         setSelected(nodeId);
-                        if (!hit) setChoiceSelection(null);
+                        if (!hit) {
+                          setChoiceSelection(null);
+                          setChoicePanel(null);
+                        }
                         if (hit) {
+                          setInspectorDraft(null);
                           setChoiceSelection({
                             parentId: hit.parentId,
                             id: hit.buttonId,
@@ -1902,43 +1888,36 @@ function Editor({ id }: { id: string }) {
 
         <Dialog
           open={inspectorOpen && !previewOpen && (tab === 'settings' || !!sel)}
-          onClose={() => setInspectorOpen(false)}
+          onClose={() => {
+            setInspectorDraft(null);
+            setInspectorOpen(false);
+          }}
           className={styles.inspectorDialog}
           title={
             sel && tab === 'node'
               ? choiceSelection?.parentId === sel.id
                 ? t('إعداد الاختيار', 'Configure Reply')
-                : `${t('إعداد', 'Configure')} ${nodeLabel(sel.data.type, language)}`
+                : choicePanel === sel.id
+                  ? sel.data.data.list
+                    ? t('إعداد القائمة', 'Configure List Message')
+                    : t('إعداد الأزرار', 'Configure Buttons')
+                  : `${t('إعداد', 'Configure')} ${nodeLabel(sel.data.type === 'message' && optionsOf(sel.data.data).length ? 'interactive' : sel.data.type, language)}`
               : t('إعداد بداية التدفق', 'Configure Reference')
           }
         >
-          <p className={styles.editorNote}>
-            {t(
-              'تعديلاتك تخص المسودة. النشر خطوة مستقلة من قائمة الأدوات.',
-              'Changes apply to the draft. Publish separately from the tools menu.',
-            )}
-          </p>
           <div key={tab === 'node' ? selected : 'settings'} className={styles.inspectorBody}>
             {tab === 'node' &&
               (sel ? (
-                <div
-                  onFocusCapture={(e) => {
-                    const el = e.target as HTMLElement;
-                    if (
-                      (el instanceof HTMLInputElement &&
-                        ['text', 'url', 'search', ''].includes(el.type)) ||
-                      el instanceof HTMLTextAreaElement
-                    )
-                      lastFocused.current = el;
-                  }}
-                >
+                <div>
                   <Inspector
                     onChoiceSelect={(id) =>
                       setChoiceSelection(id ? { parentId: sel.id, id, nonce: Date.now() } : null)
                     }
+                    choiceView={choicePanel === sel.id}
                     channelIds={meta.channelIds}
                     key={
                       sel.id +
+                      (choicePanel === sel.id ? ':choices' : '') +
                       (choiceSelection?.parentId === sel.id ? ':' + choiceSelection.nonce : '')
                     }
                     initialChoiceId={
@@ -1952,71 +1931,11 @@ function Editor({ id }: { id: string }) {
                         ? `${t('بعد الضغط:', 'Then:')} ${stepCaption(edge.target)}`
                         : t('لا يوجد إجراء بعد', 'No action yet');
                     }}
-                    renderAction={(handle, title) => renderStepAction(handle, title)}
-                    nextSteps={
-                      <section className="smart-next-steps">
-                        <h3>{t('الخطوة التالية', 'Next step')}</h3>
-                        {handlesFor(sel.data.type, sel.data.data)
-                          .filter((h) => !h.id.startsWith('option:'))
-                          .map((h) => (
-                            <div key={h.id}>
-                              {renderStepAction(
-                                h.id,
-                                sel.data.type === 'condition'
-                                  ? h.id === 'else'
-                                    ? t('لا — لم يتحقق', 'No — not matched')
-                                    : `${t('نعم — تحقق الشرط', 'Yes — matched')} ${h.label}`
-                                  : h.label,
-                              )}
-                            </div>
-                          ))}
-                      </section>
-                    }
                     variables={conditionVariables}
                     type={sel.data.type}
-                    data={sel.data.data}
-                    isStart={sel.id === startId}
-                    onChange={(d) => updateData(sel.id, d)}
-                    onSetStart={() => {
-                      setStartId(sel.id);
-                      setDirty(true);
-                    }}
-                    onDelete={() => deleteNode(sel.id)}
+                    data={inspectorDraft?.id === sel.id ? inspectorDraft.data : sel.data.data}
+                    onChange={(data) => setInspectorDraft({ id: sel.id, data })}
                   />
-                  <ConfigDisclosure className="m-3 rounded border p-2">
-                    <ConfigSummary>
-                      {t('متغيّرات وتعليق داخلي', 'Variables and internal comment')}
-                    </ConfigSummary>
-                    <div
-                      className="var-picker"
-                      aria-label={t('المتغيّرات المتاحة', 'Available variables')}
-                    >
-                      <span>{t('أدرج متغيّرًا', 'Insert variable')}</span>
-                      {knownVars.map((v) => (
-                        <button
-                          type="button"
-                          key={v}
-                          className="var-chip"
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => insertVariable(v)}
-                        >
-                          {v}
-                        </button>
-                      ))}
-                    </div>
-                    <label className="note-field">
-                      {t(
-                        'تعليق على الخطوة (لا يظهر للعميل)',
-                        'Step comment (never shown to customers)',
-                      )}
-                      <textarea
-                        maxLength={500}
-                        rows={2}
-                        value={sel.data.note ?? ''}
-                        onChange={(e) => updateNote(sel.id, e.target.value)}
-                      />
-                    </label>
-                  </ConfigDisclosure>
                 </div>
               ) : (
                 <p className="p-4 text-sm text-gray-500">
@@ -2257,38 +2176,31 @@ function Editor({ id }: { id: string }) {
             )}
           </div>
           <footer className="smart-editor-footer">
-            <span role="status">
-              {saveState === 'saving'
-                ? t('جارٍ الحفظ…', 'Saving…')
-                : saveState === 'error'
-                  ? t('فشل الحفظ', 'Save failed')
-                  : dirty
-                    ? t('تغييرات غير محفوظة', 'Unsaved changes')
-                    : t('محفوظ', 'Saved')}
-            </span>
             <button
               type="button"
-              onClick={openReview}
-              title={t(
-                'جرّب البوت بدون إرسال رسائل حقيقية',
-                'Try the bot without sending real messages',
-              )}
+              onClick={() => {
+                setInspectorDraft(null);
+                setInspectorOpen(false);
+              }}
             >
-              {t('تجربة', 'Try')}
+              {t('إغلاق', 'Close')}
             </button>
             <button
               type="button"
               className="smart-primary"
               onClick={async () => {
                 try {
-                  if (dirty) await save();
+                  if (tab === 'node' && sel) {
+                    if (inspectorDraft?.id === sel.id) updateData(sel.id, inspectorDraft.data);
+                    setInspectorDraft(null);
+                  } else if (dirty) await save();
                   setInspectorOpen(false);
                 } catch {
                   /* save reports error and keeps editor open */
                 }
               }}
             >
-              {t('حفظ والعودة للرسم', 'Save and return')}
+              {t('حفظ التغييرات', 'Save Changes')}
             </button>
           </footer>
         </Dialog>

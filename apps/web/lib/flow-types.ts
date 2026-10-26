@@ -2,7 +2,10 @@
 import type { Edge, Node } from 'reactflow';
 
 export type NodeType =
-  | 'product' | 'catalog' | 'appointment' | 'whatsapp_flow'
+  | 'product'
+  | 'catalog'
+  | 'appointment'
+  | 'whatsapp_flow'
   | 'subflow'
   | 'message'
   | 'interactive'
@@ -48,11 +51,20 @@ export interface Graph {
 }
 
 export interface BotPolicy {
-  initialVars?:Record<string,string|number|boolean|null>;
-  startMessage?:string;startFrequency?:'once'|'always'|'daily';
+  initialVars?: Record<string, string | number | boolean | null>;
+  startMessage?: string;
+  startFrequency?: 'once' | 'always' | 'daily';
   sessionHours?: number;
   noMatchText?: string;
-  businessHours?: { enabled: boolean; timezone: string; schedule: Partial<Record<'mon'|'tue'|'wed'|'thu'|'fri'|'sat'|'sun',[string,string][]>>; offHoursText?: string;offHoursFlowId?:string };
+  businessHours?: {
+    enabled: boolean;
+    timezone: string;
+    schedule: Partial<
+      Record<'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun', [string, string][]>
+    >;
+    offHoursText?: string;
+    offHoursFlowId?: string;
+  };
 }
 
 export const uid = (n = 6) =>
@@ -64,10 +76,36 @@ export const NODE_META: Record<
   NodeType,
   { label: string; icon: string; color: string; defaults: () => Record<string, any> }
 > = {
-  product:{label:'منتج',icon:'▣',color:'#188038',defaults:()=>({productId:'',native:false})},
-  catalog:{label:'كتالوج / أقسام المنتجات',icon:'▦',color:'#188038',defaults:()=>({productIds:[],native:false,text:'منتجاتنا'})},
-  appointment:{label:'حجز موعد',icon:'◷',color:'#7950c1',defaults:()=>({serviceId:'',start:'{{appointment_start}}',saveAs:'appointment'})},
-  whatsapp_flow:{label:'نموذج WhatsApp Flow',icon:'▤',color:'#128c4a',defaults:()=>({text:'أكمل النموذج',flowId:'',cta:'فتح النموذج',screen:'START',saveAs:'form'})},
+  product: {
+    label: 'منتج',
+    icon: '▣',
+    color: '#188038',
+    defaults: () => ({ productId: '', native: false }),
+  },
+  catalog: {
+    label: 'كتالوج / أقسام المنتجات',
+    icon: '▦',
+    color: '#188038',
+    defaults: () => ({ productIds: [], native: false, text: 'منتجاتنا' }),
+  },
+  appointment: {
+    label: 'حجز موعد',
+    icon: '◷',
+    color: '#7950c1',
+    defaults: () => ({ serviceId: '', start: '{{appointment_start}}', saveAs: 'appointment' }),
+  },
+  whatsapp_flow: {
+    label: 'نموذج WhatsApp Flow',
+    icon: '▤',
+    color: '#128c4a',
+    defaults: () => ({
+      text: 'أكمل النموذج',
+      flowId: '',
+      cta: 'فتح النموذج',
+      screen: 'START',
+      saveAs: 'form',
+    }),
+  },
   subflow: {
     label: 'مكوّن قابل لإعادة الاستخدام',
     icon: '↗',
@@ -93,10 +131,25 @@ export const NODE_META: Record<
     color: '#4f46e5',
     defaults: () => ({ text: '', buttonText: 'افتح الرابط', url: 'https://', imageUrl: '' }),
   },
-  image: { label: 'صورة', icon: '🖼️', color: '#7c3aed', defaults: () => ({ url: 'https://', caption: '' }) },
+  image: {
+    label: 'صورة',
+    icon: '🖼️',
+    color: '#7c3aed',
+    defaults: () => ({ url: 'https://', caption: '' }),
+  },
   audio: { label: 'صوت', icon: '🎙️', color: '#f59e0b', defaults: () => ({ url: 'https://' }) },
-  video: { label: 'فيديو', icon: '▶️', color: '#e11d48', defaults: () => ({ url: 'https://', caption: '' }) },
-  file: { label: 'ملف', icon: '📎', color: '#16a34a', defaults: () => ({ url: 'https://', caption: '', filename: '' }) },
+  video: {
+    label: 'فيديو',
+    icon: '▶️',
+    color: '#e11d48',
+    defaults: () => ({ url: 'https://', caption: '' }),
+  },
+  file: {
+    label: 'ملف',
+    icon: '📎',
+    color: '#16a34a',
+    defaults: () => ({ url: 'https://', caption: '', filename: '' }),
+  },
   user_input: {
     label: 'تدفق إدخال المستخدم',
     icon: '☰',
@@ -178,7 +231,12 @@ export const NODE_META: Record<
     label: 'جلب بيانات من Google Sheet',
     icon: '📊',
     color: '#16a34a',
-    defaults: () => ({ url: 'https://', lookupColumn: '', lookupValue: '', saveAs: [{ column: '', variable: '' }] }),
+    defaults: () => ({
+      url: 'https://',
+      lookupColumn: '',
+      lookupValue: '',
+      saveAs: [{ column: '', variable: '' }],
+    }),
   },
   business_hours: {
     label: 'ساعات العمل',
@@ -241,13 +299,54 @@ export const NODE_META: Record<
 
 /** مجموعات لوحة البلوكات (Flow blocks) */
 export const NODE_GROUPS: { id: string; ar: string; en: string; types: NodeType[] }[] = [
-  { id: 'messages', ar: 'الرسائل', en: 'MESSAGES', types: ['message', 'image', 'audio', 'video', 'file', 'location', 'ai_reply'] },
-  { id: 'data', ar: 'جمع البيانات', en: 'DATA COLLECTION', types: ['user_input', 'whatsapp_flow', 'appointment'] },
-  { id: 'interactive', ar: 'الرسائل التفاعلية', en: 'INTERACTIVE', types: ['interactive', 'template', 'cta_url'] },
-  { id: 'control', ar: 'التحكم في التدفق', en: 'FLOW CONTROL', types: ['condition', 'sequence', 'tag', 'random_number'] },
-  { id: 'advanced', ar: 'أدوات إضافية', en: 'ADDITIONAL BLOCKS', types: ['question', 'set_variable', 'set_attribute', 'note', 'split', 'delay', 'business_hours', 'handoff', 'subflow', 'end'] },
+  {
+    id: 'messages',
+    ar: 'الرسائل',
+    en: 'MESSAGES',
+    types: ['message', 'image', 'audio', 'video', 'file', 'location', 'ai_reply'],
+  },
+  {
+    id: 'data',
+    ar: 'جمع البيانات',
+    en: 'DATA COLLECTION',
+    types: ['user_input', 'whatsapp_flow', 'appointment'],
+  },
+  {
+    id: 'interactive',
+    ar: 'الرسائل التفاعلية',
+    en: 'INTERACTIVE',
+    types: ['interactive', 'template', 'cta_url'],
+  },
+  {
+    id: 'control',
+    ar: 'التحكم في التدفق',
+    en: 'FLOW CONTROL',
+    types: ['condition', 'sequence', 'tag', 'random_number'],
+  },
+  {
+    id: 'advanced',
+    ar: 'أدوات إضافية',
+    en: 'ADDITIONAL BLOCKS',
+    types: [
+      'question',
+      'set_variable',
+      'set_attribute',
+      'note',
+      'split',
+      'delay',
+      'business_hours',
+      'handoff',
+      'subflow',
+      'end',
+    ],
+  },
   { id: 'commerce', ar: 'التجارة', en: 'COMMERCE', types: ['product', 'catalog'] },
-  { id: 'integrations', ar: 'التكاملات', en: 'INTEGRATIONS', types: ['http_request', 'sheet_fetch'] },
+  {
+    id: 'integrations',
+    ar: 'التكاملات',
+    en: 'INTEGRATIONS',
+    types: ['http_request', 'sheet_fetch'],
+  },
 ];
 
 export function optionsOf(data: Record<string, any>): { id: string; title: string }[] {
@@ -263,8 +362,17 @@ export function handlesFor(
   data: Record<string, any>,
 ): { id: string; label: string }[] {
   switch (type) {
-    case 'appointment':return [{id:'success',label:'تم الحجز'},{id:'unavailable',label:'غير متاح'},{id:'error',label:'خطأ'}];
-    case 'whatsapp_flow':return [{id:'ok',label:'اكتمل النموذج'},{id:'fail',label:'فشل التحقق'}];
+    case 'appointment':
+      return [
+        { id: 'success', label: 'تم الحجز' },
+        { id: 'unavailable', label: 'غير متاح' },
+        { id: 'error', label: 'خطأ' },
+      ];
+    case 'whatsapp_flow':
+      return [
+        { id: 'ok', label: 'اكتمل النموذج' },
+        { id: 'fail', label: 'فشل التحقق' },
+      ];
     case 'interactive':
     case 'message': {
       const o = optionsOf(data);
@@ -326,27 +434,48 @@ export function handlesFor(
 export function summary(type: NodeType, d: Record<string, any>, language = 'ar'): string {
   const en = language === 'en';
   switch (type) {
-    case 'product':return d.productId||'اختر منتجًا';
-    case 'catalog':return `${(d.productIds??[]).length} products · ${d.text??''}`;
-    case 'appointment':return d.start||'اختر خدمة وموعدًا';
-    case 'whatsapp_flow':return d.text||'WhatsApp Flow';
+    case 'product':
+      return d.productId || 'اختر منتجًا';
+    case 'catalog':
+      return `${(d.productIds ?? []).length} products · ${d.text ?? ''}`;
+    case 'appointment':
+      return d.start || 'اختر خدمة وموعدًا';
+    case 'whatsapp_flow':
+      return d.text || 'WhatsApp Flow';
     case 'subflow':
       return en ? 'Run published component' : 'تشغيل مكوّن منشور';
     case 'location':
-      return d.name || (d.lat && d.lng ? `${d.lat}, ${d.lng}` : en ? '(no coordinates)' : '(بدون إحداثيات)');
+      return (
+        d.name ||
+        (d.lat && d.lng ? `${d.lat}, ${d.lng}` : en ? '(no coordinates)' : '(بدون إحداثيات)')
+      );
     case 'cta_url':
       return `${d.buttonText || ''} → ${d.url || ''}`;
     case 'image':
     case 'audio':
     case 'video':
     case 'file':
-      return d.filename || d.caption || (d.url && d.url !== 'https://' ? d.url : en ? '(no URL)' : '(بدون رابط)');
+      return (
+        d.filename ||
+        d.caption ||
+        (d.url && d.url !== 'https://' ? d.url : en ? '(no URL)' : '(بدون رابط)')
+      );
     case 'user_input': {
       const n = (d.questions ?? []).length;
-      return n ? `${d.name ? d.name + ' · ' : ''}${n} ${en ? 'questions' : 'أسئلة'}` : en ? '(add questions)' : '(أضف أسئلة)';
+      return n
+        ? `${d.name ? d.name + ' · ' : ''}${n} ${en ? 'questions' : 'أسئلة'}`
+        : en
+          ? '(add questions)'
+          : '(أضف أسئلة)';
     }
     case 'sequence':
-      return d.sequenceId ? (en ? 'Add contact to sequence' : 'إضافة العميل لتسلسل') : en ? '(choose a sequence)' : '(اختر تسلسلًا)';
+      return d.sequenceId
+        ? en
+          ? 'Add contact to sequence'
+          : 'إضافة العميل لتسلسل'
+        : en
+          ? '(choose a sequence)'
+          : '(اختر تسلسلًا)';
     case 'template':
       return d.name || (en ? '(no template)' : '(بدون قالب)');
     case 'interactive':
@@ -372,7 +501,9 @@ export function summary(type: NodeType, d: Record<string, any>, language = 'ar')
     case 'sheet_fetch':
       return d.url && d.url !== 'https://'
         ? `${d.lookupColumn ? d.lookupColumn + ' = ' + (d.lookupValue || '…') : en ? 'First row' : 'أول صف'}`
-        : en ? '(add a sheet link)' : '(أضف رابط الشيت)';
+        : en
+          ? '(add a sheet link)'
+          : '(أضف رابط الشيت)';
     case 'business_hours':
       return d.timezone;
     case 'split':
@@ -416,6 +547,7 @@ export interface RFData {
   /** Editor-only: stable node actions injected by the designer; never persisted. */
   actions?: {
     open?: (id: string) => void;
+    choices?: (id: string, kind: 'buttons' | 'list') => void;
     duplicate: (id: string) => void;
     remove: (id: string) => void;
     setStart: (id: string) => void;
@@ -454,7 +586,9 @@ export function fromFlow(nodes: Node<RFData>[], edges: Edge[], startNodeId: stri
         if (e.source === n.id && e.sourceHandle && valid.has(e.sourceHandle))
           out[e.sourceHandle] = e.target;
       const live = new Set<string>(optionsOf(n.data.data ?? {}).map((o) => o.id));
-      const layout = Object.fromEntries(Object.entries(n.data.layout ?? {}).filter(([k]) => live.has(k)));
+      const layout = Object.fromEntries(
+        Object.entries(n.data.layout ?? {}).filter(([k]) => live.has(k)),
+      );
       return {
         id: n.id,
         type: n.data.type,

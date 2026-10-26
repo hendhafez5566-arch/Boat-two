@@ -3,7 +3,7 @@
 import configStyles from './automation-config.module.css';
 import NativeFlowNodeEditor from './NativeFlowNodeEditor';
 import { useLocale } from '../product/locale';
-import { NodeIcon, nodeLabel, editorLabel } from './presentation';
+import { nodeLabel, editorLabel } from './presentation';
 import { api } from '../../lib/api';
 import { ReactNode, createContext, useContext, useId, useEffect, useState } from 'react';
 import { NodeType, uid } from '../../lib/flow-types';
@@ -342,30 +342,22 @@ export default function Inspector({
   type,
   data,
   onChange,
-  isStart,
-  onSetStart,
-  onDelete,
   variables: initialVariables = [],
-  renderAction,
   actionSummary,
-  nextSteps,
   initialChoiceId,
+  choiceView = false,
   onChoiceSelect,
   channelIds = [],
 }: {
   channelIds?: string[];
   initialChoiceId?: string;
+  choiceView?: boolean;
   onChoiceSelect?: (id: string | null) => void;
   actionSummary?: (handle: string) => string;
-  renderAction?: (handle: string, title: string) => ReactNode;
-  nextSteps?: ReactNode;
   variables?: ConditionVariable[];
   type: NodeType;
   data: any;
   onChange: (d: any) => void;
-  isStart: boolean;
-  onSetStart: () => void;
-  onDelete: () => void;
 }) {
   const [contactFields, setContactFields] = useState<ConditionVariable[]>([]);
   useEffect(() => {
@@ -606,13 +598,13 @@ export default function Inspector({
       )}
       {(type === 'message' || type === 'interactive') && (
         <MessageEditor
+          view={choiceView ? 'choices' : 'message'}
           interactive={type === 'interactive'}
           onChoiceSelect={onChoiceSelect}
           initialChoiceId={initialChoiceId}
           data={data}
           onChange={onChange}
           variables={variables}
-          renderAction={renderAction}
           actionSummary={actionSummary}
           onDrillChange={setDrilling}
         />
@@ -2010,25 +2002,6 @@ export default function Inspector({
             </label>
           </>
         )}
-        {nextSteps}
-        <ConfigDisclosure className="mt-3 rounded border p-2">
-          <ConfigSummary>{t('إعدادات متقدمة', 'Advanced settings')}</ConfigSummary>
-          <div className="mb-3 flex items-center justify-between">
-            <strong>
-              <NodeIcon type={type} /> {nodeLabel(type, language)}
-            </strong>
-            <div className="flex gap-2">
-              {!isStart && <Btn on={onSetStart}>{t('اجعلها البداية', 'Make start')}</Btn>}
-              <Btn on={onDelete} danger>
-                {t('حذف', 'Delete')}
-              </Btn>
-            </div>
-          </div>
-          <p className="mb-3 text-xs text-gray-400">
-            {t('يمكنك استخدام المتغيرات في النصوص بهذا الشكل:', 'Use variables in text like:')}{' '}
-            {'{{name}}'} {t('أو', 'or')} {'{{contact.name}}'}
-          </p>
-        </ConfigDisclosure>
       </div>
     </div>
   );

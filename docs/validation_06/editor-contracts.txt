@@ -1,0 +1,5 @@
+PASS: all NodeTypes roundtrip; all action node types; stable branch links; multi-section edits; reversible conversion; non-mutation; reorder and caret insertion
+PASS: rich ALL/ANY condition rules and all existing sources retain IDs, unknown data and exact branch outcomes
+PASS: RTL/LTR reference, missing start, ID collision, occupied canvas, graph preservation and callback exclusion
+PASS: canonical palette retains every supported block exactly once
+PASS: actual reply conversion preserves choices/edge IDs; guards count, title limits, list-only metadata and removal; cancelled changes never mutate data

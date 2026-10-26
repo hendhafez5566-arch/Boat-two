@@ -12,6 +12,7 @@ import {
   patchChoice,
 } from '../../lib/smart-editor';
 import { ConditionVariable } from '../business/ConditionModal';
+import { ConfigDisclosure, ConfigSummary } from './ConfigDisclosure';
 import ButtonActionsEditor from './ButtonActionsEditor';
 import styles from './automation-config.module.css';
 export function EditorSection({
@@ -91,122 +92,84 @@ export function DeliveryOptions({
     onChange({ ...data, delivery: { delaySeconds: seconds, ...data.delivery, ...patch } });
   return (
     <div className={styles.form}>
-      <EditorSection
-        title={t('خيارات الإرسال', 'Delivery Options')}
-        description={t(
-          'انتظار قبل إرسال الرسالة ومؤشر الكتابة.',
-          'Delay before sending the message and typing indicator settings.',
-        )}
-      >
-        <label className={styles.toggle}>
+      <label className={styles.toggle}>
+        <input
+          type="checkbox"
+          checked={!!data.delivery?.typingSeconds}
+          onChange={(e) =>
+            set({ typingSeconds: e.target.checked ? Math.max(1, Math.min(5, seconds || 1)) : 0 })
+          }
+        />
+        {t('إظهار مؤشر الكتابة قبل الرد', 'Show typing indicator before replying')}
+      </label>
+      <div className={styles.delayGrid}>
+        {[
+          [3600, 168, t('ساعات', 'Hours')],
+          [60, 59, t('دقائق', 'Minutes')],
+          [1, 59, t('ثوانٍ', 'Seconds')],
+        ].map(([unit, max, label]) => {
+          const u = Number(unit);
+          const value =
+            u === 3600
+              ? Math.floor(seconds / 3600)
+              : u === 60
+                ? Math.floor(seconds / 60) % 60
+                : seconds % 60;
+          return (
+            <label key={u} className={styles.field}>
+              {label}
+              <input
+                type="number"
+                min={0}
+                max={Number(max)}
+                value={value}
+                onChange={(e) =>
+                  set({
+                    delaySeconds: Math.min(
+                      604800,
+                      Math.max(
+                        0,
+                        seconds -
+                          value * u +
+                          Math.max(0, Math.min(Number(max), Number(e.target.value) || 0)) * u,
+                      ),
+                    ),
+                  })
+                }
+              />
+            </label>
+          );
+        })}
+      </div>
+      {!!data.delivery?.typingSeconds && (
+        <label className={styles.field}>
+          {t('مدة مؤشر الكتابة (ثوانٍ)', 'Typing indicator duration (seconds)')}
           <input
-            type="checkbox"
-            checked={!!data.delivery?.typingSeconds}
+            type="number"
+            min={1}
+            max={5}
+            value={data.delivery.typingSeconds}
             onChange={(e) =>
-              set({ typingSeconds: e.target.checked ? Math.max(1, Math.min(5, seconds || 1)) : 0 })
+              set({ typingSeconds: Math.max(1, Math.min(5, Number(e.target.value) || 1)) })
             }
           />
-          {t('إظهار مؤشر الكتابة قبل الرد', 'Show typing indicator before replying')}
         </label>
-        <div className={styles.delayGrid}>
-          {[
-            [3600, 168, t('ساعات', 'Hours')],
-            [60, 59, t('دقائق', 'Minutes')],
-            [1, 59, t('ثوانٍ', 'Seconds')],
-          ].map(([unit, max, label]) => {
-            const u = Number(unit);
-            const value =
-              u === 3600
-                ? Math.floor(seconds / 3600)
-                : u === 60
-                  ? Math.floor(seconds / 60) % 60
-                  : seconds % 60;
-            return (
-              <label key={u} className={styles.field}>
-                {label}
-                <input
-                  type="number"
-                  min={0}
-                  max={Number(max)}
-                  value={value}
-                  onChange={(e) =>
-                    set({
-                      delaySeconds: Math.min(
-                        604800,
-                        Math.max(
-                          0,
-                          seconds -
-                            value * u +
-                            Math.max(0, Math.min(Number(max), Number(e.target.value) || 0)) * u,
-                        ),
-                      ),
-                    })
-                  }
-                />
-              </label>
-            );
-          })}
-        </div>
-        {!!data.delivery?.typingSeconds && (
-          <label className={styles.field}>
-            {t('مدة مؤشر الكتابة (ثوانٍ)', 'Typing indicator duration (seconds)')}
-            <input
-              type="number"
-              min={1}
-              max={5}
-              value={data.delivery.typingSeconds}
-              onChange={(e) =>
-                set({ typingSeconds: Math.max(1, Math.min(5, Number(e.target.value) || 1)) })
-              }
-            />
-          </label>
-        )}
-        <p className={styles.note}>
-          {t(
-            'يظل الإرسال خاضعًا لنافذة القناة وقواعد القوالب. مؤشر الكتابة متاح بحسب مزود القناة.',
-            'Delivery remains subject to the channel window and template rules. Typing support depends on the channel provider.',
-          )}
-        </p>
-      </EditorSection>
+      )}
     </div>
-  );
-}
-function ConfigTabs({
-  tabs,
-  active,
-  onChange,
-}: {
-  tabs: { id: string; label: string }[];
-  active: string;
-  onChange: (id: string) => void;
-}) {
-  return (
-    <nav className={styles.nav} role="tablist">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          type="button"
-          role="tab"
-          aria-selected={active === tab.id}
-          onClick={() => onChange(tab.id)}
-        >
-          {tab.label}
-        </button>
-      ))}
-    </nav>
   );
 }
 export default function MessageEditor({
   data,
   onChange,
   variables,
-  renderAction,
   actionSummary,
   onDrillChange,
   initialChoiceId,
   onChoiceSelect,
   interactive = false,
+  view = 'message',
 }: {
+  view?: 'message' | 'choices';
   initialChoiceId?: string;
   onChoiceSelect?: (id: string | null) => void;
   interactive?: boolean;
@@ -215,15 +178,12 @@ export default function MessageEditor({
   variables: ConditionVariable[];
   onDrillChange?: (open: boolean) => void;
   actionSummary?: (handle: string) => string;
-  renderAction?: (handle: string, title: string) => ReactNode;
 }) {
   const { t } = useLocale();
   const input = useRef<HTMLTextAreaElement>(null);
   const caret = useRef({ start: 0, end: 0 });
   const [suggest, setSuggest] = useState(false);
   const [localChoice, setLocalChoice] = useState<string | null>(null);
-  const [tab, setTab] = useState('content');
-  const [choiceTab, setChoiceTab] = useState('setup');
   const [error, setError] = useState('');
   const selected = initialChoiceId ?? localChoice;
   const mode = data.list ? 'list' : data.buttons?.length ? 'buttons' : 'none';
@@ -236,7 +196,6 @@ export default function MessageEditor({
     if (onChoiceSelect) onChoiceSelect(id);
     else setLocalChoice(id);
     onDrillChange?.(!!id);
-    setChoiceTab('setup');
   };
   const changeMode = (next: 'none' | 'buttons' | 'list') => {
     if (next === mode) return;
@@ -299,26 +258,7 @@ export default function MessageEditor({
   if (active)
     return (
       <div className={styles.form}>
-        <div className={styles.toolbar}>
-          <button type="button" className={styles.button} onClick={() => focusChoice(null)}>
-            ← {t('رجوع للرسالة', 'Back to Message')}
-          </button>
-          <strong>
-            {mode === 'list'
-              ? t('إعداد صف القائمة', 'Configure List Row')
-              : t('إعداد الزر', 'Configure Button')}
-          </strong>
-        </div>
-        <ConfigTabs
-          active={choiceTab}
-          onChange={setChoiceTab}
-          tabs={[
-            { id: 'setup', label: t('إعداد الزر', 'Button Setup') },
-            { id: 'automation', label: t('الأتمتة', 'Automation') },
-            { id: 'action', label: t('إجراء الضغط', 'Button Action') },
-          ]}
-        />
-        <div className={styles.tabPanel} hidden={choiceTab !== 'setup'}>
+        <div>
           <EditorSection
             title={
               mode === 'list'
@@ -354,47 +294,178 @@ export default function MessageEditor({
                 />
               </label>
             )}
-            <p className={styles.note}>
-              {actionSummary?.(`option:${active.id}`) ||
-                t(
-                  'اختر إجراء الضغط من تبويب إجراء الضغط.',
-                  'Choose the button action from the Button Action tab.',
-                )}
-            </p>
           </EditorSection>
         </div>
-        <div className={styles.tabPanel} hidden={choiceTab !== 'automation'}>
+        <ConfigDisclosure open>
+          <ConfigSummary>{t('الأتمتة', 'Automation')}</ConfigSummary>
           <ButtonActionsEditor
             value={active.actions as any}
             onChange={(actions) => onChange(patchChoice(data, active.id, { actions }))}
             defaultValue={active.title}
           />
-        </div>
-        <div className={styles.tabPanel} hidden={choiceTab !== 'action'}>
-          {renderAction?.(`option:${active.id}`, t('عند ضغط المشترك', 'When Subscriber Presses'))}
-        </div>
+        </ConfigDisclosure>
       </div>
     );
-  const tabs = [
-    { id: 'content', label: t('محتوى الرسالة', 'Message Content') },
-    ...(hasInteractive
-      ? [
-          {
-            id: 'choices',
-            label:
-              mode === 'list'
-                ? t('صفوف القائمة', 'List Rows')
-                : t('الأزرار والقائمة', 'Buttons & List'),
-          },
-        ]
-      : []),
-    { id: 'delivery', label: t('الإرسال', 'Delivery') },
-    { id: 'preview', label: t('المعاينة', 'Preview') },
-  ];
+  if (view === 'choices')
+    return (
+      <div className={styles.form}>
+        <EditorSection title={t('نوع الرد التفاعلي', 'Interactive Reply Type')}>
+          <div className={styles.segmented}>
+            {(['none', 'buttons', 'list'] as const).map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                aria-pressed={mode === kind}
+                onClick={() => changeMode(kind)}
+              >
+                {kind === 'none'
+                  ? t('بدون اختيارات', 'No Choices')
+                  : kind === 'buttons'
+                    ? t('أزرار', 'Buttons')
+                    : t('قائمة', 'List')}
+              </button>
+            ))}
+          </div>
+          {error && (
+            <p role="alert" className={styles.error}>
+              {error}
+            </p>
+          )}
+          {mode === 'list' && (
+            <label className={styles.field}>
+              {t('عنوان زر فتح القائمة', 'List Button Title')}
+              <input
+                maxLength={20}
+                value={data.list?.buttonText ?? ''}
+                onChange={(e) => set({ list: { ...data.list, buttonText: e.target.value } })}
+              />
+            </label>
+          )}
+          {mode !== 'none' &&
+            groups.map((group, groupIndex) => (
+              <div key={groupIndex} className={styles.form}>
+                {mode === 'list' && (
+                  <label className={styles.field}>
+                    {t('عنوان القسم', 'Section Title')}
+                    <input
+                      maxLength={24}
+                      value={group.title ?? ''}
+                      onChange={(e) =>
+                        set({
+                          list: {
+                            ...data.list,
+                            sections: groups.map((section, i) =>
+                              i === groupIndex ? { ...section, title: e.target.value } : section,
+                            ),
+                          },
+                        })
+                      }
+                    />
+                  </label>
+                )}
+                {group.rows.map((choice, index) => (
+                  <article key={choice.id} className={styles.choice}>
+                    <div>
+                      <div className={styles.choiceMain}>
+                        <span className={styles.choiceNumber}>{index + 1}</span>
+                        <input
+                          aria-label={t('عنوان الاختيار', 'Choice Title')}
+                          maxLength={mode === 'list' ? 24 : 20}
+                          value={choice.title}
+                          onChange={(e) =>
+                            onChange(patchChoice(data, choice.id, { title: e.target.value }))
+                          }
+                        />
+                      </div>
+                      <p>{actionSummary?.(`option:${choice.id}`)}</p>
+                    </div>
+                    <div className={styles.choiceActions}>
+                      <button
+                        type="button"
+                        aria-label={t('لأعلى', 'Move Up')}
+                        disabled={index === 0}
+                        onClick={() =>
+                          updateRows(groupIndex, moveChoice(group.rows, choice.id, -1))
+                        }
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={t('لأسفل', 'Move Down')}
+                        disabled={index === group.rows.length - 1}
+                        onClick={() => updateRows(groupIndex, moveChoice(group.rows, choice.id, 1))}
+                      >
+                        ↓
+                      </button>
+                      <button type="button" onClick={() => focusChoice(choice.id)}>
+                        {t('إعداد', 'Configure')}
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={t('حذف الاختيار', 'Remove Choice')}
+                        onClick={() =>
+                          updateRows(
+                            groupIndex,
+                            group.rows.filter((item) => item.id !== choice.id),
+                          )
+                        }
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </article>
+                ))}
+                <button
+                  type="button"
+                  className={styles.button}
+                  disabled={choices.length >= (mode === 'list' ? 10 : 3)}
+                  onClick={() =>
+                    updateRows(groupIndex, [
+                      ...group.rows,
+                      { id: uid(), title: t('اختيار جديد', 'New Choice') },
+                    ])
+                  }
+                >
+                  ＋ {mode === 'list' ? t('إضافة صف', 'Add Row') : t('إضافة زر', 'Add Button')}
+                </button>
+              </div>
+            ))}
+          {mode === 'list' && groups.length < 10 && choices.length < 10 && (
+            <button
+              type="button"
+              className={styles.button}
+              onClick={() =>
+                set({
+                  list: {
+                    ...data.list,
+                    sections: [
+                      ...groups,
+                      { title: '', rows: [{ id: uid(), title: t('اختيار جديد', 'New Choice') }] },
+                    ],
+                  },
+                })
+              }
+            >
+              ＋ {t('إضافة قسم', 'Add Section')}
+            </button>
+          )}
+          {mode !== 'none' && (
+            <label className={styles.field}>
+              {t('حفظ اختيار المشترك في الحقل', 'Save Subscriber Choice to Field')}
+              <input
+                dir="ltr"
+                value={data.saveReplyAs ?? ''}
+                onChange={(e) => set({ saveReplyAs: e.target.value || undefined })}
+              />
+            </label>
+          )}
+        </EditorSection>
+      </div>
+    );
   return (
     <div className={styles.form}>
-      <ConfigTabs tabs={tabs} active={tab} onChange={setTab} />
-      <div hidden={tab !== 'content'} className={styles.tabPanel}>
+      <div className={styles.form}>
         {hasInteractive && (
           <EditorSection
             title={t('عنوان الرسالة', 'Message Header')}
@@ -585,188 +656,11 @@ export default function MessageEditor({
             </label>
           </EditorSection>
         )}
-        {!hasInteractive && (
-          <button
-            type="button"
-            className={styles.button}
-            onClick={() => {
-              changeMode('buttons');
-              setTab('choices');
-            }}
-          >
-            {t('تحويل إلى رسالة تفاعلية', 'Use Interactive Reply')} ＋
-          </button>
-        )}
       </div>
-      <div hidden={tab !== 'choices'} className={styles.tabPanel}>
-        <EditorSection title={t('نوع الرد التفاعلي', 'Interactive Reply Type')}>
-          <div className={styles.segmented}>
-            {(['none', 'buttons', 'list'] as const).map((kind) => (
-              <button
-                key={kind}
-                type="button"
-                aria-pressed={mode === kind}
-                onClick={() => changeMode(kind)}
-              >
-                {kind === 'none'
-                  ? t('بدون اختيارات', 'No Choices')
-                  : kind === 'buttons'
-                    ? t('أزرار', 'Buttons')
-                    : t('قائمة', 'List')}
-              </button>
-            ))}
-          </div>
-          {error && (
-            <p role="alert" className={styles.error}>
-              {error}
-            </p>
-          )}
-          {mode === 'list' && (
-            <label className={styles.field}>
-              {t('عنوان زر فتح القائمة', 'List Button Title')}
-              <input
-                maxLength={20}
-                value={data.list?.buttonText ?? ''}
-                onChange={(e) => set({ list: { ...data.list, buttonText: e.target.value } })}
-              />
-            </label>
-          )}
-          {mode !== 'none' &&
-            groups.map((group, groupIndex) => (
-              <div key={groupIndex} className={styles.form}>
-                {mode === 'list' && (
-                  <label className={styles.field}>
-                    {t('عنوان القسم', 'Section Title')}
-                    <input
-                      maxLength={24}
-                      value={group.title ?? ''}
-                      onChange={(e) =>
-                        set({
-                          list: {
-                            ...data.list,
-                            sections: groups.map((section, i) =>
-                              i === groupIndex ? { ...section, title: e.target.value } : section,
-                            ),
-                          },
-                        })
-                      }
-                    />
-                  </label>
-                )}
-                {group.rows.map((choice, index) => (
-                  <article key={choice.id} className={styles.choice}>
-                    <div>
-                      <div className={styles.choiceMain}>
-                        <span className={styles.choiceNumber}>{index + 1}</span>
-                        <input
-                          aria-label={t('عنوان الاختيار', 'Choice Title')}
-                          maxLength={mode === 'list' ? 24 : 20}
-                          value={choice.title}
-                          onChange={(e) =>
-                            onChange(patchChoice(data, choice.id, { title: e.target.value }))
-                          }
-                        />
-                      </div>
-                      <p>{actionSummary?.(`option:${choice.id}`)}</p>
-                    </div>
-                    <div className={styles.choiceActions}>
-                      <button
-                        type="button"
-                        aria-label={t('لأعلى', 'Move Up')}
-                        disabled={index === 0}
-                        onClick={() =>
-                          updateRows(groupIndex, moveChoice(group.rows, choice.id, -1))
-                        }
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={t('لأسفل', 'Move Down')}
-                        disabled={index === group.rows.length - 1}
-                        onClick={() => updateRows(groupIndex, moveChoice(group.rows, choice.id, 1))}
-                      >
-                        ↓
-                      </button>
-                      <button type="button" onClick={() => focusChoice(choice.id)}>
-                        {t('إعداد', 'Configure')}
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={t('حذف الاختيار', 'Remove Choice')}
-                        onClick={() =>
-                          updateRows(
-                            groupIndex,
-                            group.rows.filter((item) => item.id !== choice.id),
-                          )
-                        }
-                      >
-                        ×
-                      </button>
-                    </div>
-                  </article>
-                ))}
-                <button
-                  type="button"
-                  className={styles.button}
-                  disabled={choices.length >= (mode === 'list' ? 10 : 3)}
-                  onClick={() =>
-                    updateRows(groupIndex, [
-                      ...group.rows,
-                      { id: uid(), title: t('اختيار جديد', 'New Choice') },
-                    ])
-                  }
-                >
-                  ＋ {mode === 'list' ? t('إضافة صف', 'Add Row') : t('إضافة زر', 'Add Button')}
-                </button>
-              </div>
-            ))}
-          {mode === 'list' && groups.length < 10 && choices.length < 10 && (
-            <button
-              type="button"
-              className={styles.button}
-              onClick={() =>
-                set({
-                  list: {
-                    ...data.list,
-                    sections: [
-                      ...groups,
-                      { title: '', rows: [{ id: uid(), title: t('اختيار جديد', 'New Choice') }] },
-                    ],
-                  },
-                })
-              }
-            >
-              ＋ {t('إضافة قسم', 'Add Section')}
-            </button>
-          )}
-          {mode !== 'none' && (
-            <label className={styles.field}>
-              {t('حفظ اختيار المشترك في الحقل', 'Save Subscriber Choice to Field')}
-              <input
-                dir="ltr"
-                value={data.saveReplyAs ?? ''}
-                onChange={(e) => set({ saveReplyAs: e.target.value || undefined })}
-              />
-            </label>
-          )}
-        </EditorSection>
-      </div>
-      <div hidden={tab !== 'delivery'} className={styles.tabPanel}>
+      <ConfigDisclosure>
+        <ConfigSummary>{t('خيارات الإرسال', 'Delivery Options')}</ConfigSummary>
         <DeliveryOptions data={data} onChange={onChange} />
-      </div>
-      <div hidden={tab !== 'preview'} className={styles.tabPanel}>
-        <div className={styles.preview}>
-          <ChatBubble
-            text={data.text}
-            header={data.header?.type === 'text' ? data.header.text : undefined}
-            footer={data.footer}
-            choices={choices.map((choice) => choice.title)}
-            list={mode === 'list'}
-            listLabel={data.list?.buttonText}
-          />
-        </div>
-      </div>
+      </ConfigDisclosure>
     </div>
   );
 }

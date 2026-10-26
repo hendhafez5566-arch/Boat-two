@@ -1,0 +1,2 @@
+PASS: real message/text/list-row/collection components render the expected separate forms; all supported inspectors omit generic next-step controls; graph data and routes survive unchanged.
+PASS: actual dialog onChange stages edits, Close discards edits, Save applies the selected node once; unrelated graph data is not submitted.

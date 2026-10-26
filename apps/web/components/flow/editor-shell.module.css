@@ -671,3 +671,25 @@
     scroll-behavior: auto;
   }
 }
+
+.canvasReplies {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid #e5ebf2;
+  background: #fafbff;
+}
+.canvasReplies button {
+  flex: 1;
+  min-height: 44px;
+  border: 1px solid #dce3ef;
+  border-radius: 8px;
+  background: white;
+  color: #34465c;
+  font: inherit;
+  cursor: pointer;
+}
+.canvasReplies button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
