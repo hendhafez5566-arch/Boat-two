@@ -1,4 +1,5 @@
 'use client';
+import { createPortal } from 'react-dom';
 import { Children, isValidElement, ReactNode, useEffect, useId, useRef } from 'react';
 import { useLocale } from '../product/locale';
 import styles from './configuration-panel.module.css';
@@ -38,10 +39,10 @@ export default function ConfigurationPanel({
       if (prior?.isConnected) prior.focus();
     };
   }, [open]);
-  if (!open) return null;
+  if (!open || typeof document === 'undefined') return null;
   const parts = Children.toArray(children);
   const footer = parts.find((child) => isValidElement(child) && child.type === 'footer');
-  return (
+  return createPortal(
     <aside
       ref={panel}
       tabIndex={-1}
@@ -66,6 +67,7 @@ export default function ConfigurationPanel({
         <div className={styles.content}>{parts.filter((child) => child !== footer)}</div>
       </div>
       {footer}
-    </aside>
+    </aside>,
+    document.body,
   );
 }
