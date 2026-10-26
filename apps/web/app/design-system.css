@@ -2137,10 +2137,12 @@ button.underline {
 .bs-shell .nav-more-btn.active { background: #f8f9fa; color: #5141e3; font-weight: 400; box-shadow: none; }
 .bs-shell .product-sidebar nav .nav-label,
 .bs-shell .nav-more-btn .nav-label { position: static; width: auto; height: auto; clip-path: none; overflow: visible; flex: 1; white-space: nowrap; font: inherit; }
+.product-shell.bs-shell .product-sidebar nav a .nav-label,
+.product-shell.bs-shell .product-sidebar .nav-more-btn .nav-label { color: inherit; font: inherit; }
 .bs-shell .nav-more-btn .nav-chevron { margin-inline-start: auto; display: inline-flex; transition: transform .2s; color: #85909a; }
 .bs-shell .nav-chevron svg { width: 12px; height: 12px; }
 .bs-shell .nav-more-btn[aria-expanded='true'] .nav-chevron { transform: rotate(180deg); }
-.bs-shell .nav-more-panel { display: none; margin: 0; padding: 0 0 8px; border: 0; background: transparent; box-shadow: none; }
+.bs-shell .nav-more-panel { display: none; position: static; inset: auto; width: auto; overflow: visible; border-radius: 0; margin: 0; padding: 0 0 8px; border: 0; background: transparent; box-shadow: none; }
 .bs-shell .nav-more-panel.is-open { display: block; }
 .bs-shell .product-sidebar .nav-more-panel a { padding-inline-start: 36px; gap: 8px; }
 .bs-shell .product-sidebar .nav-more-panel .nav-reference-icon { width: 17px; height: 17px; }
