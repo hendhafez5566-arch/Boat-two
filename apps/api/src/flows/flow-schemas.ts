@@ -243,7 +243,22 @@ export const nodeSchema = z.discriminatedUnion('type', [
           z.object({
             id: z.string().min(1).max(40),
             text: z.string().max(1024),
-            kind: z.enum(['choice', 'text', 'number', 'email', 'phone']).default('text'),
+            kind: z
+              .enum([
+                'choice',
+                'text',
+                'number',
+                'email',
+                'phone',
+                'url',
+                'date',
+                'time',
+                'datetime',
+                'file',
+                'image',
+                'video',
+              ])
+              .default('text'),
             options: z
               .array(z.object({ id: z.string().min(1).max(200), title: z.string().min(1).max(24) }))
               .max(10)
@@ -267,7 +282,22 @@ export const nodeSchema = z.discriminatedUnion('type', [
     type: z.literal('question'),
     data: z.object({
       text: z.string().max(4096),
-      answerType: z.enum(['text', 'number', 'email', 'phone', 'regex']).default('text'),
+      answerType: z
+        .enum([
+          'text',
+          'number',
+          'email',
+          'phone',
+          'regex',
+          'url',
+          'date',
+          'time',
+          'datetime',
+          'file',
+          'image',
+          'video',
+        ])
+        .default('text'),
       saveToSystem: z.enum(['name', 'email', 'phone']).optional(),
       allowSkip: z.boolean().optional(),
       skipText: z.string().min(1).max(20).optional(),
@@ -537,6 +567,9 @@ export const testFlowSchema = z.object({
   state: z.unknown().optional(),
   text: z.string().max(2000).default(''),
   replyId: z.string().max(200).optional(),
+  media: z
+    .object({ kind: z.enum(['image', 'video', 'audio', 'file']), url: z.string().url().max(2000) })
+    .optional(),
   advanceDelay: z.boolean().optional(),
   allowHttp: z.boolean().optional(),
   simulateAt: z.string().datetime().optional(),

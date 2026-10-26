@@ -283,7 +283,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         tags: loaded.conv.tags ?? [],
       },
       channel: { id: loaded.conv.channel_id, type: loaded.conv.channel_type },
-      lastMessage: { text, replyId, formReply: e.content.flowReply, order: e.content.order },
+      lastMessage: { text, replyId, media: e.content.media, formReply: e.content.flowReply, order: e.content.order },
     };
     const base: Loaded = {
       eventId: e.messageId,

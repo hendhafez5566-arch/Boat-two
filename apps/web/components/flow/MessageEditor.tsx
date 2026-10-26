@@ -3,62 +3,770 @@
 import { ReactNode, useRef, useState } from 'react';
 import { useLocale } from '../product/locale';
 import { uid } from '../../lib/flow-types';
-import { Choice, ChoiceData, convertChoices, insertToken, moveChoice, patchChoice } from '../../lib/smart-editor';
+import {
+  Choice,
+  ChoiceData,
+  convertChoices,
+  insertToken,
+  moveChoice,
+  patchChoice,
+} from '../../lib/smart-editor';
 import { ConditionVariable } from '../business/ConditionModal';
 import ButtonActionsEditor from './ButtonActionsEditor';
-
-export function EditorSection({ title, children }: { title: string; children: ReactNode }) {
-  return <section className="smart-section"><h3>{title}</h3>{children}</section>;
-}
-export function ChatBubble({ text, header, footer, choices, list, listLabel }: { text?: string; header?: string; footer?: string; choices?: string[]; list?: boolean; listLabel?: string }) {
+import styles from './automation-config.module.css';
+export function EditorSection({
+  title,
+  description,
+  optional = false,
+  children,
+}: {
+  title: string;
+  description?: string;
+  optional?: boolean;
+  children: ReactNode;
+}) {
   const { t } = useLocale();
-  return <div className="smart-chat"><span>{t('معاينة المحتوى — بدون إرسال', 'Content preview — no delivery')}</span><div className="smart-bubble" dir="auto">{header && <strong className="smart-bubble-head">{header}</strong>}{text || t('رسالتك هتظهر هنا…', 'Your message appears here…')}{footer && <small className="smart-bubble-foot">{footer}</small>}</div>{!!choices?.length && (list ? <div className="smart-bubble-choices is-list"><span>☰ {listLabel || t('اختر', 'Choose')}</span></div> : <div className="smart-bubble-choices">{choices.map((c, i) => <span key={i}>{c || t('اختيار بدون عنوان', 'Untitled choice')}</span>)}</div>)}</div>;
+  return (
+    <section className={styles.section}>
+      <div>
+        <h3>
+          {title}
+          {optional && <span className={styles.optional}>{t('اختياري', 'Optional')}</span>}
+        </h3>
+        {description && <p className={styles.description}>{description}</p>}
+      </div>
+      {children}
+    </section>
+  );
 }
-export default function MessageEditor({ data, onChange, variables, renderAction, actionSummary, onDrillChange, initialChoiceId }: { initialChoiceId?: string; data: ChoiceData; onChange: (data: ChoiceData) => void; variables: ConditionVariable[]; onDrillChange?: (open: boolean) => void; actionSummary?: (handle: string) => string; renderAction?: (handle: string, title: string) => ReactNode }) {
+export function ChatBubble({
+  text,
+  header,
+  footer,
+  choices,
+  list,
+  listLabel,
+}: {
+  text?: string;
+  header?: string;
+  footer?: string;
+  choices?: string[];
+  list?: boolean;
+  listLabel?: string;
+}) {
+  const { t } = useLocale();
+  return (
+    <div className="smart-chat">
+      <span>{t('معاينة المحتوى', 'Content Preview')}</span>
+      <div className="smart-bubble" dir="auto">
+        {header && <strong className="smart-bubble-head">{header}</strong>}
+        {text || t('رسالتك تظهر هنا…', 'Your message appears here…')}
+        {footer && <small className="smart-bubble-foot">{footer}</small>}
+      </div>
+      {!!choices?.length &&
+        (list ? (
+          <div className="smart-bubble-choices is-list">
+            <span>☰ {listLabel || t('اختر', 'Choose')}</span>
+          </div>
+        ) : (
+          <div className="smart-bubble-choices">
+            {choices.map((choice, i) => (
+              <span key={i}>{choice}</span>
+            ))}
+          </div>
+        ))}
+    </div>
+  );
+}
+export function DeliveryOptions({
+  data,
+  onChange,
+}: {
+  data: ChoiceData;
+  onChange: (data: ChoiceData) => void;
+}) {
+  const { t } = useLocale();
+  const seconds = Number(data.delivery?.delaySeconds) || 0;
+  const set = (patch: Record<string, unknown>) =>
+    onChange({ ...data, delivery: { delaySeconds: seconds, ...data.delivery, ...patch } });
+  return (
+    <div className={styles.form}>
+      <EditorSection
+        title={t('خيارات الإرسال', 'Delivery Options')}
+        description={t(
+          'انتظار قبل إرسال الرسالة ومؤشر الكتابة.',
+          'Delay before sending the message and typing indicator settings.',
+        )}
+      >
+        <label className={styles.toggle}>
+          <input
+            type="checkbox"
+            checked={!!data.delivery?.typingSeconds}
+            onChange={(e) =>
+              set({ typingSeconds: e.target.checked ? Math.max(1, Math.min(5, seconds || 1)) : 0 })
+            }
+          />
+          {t('إظهار مؤشر الكتابة قبل الرد', 'Show typing indicator before replying')}
+        </label>
+        <div className={styles.delayGrid}>
+          {[
+            [3600, 168, t('ساعات', 'Hours')],
+            [60, 59, t('دقائق', 'Minutes')],
+            [1, 59, t('ثوانٍ', 'Seconds')],
+          ].map(([unit, max, label]) => {
+            const u = Number(unit);
+            const value =
+              u === 3600
+                ? Math.floor(seconds / 3600)
+                : u === 60
+                  ? Math.floor(seconds / 60) % 60
+                  : seconds % 60;
+            return (
+              <label key={u} className={styles.field}>
+                {label}
+                <input
+                  type="number"
+                  min={0}
+                  max={Number(max)}
+                  value={value}
+                  onChange={(e) =>
+                    set({
+                      delaySeconds: Math.min(
+                        604800,
+                        Math.max(
+                          0,
+                          seconds -
+                            value * u +
+                            Math.max(0, Math.min(Number(max), Number(e.target.value) || 0)) * u,
+                        ),
+                      ),
+                    })
+                  }
+                />
+              </label>
+            );
+          })}
+        </div>
+        {!!data.delivery?.typingSeconds && (
+          <label className={styles.field}>
+            {t('مدة مؤشر الكتابة (ثوانٍ)', 'Typing indicator duration (seconds)')}
+            <input
+              type="number"
+              min={1}
+              max={5}
+              value={data.delivery.typingSeconds}
+              onChange={(e) =>
+                set({ typingSeconds: Math.max(1, Math.min(5, Number(e.target.value) || 1)) })
+              }
+            />
+          </label>
+        )}
+        <p className={styles.note}>
+          {t(
+            'يظل الإرسال خاضعًا لنافذة القناة وقواعد القوالب. مؤشر الكتابة متاح بحسب مزود القناة.',
+            'Delivery remains subject to the channel window and template rules. Typing support depends on the channel provider.',
+          )}
+        </p>
+      </EditorSection>
+    </div>
+  );
+}
+function ConfigTabs({
+  tabs,
+  active,
+  onChange,
+}: {
+  tabs: { id: string; label: string }[];
+  active: string;
+  onChange: (id: string) => void;
+}) {
+  return (
+    <nav className={styles.nav} role="tablist">
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          role="tab"
+          aria-selected={active === tab.id}
+          onClick={() => onChange(tab.id)}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </nav>
+  );
+}
+export default function MessageEditor({
+  data,
+  onChange,
+  variables,
+  renderAction,
+  actionSummary,
+  onDrillChange,
+  initialChoiceId,
+  onChoiceSelect,
+  interactive = false,
+}: {
+  initialChoiceId?: string;
+  onChoiceSelect?: (id: string | null) => void;
+  interactive?: boolean;
+  data: ChoiceData;
+  onChange: (data: ChoiceData) => void;
+  variables: ConditionVariable[];
+  onDrillChange?: (open: boolean) => void;
+  actionSummary?: (handle: string) => string;
+  renderAction?: (handle: string, title: string) => ReactNode;
+}) {
   const { t } = useLocale();
   const input = useRef<HTMLTextAreaElement>(null);
   const caret = useRef({ start: 0, end: 0 });
   const [suggest, setSuggest] = useState(false);
-  const [selected, setSelected] = useState<string | null>(initialChoiceId ?? null);
+  const [localChoice, setLocalChoice] = useState<string | null>(null);
+  const [tab, setTab] = useState('content');
+  const [choiceTab, setChoiceTab] = useState('setup');
   const [error, setError] = useState('');
+  const selected = initialChoiceId ?? localChoice;
   const mode = data.list ? 'list' : data.buttons?.length ? 'buttons' : 'none';
   const groups = data.list?.sections ?? [{ rows: data.buttons ?? [] }];
-  const choices = groups.flatMap(s => s.rows);
+  const choices = groups.flatMap((section) => section.rows);
+  const active = choices.find((choice) => choice.id === selected);
+  const hasInteractive = interactive || mode !== 'none' || !!data.header || !!data.footer;
   const set = (patch: any) => onChange({ ...data, ...patch });
+  const focusChoice = (id: string | null) => {
+    if (onChoiceSelect) onChoiceSelect(id);
+    else setLocalChoice(id);
+    onDrillChange?.(!!id);
+    setChoiceTab('setup');
+  };
   const changeMode = (next: 'none' | 'buttons' | 'list') => {
     if (next === mode) return;
-    if (next === 'none' && choices.length && !confirm(t('إزالة الاختيارات ووصلاتها؟ يمكنك التراجع.', 'Remove choices and links? You can undo.'))) return;
-    if (next === 'buttons' && data.list && (groups.some(s => s.title || s.rows.some(r => r.description)) || data.list.buttonText) && !confirm(t('الأزرار لا تدعم عناوين الأقسام وأوصاف الصفوف ونص فتح القائمة. تظل المعرّفات والوصلات. متابعة؟', 'Buttons do not display section headings, descriptions or menu text. IDs and links stay. Continue?'))) return;
-    try { const converted = convertChoices(data, next); if (next === 'buttons' && !converted.buttons?.length) converted.buttons = [{ id: uid(), title: t('اختيار جديد', 'New choice') }]; onChange(converted); setError(''); } catch { setError(t('حد واتساب: 3 أزرار بعناوين حتى 20 حرفًا، أو 10 اختيارات قائمة حتى 24 حرفًا. قلّلها يدويًا؛ لم نحذف شيئًا.', 'WhatsApp limits: 3 buttons, 20 characters; or 10 list choices, 24 characters. Reduce manually; nothing was deleted.')); }
+    if (
+      next === 'buttons' &&
+      data.list &&
+      (groups.some((section) => section.title || section.rows.some((row) => row.description)) ||
+        data.list.buttonText) &&
+      !confirm(
+        t(
+          'الأزرار لا تعرض عناوين الأقسام وأوصاف الصفوف ونص القائمة. المعرّفات والوصلات محفوظة. متابعة؟',
+          'Buttons do not display section headings, descriptions or menu text. IDs and links stay. Continue?',
+        ),
+      )
+    )
+      return;
+    try {
+      if (
+        next === 'none' &&
+        choices.length &&
+        !confirm(
+          t(
+            'إزالة الاختيارات ووصلاتها؟ يمكنك التراجع.',
+            'Remove choices and their links? You can undo.',
+          ),
+        )
+      )
+        return;
+      const nextData = convertChoices(data, next);
+      if (
+        next !== 'none' &&
+        !(
+          nextData.buttons?.length || nextData.list?.sections.some((section) => section.rows.length)
+        )
+      ) {
+        const first = { id: uid(), title: t('اختيار جديد', 'New Choice') };
+        if (next === 'buttons') nextData.buttons = [first];
+        else nextData.list = { buttonText: t('القائمة', 'Menu'), sections: [{ rows: [first] }] };
+      }
+      onChange(nextData);
+      setError('');
+    } catch {
+      setError(
+        t(
+          'راجع حدود القناة: ثلاثة أزرار أو عشرة صفوف قائمة. لم نحذف أي اختيار.',
+          'Check channel limits: three buttons or ten list rows. No choices were deleted.',
+        ),
+      );
+    }
   };
-  const updateRows = (index: number, rows: Choice[]) => mode === 'list' ? set({ list: { ...data.list, sections: groups.map((s, i) => i === index ? { ...s, rows } : s) } }) : set({ buttons: rows });
-  const active = choices.find(c => c.id === selected);
-  if (active) return <section className="smart-drill"><button type="button" onClick={() => { setSelected(null); onDrillChange?.(false); }}>← {t('اختيارات العميل', 'Customer choices')}</button><h3>{t('عندما يضغط العميل على', 'When the customer selects')} «{active.title}»</h3><label>{t('عنوان الاختيار', 'Choice title')}<input value={active.title} maxLength={mode === 'list' ? 24 : 20} onChange={e => onChange(patchChoice(data, active.id, { title: e.target.value }))} /></label>{mode === 'list' && <label>{t('وصف اختياري', 'Optional description')}<textarea value={active.description ?? ''} maxLength={72} onChange={e => onChange(patchChoice(data, active.id, { description: e.target.value }))} /></label>}<ButtonActionsEditor value={active.actions as any} onChange={actions => onChange(patchChoice(data, active.id, { actions }))} />{renderAction?.(`option:${active.id}`, active.title)}</section>;
-  return <>
-    <EditorSection title={t('١ — نص الرسالة', '1 — Message text')}>
-      <textarea ref={input} aria-label={t('نص الرسالة', 'Message text')} rows={5} maxLength={choices.length ? 1024 : 4096} value={data.text ?? ''} onSelect={e => { caret.current = { start: e.currentTarget.selectionStart, end: e.currentTarget.selectionEnd }; }} onChange={e => { set({ text: e.target.value }); caret.current = { start: e.target.selectionStart, end: e.target.selectionEnd }; setSuggest(e.target.value.slice(0, e.target.selectionStart).endsWith('{{')); }} />
-      <p className="muted" aria-live="polite">{(data.text ?? '').length} / {choices.length ? 1024 : 4096} {t('حرف','characters')}</p><button type="button" onMouseDown={e => e.preventDefault()} onClick={() => setSuggest(!suggest)} aria-expanded={suggest}>{t('إضافة بيانات العميل', 'Insert customer data')}</button>
-      {suggest && <div className="smart-variable-picker">{[{ key: 'contact.name', label: t('اسم العميل', 'Customer name') }, { key: 'contact.phone', label: t('هاتف العميل', 'Customer phone') }, { key: 'contact.email', label: t('بريد العميل', 'Customer email') }, ...variables].map(v => <button type="button" key={v.key} onMouseDown={e => e.preventDefault()} onClick={() => { const result = insertToken(data.text ?? '', caret.current.start, caret.current.end, v.key); set({ text: result.text }); setSuggest(false); requestAnimationFrame(() => { input.current?.focus(); input.current?.setSelectionRange(result.caret, result.caret); }); }}>{v.label}</button>)}</div>}
-      <ChatBubble text={data.text} header={data.header?.type === 'text' ? data.header.text : undefined} footer={data.footer} choices={choices.map(c => c.title)} list={mode === 'list'} listLabel={data.list?.buttonText} />
-      <details><summary>{t('إضافة صورة / فيديو / صوت / ملف', 'Add image / video / audio / file')}</summary><p>{t('رابط ملف مستضاف فقط؛ رفع الملفات غير متاح هنا.', 'Hosted URL only; file upload is unavailable here.')}</p><label>{t('نوع المرفق', 'Media type')}<select value={data.media?.kind ?? ''} onChange={e => set({ media: e.target.value ? { ...data.media, kind: e.target.value, url: data.media?.url ?? '' } : undefined })}><option value="">{t('بدون', 'None')}</option>{[['image','صورة','Image'],['video','فيديو','Video'],['audio','صوت','Audio'],['file','ملف','File']].map(([v,ar,en]) => <option key={v} value={v}>{t(ar,en)}</option>)}</select></label>{data.media && <><label>{t('رابط HTTPS', 'HTTPS URL')}<input dir="ltr" value={data.media.url} onChange={e => set({ media: { ...data.media, url: e.target.value } })} /></label><label>{t('تعليق', 'Caption')}<input value={data.media.caption ?? ''} onChange={e => set({ media: { ...data.media, caption: e.target.value } })} /></label><p>{t('المعاينة لا تحمل المرفق تلقائيًا. راجع الرابط ونوع الملف قبل النشر.', 'Preview does not automatically load attachments. Check the URL and file type before publishing.')}</p></>}</details>
-    </EditorSection>
-    <EditorSection title={t('٢ — أزرار أو قائمة (اختياري)', '2 — Buttons or list (optional)')}>
-      <p className="muted">{t('اختر كيف يردّ العميل: رسالة عادية، أزرار سريعة (حتى 3)، أو قائمة (حتى 10).', 'Choose how customers reply: plain message, quick buttons (up to 3), or a list (up to 10).')}</p><div className="smart-segments" role="group">{(['none','buttons','list'] as const).map((m,i) => <button type="button" key={m} aria-pressed={mode === m} onClick={() => changeMode(m)}>{[t('بدون', 'None'), t('أزرار', 'Buttons'), t('قائمة', 'List')][i]}</button>)}</div>
-      {error && <p role="alert">{error}</p>}
-      {mode === 'list' && <label>{t('نص زر فتح القائمة', 'Menu button text')}<input maxLength={20} value={data.list?.buttonText ?? ''} onChange={e => set({ list: { ...data.list, buttonText: e.target.value } })} /></label>}
-      {mode !== 'none' && groups.map((group, gi) => <div key={gi} className="smart-choice-group">{mode === 'list' && <label>{t('عنوان القسم (اختياري)', 'Section heading (optional)')}<input maxLength={24} value={group.title ?? ''} onChange={e => set({ list: { ...data.list, sections: groups.map((s,i) => i === gi ? { ...s, title: e.target.value } : s) } })} /></label>}{group.rows.map((c,i) => <article className="smart-choice" key={c.id}><span className="smart-choice-num" aria-hidden="true">{i + 1}</span><div className="smart-choice-body"><input className="smart-choice-title" aria-label={t('عنوان الاختيار', 'Choice title')} value={c.title} maxLength={mode === 'list' ? 24 : 20} placeholder={t('عنوان الزر', 'Button label')} onChange={e => onChange(patchChoice(data, c.id, { title: e.target.value }))} />{c.description && <span className="smart-choice-desc">{c.description}</span>}<button type="button" className="smart-choice-main" onClick={() => { setSelected(c.id); onDrillChange?.(true); }}><span className="smart-choice-dest">{actionSummary?.(`option:${c.id}`) ?? t('لا يوجد إجراء بعد', 'No action yet')}</span><span className="smart-choice-cta">{t('اختيار الإجراء والوجهة ←', 'Set action & destination →')}</span></button></div><div className="smart-choice-tools"><button type="button" disabled={i === 0} aria-label={t('تحريك لأعلى', 'Move up')} onClick={() => updateRows(gi, moveChoice(group.rows,c.id,-1))}>↑</button><button type="button" disabled={i === group.rows.length-1} aria-label={t('تحريك لأسفل', 'Move down')} onClick={() => updateRows(gi,moveChoice(group.rows,c.id,1))}>↓</button><details><summary>{t('المزيد', 'More')}</summary><button type="button" onClick={() => { if (confirm(t('حذف الاختيار ووصلته؟ يمكنك التراجع.', 'Delete choice and its link? You can undo.'))) updateRows(gi,group.rows.filter(r => r.id !== c.id)); }}>{t('حذف الاختيار', 'Delete choice')}</button></details></div></article>)}{choices.length < (mode === 'buttons' ? 3 : 10) && <button type="button" onClick={() => updateRows(gi,[...group.rows,{id:uid(),title:t('اختيار جديد','New choice')}])}>+ {t('إضافة اختيار', 'Add choice')}</button>}</div>)}
-      <p>{t('واتساب: حتى 3 أزرار (20 حرفًا) أو 10 صفوف قائمة (24 حرفًا).', 'WhatsApp: up to 3 buttons (20 characters) or 10 list rows (24 characters).')}</p>
-      {!!choices.length && <details><summary>{t('حفظ اختيار العميل', 'Save customer choice')}</summary><label>{t('اسم المتغيّر', 'Variable name')}<input dir="ltr" value={data.saveReplyAs ?? ''} onChange={e => set({ saveReplyAs:e.target.value || undefined })} /></label><p>{t('يُحفظ العنوان، والمعرّف الثابت في متغيّر بنفس الاسم مع _id.', 'The title is saved, with the stable ID in the same variable suffixed _id.')}</p></details>}
-    </EditorSection>
-    <details className="smart-advanced"><summary>{t('خيارات متقدمة: العنوان والتذييل والتوقيت', 'Advanced: header, footer and timing')}</summary>
-      <p>{t('العنوان والتذييل للرسائل ذات الأزرار أو القائمة. يظهران كنص وصورة في Messenger وInstagram؛ تنسيق WhatsApp مستقل.', 'Headers and footers require buttons or a list. Messenger and Instagram preserve them as text and image; WhatsApp uses its native layout.')}</p>
-      <label>{t('نوع العنوان', 'Header type')}<select value={data.header?.type??''} onChange={e=>set({header:e.target.value==='text'?{type:'text',text:''}:e.target.value==='image'?{type:'image',url:''}:undefined})}><option value="">{t('بدون', 'None')}</option><option value="text">{t('نص', 'Text')}</option><option value="image">{t('صورة', 'Image')}</option></select></label>
-      {data.header?.type==='text'&&<label>{t('العنوان (60 حرفًا)', 'Header (60 characters)')}<input value={data.header.text} maxLength={60} onChange={e=>set({header:{type:'text',text:e.target.value}})}/></label>}
-      {data.header?.type==='image'&&<label>{t('رابط صورة العنوان', 'Header image URL')}<input type="url" dir="ltr" value={data.header.url} onChange={e=>set({header:{type:'image',url:e.target.value}})}/></label>}
-      <label>{t('التذييل (60 حرفًا)', 'Footer (60 characters)')}<input maxLength={60} value={data.footer??''} onChange={e=>set({footer:e.target.value||undefined})}/></label>
-      <p>{t('انتظار قبل إرسال هذه الرسالة — حتى 7 أيام؛ تبقى نافذة WhatsApp وقواعد القوالب سارية.', 'Wait before sending this message — up to 7 days; WhatsApp windows and template rules still apply.')}</p>
-      <div className="form-grid">{[[3600,168,t('ساعات','Hours')],[60,59,t('دقائق','Minutes')],[1,59,t('ثوانٍ','Seconds')]].map(([unit,max,label])=>{const seconds=Number(data.delivery?.delaySeconds)||0;const u=Number(unit);const current=u===3600?Math.floor(seconds/u):Math.floor(seconds/u)%60;return <label key={u}>{label}<input type="number" min={0} max={Number(max)} value={current} onChange={e=>set({delivery:{...data.delivery,delaySeconds:Math.min(604800,Math.max(0,seconds-current*u+Math.min(Number(max),Math.max(0,Number(e.target.value)||0))*u))}})}/></label>;})}</div>
-      <label>{t('مؤشر الكتابة قبل الإرسال (ثوانٍ)','Typing indicator before sending (seconds)')}<input type="number" min={0} max={5} value={data.delivery?.typingSeconds??0} onChange={e=>set({delivery:{delaySeconds:data.delivery?.delaySeconds??0,...data.delivery,typingSeconds:Math.min(5,Math.max(0,Number(e.target.value)||0))}})}/></label><p className="muted">{t('يدعم Messenger وInstagram وTelegram وWhatsApp حتى 5 ثوانٍ. في WhatsApp يتطلب رسالة واردة حديثة ويرسل إيصال قراءة. Webchat يعرض المؤشر محليًا؛ المحاكي لا يستدعي المزود. Smart Delay مستقل.','Supports Messenger, Instagram, Telegram and WhatsApp for up to 5 seconds. WhatsApp requires a recent inbound message and sends a read receipt. Webchat shows a local indicator; the simulator makes no provider calls. Smart Delay remains independent.')}</p>
-    </details>
-  </>;
+  const updateRows = (index: number, rows: Choice[]) =>
+    mode === 'list'
+      ? set({
+          list: {
+            ...data.list,
+            sections: groups.map((section, i) => (i === index ? { ...section, rows } : section)),
+          },
+        })
+      : set({ buttons: rows });
+  if (active)
+    return (
+      <div className={styles.form}>
+        <div className={styles.toolbar}>
+          <button type="button" className={styles.button} onClick={() => focusChoice(null)}>
+            ← {t('رجوع للرسالة', 'Back to Message')}
+          </button>
+          <strong>
+            {mode === 'list'
+              ? t('إعداد صف القائمة', 'Configure List Row')
+              : t('إعداد الزر', 'Configure Button')}
+          </strong>
+        </div>
+        <ConfigTabs
+          active={choiceTab}
+          onChange={setChoiceTab}
+          tabs={[
+            { id: 'setup', label: t('إعداد الزر', 'Button Setup') },
+            { id: 'automation', label: t('الأتمتة', 'Automation') },
+            { id: 'action', label: t('إجراء الضغط', 'Button Action') },
+          ]}
+        />
+        <div className={styles.tabPanel} hidden={choiceTab !== 'setup'}>
+          <EditorSection
+            title={
+              mode === 'list'
+                ? t('إعداد صف القائمة', 'List Row Setup')
+                : t('إعداد الزر', 'Button Setup')
+            }
+            description={t(
+              'العنوان الذي يظهر للمشترك عند اختيار هذا الرد.',
+              'The label subscribers see when choosing this reply.',
+            )}
+          >
+            <label className={styles.field}>
+              {t('العنوان', 'Title')}
+              <input
+                maxLength={mode === 'list' ? 24 : 20}
+                value={active.title}
+                onChange={(e) => onChange(patchChoice(data, active.id, { title: e.target.value }))}
+              />
+              <span className={styles.counter}>
+                {active.title.length}/{mode === 'list' ? 24 : 20}
+              </span>
+            </label>
+            {mode === 'list' && (
+              <label className={styles.field}>
+                {t('وصف الصف', 'Row Description')}
+                <textarea
+                  maxLength={72}
+                  rows={2}
+                  value={active.description ?? ''}
+                  onChange={(e) =>
+                    onChange(patchChoice(data, active.id, { description: e.target.value }))
+                  }
+                />
+              </label>
+            )}
+            <p className={styles.note}>
+              {actionSummary?.(`option:${active.id}`) ||
+                t(
+                  'اختر إجراء الضغط من تبويب إجراء الضغط.',
+                  'Choose the button action from the Button Action tab.',
+                )}
+            </p>
+          </EditorSection>
+        </div>
+        <div className={styles.tabPanel} hidden={choiceTab !== 'automation'}>
+          <ButtonActionsEditor
+            value={active.actions as any}
+            onChange={(actions) => onChange(patchChoice(data, active.id, { actions }))}
+            defaultValue={active.title}
+          />
+        </div>
+        <div className={styles.tabPanel} hidden={choiceTab !== 'action'}>
+          {renderAction?.(`option:${active.id}`, t('عند ضغط المشترك', 'When Subscriber Presses'))}
+        </div>
+      </div>
+    );
+  const tabs = [
+    { id: 'content', label: t('محتوى الرسالة', 'Message Content') },
+    ...(hasInteractive
+      ? [
+          {
+            id: 'choices',
+            label:
+              mode === 'list'
+                ? t('صفوف القائمة', 'List Rows')
+                : t('الأزرار والقائمة', 'Buttons & List'),
+          },
+        ]
+      : []),
+    { id: 'delivery', label: t('الإرسال', 'Delivery') },
+    { id: 'preview', label: t('المعاينة', 'Preview') },
+  ];
+  return (
+    <div className={styles.form}>
+      <ConfigTabs tabs={tabs} active={tab} onChange={setTab} />
+      <div hidden={tab !== 'content'} className={styles.tabPanel}>
+        {hasInteractive && (
+          <EditorSection
+            title={t('عنوان الرسالة', 'Message Header')}
+            optional
+            description={t(
+              'نص أو وسائط تظهر أعلى الرسالة.',
+              'Text or media shown at the top of the message.',
+            )}
+          >
+            <label className={styles.field}>
+              {t('نوع العنوان', 'Header Type')}
+              <select
+                value={data.header?.type ?? ''}
+                onChange={(e) =>
+                  set({
+                    header:
+                      e.target.value === 'text'
+                        ? { type: 'text', text: '' }
+                        : e.target.value
+                          ? { type: e.target.value, url: '' }
+                          : undefined,
+                  })
+                }
+              >
+                <option value="">{t('بدون عنوان', 'No Header')}</option>
+                <option value="text">{t('نص', 'Text')}</option>
+                <option value="image">{t('صورة', 'Image')}</option>
+              </select>
+            </label>
+            {data.header && (
+              <label className={styles.field}>
+                {data.header.type === 'text'
+                  ? t('نص العنوان', 'Header Text')
+                  : t('رابط الوسائط', 'Media URL')}
+                <input
+                  dir={data.header.type === 'text' ? undefined : 'ltr'}
+                  maxLength={data.header.type === 'text' ? 60 : 2000}
+                  value={data.header.type === 'text' ? data.header.text : data.header.url}
+                  onChange={(e) =>
+                    set({
+                      header: {
+                        ...data.header,
+                        [data.header.type === 'text' ? 'text' : 'url']: e.target.value,
+                      },
+                    })
+                  }
+                />
+              </label>
+            )}
+          </EditorSection>
+        )}
+        <EditorSection
+          title={
+            hasInteractive ? t('نص الرسالة', 'Message Body') : t('رسالة الرد', 'Reply Message')
+          }
+          description={t(
+            'المحتوى الرئيسي الذي يصل إلى المشترك.',
+            'Main message content sent to the subscriber.',
+          )}
+        >
+          <div className={styles.toolbar}>
+            <button
+              type="button"
+              className={styles.button}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setSuggest((value) => !value)}
+              aria-expanded={suggest}
+            >
+              {t('متغير مخصص', 'Custom Variable')} ＋
+            </button>
+            <button
+              type="button"
+              className={styles.button}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                const result = insertToken(
+                  data.text ?? '',
+                  caret.current.start,
+                  caret.current.end,
+                  'contact.name',
+                );
+                set({ text: result.text });
+              }}
+            >
+              {t('اسم المشترك', 'Name')}
+            </button>
+          </div>
+          {suggest && (
+            <div className={styles.variableList}>
+              {[
+                { key: 'contact.name', label: t('الاسم', 'Name') },
+                { key: 'contact.phone', label: t('الهاتف', 'Phone') },
+                { key: 'contact.email', label: t('البريد الإلكتروني', 'Email') },
+                ...variables,
+              ].map((variable) => (
+                <button
+                  key={variable.key}
+                  type="button"
+                  className={styles.button}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    const result = insertToken(
+                      data.text ?? '',
+                      caret.current.start,
+                      caret.current.end,
+                      variable.key,
+                    );
+                    set({ text: result.text });
+                    setSuggest(false);
+                    requestAnimationFrame(() => {
+                      input.current?.focus();
+                      input.current?.setSelectionRange(result.caret, result.caret);
+                    });
+                  }}
+                >
+                  {variable.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <textarea
+            ref={input}
+            className={styles.rich}
+            rows={5}
+            maxLength={hasInteractive ? 1024 : 4096}
+            aria-label={t('رسالة الرد', 'Reply Message')}
+            value={data.text ?? ''}
+            onSelect={(e) => {
+              caret.current = {
+                start: e.currentTarget.selectionStart,
+                end: e.currentTarget.selectionEnd,
+              };
+            }}
+            onChange={(e) => {
+              set({ text: e.target.value });
+              caret.current = { start: e.target.selectionStart, end: e.target.selectionEnd };
+            }}
+          />
+          <span className={styles.counter}>
+            {(data.text ?? '').length}/{hasInteractive ? 1024 : 4096}
+          </span>
+        </EditorSection>
+        {hasInteractive && (
+          <EditorSection
+            title={t('تذييل الرسالة', 'Message Footer')}
+            optional
+            description={t(
+              'نص اختياري يظهر أسفل الرسالة.',
+              'Optional text shown at the bottom of the message.',
+            )}
+          >
+            <input
+              aria-label={t('تذييل الرسالة', 'Message Footer')}
+              maxLength={60}
+              value={data.footer ?? ''}
+              onChange={(e) => set({ footer: e.target.value || undefined })}
+            />
+            <span className={styles.counter}>{(data.footer ?? '').length}/60</span>
+          </EditorSection>
+        )}
+        {data.media && (
+          <EditorSection title={t('المرفق الحالي', 'Current Attachment')}>
+            <label className={styles.field}>
+              {t('نوع الوسائط', 'Media Type')}
+              <select
+                value={data.media.kind}
+                onChange={(e) => set({ media: { ...data.media, kind: e.target.value } })}
+              >
+                {['image', 'video', 'audio', 'file'].map((kind) => (
+                  <option key={kind}>{kind}</option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.field}>
+              {t('رابط الوسائط', 'Media URL')}
+              <input
+                dir="ltr"
+                value={data.media.url}
+                onChange={(e) => set({ media: { ...data.media, url: e.target.value } })}
+              />
+            </label>
+            <label className={styles.field}>
+              {t('التعليق', 'Caption')}
+              <input
+                value={data.media.caption ?? ''}
+                onChange={(e) => set({ media: { ...data.media, caption: e.target.value } })}
+              />
+            </label>
+          </EditorSection>
+        )}
+        {!hasInteractive && (
+          <button
+            type="button"
+            className={styles.button}
+            onClick={() => {
+              changeMode('buttons');
+              setTab('choices');
+            }}
+          >
+            {t('تحويل إلى رسالة تفاعلية', 'Use Interactive Reply')} ＋
+          </button>
+        )}
+      </div>
+      <div hidden={tab !== 'choices'} className={styles.tabPanel}>
+        <EditorSection title={t('نوع الرد التفاعلي', 'Interactive Reply Type')}>
+          <div className={styles.segmented}>
+            {(['none', 'buttons', 'list'] as const).map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                aria-pressed={mode === kind}
+                onClick={() => changeMode(kind)}
+              >
+                {kind === 'none'
+                  ? t('بدون اختيارات', 'No Choices')
+                  : kind === 'buttons'
+                    ? t('أزرار', 'Buttons')
+                    : t('قائمة', 'List')}
+              </button>
+            ))}
+          </div>
+          {error && (
+            <p role="alert" className={styles.error}>
+              {error}
+            </p>
+          )}
+          {mode === 'list' && (
+            <label className={styles.field}>
+              {t('عنوان زر فتح القائمة', 'List Button Title')}
+              <input
+                maxLength={20}
+                value={data.list?.buttonText ?? ''}
+                onChange={(e) => set({ list: { ...data.list, buttonText: e.target.value } })}
+              />
+            </label>
+          )}
+          {mode !== 'none' &&
+            groups.map((group, groupIndex) => (
+              <div key={groupIndex} className={styles.form}>
+                {mode === 'list' && (
+                  <label className={styles.field}>
+                    {t('عنوان القسم', 'Section Title')}
+                    <input
+                      maxLength={24}
+                      value={group.title ?? ''}
+                      onChange={(e) =>
+                        set({
+                          list: {
+                            ...data.list,
+                            sections: groups.map((section, i) =>
+                              i === groupIndex ? { ...section, title: e.target.value } : section,
+                            ),
+                          },
+                        })
+                      }
+                    />
+                  </label>
+                )}
+                {group.rows.map((choice, index) => (
+                  <article key={choice.id} className={styles.choice}>
+                    <div>
+                      <div className={styles.choiceMain}>
+                        <span className={styles.choiceNumber}>{index + 1}</span>
+                        <input
+                          aria-label={t('عنوان الاختيار', 'Choice Title')}
+                          maxLength={mode === 'list' ? 24 : 20}
+                          value={choice.title}
+                          onChange={(e) =>
+                            onChange(patchChoice(data, choice.id, { title: e.target.value }))
+                          }
+                        />
+                      </div>
+                      <p>{actionSummary?.(`option:${choice.id}`)}</p>
+                    </div>
+                    <div className={styles.choiceActions}>
+                      <button
+                        type="button"
+                        aria-label={t('لأعلى', 'Move Up')}
+                        disabled={index === 0}
+                        onClick={() =>
+                          updateRows(groupIndex, moveChoice(group.rows, choice.id, -1))
+                        }
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={t('لأسفل', 'Move Down')}
+                        disabled={index === group.rows.length - 1}
+                        onClick={() => updateRows(groupIndex, moveChoice(group.rows, choice.id, 1))}
+                      >
+                        ↓
+                      </button>
+                      <button type="button" onClick={() => focusChoice(choice.id)}>
+                        {t('إعداد', 'Configure')}
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={t('حذف الاختيار', 'Remove Choice')}
+                        onClick={() =>
+                          updateRows(
+                            groupIndex,
+                            group.rows.filter((item) => item.id !== choice.id),
+                          )
+                        }
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </article>
+                ))}
+                <button
+                  type="button"
+                  className={styles.button}
+                  disabled={choices.length >= (mode === 'list' ? 10 : 3)}
+                  onClick={() =>
+                    updateRows(groupIndex, [
+                      ...group.rows,
+                      { id: uid(), title: t('اختيار جديد', 'New Choice') },
+                    ])
+                  }
+                >
+                  ＋ {mode === 'list' ? t('إضافة صف', 'Add Row') : t('إضافة زر', 'Add Button')}
+                </button>
+              </div>
+            ))}
+          {mode === 'list' && groups.length < 10 && choices.length < 10 && (
+            <button
+              type="button"
+              className={styles.button}
+              onClick={() =>
+                set({
+                  list: {
+                    ...data.list,
+                    sections: [
+                      ...groups,
+                      { title: '', rows: [{ id: uid(), title: t('اختيار جديد', 'New Choice') }] },
+                    ],
+                  },
+                })
+              }
+            >
+              ＋ {t('إضافة قسم', 'Add Section')}
+            </button>
+          )}
+          {mode !== 'none' && (
+            <label className={styles.field}>
+              {t('حفظ اختيار المشترك في الحقل', 'Save Subscriber Choice to Field')}
+              <input
+                dir="ltr"
+                value={data.saveReplyAs ?? ''}
+                onChange={(e) => set({ saveReplyAs: e.target.value || undefined })}
+              />
+            </label>
+          )}
+        </EditorSection>
+      </div>
+      <div hidden={tab !== 'delivery'} className={styles.tabPanel}>
+        <DeliveryOptions data={data} onChange={onChange} />
+      </div>
+      <div hidden={tab !== 'preview'} className={styles.tabPanel}>
+        <div className={styles.preview}>
+          <ChatBubble
+            text={data.text}
+            header={data.header?.type === 'text' ? data.header.text : undefined}
+            footer={data.footer}
+            choices={choices.map((choice) => choice.title)}
+            list={mode === 'list'}
+            listLabel={data.list?.buttonText}
+          />
+        </div>
+      </div>
+    </div>
+  );
 }

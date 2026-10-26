@@ -4,9 +4,96 @@ import { NodeType } from '../../lib/flow-types';
 import { ACTION_TYPES } from '../../lib/smart-editor';
 import { NodeIcon, nodeLabel } from './presentation';
 import { useLocale } from '../product/locale';
-export default function StepActions({ title, target, steps, onConnect, onCreate, onOpen }: { title: string; target?: string; steps: { id: string; type: NodeType; text: string }[]; onConnect: (target: string) => void; onCreate: (type: NodeType) => void; onOpen: (id: string) => void }) {
+import styles from './automation-config.module.css';
+
+export default function StepActions({
+  title,
+  target,
+  steps,
+  onConnect,
+  onCreate,
+  onOpen,
+}: {
+  title: string;
+  target?: string;
+  steps: { id: string; type: NodeType; text: string }[];
+  onConnect: (target: string) => void;
+  onCreate: (type: NodeType) => void;
+  onOpen: (id: string) => void;
+}) {
   const { language, t } = useLocale();
+  const [method, setMethod] = useState<'new' | 'existing'>(target ? 'existing' : 'new');
   const [search, setSearch] = useState('');
-  const destination = steps.find(s => s.id === target);
-  return <section className="smart-section smart-actions"><h3>{title}</h3><p className={destination ? 'smart-connected' : 'smart-unconnected'}>{destination ? `${t('بعد الضغط:', 'Then:')} ${nodeLabel(destination.type,language)} ${destination.text}` : t('لا يوجد إجراء بعد', 'No action yet')}</p>{destination && <button type="button" onClick={() => onOpen(destination.id)}>{t('تعديل الخطوة المتصلة', 'Edit connected step')}</button>}<details open={!destination}><summary>{t('لما يضغط العميل، هيحصل إيه؟', 'What happens when selected?')}</summary><div className="smart-action-grid">{ACTION_TYPES.map(type => <button type="button" key={type} onClick={() => { if (!target || confirm(t('استبدال الوصلة الحالية؟ الخطوة القديمة ستظل في المخطط ويمكن التراجع.', 'Replace the current link? The old step stays on the canvas and you can undo.'))) onCreate(type); }}><NodeIcon type={type} /><span>{type === 'message' ? t('إرسال رسالة جديدة','Send a new message') : nodeLabel(type,language)}</span></button>)}</div></details><details><summary>{t('الانتقال لخطوة موجودة', 'Go to existing step')}</summary><label>{t('البحث عن خطوة', 'Search steps')}<input type="search" value={search} onChange={e => setSearch(e.target.value)} /></label><label>{t('الخطوة التالية', 'Next step')}<select value={target ?? ''} onChange={e => { if (!target || target === e.target.value || confirm(t('تغيير الوصلة الحالية؟ يمكنك التراجع.', 'Change current link? You can undo.'))) onConnect(e.target.value); }}><option value="">{t('بلا توصيل', 'Not connected')}</option>{steps.filter(s => s.id === target || `${nodeLabel(s.type,language)} ${s.text}`.toLowerCase().includes(search.toLowerCase())).map(s => <option key={s.id} value={s.id}>{nodeLabel(s.type,language)} — {s.text}</option>)}</select></label></details></section>;
+  const destination = steps.find((s) => s.id === target);
+  return (
+    <section className={styles.section}>
+      <h3>{title}</h3>
+      {destination && (
+        <div className={styles.toolbar}>
+          <p>
+            {nodeLabel(destination.type, language)} — {destination.text}
+          </p>
+          <button className={styles.button} type="button" onClick={() => onOpen(destination.id)}>
+            {t('فتح الخطوة', 'Open Step')}
+          </button>
+          <button className={styles.button} type="button" onClick={() => onConnect('')}>
+            {t('فصل التوصيل', 'Disconnect')}
+          </button>
+        </div>
+      )}
+      <div className={styles.segmented}>
+        <button type="button" aria-pressed={method === 'new'} onClick={() => setMethod('new')}>
+          {t('إنشاء خطوة', 'Create Step')}
+        </button>
+        <button
+          type="button"
+          aria-pressed={method === 'existing'}
+          onClick={() => setMethod('existing')}
+        >
+          {t('ربط خطوة موجودة', 'Connect Existing Step')}
+        </button>
+      </div>
+      {method === 'new' ? (
+        <div className={styles.grid}>
+          {ACTION_TYPES.map((type) => (
+            <button
+              type="button"
+              className={styles.button}
+              key={type}
+              onClick={() => onCreate(type)}
+            >
+              <NodeIcon type={type} />
+              <span>{nodeLabel(type, language)}</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <>
+          <label className={styles.field}>
+            {t('البحث عن خطوة', 'Search Steps')}
+            <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </label>
+          <label className={styles.field}>
+            {t('الخطوة التالية', 'Next Step')}
+            <select value={target ?? ''} onChange={(e) => onConnect(e.target.value)}>
+              <option value="">{t('بدون توصيل', 'Not Connected')}</option>
+              {steps
+                .filter(
+                  (s) =>
+                    s.id === target ||
+                    `${nodeLabel(s.type, language)} ${s.text}`
+                      .toLowerCase()
+                      .includes(search.toLowerCase()),
+                )
+                .map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {nodeLabel(s.type, language)} — {s.text}
+                  </option>
+                ))}
+            </select>
+          </label>
+        </>
+      )}
+    </section>
+  );
 }

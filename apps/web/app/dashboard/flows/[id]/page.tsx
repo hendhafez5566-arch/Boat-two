@@ -1,4 +1,5 @@
 'use client';
+import { ConfigDisclosure, ConfigSummary } from '../../../../components/flow/ConfigDisclosure';
 import { FlowStatsAvailabilityContext } from '../../../../components/flow/stats-context';
 import BotPolicyEditor from '../../../../components/flow/BotPolicyEditor';
 import type { BotPolicy } from '../../../../lib/flow-types';
@@ -715,6 +716,7 @@ function Editor({ id }: { id: string }) {
   };
 
   const focusNode = (nid: string) => {
+    setChoiceSelection(null);
     setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === nid })));
     setSelected(nid);
     selRef.current = nid;
@@ -1735,6 +1737,7 @@ function Editor({ id }: { id: string }) {
                         setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === nodeId })));
                         selRef.current = nodeId;
                         setSelected(nodeId);
+                        if (!hit) setChoiceSelection(null);
                         if (hit) {
                           setChoiceSelection({
                             parentId: hit.parentId,
@@ -1903,7 +1906,9 @@ function Editor({ id }: { id: string }) {
           className={styles.inspectorDialog}
           title={
             sel && tab === 'node'
-              ? `${t('إعداد', 'Configure')} ${nodeLabel(sel.data.type, language)}`
+              ? choiceSelection?.parentId === sel.id
+                ? t('إعداد الاختيار', 'Configure Reply')
+                : `${t('إعداد', 'Configure')} ${nodeLabel(sel.data.type, language)}`
               : t('إعداد بداية التدفق', 'Configure Reference')
           }
         >
@@ -1913,25 +1918,6 @@ function Editor({ id }: { id: string }) {
               'Changes apply to the draft. Publish separately from the tools menu.',
             )}
           </p>
-          <div className={styles.editorTabs} role="tablist">
-            {(
-              [
-                ['node', t('العقدة', 'Inspector')],
-                ['settings', t('مشغّلات وقنوات البوت', 'Bot triggers and channels')],
-              ] as const
-            ).map(([k, l]) => (
-              <button
-                key={k}
-                type="button"
-                role="tab"
-                aria-selected={tab === k}
-                onClick={() => setTab(k)}
-                className={`flex-1 px-3 py-2 ${tab === k ? 'border-b-2 border-black font-semibold' : 'text-gray-500'}`}
-              >
-                {l}
-              </button>
-            ))}
-          </div>
           <div key={tab === 'node' ? selected : 'settings'} className={styles.inspectorBody}>
             {tab === 'node' &&
               (sel ? (
@@ -1947,6 +1933,9 @@ function Editor({ id }: { id: string }) {
                   }}
                 >
                   <Inspector
+                    onChoiceSelect={(id) =>
+                      setChoiceSelection(id ? { parentId: sel.id, id, nonce: Date.now() } : null)
+                    }
                     channelIds={meta.channelIds}
                     key={
                       sel.id +
@@ -1994,10 +1983,10 @@ function Editor({ id }: { id: string }) {
                     }}
                     onDelete={() => deleteNode(sel.id)}
                   />
-                  <details className="m-3 rounded border p-2">
-                    <summary>
+                  <ConfigDisclosure className="m-3 rounded border p-2">
+                    <ConfigSummary>
                       {t('متغيّرات وتعليق داخلي', 'Variables and internal comment')}
-                    </summary>
+                    </ConfigSummary>
                     <div
                       className="var-picker"
                       aria-label={t('المتغيّرات المتاحة', 'Available variables')}
@@ -2027,7 +2016,7 @@ function Editor({ id }: { id: string }) {
                         onChange={(e) => updateNote(sel.id, e.target.value)}
                       />
                     </label>
-                  </details>
+                  </ConfigDisclosure>
                 </div>
               ) : (
                 <p className="p-4 text-sm text-gray-500">
@@ -2040,10 +2029,10 @@ function Editor({ id }: { id: string }) {
 
             {tab === 'settings' && (
               <div className="space-y-4 p-3 text-sm">
-                <details className="smart-section">
-                  <summary>
+                <ConfigDisclosure className="smart-section">
+                  <ConfigSummary>
                     {t('السياسات العامة وساعات العمل', 'General policies and business hours')}
-                  </summary>
+                  </ConfigSummary>
                   <BotPolicyEditor
                     value={meta.policy}
                     onChange={(policy) => {
@@ -2051,7 +2040,7 @@ function Editor({ id }: { id: string }) {
                       setDirty(true);
                     }}
                   />
-                </details>
+                </ConfigDisclosure>
                 <div>
                   <div className="mb-1 text-xs font-semibold text-gray-600">
                     {t('متى يبدأ السيناريو؟', 'When does the bot start?')}

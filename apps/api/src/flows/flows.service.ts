@@ -545,6 +545,7 @@ export class FlowsService {
       channel: { type: 'test' },
       lastMessage: {
         text: input.text,
+        media: input.media,
         replyId: input.replyId,
         ...((state.offHours
           ? (graph.policy?.businessHours?.offHoursGraph ?? graph)

@@ -445,7 +445,7 @@
   min-width: 0;
 }
 .inspectorDialog {
-  width: min(760px, calc(100vw - 28px));
+  width: min(820px, calc(100vw - 28px));
   max-width: none;
   max-height: calc(100dvh - 28px);
   padding: 0;
@@ -487,28 +487,6 @@
   font-size: 12px;
   line-height: 1.7;
   flex-shrink: 0;
-}
-.editorTabs {
-  display: flex;
-  border-bottom: 1px solid #dfe6ef;
-  background: white;
-  flex-shrink: 0;
-}
-.editorTabs button {
-  flex: 1;
-  min-height: 44px;
-  background: transparent;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  font: inherit;
-  font-size: 13px;
-  color: #526c81;
-  padding: 8px;
-}
-.editorTabs button[aria-selected='true'] {
-  border-bottom-color: var(--primary);
-  color: var(--primary);
-  font-weight: 700;
 }
 .inspectorBody {
   min-height: 0;

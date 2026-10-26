@@ -16,7 +16,6 @@ export default function BlockPalette({
   const { t, language } = useLocale();
   const [expanded, setExpanded] = useState(false);
   const [query, setQuery] = useState('');
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const matches = (type: NodeType) =>
     nodeLabel(type, language).toLowerCase().includes(query.trim().toLowerCase());
   return (
@@ -62,12 +61,7 @@ export default function BlockPalette({
         </label>
       )}
       <div className={styles.paletteScroll}>
-        {NODE_GROUPS.filter(
-          (group) =>
-            !!query.trim() ||
-            (expanded && advancedOpen) ||
-            !['advanced', 'commerce', 'integrations'].includes(group.id),
-        ).map((group) => {
+        {NODE_GROUPS.map((group) => {
           const types = group.types.filter(matches);
           return types.length ? (
             <section key={group.id} className={styles.paletteGroup}>
@@ -87,10 +81,6 @@ export default function BlockPalette({
                   }}
                   onDragEnd={() => setExpanded(false)}
                   onClick={() => {
-                    if (!expanded) {
-                      setExpanded(true);
-                      return;
-                    }
                     onAdd(type);
                     setExpanded(false);
                   }}
@@ -104,18 +94,6 @@ export default function BlockPalette({
             </section>
           ) : null;
         })}
-        {expanded && !query.trim() && (
-          <button
-            type="button"
-            className={styles.additional}
-            aria-expanded={advancedOpen}
-            onClick={() => setAdvancedOpen(!advancedOpen)}
-          >
-            {advancedOpen
-              ? t('إخفاء الأدوات الإضافية', 'Hide additional blocks')
-              : t('أدوات إضافية', 'More blocks')}
-          </button>
-        )}
         {expanded && !NODE_GROUPS.some((group) => group.types.some(matches)) && (
           <p role="status" className={styles.paletteEmpty}>
             {t('لا توجد عقدة مطابقة.', 'No matching blocks.')}

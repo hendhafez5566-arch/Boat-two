@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export type NodeType =
-  | 'product' | 'catalog' | 'appointment' | 'whatsapp_flow'
+  | 'product'
+  | 'catalog'
+  | 'appointment'
+  | 'whatsapp_flow'
   | 'subflow'
   | 'message'
   | 'interactive'
@@ -48,20 +51,33 @@ export interface FlowGraph {
 }
 
 export interface BotPolicy {
-  initialVars?:Record<string,string|number|boolean|null>;
-  startMessage?:string;
-  startFrequency?:'once'|'always'|'daily';
+  initialVars?: Record<string, string | number | boolean | null>;
+  startMessage?: string;
+  startFrequency?: 'once' | 'always' | 'daily';
   sessionHours?: number;
   noMatchText?: string;
-  businessHours?: { enabled: boolean; timezone: string; schedule: import('./hours').Schedule; offHoursText?: string;offHoursFlowId?:string;offHoursGraph?:FlowGraph };
+  businessHours?: {
+    enabled: boolean;
+    timezone: string;
+    schedule: import('./hours').Schedule;
+    offHoursText?: string;
+    offHoursFlowId?: string;
+    offHoursGraph?: FlowGraph;
+  };
 }
 
 export interface OutContent {
-  typingSeconds?:number;
-  product?:{catalogId:string;retailerId:string};
-  productList?:{catalogId:string;sections:{title:string;retailerIds:string[]}[]};
-  whatsappFlow?:{flowId:string;token:string;cta:string;screen:string;data?:Record<string,unknown>};
-  header?: { type:'text'; text:string } | { type:'image'; url:string };
+  typingSeconds?: number;
+  product?: { catalogId: string; retailerId: string };
+  productList?: { catalogId: string; sections: { title: string; retailerIds: string[] }[] };
+  whatsappFlow?: {
+    flowId: string;
+    token: string;
+    cta: string;
+    screen: string;
+    data?: Record<string, unknown>;
+  };
+  header?: { type: 'text'; text: string } | { type: 'image'; url: string };
   footer?: string;
   text?: string;
   media?: {
@@ -77,7 +93,9 @@ export interface OutContent {
     name: string;
     language: string;
     bodyParams: string[];
-    header?: { type: 'text'; text: string } | { type: 'image' | 'video' | 'document'; url: string; filename?: string };
+    header?:
+      | { type: 'text'; text: string }
+      | { type: 'image' | 'video' | 'document'; url: string; filename?: string };
     buttonParams?: { index: number; type: 'quick_reply' | 'url'; value: string }[];
   };
   list?: {
@@ -98,11 +116,17 @@ export interface FlowContact {
 export interface FlowContext {
   contact: FlowContact;
   channel: { id?: string; type: string };
-  lastMessage: { text: string; replyId?: string;formReply?:Record<string,unknown>;order?:unknown };
+  lastMessage: {
+    media?: { kind: 'image' | 'video' | 'audio' | 'file'; url?: string; providerMediaId?: string };
+    text: string;
+    replyId?: string;
+    formReply?: Record<string, unknown>;
+    order?: unknown;
+  };
 }
 
 export interface FlowState {
-  offHours?:boolean;
+  offHours?: boolean;
   vars: Record<string, unknown>;
   waiting: null | {
     nodeId: string;
@@ -115,7 +139,7 @@ export interface FlowState {
     startPending?: boolean;
     deliveryPending?: boolean;
     formToken?: string;
-    catalogOptions?:{id:string;title:string}[];
+    catalogOptions?: { id: string; title: string }[];
   };
   totalSteps: number;
 }
@@ -147,11 +171,20 @@ export interface AiResult {
 }
 
 export interface EngineDeps {
-  setContactField?(field:'name'|'email'|'phone',value:string):Promise<void>;
-  productContent?(id:string,native:boolean):Promise<OutContent>;
-  catalogContent?(ids:string[],native:boolean,text:string,selectable?:boolean):Promise<OutContent>;
-  bookAppointment?(serviceId:string,start:string,eventKey:string):Promise<Record<string,unknown>>;
-  readGoogleSheet?(connectionId:string,spreadsheetId:string,range:string):Promise<string>;
+  setContactField?(field: 'name' | 'email' | 'phone', value: string): Promise<void>;
+  productContent?(id: string, native: boolean): Promise<OutContent>;
+  catalogContent?(
+    ids: string[],
+    native: boolean,
+    text: string,
+    selectable?: boolean,
+  ): Promise<OutContent>;
+  bookAppointment?(
+    serviceId: string,
+    start: string,
+    eventKey: string,
+  ): Promise<Record<string, unknown>>;
+  readGoogleSheet?(connectionId: string, spreadsheetId: string, range: string): Promise<string>;
   /** Durable production execution; the simulator supplies an explicitly mocked executor. */
   executeButtonAction?(action: ButtonAction, occurrence: string): Promise<void>;
   ai(req: AiRequest): Promise<AiResult>;
@@ -169,7 +202,7 @@ export interface EngineDeps {
 }
 
 export type ButtonAction =
-  | {type:'integration';connectionId:string;payload:string}
+  | { type: 'integration'; connectionId: string; payload: string }
   | { type: 'set_field'; key: string; value: string }
   | { type: 'tag'; add: string[]; remove: string[] }
   | { type: 'list'; listId: string; operation: 'add' | 'remove' }
@@ -196,11 +229,15 @@ export function newState(): FlowState {
 }
 
 /** المخارج (handles) الصالحة لكل عقدة، وهي نفسها المستخدمة في المحرر المرئي */
-export function optionsOf(data: Record<string, any>): { id: string; title: string; actions?: ButtonAction[] }[] {
+export function optionsOf(
+  data: Record<string, any>,
+): { id: string; title: string; actions?: ButtonAction[] }[] {
   const out: { id: string; title: string; actions?: ButtonAction[] }[] = [];
-  for (const b of data.buttons ?? []) out.push({ id: b.id, title: b.title, ...(b.actions ? { actions: b.actions } : {}) });
+  for (const b of data.buttons ?? [])
+    out.push({ id: b.id, title: b.title, ...(b.actions ? { actions: b.actions } : {}) });
   for (const s of data.list?.sections ?? [])
-    for (const r of s.rows ?? []) out.push({ id: r.id, title: r.title, ...(r.actions ? { actions: r.actions } : {}) });
+    for (const r of s.rows ?? [])
+      out.push({ id: r.id, title: r.title, ...(r.actions ? { actions: r.actions } : {}) });
   return out;
 }
 
@@ -210,11 +247,14 @@ export function clickableOptions(
   waiting: FlowState['waiting'],
 ): { id: string; title: string }[] {
   if (!node || !waiting) return [];
-  if(waiting.kind==='answer'&&node.type==='catalog')return waiting.catalogOptions??[];
+  if (waiting.kind === 'answer' && node.type === 'catalog') return waiting.catalogOptions ?? [];
   if (waiting.kind === 'choice') return optionsOf(node.data ?? {});
   if (waiting.kind === 'answer' && node.type === 'user_input') {
     const q = (node.data?.questions ?? [])[waiting.step ?? 0];
-    return [...(q?.kind === 'choice' ? (q.options ?? []) : []), ...(q?.allowSkip ? [{ id: `__boat_skip:${q.id}`, title: q.skipText || '/skip' }] : [])];
+    return [
+      ...(q?.kind === 'choice' ? (q.options ?? []) : []),
+      ...(q?.allowSkip ? [{ id: `__boat_skip:${q.id}`, title: q.skipText || '/skip' }] : []),
+    ];
   }
   if (waiting.kind === 'answer' && node.type === 'question' && node.data.allowSkip)
     return [{ id: `__boat_skip:${waiting.nodeId}`, title: node.data.skipText || '/skip' }];
@@ -224,8 +264,10 @@ export function clickableOptions(
 export function handlesFor(node: Pick<FlowNode, 'type' | 'data'>): string[] {
   const d = node.data ?? {};
   switch (node.type) {
-    case 'appointment':return ['success','unavailable','error'];
-    case 'whatsapp_flow':return ['ok','fail'];
+    case 'appointment':
+      return ['success', 'unavailable', 'error'];
+    case 'whatsapp_flow':
+      return ['ok', 'fail'];
     case 'interactive':
     case 'message': {
       const opts = optionsOf(d);
