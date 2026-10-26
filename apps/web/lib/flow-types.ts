@@ -242,15 +242,11 @@ export const NODE_META: Record<
 /** مجموعات لوحة البلوكات (Flow blocks) */
 export const NODE_GROUPS: { id: string; ar: string; en: string; types: NodeType[] }[] = [
   { id: 'messages', ar: 'الرسائل', en: 'MESSAGES', types: ['message', 'image', 'audio', 'video', 'file', 'location', 'ai_reply'] },
-  { id: 'interactive', ar: 'التفاعلي', en: 'INTERACTIVE', types: ['interactive', 'cta_url', 'template'] },
-  { id: 'data', ar: 'جمع البيانات', en: 'DATA COLLECTION', types: ['user_input', 'question', 'set_variable', 'set_attribute', 'note'] },
-  {
-    id: 'control',
-    ar: 'التحكم في المسار',
-    en: 'FLOW CONTROL',
-    types: ['condition', 'sequence', 'tag', 'random_number', 'split', 'delay', 'business_hours', 'handoff', 'subflow', 'end'],
-  },
-  {id:'commerce',ar:'التجارة والمواعيد',en:'COMMERCE & APPOINTMENTS',types:['product','catalog','appointment','whatsapp_flow']},
+  { id: 'data', ar: 'جمع البيانات', en: 'DATA COLLECTION', types: ['user_input', 'whatsapp_flow', 'appointment'] },
+  { id: 'interactive', ar: 'الرسائل التفاعلية', en: 'INTERACTIVE', types: ['interactive', 'template', 'cta_url'] },
+  { id: 'control', ar: 'التحكم في التدفق', en: 'FLOW CONTROL', types: ['condition', 'sequence', 'tag', 'random_number'] },
+  { id: 'advanced', ar: 'أدوات إضافية', en: 'ADDITIONAL BLOCKS', types: ['question', 'set_variable', 'set_attribute', 'note', 'split', 'delay', 'business_hours', 'handoff', 'subflow', 'end'] },
+  { id: 'commerce', ar: 'التجارة', en: 'COMMERCE', types: ['product', 'catalog'] },
   { id: 'integrations', ar: 'التكاملات', en: 'INTEGRATIONS', types: ['http_request', 'sheet_fetch'] },
 ];
 
@@ -419,6 +415,7 @@ export interface RFData {
   linked?: string[];
   /** Editor-only: stable node actions injected by the designer; never persisted. */
   actions?: {
+    open?: (id: string) => void;
     duplicate: (id: string) => void;
     remove: (id: string) => void;
     setStart: (id: string) => void;

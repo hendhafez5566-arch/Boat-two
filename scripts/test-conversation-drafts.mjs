@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {stripTypeScriptTypes} from 'node:module';
+const source=stripTypeScriptTypes(readFileSync(new URL('../apps/web/lib/conversation-drafts.ts',import.meta.url),'utf8'));
+const {ConversationDrafts}=await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+const store=new ConversationDrafts();
+const sent={text:'first reply',internal:false,attach:null};
+store.write('a',sent);
+store.write('b',{text:'another customer',internal:true,attach:null});
+store.write('a',{...sent,text:'new reply typed while sending'});
+store.clearSent('a',sent);
+assert.equal(store.read('a').text,'new reply typed while sending');
+assert.equal(store.read('b').text,'another customer');
+const actual=store.read('a');store.clearSent('a',actual);
+assert.equal(store.read('a').text,'');
+assert.equal(store.read('b').internal,true);
+console.log('PASS: conversation switch preserves drafts and late send completion keeps newer edits');

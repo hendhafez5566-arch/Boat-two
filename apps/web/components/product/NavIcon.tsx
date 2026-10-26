@@ -1,4 +1,5 @@
 const paths: Record<string, string> = {
+  social: 'M4 4h16v16H4V4ZM4 15l5-5 5 5 3-3 3 3M15 8h.01',
   close: 'M6 6l12 12M18 6 6 18',
   chevron: 'm6 9 6 6 6-6',
   bell: 'M6 9a6 6 0 1 1 12 0c0 6 2 7 2 7H4s2-1 2-7ZM10 20a2 2 0 0 0 4 0',

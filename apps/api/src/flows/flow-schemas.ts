@@ -5,16 +5,48 @@ const varName = z.string().regex(/^[A-Za-z_][\w]{0,40}$/);
 const id = z.string().min(1).max(60);
 
 export const buttonActionSchema = z.discriminatedUnion('type', [
-  z.object({type:z.literal('integration'),connectionId:z.string().uuid(),payload:z.string().min(2).max(10000)}),
+  z.object({
+    type: z.literal('integration'),
+    connectionId: z.string().uuid(),
+    payload: z.string().min(2).max(10000),
+  }),
   z.object({ type: z.literal('set_field'), key: varName, value: z.string().max(2000) }),
-  z.object({ type: z.literal('tag'), add: z.array(z.string().min(1).max(80)).max(30), remove: z.array(z.string().min(1).max(80)).max(30) }),
-  z.object({ type: z.literal('list'), listId: z.string().uuid(), operation: z.enum(['add', 'remove']) }),
-  z.object({ type: z.literal('sequence'), sequenceId: z.string().uuid(), operation: z.enum(['subscribe', 'unsubscribe']) }),
-  z.object({ type: z.literal('assign'), userId: z.string().uuid().optional(), departmentId: z.string().uuid().optional() }),
-  z.object({ type: z.literal('webhook'), url: z.string().url().max(2000).refine(v => v.startsWith('https://')), body: z.string().max(10000).default('{}') }),
+  z.object({
+    type: z.literal('tag'),
+    add: z.array(z.string().min(1).max(80)).max(30),
+    remove: z.array(z.string().min(1).max(80)).max(30),
+  }),
+  z.object({
+    type: z.literal('list'),
+    listId: z.string().uuid(),
+    operation: z.enum(['add', 'remove']),
+  }),
+  z.object({
+    type: z.literal('sequence'),
+    sequenceId: z.string().uuid(),
+    operation: z.enum(['subscribe', 'unsubscribe']),
+  }),
+  z.object({
+    type: z.literal('assign'),
+    userId: z.string().uuid().optional(),
+    departmentId: z.string().uuid().optional(),
+  }),
+  z.object({
+    type: z.literal('webhook'),
+    url: z
+      .string()
+      .url()
+      .max(2000)
+      .refine((v) => v.startsWith('https://')),
+    body: z.string().max(10000).default('{}'),
+  }),
 ]);
 const actions = z.array(buttonActionSchema).max(20).optional();
-const button = z.object({ id: z.string().min(1).max(200), title: z.string().min(1).max(20), actions });
+const button = z.object({
+  id: z.string().min(1).max(200),
+  title: z.string().min(1).max(20),
+  actions,
+});
 const row = z.object({
   id: z.string().min(1).max(200),
   title: z.string().min(1).max(24),
@@ -23,7 +55,14 @@ const row = z.object({
 });
 
 const condition = z.object({
-  source: z.enum(['variable', 'contact_field', 'contact_attribute', 'last_message', 'channel', 'label']),
+  source: z.enum([
+    'variable',
+    'contact_field',
+    'contact_attribute',
+    'last_message',
+    'channel',
+    'label',
+  ]),
   key: z.string().max(100).optional(),
   operator: z.enum([
     'equals',
@@ -55,9 +94,19 @@ const nodeBase = {
 };
 
 const messageData = z.object({
-  header: z.discriminatedUnion('type',[z.object({type:z.literal('text'),text:z.string().max(60)}),z.object({type:z.literal('image'),url:z.string().url().max(2000)})]).optional(),
+  header: z
+    .discriminatedUnion('type', [
+      z.object({ type: z.literal('text'), text: z.string().max(60) }),
+      z.object({ type: z.literal('image'), url: z.string().url().max(2000) }),
+    ])
+    .optional(),
   footer: z.string().max(60).optional(),
-  delivery: z.object({delaySeconds:z.number().int().min(0).max(604800),typingSeconds:z.number().int().min(0).max(5).optional()}).optional(),
+  delivery: z
+    .object({
+      delaySeconds: z.number().int().min(0).max(604800),
+      typingSeconds: z.number().int().min(0).max(5).optional(),
+    })
+    .optional(),
   text: z.string().max(4096).optional(),
   media: z
     .object({
@@ -83,10 +132,42 @@ const messageData = z.object({
 });
 
 export const nodeSchema = z.discriminatedUnion('type', [
-  z.object({...nodeBase,type:z.literal('product'),data:z.object({productId:z.string().uuid(),native:z.boolean().default(false)})}),
-  z.object({...nodeBase,type:z.literal('catalog'),data:z.object({productIds:z.array(z.string().uuid()).min(1).max(30),native:z.boolean().default(false),text:z.string().min(1).max(1024),selectable:z.boolean().optional(),saveAs:varName.optional()})}),
-  z.object({...nodeBase,type:z.literal('appointment'),data:z.object({serviceId:z.string().uuid(),start:z.string().min(1).max(200),saveAs:varName.default('appointment')})}),
-  z.object({...nodeBase,type:z.literal('whatsapp_flow'),data:z.object({text:z.string().min(1).max(1024),flowId:z.string().regex(/^\d+$/),cta:z.string().min(1).max(20),screen:z.string().min(1).max(80),saveAs:varName.default('form')})}),
+  z.object({
+    ...nodeBase,
+    type: z.literal('product'),
+    data: z.object({ productId: z.string().uuid(), native: z.boolean().default(false) }),
+  }),
+  z.object({
+    ...nodeBase,
+    type: z.literal('catalog'),
+    data: z.object({
+      productIds: z.array(z.string().uuid()).min(1).max(30),
+      native: z.boolean().default(false),
+      text: z.string().min(1).max(1024),
+      selectable: z.boolean().optional(),
+      saveAs: varName.optional(),
+    }),
+  }),
+  z.object({
+    ...nodeBase,
+    type: z.literal('appointment'),
+    data: z.object({
+      serviceId: z.string().uuid(),
+      start: z.string().min(1).max(200),
+      saveAs: varName.default('appointment'),
+    }),
+  }),
+  z.object({
+    ...nodeBase,
+    type: z.literal('whatsapp_flow'),
+    data: z.object({
+      text: z.string().min(1).max(1024),
+      flowId: z.string().regex(/^\d+$/),
+      cta: z.string().min(1).max(20),
+      screen: z.string().min(1).max(80),
+      saveAs: varName.default('form'),
+    }),
+  }),
   z.object({
     ...nodeBase,
     type: z.literal('subflow'),
@@ -124,7 +205,10 @@ export const nodeSchema = z.discriminatedUnion('type', [
     type: z.literal('template'),
     data: z.object({
       name: z.string().regex(/^[a-z0-9_]{1,512}$/),
-      language: z.string().regex(/^[a-z]{2,3}(?:_[A-Z]{2})?$/).default('ar'),
+      language: z
+        .string()
+        .regex(/^[a-z]{2,3}(?:_[A-Z]{2})?$/)
+        .default('ar'),
       bodyParams: z.array(z.string().max(1024)).max(20).default([]),
       header: z
         .discriminatedUnion('type', [
@@ -160,9 +244,12 @@ export const nodeSchema = z.discriminatedUnion('type', [
             id: z.string().min(1).max(40),
             text: z.string().max(1024),
             kind: z.enum(['choice', 'text', 'number', 'email', 'phone']).default('text'),
-            options: z.array(z.object({ id: z.string().min(1).max(200), title: z.string().min(1).max(24) })).max(10).optional(),
+            options: z
+              .array(z.object({ id: z.string().min(1).max(200), title: z.string().min(1).max(24) }))
+              .max(10)
+              .optional(),
             saveAs: z.string().max(41),
-            saveToSystem:z.enum(['name','email','phone']).optional(),
+            saveToSystem: z.enum(['name', 'email', 'phone']).optional(),
             allowSkip: z.boolean().optional(),
             skipText: z.string().min(1).max(20).optional(),
             errorText: z.string().max(1000).optional(),
@@ -181,7 +268,7 @@ export const nodeSchema = z.discriminatedUnion('type', [
     data: z.object({
       text: z.string().max(4096),
       answerType: z.enum(['text', 'number', 'email', 'phone', 'regex']).default('text'),
-      saveToSystem:z.enum(['name','email','phone']).optional(),
+      saveToSystem: z.enum(['name', 'email', 'phone']).optional(),
       allowSkip: z.boolean().optional(),
       skipText: z.string().min(1).max(20).optional(),
       saveToContact: z.boolean().optional(),
@@ -270,9 +357,9 @@ export const nodeSchema = z.discriminatedUnion('type', [
     ...nodeBase,
     type: z.literal('sheet_fetch'),
     data: z.object({
-      connectionId:z.string().uuid().optional(),
-      spreadsheetId:z.string().max(200).optional(),
-      range:z.string().max(200).optional(),
+      connectionId: z.string().uuid().optional(),
+      spreadsheetId: z.string().max(200).optional(),
+      range: z.string().max(200).optional(),
       url: z.string().max(2000),
       lookupColumn: z.string().max(100).optional(),
       lookupValue: z.string().max(500).optional(),
@@ -341,20 +428,41 @@ export const nodeSchema = z.discriminatedUnion('type', [
 ]);
 
 const clock = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
-const businessDay = z.array(z.tuple([clock, clock])).max(6).optional();
+const businessDay = z
+  .array(z.tuple([clock, clock]))
+  .max(6)
+  .optional();
 export const botPolicySchema = z.object({
-  initialVars:z.record(varName,z.union([z.string().max(2000),z.number().finite(),z.boolean(),z.null()])).optional(),
-  startMessage:z.string().max(1000).optional(),
-  startFrequency:z.enum(['once','always','daily']).optional(),
+  initialVars: z
+    .record(varName, z.union([z.string().max(2000), z.number().finite(), z.boolean(), z.null()]))
+    .optional(),
+  startMessage: z.string().max(1000).optional(),
+  startFrequency: z.enum(['once', 'always', 'daily']).optional(),
   sessionHours: z.number().int().min(1).max(168).optional(),
   noMatchText: z.string().max(1000).optional(),
-  businessHours: z.object({
-    enabled: z.boolean(),
-    timezone: z.string().refine(isValidTimezone, 'Invalid timezone'),
-    schedule: z.object({ mon:businessDay,tue:businessDay,wed:businessDay,thu:businessDay,fri:businessDay,sat:businessDay,sun:businessDay }),
-    offHoursText: z.string().max(1000).optional(),
-    offHoursFlowId:z.string().uuid().optional(),
-  }).refine(v => !v.enabled || Object.values(v.schedule).some(day => day?.some(([start,end]) => start !== end)), 'Add at least one business-hours interval').optional(),
+  businessHours: z
+    .object({
+      enabled: z.boolean(),
+      timezone: z.string().refine(isValidTimezone, 'Invalid timezone'),
+      schedule: z.object({
+        mon: businessDay,
+        tue: businessDay,
+        wed: businessDay,
+        thu: businessDay,
+        fri: businessDay,
+        sat: businessDay,
+        sun: businessDay,
+      }),
+      offHoursText: z.string().max(1000).optional(),
+      offHoursFlowId: z.string().uuid().optional(),
+    })
+    .refine(
+      (v) =>
+        !v.enabled ||
+        Object.values(v.schedule).some((day) => day?.some(([start, end]) => start !== end)),
+      'Add at least one business-hours interval',
+    )
+    .optional(),
 });
 
 export const graphSchema = z.object({
@@ -392,6 +500,8 @@ export const triggersSchema = z
   .max(10);
 
 export const createFlowSchema = z.object({
+  initialNodeType: z.enum(['message', 'user_input', 'whatsapp_flow']).optional(),
+  channelIds: z.array(z.string().uuid()).max(50).optional(),
   language: z.enum(['ar', 'en']).default('ar'),
   isComponent: z.boolean().default(false),
   templateId: z.string().max(40).optional(),
@@ -421,7 +531,9 @@ export const updateFlowSchema = z.object({
 });
 
 export const testFlowSchema = z.object({
-  contactAttributes: z.record(z.union([z.string().max(2000),z.number(),z.boolean(),z.null()])).optional(),
+  contactAttributes: z
+    .record(z.union([z.string().max(2000), z.number(), z.boolean(), z.null()]))
+    .optional(),
   state: z.unknown().optional(),
   text: z.string().max(2000).default(''),
   replyId: z.string().max(200).optional(),

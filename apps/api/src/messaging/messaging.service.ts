@@ -228,7 +228,37 @@ export class MessagingService {
     senderUserId?: string;
     flow?: { flowId: string; nodeId?: string };
   }) {
-    if(p.senderType==='agent'&&p.senderUserId&&!p.content.template){const signature=await this.db.withTenant(p.tenantId,async c=>(await c.query('SELECT s.signature_enabled,s.signature_template,u.full_name FROM inbox_settings s JOIN memberships m ON m.tenant_id=s.tenant_id JOIN users u ON u.id=m.user_id WHERE m.user_id=$1',[p.senderUserId])).rows[0]);if(signature?.signature_enabled){const suffix=signature.signature_template.replaceAll('{{agent.name}}',signature.full_name||'Agent');p.content={...p.content,...(p.content.text?{text:p.content.text+'\n'+suffix}:p.content.media?{media:{...p.content.media,caption:(p.content.media.caption||'')+'\n'+suffix}}:{})};}}
+    if (p.senderType === 'agent' && p.senderUserId && !p.content.template) {
+      const signature = await this.db.withTenant(
+        p.tenantId,
+        async (c) =>
+          (
+            await c.query(
+              'SELECT s.signature_enabled,s.signature_template,u.full_name FROM inbox_settings s JOIN memberships m ON m.tenant_id=s.tenant_id JOIN users u ON u.id=m.user_id WHERE m.user_id=$1',
+              [p.senderUserId],
+            )
+          ).rows[0],
+      );
+      if (signature?.signature_enabled) {
+        const suffix = signature.signature_template.replaceAll(
+          '{{agent.name}}',
+          signature.full_name || 'Agent',
+        );
+        p.content = {
+          ...p.content,
+          ...(p.content.text
+            ? { text: p.content.text + '\n' + suffix }
+            : p.content.media
+              ? {
+                  media: {
+                    ...p.content.media,
+                    caption: (p.content.media.caption || '') + '\n' + suffix,
+                  },
+                }
+              : {}),
+        };
+      }
+    }
     validateOutbound(p.content);
     const effectKey = this.db.effectKey();
 
@@ -249,7 +279,7 @@ export class MessagingService {
       const row = (
         await c.query(
           `SELECT cv.id, cv.last_inbound_at, ch.id AS channel_id, ch.type, ch.status, ch.credentials_enc,
-                  cc.external_id AS recipient
+                  cc.external_id AS recipient,cc.blocked_at
            FROM conversations cv
            JOIN channels ch ON ch.id = cv.channel_id
            JOIN contact_channels cc ON cc.contact_id = cv.contact_id AND cc.channel_id = cv.channel_id
@@ -258,6 +288,7 @@ export class MessagingService {
         )
       ).rows[0];
       if (!row) throw new NotFoundException('Conversation not found');
+      if (row.blocked_at) throw new BadRequestException('Recipient is blocked on this account');
       if (row.status !== 'active') throw new BadRequestException('Channel is disabled');
 
       if (

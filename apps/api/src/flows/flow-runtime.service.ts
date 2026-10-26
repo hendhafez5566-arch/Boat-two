@@ -1,8 +1,9 @@
+import { readSystemActions, inboundSystemAction } from './system-actions';
 import { SequencesService } from '../sequences/sequences.service';
 import { FlowActionsService } from './flow-actions.service';
-import {CommerceService} from '../commerce/commerce.service';
-import {GoogleService} from '../integrations/google.service';
-import {valuesCsv} from '../integrations/contracts';
+import { CommerceService } from '../commerce/commerce.service';
+import { GoogleService } from '../integrations/google.service';
+import { valuesCsv } from '../integrations/contracts';
 import { ExternalEffects } from '../events/external-effect';
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
@@ -53,8 +54,8 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     private readonly assignment: AssignmentService,
     private readonly sequences: SequencesService,
     private readonly actions: FlowActionsService,
-    private readonly google:GoogleService,
-    private readonly commerce:CommerceService,
+    private readonly google: GoogleService,
+    private readonly commerce: CommerceService,
   ) {}
 
   onModuleInit() {
@@ -116,7 +117,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
   private async loadConversation(c: import('pg').PoolClient, conversationId: string) {
     const r = await c.query(
       `SELECT cv.handled_by, cv.status, cv.channel_id, cv.contact_id, ch.type AS channel_type,
-              ct.name, ct.phone, ct.email, ct.attributes, ct.tags
+              ch.settings AS channel_settings, ct.name, ct.phone, ct.email, ct.attributes, ct.tags,EXISTS(SELECT 1 FROM contact_channels cc WHERE cc.contact_id=cv.contact_id AND cc.channel_id=cv.channel_id AND cc.blocked_at IS NOT NULL) AS blocked
        FROM conversations cv
        JOIN channels ch ON ch.id = cv.channel_id
        JOIN contacts ct ON ct.id = cv.contact_id
@@ -125,6 +126,8 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     );
     return r.rows[0] as
       | {
+          blocked: boolean;
+          channel_settings: unknown;
           handled_by: string;
           status: string;
           channel_id: string;
@@ -145,7 +148,65 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
 
     const loaded = await this.db.withTenant(e.tenantId, async (c) => {
       const conv = await this.loadConversation(c, e.conversationId);
-      if (!conv || conv.handled_by !== 'bot' || conv.status === 'closed') return null;
+      if (!conv || conv.blocked || conv.status === 'closed') return null;
+      const config = readSystemActions(conv.channel_settings);
+      const systemFlows: Partial<
+        Record<
+          import('./system-actions').SystemActionKey,
+          { flow_id: string; version_id: string; graph: FlowGraph }
+        >
+      > = {};
+      for (const key of Object.keys(
+        config.actions,
+      ) as import('./system-actions').SystemActionKey[]) {
+        const action = config.actions[key];
+        if (!action?.enabled || !action.flowId) continue;
+        const row = (
+          await c.query(
+            `SELECT f.id AS flow_id,v.id AS version_id,v.graph FROM flows f JOIN flow_versions v ON v.id=f.published_version_id WHERE f.id=$1 AND f.status='published' AND (cardinality(v.channel_ids)=0 OR $2=ANY(v.channel_ids))`,
+            [action.flowId, conv.channel_id],
+          )
+        ).rows[0];
+        if (row) systemFlows[key] = row;
+      }
+      const actionKey = !e.eventName
+        ? inboundSystemAction(config, {
+            text,
+            location: !!e.content.location,
+            human: conv.handled_by !== 'bot',
+          })
+        : null;
+      const systemFlow = actionKey ? systemFlows[actionKey] : undefined;
+      if (actionKey && systemFlow) {
+        await c.query(
+          "UPDATE flow_sessions SET status='expired',updated_at=now() WHERE conversation_id=$1 AND status='waiting'",
+          [e.conversationId],
+        );
+        if (actionKey === 'human' || actionKey === 'bot')
+          await c.query(
+            "UPDATE conversations SET handled_by=$2,assigned_to=CASE WHEN $2='bot' THEN NULL ELSE assigned_to END WHERE id=$1",
+            [e.conversationId, actionKey === 'human' ? 'human' : 'bot'],
+          );
+        if (actionKey === 'unsubscribe' || actionKey === 'resubscribe') {
+          await c.query(
+            'INSERT INTO contact_consents(tenant_id,contact_id,channel_id,status,evidence) VALUES($1,$2,$3,$4,$5) ON CONFLICT(tenant_id,contact_id,channel_id) DO UPDATE SET status=EXCLUDED.status,evidence=EXCLUDED.evidence,updated_at=now()',
+            [
+              e.tenantId,
+              conv.contact_id,
+              conv.channel_id,
+              actionKey === 'unsubscribe' ? 'opted_out' : 'opted_in',
+              `Inbound configured ${actionKey} keyword; message ${e.messageId}`,
+            ],
+          );
+          if (actionKey === 'unsubscribe')
+            await c.query(
+              "UPDATE sequence_enrollments SET status='stopped',stop_reason='unsubscribe',updated_at=now() WHERE contact_id=$1 AND status='active' AND sequence_id IN(SELECT id FROM sequences WHERE channel_id=$2)",
+              [conv.contact_id, conv.channel_id],
+            );
+        }
+        return { conv, systemFlow, actionKey };
+      }
+      if (conv.handled_by !== 'bot') return null;
 
       let session = (
         await c.query(
@@ -184,16 +245,30 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         )
       ).rows[0].n;
       const ran = (
-        await c.query('SELECT flow_id,max(created_at) AS last_run FROM flow_sessions WHERE conversation_id = $1 GROUP BY flow_id', [
-          e.conversationId,
-        ])
+        await c.query(
+          'SELECT flow_id,max(created_at) AS last_run FROM flow_sessions WHERE conversation_id = $1 GROUP BY flow_id',
+          [e.conversationId],
+        )
       ).rows;
       return {
         conv,
-        cands,
+        cands: systemFlows.get_started
+          ? [
+              ...cands,
+              {
+                ...systemFlows.get_started,
+                priority: 2147483647,
+                triggers: [{ type: 'first_message' }],
+                channel_ids: [conv.channel_id],
+              },
+            ]
+          : cands,
+        noMatchFlow: systemFlows.no_match,
         isFirst: inbound <= 1,
         ran: new Set<string>(ran.map((r) => r.flow_id)),
-        lastRunAt:Object.fromEntries(ran.map(r=>[r.flow_id,new Date(r.last_run).toISOString()])),
+        lastRunAt: Object.fromEntries(
+          ran.map((r) => [r.flow_id, new Date(r.last_run).toISOString()]),
+        ),
       };
     });
     if (!loaded) return;
@@ -208,7 +283,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         tags: loaded.conv.tags ?? [],
       },
       channel: { id: loaded.conv.channel_id, type: loaded.conv.channel_type },
-      lastMessage: { text, replyId,formReply:e.content.flowReply,order:e.content.order },
+      lastMessage: { text, replyId, formReply: e.content.flowReply, order: e.content.order },
     };
     const base: Loaded = {
       eventId: e.messageId,
@@ -219,6 +294,12 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       ctx,
     };
 
+    if ('systemFlow' in loaded && loaded.systemFlow) {
+      if (loaded.actionKey === 'human')
+        await this.assignment.autoAssignIfEnabled(e.tenantId, e.conversationId);
+      await this.startFlow(base, ctx, loaded.systemFlow);
+      return;
+    }
     if ('session' in loaded && loaded.session && loaded.graph) {
       base.replyWaitHours = loaded.graph.policy?.sessionHours;
       const clickId = await this.recordButtonClick(base, loaded.session, loaded.graph, replyId);
@@ -253,7 +334,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         priority: x.priority,
         triggers: x.triggers,
         channelIds: x.channel_ids,
-        policy:x.graph.policy,
+        policy: x.graph.policy,
       })),
       {
         text,
@@ -262,21 +343,42 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         channelId: loaded.conv.channel_id,
         isFirstMessage: (loaded as { isFirst: boolean }).isFirst,
         alreadyRunFlowIds: (loaded as { ran: Set<string> }).ran,
-        lastRunAt:(loaded as {lastRunAt:Record<string,string>}).lastRunAt,
+        lastRunAt: (loaded as { lastRunAt: Record<string, string> }).lastRunAt,
       },
     );
     if (!match) {
-      const fallback=cands.find(candidate=>(!candidate.channel_ids.length||candidate.channel_ids.includes(base.channelId))&&candidate.graph.policy?.noMatchText);
-      if(fallback?.graph.policy?.noMatchText&&!e.eventName){await this.makeDeps(base).send({text:fallback.graph.policy.noMatchText});return;}
+      if (!e.eventName && 'noMatchFlow' in loaded && loaded.noMatchFlow) {
+        await this.startFlow(base, ctx, loaded.noMatchFlow);
+        return;
+      }
+      const fallback = cands.find(
+        (candidate) =>
+          (!candidate.channel_ids.length || candidate.channel_ids.includes(base.channelId)) &&
+          candidate.graph.policy?.noMatchText,
+      );
+      if (fallback?.graph.policy?.noMatchText && !e.eventName) {
+        await this.makeDeps(base).send({ text: fallback.graph.policy.noMatchText });
+        return;
+      }
       await this.autoReply(base, text);
       return;
     }
 
     const graph = cands.find((x) => x.version_id === match.versionId)!.graph;
-    base.replyWaitHours = graph.policy?.sessionHours;
-    const engine = new FlowEngine(graph, this.makeDeps(base, match.flowId));
-    const result = await engine.start(ctx, newState());
-    await this.saveSession(base, { flowId: match.flowId, versionId: match.versionId, result });
+    await this.startFlow(base, ctx, { flow_id: match.flowId, version_id: match.versionId, graph });
+  }
+
+  private async startFlow(
+    base: Loaded,
+    ctx: FlowContext,
+    flow: { flow_id: string; version_id: string; graph: FlowGraph },
+  ) {
+    base.replyWaitHours = flow.graph.policy?.sessionHours;
+    const result = await new FlowEngine(flow.graph, this.makeDeps(base, flow.flow_id)).start(
+      ctx,
+      newState(),
+    );
+    await this.saveSession(base, { flowId: flow.flow_id, versionId: flow.version_id, result });
   }
 
   /** يسجّل نقرة زر/صف قائمة/اختيار سؤال لو الرد يطابق خيارًا حقيقيًا في الخطوة المنتظِرة (الردود النصية الحرة لا تُعدّ) */
@@ -286,7 +388,8 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     graph: FlowGraph,
     replyId: string | undefined,
   ): Promise<string | null> {
-    if(session.state.offHours&&graph.policy?.businessHours?.offHoursGraph)graph=graph.policy.businessHours.offHoursGraph;
+    if (session.state.offHours && graph.policy?.businessHours?.offHoursGraph)
+      graph = graph.policy.businessHours.offHoursGraph;
     const w = session.state?.waiting;
     if (!replyId || !w) return null;
     const node = graph.nodes.find((n) => n.id === w.nodeId);
@@ -371,7 +474,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       ).rows[0];
       if (!session) return null;
       const conv = await this.loadConversation(c, session.conversation_id);
-      if (!conv || conv.handled_by !== 'bot' || conv.status === 'closed') {
+      if (!conv || conv.blocked || conv.handled_by !== 'bot' || conv.status === 'closed') {
         await c.query(
           "UPDATE flow_sessions SET status = 'handed_off', updated_at = now() WHERE id = $1",
           [sessionId],
@@ -399,7 +502,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     };
     const base: Loaded = {
       tenantId,
-      eventId:`delay:${sessionId}:${loaded.session.state.totalSteps}`,
+      eventId: `delay:${sessionId}:${loaded.session.state.totalSteps}`,
       replyWaitHours: loaded.graph.policy?.sessionHours,
       conversationId: loaded.session.conversation_id,
       contactId: loaded.conv.contact_id,
@@ -423,11 +526,33 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
 
   private makeDeps(b: Loaded, flowId?: string): EngineDeps {
     return {
-      setContactField:(key,value)=>this.actions.writeSystemField(b,key,value),
-      productContent:(id,native)=>{if(native&&b.ctx.channel.type!=='whatsapp')throw new Error('Native products require WhatsApp');return this.commerce.productContent(b.tenantId,id,native);},
-      catalogContent:(ids,native,text,selectable)=>{if(native&&b.ctx.channel.type!=='whatsapp')throw new Error('Native catalogs require WhatsApp');return this.commerce.catalogContent(b.tenantId,ids,native,text,selectable);},
-      bookAppointment:(serviceId,start,key)=>this.commerce.book(b.tenantId,{serviceId,contactId:b.contactId,start,eventKey:`flow:${b.conversationId}:${b.eventId}:${key}`,dryRun:false}),
-      readGoogleSheet:async(connectionId,spreadsheetId,range)=>{const result=await this.google.execute(b.tenantId,connectionId,{operation:'sheet_read',spreadsheetId,range}) as {data?:{values?:unknown[][]}};return valuesCsv(result.data?.values??[]);},
+      setContactField: (key, value) => this.actions.writeSystemField(b, key, value),
+      productContent: (id, native) => {
+        if (native && b.ctx.channel.type !== 'whatsapp')
+          throw new Error('Native products require WhatsApp');
+        return this.commerce.productContent(b.tenantId, id, native);
+      },
+      catalogContent: (ids, native, text, selectable) => {
+        if (native && b.ctx.channel.type !== 'whatsapp')
+          throw new Error('Native catalogs require WhatsApp');
+        return this.commerce.catalogContent(b.tenantId, ids, native, text, selectable);
+      },
+      bookAppointment: (serviceId, start, key) =>
+        this.commerce.book(b.tenantId, {
+          serviceId,
+          contactId: b.contactId,
+          start,
+          eventKey: `flow:${b.conversationId}:${b.eventId}:${key}`,
+          dryRun: false,
+        }),
+      readGoogleSheet: async (connectionId, spreadsheetId, range) => {
+        const result = (await this.google.execute(b.tenantId, connectionId, {
+          operation: 'sheet_read',
+          spreadsheetId,
+          range,
+        })) as { data?: { values?: unknown[][] } };
+        return valuesCsv(result.data?.values ?? []);
+      },
       executeButtonAction: (action, occurrence) => this.actions.execute(b, action, occurrence),
       ai: async (req) => {
         const r = await this.ai.replyInConversation({
@@ -471,7 +596,11 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       },
       addNote: async (body) => {
         await this.db.withTenant(b.tenantId, (c) =>
-          c.query('INSERT INTO crm_notes(tenant_id, contact_id, body) VALUES ($1, $2, $3)', [b.tenantId, b.contactId, body]),
+          c.query('INSERT INTO crm_notes(tenant_id, contact_id, body) VALUES ($1, $2, $3)', [
+            b.tenantId,
+            b.contactId,
+            body,
+          ]),
         );
       },
       handoff: async ({ assignTo, departmentId }) => {
@@ -519,7 +648,8 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     if (result.status === 'error') this.log.warn(`Flow ${p.flowId} errored: ${result.error}`);
     const waitKind = result.status === 'waiting' ? (result.waitKind ?? null) : null;
     const waitUntil = waitKind === 'delay' ? (result.waitUntil ?? null) : null;
-    const expiresIn = waitKind && waitKind !== 'delay' ? (b.replyWaitHours ?? REPLY_WAIT_HOURS) : null;
+    const expiresIn =
+      waitKind && waitKind !== 'delay' ? (b.replyWaitHours ?? REPLY_WAIT_HOURS) : null;
 
     await this.db.withTenant(b.tenantId, async (c) => {
       if (p.existingId) {

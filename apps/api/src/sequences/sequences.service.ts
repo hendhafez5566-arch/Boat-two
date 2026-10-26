@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -17,7 +18,7 @@ import { MessageContent, validateOutbound } from '../messaging/message-content';
 import { MessagingService } from '../messaging/messaging.service';
 import { PlansService } from '../plans/plans.service';
 import { computeNextRun } from './schedule';
-import { SequenceStep, sequenceSchema } from './sequences.schemas';
+import { SequenceStep, sequenceSchema, sequenceUpdateSchema } from './sequences.schemas';
 
 @Injectable()
 export class SequencesService implements OnModuleInit, OnModuleDestroy {
@@ -56,37 +57,69 @@ export class SequencesService implements OnModuleInit, OnModuleDestroy {
   // ------------------------------------------------------------------ CRUD
 
   list(tenantId: string) {
-    return this.db.withTenant(tenantId, async (c) =>
-      (
-        await c.query(
-          `SELECT s.id, s.name, s.status, s.channel_id, ch.name AS channel_name, s.timezone, s.delivery_time,
+    return this.db.withTenant(
+      tenantId,
+      async (c) =>
+        (
+          await c.query(
+            `SELECT s.id, s.name, s.status, s.channel_id, ch.name AS channel_name, s.timezone, s.delivery_time,
                   s.stop_on_reply, jsonb_array_length(s.steps) AS step_count, s.updated_at,
                   (SELECT count(*)::int FROM sequence_enrollments e WHERE e.sequence_id = s.id AND e.status = 'active') AS active,
                   (SELECT count(*)::int FROM sequence_enrollments e WHERE e.sequence_id = s.id AND e.status = 'completed') AS completed
              FROM sequences s JOIN channels ch ON ch.id = s.channel_id ORDER BY s.created_at DESC LIMIT 200`,
-        )
-      ).rows,
+          )
+        ).rows,
     );
   }
 
   async get(tenantId: string, id: string) {
-    const row = await this.db.withTenant(tenantId, async (c) => (await c.query('SELECT * FROM sequences WHERE id = $1', [id])).rows[0]);
+    const row = await this.db.withTenant(
+      tenantId,
+      async (c) => (await c.query('SELECT * FROM sequences WHERE id = $1', [id])).rows[0],
+    );
     if (!row) throw new NotFoundException('Sequence not found');
     return row;
   }
 
   private validate(input: z.infer<typeof sequenceSchema>) {
-    if (!isValidTimezone(input.timezone)) throw new BadRequestException({code: 'VALIDATION', issues: [{path: ['timezone'], message: 'اختر منطقة زمنية صحيحة مثل Africa/Cairo'}]});
+    if (!isValidTimezone(input.timezone))
+      throw new BadRequestException({
+        code: 'VALIDATION',
+        issues: [{ path: ['timezone'], message: 'اختر منطقة زمنية صحيحة مثل Africa/Cairo' }],
+      });
     const ids = new Set<string>();
     for (const s of input.steps) {
-      if (ids.has(s.id)) throw new BadRequestException({code: 'VALIDATION', issues: [{path: ['steps', input.steps.indexOf(s)], message: 'توجد خطوة مكررة؛ احذف النسخة المكررة وأضف خطوة جديدة'}]});
+      if (ids.has(s.id))
+        throw new BadRequestException({
+          code: 'VALIDATION',
+          issues: [
+            {
+              path: ['steps', input.steps.indexOf(s)],
+              message: 'توجد خطوة مكررة؛ احذف النسخة المكررة وأضف خطوة جديدة',
+            },
+          ],
+        });
       ids.add(s.id);
       try {
         validateOutbound(s.content as MessageContent);
-        if (!s.content.template && !s.content.media && !s.content.location && !String(s.content.text || '').trim())
+        if (
+          !s.content.template &&
+          !s.content.media &&
+          !s.content.location &&
+          !String(s.content.text || '').trim()
+        )
           throw new BadRequestException('Empty message');
       } catch {
-        throw new BadRequestException({code: 'VALIDATION', issues: [{path: ['steps', input.steps.indexOf(s), 'content'], message: 'راجع محتوى الرسالة: أدخل نصًا أو قالبًا أو مرفقًا صالحًا، والتزم بحدود أزرار وقوائم القناة'}]});
+        throw new BadRequestException({
+          code: 'VALIDATION',
+          issues: [
+            {
+              path: ['steps', input.steps.indexOf(s), 'content'],
+              message:
+                'راجع محتوى الرسالة: أدخل نصًا أو قالبًا أو مرفقًا صالحًا، والتزم بحدود أزرار وقوائم القناة',
+            },
+          ],
+        });
       }
     }
   }
@@ -94,30 +127,74 @@ export class SequencesService implements OnModuleInit, OnModuleDestroy {
   async create(tenantId: string, input: z.infer<typeof sequenceSchema>) {
     this.validate(input);
     return this.db.withTenant(tenantId, async (c) => {
-      const ch = (await c.query('SELECT type FROM channels WHERE id = $1', [input.channelId])).rows[0];
-      if (!ch) throw new BadRequestException({code:'VALIDATION', issues:[{path:['channelId'],message:'القناة غير متاحة؛ اختر قناة أخرى من قنوات الشركة'}]});
-      if (!['whatsapp','facebook','instagram'].includes(ch.type)) throw new BadRequestException({code:'VALIDATION', issues:[{path:['channelId'],message:'التسلسلات تحتاج قناة واتساب أو ماسنجر أو إنستغرام؛ قناة الموقع غير مؤهلة'}]});
+      const ch = (await c.query('SELECT type FROM channels WHERE id = $1', [input.channelId]))
+        .rows[0];
+      if (!ch)
+        throw new BadRequestException({
+          code: 'VALIDATION',
+          issues: [
+            { path: ['channelId'], message: 'القناة غير متاحة؛ اختر قناة أخرى من قنوات الشركة' },
+          ],
+        });
+      if (!['whatsapp', 'facebook', 'instagram'].includes(ch.type))
+        throw new BadRequestException({
+          code: 'VALIDATION',
+          issues: [
+            {
+              path: ['channelId'],
+              message: 'التسلسلات تحتاج قناة واتساب أو ماسنجر أو إنستغرام؛ قناة الموقع غير مؤهلة',
+            },
+          ],
+        });
       return (
         await c.query(
           `INSERT INTO sequences (tenant_id, name, channel_id, timezone, delivery_time, stop_on_reply, steps)
            VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-          [tenantId, input.name, input.channelId, input.timezone, input.deliveryTime ?? null, input.stopOnReply, JSON.stringify(input.steps)],
+          [
+            tenantId,
+            input.name,
+            input.channelId,
+            input.timezone,
+            input.deliveryTime ?? null,
+            input.stopOnReply,
+            JSON.stringify(input.steps),
+          ],
         )
       ).rows[0];
     });
   }
 
-  async update(tenantId: string, id: string, input: z.infer<typeof sequenceSchema>) {
+  async update(tenantId: string, id: string, input: z.infer<typeof sequenceUpdateSchema>) {
     this.validate(input);
     return this.db.withTenant(tenantId, async (c) => {
-      const existing = (await c.query('SELECT channel_id FROM sequences WHERE id=$1', [id])).rows[0];
+      const existing = (
+        await c.query('SELECT channel_id,revision FROM sequences WHERE id=$1 FOR UPDATE', [id])
+      ).rows[0];
       if (!existing) throw new NotFoundException('Sequence not found');
-      if (input.channelId !== existing.channel_id) throw new BadRequestException({code:'VALIDATION',issues:[{path:['channelId'],message:'لا يمكن تغيير قناة التسلسل بعد إنشائه؛ أنشئ تسلسلاً جديدًا للقناة الأخرى'}]});
+      if (input.expectedRevision !== existing.revision)
+        throw new ConflictException('Sequence changed; reload before saving');
+      if (input.channelId !== existing.channel_id)
+        throw new BadRequestException({
+          code: 'VALIDATION',
+          issues: [
+            {
+              path: ['channelId'],
+              message: 'لا يمكن تغيير قناة التسلسل بعد إنشائه؛ أنشئ تسلسلاً جديدًا للقناة الأخرى',
+            },
+          ],
+        });
       const row = (
         await c.query(
-          `UPDATE sequences SET name=$2, timezone=$3, delivery_time=$4, stop_on_reply=$5, steps=$6, updated_at=now()
+          `UPDATE sequences SET name=$2, timezone=$3, delivery_time=$4, stop_on_reply=$5, steps=$6, revision=revision+1, updated_at=now()
             WHERE id=$1 RETURNING *`,
-          [id, input.name, input.timezone, input.deliveryTime ?? null, input.stopOnReply, JSON.stringify(input.steps)],
+          [
+            id,
+            input.name,
+            input.timezone,
+            input.deliveryTime ?? null,
+            input.stopOnReply,
+            JSON.stringify(input.steps),
+          ],
         )
       ).rows[0];
       if (!row) throw new NotFoundException('Sequence not found');
@@ -125,13 +202,25 @@ export class SequencesService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async setStatus(tenantId: string, id: string, status: 'active' | 'paused') {
+  async setStatus(
+    tenantId: string,
+    id: string,
+    status: 'active' | 'paused',
+    expectedRevision: number,
+  ) {
     return this.db.withTenant(tenantId, async (c) => {
-      const s = (await c.query('SELECT steps FROM sequences WHERE id=$1', [id])).rows[0];
+      const s = (await c.query('SELECT steps,revision FROM sequences WHERE id=$1 FOR UPDATE', [id]))
+        .rows[0];
       if (!s) throw new NotFoundException('Sequence not found');
-      if (status === 'active' && !(s.steps ?? []).length) throw new BadRequestException('Add at least one step first');
-      await c.query('UPDATE sequences SET status=$2, updated_at=now() WHERE id=$1', [id, status]);
-      return { id, status };
+      if (s.revision !== expectedRevision)
+        throw new ConflictException('Sequence changed; reload before changing status');
+      if (status === 'active' && !(s.steps ?? []).length)
+        throw new BadRequestException('Add at least one step first');
+      await c.query(
+        'UPDATE sequences SET status=$2, revision=revision+1, updated_at=now() WHERE id=$1',
+        [id, status],
+      );
+      return { id, status, revision: s.revision + 1 };
     });
   }
 
@@ -166,8 +255,12 @@ export class SequencesService implements OnModuleInit, OnModuleDestroy {
       if (s.status !== 'active') throw new BadRequestException('Sequence is not active');
       const steps = s.steps as SequenceStep[];
       if (!steps.length) throw new BadRequestException('Sequence has no steps');
-      const linked = await c.query('SELECT 1 FROM contact_channels WHERE contact_id=$1 AND channel_id=$2', [contactId, s.channel_id]);
-      if (!linked.rowCount) throw new BadRequestException('Contact is not reachable on the sequence channel');
+      const linked = await c.query(
+        'SELECT 1 FROM contact_channels WHERE contact_id=$1 AND channel_id=$2',
+        [contactId, s.channel_id],
+      );
+      if (!linked.rowCount)
+        throw new BadRequestException('Contact is not reachable on the sequence channel');
       const next = computeNextRun(new Date(), steps[0], s.timezone, s.delivery_time);
       const r = await c.query(
         `INSERT INTO sequence_enrollments (tenant_id, sequence_id, contact_id, next_run_at)
@@ -214,7 +307,10 @@ export class SequencesService implements OnModuleInit, OnModuleDestroy {
     if (this.ticking) return;
     this.ticking = true;
     try {
-      const due = await this.db.query<{ id: string; tenant_id: string }>('SELECT * FROM sequence_claim_due($1)', [25]);
+      const due = await this.db.query<{ id: string; tenant_id: string }>(
+        'SELECT * FROM sequence_claim_due($1)',
+        [25],
+      );
       for (const row of due.rows) {
         await this.process(row.tenant_id, row.id).catch((err) =>
           this.log.error(`Sequence step failed: ${(err as Error).message}`),
@@ -230,7 +326,10 @@ export class SequencesService implements OnModuleInit, OnModuleDestroy {
   private async process(tenantId: string, enrollmentId: string) {
     await this.db.withTenant(tenantId, async (c) => {
       const e = (
-        await c.query("SELECT * FROM sequence_enrollments WHERE id=$1 AND status='active' FOR UPDATE", [enrollmentId])
+        await c.query(
+          "SELECT * FROM sequence_enrollments WHERE id=$1 AND status='active' FOR UPDATE",
+          [enrollmentId],
+        )
       ).rows[0];
       if (!e) return;
       const s = (await c.query('SELECT * FROM sequences WHERE id=$1', [e.sequence_id])).rows[0];
@@ -241,19 +340,36 @@ export class SequencesService implements OnModuleInit, OnModuleDestroy {
       const steps = s.steps as SequenceStep[];
       const step = steps[e.step_index];
       const stop = (reason: string) =>
-        c.query("UPDATE sequence_enrollments SET status='stopped', stop_reason=$2, lease_until=NULL, updated_at=now() WHERE id=$1", [e.id, reason]);
+        c.query(
+          "UPDATE sequence_enrollments SET status='stopped', stop_reason=$2, lease_until=NULL, updated_at=now() WHERE id=$1",
+          [e.id, reason],
+        );
       if (!step) {
-        await c.query("UPDATE sequence_enrollments SET status='completed', lease_until=NULL, updated_at=now() WHERE id=$1", [e.id]);
+        await c.query(
+          "UPDATE sequence_enrollments SET status='completed', lease_until=NULL, updated_at=now() WHERE id=$1",
+          [e.id],
+        );
         return;
       }
 
       const contact = (
-        await c.query('SELECT id, name, phone, email, attributes, tags, archived_at, merged_into_id FROM contacts WHERE id=$1', [e.contact_id])
+        await c.query(
+          'SELECT id, name, phone, email, attributes, tags, archived_at, merged_into_id FROM contacts WHERE id=$1',
+          [e.contact_id],
+        )
       ).rows[0];
-      if (!contact || contact.archived_at || contact.merged_into_id) return void (await stop('contact_unavailable'));
-      const consent = await c.query("SELECT 1 FROM contact_consents WHERE contact_id=$1 AND channel_id=$2 AND status='opted_in'", [e.contact_id, s.channel_id]);
+      if (!contact || contact.archived_at || contact.merged_into_id)
+        return void (await stop('contact_unavailable'));
+      const consent = await c.query(
+        "SELECT 1 FROM contact_consents WHERE contact_id=$1 AND channel_id=$2 AND status='opted_in'",
+        [e.contact_id, s.channel_id],
+      );
       if (!consent.rowCount) return void (await stop('no_consent'));
-      const policy = (await c.query('SELECT marketing_enabled FROM channel_delivery_policy WHERE channel_id=$1', [s.channel_id])).rows[0];
+      const policy = (
+        await c.query('SELECT marketing_enabled FROM channel_delivery_policy WHERE channel_id=$1', [
+          s.channel_id,
+        ])
+      ).rows[0];
       if (!policy?.marketing_enabled) return void (await stop('channel_policy'));
       const plan = await this.plans.getTenantPlan(c);
       if (!plan.features.broadcasts) return void (await stop('plan'));
@@ -261,9 +377,21 @@ export class SequencesService implements OnModuleInit, OnModuleDestroy {
       let lastError: string | null = null;
       let send = true;
       if (step.condition) {
-        const ctxObj = { contact: { name: contact.name, phone: contact.phone, email: contact.email, attributes: contact.attributes ?? {}, tags: contact.tags ?? [] } };
+        const ctxObj = {
+          contact: {
+            name: contact.name,
+            phone: contact.phone,
+            email: contact.email,
+            attributes: contact.attributes ?? {},
+            tags: contact.tags ?? [],
+          },
+        };
         send = evaluateRule(
-          { id: step.id, match: step.condition.match, conditions: step.condition.conditions as any },
+          {
+            id: step.id,
+            match: step.condition.match,
+            conditions: step.condition.conditions as any,
+          },
           {
             vars: {},
             contact: ctxObj.contact,
@@ -275,7 +403,10 @@ export class SequencesService implements OnModuleInit, OnModuleDestroy {
       }
       if (send) {
         const conv = (
-          await c.query("SELECT id FROM conversations WHERE contact_id=$1 AND channel_id=$2 AND status<>'closed' ORDER BY created_at DESC LIMIT 1", [e.contact_id, s.channel_id])
+          await c.query(
+            "SELECT id FROM conversations WHERE contact_id=$1 AND channel_id=$2 AND status<>'closed' ORDER BY created_at DESC LIMIT 1",
+            [e.contact_id, s.channel_id],
+          )
         ).rows[0];
         if (!conv) lastError = 'No active channel conversation';
         else

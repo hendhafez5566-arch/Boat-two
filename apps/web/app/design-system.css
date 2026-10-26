@@ -347,10 +347,10 @@ button.card:hover {
   background: rgb(10 18 36 / 52%);
   backdrop-filter: blur(4px);
 }
-.product-dialog header {
+.product-dialog > header {
   padding: 18px 24px;
 }
-.product-dialog header h2 {
+.product-dialog > header h2 {
   font-size: 1.1rem;
 }
 
@@ -516,6 +516,9 @@ button.card:hover {
   position: sticky;
   top: 0;
   z-index: 20;
+}
+.flow-editor-workspace > div {
+  height: 100dvh;
 }
 .focused-workspace > div {
   height: calc(100dvh - var(--topbar-h));
@@ -1016,133 +1019,6 @@ button.card:hover {
 }
 
 /* ───────────── 8. Visual builder ───────────── */
-.premium-builder,
-.builder-canvas {
-  background: var(--canvas);
-}
-.builder-toolbar {
-  gap: 8px;
-  padding: 10px 16px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
-  box-shadow: var(--shadow-xs);
-}
-.builder-toolbar > a {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--muted);
-  padding: 6px 8px;
-  border-radius: 8px;
-}
-.builder-toolbar > a:hover {
-  background: var(--surface-muted);
-  color: var(--ink);
-}
-.builder-toolbar .builder-title {
-  font-size: 1rem;
-  font-weight: 700;
-  box-shadow: none;
-  border: 1px solid transparent;
-  background: transparent;
-  max-width: 260px;
-  min-height: 38px;
-}
-.builder-toolbar .builder-title:hover:not(:focus) {
-  background: var(--surface-muted);
-  border-color: var(--line);
-}
-.builder-toolbar button {
-  min-height: 36px;
-  padding: 6px 12px;
-  border: 1px solid var(--line-strong);
-  border-radius: 10px;
-  background: var(--surface);
-  font-size: 0.8rem;
-  font-weight: 600;
-  gap: 6px;
-  box-shadow: var(--shadow-xs);
-}
-.builder-toolbar button:hover:not(:disabled) {
-  background: var(--surface-muted);
-}
-.builder-toolbar button.btn-primary,
-.builder-toolbar button[class*='bg-blue'],
-.builder-toolbar button[class*='bg-green'],
-.builder-toolbar button[class*='bg-emerald'] {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-}
-.builder-save-status {
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-.builder-palette {
-  width: 248px !important;
-  background: var(--surface) !important;
-  border-inline-end: 1px solid var(--line);
-  border-left: 0 !important;
-  padding: 18px 12px !important;
-  gap: 6px !important;
-}
-.palette-heading {
-  padding: 0 4px 10px;
-}
-.palette-heading h2 {
-  font-size: 1rem;
-}
-.palette-heading p:not(.eyebrow) {
-  font-size: 0.78rem;
-  line-height: 1.7;
-}
-.palette-step {
-  min-height: 46px;
-  padding: 7px 10px;
-  gap: 11px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: var(--ink);
-  box-shadow: var(--shadow-xs);
-  cursor: grab;
-}
-.palette-step:hover {
-  border-color: var(--primary-line);
-  background: var(--primary-softer);
-  box-shadow: var(--shadow-sm);
-}
-.palette-step > span:first-child {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: var(--primary-soft);
-  color: var(--primary);
-}
-.palette-step small {
-  color: var(--faint);
-}
-.palette-tip {
-  background: var(--primary-softer);
-  border: 1px dashed var(--primary-line);
-  color: var(--ink-2);
-  font-size: 0.78rem;
-  border-radius: 12px;
-}
-.builder-inspector {
-  width: 380px !important;
-  background: var(--surface) !important;
-  border-right: 0 !important;
-  border-inline-start: 1px solid var(--line);
-}
-.builder-inspector > div:first-child {
-  border-bottom: 1px solid var(--line);
-}
-.builder-inspector > div:first-child button {
-  padding: 15px 10px;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
 
 .premium-flow-node {
   width: 272px;
@@ -1350,12 +1226,6 @@ button.card:hover {
   .wizard-layout {
     grid-template-columns: minmax(0, 1fr) 280px;
   }
-  .builder-palette {
-    width: 200px !important;
-  }
-  .builder-inspector {
-    width: 330px !important;
-  }
 }
 @media (max-width: 900px) {
   .wizard-layout {
@@ -1466,12 +1336,6 @@ button.underline {
   text-underline-offset: 3px;
 }
 /* Flow inspector and test panel sit in white panels; keep their form rhythm consistent. */
-.builder-inspector .flow-inspector-content {
-  padding: 18px;
-}
-.builder-inspector :where(textarea, input, select) {
-  font-size: 0.88rem;
-}
 
 /* ───────────── 12. Icon-rail shell (ManyChat / BotSailor style) ───────────── */
 @media (min-width: 701px) {
@@ -1580,14 +1444,6 @@ button.underline {
     background: var(--surface);
   }
 }
-
-/* ───────────── 13. Floating "Add step" menu (replaces the side palette on desktop) ───────────── */
-.add-step {
-  position: absolute;
-  top: 16px;
-  inset-inline-start: 16px;
-  z-index: 12;
-}
 .add-step-menu {
   margin-top: 8px;
   width: 270px;
@@ -1634,39 +1490,8 @@ button.underline {
   width: 17px;
   height: 17px;
 }
-@media (min-width: 701px) {
-  .builder-palette {
-    display: none !important;
-  }
-}
-@media (max-width: 700px) {
-  .add-step {
-    display: none;
-  }
-}
 
 /* ───────────── 14. Designer: Start card, drop-to-add menu, persistent phone preview ───────────── */
-.start-card {
-  position: absolute;
-  top: 16px;
-  inset-inline-end: 16px;
-  z-index: 11;
-  width: 230px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px 14px;
-  text-align: start;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-top: 3px solid var(--primary);
-  border-radius: 14px;
-  box-shadow: var(--shadow-lg);
-  cursor: pointer;
-}
-.start-card:hover {
-  border-color: var(--primary);
-}
 .start-card-badge {
   align-self: flex-start;
   font-size: 0.6rem;
@@ -1675,16 +1500,6 @@ button.underline {
   border-radius: 6px;
   background: var(--primary-soft);
   color: var(--primary);
-}
-.start-card strong {
-  font-size: 0.82rem;
-}
-.start-card-list {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  font-size: 0.72rem;
-  color: var(--muted);
 }
 .drop-menu-scrim {
   position: absolute;
@@ -1695,19 +1510,6 @@ button.underline {
   position: absolute;
   z-index: 21;
   margin-top: 0;
-}
-.builder-preview {
-  display: none;
-  flex: 0 0 330px;
-  align-items: center;
-  justify-content: center;
-  padding: 14px;
-  background: #eef3f5;
-  border-inline-start: 1px solid var(--line);
-  overflow-y: auto;
-}
-.builder-preview[data-open='true'] {
-  display: flex;
 }
 .phone-frame {
   width: 290px;
@@ -1732,26 +1534,6 @@ button.underline {
   overflow: hidden;
   border-radius: 24px;
   background: var(--surface);
-}
-.builder-preview-toggle[aria-pressed='true'] {
-  background: var(--primary-soft);
-  border-color: var(--primary);
-  color: var(--primary);
-}
-@media (max-width: 700px) {
-  .builder-preview-toggle,
-  .start-card {
-    display: none;
-  }
-  .builder-main .builder-preview {
-    flex: 1;
-  }
-  .builder-main[data-mobile-panel='preview'] .builder-preview {
-    display: flex;
-  }
-  .builder-main[data-mobile-panel='preview'] .builder-canvas {
-    display: none;
-  }
 }
 
 /* ───────────── 15. Rail: 6 primary items + "More" popover ───────────── */
@@ -1875,33 +1657,6 @@ button.underline {
   }
 }
 
-/* ───────────── 16. Bot-level tabs in the designer ───────────── */
-.bot-tabs {
-  display: flex;
-  gap: 4px;
-  padding: 0 18px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
-  overflow-x: auto;
-}
-.bot-tab {
-  padding: 10px 14px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--muted);
-  text-decoration: none;
-  border-bottom: 2px solid transparent;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.bot-tab:hover {
-  color: var(--ink);
-}
-.bot-tab.is-active {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
-}
-
 /* ───────────── 17. CRM table: filter chips, tag chips, column picker ───────────── */
 .filter-chips {
   display: flex;
@@ -1968,6 +1723,7 @@ button.underline {
   border-radius: 10px;
   box-shadow: var(--shadow-lg);
 }
+.premium-flow-node:focus-within .flow-node-tools,
 .premium-flow-node:hover .flow-node-tools,
 .premium-flow-node.is-selected .flow-node-tools {
   display: flex;
@@ -1998,9 +1754,6 @@ button.underline {
 }
 
 /* ───────────── 19. Designer polish: nodes, edges, notes, preview progress, variables ───────────── */
-.builder-canvas {
-  background: #f4f6fb;
-}
 .premium-flow-node {
   width: 270px;
   border: 1px solid #e3e8f1;
@@ -2548,59 +2301,6 @@ button.underline {
   .dash { gap: 16px; } .dash h1 { font-size: 1.3rem; } .dash-hero { padding: 16px; } .dash-hero .btn { width: 100%; justify-content: center; }
   .dash-stats { gap: 10px; } .dash-stat { padding: 12px; gap: 10px; flex-direction: column; align-items: flex-start; } .dash-stat-body strong { font-size: 1.4rem; }
   .dash-quick { grid-template-columns: 1fr; } .dash-card { padding: 14px; }
-}
-
-/* ───────────── 101. Stage 3 — Bot management (/dashboard/flows) ───────────── */
-.fl { display: flex; flex-direction: column; gap: 26px; max-width: 1240px; margin-inline: auto; width: 100%; }
-.fl-hero { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 22px 24px; border-radius: 18px; border: 1px solid var(--bs-line, #e8ecf4); background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 12%, #fff), #fff 70%); }
-.fl-hero h1 { font-size: 1.6rem; font-weight: 800; margin: 0 0 4px; } .fl-hero p { margin: 0; color: var(--ink-2); max-width: 60ch; }
-.fl-section { display: flex; flex-direction: column; gap: 14px; }
-.fl-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.fl-head h2 { margin: 0; font-size: 1.05rem; font-weight: 700; }
-.fl-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; padding: 12px; background: #fff; border: 1px solid var(--bs-line, #e8ecf4); border-radius: 14px; }
-.fl-search { display: flex; align-items: center; gap: 8px; flex: 1 1 220px; height: 42px; padding-inline: 12px; border: 1px solid var(--bs-line, #e8ecf4); border-radius: 10px; background: #f8f9fc; color: var(--faint); }
-.fl-search svg { width: 16px; height: 16px; flex: none; }
-.fl-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; box-shadow: none; padding: 0; min-height: 0; color: var(--ink); }
-.fl-select { display: flex; flex-direction: column; gap: 2px; flex: 0 1 190px; font-size: .72rem; color: var(--faint); }
-.fl-select select { height: 42px; min-height: 42px; }
-.fl-import, .fl-more { position: relative; }
-.fl-import summary, .fl-more summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; min-height: 42px; }
-.fl-import summary::-webkit-details-marker, .fl-more summary::-webkit-details-marker { display: none; }
-.fl-pop { position: absolute; inset-inline-end: 0; top: calc(100% + 6px); z-index: 50; width: min(320px, 86vw); display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #fff; border: 1px solid var(--bs-line, #e8ecf4); border-radius: 12px; box-shadow: var(--shadow-md); }
-.fl-pop p { margin: 0; font-size: .78rem; color: var(--muted, #6b7488); }
-.fl-pop .btn { width: 100%; justify-content: center; }
-.fl-tabs { display: inline-flex; gap: 4px; padding: 4px; background: #eef1f7; border-radius: 12px; }
-.fl-tabs button { border: 0; background: transparent; padding: 7px 14px; border-radius: 9px; font-size: .84rem; font-weight: 600; color: var(--ink-2); cursor: pointer; min-height: 36px; }
-.fl-tabs button b { font-weight: 700; opacity: .65; margin-inline-start: 4px; }
-.fl-tabs button.is-on { background: #fff; color: var(--primary); box-shadow: var(--shadow-xs); }
-.fl-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
-.fl-card { display: flex; flex-direction: column; gap: 12px; padding: 18px; background: #fff; border: 1px solid var(--bs-line, #e8ecf4); border-radius: 16px; box-shadow: var(--shadow-xs); border-block-start: 3px solid #d5dbe8; min-width: 0; transition: box-shadow .15s; }
-.fl-card:hover { box-shadow: var(--shadow-md); }
-.fl-card.is-live { border-block-start-color: #2fc783; }
-.fl-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.fl-name { font-size: 1.05rem; font-weight: 700; color: var(--ink); text-decoration: none; overflow-wrap: anywhere; } .fl-name:hover { color: var(--primary); }
-.fl-meta { margin: 0; display: flex; flex-direction: column; gap: 6px; font-size: .8rem; }
-.fl-meta > div { display: flex; gap: 8px; } .fl-meta dt { color: var(--faint); flex: 0 0 64px; } .fl-meta dd { margin: 0; color: var(--ink-2); min-width: 0; overflow-wrap: anywhere; }
-.fl-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: auto; padding-top: 4px; }
-.fl-actions > .btn { flex: 1 1 auto; justify-content: center; text-align: center; }
-.fl-templates { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
-.fl-create { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 14px; background: #fff; border: 1px solid var(--bs-line, #e8ecf4); border-radius: 14px; margin-block-start: 4px; }
-.fl-check { display: flex; align-items: center; gap: 8px; font-size: .84rem; white-space: nowrap; }
-@media (max-width: 860px) { .fl-create { grid-template-columns: 1fr 1fr; } .fl-create .btn { grid-column: 1 / -1; } }
-@media (max-width: 560px) {
-  .fl { gap: 20px; } .fl-hero { padding: 16px; } .fl-hero h1 { font-size: 1.3rem; } .fl-hero .btn { width: 100%; justify-content: center; }
-  .fl-select { flex: 1 1 100%; } .fl-import { flex: 1 1 100%; } .fl-import summary { width: 100%; } .fl-tabs { width: 100%; } .fl-tabs button { flex: 1; padding-inline: 6px; }
-  .fl-grid, .fl-templates { grid-template-columns: 1fr; } .fl-create { grid-template-columns: 1fr; position: static; }
-  .fl-pop { inset-inline: auto 0; }
-}
-
-/* Stage 3 fixes: popovers stay on-screen, create bar no longer sticky */
-.fl-card:has(details[open]), .fl-toolbar:has(details[open]) { position: relative; z-index: 20; }
-.fl-grid { padding-block-end: 8px; }
-@media (max-width: 700px) {
-  .fl-pop { position: fixed; inset-inline: 12px; inset-block-end: 12px; inset-block-start: auto; width: auto; max-height: 70dvh; overflow-y: auto; z-index: 120; box-shadow: var(--shadow-lg); }
-  .fl-more[open]::before, .fl-import[open]::before { content: ''; position: fixed; inset: 0; background: rgb(10 18 36 / 35%); z-index: 110; }
-  .fl-more[open] > summary, .fl-import[open] > summary { position: relative; z-index: 111; }
 }
 
 /* ───────────── 102. Stage 4 — Getting started (/dashboard/onboarding) ───────────── */

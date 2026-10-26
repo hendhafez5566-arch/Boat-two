@@ -9,7 +9,6 @@ import ReactFlow, {
   Background,
   Connection,
   ConnectionLineType,
-  Controls,
   MiniMap,
   Panel,
   MarkerType,
@@ -24,10 +23,23 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { useLocale } from '../../../../components/product/locale';
 import { Dialog } from '../../../../components/product/ProductUI';
+import BlockPalette from '../../../../components/flow/BlockPalette';
+import ReferenceNode from '../../../../components/flow/ReferenceNode';
+import { deriveFlowReference } from '../../../../lib/flow-reference';
+import { channelHref, selectedChannel } from '../../../../lib/channel-context';
+import styles from '../../../../components/flow/editor-shell.module.css';
 import { NavIcon } from '../../../../components/product/NavIcon';
 import { NodeIcon, nodeLabel } from '../../../../components/flow/presentation';
 import FlowNodeView from '../../../../components/flow/FlowNodeView';
-import { FlowAnalyticsContext, ButtonStats, FlowButtonStatsContext, FlowSequencesContext, FlowStatsContext, NodeStats, SeqInfo } from '../../../../components/flow/stats-context';
+import {
+  FlowAnalyticsContext,
+  ButtonStats,
+  FlowButtonStatsContext,
+  FlowSequencesContext,
+  FlowStatsContext,
+  NodeStats,
+  SeqInfo,
+} from '../../../../components/flow/stats-context';
 import FlowEdge, { ButtonLinkEdge } from '../../../../components/flow/FlowEdge';
 import FlowButtonNode from '../../../../components/flow/FlowButtonNode';
 import { validationMessage } from '../../../../lib/validation-message';
@@ -57,7 +69,11 @@ import {
 import { computeLayout, hasLayoutOverlap, nodeFootprint } from '../../../../lib/flow-layout';
 
 const inp = 'w-full rounded border p-1.5 text-sm';
-const nodeTypes = { flowNode: FlowNodeView, [BUTTON_NODE_TYPE]: FlowButtonNode };
+const nodeTypes = {
+  reference: ReferenceNode,
+  flowNode: FlowNodeView,
+  [BUTTON_NODE_TYPE]: FlowButtonNode,
+};
 const edgeTypes = { smoothstep: FlowEdge, buttonLink: ButtonLinkEdge };
 
 type Issue = { nodeId?: string; message: string };
@@ -67,12 +83,21 @@ function Editor({ id }: { id: string }) {
   const { t, language } = useLocale();
   const [nodeSearch, setNodeSearch] = useState('');
   const [findNode, setFindNode] = useState('');
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [mobilePanel, setMobilePanel] = useState('canvas');
+  const [findOpen, setFindOpen] = useState(false);
+  const [accountContext, setAccountContext] = useState('');
+  useEffect(() => setAccountContext(selectedChannel(window.location.search)), []);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMoreOpen(false);
+    };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [moreOpen]);
   // A preview only counts as tested after the simulator successfully processes a request.
-  const [testedSnapshot, setTestedSnapshot] = useState<string | null>(null);
+  const [, setTestedSnapshot] = useState<string | null>(null);
   const pendingTestSnapshot = useRef('');
   const selRef = useRef<string | null>(null);
   const builderRef = useRef<HTMLDivElement>(null);
@@ -85,7 +110,7 @@ function Editor({ id }: { id: string }) {
   const [zoomPercent, setZoomPercent] = useState(100);
   const [showMap, setShowMap] = useState(false);
   const [analytics, setAnalytics] = useState(false);
-  const reviewViewport = useRef<{x:number;y:number;zoom:number} | null>(null);
+  const reviewViewport = useRef<{ x: number; y: number; zoom: number } | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewActive, setPreviewActive] = useState<string | null>(null);
   const previewActiveRef = useRef<string | null>(null);
@@ -106,7 +131,11 @@ function Editor({ id }: { id: string }) {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [startId, setStartId] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
-  const [choiceSelection, setChoiceSelection] = useState<{parentId:string;id:string;nonce:number}|null>(null);
+  const [choiceSelection, setChoiceSelection] = useState<{
+    parentId: string;
+    id: string;
+    nonce: number;
+  } | null>(null);
   const [tab, setTab] = useState<'node' | 'settings'>('node');
   const [meta, setMeta] = useState<{
     policy?: BotPolicy;
@@ -127,7 +156,9 @@ function Editor({ id }: { id: string }) {
   const [channels, setChannels] = useState<{ id: string; name: string; type: string }[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [warnings, setWarnings] = useState<Issue[]>([]);
-  const [validationState, setValidationState] = useState<'unchecked' | 'checking' | 'current' | 'stale'>('unchecked');
+  const [validationState, setValidationState] = useState<
+    'unchecked' | 'checking' | 'current' | 'stale'
+  >('unchecked');
   const validationSnapshot = useRef('');
   const validationRequest = useRef(0);
   const [dirty, setDirty] = useState(false);
@@ -136,22 +167,41 @@ function Editor({ id }: { id: string }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [confirmPublish, setConfirmPublish] = useState(false);
-  const [publishOutcome, setPublishOutcome] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [publishOutcome, setPublishOutcome] = useState<{
+    kind: 'success' | 'error';
+    text: string;
+  } | null>(null);
   const [updatedAt, setUpdatedAt] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [nodeStats, setNodeStats] = useState<Record<string, NodeStats>>({});
   const [buttonStats, setButtonStats] = useState<Record<string, ButtonStats>>({});
-  const [statsAvailable, setStatsAvailable] = useState({nodes:false,buttons:false});
+  const [statsAvailable, setStatsAvailable] = useState({ nodes: false, buttons: false });
   const [btnDims, setBtnDims] = useState<Record<string, { width: number; height: number }>>({});
   const [seqInfo, setSeqInfo] = useState<Record<string, SeqInfo>>({});
   useEffect(() => {
     let alive = true;
-    api<{ id: string; name: string; status: string; delivery_time?: string | null; timezone?: string }[]>('/sequences')
+    api<
+      {
+        id: string;
+        name: string;
+        status: string;
+        delivery_time?: string | null;
+        timezone?: string;
+      }[]
+    >('/sequences')
       .then((rows) => {
         if (!alive) return;
         setSeqInfo(
           Object.fromEntries(
-            rows.map((s) => [s.id, { name: s.name, status: s.status, deliveryTime: s.delivery_time ?? null, timezone: s.timezone ?? '' }]),
+            rows.map((s) => [
+              s.id,
+              {
+                name: s.name,
+                status: s.status,
+                deliveryTime: s.delivery_time ?? null,
+                timezone: s.timezone ?? '',
+              },
+            ]),
           ),
         );
       })
@@ -165,11 +215,25 @@ function Editor({ id }: { id: string }) {
     const load = () =>
       Promise.all([
         api<Record<string, NodeStats>>(`/flows/${id}/stats`)
-          .then((r) => { if(alive) {setNodeStats(r);setStatsAvailable(s=>({...s,nodes:true}));} })
-          .catch(() => {if(alive)setStatsAvailable(s=>({...s,nodes:false}));}),
+          .then((r) => {
+            if (alive) {
+              setNodeStats(r);
+              setStatsAvailable((s) => ({ ...s, nodes: true }));
+            }
+          })
+          .catch(() => {
+            if (alive) setStatsAvailable((s) => ({ ...s, nodes: false }));
+          }),
         api<Record<string, ButtonStats>>(`/flows/${id}/button-stats`)
-          .then((r) => { if(alive) {setButtonStats(r);setStatsAvailable(s=>({...s,buttons:true}));} })
-          .catch(() => {if(alive)setStatsAvailable(s=>({...s,buttons:false}));}),
+          .then((r) => {
+            if (alive) {
+              setButtonStats(r);
+              setStatsAvailable((s) => ({ ...s, buttons: true }));
+            }
+          })
+          .catch(() => {
+            if (alive) setStatsAvailable((s) => ({ ...s, buttons: false }));
+          }),
       ]);
     load();
     const timer = setInterval(load, 30000);
@@ -191,10 +255,6 @@ function Editor({ id }: { id: string }) {
   const latest = useRef('');
 
   useEffect(() => {
-    setPreviewOpen(window.innerWidth >= 1400);
-  }, []);
-
-  useEffect(() => {
     if (!getSession()) {
       window.location.href = '/login';
       return;
@@ -204,8 +264,13 @@ function Editor({ id }: { id: string }) {
       const g = toFlow(f.draft_graph);
       setUpdatedAt(f.updated_at);
       setLoaded(true);
-      const spots = new Set(g.nodes.map((n) => `${Math.round(n.position.x / 40)},${Math.round(n.position.y / 40)}`));
-      if (g.nodes.length > 1 && (spots.size < g.nodes.length || hasLayoutOverlap(g.nodes, language === 'ar'))) {
+      const spots = new Set(
+        g.nodes.map((n) => `${Math.round(n.position.x / 40)},${Math.round(n.position.y / 40)}`),
+      );
+      if (
+        g.nodes.length > 1 &&
+        (spots.size < g.nodes.length || hasLayoutOverlap(g.nodes, language === 'ar'))
+      ) {
         const pos = computeLayout(g.nodes, g.edges, f.draft_graph.startNodeId, language === 'ar');
         g.nodes = g.nodes.map((n) => ({ ...n, position: pos[n.id] ?? n.position }));
         setDirty(true);
@@ -236,18 +301,23 @@ function Editor({ id }: { id: string }) {
     if (nid === selRef.current) return;
     selRef.current = nid;
     setSelected(nid);
-    if (nid) {
-      setTab('node');
-      setPreviewOpen(false);
-      setInspectorOpen(true);
-    }
   }, []);
 
   // The "+" on a link asks the editor to insert a step in the middle of it.
   useEffect(() => {
     const onInsert = (ev: Event) => {
-      const d = (ev as CustomEvent<{ id: string; source: string; handle: string | null; x: number; y: number }>).detail;
-      const box = (document.querySelector('.builder-canvas') as HTMLElement | null)?.getBoundingClientRect();
+      const d = (
+        ev as CustomEvent<{
+          id: string;
+          source: string;
+          handle: string | null;
+          x: number;
+          y: number;
+        }>
+      ).detail;
+      const box = (
+        document.querySelector('.builder-canvas') as HTMLElement | null
+      )?.getBoundingClientRect();
       if (!box) return;
       setNodeSearch('');
       setDropMenu({
@@ -255,7 +325,9 @@ function Editor({ id }: { id: string }) {
         y: Math.max(8, Math.min(d.y - box.top, box.height - 320)),
         ...(() => {
           const hit = btnIndexRef.current[d.source];
-          return hit ? { source: hit.parentId, handle: `option:${hit.buttonId}` } : { source: d.source, handle: d.handle };
+          return hit
+            ? { source: hit.parentId, handle: `option:${hit.buttonId}` }
+            : { source: d.source, handle: d.handle };
         })(),
         edgeId: d.id,
       });
@@ -266,7 +338,8 @@ function Editor({ id }: { id: string }) {
 
   const issueMap = useMemo(() => {
     const m: Record<string, string> = {};
-    for (const i of [...issues]) if (i.nodeId && !m[i.nodeId]) m[i.nodeId] = validationMessage(i.message, language);
+    for (const i of [...issues])
+      if (i.nodeId && !m[i.nodeId]) m[i.nodeId] = validationMessage(i.message, language);
     return m;
   }, [issues, language]);
 
@@ -274,9 +347,11 @@ function Editor({ id }: { id: string }) {
     duplicate: (id: string) => void;
     remove: (id: string) => void;
     setStart: (id: string) => void;
-  }>({ duplicate: () => {}, remove: () => {}, setStart: () => {} });
+    open: (id: string) => void;
+  }>({ duplicate: () => {}, remove: () => {}, setStart: () => {}, open: () => {} });
   const nodeActions = useMemo(
     () => ({
+      open: (id: string) => actionsRef.current.open(id),
       duplicate: (id: string) => actionsRef.current.duplicate(id),
       remove: (id: string) => actionsRef.current.remove(id),
       setStart: (id: string) => actionsRef.current.setStart(id),
@@ -311,21 +386,67 @@ function Editor({ id }: { id: string }) {
     [nodes, edges, language, btnDims],
   );
   btnIndexRef.current = cards.index;
-  const canvasNodes = useMemo(() => [...display, ...cards.cardNodes], [display, cards.cardNodes]);
+  const reference = useMemo(
+    () => deriveFlowReference(nodes, startId, language === 'ar'),
+    [nodes, startId, language],
+  );
+  const openSettings = () => {
+    setTab('settings');
+    setPreviewOpen(false);
+    setInspectorOpen(true);
+  };
+  const canvasNodes = [
+    ...display,
+    ...cards.cardNodes,
+    ...(reference
+      ? [
+          {
+            id: reference.id,
+            type: 'reference',
+            position: reference.position,
+            draggable: false,
+            deletable: false,
+            selectable: false,
+            connectable: false,
+            data: {
+              summary:
+                meta.triggers
+                  .map((trigger) =>
+                    trigger.type === 'keyword'
+                      ? trigger.keywords.join(' · ')
+                      : trigger.type === 'first_message'
+                        ? t('عند أول رسالة', 'On the first message')
+                        : trigger.type === 'any_message'
+                          ? t('عند أي رسالة', 'On any message')
+                          : trigger.type === 'reply_id'
+                            ? t('عند رد محدد', 'On a specific reply')
+                            : t('عند حدث', 'On an event'),
+                  )
+                  .join(' · ') || t('لم تُضبط البداية', 'No trigger configured'),
+              onOpen: openSettings,
+            },
+          },
+        ]
+      : []),
+  ];
 
   /** A button card's output is really the message's `option:<buttonId>` output. */
-  const toReal = useCallback((source: string | null | undefined, handle: string | null | undefined) => {
-    const hit = source ? btnIndexRef.current[source] : undefined;
-    return hit
-      ? { source: hit.parentId, handle: `option:${hit.buttonId}` as string | null }
-      : { source: source ?? '', handle: handle ?? null };
-  }, []);
+  const toReal = useCallback(
+    (source: string | null | undefined, handle: string | null | undefined) => {
+      const hit = source ? btnIndexRef.current[source] : undefined;
+      return hit
+        ? { source: hit.parentId, handle: `option:${hit.buttonId}` as string | null }
+        : { source: source ?? '', handle: handle ?? null };
+    },
+    [],
+  );
 
   const handleNodesChange = (incoming: NodeChange[]) => {
     const idx = btnIndexRef.current;
-    const changes = incoming.filter((c) => !('id' in c && idx[c.id]));
+    const changes = incoming.filter((c) => !('id' in c && (idx[c.id] || c.id === reference?.id)));
     const moved = incoming.filter(
-      (c): c is Extract<NodeChange, { type: 'position' }> => c.type === 'position' && !!c.position && !!idx[c.id],
+      (c): c is Extract<NodeChange, { type: 'position' }> =>
+        c.type === 'position' && !!c.position && !!idx[c.id],
     );
     if (moved.length)
       setNodes((ns) =>
@@ -334,12 +455,16 @@ function Editor({ id }: { id: string }) {
           if (!mine.length) return n;
           const layout = { ...(n.data.layout ?? {}) };
           for (const c of mine)
-            layout[idx[c.id].buttonId] = { x: c.position!.x - n.position.x, y: c.position!.y - n.position.y };
+            layout[idx[c.id].buttonId] = {
+              x: c.position!.x - n.position.x,
+              y: c.position!.y - n.position.y,
+            };
           return { ...n, data: { ...n.data, layout } };
         }),
       );
     const sized = incoming.filter(
-      (c): c is Extract<NodeChange, { type: 'dimensions' }> => c.type === 'dimensions' && !!c.dimensions && !!idx[c.id],
+      (c): c is Extract<NodeChange, { type: 'dimensions' }> =>
+        c.type === 'dimensions' && !!c.dimensions && !!idx[c.id],
     );
     if (sized.length)
       setBtnDims((prev) => {
@@ -352,11 +477,7 @@ function Editor({ id }: { id: string }) {
         return next;
       });
     onNodesChange(changes);
-    if (
-      incoming.some(
-        (c) => 'id' in c && idx[c.id] && c.type === 'position' && !c.dragging,
-      )
-    )
+    if (incoming.some((c) => 'id' in c && idx[c.id] && c.type === 'position' && !c.dragging))
       setDirty(true);
     if (
       changes.some(
@@ -391,7 +512,9 @@ function Editor({ id }: { id: string }) {
       if (!isValidConnection(raw)) return;
       const r = toReal(raw.source, raw.sourceHandle);
       const c: Connection = { ...raw, source: r.source, sourceHandle: r.handle };
-      const previous = edges.find((e) => e.source === c.source && e.sourceHandle === c.sourceHandle);
+      const previous = edges.find(
+        (e) => e.source === c.source && e.sourceHandle === c.sourceHandle,
+      );
       if (previous && previous.target === c.target) return;
       setEdges((es) =>
         addEdge(
@@ -400,7 +523,13 @@ function Editor({ id }: { id: string }) {
         ),
       );
       if (previous)
-        notify(t('استُبدل التوصيل السابق لهذا المخرج.', 'The previous link from this output was replaced.'), true);
+        notify(
+          t(
+            'استُبدل التوصيل السابق لهذا المخرج.',
+            'The previous link from this output was replaced.',
+          ),
+          true,
+        );
       setDirty(true);
     },
     [setEdges, edges, isValidConnection, toReal],
@@ -413,7 +542,9 @@ function Editor({ id }: { id: string }) {
       const to = toReal(raw.source, raw.sourceHandle);
       if (to.source !== from.source || to.handle !== from.handle || !isValidConnection(raw)) return;
       const c: Connection = { ...raw, source: to.source, sourceHandle: to.handle };
-      setEdges((es) => updateEdge({ ...old, source: from.source, sourceHandle: from.handle }, c, es));
+      setEdges((es) =>
+        updateEdge({ ...old, source: from.source, sourceHandle: from.handle }, c, es),
+      );
       setDirty(true);
     },
     [setEdges, isValidConnection, toReal],
@@ -425,6 +556,7 @@ function Editor({ id }: { id: string }) {
     from?: { source: string; handle: string | null },
     after?: { target: string },
   ) => {
+    if (!loaded) return;
     const nid = `${type}_${uid(4)}`;
     const pos = rf.screenToFlowPosition(
       point ?? {
@@ -432,16 +564,26 @@ function Editor({ id }: { id: string }) {
         y: window.innerHeight / 2 - 100,
       },
     );
-    const candidate: Node<RFData> = {id: nid, position: pos, data: {type, data: NODE_META[type].defaults(), isStart: false}};
+    const candidate: Node<RFData> = {
+      id: nid,
+      position: pos,
+      data: { type, data: NODE_META[type].defaults(), isStart: false },
+    };
     let attempts = 0;
-    while (hasLayoutOverlap([...nodes, candidate], language === 'ar') && attempts++ < nodes.length + 1) {
+    while (
+      hasLayoutOverlap([...nodes, candidate], language === 'ar') &&
+      attempts++ < nodes.length + 1
+    ) {
       // Compare the new card against existing cards without changing user positions.
-      const touching = nodes.some(n => hasLayoutOverlap([n, candidate], language === 'ar'));
+      const touching = nodes.some((n) => hasLayoutOverlap([n, candidate], language === 'ar'));
       if (!touching) break;
       pos.y += 280;
     }
-    if (nodes.some(n => hasLayoutOverlap([n, candidate], language === 'ar'))) {
-      pos.y = Math.max(...nodes.map(n => n.position.y + nodeFootprint(n, language === 'ar', btnDims).bottom)) + 120;
+    if (nodes.some((n) => hasLayoutOverlap([n, candidate], language === 'ar'))) {
+      pos.y =
+        Math.max(
+          ...nodes.map((n) => n.position.y + nodeFootprint(n, language === 'ar', btnDims).bottom),
+        ) + 120;
     }
     setNodes((ns) => [
       ...ns.map((node) => ({ ...node, selected: false })),
@@ -457,7 +599,13 @@ function Editor({ id }: { id: string }) {
       // Same replacement rule as onConnect: one outgoing edge per source handle.
       setEdges((es) =>
         addEdge(
-          { source: from.source, sourceHandle: from.handle, target: nid, targetHandle: null, type: 'smoothstep' },
+          {
+            source: from.source,
+            sourceHandle: from.handle,
+            target: nid,
+            targetHandle: null,
+            type: 'smoothstep',
+          },
           es.filter((e) => !(e.source === from.source && e.sourceHandle === from.handle)),
         ),
       );
@@ -466,7 +614,16 @@ function Editor({ id }: { id: string }) {
       // Inserted on an existing link: new step → the old target keeps the flow intact.
       const out = handlesFor(type, NODE_META[type].defaults())[0]?.id ?? null;
       setEdges((es) =>
-        addEdge({ source: nid, sourceHandle: out, target: after.target, targetHandle: null, type: 'smoothstep' }, es),
+        addEdge(
+          {
+            source: nid,
+            sourceHandle: out,
+            target: after.target,
+            targetHandle: null,
+            type: 'smoothstep',
+          },
+          es,
+        ),
       );
     }
     if (!startId || !nodes.length) setStartId(nid);
@@ -508,7 +665,9 @@ function Editor({ id }: { id: string }) {
     const keep = new Set(chosen.map((n) => n.id));
     clipboard.current = {
       nodes: JSON.parse(JSON.stringify(chosen)),
-      edges: JSON.parse(JSON.stringify(edges.filter((e) => keep.has(e.source) && keep.has(e.target)))),
+      edges: JSON.parse(
+        JSON.stringify(edges.filter((e) => keep.has(e.source) && keep.has(e.target))),
+      ),
     };
     return true;
   };
@@ -535,7 +694,10 @@ function Editor({ id }: { id: string }) {
       })),
     ]);
     // Shift the clipboard so repeated pastes cascade instead of stacking.
-    clip.nodes = clip.nodes.map((n) => ({ ...n, position: { x: n.position.x + 48, y: n.position.y + 48 } }));
+    clip.nodes = clip.nodes.map((n) => ({
+      ...n,
+      position: { x: n.position.x + 48, y: n.position.y + 48 },
+    }));
     if (fresh.length === 1) setSelected(fresh[0].id);
     setDirty(true);
   };
@@ -545,9 +707,9 @@ function Editor({ id }: { id: string }) {
 
   const autoLayout = () => {
     if (!nodes.length) return;
-    const arranged = nodes.map(n => ({...n, data: {...n.data, layout: undefined}}));
+    const arranged = nodes.map((n) => ({ ...n, data: { ...n.data, layout: undefined } }));
     const pos = computeLayout(arranged, edges, startId, language === 'ar', btnDims);
-    setNodes(arranged.map(n => ({ ...n, position: pos[n.id] ?? n.position })));
+    setNodes(arranged.map((n) => ({ ...n, position: pos[n.id] ?? n.position })));
     setDirty(true);
     setTimeout(() => rf.fitView({ padding: 0.25, maxZoom: 1, duration: 300 }), 50);
   };
@@ -562,29 +724,57 @@ function Editor({ id }: { id: string }) {
     rf.fitView({ nodes: [{ id: nid }], padding: 1.2, maxZoom: 1.1, duration: 300 });
   };
 
-  const openReview = () => { reviewViewport.current = rf.getViewport(); setInspectorOpen(false); setPreviewOpen(true); setMobilePanel('preview'); };
-  const closeReview = () => { setPreviewOpen(false); setMobilePanel('canvas'); setInspectorOpen(!!selRef.current); if (reviewViewport.current) void rf.setViewport(reviewViewport.current); };
+  const openReview = () => {
+    reviewViewport.current = rf.getViewport();
+    setInspectorOpen(false);
+    setPreviewOpen(true);
+  };
+  const closeReview = () => {
+    setPreviewOpen(false);
+    setInspectorOpen(false);
+    if (reviewViewport.current) void rf.setViewport(reviewViewport.current);
+  };
 
-  const renderStepAction = (handle: string, title: string) => sel ? <StepActions
-    key={`${sel.id}:${handle}`}
-    title={title}
-    target={edges.find(e => e.source === sel.id && e.sourceHandle === handle)?.target}
-    steps={nodes.filter(n => n.id !== sel.id).map(n => ({ id: n.id, type: n.data.type, text: String(n.data.data?.text || n.data.data?.message || n.data.note || '').slice(0, 60) }))}
-    onCreate={type => addNode(type, undefined, { source: sel.id, handle })}
-    onOpen={id => { setSelected(id); selRef.current = id; setNodes(ns => ns.map(n => ({ ...n, selected: n.id === id }))); }}
-    onConnect={target => { if (target) onConnect({ source: sel.id, sourceHandle: handle, target, targetHandle: null }); else { setEdges(es => es.filter(e => e.source !== sel.id || e.sourceHandle !== handle)); setDirty(true); } }}
-  /> : null;
+  const renderStepAction = (handle: string, title: string) =>
+    sel ? (
+      <StepActions
+        key={`${sel.id}:${handle}`}
+        title={title}
+        target={edges.find((e) => e.source === sel.id && e.sourceHandle === handle)?.target}
+        steps={nodes
+          .filter((n) => n.id !== sel.id)
+          .map((n) => ({
+            id: n.id,
+            type: n.data.type,
+            text: String(n.data.data?.text || n.data.data?.message || n.data.note || '').slice(
+              0,
+              60,
+            ),
+          }))}
+        onCreate={(type) => addNode(type, undefined, { source: sel.id, handle })}
+        onOpen={(id) => {
+          setSelected(id);
+          selRef.current = id;
+          setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === id })));
+        }}
+        onConnect={(target) => {
+          if (target)
+            onConnect({ source: sel.id, sourceHandle: handle, target, targetHandle: null });
+          else {
+            setEdges((es) => es.filter((e) => e.source !== sel.id || e.sourceHandle !== handle));
+            setDirty(true);
+          }
+        }}
+      />
+    ) : null;
 
-  useEffect(() => {
-    if (!inspectorOpen) return;
-    const escape = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('[aria-modal="true"]')) { setInspectorOpen(false); setMobilePanel('canvas'); } };
-    window.addEventListener('keydown', escape);
-    return () => window.removeEventListener('keydown', escape);
-  }, [inspectorOpen]);
-
-  const graph = () => ({ ...fromFlow(nodes, edges, startId), ...(meta.policy ? { policy: meta.policy } : {}) });
+  const graph = () => ({
+    ...fromFlow(nodes, edges, startId),
+    ...(meta.policy ? { policy: meta.policy } : {}),
+  });
 
   actionsRef.current = {
+    open: focusNode,
     duplicate: duplicateNode,
     remove: deleteNode,
     setStart: (nid: string) => {
@@ -596,7 +786,13 @@ function Editor({ id }: { id: string }) {
   useEffect(() => {
     const keys = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
-      if (el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable)) return;
+      if (
+        el &&
+        (el.closest('dialog[open]') ||
+          /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) ||
+          el.isContentEditable)
+      )
+        return;
       if (!(e.ctrlKey || e.metaKey)) return;
       const k = e.key.toLowerCase();
       if (k === 'c') {
@@ -645,7 +841,14 @@ function Editor({ id }: { id: string }) {
       savedContent.current = submitted;
       if (latest.current === submitted) setDirty(false);
       setSaveState('saved');
-      setMsg(latest.current === submitted ? t('تم الحفظ', 'All changes saved') : t('تم حفظ النسخة السابقة؛ توجد تعديلات أحدث غير محفوظة', 'Previous version saved; newer changes remain unsaved'));
+      setMsg(
+        latest.current === submitted
+          ? t('تم الحفظ', 'All changes saved')
+          : t(
+              'تم حفظ النسخة السابقة؛ توجد تعديلات أحدث غير محفوظة',
+              'Previous version saved; newer changes remain unsaved',
+            ),
+      );
       return result.updated_at;
     } catch (e: any) {
       setSaveState('error');
@@ -668,7 +871,10 @@ function Editor({ id }: { id: string }) {
   useEffect(() => {
     if (validationSnapshot.current && validationSnapshot.current !== content) {
       validationRequest.current++;
-      setIssues([]); setWarnings([]); setValidationState('stale'); setMsg('');
+      setIssues([]);
+      setWarnings([]);
+      setValidationState('stale');
+      setMsg('');
     }
   }, [content]);
   useEffect(() => {
@@ -752,7 +958,8 @@ function Editor({ id }: { id: string }) {
   }
 
   const check = async () => {
-    const submitted = latest.current, request = ++validationRequest.current;
+    const submitted = latest.current,
+      request = ++validationRequest.current;
     validationSnapshot.current = submitted;
     setValidationState('checking');
     try {
@@ -766,9 +973,14 @@ function Editor({ id }: { id: string }) {
       setWarnings(r.warnings);
       setMsg(
         `${r.errors.length} ${t('أخطاء', 'errors')}، ${r.warnings.length} ${t('تحذيرات', 'warnings')}` +
-        (!r.errors.length && r.warnings.length ? t(' — اجتاز الفحص مع تحذيرات؛ راجع الخطوات التي تحتاج انتباهًا.', ' — Passed with warnings; review the affected steps.') : ''),
+          (!r.errors.length && r.warnings.length
+            ? t(
+                ' — اجتاز الفحص مع تحذيرات؛ راجع الخطوات التي تحتاج انتباهًا.',
+                ' — Passed with warnings; review the affected steps.',
+              )
+            : ''),
       );
-    } catch (e: any) {
+    } catch {
       if (request !== validationRequest.current || latest.current !== submitted) return;
       setValidationState('unchecked');
       setMsg(t('تعذر إكمال الفحص. أعد المحاولة.', 'Validation could not finish. Try again.'));
@@ -782,7 +994,10 @@ function Editor({ id }: { id: string }) {
       const savedAt = await save();
       draftSaved = true;
       if (submitted !== latest.current) {
-        const notice = t('توجد تعديلات أحدث. احفظها وأعد الفحص قبل النشر.', 'Newer edits exist. Save and check again before publishing.');
+        const notice = t(
+          'توجد تعديلات أحدث. احفظها وأعد الفحص قبل النشر.',
+          'Newer edits exist. Save and check again before publishing.',
+        );
         setMsg(notice);
         setPublishOutcome({ kind: 'error', text: notice });
         return;
@@ -794,17 +1009,26 @@ function Editor({ id }: { id: string }) {
       });
       setMeta((m) => ({ ...m, status: 'published', version: r.version }));
       setIssues([]);
-      setWarnings(latest.current === submitted ? r.warnings ?? [] : []);
+      setWarnings(latest.current === submitted ? (r.warnings ?? []) : []);
       setValidationState(latest.current === submitted ? 'current' : 'stale');
       setMsg(`${t('تم النشر', 'Published')} v${r.version}`);
-      setPublishOutcome({ kind: 'success', text: `${t('تم نشر نسخة البوت', 'Bot version published')} v${r.version}. ${t('تأكد من تفعيل القناة قبل استقبال محادثات العملاء.', 'Make sure a channel is active before expecting live customer conversations.')}` });
+      setPublishOutcome({
+        kind: 'success',
+        text: `${t('تم نشر نسخة البوت', 'Bot version published')} v${r.version}. ${t('تأكد من تفعيل القناة قبل استقبال محادثات العملاء.', 'Make sure a channel is active before expecting live customer conversations.')}`,
+      });
     } catch (e: any) {
       if (latest.current === submitted && e.details?.errors) {
         setValidationState('current');
         setIssues(e.details.errors);
         setWarnings(e.details.warnings ?? []);
         setMsg(t('لا يمكن النشر: صحّح الأخطاء', 'Fix validation errors before publishing'));
-        setPublishOutcome({ kind: 'error', text: t('لم يتم النشر: في البوت أخطاء يجب إصلاحها أولًا. اضغط على اسم الخطوة للوصول إليها.', 'Not published: fix the errors listed below first. Tap a step name to jump to it.') });
+        setPublishOutcome({
+          kind: 'error',
+          text: t(
+            'لم يتم النشر: في البوت أخطاء يجب إصلاحها أولًا. اضغط على اسم الخطوة للوصول إليها.',
+            'Not published: fix the errors listed below first. Tap a step name to jump to it.',
+          ),
+        });
       } else if (!draftSaved) {
         setPublishOutcome({
           kind: 'error',
@@ -887,260 +1111,288 @@ function Editor({ id }: { id: string }) {
     const pending = [sel.id];
     while (pending.length) {
       const target = pending.pop()!;
-      for (const edge of edges) if (edge.target === target && edge.source !== sel.id && !upstream.has(edge.source)) { upstream.add(edge.source); pending.push(edge.source); }
+      for (const edge of edges)
+        if (edge.target === target && edge.source !== sel.id && !upstream.has(edge.source)) {
+          upstream.add(edge.source);
+          pending.push(edge.source);
+        }
     }
   }
-  const conditionVariables = nodes.filter((n) => upstream.has(n.id)).flatMap<ConditionVariable>((n) => {
-    const d = n.data.data;
-    const label = `${nodeLabel(n.data.type, language)} — ${String(d.text || n.data.note || '').slice(0, 40)}`;
-    if (d.saveReplyAs && optionsOf(d).length) return [
-      { key: d.saveReplyAs, label: `${label}: ${t('عنوان الاختيار (يتغير عند التسمية)', 'Choice title (changes when renamed)')}`, values: optionsOf(d).map((o) => ({ value: o.title, label: o.title })) },
-      { key: `${d.saveReplyAs}_id`, label: `${label}: ${t('معرّف الاختيار الثابت — موصى به', 'Stable choice ID — recommended')}`, values: optionsOf(d).map((o) => ({ value: o.id, label: o.title })) },
-    ];
-    const keys = [typeof d.saveAs === 'string' ? d.saveAs : '', d.saveAnswerAs, ...(d.assignments ?? []).map((a: any) => a.name), ...(d.questions ?? []).map((q: any) => q.saveAs)].filter(Boolean);
-    return keys.map((key: string) => ({ key, label: `${label}: ${key}` }));
-  }).filter((v, i, all) => all.findIndex((x) => x.key === v.key) === i);
+  const conditionVariables = nodes
+    .filter((n) => upstream.has(n.id))
+    .flatMap<ConditionVariable>((n) => {
+      const d = n.data.data;
+      const label = `${nodeLabel(n.data.type, language)} — ${String(d.text || n.data.note || '').slice(0, 40)}`;
+      if (d.saveReplyAs && optionsOf(d).length)
+        return [
+          {
+            key: d.saveReplyAs,
+            label: `${label}: ${t('عنوان الاختيار (يتغير عند التسمية)', 'Choice title (changes when renamed)')}`,
+            values: optionsOf(d).map((o) => ({ value: o.title, label: o.title })),
+          },
+          {
+            key: `${d.saveReplyAs}_id`,
+            label: `${label}: ${t('معرّف الاختيار الثابت — موصى به', 'Stable choice ID — recommended')}`,
+            values: optionsOf(d).map((o) => ({ value: o.id, label: o.title })),
+          },
+        ];
+      const keys = [
+        typeof d.saveAs === 'string' ? d.saveAs : '',
+        d.saveAnswerAs,
+        ...(d.assignments ?? []).map((a: any) => a.name),
+        ...(d.questions ?? []).map((q: any) => q.saveAs),
+      ].filter(Boolean);
+      return keys.map((key: string) => ({ key, label: `${label}: ${key}` }));
+    })
+    .filter((v, i, all) => all.findIndex((x) => x.key === v.key) === i);
   const stepCaption = (nid: string) => {
-    const index = nodes.findIndex((n) => n.id === nid), node = nodes[index];
+    const index = nodes.findIndex((n) => n.id === nid),
+      node = nodes[index];
     if (!node) return t('خطوة غير موجودة', 'Missing step');
     const excerpt = String(node.data.data?.text || node.data.note || '').slice(0, 55);
     return `${nodeLabel(node.data.type, language)} ${index + 1}${excerpt ? ` — ${excerpt}` : ''}`;
   };
-  const triggerLabel = (x: Trigger) =>
-    x.type === 'keyword'
-      ? `${t('كلمة', 'Keyword')}: ${x.keywords.slice(0, 3).join('، ') || '—'}`
-      : x.type === 'event'
-        ? x.event
-        : x.type === 'first_message'
-          ? t('أول رسالة في المحادثة', 'First message')
-          : x.type === 'any_message'
-            ? t('أي رسالة', 'Any message')
-            : t('ضغط زر/قائمة', 'Button or list reply');
   const stepItems = (onPick: (type: NodeType) => void) =>
     NODE_GROUPS.map((group) => {
-      const types = group.types.filter((type) => nodeLabel(type, language).toLowerCase().includes(nodeSearch.toLowerCase()));
-      return types.length ? <section key={group.id} role="group" aria-label={t(group.ar, group.en)}>
-        <h3 className="px-3 py-2 text-xs font-semibold">{t(group.ar, group.en)}</h3>
-        {types.map((type) => <button type="button" role="menuitem" key={type} className="add-step-item" draggable
-          onDragStart={(e) => { e.dataTransfer.setData('application/boat-node', type); e.dataTransfer.effectAllowed = 'move'; }}
-          onClick={() => onPick(type)}>
-          <span className="add-step-icon" style={{ background: NODE_META[type].color }}><NodeIcon type={type} /></span>
-          <span>{nodeLabel(type, language)}<small className="smart-step-hint">{t(...STEP_GUIDANCE[type])}</small></span>
-        </button>)}
-      </section> : null;
+      const types = group.types.filter((type) =>
+        nodeLabel(type, language).toLowerCase().includes(nodeSearch.toLowerCase()),
+      );
+      return types.length ? (
+        <section key={group.id} role="group" aria-label={t(group.ar, group.en)}>
+          <h3 className="px-3 py-2 text-xs font-semibold">{t(group.ar, group.en)}</h3>
+          {types.map((type) => (
+            <button
+              type="button"
+              role="menuitem"
+              key={type}
+              className="add-step-item"
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData('application/boat-node', type);
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+              onClick={() => onPick(type)}
+            >
+              <span className="add-step-icon" style={{ background: NODE_META[type].color }}>
+                <NodeIcon type={type} />
+              </span>
+              <span>
+                {nodeLabel(type, language)}
+                <small className="smart-step-hint">{t(...STEP_GUIDANCE[type])}</small>
+              </span>
+            </button>
+          ))}
+        </section>
+      ) : null;
     });
-  const quickTypes: [NodeType, string, string][] = [
-    ['message', 'رسالة', 'Message'],
-    ['question', 'سؤال', 'Question'],
-    ['condition', 'شرط', 'Condition'],
-    ['interactive', 'أزرار', 'Buttons'],
-  ];
-  const quickAdd = (cls: string) => (
-    <div className={cls} role="group" aria-label={t('إضافة سريعة', 'Quick add')}>
-      {quickTypes.filter(([type]) => Object.hasOwn(NODE_META, type)).map(([type, ar, en]) => (
-        <button type="button" key={type} className="quick-add-btn" onClick={() => addNode(type)}>
-          <span className="quick-add-icon" style={{ background: NODE_META[type].color }}><NodeIcon type={type} /></span>
-          <span>+ {t(ar, en)}</span>
-        </button>
-      ))}
-    </div>
-  );
   const setTriggers = (triggers: Trigger[]) => {
     setMeta((m) => ({ ...m, triggers }));
     setDirty(true);
   };
 
   return (
-    <div ref={builderRef} data-focus={focused} className="premium-builder flex flex-col">
-      <header className="builder-toolbar">
-        <a href={`/dashboard/flows/${id}/workspace`} className="btn">{t('مساحة البوت', 'Bot workspace')}</a>
-        <a href="/dashboard/flows" className="underline">
-          {t('السيناريوهات', 'Bots')} /
+    <div
+      ref={builderRef}
+      data-focus={focused}
+      className={`premium-builder ${styles.editor}`}
+      dir={language === 'ar' ? 'rtl' : 'ltr'}
+    >
+      <header className={styles.toolbar} aria-label={t('أدوات مصمم البوت', 'Flow editor toolbar')}>
+        <a
+          className={styles.toolButton}
+          href={channelHref('/dashboard/flows', accountContext)}
+          title={t('رجوع لمدير البوت', 'Back to Bot Manager')}
+          aria-label={t('رجوع لمدير البوت', 'Back to Bot Manager')}
+        >
+          <NavIcon name="undo" />
         </a>
         <input
-          aria-label={t('اسم البوت', 'Bot name')}
-          className="builder-title"
+          className={styles.title}
+          disabled={!loaded}
+          aria-label={t('اسم التدفق', 'Flow name')}
           value={meta.name}
-          onChange={(e) => {
-            setMeta({ ...meta, name: e.target.value });
+          onChange={(event) => {
+            setMeta({ ...meta, name: event.target.value });
             setDirty(true);
           }}
         />
+        {meta.channelIds.length === 1 && (
+          <span className={styles.channelBadge}>
+            {channels.find((channel) => channel.id === meta.channelIds[0])?.name ??
+              t('حساب مرتبط', 'Linked account')}
+          </span>
+        )}
         <span
-          className={`rounded px-2 py-0.5 text-xs ${meta.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100'}`}
+          className={styles.saveState}
+          data-state={saveState === 'error' ? 'error' : dirty ? 'dirty' : 'saved'}
+          role="status"
+          aria-live="polite"
         >
-          {meta.status === 'published'
-            ? `${t('منشور', 'Published')} v${meta.version}`
-            : t('مسودة', 'Draft')}
-        </span>
-        <span className="save-chip" data-state={!loaded ? 'loading' : saveState === 'saving' ? 'saving' : saveState === 'error' ? 'error' : dirty ? 'dirty' : 'saved'} role="status" aria-live="polite">
-          <i aria-hidden="true" />
-          {!loaded ? t('جارٍ تحميل المسودة…', 'Loading draft…') : saveState === 'saving' ? t('جارٍ الحفظ…', 'Saving…') : saveState === 'error' ? t('فشل الحفظ', 'Save failed') : dirty ? t('تغييرات غير محفوظة', 'Unsaved changes') : t('محفوظ', 'Saved')}
-        </span>
-        {saveState === 'error' && loaded && <button type="button" className="save-retry" disabled={busy} onClick={() => save().catch(() => {})}>{t('إعادة المحاولة', 'Retry')}</button>}
-        {validationState === 'stale' && <span role="status">{t('تغيرت المسودة — أعد فحص البوت', 'Draft changed — run validation again')}</span>}
-        {validationState === 'checking' && <span role="status">{t('جارٍ فحص النسخة الحالية…', 'Checking current draft…')}</span>}
-        <UnsavedChangesGuard dirty={dirty} save={async () => {
-          await save();
-          return savedContent.current === latest.current;
-        }} />
-        <span className="builder-save-status" role="status">
-          {msg}
+          {!loaded
+            ? t('جارٍ التحميل…', 'Loading…')
+            : saveState === 'saving'
+              ? t('جارٍ الحفظ…', 'Saving…')
+              : saveState === 'error'
+                ? t('فشل الحفظ', 'Save failed')
+                : dirty
+                  ? t('غير محفوظ', 'Unsaved')
+                  : t('محفوظ', 'Saved')}
         </span>
         <button
-          title={t('تراجع عن آخر تعديل', 'Undo last change')}
-          disabled={busy || cursor.current <= 0}
-          onClick={() => travel(-1)}
-          className="rounded border px-2 py-1"
+          type="button"
+          className={styles.toolButton}
+          onClick={autoLayout}
+          title={t('ترتيب العقد', 'Rearrange')}
+          aria-label={t('ترتيب العقد', 'Rearrange')}
         >
-          <NavIcon name="undo" /> <span className="tb-label">{t('تراجع', 'Undo')}</span>
-        </button>
-        <button
-          title={t('إعادة التعديل', 'Redo change')}
-          disabled={busy || cursor.current >= history.current.length - 1}
-          onClick={() => travel(1)}
-          className="rounded border px-2 py-1"
-        >
-          <NavIcon name="redo" /> <span className="tb-label">{t('إعادة', 'Redo')}</span>
+          <NavIcon name="flows" />
         </button>
         <button
           type="button"
+          className={styles.toolButton}
           aria-pressed={previewOpen}
           onClick={() => {
-            if (previewOpen) closeReview(); else openReview();
+            if (previewOpen) closeReview();
+            else openReview();
           }}
-          className="rounded border px-2 py-1 builder-preview-toggle"
+          title={t('تجربة البوت', 'Preview')}
+          aria-label={t('تجربة البوت', 'Preview')}
         >
-          {t('معاينة', 'Preview')}
+          <NavIcon name="play" />
         </button>
-        <button disabled={busy} onClick={() => save().catch(() => {})} className="rounded border px-3 py-1 tb-save" title={t('يحفظ المسودة فقط — لا يغيّر البوت المنشور للعملاء', 'Saves the draft only — the live bot is not changed')}>
-          {t('حفظ المسودة', 'Save draft')}
+        <button
+          type="button"
+          className={styles.toolButton}
+          onClick={openSettings}
+          title={t('إعداد البداية والقنوات', 'Reference and channels')}
+          aria-label={t('إعداد البداية والقنوات', 'Reference and channels')}
+        >
+          <NavIcon name="settings" />
         </button>
-        <button disabled={busy} onClick={() => { setPublishOutcome(null); setConfirmPublish(true); }} className="btn btn-primary tb-publish" title={t('يحفظ ويفحص ثم يجعل هذه النسخة هي التي يراها العملاء', 'Saves, checks, then makes this version live for customers')}>
-          {meta.status === 'published' ? t('نشر التحديث', 'Publish update') : t('نشر', 'Publish')}
+        <button
+          type="button"
+          className={styles.saveButton}
+          disabled={!loaded || busy}
+          onClick={() => save().catch(() => {})}
+        >
+          {t('حفظ', 'Save')}
         </button>
-        <div className="tb-more">
+        <div className={styles.more}>
           <button
             type="button"
-            className="tb-more-btn"
-            aria-haspopup="menu"
+            className={styles.toolButton}
+            aria-label={t('المزيد من الأدوات', 'More tools')}
             aria-expanded={moreOpen}
-            aria-label={t('المزيد', 'More')}
             onClick={() => setMoreOpen(!moreOpen)}
           >
-            ⋯
+            <NavIcon name="more" />
           </button>
           {moreOpen && (
             <>
-              <div className="tb-more-scrim" onClick={() => setMoreOpen(false)} />
-              <div className="tb-more-menu" role="menu" onClick={() => setMoreOpen(false)}>
-        <button type="button" aria-pressed={analytics} onClick={() => setAnalytics(!analytics)} className="rounded border px-2 py-1">
-          {analytics ? t('العودة للبناء', 'Back to building') : t('عرض الأداء', 'Show analytics')}
-        </button>
-        <button type="button" onClick={autoLayout} className="rounded border px-2 py-1">
-          {t('تنظيم التدفق', 'Arrange flow')}
-        </button>
-        <button type="button" aria-pressed={showMap} onClick={() => setShowMap(!showMap)} className="rounded border px-2 py-1">
-          {t('الخريطة', 'Minimap')}
-        </button>
-        <button type="button" aria-pressed={focused} className="rounded border px-2 py-1" onClick={async () => {
-          try { if (document.fullscreenElement) await document.exitFullscreen(); else await builderRef.current?.requestFullscreen(); }
-          catch { setMsg(t('تعذّر فتح وضع التركيز في هذا المتصفح.', 'Focus mode is unavailable in this browser.')); }
-        }}>{focused ? t('إنهاء التركيز', 'Exit focus') : t('وضع التركيز', 'Focus mode')}</button>
-        <label className="text-xs flex gap-1">
-          <input
-            type="checkbox"
-            checked={autoSave}
-            onChange={(e) => setAutoSave(e.target.checked)}
-          />
-          {t('حفظ تلقائي', 'Autosave')}
-        </label>
-        <button disabled={busy} onClick={loadVersions} className="rounded border px-2 py-1">
-          {t('الإصدارات', 'Versions')}
-        </button>
-        <button onClick={check} className="rounded border px-3 py-1">
-          {t('فحص', 'Validate')}
-        </button>
-        {meta.status === 'published' && (
-          <button onClick={unpublish} className="rounded border px-3 py-1">
-            {t('إيقاف النشر', 'Unpublish')}
-          </button>
-        )}
+              <button
+                type="button"
+                className={styles.menuScrim}
+                aria-label={t('إغلاق قائمة الأدوات', 'Close tools menu')}
+                onClick={() => setMoreOpen(false)}
+              />
+              <div className={styles.toolsMenu} onClick={() => setMoreOpen(false)}>
+                <button
+                  type="button"
+                  disabled={busy || cursor.current <= 0}
+                  onClick={() => travel(-1)}
+                >
+                  {t('تراجع', 'Undo')} <kbd>Ctrl Z</kbd>
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || cursor.current >= history.current.length - 1}
+                  onClick={() => travel(1)}
+                >
+                  {t('إعادة', 'Redo')} <kbd>Ctrl Y</kbd>
+                </button>
+                <button type="button" onClick={() => setFindOpen(!findOpen)}>
+                  {t('البحث في العقد', 'Find a step')}
+                </button>
+                <button type="button" aria-pressed={showMap} onClick={() => setShowMap(!showMap)}>
+                  {t('الخريطة المصغرة', 'Minimap')}
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={analytics}
+                  onClick={() => setAnalytics(!analytics)}
+                >
+                  {analytics
+                    ? t('العودة للبناء', 'Back to building')
+                    : t('عرض الأداء', 'Show analytics')}
+                </button>
+                <button type="button" onClick={check}>
+                  {t('فحص التدفق', 'Validate flow')}
+                </button>
+                <button type="button" disabled={busy} onClick={loadVersions}>
+                  {t('الإصدارات المنشورة', 'Published versions')}
+                </button>
+                <label onClick={(event) => event.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={autoSave}
+                    onChange={(event) => setAutoSave(event.target.checked)}
+                  />
+                  {t('حفظ تلقائي للمسودة', 'Autosave draft')}
+                </label>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      if (document.fullscreenElement) await document.exitFullscreen();
+                      else await builderRef.current?.requestFullscreen();
+                    } catch {
+                      setMsg(t('تعذّر فتح وضع التركيز.', 'Focus mode is unavailable.'));
+                    }
+                  }}
+                >
+                  {focused ? t('إنهاء التركيز', 'Exit focus') : t('ملء الشاشة', 'Full screen')}
+                </button>
+                <a href={channelHref(`/dashboard/flows/${id}/workspace`, accountContext)}>
+                  {t('تفاصيل التدفق', 'Flow details')}
+                </a>
+                {meta.status === 'published' && (
+                  <button type="button" disabled={busy} onClick={unpublish}>
+                    {t('إيقاف النشر', 'Unpublish')}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={styles.publishButton}
+                  disabled={!loaded || busy}
+                  onClick={() => {
+                    setPublishOutcome(null);
+                    setConfirmPublish(true);
+                  }}
+                >
+                  {meta.status === 'published'
+                    ? t('نشر التحديث', 'Publish update')
+                    : t('نشر البوت', 'Publish bot')}
+                </button>
               </div>
             </>
           )}
         </div>
       </header>
-
-      <nav className="bot-tabs" aria-label={t('أقسام البوت', 'Bot sections')}>
-        <a className="bot-tab is-active" aria-current="page" href={`/dashboard/flows/${id}`}>
-          {t('الأتمتة', 'Automation')}
-        </a>
-        <a className="bot-tab" href="/dashboard/crm">
-          {t('العملاء', 'Contacts')}
-        </a>
-        <a className="bot-tab" href="/dashboard/inbox">
-          {t('المحادثات', 'Live chat')}
-        </a>
-        <a className="bot-tab" href="/dashboard/campaigns">
-          {t('البث', 'Broadcasting')}
-        </a>
-        <button
-          type="button"
-          className="bot-tab"
-          onClick={() => {
-            setTab('settings');
-            setPreviewOpen(false);
-            setInspectorOpen(true);
-          }}
-        >
-          {t('مشغّلات وقنوات البوت', 'Bot triggers and channels')}
-        </button>
-          <button
-            type="button"
-            className="bot-tab trigger-summary"
-            onClick={() => {
-              setTab('settings');
-              setPreviewOpen(false);
-              setInspectorOpen(true);
-            }}
-          >
-            <span className="font-semibold">{t('البداية', 'Start')}</span>
-            <strong className="sr-only">{t('متى يبدأ البوت؟', 'When does the bot start?')}</strong>
-            <span className="text-xs">
-              {meta.triggers.length
-                ? meta.triggers.slice(0, 3).map((x, i) => <span key={i}>{triggerLabel(x)}</span>)
-                : t('لم يُضبط مشغّل بعد', 'No trigger yet')}
-            </span>
+      <UnsavedChangesGuard
+        dirty={dirty}
+        save={async () => {
+          await save();
+          return savedContent.current === latest.current;
+        }}
+      />
+      {msg && (
+        <p className={styles.feedback} role="status">
+          {msg}
+          <button type="button" aria-label={t('إغلاق', 'Close')} onClick={() => setMsg('')}>
+            ×
           </button>
-      </nav>
-
-      {loaded && (() => {
-        const live = meta.status === 'published';
-        const tried = testedSnapshot === content;
-        const hasSteps = nodes.length > 0;
-        const hasTrigger = meta.triggers.length > 0;
-        const stage = !hasSteps || !hasTrigger ? 0 : dirty || saveState === 'error' ? 1 : !tried && !live ? 2 : 3;
-        const stages = [t('١ البناء', '1 Build'), t('٢ الحفظ', '2 Save'), t('٣ التجربة', '3 Try'), t('٤ النشر', '4 Publish')];
-        const firstIssue = issues.find((i) => i.nodeId);
-        let text: string, label: string, run: () => void;
-        if (!hasSteps) { text = t('ابدأ بإضافة أول خطوة: رسالة ترحيب يراها العميل.', 'Start by adding the first step: a welcome message your customer sees.'); label = t('أضف رسالة ترحيب', 'Add a welcome message'); run = () => addNode('message'); }
-        else if (!hasTrigger) { text = t('حدّد متى يبدأ البوت (مثلًا: عند أول رسالة).', 'Choose when the bot starts (for example, on the first message).'); label = t('ضبط البداية', 'Set the start'); run = () => { setTab('settings'); setPreviewOpen(false); setInspectorOpen(true); }; }
-        else if (dirty || saveState === 'error') { text = t('لديك تعديلات غير محفوظة. احفظ المسودة؛ العملاء لا يرونها قبل النشر.', 'You have unsaved edits. Save the draft; customers will not see it until you publish.'); label = t('حفظ المسودة', 'Save draft'); run = () => { save().catch(() => {}); }; }
-        else if (issues.length) { text = `${t('يوجد', 'There are')} ${issues.length} ${t('خطأ يمنع النشر. ابدأ بأولها.', 'error(s) blocking publishing. Start with the first.')}`; label = firstIssue ? t('اذهب إلى الخطأ', 'Go to the error') : t('أعد الفحص', 'Check again'); run = () => { if (firstIssue?.nodeId) focusNode(firstIssue.nodeId); else void check(); }; }
-        else if (!tried && !live) { text = t('المسودة محفوظة. جرّب البوت هنا قبل أن يراه العملاء.', 'Draft saved. Try the bot here before customers see it.'); label = t('جرّب البوت', 'Try the bot'); run = openReview; }
-        else if (!live) { text = t('جرّبت البوت. إذا كان جاهزًا انشره ليصبح مباشرًا للعملاء.', 'You tried the bot. If it is ready, publish it to go live for customers.'); label = t('نشر البوت', 'Publish bot'); run = () => { setPublishOutcome(null); setConfirmPublish(true); }; }
-        else { text = t('البوت منشور. تأكد أن قناة مفعّلة ومربوطة حتى يصل إليه العملاء.', 'The bot is live. Make sure a channel is connected and active so customers can reach it.'); label = t('إدارة القنوات', 'Manage channels'); run = () => { window.location.href = '/dashboard/channels'; }; }
-        return (
-          <section className="next-step" aria-label={t('الخطوة التالية', 'Next step')}>
-            <ol className="next-step-stages" aria-label={t('مراحل إنشاء البوت', 'Bot setup stages')}>
-              {stages.map((s2, i) => <li key={i} data-state={i < stage || (live && i === 3) ? 'done' : i === stage ? 'now' : 'todo'} aria-current={i === stage ? 'step' : undefined}>{s2}</li>)}
-            </ol>
-            <p><b>{t('الخطوة التالية:', 'Next:')}</b> {text}</p>
-            <button type="button" className="btn btn-primary" disabled={busy} onClick={run}>{label}</button>
-          </section>
-        );
-      })()}
+        </p>
+      )}
 
       <Dialog
         open={showVersions}
@@ -1172,125 +1424,159 @@ function Editor({ id }: { id: string }) {
           </small>
         </div>
       </Dialog>
-      <Dialog open={confirmPublish} onClose={() => setConfirmPublish(false)} title={t('نشر البوت', 'Publish bot')}>
+      <Dialog
+        open={confirmPublish}
+        onClose={() => setConfirmPublish(false)}
+        title={t('نشر البوت', 'Publish bot')}
+      >
         <div className="publish-confirm" dir={language === 'ar' ? 'rtl' : 'ltr'}>
           <ol className="publish-steps">
-            <li><b>{t('١. حفظ المسودة', '1. Save draft')}</b><span>{t('يحفظ تعديلاتك فقط، ولا يراه العملاء.', 'Stores your edits only; customers do not see it.')}</span></li>
-            <li><b>{t('٢. تجربة البوت', '2. Try the bot')}</b><span>{t('جرّبه في المعاينة قبل النشر — لا يرسل رسائل حقيقية.', 'Test it in Preview first — no real messages are sent.')}</span></li>
-            <li><b>{t('٣. النشر', '3. Publish')}</b><span>{t('يجعل هذه النسخة هي النسخة الحية للعملاء.', 'Makes this version the live one for customers.')}</span></li>
+            <li>
+              <b>{t('١. حفظ المسودة', '1. Save draft')}</b>
+              <span>
+                {t(
+                  'يحفظ تعديلاتك فقط، ولا يراه العملاء.',
+                  'Stores your edits only; customers do not see it.',
+                )}
+              </span>
+            </li>
+            <li>
+              <b>{t('٢. تجربة البوت', '2. Try the bot')}</b>
+              <span>
+                {t(
+                  'جرّبه في المعاينة قبل النشر — لا يرسل رسائل حقيقية.',
+                  'Test it in Preview first — no real messages are sent.',
+                )}
+              </span>
+            </li>
+            <li>
+              <b>{t('٣. النشر', '3. Publish')}</b>
+              <span>
+                {t(
+                  'يجعل هذه النسخة هي النسخة الحية للعملاء.',
+                  'Makes this version the live one for customers.',
+                )}
+              </span>
+            </li>
           </ol>
           <p className="publish-note" data-tone={issues.length ? 'bad' : dirty ? 'warn' : 'ok'}>
             {issues.length
               ? `${t('يوجد', 'There are')} ${issues.length} ${t('خطأ في الفحص السابق. سيتم فحص البوت مجددًا ولن يُنشر إلا إذا زالت الأخطاء.', 'error(s) from the last check. The bot is re-checked and only publishes if they are fixed.')}`
               : dirty
-                ? t('توجد تغييرات غير محفوظة — سيتم حفظها تلقائيًا ثم فحص البوت قبل النشر.', 'You have unsaved changes — they will be saved and the bot checked before publishing.')
+                ? t(
+                    'توجد تغييرات غير محفوظة — سيتم حفظها تلقائيًا ثم فحص البوت قبل النشر.',
+                    'You have unsaved changes — they will be saved and the bot checked before publishing.',
+                  )
                 : t('سيتم فحص البوت قبل النشر.', 'The bot will be checked before publishing.')}
-            {meta.status === 'published' && ` ${t('النسخة المنشورة الحالية', 'Current live version')}: v${meta.version}.`}
+            {meta.status === 'published' &&
+              ` ${t('النسخة المنشورة الحالية', 'Current live version')}: v${meta.version}.`}
           </p>
           <div className="publish-actions">
-            <button type="button" className="rounded border px-3 py-1" onClick={() => setConfirmPublish(false)}>{t('رجوع', 'Cancel')}</button>
-            <button type="button" className="rounded border px-3 py-1" onClick={() => { setConfirmPublish(false); openReview(); }}>{t('جرّب أولًا', 'Try first')}</button>
-            <button type="button" className="btn btn-primary" disabled={busy} onClick={async () => { setConfirmPublish(false); await publish(); }}>{t('تأكيد النشر', 'Confirm publish')}</button>
+            <button
+              type="button"
+              className="rounded border px-3 py-1"
+              onClick={() => setConfirmPublish(false)}
+            >
+              {t('رجوع', 'Cancel')}
+            </button>
+            <button
+              type="button"
+              className="rounded border px-3 py-1"
+              onClick={() => {
+                setConfirmPublish(false);
+                openReview();
+              }}
+            >
+              {t('جرّب أولًا', 'Try first')}
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy}
+              onClick={async () => {
+                setConfirmPublish(false);
+                await publish();
+              }}
+            >
+              {t('تأكيد النشر', 'Confirm publish')}
+            </button>
           </div>
         </div>
       </Dialog>
       {publishOutcome && (
-        <div className="publish-outcome" data-kind={publishOutcome.kind} role={publishOutcome.kind === 'error' ? 'alert' : 'status'}>
-          <span>{publishOutcome.kind === 'success' ? '✓' : '!'} {publishOutcome.text}</span>
-          <button type="button" aria-label={t('إغلاق', 'Close')} onClick={() => setPublishOutcome(null)}>×</button>
+        <div
+          className="publish-outcome"
+          data-kind={publishOutcome.kind}
+          role={publishOutcome.kind === 'error' ? 'alert' : 'status'}
+        >
+          <span>
+            {publishOutcome.kind === 'success' ? '✓' : '!'} {publishOutcome.text}
+          </span>
+          <button
+            type="button"
+            aria-label={t('إغلاق', 'Close')}
+            onClick={() => setPublishOutcome(null)}
+          >
+            ×
+          </button>
         </div>
       )}
       {(issues.length > 0 || warnings.length > 0) && (
         <section className="check-panel" aria-label={t('نتيجة فحص البوت', 'Bot check result')}>
           <header>
-            <strong>{issues.length
-              ? `${t('يلزم إصلاح', 'Fix')} ${issues.length} ${t('مشكلة قبل النشر', 'issue(s) before publishing')}`
-              : validationState === 'current'
-                ? t('اجتاز الفحص؛ راجع التنبيهات قبل النشر', 'Validation passed; review warnings before publishing')
-                : t('نتائج الفحص السابقة — أعد الفحص للتأكد', 'Previous validation results — recheck to confirm')}</strong>
-            {warnings.length > 0 && <span>{warnings.length} {t('تنبيه (لا يمنع النشر)', 'warning(s) (do not block publishing)')}</span>}
-            {validationState === 'stale' && <span>{t('تغيّرت المسودة بعد الفحص', 'Draft changed since the check')}</span>}
+            <strong>
+              {issues.length
+                ? `${t('يلزم إصلاح', 'Fix')} ${issues.length} ${t('مشكلة قبل النشر', 'issue(s) before publishing')}`
+                : validationState === 'current'
+                  ? t(
+                      'اجتاز الفحص؛ راجع التنبيهات قبل النشر',
+                      'Validation passed; review warnings before publishing',
+                    )
+                  : t(
+                      'نتائج الفحص السابقة — أعد الفحص للتأكد',
+                      'Previous validation results — recheck to confirm',
+                    )}
+            </strong>
+            {warnings.length > 0 && (
+              <span>
+                {warnings.length}{' '}
+                {t('تنبيه (لا يمنع النشر)', 'warning(s) (do not block publishing)')}
+              </span>
+            )}
+            {validationState === 'stale' && (
+              <span>{t('تغيّرت المسودة بعد الفحص', 'Draft changed since the check')}</span>
+            )}
           </header>
           <ul>
             {issues.map((i, k) => (
               <li key={`e${k}`} data-kind="error">
                 <span>{validationMessage(i.message, language)}</span>
-                {i.nodeId && <button type="button" onClick={() => focusNode(i.nodeId as string)}>{t('اذهب إلى', 'Go to')}: {stepCaption(i.nodeId)}</button>}
+                {i.nodeId && (
+                  <button type="button" onClick={() => focusNode(i.nodeId as string)}>
+                    {t('اذهب إلى', 'Go to')}: {stepCaption(i.nodeId)}
+                  </button>
+                )}
               </li>
             ))}
             {warnings.map((i, k) => (
               <li key={`w${k}`} data-kind="warning">
                 <span>{validationMessage(i.message, language)}</span>
-                {i.nodeId && <button type="button" onClick={() => focusNode(i.nodeId as string)}>{t('اذهب إلى', 'Go to')}: {stepCaption(i.nodeId)}</button>}
+                {i.nodeId && (
+                  <button type="button" onClick={() => focusNode(i.nodeId as string)}>
+                    {t('اذهب إلى', 'Go to')}: {stepCaption(i.nodeId)}
+                  </button>
+                )}
               </li>
             ))}
           </ul>
         </section>
       )}
 
-      <div className="builder-mobile-tools">
-        <button aria-pressed={mobilePanel === 'canvas'} onClick={() => setMobilePanel('canvas')}>
-          {t('اللوحة', 'Canvas')}
-        </button>
-        <button aria-pressed={mobilePanel === 'preview'} onClick={() => setMobilePanel('preview')}>
-          {t('تجربة البوت', 'Preview bot')}
-        </button>
-      </div>
-      <div className="builder-main flex min-h-0 flex-1" data-mobile-panel={mobilePanel}>
-        <aside className="builder-palette flex w-36 flex-col gap-1 overflow-y-auto border-l bg-gray-50 p-2">
-          <div className="palette-heading">
-            <p className="eyebrow">{t('خطوة بخطوة', 'STEP BY STEP')}</p>
-            <h2>{t('أضف خطوة', 'Add a step')}</h2>
-            <p>
-              {t('اسحبها إلى اللوحة أو اضغط لإضافتها.', 'Drag onto the canvas or select to add.')}
-            </p>
-            <input
-              aria-label={t('البحث عن خطوة', 'Search steps')}
-              placeholder={t('ابحث عن إجراء…', 'Find an action…')}
-              value={nodeSearch}
-              onChange={(e) => setNodeSearch(e.target.value)}
-            />
-          </div>
-          {quickAdd('quick-add quick-add-palette')}
-          {NODE_GROUPS.map((g) => {
-            const types = g.types.filter((type) =>
-              nodeLabel(type, language).toLowerCase().includes(nodeSearch.toLowerCase()),
-            );
-            if (!types.length) return null;
-            return (
-              <details key={g.id} className="palette-group" open={['messages', 'interactive', 'data'].includes(g.id) || !!nodeSearch.trim()}>
-                <summary className="palette-group-title">{language === 'ar' ? g.ar : g.en}</summary>
-                {types.map((type) => (
-                  <button
-                    key={type}
-                    className="palette-step"
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData('application/boat-node', type);
-                      e.dataTransfer.effectAllowed = 'move';
-                    }}
-                    onClick={() => addNode(type)}
-                  >
-                    <span style={{ color: NODE_META[type].color, background: `${NODE_META[type].color}1f` }}>
-                      <NodeIcon type={type} />
-                    </span>
-                    <span>{nodeLabel(type, language)}<small className="smart-step-hint">{t(...STEP_GUIDANCE[type])}</small></span>
-                    <small>+</small>
-                  </button>
-                ))}
-              </details>
-            );
-          })}
-          <div className="palette-tip">
-            {t(
-              'ابدأ برسالة ترحيب، ثم سؤال أو شرط. جرّب البوت قبل النشر.',
-              'Start with a welcome message, then a question or condition. Preview before publishing.',
-            )}
-          </div>
-        </aside>
+      <div className={styles.surface}>
+        <BlockPalette disabled={!loaded} onAdd={(type) => addNode(type)} />
 
         <div
-          className={`builder-canvas min-w-0 flex-1 ${connecting ? 'is-connecting' : ''}`}
+          className={`builder-canvas ${styles.canvas} ${connecting ? 'is-connecting' : ''}`}
           onDragOver={(e) => {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
@@ -1302,36 +1588,6 @@ function Editor({ id }: { id: string }) {
               addNode(type as NodeType, { x: e.clientX, y: e.clientY });
           }}
         >
-          <div
-            className="add-step"
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') setMenuOpen(false);
-            }}
-          >
-            <button
-              type="button"
-              className="btn btn-primary btn-lg add-step-btn"
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen(!menuOpen)}
-            >
-              + {t('إضافة خطوة', 'Add step')}
-            </button>
-            {quickAdd('quick-add quick-add-canvas')}
-            {menuOpen && <div className="menu-scrim" onClick={() => setMenuOpen(false)} />}
-            {menuOpen && (
-              <div className="add-step-menu" role="menu">
-                <input
-                  autoFocus
-                  aria-label={t('البحث عن خطوة', 'Search steps')}
-                  placeholder={t('ابحث عن خطوة…', 'Find a step…')}
-                  value={nodeSearch}
-                  onChange={(e) => setNodeSearch(e.target.value)}
-                />
-                {stepItems((type) => { addNode(type); setMenuOpen(false); })}
-              </div>
-            )}
-          </div>
           {dropMenu && (
             <>
               <div className="drop-menu-scrim" onClick={() => setDropMenu(null)} />
@@ -1353,7 +1609,9 @@ function Editor({ id }: { id: string }) {
                 {stepItems((type) => {
                   const m = dropMenu;
                   setDropMenu(null);
-                  const r = (document.querySelector('.builder-canvas') as HTMLElement).getBoundingClientRect();
+                  const r = (
+                    document.querySelector('.builder-canvas') as HTMLElement
+                  ).getBoundingClientRect();
                   const oldEdge = m.edgeId ? edges.find((e) => e.id === m.edgeId) : undefined;
                   addNode(
                     type,
@@ -1365,128 +1623,234 @@ function Editor({ id }: { id: string }) {
               </div>
             </>
           )}
-          <div className="node-finder nodrag nopan" style={{position:'absolute',top:12,insetInlineEnd:12,zIndex:10,maxWidth:300}}>
-            <input type="search" className="rounded border p-2" aria-label={t('البحث في عقد البوت', 'Find a bot node')} placeholder={t('ابحث بالنص أو اسم الخطوة…', 'Find by text or step name…')} value={findNode} onChange={e => setFindNode(e.target.value)} />
-            {findNode.trim() && <div className="card stack" style={{maxHeight:280,overflow:'auto'}}>
-              {nodes.filter(n => [nodeLabel(n.data.type, language), n.data.data?.text, n.data.note, n.id].join(' ').toLocaleLowerCase().includes(findNode.trim().toLocaleLowerCase())).map((n) => <button className="btn" key={n.id} onClick={() => {focusNode(n.id);setFindNode('');}}>
-                {nodeLabel(n.data.type, language)} · {String(n.data.data?.text || n.data.note || t('خطوة', 'Step') + ' ' + (nodes.indexOf(n)+1)).slice(0,70)}
-              </button>)}
-              {!nodes.some(n => [nodeLabel(n.data.type, language),n.data.data?.text,n.data.note,n.id].join(' ').toLocaleLowerCase().includes(findNode.trim().toLocaleLowerCase())) && <p role="status">{t('لا توجد خطوة مطابقة', 'No matching step')}</p>}
-            </div>}
-          </div>
+          {findOpen && (
+            <div className={styles.finder}>
+              <button
+                type="button"
+                onClick={() => {
+                  setFindOpen(false);
+                  setFindNode('');
+                }}
+                aria-label={t('إغلاق البحث', 'Close search')}
+              >
+                ×
+              </button>
+              <input
+                type="search"
+                className="rounded border p-2"
+                aria-label={t('البحث في عقد البوت', 'Find a bot node')}
+                placeholder={t('ابحث بالنص أو اسم الخطوة…', 'Find by text or step name…')}
+                value={findNode}
+                onChange={(e) => setFindNode(e.target.value)}
+              />
+              {findNode.trim() && (
+                <div className="card stack" style={{ maxHeight: 280, overflow: 'auto' }}>
+                  {nodes
+                    .filter((n) =>
+                      [nodeLabel(n.data.type, language), n.data.data?.text, n.data.note, n.id]
+                        .join(' ')
+                        .toLocaleLowerCase()
+                        .includes(findNode.trim().toLocaleLowerCase()),
+                    )
+                    .map((n) => (
+                      <button
+                        className="btn"
+                        key={n.id}
+                        onClick={() => {
+                          focusNode(n.id);
+                          setFindNode('');
+                        }}
+                      >
+                        {nodeLabel(n.data.type, language)} ·{' '}
+                        {String(
+                          n.data.data?.text ||
+                            n.data.note ||
+                            t('خطوة', 'Step') + ' ' + (nodes.indexOf(n) + 1),
+                        ).slice(0, 70)}
+                      </button>
+                    ))}
+                  {!nodes.some((n) =>
+                    [nodeLabel(n.data.type, language), n.data.data?.text, n.data.note, n.id]
+                      .join(' ')
+                      .toLocaleLowerCase()
+                      .includes(findNode.trim().toLocaleLowerCase()),
+                  ) && <p role="status">{t('لا توجد خطوة مطابقة', 'No matching step')}</p>}
+                </div>
+              )}
+            </div>
+          )}
           <FlowAnalyticsContext.Provider value={analytics}>
-          <FlowStatsAvailabilityContext.Provider value={statsAvailable}>
-          <FlowStatsContext.Provider value={nodeStats}>
-          <FlowSequencesContext.Provider value={seqInfo}>
-          <FlowButtonStatsContext.Provider value={buttonStats}>
-          <ReactFlow
-            nodes={canvasNodes}
-            edges={cards.edges}
-            nodeTypes={nodeTypes}
-            onNodesChange={handleNodesChange}
-            onEdgesChange={(c) => {
-              onEdgesChange(c);
-              if (c.some((x) => x.type === 'remove')) setDirty(true);
-            }}
-            onMove={(_, viewport) => setZoomPercent(Math.round(viewport.zoom * 100))}
-            onConnect={onConnect}
-            onConnectStart={(_, p) => {
-              setConnecting(true);
-              connectFrom.current =
-                p.handleType === 'source' && p.nodeId
-                  ? (() => {
-                      const r = toReal(p.nodeId, p.handleId);
-                      return { source: r.source, handle: r.handle };
-                    })()
-                  : null;
-            }}
-            onConnectEnd={(ev) => {
-              setConnecting(false);
-              const from = connectFrom.current;
-              connectFrom.current = null;
-              const target = ev.target as HTMLElement | null;
-              if (!from || !target?.classList.contains('react-flow__pane')) return;
-              const pt = 'changedTouches' in ev ? ev.changedTouches[0] : (ev as MouseEvent);
-              const box = (document.querySelector('.builder-canvas') as HTMLElement).getBoundingClientRect();
-              setNodeSearch('');
-              setDropMenu({
-                x: Math.max(8, Math.min(pt.clientX - box.left, box.width - 280)),
-                y: Math.max(8, Math.min(pt.clientY - box.top, box.height - 300)),
-                ...from,
-              });
-            }}
-            onSelectionChange={onSelectionChange}
-            onNodeClick={(_, node) => {
-              // A click on a button card opens its message in the inspector.
-              const hit = btnIndexRef.current[node.id];
-              setChoiceSelection(hit ? {parentId:hit.parentId,id:hit.buttonId,nonce:Date.now()} : null);
-              const nodeId = hit?.parentId ?? node.id;
-              setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === nodeId })));
-              selRef.current = nodeId;
-              setSelected(nodeId);
-              setTab('node');
-              setPreviewOpen(false);
-              setInspectorOpen(true);
-            }}
-            edgeTypes={edgeTypes}
-            isValidConnection={isValidConnection}
-            onEdgeUpdate={onEdgeUpdate}
-            connectionRadius={24}
-            zoomOnDoubleClick={false}
-            connectionLineType={ConnectionLineType.SmoothStep}
-            connectionLineStyle={{ stroke: 'var(--primary)', strokeWidth: 3, strokeDasharray: '6 4' }}
-            elevateEdgesOnSelect
-            onEdgesDelete={() => notify(t('قُطع التوصيل.', 'Link removed.'), true)}
-            onNodesDelete={(del: Node[]) => {
-              notify(t('حُذفت الخطوة وتوصيلاتها.', 'Step and its links deleted.'), true);
-              if (del.some((d) => d.id === startId))
-                setStartId(nodes.find((n) => !del.some((d) => d.id === n.id))?.id ?? '');
-            }}
-            deleteKeyCode={['Backspace', 'Delete']}
-            defaultEdgeOptions={{
-              type: 'smoothstep',
-              style: { stroke: '#64748b', strokeWidth: 2.5 },
-              markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b', width: 18, height: 18 },
-            }}
-            snapToGrid
-            snapGrid={[16, 16]}
-            selectionOnDrag={false}
-            multiSelectionKeyCode={['Shift', 'Meta', 'Control']}
-            minZoom={0.05}
-            maxZoom={2}
-            fitView
-            fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
-          >
-            <Panel position="bottom-center">
-              <div className="canvas-zoombar" role="group" aria-label={t('التحكم في العرض', 'View controls')}>
-                <button type="button" onClick={() => rf.zoomOut({ duration: 200 })} aria-label={t('تصغير', 'Zoom out')}>−</button>
-                <span dir="ltr" aria-live="off">{zoomPercent}%</span>
-                <button type="button" onClick={() => rf.zoomIn({ duration: 200 })} aria-label={t('تكبير', 'Zoom in')}>+</button>
-                <button type="button" className="canvas-fit" onClick={() => rf.fitView({ padding: 0.25, maxZoom: 1, duration: 300 })}>{t('إظهار كل الخطوات', 'Fit all steps')}</button>
-                <small className="canvas-hint">{t('اسحب الخلفية للتحريك • العجلة للتكبير', 'Drag to pan • scroll to zoom')}</small>
-              </div>
-            </Panel>
-            <Background color="#cdd5e2" gap={22} size={1.4} />
-            <Controls showInteractive={false} position="bottom-left" />
-            {showMap && !previewOpen && <MiniMap
-              pannable
-              zoomable
-              nodeColor={(n) => NODE_META[n.data?.type as NodeType]?.color ?? '#8aa6ad'}
-              maskColor="#f3f5f9bb"
-              nodeStrokeWidth={3}
-              ariaLabel={t('خريطة مصغرة للبوت', 'Bot minimap')}
-              style={{ width: 160, height: 110, borderRadius: 12 }}
-            />}
-          </ReactFlow>
-          </FlowButtonStatsContext.Provider>
-          </FlowSequencesContext.Provider>
-          </FlowStatsContext.Provider>
-          </FlowStatsAvailabilityContext.Provider>
+            <FlowStatsAvailabilityContext.Provider value={statsAvailable}>
+              <FlowStatsContext.Provider value={nodeStats}>
+                <FlowSequencesContext.Provider value={seqInfo}>
+                  <FlowButtonStatsContext.Provider value={buttonStats}>
+                    <ReactFlow
+                      nodes={canvasNodes}
+                      edges={[...cards.edges, ...(reference ? [reference.edge] : [])]}
+                      nodeTypes={nodeTypes}
+                      onNodesChange={handleNodesChange}
+                      onEdgesChange={(c) => {
+                        onEdgesChange(
+                          c.filter(
+                            (change) => !('id' in change && change.id === reference?.edge.id),
+                          ),
+                        );
+                        if (c.some((x) => x.type === 'remove')) setDirty(true);
+                      }}
+                      onMove={(_, viewport) => setZoomPercent(Math.round(viewport.zoom * 100))}
+                      onConnect={onConnect}
+                      onConnectStart={(_, p) => {
+                        setConnecting(true);
+                        connectFrom.current =
+                          p.handleType === 'source' && p.nodeId
+                            ? (() => {
+                                const r = toReal(p.nodeId, p.handleId);
+                                return { source: r.source, handle: r.handle };
+                              })()
+                            : null;
+                      }}
+                      onConnectEnd={(ev) => {
+                        setConnecting(false);
+                        const from = connectFrom.current;
+                        connectFrom.current = null;
+                        const target = ev.target as HTMLElement | null;
+                        if (!from || !target?.classList.contains('react-flow__pane')) return;
+                        const pt =
+                          'changedTouches' in ev ? ev.changedTouches[0] : (ev as MouseEvent);
+                        const box = (
+                          document.querySelector('.builder-canvas') as HTMLElement
+                        ).getBoundingClientRect();
+                        setNodeSearch('');
+                        setDropMenu({
+                          x: Math.max(8, Math.min(pt.clientX - box.left, box.width - 280)),
+                          y: Math.max(8, Math.min(pt.clientY - box.top, box.height - 300)),
+                          ...from,
+                        });
+                      }}
+                      onSelectionChange={onSelectionChange}
+                      onNodeClick={(_, node) => {
+                        if (node.id === reference?.id) return;
+                        const hit = btnIndexRef.current[node.id];
+                        const nodeId = hit?.parentId ?? node.id;
+                        setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === nodeId })));
+                        selRef.current = nodeId;
+                        setSelected(nodeId);
+                        if (hit) {
+                          setChoiceSelection({
+                            parentId: hit.parentId,
+                            id: hit.buttonId,
+                            nonce: Date.now(),
+                          });
+                          setTab('node');
+                          setPreviewOpen(false);
+                          setInspectorOpen(true);
+                        }
+                      }}
+                      onNodeDoubleClick={(_, node) => {
+                        if (node.id === reference?.id) {
+                          openSettings();
+                          return;
+                        }
+                        focusNode(btnIndexRef.current[node.id]?.parentId ?? node.id);
+                      }}
+                      edgeTypes={edgeTypes}
+                      isValidConnection={isValidConnection}
+                      onEdgeUpdate={onEdgeUpdate}
+                      connectionRadius={24}
+                      zoomOnDoubleClick={false}
+                      connectionLineType={ConnectionLineType.SmoothStep}
+                      connectionLineStyle={{
+                        stroke: 'var(--primary)',
+                        strokeWidth: 3,
+                        strokeDasharray: '6 4',
+                      }}
+                      elevateEdgesOnSelect
+                      onEdgesDelete={() => notify(t('قُطع التوصيل.', 'Link removed.'), true)}
+                      onNodesDelete={(del: Node[]) => {
+                        notify(t('حُذفت الخطوة وتوصيلاتها.', 'Step and its links deleted.'), true);
+                        if (del.some((d) => d.id === startId))
+                          setStartId(nodes.find((n) => !del.some((d) => d.id === n.id))?.id ?? '');
+                      }}
+                      deleteKeyCode={
+                        inspectorOpen || previewOpen || confirmPublish || showVersions
+                          ? null
+                          : ['Backspace', 'Delete']
+                      }
+                      defaultEdgeOptions={{
+                        type: 'smoothstep',
+                        style: { stroke: '#64748b', strokeWidth: 2.5 },
+                        markerEnd: {
+                          type: MarkerType.ArrowClosed,
+                          color: '#64748b',
+                          width: 18,
+                          height: 18,
+                        },
+                      }}
+                      snapToGrid
+                      snapGrid={[16, 16]}
+                      selectionOnDrag={false}
+                      multiSelectionKeyCode={['Shift', 'Meta', 'Control']}
+                      minZoom={0.05}
+                      maxZoom={2}
+                      fitView
+                      fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
+                    >
+                      <Panel position="bottom-center">
+                        <div
+                          className="canvas-zoombar"
+                          role="group"
+                          aria-label={t('التحكم في العرض', 'View controls')}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => rf.zoomOut({ duration: 200 })}
+                            aria-label={t('تصغير', 'Zoom out')}
+                          >
+                            −
+                          </button>
+                          <span dir="ltr" aria-live="off">
+                            {zoomPercent}%
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => rf.zoomIn({ duration: 200 })}
+                            aria-label={t('تكبير', 'Zoom in')}
+                          >
+                            +
+                          </button>
+                          <button
+                            type="button"
+                            className="canvas-fit"
+                            onClick={() => rf.fitView({ padding: 0.25, maxZoom: 1, duration: 300 })}
+                          >
+                            {t('إظهار كل الخطوات', 'Fit all steps')}
+                          </button>
+                          <small className="canvas-hint">
+                            {t(
+                              'اسحب الخلفية للتحريك • العجلة للتكبير',
+                              'Drag to pan • scroll to zoom',
+                            )}
+                          </small>
+                        </div>
+                      </Panel>
+                      <Background color="#cdd5e2" gap={22} size={1.4} />
+                      {showMap && !previewOpen && (
+                        <MiniMap
+                          pannable
+                          zoomable
+                          nodeColor={(n) => NODE_META[n.data?.type as NodeType]?.color ?? '#8aa6ad'}
+                          maskColor="#f3f5f9bb"
+                          nodeStrokeWidth={3}
+                          ariaLabel={t('خريطة مصغرة للبوت', 'Bot minimap')}
+                          style={{ width: 160, height: 110, borderRadius: 12 }}
+                        />
+                      )}
+                    </ReactFlow>
+                  </FlowButtonStatsContext.Provider>
+                </FlowSequencesContext.Provider>
+              </FlowStatsContext.Provider>
+            </FlowStatsAvailabilityContext.Provider>
           </FlowAnalyticsContext.Provider>
-          <div className="canvas-tagline" aria-hidden="true">
-            <span>Drag. Connect. Automate.</span>
-            <svg viewBox="0 0 160 12" preserveAspectRatio="none"><path d="M3 8 C 40 2, 90 12, 157 4" /></svg>
-          </div>
           {toast && (
             <div className="designer-toast" role="status">
               <span>{toast.text}</span>
@@ -1508,9 +1872,15 @@ function Editor({ id }: { id: string }) {
           )}
         </div>
 
-        <aside className="builder-preview" data-open={previewOpen} aria-label={t('معاينة البوت', 'Bot preview')}>
-          <button type="button" className="smart-review-back" onClick={closeReview}>{t('رجوع للتحرير', 'Back to editing')}</button>
-          <p className="smart-review-label">{t('محاكاة المنطق — بدون إرسال واتساب', 'Logic simulator — no WhatsApp delivery')}</p>
+        <Dialog
+          open={previewOpen}
+          onClose={closeReview}
+          className={styles.previewDialog}
+          title={t('تجربة البوت', 'Preview bot')}
+        >
+          <p className="smart-review-label">
+            {t('محاكاة المنطق — بدون إرسال واتساب', 'Logic simulator — no WhatsApp delivery')}
+          </p>
           <div className="phone-frame">
             <div className="phone-notch" />
             <div className="phone-screen">
@@ -1525,31 +1895,25 @@ function Editor({ id }: { id: string }) {
               />
             </div>
           </div>
-        </aside>
+        </Dialog>
 
-        <div
-          className="inspector-scrim"
-          data-open={inspectorOpen && !previewOpen && (tab === 'settings' || !!sel)}
-          onClick={() => setInspectorOpen(false)}
-        />
-        <aside
-          className="builder-inspector flex flex-col bg-white"
-          data-open={inspectorOpen && !previewOpen && (tab === 'settings' || !!sel)}
-          aria-label={t('تفاصيل الخطوة', 'Step details')}
+        <Dialog
+          open={inspectorOpen && !previewOpen && (tab === 'settings' || !!sel)}
+          onClose={() => setInspectorOpen(false)}
+          className={styles.inspectorDialog}
+          title={
+            sel && tab === 'node'
+              ? `${t('إعداد', 'Configure')} ${nodeLabel(sel.data.type, language)}`
+              : t('إعداد بداية التدفق', 'Configure Reference')
+          }
         >
-          <header className="sheet-head">
-            <strong>{sel && tab === 'node' ? nodeLabel(sel.data.type, language) : t('إعدادات البوت', 'Bot settings')}</strong>
-            <span className="smart-back-label">{t('رجوع للمخطط', 'Back to canvas')}</span>
-            <button
-              type="button"
-              className="sheet-close"
-              aria-label={t('إغلاق', 'Close')}
-              onClick={() => setInspectorOpen(false)}
-            >
-              ✕
-            </button>
-          </header>
-          <div className="flex border-b text-sm" role="tablist">
+          <p className={styles.editorNote}>
+            {t(
+              'تعديلاتك تخص المسودة. النشر خطوة مستقلة من قائمة الأدوات.',
+              'Changes apply to the draft. Publish separately from the tools menu.',
+            )}
+          </p>
+          <div className={styles.editorTabs} role="tablist">
             {(
               [
                 ['node', t('العقدة', 'Inspector')],
@@ -1568,7 +1932,7 @@ function Editor({ id }: { id: string }) {
               </button>
             ))}
           </div>
-          <div key={tab === 'node' ? selected : 'settings'} className="min-h-0 flex-1 overflow-y-auto">
+          <div key={tab === 'node' ? selected : 'settings'} className={styles.inspectorBody}>
             {tab === 'node' &&
               (sel ? (
                 <div
@@ -1582,49 +1946,88 @@ function Editor({ id }: { id: string }) {
                       lastFocused.current = el;
                   }}
                 >
-                <Inspector
-                  key={sel.id + (choiceSelection?.parentId===sel.id ? ':'+choiceSelection.nonce : '')}
-                  initialChoiceId={choiceSelection?.parentId===sel.id ? choiceSelection.id : undefined}
-                  actionSummary={handle => { const edge = edges.find(e => e.source === sel.id && e.sourceHandle === handle); return edge ? `${t('بعد الضغط:', 'Then:')} ${stepCaption(edge.target)}` : t('لا يوجد إجراء بعد', 'No action yet'); }}
-                  renderAction={(handle, title) => renderStepAction(handle, title)}
-                  nextSteps={<section className="smart-next-steps"><h3>{t('الخطوة التالية', 'Next step')}</h3>{handlesFor(sel.data.type, sel.data.data).filter(h => !h.id.startsWith('option:')).map(h => <div key={h.id}>{renderStepAction(h.id, sel.data.type === 'condition' ? h.id === 'else' ? t('لا — لم يتحقق', 'No — not matched') : `${t('نعم — تحقق الشرط', 'Yes — matched')} ${h.label}` : h.label)}</div>)}</section>}
-                  variables={conditionVariables}
-                  type={sel.data.type}
-                  data={sel.data.data}
-                  isStart={sel.id === startId}
-                  onChange={(d) => updateData(sel.id, d)}
-                  onSetStart={() => {
-                    setStartId(sel.id);
-                    setDirty(true);
-                  }}
-                  onDelete={() => deleteNode(sel.id)}
-                />
-                <details className="m-3 rounded border p-2"><summary>{t('متغيّرات وتعليق داخلي', 'Variables and internal comment')}</summary>
-                <div className="var-picker" aria-label={t('المتغيّرات المتاحة', 'Available variables')}>
-                  <span>{t('أدرج متغيّرًا', 'Insert variable')}</span>
-                  {knownVars.map((v) => (
-                    <button
-                      type="button"
-                      key={v}
-                      className="var-chip"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => insertVariable(v)}
-                    >
-                      {v}
-                    </button>
-                  ))}
-                </div>
-                <label className="note-field">
-                  {t('تعليق على الخطوة (لا يظهر للعميل)', 'Step comment (never shown to customers)')}
-                  <textarea
-                    maxLength={500}
-                    rows={2}
-                    value={sel.data.note ?? ''}
-                    onChange={(e) => updateNote(sel.id, e.target.value)}
+                  <Inspector
+                    channelIds={meta.channelIds}
+                    key={
+                      sel.id +
+                      (choiceSelection?.parentId === sel.id ? ':' + choiceSelection.nonce : '')
+                    }
+                    initialChoiceId={
+                      choiceSelection?.parentId === sel.id ? choiceSelection.id : undefined
+                    }
+                    actionSummary={(handle) => {
+                      const edge = edges.find(
+                        (e) => e.source === sel.id && e.sourceHandle === handle,
+                      );
+                      return edge
+                        ? `${t('بعد الضغط:', 'Then:')} ${stepCaption(edge.target)}`
+                        : t('لا يوجد إجراء بعد', 'No action yet');
+                    }}
+                    renderAction={(handle, title) => renderStepAction(handle, title)}
+                    nextSteps={
+                      <section className="smart-next-steps">
+                        <h3>{t('الخطوة التالية', 'Next step')}</h3>
+                        {handlesFor(sel.data.type, sel.data.data)
+                          .filter((h) => !h.id.startsWith('option:'))
+                          .map((h) => (
+                            <div key={h.id}>
+                              {renderStepAction(
+                                h.id,
+                                sel.data.type === 'condition'
+                                  ? h.id === 'else'
+                                    ? t('لا — لم يتحقق', 'No — not matched')
+                                    : `${t('نعم — تحقق الشرط', 'Yes — matched')} ${h.label}`
+                                  : h.label,
+                              )}
+                            </div>
+                          ))}
+                      </section>
+                    }
+                    variables={conditionVariables}
+                    type={sel.data.type}
+                    data={sel.data.data}
+                    isStart={sel.id === startId}
+                    onChange={(d) => updateData(sel.id, d)}
+                    onSetStart={() => {
+                      setStartId(sel.id);
+                      setDirty(true);
+                    }}
+                    onDelete={() => deleteNode(sel.id)}
                   />
-                </label></details>
-
-
+                  <details className="m-3 rounded border p-2">
+                    <summary>
+                      {t('متغيّرات وتعليق داخلي', 'Variables and internal comment')}
+                    </summary>
+                    <div
+                      className="var-picker"
+                      aria-label={t('المتغيّرات المتاحة', 'Available variables')}
+                    >
+                      <span>{t('أدرج متغيّرًا', 'Insert variable')}</span>
+                      {knownVars.map((v) => (
+                        <button
+                          type="button"
+                          key={v}
+                          className="var-chip"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => insertVariable(v)}
+                        >
+                          {v}
+                        </button>
+                      ))}
+                    </div>
+                    <label className="note-field">
+                      {t(
+                        'تعليق على الخطوة (لا يظهر للعميل)',
+                        'Step comment (never shown to customers)',
+                      )}
+                      <textarea
+                        maxLength={500}
+                        rows={2}
+                        value={sel.data.note ?? ''}
+                        onChange={(e) => updateNote(sel.id, e.target.value)}
+                      />
+                    </label>
+                  </details>
                 </div>
               ) : (
                 <p className="p-4 text-sm text-gray-500">
@@ -1637,7 +2040,18 @@ function Editor({ id }: { id: string }) {
 
             {tab === 'settings' && (
               <div className="space-y-4 p-3 text-sm">
-                <details className="smart-section"><summary>{t('السياسات العامة وساعات العمل', 'General policies and business hours')}</summary><BotPolicyEditor value={meta.policy} onChange={policy=>{setMeta(m=>({...m,policy}));setDirty(true);}} /></details>
+                <details className="smart-section">
+                  <summary>
+                    {t('السياسات العامة وساعات العمل', 'General policies and business hours')}
+                  </summary>
+                  <BotPolicyEditor
+                    value={meta.policy}
+                    onChange={(policy) => {
+                      setMeta((m) => ({ ...m, policy }));
+                      setDirty(true);
+                    }}
+                  />
+                </details>
                 <div>
                   <div className="mb-1 text-xs font-semibold text-gray-600">
                     {t('متى يبدأ السيناريو؟', 'When does the bot start?')}
@@ -1852,10 +2266,43 @@ function Editor({ id }: { id: string }) {
                 </div>
               </div>
             )}
-
           </div>
-          <footer className="smart-editor-footer"><span role="status">{saveState === 'saving' ? t('جارٍ الحفظ…', 'Saving…') : saveState === 'error' ? t('فشل الحفظ', 'Save failed') : dirty ? t('تغييرات غير محفوظة', 'Unsaved changes') : t('محفوظ', 'Saved')}</span><button type="button" onClick={openReview} title={t('جرّب البوت بدون إرسال رسائل حقيقية', 'Try the bot without sending real messages')}>{t('تجربة', 'Try')}</button><button type="button" className="smart-primary" onClick={async () => { try { if (dirty) await save(); setInspectorOpen(false); setMobilePanel('canvas'); } catch { /* save reports error and keeps editor open */ } }}>{t('تم', 'Done')}</button></footer>
-        </aside>
+          <footer className="smart-editor-footer">
+            <span role="status">
+              {saveState === 'saving'
+                ? t('جارٍ الحفظ…', 'Saving…')
+                : saveState === 'error'
+                  ? t('فشل الحفظ', 'Save failed')
+                  : dirty
+                    ? t('تغييرات غير محفوظة', 'Unsaved changes')
+                    : t('محفوظ', 'Saved')}
+            </span>
+            <button
+              type="button"
+              onClick={openReview}
+              title={t(
+                'جرّب البوت بدون إرسال رسائل حقيقية',
+                'Try the bot without sending real messages',
+              )}
+            >
+              {t('تجربة', 'Try')}
+            </button>
+            <button
+              type="button"
+              className="smart-primary"
+              onClick={async () => {
+                try {
+                  if (dirty) await save();
+                  setInspectorOpen(false);
+                } catch {
+                  /* save reports error and keeps editor open */
+                }
+              }}
+            >
+              {t('حفظ والعودة للرسم', 'Save and return')}
+            </button>
+          </footer>
+        </Dialog>
       </div>
     </div>
   );

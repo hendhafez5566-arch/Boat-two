@@ -1,6 +1,8 @@
 'use client';
-import ChannelScope from '../../../components/product/ChannelScope';
-import {useChannelContext} from '../../../components/product/useChannelContext';
+import { Dialog } from '../../../components/product/ProductUI';
+import SequencesPanel from '../../../components/workspace/SequencesPanel';
+import styles from '../../../components/business/broadcast.module.css';
+import { useChannelContext } from '../../../components/product/useChannelContext';
 
 import AudienceSummary, { Audience } from '../../../components/business/AudienceSummary';
 import { statusLabel } from '../../../components/product/status';
@@ -9,12 +11,13 @@ import {
   CampaignDraftEditor,
   EditableCampaign,
 } from '../../../components/business/CampaignDraftEditor';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { CampaignComposer } from '../../../components/business/CampaignComposer';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
 import { useData } from '../../../components/business/useData';
 type Campaign = EditableCampaign & {
+  metrics: { processed: number; delivered: number; read: number; failed: number };
   id: string;
   name: string;
   channel_name: string;
@@ -36,14 +39,57 @@ type Recipient = {
 };
 export default function Campaigns() {
   const { t } = useLocale();
-  const [channelId,setChannelId]=useChannelContext();
-  const list = useData<Campaign[]>('/campaigns', []);
+  const [channelId, setChannelId] = useChannelContext();
+  const [mode, setMode] = useState('broadcast'),
+    [creating, setCreating] = useState(false),
+    [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null),
+    [scheduling, setScheduling] = useState<Campaign | null>(null);
+  const [campaignSearch, setCampaignSearch] = useState(''),
+    [campaignStatus, setCampaignStatus] = useState(''),
+    [campaignPage, setCampaignPage] = useState(1);
+  const query = new URLSearchParams({
+    paginated: 'true',
+    limit: '10',
+    page: String(campaignPage),
+    q: campaignSearch,
+    ...(channelId ? { channelId } : {}),
+    ...(campaignStatus ? { status: campaignStatus } : {}),
+  });
+  const result = useData<{ items: Campaign[]; total: number }>('/campaigns?' + query, {
+    items: [],
+    total: 0,
+  });
+  const list = { ...result, data: result.data.items };
+  const summary = useData<{
+    total: number;
+    completed: number;
+    sent: number;
+    delivered: number;
+    read: number;
+    failed: number;
+    readRate: number | null;
+  }>('/campaigns/summary' + (channelId ? '?channelId=' + channelId : ''), {
+    total: 0,
+    completed: 0,
+    sent: 0,
+    delivered: 0,
+    read: 0,
+    failed: 0,
+    readRate: null,
+  });
+  useEffect(() => {
+    setCampaignPage(1);
+    setSelected('');
+    setLedger(null);
+    ledgerVersion.current++;
+  }, [channelId, campaignSearch, campaignStatus]);
+
   const channels = useData<{ id: string; name: string; type: string }[]>('/channels', []);
   const segments = useData<{ id: string; name: string; filters: Record<string, string> }[]>(
     '/crm/segments',
     [],
   );
-  const visible=list.data.filter(c=>!channelId||c.channel_id===channelId);
+  const visible = list.data.filter((c) => !channelId || c.channel_id === channelId);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState('');
@@ -62,17 +108,28 @@ export default function Campaigns() {
   const [ledgerLoading, setLedgerLoading] = useState(false);
   const ledgerVersion = useRef(0);
   const [saved, setSaved] = useState(false);
-  const [reviews,setReviews] = useState<Record<string,{key:string;audience:Audience}>>({});
-  const reviewRequest = useRef<Record<string,number>>({});
-  const reviewKey = (campaign:Campaign) => JSON.stringify([campaign.channel_id,campaign.filters,campaign.revision]);
-  async function reviewAudience(campaign:Campaign) {
-    const request=(reviewRequest.current[campaign.id] || 0)+1;
-    reviewRequest.current[campaign.id]=request;
-    const key=reviewKey(campaign);
-    setBusy(true);setError('');
-    try {const audience=await api<Audience>('/campaigns/audience',{method:'POST',body:JSON.stringify({channelId:campaign.channel_id,filters:campaign.filters})});
-      if(reviewRequest.current[campaign.id]===request)setReviews(current=>({...current,[campaign.id]:{key,audience}}));
-    } catch(e) {setError((e as Error).message);} finally {setBusy(false);}
+  const [reviews, setReviews] = useState<Record<string, { key: string; audience: Audience }>>({});
+  const reviewRequest = useRef<Record<string, number>>({});
+  const reviewKey = (campaign: Campaign) =>
+    JSON.stringify([campaign.channel_id, campaign.filters, campaign.revision]);
+  async function reviewAudience(campaign: Campaign) {
+    const request = (reviewRequest.current[campaign.id] || 0) + 1;
+    reviewRequest.current[campaign.id] = request;
+    const key = reviewKey(campaign);
+    setBusy(true);
+    setError('');
+    try {
+      const audience = await api<Audience>('/campaigns/audience', {
+        method: 'POST',
+        body: JSON.stringify({ channelId: campaign.channel_id, filters: campaign.filters }),
+      });
+      if (reviewRequest.current[campaign.id] === request)
+        setReviews((current) => ({ ...current, [campaign.id]: { key, audience } }));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   }
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
@@ -80,6 +137,7 @@ export default function Campaigns() {
     try {
       await fn();
       await list.reload();
+      await summary.reload();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -134,309 +192,534 @@ export default function Campaigns() {
     URL.revokeObjectURL(url);
   }
   return (
-    <main className="stack">
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow">{t('تسويق قائم على الموافقة', 'PERMISSION-BASED MARKETING')}</p>
-          <h1>{t('الحملات', 'Campaigns')}</h1>
-          <p>
-            {t(
-              'راجع الجمهور والموافقة قبل الجدولة. حالة الطابور لا تعني التسليم.',
-              'Review your audience and consent before scheduling. Queued is not delivered.',
-            )}
-          </p>
-        </div>
-        <button className="btn" onClick={() => list.reload()}>
-          {t('تحديث', 'Refresh')}
-        </button>
-      </div>
-      <p className="notice">
-        {t(
-          'الإرسال الخارجي معطّل افتراضيًا في البيئة. لن ترسل المنصة إلى Meta حتى يفعّل المشغّل الاتصال الرسمي والإذن اللازم.',
-          'External delivery is disabled by default. Meta delivery requires operator activation and official channel authorization.',
-        )}
-      </p>
-      {(error || list.error) && (
-        <p className="notice error" role="alert">
-          {error || list.error}
-        </p>
-      )}
-      {saved && (
-        <p className="notice" role="status">
-          {t(
-            'حُفظت مسودة الحملة. يمكنك مراجعتها وجدولتها من القائمة.',
-            'Campaign draft saved. Review and schedule it below.',
-          )}
-        </p>
-      )}
-      <ChannelScope value={channelId} onChange={value=>{setChannelId(value);setSelected('');setLedger(null);ledgerVersion.current++;}} channels={channels.data}/>
-      <CampaignComposer
-        channels={channels.data.filter(c=>!channelId||c.id===channelId)}
-        segments={segments.data}
-        onSaved={async () => {
-          await list.reload();
-          setSaved(true);
-        }}
-      />
-      <details className="card"><summary>{t('إعدادات إرسال متقدمة','Advanced delivery settings')}</summary><p>{t('تحدد حدود الإرسال وسياسة القناة؛ لا يلزم تعديلها لإنشاء مسودة.','Controls sending limits and channel policy; no changes needed to draft a campaign.')}</p><DeliveryPolicies /></details>
-      <section className="card table-wrap">
-        <h2>{t('الحملات', 'Campaigns')}</h2>
-        <table className="product-table">
-          <thead>
-            <tr>
-              <th>{t('الحملة', 'Campaign')}</th>
-              <th>{t('الحالة', 'Status')}</th>
-              <th>{t('الجمهور', 'Recipients')}</th>
-              <th>{t('الإجراءات', 'Actions')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map((c) => (
-              <tr key={c.id}>
-                <td>
-                  <strong>{c.name}</strong>
-                  <div className="muted">{c.channel_name}</div>
-                </td>
-                <td>
-                  <span className="badge">{statusLabel(c.status, t)}</span>
-                </td>
-                <td>{c.recipients}</td>
-                <td>
-                  <div className="flex flex-wrap gap-2">
-                    <button className="btn" onClick={() => view(c.id)}>
-                      {t('النتائج', 'Results')}
-                    </button>
-                    {c.status === 'draft' && (
-                      <CampaignDraftEditor campaign={c} save={run} busy={busy} />
-                    )}
-                    {['draft', 'scheduled'].includes(c.status) && (
-                      <form
-                        className="flex flex-wrap gap-1"
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          if (reviews[c.id]?.key !== reviewKey(c) || !reviews[c.id]?.audience.eligible) {setError(t('راجع الجمهور وأسباب الاستبعاد أولاً.','Review the audience and exclusions first.'));return;}
-                          const at = new Date(
-                            String(new FormData(e.currentTarget).get('at')),
-                          ).toISOString();
-                          run(() =>
-                            api(`/campaigns/${c.id}/schedule`, {
-                              method: 'POST',
-                              body: JSON.stringify({ at }),
-                            }),
-                          );
-                        }}
-                      >
-                        <button type="button" className="btn" disabled={busy} onClick={()=>reviewAudience(c)}>{t('مراجعة أسباب أهلية الجمهور','Review audience eligibility')}</button>
-                        {reviews[c.id]?.key === reviewKey(c) && <AudienceSummary audience={reviews[c.id].audience} />}
-                        <input
-                          type="datetime-local"
-                          aria-label={t('موعد الحملة', 'Campaign schedule')}
-                          name="at"
-                          required
-                        />
-                        <button className="btn" disabled={busy || reviews[c.id]?.key !== reviewKey(c) || !reviews[c.id]?.audience.eligible}>
-                          {c.status === 'scheduled'
-                            ? t('إعادة الجدولة', 'Reschedule')
-                            : t('جدولة', 'Schedule')}
-                        </button>
-                      </form>
-                    )}
-                    {['draft', 'scheduled', 'running'].includes(c.status) && (
-                      <button
-                        className="btn btn-danger"
-                        disabled={busy}
-                        onClick={() =>
-                          confirm(
-                            t('إلغاء ما لم يُرسل من الحملة؟', 'Cancel the unsent campaign work?'),
-                          ) && run(() => api(`/campaigns/${c.id}/cancel`, { method: 'PATCH' }))
-                        }
-                      >
-                        {t('إلغاء', 'Cancel')}
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {list.loading ? (
-          <p className="empty">{t('جارٍ التحميل…', 'Loading…')}</p>
-        ) : (
-          !visible.length && (
-            <p className="empty">
-              {t(
-                'لا توجد حملات. أنشئ أول مسودة أعلاه.',
-                'No campaigns. Build your first draft above.',
-              )}
-            </p>
-          )
-        )}
-      </section>
-      {selected && (
-        <section
-          className="card stack"
-          aria-label={t('تصفية مستلمي الحملة', 'Campaign recipient filters')}
+    <main className={styles.page}>
+      <nav className={styles.mode} aria-label={t('أقسام البث', 'Broadcast sections')}>
+        <button
+          type="button"
+          aria-pressed={mode === 'broadcast'}
+          onClick={() => setMode('broadcast')}
         >
-          <form
-            className="form-grid"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const f = new FormData(e.currentTarget);
-              void view(selected, 1, {
-                search: String(f.get('search') ?? ''),
-                status: String(f.get('status') ?? ''),
-                deliveryStatus: String(f.get('deliveryStatus') ?? ''),
-                jobStatus: String(f.get('jobStatus') ?? ''),
-              });
-            }}
-          >
-            <label className="field">
-              {t('البحث باسم العميل', 'Search contact name')}
-              <input name="search" maxLength={120} defaultValue={filters.search} />
-            </label>
-            <label className="field">
-              {t('حالة المعالجة', 'Processing status')}
-              <select name="status" defaultValue={filters.status}>
-                <option value="">{t('الكل', 'All')}</option>
-                {['pending', 'queued', 'skipped', 'failed'].map((x) => (
-                  <option key={x} value={x}>
-                    {statusLabel(x, t)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              {t('حالة التسليم', 'Delivery status')}
-              <select name="deliveryStatus" defaultValue={filters.deliveryStatus}>
-                <option value="">{t('الكل', 'All')}</option>
-                {['none', 'queued', 'sent', 'delivered', 'read', 'failed'].map((x) => (
-                  <option key={x} value={x}>
-                    {x === 'none' ? t('لا توجد رسالة', 'No message') : statusLabel(x, t)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              {t('حالة مهمة الإرسال', 'Outbound job status')}
-              <select name="jobStatus" defaultValue={filters.jobStatus}>
-                <option value="">{t('الكل', 'All')}</option>
-                {['none', 'pending', 'sending', 'sent', 'failed', 'ambiguous', 'blocked'].map(
-                  (x) => (
-                    <option key={x} value={x}>
-                      {x === 'none' ? t('لا توجد مهمة', 'No job') : statusLabel(x, t)}
-                    </option>
-                  ),
+          {t('البث', 'Broadcast')}
+        </button>
+        <button
+          type="button"
+          aria-pressed={mode === 'sequence'}
+          onClick={() => setMode('sequence')}
+        >
+          {t('التسلسلات', 'Sequence')}
+        </button>
+      </nav>
+      {mode === 'sequence' ? (
+        <SequencesPanel />
+      ) : (
+        <>
+          <div className="page-heading">
+            <div>
+              <p className="eyebrow">
+                {t('تسويق قائم على الموافقة', 'PERMISSION-BASED MARKETING')}
+              </p>
+              <h1>{t('مركز البث', 'Broadcast Center')}</h1>
+              <p>
+                {t(
+                  'راجع الجمهور والموافقة قبل الجدولة. حالة الطابور لا تعني التسليم.',
+                  'Review your audience and consent before scheduling. Queued is not delivered.',
                 )}
-              </select>
-            </label>
-            <button className="btn" disabled={ledgerLoading}>
-              {t('تطبيق الفلاتر', 'Apply filters')}
-            </button>
-          </form>
-          {ledgerLoading && <p role="status">{t('تحميل سجل المستلمين…', 'Loading recipients…')}</p>}
-          <p className="muted">
-            {t(
-              'إعادة المحاولة متاحة فقط لفشل المعالجة قبل إنشاء رسالة. النتائج الغامضة تحتاج مراجعة ولا يُعاد إرسالها هنا.',
-              'Retry is available only for processing failures before message creation. Ambiguous outcomes need review and cannot be resent here.',
-            )}
-          </p>
-        </section>
-      )}
-      {ledger && (
-        <section className="card table-wrap">
-          <h2>{t('سجل الجمهور والتسليم', 'Recipient & delivery ledger')}</h2>
-          <p>{list.data.find((c) => c.id === selected)?.name}</p>
-          <p className="muted">
-            {t('إجمالي الحملة قبل التصفية', 'Campaign totals before filters')}
-          </p>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {ledger.totals.map((x, i) => (
-              <span key={i} className="badge">
-                {statusLabel(x.status, t)} /{' '}
-                {x.delivery_status ? statusLabel(x.delivery_status, t) : '—'}: {x.count}
-              </span>
-            ))}
-          </div>
-          <div className="form-actions">
-            <p role="status">
-              {ledger.filteredCount} {t('مستلم مطابق', 'matching recipients')}
-            </p>
-            <button className="btn" onClick={downloadLedger}>
-              {t('تنزيل الصفحة المحملة', 'Download loaded page')}
-            </button>
-          </div>
-          <table className="product-table">
-            <thead>
-              <tr>
-                <th>{t('العميل', 'Contact')}</th>
-                <th>{t('المعالجة', 'Processing')}</th>
-                <th>{t('التسليم', 'Delivery')}</th>
-                <th>{t('التفاصيل', 'Details')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ledger.items.map((x) => (
-                <tr key={x.id}>
-                  <td>{x.contact_name}</td>
-                  <td>{statusLabel(x.status, t)}</td>
-                  <td>
-                    {x.delivery_status ? statusLabel(x.delivery_status, t) : '—'}
-                    <br />
-                    {x.job_status ? statusLabel(x.job_status, t) : '—'}
-                    {x.attempts != null && (
-                      <small>
-                        {' '}
-                        · {x.attempts} {t('محاولات', 'attempts')}
-                      </small>
-                    )}
-                  </td>
-                  <td>
-                    {[...new Set([x.error, x.delivery_error, x.job_error].filter(Boolean))].join(
-                      ' · ',
-                    )}
-                    {x.can_retry && (
-                      <button
-                        className="btn"
-                        disabled={busy}
-                        onClick={() =>
-                          run(async () => {
-                            await api(`/campaigns/${selected}/recipients/${x.id}/retry`, {
-                              method: 'POST',
-                            });
-                            await view(selected, page);
-                          })
-                        }
-                      >
-                        {t('إعادة المحاولة', 'Retry')}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {!ledger.items.length && (
-            <p className="empty">
-              {t('لا يوجد مستلمون يطابقون الفلاتر.', 'No recipients match these filters.')}
-            </p>
-          )}
-          <div className="form-actions">
-            <button className="btn" disabled={page === 1} onClick={() => view(selected, page - 1)}>
-              {t('السابق', 'Previous')}
-            </button>
-            <button className="btn" onClick={() => view(selected, page)}>
-              {t('تحديث', 'Refresh')}
+              </p>
+            </div>
+            <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}>
+              {t('إنشاء حملة', 'Create Campaign')}
             </button>
             <button
               className="btn"
-              disabled={page * 25 >= ledger.filteredCount}
-              onClick={() => view(selected, page + 1)}
+              onClick={() => {
+                void list.reload();
+                void summary.reload();
+              }}
+            >
+              {t('تحديث', 'Refresh')}
+            </button>
+          </div>
+          {(error || list.error) && (
+            <p className="notice error" role="alert">
+              {error || list.error}
+            </p>
+          )}
+          {saved && (
+            <p className="notice" role="status">
+              {t(
+                'حُفظت مسودة الحملة. يمكنك مراجعتها وجدولتها من القائمة.',
+                'Campaign draft saved. Review and schedule it below.',
+              )}
+            </p>
+          )}
+          <section className={styles.filters}>
+            <select
+              aria-label={t('الحساب', 'Account')}
+              value={channelId}
+              onChange={(e) => setChannelId(e.target.value)}
+            >
+              <option value="">{t('كل الحسابات', 'All accounts')}</option>
+              {channels.data.map((channel) => (
+                <option key={channel.id} value={channel.id}>
+                  {channel.name}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label={t('حالة الحملة', 'Campaign status')}
+              value={campaignStatus}
+              onChange={(e) => setCampaignStatus(e.target.value)}
+            >
+              <option value="">{t('كل الحالات', 'All statuses')}</option>
+              {['draft', 'scheduled', 'running', 'completed', 'cancelled'].map((status) => (
+                <option key={status} value={status}>
+                  {statusLabel(status, t)}
+                </option>
+              ))}
+            </select>
+            <input
+              type="search"
+              aria-label={t('البحث في الحملات', 'Search campaigns')}
+              placeholder={t('ابحث عن حملة…', 'Search campaigns…')}
+              value={campaignSearch}
+              onChange={(e) => setCampaignSearch(e.target.value)}
+            />
+          </section>
+          <p className={styles.period}>
+            {t(
+              'إحصاءات آخر 30 يومًا للحساب المختار',
+              'Statistics for the last 30 days for the selected account',
+            )}
+          </p>
+          {summary.error && (
+            <p role="alert" className="notice error">
+              {summary.error}
+            </p>
+          )}
+          <section className={styles.statistics}>
+            {(
+              [
+                ['total', t('إجمالي الحملات', 'Total Campaigns')],
+                ['completed', t('المكتملة', 'Completed')],
+                ['readRate', t('نسبة القراءة من المسلّم', 'Read Rate of Delivered')],
+                ['sent', t('الرسائل المرسلة', 'Messages Sent')],
+                ['failed', t('فشل / غير واصل', 'Failed / Unreached')],
+              ] as const
+            ).map(([key, label]) => (
+              <article key={key}>
+                <span>{label}</span>
+                <strong>
+                  {summary.loading
+                    ? '…'
+                    : summary.error
+                      ? '—'
+                      : summary.data[key] === null
+                        ? '—'
+                        : `${summary.data[key]}${key === 'readRate' ? '%' : ''}`}
+                </strong>
+              </article>
+            ))}
+          </section>
+          <Dialog
+            open={creating}
+            onClose={() => {
+              if (!busy) setCreating(false);
+            }}
+            title={t('إنشاء حملة', 'Create Campaign')}
+          >
+            <CampaignComposer
+              channels={channels.data.filter((c) => !channelId || c.id === channelId)}
+              segments={segments.data}
+              onSaved={async () => {
+                await list.reload();
+                setSaved(true);
+                setCreating(false);
+                void summary.reload();
+              }}
+            />
+          </Dialog>
+          <details className="card">
+            <summary>{t('إعدادات إرسال متقدمة', 'Advanced delivery settings')}</summary>
+            <p>
+              {t(
+                'تحدد حدود الإرسال وسياسة القناة؛ لا يلزم تعديلها لإنشاء مسودة.',
+                'Controls sending limits and channel policy; no changes needed to draft a campaign.',
+              )}
+            </p>
+            <DeliveryPolicies />
+          </details>
+          <section className="card table-wrap">
+            <h2>{t('الحملات', 'Campaigns')}</h2>
+            <table className="product-table">
+              <thead>
+                <tr>
+                  <th>{t('الحملة', 'Campaign')}</th>
+                  <th>{t('الحالة', 'Status')}</th>
+                  <th>{t('الجمهور', 'Recipients')}</th>
+                  <th>{t('تمت معالجته', 'Processed')}</th>
+                  <th>{t('مسلّم', 'Delivered')}</th>
+                  <th>{t('مقروء', 'Opened')}</th>
+                  <th>{t('فشل', 'Unreached')}</th>
+                  <th>{t('الموعد', 'Scheduled At')}</th>
+                  <th>{t('الإجراءات', 'Actions')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((c) => (
+                  <tr key={c.id}>
+                    <td>
+                      <strong>{c.name}</strong>
+                      <div className="muted">{c.channel_name}</div>
+                    </td>
+                    <td>
+                      <span className="badge">{statusLabel(c.status, t)}</span>
+                    </td>
+                    <td>{c.recipients}</td>
+                    <td>{c.metrics?.processed ?? 0}</td>
+                    <td>{c.metrics?.delivered ?? 0}</td>
+                    <td>{c.metrics?.read ?? 0}</td>
+                    <td>{c.metrics?.failed ?? 0}</td>
+                    <td>{c.scheduled_at ? new Date(c.scheduled_at).toLocaleString() : '—'}</td>
+                    <td>
+                      <div className="flex flex-wrap gap-2">
+                        <button className="btn" onClick={() => view(c.id)}>
+                          {t('النتائج', 'Results')}
+                        </button>
+                        {c.status === 'draft' && (
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={() => setEditingCampaign(c)}
+                          >
+                            {t('تعديل', 'Edit')}
+                          </button>
+                        )}
+                        {['draft', 'scheduled'].includes(c.status) && (
+                          <button type="button" className="btn" onClick={() => setScheduling(c)}>
+                            {c.status === 'scheduled'
+                              ? t('إعادة الجدولة', 'Reschedule')
+                              : t('جدولة', 'Schedule')}
+                          </button>
+                        )}
+                        {['draft', 'scheduled', 'running'].includes(c.status) && (
+                          <button
+                            className="btn btn-danger"
+                            disabled={busy}
+                            onClick={() =>
+                              confirm(
+                                t(
+                                  'إلغاء ما لم يُرسل من الحملة؟',
+                                  'Cancel the unsent campaign work?',
+                                ),
+                              ) && run(() => api(`/campaigns/${c.id}/cancel`, { method: 'PATCH' }))
+                            }
+                          >
+                            {t('إلغاء', 'Cancel')}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {list.loading ? (
+              <p className="empty">{t('جارٍ التحميل…', 'Loading…')}</p>
+            ) : (
+              !visible.length && (
+                <p className="empty">
+                  {t(
+                    'لا توجد حملات. أنشئ أول مسودة أعلاه.',
+                    'No campaigns. Build your first draft above.',
+                  )}
+                </p>
+              )
+            )}
+          </section>
+          <div className={styles.pagination}>
+            <span>
+              {result.data.total} {t('حملة', 'campaigns')}
+            </span>
+            <button
+              className="btn"
+              type="button"
+              disabled={campaignPage <= 1}
+              onClick={() => setCampaignPage(campaignPage - 1)}
+            >
+              {t('السابق', 'Previous')}
+            </button>
+            <span>{campaignPage}</span>
+            <button
+              className="btn"
+              type="button"
+              disabled={campaignPage * 10 >= result.data.total}
+              onClick={() => setCampaignPage(campaignPage + 1)}
             >
               {t('التالي', 'Next')}
             </button>
           </div>
-        </section>
+          <Dialog
+            open={!!editingCampaign}
+            onClose={() => {
+              if (!busy) setEditingCampaign(null);
+            }}
+            title={t('تعديل مسودة الحملة', 'Edit Campaign Draft')}
+          >
+            {editingCampaign && (
+              <CampaignDraftEditor
+                key={editingCampaign.id + editingCampaign.revision}
+                campaign={editingCampaign}
+                save={run}
+                busy={busy}
+                expanded
+              />
+            )}
+          </Dialog>
+          <Dialog
+            open={!!scheduling}
+            onClose={() => {
+              if (!busy) setScheduling(null);
+            }}
+            title={t('مراجعة الجمهور والجدولة', 'Review Audience & Schedule')}
+          >
+            {scheduling &&
+              (() => {
+                const c = scheduling;
+                return (
+                  <form
+                    className="flex flex-wrap gap-1"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (
+                        reviews[c.id]?.key !== reviewKey(c) ||
+                        !reviews[c.id]?.audience.eligible
+                      ) {
+                        setError(
+                          t(
+                            'راجع الجمهور وأسباب الاستبعاد أولاً.',
+                            'Review the audience and exclusions first.',
+                          ),
+                        );
+                        return;
+                      }
+                      const at = new Date(
+                        String(new FormData(e.currentTarget).get('at')),
+                      ).toISOString();
+                      run(async () => {
+                        const result = await api(`/campaigns/${c.id}/schedule`, {
+                          method: 'POST',
+                          body: JSON.stringify({ at }),
+                        });
+                        setScheduling(null);
+                        return result;
+                      });
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={busy}
+                      onClick={() => reviewAudience(c)}
+                    >
+                      {t('مراجعة أسباب أهلية الجمهور', 'Review audience eligibility')}
+                    </button>
+                    {reviews[c.id]?.key === reviewKey(c) && (
+                      <AudienceSummary audience={reviews[c.id].audience} />
+                    )}
+                    <input
+                      type="datetime-local"
+                      aria-label={t('موعد الحملة', 'Campaign schedule')}
+                      name="at"
+                      required
+                    />
+                    <button
+                      className="btn"
+                      disabled={
+                        busy ||
+                        reviews[c.id]?.key !== reviewKey(c) ||
+                        !reviews[c.id]?.audience.eligible
+                      }
+                    >
+                      {c.status === 'scheduled'
+                        ? t('إعادة الجدولة', 'Reschedule')
+                        : t('جدولة', 'Schedule')}
+                    </button>
+                  </form>
+                );
+              })()}
+          </Dialog>
+          {selected && (
+            <section
+              className="card stack"
+              aria-label={t('تصفية مستلمي الحملة', 'Campaign recipient filters')}
+            >
+              <form
+                className="form-grid"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const f = new FormData(e.currentTarget);
+                  void view(selected, 1, {
+                    search: String(f.get('search') ?? ''),
+                    status: String(f.get('status') ?? ''),
+                    deliveryStatus: String(f.get('deliveryStatus') ?? ''),
+                    jobStatus: String(f.get('jobStatus') ?? ''),
+                  });
+                }}
+              >
+                <label className="field">
+                  {t('البحث باسم العميل', 'Search contact name')}
+                  <input name="search" maxLength={120} defaultValue={filters.search} />
+                </label>
+                <label className="field">
+                  {t('حالة المعالجة', 'Processing status')}
+                  <select name="status" defaultValue={filters.status}>
+                    <option value="">{t('الكل', 'All')}</option>
+                    {['pending', 'queued', 'skipped', 'failed'].map((x) => (
+                      <option key={x} value={x}>
+                        {statusLabel(x, t)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  {t('حالة التسليم', 'Delivery status')}
+                  <select name="deliveryStatus" defaultValue={filters.deliveryStatus}>
+                    <option value="">{t('الكل', 'All')}</option>
+                    {['none', 'queued', 'sent', 'delivered', 'read', 'failed'].map((x) => (
+                      <option key={x} value={x}>
+                        {x === 'none' ? t('لا توجد رسالة', 'No message') : statusLabel(x, t)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  {t('حالة مهمة الإرسال', 'Outbound job status')}
+                  <select name="jobStatus" defaultValue={filters.jobStatus}>
+                    <option value="">{t('الكل', 'All')}</option>
+                    {['none', 'pending', 'sending', 'sent', 'failed', 'ambiguous', 'blocked'].map(
+                      (x) => (
+                        <option key={x} value={x}>
+                          {x === 'none' ? t('لا توجد مهمة', 'No job') : statusLabel(x, t)}
+                        </option>
+                      ),
+                    )}
+                  </select>
+                </label>
+                <button className="btn" disabled={ledgerLoading}>
+                  {t('تطبيق الفلاتر', 'Apply filters')}
+                </button>
+              </form>
+              {ledgerLoading && (
+                <p role="status">{t('تحميل سجل المستلمين…', 'Loading recipients…')}</p>
+              )}
+              <p className="muted">
+                {t(
+                  'إعادة المحاولة متاحة فقط لفشل المعالجة قبل إنشاء رسالة. النتائج الغامضة تحتاج مراجعة ولا يُعاد إرسالها هنا.',
+                  'Retry is available only for processing failures before message creation. Ambiguous outcomes need review and cannot be resent here.',
+                )}
+              </p>
+            </section>
+          )}
+          {ledger && (
+            <section className="card table-wrap">
+              <h2>{t('سجل الجمهور والتسليم', 'Recipient & delivery ledger')}</h2>
+              <p>{list.data.find((c) => c.id === selected)?.name}</p>
+              <p className="muted">
+                {t('إجمالي الحملة قبل التصفية', 'Campaign totals before filters')}
+              </p>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {ledger.totals.map((x, i) => (
+                  <span key={i} className="badge">
+                    {statusLabel(x.status, t)} /{' '}
+                    {x.delivery_status ? statusLabel(x.delivery_status, t) : '—'}: {x.count}
+                  </span>
+                ))}
+              </div>
+              <div className="form-actions">
+                <p role="status">
+                  {ledger.filteredCount} {t('مستلم مطابق', 'matching recipients')}
+                </p>
+                <button className="btn" onClick={downloadLedger}>
+                  {t('تنزيل الصفحة المحملة', 'Download loaded page')}
+                </button>
+              </div>
+              <table className="product-table">
+                <thead>
+                  <tr>
+                    <th>{t('العميل', 'Contact')}</th>
+                    <th>{t('المعالجة', 'Processing')}</th>
+                    <th>{t('التسليم', 'Delivery')}</th>
+                    <th>{t('التفاصيل', 'Details')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ledger.items.map((x) => (
+                    <tr key={x.id}>
+                      <td>{x.contact_name}</td>
+                      <td>{statusLabel(x.status, t)}</td>
+                      <td>
+                        {x.delivery_status ? statusLabel(x.delivery_status, t) : '—'}
+                        <br />
+                        {x.job_status ? statusLabel(x.job_status, t) : '—'}
+                        {x.attempts != null && (
+                          <small>
+                            {' '}
+                            · {x.attempts} {t('محاولات', 'attempts')}
+                          </small>
+                        )}
+                      </td>
+                      <td>
+                        {[
+                          ...new Set([x.error, x.delivery_error, x.job_error].filter(Boolean)),
+                        ].join(' · ')}
+                        {x.can_retry && (
+                          <button
+                            className="btn"
+                            disabled={busy}
+                            onClick={() =>
+                              run(async () => {
+                                await api(`/campaigns/${selected}/recipients/${x.id}/retry`, {
+                                  method: 'POST',
+                                });
+                                await view(selected, page);
+                              })
+                            }
+                          >
+                            {t('إعادة المحاولة', 'Retry')}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!ledger.items.length && (
+                <p className="empty">
+                  {t('لا يوجد مستلمون يطابقون الفلاتر.', 'No recipients match these filters.')}
+                </p>
+              )}
+              <div className="form-actions">
+                <button
+                  className="btn"
+                  disabled={page === 1}
+                  onClick={() => view(selected, page - 1)}
+                >
+                  {t('السابق', 'Previous')}
+                </button>
+                <button className="btn" onClick={() => view(selected, page)}>
+                  {t('تحديث', 'Refresh')}
+                </button>
+                <button
+                  className="btn"
+                  disabled={page * 25 >= ledger.filteredCount}
+                  onClick={() => view(selected, page + 1)}
+                >
+                  {t('التالي', 'Next')}
+                </button>
+              </div>
+            </section>
+          )}
+        </>
       )}
     </main>
   );

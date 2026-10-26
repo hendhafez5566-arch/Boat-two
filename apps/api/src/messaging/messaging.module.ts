@@ -1,3 +1,6 @@
+import { WhatsAppFlowsController } from './whatsapp-flows.controller';
+import { WhatsAppFlowsService } from './whatsapp-flows.service';
+import { WhatsAppFlowsGateway } from './whatsapp-flows.gateway';
 import { DeliveryBudget } from './delivery-budget';
 import { OutboundService } from './outbound.service';
 import { TemplatesController } from './templates.controller';
@@ -15,6 +18,7 @@ import { WidgetAssetController, WidgetController } from './widget.controller';
 
 @Module({
   controllers: [
+    WhatsAppFlowsController,
     MetaConnectController,
     TemplatesController,
     ChannelsController,
@@ -23,6 +27,8 @@ import { WidgetAssetController, WidgetController } from './widget.controller';
     WidgetAssetController,
   ],
   providers: [
+    WhatsAppFlowsService,
+    WhatsAppFlowsGateway,
     DeliveryBudget,
     OutboundService,
     CryptoService,

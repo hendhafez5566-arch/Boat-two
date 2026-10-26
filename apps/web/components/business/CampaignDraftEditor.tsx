@@ -23,10 +23,12 @@ export function CampaignDraftEditor({
   campaign,
   save,
   busy,
+  expanded = false,
 }: {
   campaign: EditableCampaign;
   save: (fn: () => Promise<unknown>) => Promise<void>;
   busy: boolean;
+  expanded?: boolean;
 }) {
   const { t } = useLocale();
   const [draft, setDraft] = useState<CampaignContent>(campaign.content);
@@ -42,7 +44,7 @@ export function CampaignDraftEditor({
     (x) => x.name === draft.template?.name && x.language === draft.template?.language,
   );
   return (
-    <details>
+    <details open={expanded || undefined}>
       <summary className="btn">{t('تعديل المسودة', 'Edit draft')}</summary>
       <form
         className="stack p-3"

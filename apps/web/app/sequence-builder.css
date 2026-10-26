@@ -135,7 +135,6 @@
 .fn-card .flow-node-note{margin-top:8px}
 .fn-condition .flow-node-icon,.fn-tag .flow-node-icon{border-radius:9px}
 .builder-canvas{background-color:#f4f7fc;background-image:radial-gradient(#cfd8e8 1px,transparent 1px);background-size:22px 22px}
-.builder-toolbar .btn-primary,.builder-toolbar button.save{border-radius:12px}
 .palette-step{border-radius:10px}
 .fn-attach{display:flex;align-items:center;gap:10px;margin:10px 12px 0;padding:10px 12px;border-radius:12px;background:#f1f5fb;color:#33445b;font-size:.78rem;min-height:44px;overflow:hidden}
 .fn-attach-icon{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--node-color,#2563eb);color:#fff;font-size:.8rem}

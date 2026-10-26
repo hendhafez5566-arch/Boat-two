@@ -1,0 +1,121 @@
+.page {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.mode {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px;
+  background: #eeedf7;
+  border-radius: 10px;
+  justify-self: start;
+}
+.mode button {
+  padding: 9px 22px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #53687c;
+  font: inherit;
+  font-size: 13px;
+}
+.mode button[aria-pressed='true'] {
+  background: white;
+  color: var(--primary);
+  box-shadow: 0 2px 5px #233b5012;
+}
+.filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.5fr;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid #e2e9f1;
+  border-radius: 12px;
+  padding: 14px;
+}
+.filters input,
+.filters select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid #e0e7f0;
+  border-radius: 8px;
+  padding: 10px;
+  color: #30495f;
+  font: inherit;
+  font-size: 13px;
+  background: white;
+}
+.period {
+  font-size: 12px;
+  color: #5a7187;
+  margin: 0;
+}
+.statistics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+.statistics article {
+  padding: 18px;
+  border: 1px solid #e5ebf3;
+  border-radius: 14px;
+  background: white;
+  box-shadow: 0 4px 16px #233a4b06;
+  display: grid;
+  gap: 10px;
+}
+.statistics span {
+  font-size: 12px;
+  color: #526c82;
+}
+.statistics strong {
+  font-size: 24px;
+  font-weight: 600;
+  color: #293f55;
+}
+.pagination {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.pagination > span:first-child {
+  margin-inline-end: auto;
+}
+.page :global(.product-table) {
+  font-size: 12px;
+}
+.page :global(.product-table) th {
+  white-space: nowrap;
+}
+.page :global(.product-table) td {
+  padding: 13px 10px;
+}
+.page :global(.product-table) :global(.btn) {
+  min-height: 34px;
+  font-size: 12px;
+  padding: 7px 10px;
+}
+@media (max-width: 1000px) {
+  .statistics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .filters {
+    grid-template-columns: 1fr 1fr;
+  }
+  .filters input {
+    grid-column: 1/-1;
+  }
+  .statistics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .statistics article {
+    padding: 14px;
+  }
+}

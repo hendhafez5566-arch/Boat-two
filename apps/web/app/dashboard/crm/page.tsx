@@ -1,8 +1,8 @@
 'use client';
-import {useChannelContext} from '../../../components/product/useChannelContext';
-import { eventLabel } from '../../../lib/business-events';
+import SubscriberProfile from '../../../components/business/SubscriberProfile';
+import styles from '../../../components/business/subscribers.module.css';
+import { useChannelContext } from '../../../components/product/useChannelContext';
 import { Dialog } from '../../../components/product/ProductUI';
-import { ContactActivityExport } from '../../../components/business/ContactActivityExport';
 import { statusLabel } from '../../../components/product/status';
 import { CrmJobs } from '../../../components/business/CrmJobs';
 import { ContactLifecycle } from '../../../components/business/ContactLifecycle';
@@ -13,9 +13,9 @@ import { useLocale } from '../../../components/product/locale';
 import { useData } from '../../../components/business/useData';
 import { download, exportCsv } from '../../../components/business/csv';
 type Contact = {
-  lists?:{id:string;name:string}[];
-  sequences?:{id:string;name:string;status:string}[];
-  consents?:{channelId:string;status:string}[];
+  lists?: { id: string; name: string }[];
+  sequences?: { id: string; name: string; status: string }[];
+  consents?: { channelId: string; status: string }[];
   id: string;
   name: string;
   email: string | null;
@@ -44,14 +44,6 @@ type Deal = {
   currency: string;
 };
 type Task = { id: string; title: string; contact_name: string; due_at: string; status: string };
-type Timeline = {
-  notes: { id: string; body: string; created_at: string }[];
-  conversations: { id: string; channel_name: string; status: string }[];
-  tasks: Task[];
-  deals: Deal[];
-  consent: { channel_id: string; channel_name: string; status: string; evidence: string }[];
-  events: { id: string; type: string; created_at: string; status: string }[];
-};
 const blank = {
   name: '',
   email: '',
@@ -75,22 +67,35 @@ export default function CRM() {
     try {
       const saved = JSON.parse(localStorage.getItem('crm.columns') || 'null');
       if (Array.isArray(saved)) setCols(saved.filter((c): c is Column => COLUMNS.includes(c)));
-    } catch {}
+    } catch {
+      /* Optional column preferences. */
+    }
   }, []);
   const toggleCol = (c: Column, on: boolean) =>
     setCols((cur) => {
       const next = on ? [...cur, c] : cur.filter((x) => x !== c);
       try {
         localStorage.setItem('crm.columns', JSON.stringify(next));
-      } catch {}
+      } catch {
+        /* Optional column preferences. */
+      }
       return next;
     });
   const [q, setQ] = useState('');
-  const [channelId,setChannelId]=useChannelContext();
-  const [listId,setListId]=useState(''),[sequenceId,setSequenceId]=useState(''),[sequenceStatus,setSequenceStatus]=useState(''),[consentStatus,setConsentStatus]=useState('');
-  const filterChannels=useData<{id:string;name:string}[]>('/channels',[]);
-  const filterLists=useData<{id:string;name:string}[]>(canManage?'/contact-lists':null,[]);
-  const filterSequences=useData<{id:string;name:string}[]>(canManage?'/sequences':null,[]);
+  const [channelId, setChannelId] = useChannelContext();
+  const [listId, setListId] = useState(''),
+    [sequenceId, setSequenceId] = useState(''),
+    [sequenceStatus, setSequenceStatus] = useState(''),
+    [consentStatus, setConsentStatus] = useState('');
+  const filterChannels = useData<{ id: string; name: string }[]>('/channels', []);
+  const filterLists = useData<{ id: string; name: string }[]>(
+    canManage ? '/contact-lists' : null,
+    [],
+  );
+  const filterSequences = useData<{ id: string; name: string }[]>(
+    canManage ? '/sequences' : null,
+    [],
+  );
   const [bulkIds, setBulkIds] = useState<string[]>([]);
   const [stage, setStage] = useState('');
   const [tag, setTag] = useState('');
@@ -103,18 +108,51 @@ export default function CRM() {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState(blank);
   const [selected, setSelected] = useState<Contact | null>(null);
-  const [timeline, setTimeline] = useState<Timeline | null>(null);
+  const [viewMode, setViewMode] = useState('list');
+  const [sort, setSort] = useState('latest');
+  const [pageSize, setPageSize] = useState(10);
   const filter = new URLSearchParams({
     q,
-    ...(channelId?{channelId}:{}),...(listId?{listId}:{}),...(sequenceId?{sequenceId}:{}),...(sequenceStatus?{sequenceStatus}:{}),...(consentStatus?{consentStatus}:{}),
+    ...(channelId ? { channelId } : {}),
+    ...(listId ? { listId } : {}),
+    ...(sequenceId ? { sequenceId } : {}),
+    ...(sequenceStatus ? { sequenceStatus } : {}),
+    ...(consentStatus ? { consentStatus } : {}),
     archived: archiveFilter,
     ...(stage ? { lifecycle: stage } : {}),
     ...(tag ? { tag } : {}),
   });
   const contacts = useData<{ items: Contact[]; total: number }>(
-    `/crm/contacts?${filter}&page=${page}`,
+    `/crm/contacts?${filter}&page=${page}&limit=${pageSize}&sort=${sort}`,
     { items: [], total: 0 },
   );
+  const summary = useData<{
+    total: number;
+    retained: number;
+    subscribed: number;
+    in_sequences: number;
+  }>(tab === 'contacts' ? '/crm/contacts-summary?' + filter : null, {
+    total: 0,
+    retained: 0,
+    subscribed: 0,
+    in_sequences: 0,
+  });
+  useEffect(() => {
+    setPage(1);
+    setBulkIds([]);
+  }, [
+    q,
+    channelId,
+    listId,
+    sequenceId,
+    sequenceStatus,
+    consentStatus,
+    stage,
+    tag,
+    archiveFilter,
+    pageSize,
+    sort,
+  ]);
   const pipelines = useData<Pipeline[]>('/crm/pipelines', []);
   const deals = useData<{ items: Deal[]; total: number }>('/crm/deals?page=' + page, {
     items: [],
@@ -129,7 +167,21 @@ export default function CRM() {
     [],
   );
   const segments = useData<
-    { id: string; name: string; filters: { q?: string; lifecycle?: string; tag?: string; archived?: string;channelId?:string;listId?:string;sequenceId?:string;sequenceStatus?:string;consentStatus?:string } }[]
+    {
+      id: string;
+      name: string;
+      filters: {
+        q?: string;
+        lifecycle?: string;
+        tag?: string;
+        archived?: string;
+        channelId?: string;
+        listId?: string;
+        sequenceId?: string;
+        sequenceStatus?: string;
+        consentStatus?: string;
+      };
+    }[]
   >('/crm/segments', []);
   const duplicates = useData<{ kind: string; value: string; ids: string[]; count: number }[]>(
     '/crm/contacts/duplicates',
@@ -139,10 +191,16 @@ export default function CRM() {
     '/team',
     { members: [] },
   );
-  const channels = useData<{ id: string; name: string }[]>('/channels', []);
-  useEffect(() => { const reload=()=>{void contacts.reload();};window.addEventListener('boat:crm-imported',reload);return ()=>window.removeEventListener('boat:crm-imported',reload); }, [contacts.reload]);
+  useEffect(() => {
+    const reload = () => {
+      void contacts.reload();
+    };
+    window.addEventListener('boat:crm-imported', reload);
+    return () => window.removeEventListener('boat:crm-imported', reload);
+  }, [contacts.reload]);
   const refresh = () => {
     contacts.reload();
+    summary.reload();
     deals.reload();
     tasks.reload();
     fields.reload();
@@ -164,15 +222,6 @@ export default function CRM() {
       throw e;
     } finally {
       setBusy(false);
-    }
-  }
-  async function view(c: Contact) {
-    setSelected(c);
-    setTimeline(null);
-    try {
-      setTimeline(await api<Timeline>(`/crm/contacts/${c.id}/timeline`));
-    } catch (e) {
-      setError((e as Error).message);
     }
   }
   async function save(e: FormEvent) {
@@ -222,24 +271,33 @@ export default function CRM() {
     ['config', 'الحقول والشرائح', 'Fields & segments'],
   ];
   return (
-    <main className="stack">
+    <main className={styles.page}>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">{t('علاقات العملاء', 'CUSTOMER RELATIONSHIPS')}</p>
-          <h1>{t('إدارة العملاء', 'Customer management')}</h1>
+          <h1>{t('المشتركون', 'Subscribers')}</h1>
           <p>
             {t(
-              'العملاء والمحادثات والصفقات والمتابعات مرتبطة ببيانات شركتك.',
-              'Contacts, conversations, deals and follow-ups connected to your workspace.',
+              'إدارة جمهورك وتصنيفه عبر جميع الحسابات والقنوات.',
+              'Manage and segment your audience across all channels.',
             )}
           </p>
         </div>
-        <button className="btn btn-primary" onClick={() => {setEdit(null);setForm(blank);setShowCreate(true);setTab('contacts');}}>{t('إضافة عميل', 'Add contact')}</button>
+        <button
+          className="btn btn-primary"
+          onClick={() => {
+            setEdit(null);
+            setForm(blank);
+            setShowCreate(true);
+            setTab('contacts');
+          }}
+        >
+          {t('إضافة عميل', 'Add contact')}
+        </button>
         <button className="btn" onClick={refresh}>
           {t('تحديث', 'Refresh')}
         </button>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <nav className={styles.navigation} aria-label={t('أقسام العملاء', 'Subscriber sections')}>
         {tabs.map(([id, ar, en]) => (
           <button
             key={id}
@@ -252,7 +310,7 @@ export default function CRM() {
             {t(ar, en)}
           </button>
         ))}
-      </div>
+      </nav>
       {(error ||
         contacts.error ||
         deals.error ||
@@ -270,633 +328,701 @@ export default function CRM() {
       )}
       {tab === 'contacts' && (
         <>
-          <section className="card form-actions">              <label className="field">
-                {t('بحث', 'Search')}
-                <input
-                  value={q}
-                  onChange={(e) => {
-                    setQ(e.target.value);
-                    setPage(1);
-                  }}
-                  placeholder={t('اسم أو بريد أو هاتف', 'Name, email or phone')}
-                />
-              </label><strong>{contacts.data.total} {t('عميل', 'contacts')}</strong>
-            {(q || stage || tag || channelId || listId || sequenceId || sequenceStatus || consentStatus || archiveFilter !== 'active') && <button className="btn" onClick={()=>{setQ('');setStage('');setTag('');setArchiveFilter('active');setChannelId('');setListId('');setSequenceId('');setSequenceStatus('');setConsentStatus('');setPage(1);}}>{t('مسح التصفية', 'Clear filters')}</button>}
-          </section>
-          <details className="card" open={bulkIds.length > 0 || undefined}>
-            <summary>{t('الفلاتر والأدوات المتقدمة', 'Advanced filters and tools')} {(stage || tag || archiveFilter !== 'active') && t('· توجد فلاتر نشطة', '· filters active')}</summary>
-            <Link href="/dashboard/crm/work" className="btn">{t('إدارة المبيعات والمتابعات المتقدمة', 'Manage sales and follow-ups')}</Link>
-            <Link href="/dashboard/crm/lists" className="btn">{t('قوائم المشتركين', 'Subscriber lists')}</Link>
-          <section className="card">
-            <div className="form-grid">
-              {[[t('القناة','Channel'),channelId,setChannelId,filterChannels.data],[t('القائمة','List'),listId,setListId,filterLists.data],[t('التسلسل','Sequence'),sequenceId,setSequenceId,filterSequences.data]].map(([label,value,setter,rows],i)=><label key={i} className="field">{label as string}<select value={value as string} onChange={e=>{(setter as (v:string)=>void)(e.target.value);setPage(1);}}><option value="">{t('الكل','All')}</option>{(rows as {id:string;name:string}[]).map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>)}
-              <label className="field">{t('حالة التسلسل','Sequence status')}<select value={sequenceStatus} onChange={e=>{setSequenceStatus(e.target.value);setPage(1);}}><option value="">{t('الكل','All')}</option>{['active','completed','stopped'].map(v=><option key={v}>{v}</option>)}</select></label>
-              <label className="field">{t('موافقة التسويق (مستقلة عن القوائم)','Marketing consent (independent of lists)')}<select value={consentStatus} onChange={e=>{setConsentStatus(e.target.value);setPage(1);}}><option value="">{t('الكل','All')}</option>{['opted_in','opted_out','unknown'].map(v=><option key={v}>{v}</option>)}</select></label>
-              <label className="field">
-                {t('مرحلة العميل', 'Lifecycle')}
-                <select
-                  value={stage}
-                  onChange={(e) => {
-                    setStage(e.target.value);
-                    setPage(1);
-                  }}
-                >
-                  <option value="">{t('الكل', 'All')}</option>
-                  {['lead', 'qualified', 'customer', 'inactive'].map((x) => (
-                    <option key={x} value={x}>
-                      {statusLabel(x, t)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                {t('وسم', 'Tag')}
-                <input
-                  list="crm-known-tags"
-                  value={tag}
-                  onChange={(e) => {
-                    setTag(e.target.value);
-                    setPage(1);
-                  }}
-                />
-                <datalist id="crm-known-tags">
-                  {[...new Set(contacts.data.items.flatMap((c) => c.tags))].sort().map((x) => (
-                    <option key={x} value={x} />
-                  ))}
-                </datalist>
-              </label>
-            </div>
-            {(q || stage || tag || channelId || listId || sequenceId || sequenceStatus || consentStatus) && (
-              <div className="filter-chips" aria-label={t('التصفية الحالية', 'Active filters')}>{[[channelId,setChannelId,t('القناة','Channel')],[listId,setListId,t('القائمة','List')],[sequenceId,setSequenceId,t('التسلسل','Sequence')],[sequenceStatus,setSequenceStatus,t('حالة التسلسل','Sequence status')],[consentStatus,setConsentStatus,t('الموافقة','Consent')]].filter(([v])=>!!v).map(([value,setter,label],i)=><button className="filter-chip" key={'extended'+i} onClick={()=>{(setter as (v:string)=>void)('');setPage(1);}}>{label as string}: {([...filterChannels.data,...filterLists.data,...filterSequences.data].find(x=>x.id===value)?.name??value) as string} ×</button>)}
-                {q && (
-                  <button type="button" className="filter-chip" onClick={() => { setQ(''); setPage(1); }}>
-                    {t('بحث', 'Search')}: {q} ×
-                  </button>
-                )}
-                {stage && (
-                  <button type="button" className="filter-chip" onClick={() => { setStage(''); setPage(1); }}>
-                    {statusLabel(stage, t)} ×
-                  </button>
-                )}
-                {tag && (
-                  <button type="button" className="filter-chip" onClick={() => { setTag(''); setPage(1); }}>
-                    # {tag} ×
-                  </button>
-                )}
-              </div>
-            )}
-            <div className="form-actions">
-              <details className="col-picker">
-                <summary className="btn">{t('الأعمدة', 'Columns')}</summary>
-                <div className="col-picker-menu">
-                  {(
-                    [
-                      ['contact', t('التواصل', 'Contact')],
-                      ['lifecycle', t('المرحلة', 'Lifecycle')],
-                      ['tags', t('الوسوم', 'Tags')],
-                      ['id', t('المعرّف', 'ID')],
-                    ] as [Column, string][]
-                  ).map(([key, label]) => (
-                    <label key={key}>
-                      <input
-                        type="checkbox"
-                        checked={cols.includes(key)}
-                        onChange={(e) => toggleCol(key, e.target.checked)}
-                      />{' '}
-                      {label}
-                    </label>
-                  ))}
-                </div>
-              </details>
-              <button className="btn" onClick={exportContacts}>
-                {t('تصدير CSV', 'Export CSV')}
-              </button>
-
-            </div>
-          </section>
-          <section className="card">
-            <label className="field">
-              {t('حالة الملفات', 'Profile status')}
-              <select
-                value={archiveFilter}
-                onChange={(event) => {
-                  setArchiveFilter(event.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="active">{t('النشطة', 'Active')}</option>
-                <option value="archived">{t('المؤرشفة', 'Archived')}</option>
-                <option value="all">{t('الكل', 'All')}</option>
-              </select>
-            </label>
-          </section>
-          {canManage && <ContactLifecycle act={act} busy={busy} />}
-          {canManage && <CrmJobs />}
-          {canManage && bulkIds.length > 0 && (
-            <form
-              className="card space-y-3"
-              onSubmit={async (event) => {
-                event.preventDefault();
-                const data = new FormData(event.currentTarget);
-                const lifecycle = String(data.get('lifecycle') || '');
-                const owner = String(data.get('owner') || '');
-                try {
-                  await act('/crm/contacts/bulk', {
-                    ids: bulkIds,
-                    attributes: Object.fromEntries(
-                      fields.data
-                        .filter((field) => data.get('apply-' + field.key))
-                        .map((field) => {
-                          const value = String(data.get('custom-' + field.key) || '');
-                          return [
-                            field.key,
-                            value === ''
-                              ? null
-                              : field.type === 'number'
-                                ? Number(value)
-                                : field.type === 'boolean'
-                                  ? value === 'true'
-                                  : value,
-                          ];
-                        }),
-                    ),
-                    ...(lifecycle ? { lifecycle } : {}),
-                    ...(owner ? { ownerId: owner === 'unassigned' ? null : owner } : {}),
-                    addTags: String(data.get('tags') || '')
-                      .split(',')
-                      .map((tag) => tag.trim())
-                      .filter(Boolean),
-                  });
-                  setBulkIds([]);
-                } catch {
-                  /* Shared error banner. */
-                }
-              }}
+          <section
+            className={styles.filters}
+            aria-label={t('تصفية المشتركين', 'Subscriber filters')}
+          >
+            <select
+              aria-label={t('الحساب', 'Account')}
+              value={channelId}
+              onChange={(e) => setChannelId(e.target.value)}
             >
-              <h2>
-                {t('تعديل العملاء المحددين', 'Edit selected contacts')} ({bulkIds.length})
-              </h2>
-              <div className="form-grid">
-                <label className="field">
-                  {t('المرحلة', 'Lifecycle')}
-                  <select name="lifecycle">
-                    <option value="">{t('دون تغيير', 'Keep current')}</option>
-                    {['lead', 'qualified', 'customer', 'inactive'].map((value) => (
-                      <option key={value} value={value}>{statusLabel(value,t)}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  {t('المسؤول', 'Owner')}
-                  <select name="owner">
-                    <option value="">{t('دون تغيير', 'Keep current')}</option>
-                    <option value="unassigned">{t('إلغاء التعيين', 'Unassign')}</option>
-                    {team.data.members.map((member) => (
-                      <option key={member.user_id} value={member.user_id}>
-                        {member.full_name || member.email}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  {t('إضافة وسوم مفصولة بفاصلة', 'Add comma-separated tags')}
-                  <input name="tags" />
-                </label>
-              </div>
-              <fieldset className="form-grid">
-                <legend>
-                  {t(
-                    'حقول مخصصة (حدد ما تريد تغييره فقط)',
-                    'Custom fields (select only fields to change)',
-                  )}
-                </legend>
-                {fields.data.map((field) => (
-                  <label className="field" key={field.key}>
-                    <span>
-                      <input type="checkbox" name={'apply-' + field.key} /> {field.label}
-                    </span>
-                    {field.type === 'boolean' ? (
-                      <select name={'custom-' + field.key}>
-                        <option value="">{t('مسح القيمة', 'Clear value')}</option>
-                        <option value="true">{t('نعم', 'Yes')}</option>
-                        <option value="false">{t('لا', 'No')}</option>
-                      </select>
-                    ) : (
-                      <input
-                        name={'custom-' + field.key}
-                        type={
-                          field.type === 'number'
-                            ? 'number'
-                            : field.type === 'date'
-                              ? 'date'
-                              : 'text'
-                        }
-                        step={field.type === 'number' ? 'any' : undefined}
-                        maxLength={2000}
-                      />
-                    )}
-                  </label>
-                ))}
-              </fieldset>
-              <button className="btn btn-primary" disabled={busy || !bulkIds.length}>
-                {t('تطبيق على المحددين', 'Apply to selected')}
-              </button>
-              <button type="button" className="btn" onClick={() => setBulkIds([])}>
-                {t('مسح التحديد', 'Clear selection')}
-              </button>
-            </form>
-          )}
-
-          </details>
-          <section className="card table-wrap">
-            <table className="product-table">
-              <thead>
-                <tr>
-                  <th>{t('تحديد', 'Select')}</th>
-                  <th>{t('العميل', 'Customer')}</th>
-                  {cols.includes('contact') && <th>{t('التواصل', 'Contact')}</th>}
-                  {cols.includes('lifecycle') && <th>{t('المرحلة', 'Lifecycle')}</th>}
-                  {cols.includes('tags') && <th>{t('الوسوم', 'Tags')}</th>}
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {contacts.data.items.map((c) => (
-                  <tr key={c.id}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        aria-label={t('تحديد ', 'Select ') + c.name}
-                        checked={bulkIds.includes(c.id)}
-                        disabled={!bulkIds.includes(c.id) && bulkIds.length >= 100}
-                        onChange={(event) =>
-                          setBulkIds((ids) =>
-                            event.target.checked ? [...ids, c.id] : ids.filter((id) => id !== c.id),
-                          )
-                        }
-                      />
-                    </td>
-                    <td>
-                      <button className="font-bold underline" onClick={() => view(c)}>
-                        {c.name}
-                      </button><div className="stack text-xs">{(c.lists??[]).map(l=><span key={l.id}>{t('قائمة','List')}: {l.name}</span>)}{(c.sequences??[]).map(seq=><span key={seq.id}>{seq.name}: {seq.status}</span>)}{(c.consents??[]).map(consent=><span key={consent.channelId}>{filterChannels.data.find(ch=>ch.id===consent.channelId)?.name??t('قناة','Channel')}: {consent.status}</span>)}{!(c.consents??[]).length&&<span>{t('لا توجد موافقة تسويق موثقة','No documented marketing consent')}</span>}</div>
-                    </td>
-                    {cols.includes('contact') && <td>{c.email || c.phone || '—'}</td>}
-                    {cols.includes('lifecycle') && (
-                      <td>
-                        <span className="badge">{statusLabel(c.lifecycle, t)}</span>
-                      </td>
-                    )}
-                    {cols.includes('tags') && (
-                      <td>
-                        {c.tags.length
-                          ? c.tags.map((x) => (
-                              <button
-                                type="button"
-                                key={x}
-                                className="tag-chip"
-                                title={t('تصفية بهذا الوسم', 'Filter by this tag')}
-                                style={{ '--tag-hue': tagHue(x) } as CSSProperties}
-                                onClick={() => {
-                                  setTag(x);
-                                  setPage(1);
-                                }}
-                              >
-                                {x}
-                              </button>
-                            ))
-                          : '—'}
-                      </td>
-                    )}
-                    <td>
-                      <button
-                        className="btn"
-                        onClick={() => {
-                          setEdit(c.id);
-                          setForm({
-                            name: c.name || '',
-                            email: c.email || '',
-                            phone: c.phone || '',
-                            lifecycle: c.lifecycle,
-                            tags: c.tags.join(', '),
-                            ownerId: c.owner_id || '',
-                            attributes: JSON.stringify(c.attributes, null, 2),
-                          });
-                        }}
-                      >
-                        {t('تعديل', 'Edit')}
-                      </button>
-                      <button
-                        className="btn"
-                        disabled={busy || !canManage}
-                        onClick={() =>
-                          void act(
-                            '/crm/contacts/' + c.id + '/archive',
-                            { archived: !c.archived_at },
-                            'PATCH',
-                          ).catch(() => {})
-                        }
-                      >
-                        {c.archived_at ? t('استعادة', 'Restore') : t('أرشفة', 'Archive')}
-                      </button>
-                      {cols.includes('id') && (
-                        <small className="block select-all" dir="ltr">
-                          {c.id}
-                        </small>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {contacts.loading ? (
-              <p className="empty">{t('جارٍ التحميل…', 'Loading…')}</p>
-            ) : (
-              !contacts.data.items.length && (
-                <p className="empty">
-                  {t(
-                    'أضف أول عميل، أو استورد قائمة جهات اتصالك.',
-                    'Add your first contact or import your contact list.',
-                  )}
-                </p>
-              )
-            )}
-          </section>
-          <Dialog open={showCreate || !!edit} onClose={() => {setShowCreate(false);setEdit(null);}} title={edit ? t('تعديل العميل','Edit contact') : t('إضافة عميل','Add contact')}>
-          <form className="card" onSubmit={save}>
-            <h2>
-              {edit
-                ? t('تعديل ملف العميل', 'Edit customer profile')
-                : t('عميل جديد', 'New contact')}
-            </h2>
-            <div className="form-grid">
-              {(['name', 'email', 'phone', 'tags'] as const).map((k) => (
-                <label className="field" key={k}>
-                  {
-                    {
-                      name: t('الاسم', 'Name'),
-                      email: t('البريد', 'Email'),
-                      phone: t('الهاتف', 'Phone'),
-                      tags: t('وسوم مفصولة بفاصلة', 'Comma-separated tags'),
-                    }[k]
-                  }
-                  <input
-                    type={k === 'email' ? 'email' : 'text'}
-                    required={k === 'name'}
-                    value={form[k]}
-                    onChange={(e) => setForm({ ...form, [k]: e.target.value })}
-                  />
-                </label>
+              <option value="">{t('كل الحسابات', 'All accounts')}</option>
+              {filterChannels.data.map((channel) => (
+                <option key={channel.id} value={channel.id}>
+                  {channel.name}
+                </option>
               ))}
-              <label className="field">
-                {t('المرحلة', 'Lifecycle')}
-                <select
-                  value={form.lifecycle}
-                  onChange={(e) => setForm({ ...form, lifecycle: e.target.value })}
-                >
-                  {['lead', 'qualified', 'customer', 'inactive'].map((x) => (
-                    <option key={x} value={x}>
-                      {statusLabel(x, t)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                {t('مسؤول العميل', 'Owner')}
-                <select
-                  value={form.ownerId}
-                  onChange={(e) => setForm({ ...form, ownerId: e.target.value })}
-                >
-                  <option value="">{t('غير معيّن', 'Unassigned')}</option>
-                  {team.data.members.map((x) => (
-                    <option value={x.user_id} key={x.user_id}>
-                      {x.full_name || x.email}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="form-grid mt-4">
-              {fields.data.map((field) => {
-                let attributes: Record<string, unknown> = {};
-                try {
-                  attributes = JSON.parse(form.attributes);
-                } catch {
-                  /* Advanced JSON editor validates on submit. */
-                }
-                const value = attributes[field.key];
-                return (
-                  <label className="field" key={field.id}>
-                    {field.label}
-                    {field.type === 'boolean' ? (
-                      <input
-                        type="checkbox"
-                        checked={value === true}
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            attributes: JSON.stringify({
-                              ...attributes,
-                              [field.key]: e.target.checked,
-                            }),
-                          })
-                        }
-                      />
-                    ) : (
-                      <input
-                        type={
-                          field.type === 'number'
-                            ? 'number'
-                            : field.type === 'date'
-                              ? 'date'
-                              : 'text'
-                        }
-                        value={value === undefined || value === null ? '' : String(value)}
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            attributes: JSON.stringify({
-                              ...attributes,
-                              [field.key]:
-                                e.target.value === ''
-                                  ? null
-                                  : field.type === 'number'
-                                    ? Number(e.target.value)
-                                    : e.target.value,
-                            }),
-                          })
-                        }
-                      />
-                    )}
-                  </label>
-                );
-              })}
-            </div>
-            <details className="mt-4">
-              <summary className="muted">
-                {t('بيانات إضافية متقدمة', 'Advanced additional attributes')}
-              </summary>
-              <label className="field mt-4">
-                {t('حقول العميل المخصصة (JSON)', 'Custom attributes (JSON)')}
-                <textarea
-                  rows={3}
-                  dir="ltr"
-                  value={form.attributes}
-                  onChange={(e) => setForm({ ...form, attributes: e.target.value })}
-                />
-              </label>
-            </details>
-            <div className="form-actions">
-              <button disabled={busy} className="btn btn-primary">
-                {t('حفظ العميل', 'Save contact')}
-              </button>
-              {edit && (
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => {
-                    setEdit(null);
-                    setForm(blank);
-                    setShowCreate(false);
-                  }}
-                >
-                  {t('إلغاء', 'Cancel')}
-                </button>
-              )}
-            </div>
-          </form>          </Dialog>
-
-        </>
-      )}
-      {selected && tab === 'contacts' && (
-        <section className="card stack">
-          <div className="flex justify-between">
-            <h2>
-              {selected.name} · {t('ملف العميل', 'Customer profile')}
-            </h2>
+            </select>
+            <input
+              aria-label={t('الوسم', 'Label')}
+              list="crm-known-tags"
+              placeholder={t('كل الوسوم', 'All labels')}
+              value={tag}
+              onChange={(e) => setTag(e.target.value)}
+            />
+            <datalist id="crm-known-tags">
+              {[...new Set(contacts.data.items.flatMap((contact) => contact.tags))]
+                .sort()
+                .map((label) => (
+                  <option key={label}>{label}</option>
+                ))}
+            </datalist>
+            <select
+              aria-label={t('القائمة', 'List')}
+              value={listId}
+              onChange={(e) => setListId(e.target.value)}
+            >
+              <option value="">{t('كل القوائم', 'All lists')}</option>
+              {filterLists.data.map((list) => (
+                <option key={list.id} value={list.id}>
+                  {list.name}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label={t('التسلسل', 'Sequence')}
+              value={sequenceId}
+              onChange={(e) => setSequenceId(e.target.value)}
+            >
+              <option value="">{t('كل التسلسلات', 'All sequences')}</option>
+              {filterSequences.data.map((sequence) => (
+                <option key={sequence.id} value={sequence.id}>
+                  {sequence.name}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label={t('حالة المشترك', 'Subscriber status')}
+              value={archiveFilter}
+              onChange={(e) => setArchiveFilter(e.target.value)}
+            >
+              <option value="active">{t('نشط', 'Retained')}</option>
+              <option value="archived">{t('مؤرشف', 'Archived')}</option>
+              <option value="all">{t('الكل', 'All Status')}</option>
+            </select>
+            <input
+              type="search"
+              aria-label={t('بحث في المشتركين', 'Search subscribers')}
+              placeholder={t('بحث بالاسم أو الهاتف أو البريد…', 'Search by name, phone or email…')}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </section>
+          <div className={styles.filterActions}>
+            <span>
+              {contacts.data.total} {t('نتيجة', 'subscribers')}
+            </span>
             <button
+              type="button"
               className="btn"
               onClick={() => {
-                setSelected(null);
-                setTimeline(null);
+                setQ('');
+                setStage('');
+                setTag('');
+                setArchiveFilter('active');
+                setChannelId('');
+                setListId('');
+                setSequenceId('');
+                setSequenceStatus('');
+                setConsentStatus('');
+                setPage(1);
               }}
             >
-              {t('إغلاق', 'Close')}
+              {t('مسح التصفية', 'Clear All')}
+            </button>
+            <button className="btn" onClick={exportContacts}>
+              {t('تصدير CSV', 'Export CSV')}
             </button>
           </div>
-          {!timeline ? (
-            <p>{t('جارٍ التحميل…', 'Loading…')}</p>
-          ) : (
-            <>
-              <ContactActivityExport key={selected.id} contactId={selected.id} />
-              <div className="card-grid">
-                <div>
-                  <h3 className="font-bold">{t('المحادثات', 'Conversations')}</h3>
-                  {timeline.conversations.map((x) => (
-                    <p key={x.id} className="muted">
-                      <Link href={`/dashboard/inbox?conversation=${x.id}`}>
-                        {x.channel_name} · {statusLabel(x.status, t)} ↗
-                      </Link>
-                    </p>
+          {summary.error && (
+            <p className="notice error" role="alert">
+              {summary.error}
+            </p>
+          )}
+          <div
+            className={styles.statistics}
+            aria-label={t('إحصائيات نتائج التصفية', 'Filtered subscriber statistics')}
+          >
+            {(
+              [
+                ['total', t('إجمالي المشتركين', 'Total Subscribers')],
+                ['retained', t('النشطون', 'Retained')],
+                ['subscribed', t('موافقة تسويق موثقة', 'Marketing Opt-ins')],
+                ['in_sequences', t('في تسلسلات نشطة', 'In Active Sequences')],
+              ] as const
+            ).map(([key, label]) => (
+              <article key={key}>
+                <span>{label}</span>
+                <strong>{summary.loading ? '…' : summary.error ? '—' : summary.data[key]}</strong>
+                <small>{t('ضمن نتائج التصفية', 'Within current filters')}</small>
+              </article>
+            ))}
+          </div>
+          <details className="card" open={bulkIds.length > 0 || undefined}>
+            <summary>
+              {t('الفلاتر والأدوات المتقدمة', 'Advanced filters and tools')}{' '}
+              {(stage || tag || archiveFilter !== 'active') &&
+                t('· توجد فلاتر نشطة', '· filters active')}
+            </summary>
+            <Link href="/dashboard/crm/work" className="btn">
+              {t('إدارة المبيعات والمتابعات المتقدمة', 'Manage sales and follow-ups')}
+            </Link>
+            <Link href="/dashboard/crm/lists" className="btn">
+              {t('قوائم المشتركين', 'Subscriber lists')}
+            </Link>
+            <div className="form-grid">
+              <label className="field">
+                {t('مرحلة العميل', 'Lifecycle')}
+                <select value={stage} onChange={(e) => setStage(e.target.value)}>
+                  <option value="">{t('الكل', 'All')}</option>
+                  {['lead', 'qualified', 'customer', 'inactive'].map((value) => (
+                    <option key={value} value={value}>
+                      {statusLabel(value, t)}
+                    </option>
                   ))}
-                  {!timeline.conversations.length && (
-                    <p className="muted">{t('لا توجد محادثات', 'No conversations')}</p>
-                  )}
-                </div>
-                <div>
-                  <h3 className="font-bold">{t('ملاحظات الفريق', 'Team notes')}</h3>
-                  {timeline.notes.map((n) => (
-                    <p key={n.id} className="notice whitespace-pre-wrap">
-                      {n.body}
-                    </p>
+                </select>
+              </label>
+              <label className="field">
+                {t('حالة التسلسل', 'Sequence status')}
+                <select value={sequenceStatus} onChange={(e) => setSequenceStatus(e.target.value)}>
+                  <option value="">{t('الكل', 'All')}</option>
+                  {['active', 'completed', 'stopped'].map((value) => (
+                    <option key={value}>{value}</option>
                   ))}
-                  <form
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      const f = e.currentTarget;
-                      const text = new FormData(f).get('text');
-                      try {
-                        await act(`/crm/contacts/${selected.id}/notes`, { text });
-                        f.reset();
-                        view(selected);
-                      } catch {
-                        /* The action helper displays the error. */
-                      }
-                    }}
-                  >
-                    <label className="field">
-                      {t('ملاحظة داخلية', 'Internal note')}
-                      <textarea name="text" required maxLength={4000} />
-                    </label>
-                    <button disabled={busy} className="btn mt-2">
-                      {t('إضافة', 'Add')}
-                    </button>
-                  </form>
-                </div>
+                </select>
+              </label>
+              <label className="field">
+                {t('موافقة التسويق', 'Marketing consent')}
+                <select value={consentStatus} onChange={(e) => setConsentStatus(e.target.value)}>
+                  <option value="">{t('الكل', 'All')}</option>
+                  {['opted_in', 'opted_out', 'unknown'].map((value) => (
+                    <option key={value}>{value}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <details className="col-picker">
+              <summary className="btn">{t('الأعمدة', 'Columns')}</summary>
+              <div className="col-picker-menu">
+                {COLUMNS.map((column) => (
+                  <label key={column}>
+                    <input
+                      type="checkbox"
+                      checked={cols.includes(column)}
+                      onChange={(e) => toggleCol(column, e.target.checked)}
+                    />
+                    {
+                      {
+                        contact: t('التواصل', 'Contact'),
+                        lifecycle: t('المرحلة', 'Lifecycle'),
+                        tags: t('الوسوم', 'Labels'),
+                        id: t('المعرّف', 'ID'),
+                      }[column]
+                    }
+                  </label>
+                ))}
               </div>
-              <h3 className="font-bold">
-                {t('الموافقة على الرسائل التسويقية', 'Marketing consent')}
-              </h3>
-              {timeline.consent.map((s) => (
-                <p key={s.channel_id} className="muted">
-                  {s.channel_name} · {statusLabel(s.status, t)} · {s.evidence}
-                </p>
-              ))}
+            </details>
+            {canManage && <ContactLifecycle act={act} busy={busy} />}
+            {canManage && <CrmJobs />}
+            {canManage && bulkIds.length > 0 && (
               <form
-                className="form-grid"
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  const f = new FormData(e.currentTarget);
+                className="card space-y-3"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  const data = new FormData(event.currentTarget);
+                  const lifecycle = String(data.get('lifecycle') || '');
+                  const owner = String(data.get('owner') || '');
                   try {
-                    await act(`/crm/contacts/${selected.id}/consent`, Object.fromEntries(f), 'PUT');
-                    view(selected);
+                    await act('/crm/contacts/bulk', {
+                      ids: bulkIds,
+                      attributes: Object.fromEntries(
+                        fields.data
+                          .filter((field) => data.get('apply-' + field.key))
+                          .map((field) => {
+                            const value = String(data.get('custom-' + field.key) || '');
+                            return [
+                              field.key,
+                              value === ''
+                                ? null
+                                : field.type === 'number'
+                                  ? Number(value)
+                                  : field.type === 'boolean'
+                                    ? value === 'true'
+                                    : value,
+                            ];
+                          }),
+                      ),
+                      ...(lifecycle ? { lifecycle } : {}),
+                      ...(owner ? { ownerId: owner === 'unassigned' ? null : owner } : {}),
+                      addTags: String(data.get('tags') || '')
+                        .split(',')
+                        .map((tag) => tag.trim())
+                        .filter(Boolean),
+                    });
+                    setBulkIds([]);
                   } catch {
-                    /* The action helper displays the error. */
+                    /* Shared error banner. */
                   }
                 }}
               >
-                <label className="field">
-                  {t('القناة', 'Channel')}
-                  <select name="channelId" required>
-                    {channels.data.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  {t('الموافقة', 'Consent')}
-                  <select name="status">
-                    <option value="opted_out">{t('إلغاء الموافقة', 'Opt out')}</option>
-                    <option value="opted_in">{t('موافقة موثقة', 'Documented opt in')}</option>
-                  </select>
-                </label>
-                <label className="field">
-                  {t('مصدر ودليل الموافقة', 'Consent evidence')}
-                  <input name="evidence" required minLength={5} maxLength={1000} />
-                </label>
-                <button disabled={busy} className="btn self-end">
-                  {t('تسجيل الموافقة', 'Record consent')}
+                <h2>
+                  {t('تعديل العملاء المحددين', 'Edit selected contacts')} ({bulkIds.length})
+                </h2>
+                <div className="form-grid">
+                  <label className="field">
+                    {t('المرحلة', 'Lifecycle')}
+                    <select name="lifecycle">
+                      <option value="">{t('دون تغيير', 'Keep current')}</option>
+                      {['lead', 'qualified', 'customer', 'inactive'].map((value) => (
+                        <option key={value} value={value}>
+                          {statusLabel(value, t)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    {t('المسؤول', 'Owner')}
+                    <select name="owner">
+                      <option value="">{t('دون تغيير', 'Keep current')}</option>
+                      <option value="unassigned">{t('إلغاء التعيين', 'Unassign')}</option>
+                      {team.data.members.map((member) => (
+                        <option key={member.user_id} value={member.user_id}>
+                          {member.full_name || member.email}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    {t('إضافة وسوم مفصولة بفاصلة', 'Add comma-separated tags')}
+                    <input name="tags" />
+                  </label>
+                </div>
+                <fieldset className="form-grid">
+                  <legend>
+                    {t(
+                      'حقول مخصصة (حدد ما تريد تغييره فقط)',
+                      'Custom fields (select only fields to change)',
+                    )}
+                  </legend>
+                  {fields.data.map((field) => (
+                    <label className="field" key={field.key}>
+                      <span>
+                        <input type="checkbox" name={'apply-' + field.key} /> {field.label}
+                      </span>
+                      {field.type === 'boolean' ? (
+                        <select name={'custom-' + field.key}>
+                          <option value="">{t('مسح القيمة', 'Clear value')}</option>
+                          <option value="true">{t('نعم', 'Yes')}</option>
+                          <option value="false">{t('لا', 'No')}</option>
+                        </select>
+                      ) : (
+                        <input
+                          name={'custom-' + field.key}
+                          type={
+                            field.type === 'number'
+                              ? 'number'
+                              : field.type === 'date'
+                                ? 'date'
+                                : 'text'
+                          }
+                          step={field.type === 'number' ? 'any' : undefined}
+                          maxLength={2000}
+                        />
+                      )}
+                    </label>
+                  ))}
+                </fieldset>
+                <button className="btn btn-primary" disabled={busy || !bulkIds.length}>
+                  {t('تطبيق على المحددين', 'Apply to selected')}
+                </button>
+                <button type="button" className="btn" onClick={() => setBulkIds([])}>
+                  {t('مسح التحديد', 'Clear selection')}
                 </button>
               </form>
-              <h3 className="font-bold">{t('سجل أحداث العميل', 'Customer event timeline')}</h3>
-              <div className="table-wrap">
+            )}
+          </details>
+          <div className={styles.workspace}>
+            <section className={styles.subscriberList} data-view={viewMode}>
+              <div className={styles.listToolbar}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={
+                      contacts.data.items.length > 0 &&
+                      contacts.data.items.every((contact) => bulkIds.includes(contact.id))
+                    }
+                    onChange={(e) =>
+                      setBulkIds(
+                        e.target.checked ? contacts.data.items.map((contact) => contact.id) : [],
+                      )
+                    }
+                  />
+                  {t('تحديد الصفحة', 'Select Page')}
+                </label>
+                <span>
+                  {bulkIds.length > 0 ? `${bulkIds.length} ${t('محدد', 'selected')}` : ''}
+                </span>
+                <select
+                  aria-label={t('ترتيب المشتركين', 'Sort subscribers')}
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value)}
+                >
+                  <option value="latest">{t('الأحدث', 'Latest')}</option>
+                  <option value="oldest">{t('الأقدم', 'Oldest')}</option>
+                  <option value="name">{t('الاسم', 'Name')}</option>
+                </select>
+                <button
+                  className="btn"
+                  type="button"
+                  aria-pressed={viewMode === 'list'}
+                  onClick={() => setViewMode('list')}
+                >
+                  {t('قائمة', 'List')}
+                </button>
+                <button
+                  className="btn"
+                  type="button"
+                  aria-pressed={viewMode === 'grid'}
+                  onClick={() => setViewMode('grid')}
+                >
+                  {t('شبكة', 'Grid')}
+                </button>
+              </div>
+              <div className={styles.tableScroll}>
                 <table className="product-table">
+                  <thead>
+                    <tr>
+                      <th>{t('تحديد', 'Select')}</th>
+                      <th>{t('العميل', 'Customer')}</th>
+                      {cols.includes('contact') && <th>{t('التواصل', 'Contact')}</th>}
+                      {cols.includes('lifecycle') && <th>{t('المرحلة', 'Lifecycle')}</th>}
+                      {cols.includes('tags') && <th>{t('الوسوم', 'Tags')}</th>}
+                      <th />
+                    </tr>
+                  </thead>
                   <tbody>
-                    {timeline.events.map((x) => (
-                      <tr key={x.id}>
-                        <td>{new Date(x.created_at).toLocaleString()}</td>
-                        <td>{eventLabel(x.type,t)}<details><summary>{t('تفاصيل تقنية','Technical details')}</summary><code dir="ltr">{x.type} · {x.id}</code></details></td>
-                        <td>{statusLabel(x.status, t)}</td>
+                    {contacts.data.items.map((c) => (
+                      <tr key={c.id}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            aria-label={t('تحديد ', 'Select ') + c.name}
+                            checked={bulkIds.includes(c.id)}
+                            disabled={!bulkIds.includes(c.id) && bulkIds.length >= 100}
+                            onChange={(event) =>
+                              setBulkIds((ids) =>
+                                event.target.checked
+                                  ? [...ids, c.id]
+                                  : ids.filter((id) => id !== c.id),
+                              )
+                            }
+                          />
+                        </td>
+                        <td>
+                          <button className="font-bold underline" onClick={() => setSelected(c)}>
+                            {c.name}
+                          </button>
+                          <div className="stack text-xs">
+                            {(c.lists ?? []).map((l) => (
+                              <span key={l.id}>
+                                {t('قائمة', 'List')}: {l.name}
+                              </span>
+                            ))}
+                            {(c.sequences ?? []).map((seq) => (
+                              <span key={seq.id}>
+                                {seq.name}: {seq.status}
+                              </span>
+                            ))}
+                            {(c.consents ?? []).map((consent) => (
+                              <span key={consent.channelId}>
+                                {filterChannels.data.find((ch) => ch.id === consent.channelId)
+                                  ?.name ?? t('قناة', 'Channel')}
+                                : {consent.status}
+                              </span>
+                            ))}
+                            {!(c.consents ?? []).length && (
+                              <span>
+                                {t('لا توجد موافقة تسويق موثقة', 'No documented marketing consent')}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        {cols.includes('contact') && <td>{c.email || c.phone || '—'}</td>}
+                        {cols.includes('lifecycle') && (
+                          <td>
+                            <span className="badge">{statusLabel(c.lifecycle, t)}</span>
+                          </td>
+                        )}
+                        {cols.includes('tags') && (
+                          <td>
+                            {c.tags.length
+                              ? c.tags.map((x) => (
+                                  <button
+                                    type="button"
+                                    key={x}
+                                    className="tag-chip"
+                                    title={t('تصفية بهذا الوسم', 'Filter by this tag')}
+                                    style={{ '--tag-hue': tagHue(x) } as CSSProperties}
+                                    onClick={() => {
+                                      setTag(x);
+                                      setPage(1);
+                                    }}
+                                  >
+                                    {x}
+                                  </button>
+                                ))
+                              : '—'}
+                          </td>
+                        )}
+                        <td>
+                          <button
+                            className="btn"
+                            onClick={() => {
+                              setEdit(c.id);
+                              setForm({
+                                name: c.name || '',
+                                email: c.email || '',
+                                phone: c.phone || '',
+                                lifecycle: c.lifecycle,
+                                tags: c.tags.join(', '),
+                                ownerId: c.owner_id || '',
+                                attributes: JSON.stringify(c.attributes, null, 2),
+                              });
+                            }}
+                          >
+                            {t('تعديل', 'Edit')}
+                          </button>
+                          <button
+                            className="btn"
+                            disabled={busy || !canManage}
+                            onClick={() =>
+                              void act(
+                                '/crm/contacts/' + c.id + '/archive',
+                                { archived: !c.archived_at },
+                                'PATCH',
+                              ).catch(() => {})
+                            }
+                          >
+                            {c.archived_at ? t('استعادة', 'Restore') : t('أرشفة', 'Archive')}
+                          </button>
+                          {cols.includes('id') && (
+                            <small className="block select-all" dir="ltr">
+                              {c.id}
+                            </small>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                {contacts.loading ? (
+                  <p className="empty">{t('جارٍ التحميل…', 'Loading…')}</p>
+                ) : (
+                  !contacts.data.items.length && (
+                    <p className="empty">
+                      {t(
+                        'أضف أول عميل، أو استورد قائمة جهات اتصالك.',
+                        'Add your first contact or import your contact list.',
+                      )}
+                    </p>
+                  )
+                )}
               </div>
-            </>
-          )}
-        </section>
+              <footer className={styles.listFooter}>
+                <label>
+                  {t('الصفوف', 'Rows')}{' '}
+                  <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
+                    {[10, 25, 50, 100].map((size) => (
+                      <option key={size}>{size}</option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  className="btn"
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => setPage(page - 1)}
+                >
+                  {t('السابق', 'Previous')}
+                </button>
+                <span>{page}</span>
+                <button
+                  className="btn"
+                  type="button"
+                  disabled={page * pageSize >= contacts.data.total}
+                  onClick={() => setPage(page + 1)}
+                >
+                  {t('التالي', 'Next')}
+                </button>
+              </footer>
+            </section>
+            {selected ? (
+              <SubscriberProfile
+                key={selected.id}
+                contactId={selected.id}
+                canManage={canManage}
+                onClose={() => setSelected(null)}
+                onChanged={() => {
+                  void contacts.reload();
+                  void summary.reload();
+                }}
+              />
+            ) : (
+              <aside className={styles.profileEmpty}>
+                <h2>{t('ملف المشترك', 'Subscriber Profile')}</h2>
+                <p>
+                  {t(
+                    'اختر مشتركًا لعرض بياناته وإدارته.',
+                    'Select a subscriber to view and manage their profile.',
+                  )}
+                </p>
+              </aside>
+            )}
+          </div>
+          <Dialog
+            open={showCreate || !!edit}
+            onClose={() => {
+              setShowCreate(false);
+              setEdit(null);
+            }}
+            title={edit ? t('تعديل العميل', 'Edit contact') : t('إضافة عميل', 'Add contact')}
+          >
+            <form className="card" onSubmit={save}>
+              <h2>
+                {edit
+                  ? t('تعديل ملف العميل', 'Edit customer profile')
+                  : t('عميل جديد', 'New contact')}
+              </h2>
+              <div className="form-grid">
+                {(['name', 'email', 'phone', 'tags'] as const).map((k) => (
+                  <label className="field" key={k}>
+                    {
+                      {
+                        name: t('الاسم', 'Name'),
+                        email: t('البريد', 'Email'),
+                        phone: t('الهاتف', 'Phone'),
+                        tags: t('وسوم مفصولة بفاصلة', 'Comma-separated tags'),
+                      }[k]
+                    }
+                    <input
+                      type={k === 'email' ? 'email' : 'text'}
+                      required={k === 'name'}
+                      value={form[k]}
+                      onChange={(e) => setForm({ ...form, [k]: e.target.value })}
+                    />
+                  </label>
+                ))}
+                <label className="field">
+                  {t('المرحلة', 'Lifecycle')}
+                  <select
+                    value={form.lifecycle}
+                    onChange={(e) => setForm({ ...form, lifecycle: e.target.value })}
+                  >
+                    {['lead', 'qualified', 'customer', 'inactive'].map((x) => (
+                      <option key={x} value={x}>
+                        {statusLabel(x, t)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  {t('مسؤول العميل', 'Owner')}
+                  <select
+                    value={form.ownerId}
+                    onChange={(e) => setForm({ ...form, ownerId: e.target.value })}
+                  >
+                    <option value="">{t('غير معيّن', 'Unassigned')}</option>
+                    {team.data.members.map((x) => (
+                      <option value={x.user_id} key={x.user_id}>
+                        {x.full_name || x.email}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="form-grid mt-4">
+                {fields.data.map((field) => {
+                  let attributes: Record<string, unknown> = {};
+                  try {
+                    attributes = JSON.parse(form.attributes);
+                  } catch {
+                    /* Advanced JSON editor validates on submit. */
+                  }
+                  const value = attributes[field.key];
+                  return (
+                    <label className="field" key={field.id}>
+                      {field.label}
+                      {field.type === 'boolean' ? (
+                        <input
+                          type="checkbox"
+                          checked={value === true}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              attributes: JSON.stringify({
+                                ...attributes,
+                                [field.key]: e.target.checked,
+                              }),
+                            })
+                          }
+                        />
+                      ) : (
+                        <input
+                          type={
+                            field.type === 'number'
+                              ? 'number'
+                              : field.type === 'date'
+                                ? 'date'
+                                : 'text'
+                          }
+                          value={value === undefined || value === null ? '' : String(value)}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              attributes: JSON.stringify({
+                                ...attributes,
+                                [field.key]:
+                                  e.target.value === ''
+                                    ? null
+                                    : field.type === 'number'
+                                      ? Number(e.target.value)
+                                      : e.target.value,
+                              }),
+                            })
+                          }
+                        />
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+              <details className="mt-4">
+                <summary className="muted">
+                  {t('بيانات إضافية متقدمة', 'Advanced additional attributes')}
+                </summary>
+                <label className="field mt-4">
+                  {t('حقول العميل المخصصة (JSON)', 'Custom attributes (JSON)')}
+                  <textarea
+                    rows={3}
+                    dir="ltr"
+                    value={form.attributes}
+                    onChange={(e) => setForm({ ...form, attributes: e.target.value })}
+                  />
+                </label>
+              </details>
+              <div className="form-actions">
+                <button disabled={busy} className="btn btn-primary">
+                  {t('حفظ العميل', 'Save contact')}
+                </button>
+                {edit && (
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      setEdit(null);
+                      setForm(blank);
+                      setShowCreate(false);
+                    }}
+                  >
+                    {t('إلغاء', 'Cancel')}
+                  </button>
+                )}
+              </div>
+            </form>{' '}
+          </Dialog>
+        </>
       )}
       {tab === 'deals' && (
         <>
@@ -1266,7 +1392,16 @@ export default function CRM() {
               <h2>{t('الحقول المخصصة', 'Custom fields')}</h2>
               {fields.data.map((x) => (
                 <p className="muted" key={x.id}>
-                  {x.label} · {({text:t('نص','Text'),number:t('رقم','Number'),date:t('تاريخ','Date'),boolean:t('نعم / لا','Yes / no')} as Record<string,string>)[x.type] || x.type} · {x.key}
+                  {x.label} ·{' '}
+                  {(
+                    {
+                      text: t('نص', 'Text'),
+                      number: t('رقم', 'Number'),
+                      date: t('تاريخ', 'Date'),
+                      boolean: t('نعم / لا', 'Yes / no'),
+                    } as Record<string, string>
+                  )[x.type] || x.type}{' '}
+                  · {x.key}
                 </p>
               ))}
             </section>
@@ -1276,7 +1411,12 @@ export default function CRM() {
                 <div className="step" key={x.id}>
                   <button
                     onClick={() => {
-                      setQ(x.filters.q || '');setChannelId(x.filters.channelId||'');setListId(x.filters.listId||'');setSequenceId(x.filters.sequenceId||'');setSequenceStatus(x.filters.sequenceStatus||'');setConsentStatus(x.filters.consentStatus||'');
+                      setQ(x.filters.q || '');
+                      setChannelId(x.filters.channelId || '');
+                      setListId(x.filters.listId || '');
+                      setSequenceId(x.filters.sequenceId || '');
+                      setSequenceStatus(x.filters.sequenceStatus || '');
+                      setConsentStatus(x.filters.consentStatus || '');
                       setStage(x.filters.lifecycle || '');
                       setTag(x.filters.tag || '');
                       setArchiveFilter(x.filters.archived || 'active');
@@ -1302,12 +1442,67 @@ export default function CRM() {
           <CustomFieldForm onSave={(body) => act('/crm/fields', body)} />
           <section className="card stack">
             <h2>{t('مراجعة شروط الشريحة', 'Review segment conditions')}</h2>
-            <p>{contacts.data.total} {t('عميل مطابق حاليًا — تُحفظ الشروط لا قائمة ثابتة من العملاء', 'contacts match now — saves conditions, not a fixed contact list')}</p>
+            <p>
+              {contacts.data.total}{' '}
+              {t(
+                'عميل مطابق حاليًا — تُحفظ الشروط لا قائمة ثابتة من العملاء',
+                'contacts match now — saves conditions, not a fixed contact list',
+              )}
+            </p>
             <div className="form-grid">
-              <label>{t('البحث','Search')}<input value={q} onChange={e=>{setQ(e.target.value);setPage(1);}} /></label>
-              <label>{t('المرحلة','Lifecycle')}<select value={stage} onChange={e=>{setStage(e.target.value);setPage(1);}}><option value="">{t('كل المراحل','All stages')}</option>{['lead','qualified','customer','inactive'].map(x=><option key={x} value={x}>{statusLabel(x,t)}</option>)}</select></label>
-              <label>{t('الوسم','Tag')}<input value={tag} onChange={e=>{setTag(e.target.value);setPage(1);}} /></label>
-              <label>{t('حالة الملفات','Profile status')}<select value={archiveFilter} onChange={e=>{setArchiveFilter(e.target.value);setPage(1);}}>{['active','archived','all'].map(x=><option key={x} value={x}>{x === 'all' ? t('الكل','All') : statusLabel(x,t)}</option>)}</select></label>
+              <label>
+                {t('البحث', 'Search')}
+                <input
+                  value={q}
+                  onChange={(e) => {
+                    setQ(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </label>
+              <label>
+                {t('المرحلة', 'Lifecycle')}
+                <select
+                  value={stage}
+                  onChange={(e) => {
+                    setStage(e.target.value);
+                    setPage(1);
+                  }}
+                >
+                  <option value="">{t('كل المراحل', 'All stages')}</option>
+                  {['lead', 'qualified', 'customer', 'inactive'].map((x) => (
+                    <option key={x} value={x}>
+                      {statusLabel(x, t)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                {t('الوسم', 'Tag')}
+                <input
+                  value={tag}
+                  onChange={(e) => {
+                    setTag(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </label>
+              <label>
+                {t('حالة الملفات', 'Profile status')}
+                <select
+                  value={archiveFilter}
+                  onChange={(e) => {
+                    setArchiveFilter(e.target.value);
+                    setPage(1);
+                  }}
+                >
+                  {['active', 'archived', 'all'].map((x) => (
+                    <option key={x} value={x}>
+                      {x === 'all' ? t('الكل', 'All') : statusLabel(x, t)}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
           </section>
           <SimpleForm
@@ -1332,7 +1527,7 @@ export default function CRM() {
           </section>
         </>
       )}
-      {tab !== 'config' && (
+      {tab !== 'config' && tab !== 'contacts' && (
         <div className="form-actions">
           <button disabled={page === 1} className="btn" onClick={() => setPage((p) => p - 1)}>
             {t('السابق', 'Previous')}
@@ -1382,7 +1577,7 @@ function SimpleForm({
   title: string;
   fields: string[][];
   options?: Record<string, string[][]>;
-  help?: Record<string,string>;
+  help?: Record<string, string>;
   onSave: (body: Record<string, string>) => Promise<unknown>;
 }) {
   const { t } = useLocale();
@@ -1411,7 +1606,17 @@ function SimpleForm({
         {fields.map(([key, label]) => (
           <label className="field" key={key}>
             {label}
-            {options[key] ? <select required name={key}>{options[key].map(([value,title])=><option key={value} value={value}>{title}</option>)}</select> : <input required name={key} />}
+            {options[key] ? (
+              <select required name={key}>
+                {options[key].map(([value, title]) => (
+                  <option key={value} value={value}>
+                    {title}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input required name={key} />
+            )}
             {help[key] && <small>{help[key]}</small>}
           </label>
         ))}
@@ -1424,18 +1629,93 @@ function SimpleForm({
   );
 }
 
-function CustomFieldForm({onSave}:{onSave:(body:Record<string,string>)=>Promise<unknown>}) {
-  const {t}=useLocale();
-  const [label,setLabel]=useState(''),[key,setKey]=useState(''),[type,setType]=useState('text'),[busy,setBusy]=useState(false),[error,setError]=useState('');
-  const generated = 'field_' + Array.from(label.trim()).map(c=>c.codePointAt(0)!.toString(16)).join('').slice(0,32);
-  const fieldKey=key || generated;
-  return <form className="card stack" onSubmit={async e=>{e.preventDefault();setBusy(true);setError('');try{await onSave({label,key:fieldKey,type});setLabel('');setKey('');}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}>
-    <h2>{t('إضافة حقل مخصص','Add custom field')}</h2>
-    <label>{t('العنوان','Label')}<input required maxLength={100} value={label} onChange={e=>setLabel(e.target.value)} /></label>
-    <label>{t('نوع البيانات','Data type')}<select value={type} onChange={e=>setType(e.target.value)}>{[['text',t('نص','Text')],['number',t('رقم','Number')],['date',t('تاريخ','Date')],['boolean',t('نعم / لا','Yes / no')]].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
-    <p>{t('معاينة','Preview')}: {label || t('عنوان الحقل','Field label')} — {type === 'boolean' ? t('نعم / لا','Yes / no') : type === 'number' ? '123' : type === 'date' ? '2026-10-24' : t('قيمة نصية','Text value')}</p>
-    <details><summary>{t('متقدم: مفتاح التكامل','Advanced: integration key')}</summary><input aria-label={t('مفتاح الحقل','Field key')} dir="ltr" pattern="[a-z][a-z0-9_]{0,40}" maxLength={41} placeholder={generated} value={key} onChange={e=>setKey(e.target.value)} /><code dir="ltr">{fieldKey}</code></details>
-    {error && <p role="alert" className="notice error">{error}</p>}
-    <button className="btn btn-primary" disabled={busy}>{busy?t('جارٍ الحفظ…','Saving…'):t('حفظ الحقل','Save field')}</button>
-  </form>;
+function CustomFieldForm({
+  onSave,
+}: {
+  onSave: (body: Record<string, string>) => Promise<unknown>;
+}) {
+  const { t } = useLocale();
+  const [label, setLabel] = useState(''),
+    [key, setKey] = useState(''),
+    [type, setType] = useState('text'),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState('');
+  const generated =
+    'field_' +
+    Array.from(label.trim())
+      .map((c) => c.codePointAt(0)!.toString(16))
+      .join('')
+      .slice(0, 32);
+  const fieldKey = key || generated;
+  return (
+    <form
+      className="card stack"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setBusy(true);
+        setError('');
+        try {
+          await onSave({ label, key: fieldKey, type });
+          setLabel('');
+          setKey('');
+        } catch (e) {
+          setError((e as Error).message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <h2>{t('إضافة حقل مخصص', 'Add custom field')}</h2>
+      <label>
+        {t('العنوان', 'Label')}
+        <input required maxLength={100} value={label} onChange={(e) => setLabel(e.target.value)} />
+      </label>
+      <label>
+        {t('نوع البيانات', 'Data type')}
+        <select value={type} onChange={(e) => setType(e.target.value)}>
+          {[
+            ['text', t('نص', 'Text')],
+            ['number', t('رقم', 'Number')],
+            ['date', t('تاريخ', 'Date')],
+            ['boolean', t('نعم / لا', 'Yes / no')],
+          ].map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p>
+        {t('معاينة', 'Preview')}: {label || t('عنوان الحقل', 'Field label')} —{' '}
+        {type === 'boolean'
+          ? t('نعم / لا', 'Yes / no')
+          : type === 'number'
+            ? '123'
+            : type === 'date'
+              ? '2026-10-24'
+              : t('قيمة نصية', 'Text value')}
+      </p>
+      <details>
+        <summary>{t('متقدم: مفتاح التكامل', 'Advanced: integration key')}</summary>
+        <input
+          aria-label={t('مفتاح الحقل', 'Field key')}
+          dir="ltr"
+          pattern="[a-z][a-z0-9_]{0,40}"
+          maxLength={41}
+          placeholder={generated}
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+        />
+        <code dir="ltr">{fieldKey}</code>
+      </details>
+      {error && (
+        <p role="alert" className="notice error">
+          {error}
+        </p>
+      )}
+      <button className="btn btn-primary" disabled={busy}>
+        {busy ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ الحقل', 'Save field')}
+      </button>
+    </form>
+  );
 }

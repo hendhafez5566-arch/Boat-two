@@ -23,8 +23,36 @@ import { contactSchema, filtersSchema, pagination } from './schemas';
 export class CrmController {
   constructor(private crm: CrmService) {}
   @Get('contacts') list(@Req() r: AuthedRequest, @Query() query: unknown) {
-    const q = parse(pagination.merge(filtersSchema), query);
-    return this.crm.list(r.user.tenantId, q, q.page, q.limit);
+    const q = parse(
+      pagination
+        .merge(filtersSchema)
+        .extend({ sort: z.enum(['latest', 'oldest', 'name']).default('latest') }),
+      query,
+    );
+    return this.crm.list(r.user.tenantId, q, q.page, q.limit, q.sort);
+  }
+  @Get('contacts-summary') summary(@Req() r: AuthedRequest, @Query() query: unknown) {
+    return this.crm.summary(r.user.tenantId, parse(filtersSchema, query));
+  }
+  @Get('contacts/:id/profile') profile(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.crm.profile(r.user.tenantId, id);
+  }
+  @Patch('contacts/:id/profile') @Roles('owner', 'admin') patchProfile(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const patch = parse(
+      contactSchema
+        .omit({ allowDuplicate: true })
+        .partial()
+        .extend({ expectedUpdatedAt: z.string().datetime() }),
+      body,
+    );
+    return this.crm.patchProfile(r.user.tenantId, id, patch);
   }
   @Get('contacts/export') export(@Req() r: AuthedRequest, @Query() query: unknown) {
     return this.crm.list(r.user.tenantId, parse(filtersSchema, query), 1, 10000);

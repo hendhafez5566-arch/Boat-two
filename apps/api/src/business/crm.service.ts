@@ -14,12 +14,20 @@ export class CrmService {
     readonly db: DatabaseService,
     private plans: PlansService,
   ) {}
-  async list(tenant: string, filters: Filters, page = 1, limit = 25) {
+  async list(tenant: string, filters: Filters, page = 1, limit = 25, sort = 'latest') {
     const w = contactWhere(filters);
+    const order =
+      (
+        {
+          latest: 'created_at DESC,id',
+          oldest: 'created_at ASC,id',
+          name: 'name ASC,id',
+        } as Record<string, string>
+      )[sort] ?? 'created_at DESC,id';
     return this.db.withTenant(tenant, async (c) => {
       const items = (
         await c.query(
-          `SELECT id,name,email,phone,lifecycle,tags,owner_id,attributes,archived_at,merged_into_id,created_at,updated_at,(SELECT COALESCE(jsonb_agg(jsonb_build_object('id',l.id,'name',l.name)),'[]') FROM contact_list_members lm JOIN contact_lists l ON l.id=lm.list_id WHERE lm.contact_id=contacts.id) AS lists,(SELECT COALESCE(jsonb_agg(jsonb_build_object('id',s.id,'name',s.name,'status',se.status)),'[]') FROM sequence_enrollments se JOIN sequences s ON s.id=se.sequence_id WHERE se.contact_id=contacts.id) AS sequences,(SELECT COALESCE(jsonb_agg(jsonb_build_object('channelId',cc.channel_id,'status',cc.status)),'[]') FROM contact_consents cc WHERE cc.contact_id=contacts.id) AS consents FROM contacts WHERE ${w.sql} ORDER BY created_at DESC,id LIMIT $${w.params.length+1} OFFSET $${w.params.length+2}`,
+          `SELECT id,name,email,phone,lifecycle,tags,owner_id,attributes,archived_at,merged_into_id,created_at,updated_at,(SELECT COALESCE(jsonb_agg(jsonb_build_object('id',l.id,'name',l.name)),'[]') FROM contact_list_members lm JOIN contact_lists l ON l.id=lm.list_id WHERE lm.contact_id=contacts.id) AS lists,(SELECT COALESCE(jsonb_agg(jsonb_build_object('id',s.id,'name',s.name,'status',se.status)),'[]') FROM sequence_enrollments se JOIN sequences s ON s.id=se.sequence_id WHERE se.contact_id=contacts.id) AS sequences,(SELECT COALESCE(jsonb_agg(jsonb_build_object('channelId',cc.channel_id,'status',cc.status)),'[]') FROM contact_consents cc WHERE cc.contact_id=contacts.id) AS consents FROM contacts WHERE ${w.sql} ORDER BY ${order} LIMIT $${w.params.length + 1} OFFSET $${w.params.length + 2}`,
           [...w.params, limit, (page - 1) * limit],
         )
       ).rows;
@@ -34,6 +42,89 @@ export class CrmService {
       const row = (await c.query('SELECT * FROM contacts WHERE id=$1', [id])).rows[0];
       if (!row) throw new NotFoundException('Contact not found');
       return row;
+    });
+  }
+  summary(tenant: string, filters: Filters) {
+    const w = contactWhere(filters);
+    const channel = `$${w.params.length + 1}`;
+    return this.db.withTenant(
+      tenant,
+      async (c) =>
+        (
+          await c.query(
+            `SELECT count(*)::int AS total, count(*) FILTER(WHERE archived_at IS NULL)::int AS retained,
+       count(*) FILTER(WHERE EXISTS(SELECT 1 FROM contact_consents s WHERE s.contact_id=contacts.id AND s.status='opted_in' AND (${channel}::uuid IS NULL OR s.channel_id=${channel})))::int AS subscribed,
+       count(*) FILTER(WHERE EXISTS(SELECT 1 FROM sequence_enrollments e JOIN sequences seq ON seq.id=e.sequence_id WHERE e.contact_id=contacts.id AND e.status='active' AND (${channel}::uuid IS NULL OR seq.channel_id=${channel})))::int AS in_sequences
+       FROM contacts WHERE ${w.sql}`,
+            [...w.params, filters.channelId ?? null],
+          )
+        ).rows[0],
+    );
+  }
+  profile(tenant: string, id: string) {
+    return this.db.withTenant(tenant, async (c) => {
+      const contact = await this.get(tenant, id);
+      const lists = (
+        await c.query(
+          'SELECT l.id,l.name FROM contact_list_members m JOIN contact_lists l ON l.id=m.list_id WHERE m.contact_id=$1 ORDER BY l.name',
+          [id],
+        )
+      ).rows;
+      const sequences = (
+        await c.query(
+          'SELECT s.id,s.name,s.channel_id,e.status,e.next_run_at,e.step_index,e.stop_reason FROM sequence_enrollments e JOIN sequences s ON s.id=e.sequence_id WHERE e.contact_id=$1 ORDER BY e.updated_at DESC',
+          [id],
+        )
+      ).rows;
+      const channels = (
+        await c.query(
+          'SELECT ch.id,ch.name,ch.type FROM contact_channels cc JOIN channels ch ON ch.id=cc.channel_id WHERE cc.contact_id=$1 ORDER BY ch.name',
+          [id],
+        )
+      ).rows;
+      const inputs = (
+        await c.query(
+          "SELECT f.name,s.status,s.updated_at,s.state->'vars' AS answers FROM flow_sessions s JOIN conversations cv ON cv.id=s.conversation_id JOIN flows f ON f.id=s.flow_id WHERE cv.contact_id=$1 ORDER BY s.updated_at DESC LIMIT 50",
+          [id],
+        )
+      ).rows;
+      return {
+        contact,
+        lists,
+        sequences,
+        channels,
+        inputs,
+        timeline: await this.timeline(tenant, id),
+      };
+    });
+  }
+  patchProfile(
+    tenant: string,
+    id: string,
+    patch: Partial<z.infer<typeof contactSchema>> & { expectedUpdatedAt: string },
+  ) {
+    return this.db.withTenant(tenant, async (c) => {
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+      const current = (await c.query('SELECT * FROM contacts WHERE id=$1 FOR UPDATE', [id]))
+        .rows[0];
+      if (!current) throw new NotFoundException('Contact not found');
+      if (new Date(current.updated_at).getTime() !== new Date(patch.expectedUpdatedAt).getTime())
+        throw new ConflictException('Contact changed. Reload the profile before saving.');
+      const input = contactSchema.parse({
+        name: current.name,
+        email: current.email,
+        phone: current.phone,
+        lifecycle: current.lifecycle,
+        tags: current.tags,
+        ownerId: current.owner_id,
+        ...patch,
+        allowDuplicate:
+          (patch.email === undefined || patch.email === current.email) &&
+          (patch.phone === undefined || patch.phone === current.phone),
+        attributes: { ...current.attributes, ...(patch.attributes ?? {}) },
+      });
+      await this.save(tenant, input, id);
+      return this.profile(tenant, id);
     });
   }
   async save(tenant: string, input: z.infer<typeof contactSchema>, id?: string) {
@@ -107,7 +198,7 @@ export class CrmService {
     return this.db.withTenant(tenant, async (c) => ({
       conversations: (
         await c.query(
-          'SELECT cv.id,cv.status,cv.handled_by,ch.name AS channel_name,cv.last_message_at FROM conversations cv JOIN channels ch ON ch.id=cv.channel_id WHERE contact_id=$1 ORDER BY last_message_at DESC LIMIT 50',
+          'SELECT cv.id,cv.channel_id,cv.status,cv.handled_by,ch.name AS channel_name,cv.last_message_at FROM conversations cv JOIN channels ch ON ch.id=cv.channel_id WHERE contact_id=$1 ORDER BY last_message_at DESC LIMIT 50',
           [id],
         )
       ).rows,

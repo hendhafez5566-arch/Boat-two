@@ -56,6 +56,7 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
       <Handle type="target" position={Position.Top} title={t('نقطة الدخول: أسقط التوصيل هنا', 'Entry point: drop a link here')} />
       {data.actions && (
         <div className="flow-node-tools" role="toolbar" aria-label={t('إجراءات الخطوة', 'Step actions')}>
+          {data.actions.open && <button type="button" className="nodrag" title={t('تعديل الخطوة', 'Edit step')} aria-label={t('تعديل الخطوة', 'Edit step')} onClick={event => { event.stopPropagation(); data.actions?.open?.(id); }}>✎</button>}
           {!data.isStart && (
             <button
               type="button"

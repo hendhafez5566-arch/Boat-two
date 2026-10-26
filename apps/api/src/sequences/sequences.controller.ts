@@ -1,9 +1,20 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Put, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Put,
+  Req,
+} from '@nestjs/common';
 import { z } from 'zod';
 import { Roles } from '../auth/decorators';
 import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
-import { sequenceSchema } from './sequences.schemas';
+import { sequenceSchema, sequenceUpdateSchema } from './sequences.schemas';
 import { SequencesService } from './sequences.service';
 
 @Controller('labels')
@@ -32,14 +43,47 @@ export class SequencesController {
   @Get(':id/stats') stats(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.sequences.stats(r.user.tenantId, id);
   }
-  @Put(':id') update(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
-    return this.sequences.update(r.user.tenantId, id, parse(sequenceSchema, body));
+  @Put(':id') update(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.sequences.update(r.user.tenantId, id, parse(sequenceUpdateSchema, body));
   }
-  @Patch(':id/status') status(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
-    return this.sequences.setStatus(r.user.tenantId, id, parse(z.object({ status: z.enum(['active', 'paused']) }), body).status);
+  @Patch(':id/status') status(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const input = parse(
+      z
+        .object({
+          status: z.enum(['active', 'paused']),
+          expectedRevision: z.number().int().positive(),
+        })
+        .strict(),
+      body,
+    );
+    return this.sequences.setStatus(r.user.tenantId, id, input.status, input.expectedRevision);
   }
-  @Post(':id/enroll') enroll(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
-    return this.sequences.enroll(r.user.tenantId, id, parse(z.object({ contactId: z.string().uuid() }), body).contactId);
+  @Post(':id/enroll') enroll(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.sequences.enroll(
+      r.user.tenantId,
+      id,
+      parse(z.object({ contactId: z.string().uuid() }), body).contactId,
+    );
+  }
+  @Delete(':id/enrollments/:contactId') async stop(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('contactId', ParseUUIDPipe) contactId: string,
+  ) {
+    await this.sequences.stopForContact(r.user.tenantId, id, contactId);
+    return { stopped: true };
   }
   @Delete(':id') remove(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.sequences.remove(r.user.tenantId, id);

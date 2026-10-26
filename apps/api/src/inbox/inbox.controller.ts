@@ -22,7 +22,7 @@ import { Roles } from '../auth/decorators';
 import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
 import { DatabaseService } from '../database/database.service';
-import {telegramFile} from '../messaging/adapters/telegram.adapter';
+import { telegramFile } from '../messaging/adapters/telegram.adapter';
 import { GRAPH } from '../messaging/adapters/adapter';
 import { ChannelRow, ChannelsService } from '../messaging/channels.service';
 import { contentSchema } from '../messaging/message-content';
@@ -31,6 +31,7 @@ import { AssignmentService } from './assignment.service';
 import { escapeLike } from './assignment';
 
 const listQuery = z.object({
+  view: z.enum(['all', 'important', 'archived', 'blocked']).default('all'),
   status: z.enum(['active', 'open', 'pending', 'closed']).optional(),
   channelId: z.string().uuid().optional(),
   assignee: z.union([z.enum(['me', 'unassigned']), z.string().uuid()]).optional(),
@@ -51,6 +52,9 @@ const messagesQuery = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 const patchSchema = z.object({
+  important: z.boolean().optional(),
+  archived: z.boolean().optional(),
+  blocked: z.boolean().optional(),
   departmentId: z.string().uuid().nullable().optional(),
   status: z.enum(['open', 'pending', 'closed']).optional(),
   handledBy: z.enum(['bot', 'human']).optional(),
@@ -59,7 +63,12 @@ const patchSchema = z.object({
 const noteSchema = z.object({ text: z.string().min(1).max(2000) });
 const availabilitySchema = z.object({ available: z.boolean() });
 const settingsSchema = z.object({
- signature_enabled:z.boolean().optional(),signature_template:z.string().max(200).optional(),human_session_minutes:z.number().int().min(0).max(10080).optional(),delivery_error_tag:z.string().max(50).optional(),sla_escalation_enabled:z.boolean().optional(),escalation_user_id:z.string().uuid().nullable().optional(),
+  signature_enabled: z.boolean().optional(),
+  signature_template: z.string().max(200).optional(),
+  human_session_minutes: z.number().int().min(0).max(10080).optional(),
+  delivery_error_tag: z.string().max(50).optional(),
+  sla_escalation_enabled: z.boolean().optional(),
+  escalation_user_id: z.string().uuid().nullable().optional(),
   auto_assign: z.boolean().optional(),
   max_open_per_agent: z.number().int().min(1).max(500).optional(),
 });
@@ -124,7 +133,7 @@ export class InboxController {
 
     return this.db.withTenant(req.user.tenantId, async (c) => {
       const r = await c.query(
-        `SELECT cv.id, cv.status, cv.handled_by, cv.assigned_to, au.full_name AS assignee_name, cv.last_message_at,
+        `SELECT cv.id,cv.important,cv.archived_at,EXISTS(SELECT 1 FROM contact_channels bc WHERE bc.contact_id=cv.contact_id AND bc.channel_id=cv.channel_id AND bc.blocked_at IS NOT NULL) AS blocked, cv.status, cv.handled_by, cv.assigned_to, au.full_name AS assignee_name, cv.last_message_at,
                 to_char(cv.last_message_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_at,
                 cv.unread_count, cv.last_inbound_at, ch.id AS channel_id, ch.type AS channel_type, ch.name AS channel_name,
                 ct.id AS contact_id, ct.name AS contact_name, ct.phone AS contact_phone,
@@ -139,6 +148,7 @@ export class InboxController {
            AND ($5::text IS NULL OR ($5 = 'unassigned' AND cv.assigned_to IS NULL) OR ($5 = 'user' AND cv.assigned_to = $6::uuid))
            AND ($7::text IS NULL OR cv.handled_by = $7)
            AND (NOT $8::boolean OR cv.unread_count > 0)
+           AND (($11='archived' AND cv.archived_at IS NOT NULL) OR ($11='blocked' AND EXISTS(SELECT 1 FROM contact_channels bc WHERE bc.contact_id=cv.contact_id AND bc.channel_id=cv.channel_id AND bc.blocked_at IS NOT NULL)) OR ($11 IN ('all','important') AND cv.archived_at IS NULL AND NOT EXISTS(SELECT 1 FROM contact_channels bc WHERE bc.contact_id=cv.contact_id AND bc.channel_id=cv.channel_id AND bc.blocked_at IS NOT NULL) AND ($11='all' OR cv.important)))
            AND ($9::text IS NULL OR ct.name ILIKE $9 OR ct.phone ILIKE $9 OR EXISTS (
                  SELECT 1 FROM messages m WHERE m.conversation_id = cv.id AND m.is_internal = false AND m.content->>'text' ILIKE $9))
          ORDER BY cv.last_message_at DESC,cv.id DESC LIMIT $4`,
@@ -153,6 +163,7 @@ export class InboxController {
           q.unread === 'true',
           pattern,
           cursor?.id ?? null,
+          q.view,
         ],
       );
       return {
@@ -191,20 +202,26 @@ export class InboxController {
   }
 
   @Get('conversations/counts')
-  counts(@Req() req: AuthedRequest) {
-    return this.db.withTenant(req.user.tenantId, async (c) => {
-      const r = await c.query(
-        `SELECT count(*) FILTER (WHERE status <> 'closed')::int AS active,
-                count(*) FILTER (WHERE status <> 'closed' AND assigned_to = $1)::int AS mine,
-                count(*) FILTER (WHERE status <> 'closed' AND assigned_to IS NULL)::int AS unassigned,
-                count(*) FILTER (WHERE status <> 'closed' AND unread_count > 0)::int AS unread,
-                count(*) FILTER (WHERE status <> 'closed' AND handled_by = 'bot')::int AS bot,
-                count(*) FILTER (WHERE status = 'closed')::int AS closed
-         FROM conversations`,
-        [req.user.userId],
-      );
-      return r.rows[0];
-    });
+  counts(@Req() req: AuthedRequest, @Query() query: unknown) {
+    const { channelId } = parse(z.object({ channelId: z.string().uuid().optional() }), query);
+    return this.db.withTenant(
+      req.user.tenantId,
+      async (c) =>
+        (
+          await c.query(
+            `WITH scoped AS (SELECT cv.*,EXISTS(SELECT 1 FROM contact_channels cc WHERE cc.contact_id=cv.contact_id AND cc.channel_id=cv.channel_id AND cc.blocked_at IS NOT NULL) AS blocked FROM conversations cv WHERE ($2::uuid IS NULL OR cv.channel_id=$2))
+       SELECT count(*) FILTER(WHERE status<>'closed' AND archived_at IS NULL AND NOT blocked)::int AS active,
+       count(*) FILTER(WHERE status<>'closed' AND archived_at IS NULL AND NOT blocked AND assigned_to=$1)::int AS mine,
+       count(*) FILTER(WHERE status<>'closed' AND archived_at IS NULL AND NOT blocked AND assigned_to IS NULL)::int AS unassigned,
+       count(*) FILTER(WHERE status<>'closed' AND archived_at IS NULL AND NOT blocked AND unread_count>0)::int AS unread,
+       count(*) FILTER(WHERE status<>'closed' AND archived_at IS NULL AND NOT blocked AND handled_by='bot')::int AS bot,
+       count(*) FILTER(WHERE status='closed' AND archived_at IS NULL AND NOT blocked)::int AS closed,
+       count(*) FILTER(WHERE important AND archived_at IS NULL AND NOT blocked)::int AS important,
+       count(*) FILTER(WHERE archived_at IS NOT NULL)::int AS archived,count(*) FILTER(WHERE blocked)::int AS blocked FROM scoped`,
+            [req.user.userId, channelId ?? null],
+          )
+        ).rows[0],
+    );
   }
 
   @Get('conversations/:id')
@@ -212,7 +229,7 @@ export class InboxController {
     return this.db.withTenant(req.user.tenantId, async (c) => {
       const r = (
         await c.query(
-          `SELECT cv.id, cv.status, cv.handled_by, cv.assigned_to, au.full_name AS assignee_name, cv.unread_count,
+          `SELECT cv.id,cv.important,cv.archived_at,EXISTS(SELECT 1 FROM contact_channels bc WHERE bc.contact_id=cv.contact_id AND bc.channel_id=cv.channel_id AND bc.blocked_at IS NOT NULL) AS blocked, cv.status, cv.handled_by, cv.assigned_to, au.full_name AS assignee_name, cv.unread_count,
                   cv.last_inbound_at, cv.created_at,cv.department_id,
                   (SELECT d.sla_minutes FROM departments d WHERE d.id=cv.department_id) AS sla_minutes,
                   ch.id AS channel_id, ch.type AS channel_type, ch.name AS channel_name,
@@ -364,6 +381,25 @@ export class InboxController {
           ])
         ).rows[0];
         if (!cur) throw new NotFoundException('Conversation not found');
+        if (p.important !== undefined)
+          await c.query('UPDATE conversations SET important=$2 WHERE id=$1', [id, p.important]);
+        if (p.archived !== undefined)
+          await c.query(
+            'UPDATE conversations SET archived_at=CASE WHEN $2 THEN now() ELSE NULL END WHERE id=$1',
+            [id, p.archived],
+          );
+        if (p.blocked !== undefined) {
+          await c.query(
+            'UPDATE contact_channels SET blocked_at=CASE WHEN $2 THEN now() ELSE NULL END WHERE (contact_id,channel_id)=(SELECT contact_id,channel_id FROM conversations WHERE id=$1)',
+            [id, p.blocked],
+          );
+          if (p.blocked) await this.expireSessions(c, id);
+          await this.logEvent(c, id, {
+            event: p.blocked ? 'blocked' : 'unblocked',
+            by: req.user.userId,
+          });
+        }
+
         if (
           p.departmentId &&
           !(
@@ -484,15 +520,22 @@ export class InboxController {
       return r.rows[0];
     });
     const media = row?.content?.media;
-    if (!media?.providerMediaId || !['whatsapp','telegram'].includes(row.type))
+    if (!media?.providerMediaId || !['whatsapp', 'telegram'].includes(row.type))
       throw new NotFoundException('No downloadable media');
 
     const creds = this.channels.credentials({ credentials_enc: row.credentials_enc } as ChannelRow);
-    if(row.type==='telegram'){
-      const file=await telegramFile(creds.botToken,media.providerMediaId);
-      const mime=MEDIA_TYPES.test(file.mimeType)?file.mimeType:'application/octet-stream';
-      res.set({'Content-Type':mime,'X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; sandbox",'Cache-Control':'private, max-age=300',...(mime==='application/octet-stream'?{'Content-Disposition':'attachment'}:{})});
-      res.send(file.buffer);return;
+    if (row.type === 'telegram') {
+      const file = await telegramFile(creds.botToken, media.providerMediaId);
+      const mime = MEDIA_TYPES.test(file.mimeType) ? file.mimeType : 'application/octet-stream';
+      res.set({
+        'Content-Type': mime,
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'; sandbox",
+        'Cache-Control': 'private, max-age=300',
+        ...(mime === 'application/octet-stream' ? { 'Content-Disposition': 'attachment' } : {}),
+      });
+      res.send(file.buffer);
+      return;
     }
     const auth = { Authorization: `Bearer ${creds.accessToken}` };
     const meta: any = await fetch(`${GRAPH}/${encodeURIComponent(media.providerMediaId)}`, {
