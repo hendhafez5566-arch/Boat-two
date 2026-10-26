@@ -4,6 +4,23 @@ import { api, setSession } from '../../lib/api';
 import { useData } from '../business/useData';
 import { useLocale } from '../product/locale';
 import styles from './settings-hub.module.css';
+function deviceName(label: string) {
+  const browser = label.match(/(Edg|Chrome|Firefox|Version)\/([\d.]+)/);
+  const os = /Android/.test(label)
+    ? 'Android'
+    : /iPhone|iPad/.test(label)
+      ? 'iOS'
+      : /Windows/.test(label)
+        ? 'Windows'
+        : /Macintosh|Mac OS/.test(label)
+          ? 'macOS'
+          : /Linux|CrOS/.test(label)
+            ? 'Linux'
+            : '';
+  if (!browser) return label.length > 60 ? label.slice(0, 57) + '…' : label;
+  const name = browser[1] === 'Edg' ? 'Edge' : browser[1] === 'Version' ? 'Safari' : browser[1];
+  return [name + ' ' + browser[2].split('.')[0], os].filter(Boolean).join(' · ');
+}
 export default function Sessions() {
   const { t } = useLocale();
   const sessions = useData<
@@ -81,7 +98,9 @@ export default function Sessions() {
                   </time>
                 </td>
                 <td>
-                  {session.device_label || t('جهاز غير معروف', 'Unknown device')}
+                  <span title={session.device_label}>
+                    {deviceName(session.device_label || t('جهاز غير معروف', 'Unknown device'))}
+                  </span>
                   <br />
                   <small>
                     {session.revoked_at

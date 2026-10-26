@@ -122,7 +122,7 @@
 }
 .table {
   width: 100%;
-  min-width: 560px;
+  min-width: 680px;
   border-collapse: collapse;
   text-align: start;
   font-size: 12px;
@@ -143,8 +143,9 @@
   white-space: nowrap;
 }
 .table td:nth-child(4) {
+  min-width: 140px;
   max-width: 210px;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .current {
   display: block;
