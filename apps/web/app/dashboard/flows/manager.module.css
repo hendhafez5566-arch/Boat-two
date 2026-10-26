@@ -1,10 +1,14 @@
 .manager {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 16px;
+  font:
+    400 14px/21px 'Plus Jakarta Sans Variable',
+    Arial,
+    sans-serif;
   align-items: start;
   min-width: 0;
-  color: #253549;
+  color: #25313b;
 }
 .manager h1,
 .manager h2,
@@ -17,7 +21,7 @@
   border-radius: 18px;
   padding: 16px;
   position: sticky;
-  top: 18px;
+  top: 90px;
   min-width: 0;
 }
 .accounts > header {
@@ -29,7 +33,7 @@
 }
 .accounts h1 {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 400;
 }
 .accounts > header a {
   font-size: 13px;
@@ -37,31 +41,34 @@
   color: var(--primary);
   white-space: nowrap;
 }
-.search {
+.manager .search {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-direction: row;
   border: 1px solid #e4e8ef;
   border-radius: 9px;
   background: #fff;
   min-width: 0;
   padding: 0 12px;
-  min-height: 44px;
+  min-height: 36px;
 }
 .search svg {
   width: 17px;
   flex-shrink: 0;
   color: #687589;
 }
-.search input {
+.manager .search input {
   border: 0 !important;
   outline: none;
   background: transparent;
   min-width: 0;
   width: 100%;
-  padding: 10px 0 !important;
+  min-height: 0;
+  box-shadow: none;
+  padding: 0 !important;
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
 }
 .search:focus-within {
   outline: 2px solid var(--primary);
@@ -173,11 +180,11 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 54px;
+  min-height: 46px;
 }
 .workspaceHeader h2 {
-  font-size: 17px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 .workspaceHeader p {
@@ -185,7 +192,7 @@
   color: #586679;
   margin-top: 4px;
 }
-.workspaceHeader > a {
+.workspaceHeader > button {
   margin-inline-start: auto;
   flex-shrink: 0;
 }
@@ -194,7 +201,7 @@
   overflow-x: auto;
   border: 1px solid #e4e8f2;
   border-radius: 10px;
-  background: #f3f7fc;
+  background: transparent;
   min-width: 0;
 }
 .sections button {
@@ -205,7 +212,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 16px 19px;
+  padding: 16px 20px;
   white-space: nowrap;
   color: #586579;
   border-bottom: 3px solid transparent;
@@ -224,14 +231,14 @@
 .subsections {
   display: flex;
   gap: 9px;
-  overflow-x: auto;
-  padding: 2px 0 5px;
+  flex-wrap: wrap;
+  padding: 0;
 }
 .subsections button {
   border: 1px solid #e5e9f0;
   border-radius: 8px;
   background: white;
-  padding: 10px 13px;
+  padding: 9px 16px;
   font-size: 12px;
   white-space: nowrap;
   color: #41536b;
@@ -258,13 +265,13 @@
   margin-bottom: 24px;
 }
 .contentHeader h2 {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 400;
 }
 .contentHeader p {
-  font-size: 13px;
-  color: #586679;
-  margin-top: 7px;
+  font-size: 12px;
+  color: #727c86;
+  margin-top: 6px;
   line-height: 1.7;
 }
 .headerActions {
@@ -282,18 +289,19 @@
   flex-wrap: wrap;
 }
 .filters > select {
-  min-width: 140px;
-  flex: 1;
+  width: 220px;
+  flex: none;
 }
 .filters > .search {
-  flex: 2;
+  flex: 0 1 320px;
   min-width: 180px;
+  min-height: 52px;
 }
 .filters select,
 .pagination select,
 .form input:not([type='checkbox']),
 .form select {
-  min-height: 44px;
+  min-height: 52px;
   background: white;
   border: 1px solid #e3e7ee;
   border-radius: 8px;
@@ -323,21 +331,44 @@
   font-weight: 600;
   background: #f9fafc;
   color: #59697c;
-  padding: 15px 12px;
+  padding: 12px 16px;
   white-space: nowrap;
 }
 .table td {
   border-top: 1px solid #edf0f5;
-  padding: 15px 12px;
+  padding: 12px 16px;
   vertical-align: middle;
 }
-.table td:nth-child(2) {
-  width: 44%;
+.table td:nth-child(3) {
+  min-width: 240px;
+}
+.uniqueId {
+  display: block;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.table th button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+.table th button span {
+  color: #a6acb3;
 }
 .flowName {
   display: block;
-  font-weight: 600;
-  color: #253549;
+  font-weight: 400;
+  color: #25313b;
   overflow-wrap: anywhere;
 }
 .flowName:hover {
@@ -369,14 +400,17 @@
   gap: 6px;
 }
 .actions :global(.btn) {
-  padding: 7px;
-  min-height: 32px;
-  min-width: 32px;
-  border-radius: 8px;
+  padding: 5px;
+  min-height: 28px;
+  min-width: 28px;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid #e6e8ec;
+  box-shadow: 0 2px 4px #00000008;
 }
 .actions svg {
-  width: 16px;
-  height: 16px;
+  width: 13px;
+  height: 13px;
 }
 .actionMenu {
   position: relative;
@@ -556,5 +590,56 @@
 @media (prefers-reduced-motion: reduce) {
   .manager * {
     scroll-behavior: auto;
+  }
+}
+
+/* One content surface for the account tools, retaining their existing data handlers. */
+.panelSurface {
+  background: #fff;
+  border: 1px solid #edf0f3;
+  border-radius: 18px;
+  padding: 24px;
+  min-width: 0;
+  box-shadow: 0 2px 8px #25313b04;
+}
+.panelSurface :global(.page-heading) {
+  margin: 0 0 20px;
+}
+.panelSurface :global(h1),
+.panelSurface :global(h2) {
+  font:
+    500 18px/27px 'Plus Jakarta Sans Variable',
+    Arial,
+    sans-serif;
+  margin: 0;
+}
+.panelSurface :global(.page-heading p) {
+  font-size: 12px;
+  line-height: 18px;
+  margin-top: 6px;
+}
+.panelSurface :global(.card) {
+  box-shadow: none;
+  border-radius: 12px;
+}
+@media (max-width: 700px) {
+  .manager {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .accounts {
+    position: static;
+  }
+  .content,
+  .panelSurface {
+    padding: 16px;
+  }
+  .filters > select,
+  .filters > .search {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+  .contentHeader {
+    align-items: start;
+    flex-wrap: wrap;
   }
 }

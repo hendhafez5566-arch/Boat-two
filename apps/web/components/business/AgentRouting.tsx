@@ -3,15 +3,24 @@ import { useState } from 'react';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 import { useData } from './useData';
-export function AgentRouting() {
+export function AgentRouting({ channelId }: { channelId?: string } = {}) {
   const { t } = useLocale();
   const routes = useData<
-    { id: string; agent_name: string; channel_name: string | null; flow_name: string | null }[]
+    {
+      id: string;
+      agent_name: string;
+      channel_name: string | null;
+      flow_name: string | null;
+      channel_id: string | null;
+    }[]
   >('/agents/routes', []);
   const agents = useData<{ agents: { id: string; name: string }[] }>('/agents', { agents: [] });
   const channels = useData<{ id: string; name: string }[]>('/channels', []);
   const flows = useData<{ id: string; name: string }[]>('/flows', []);
   const [scope, setScope] = useState('channel');
+  const visibleRoutes = channelId
+    ? routes.data.filter((route) => route.channel_id === channelId)
+    : routes.data;
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   return (
@@ -34,7 +43,11 @@ export function AgentRouting() {
           try {
             await api('/agents/routes', {
               method: 'POST',
-              body: JSON.stringify({ agentId: f.get('agent'), scope, scopeId: f.get('scopeId') }),
+              body: JSON.stringify({
+                agentId: f.get('agent'),
+                scope,
+                scopeId: channelId || f.get('scopeId'),
+              }),
             });
             await routes.reload();
           } catch (err) {
@@ -55,29 +68,33 @@ export function AgentRouting() {
             ))}
           </select>
         </label>
-        <label className="field">
-          {t('نوع التوجيه', 'Assignment type')}
-          <select value={scope} onChange={(e) => setScope(e.target.value)}>
-            <option value="channel">{t('قناة', 'Channel')}</option>
-            <option value="flow">{t('سيناريو', 'Flow')}</option>
-          </select>
-        </label>
-        <label className="field">
-          {t('الوجهة', 'Destination')}
-          <select key={scope} name="scopeId" required>
-            <option value="">{t('اختر', 'Choose')}</option>
-            {(scope === 'channel' ? channels.data : flows.data).map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button className="btn btn-primary" disabled={busy}>
+        {!channelId && (
+          <>
+            <label className="field">
+              {t('نوع التوجيه', 'Assignment type')}
+              <select value={scope} onChange={(e) => setScope(e.target.value)}>
+                <option value="channel">{t('قناة', 'Channel')}</option>
+                <option value="flow">{t('سيناريو', 'Flow')}</option>
+              </select>
+            </label>
+            <label className="field">
+              {t('الوجهة', 'Destination')}
+              <select key={scope} name="scopeId" required>
+                <option value="">{t('اختر', 'Choose')}</option>
+                {(scope === 'channel' ? channels.data : flows.data).map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        )}
+        <button className="btn btn-primary" disabled={busy || !!routes.error || !!agents.error}>
           {t('حفظ التوجيه', 'Save assignment')}
         </button>
       </form>
-      {!routes.data.length && (
+      {!visibleRoutes.length && (
         <p>
           {t(
             'يُستخدم المساعد الافتراضي ما لم تضف توجيهًا.',
@@ -85,7 +102,7 @@ export function AgentRouting() {
           )}
         </p>
       )}
-      {routes.data.map((route) => (
+      {visibleRoutes.map((route) => (
         <div className="step" key={route.id}>
           <span>
             {route.flow_name || route.channel_name} → {route.agent_name}

@@ -1,4 +1,8 @@
 const paths: Record<string, string> = {
+  copy: 'M8 8h12v13H8V8ZM16 8V3H3v13h5',
+  edit: 'm15 4 5 5M4 20l5-1L21 7l-5-5L4 14v6Z',
+  export: 'M4 10v11h16V10M12 16V2m-5 5 5-5 5 5',
+  folder: 'M3 5h7l2 3h9v13H3V5Z',
   social: 'M4 4h16v16H4V4ZM4 15l5-5 5 5 3-3 3 3M15 8h.01',
   close: 'M6 6l12 12M18 6 6 18',
   chevron: 'm6 9 6 6 6-6',

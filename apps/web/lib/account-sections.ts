@@ -24,7 +24,7 @@ export const ACCOUNT_GROUPS = [
     icon: 'agents',
     ar: 'الذكاء الاصطناعي',
     en: 'AI',
-    sections: ['ai_agents', 'knowledge'],
+    sections: ['ai_agent_configuration', 'ai_agents'],
   },
   { key: 'engagement', icon: 'inbox', ar: 'التفاعل', en: 'Engagement', sections: ['chat_widget'] },
   {
@@ -39,11 +39,11 @@ export const ACCOUNT_GROUPS = [
     icon: 'integrations',
     ar: 'التكاملات',
     en: 'Integrations',
-    sections: ['integrations'],
+    sections: ['autoresponder'],
   },
 ];
 export const ACCOUNT_SECTION_LABELS: Record<string, [string, string]> = {
-  bot_reply: ['الردود والتدفقات', 'Keyword Replies'],
+  bot_reply: ['الردود بالكلمات المفتاحية', 'Keyword Replies'],
   message_templates: ['قوالب الرسائل', 'Message Templates'],
   sequences: ['تسلسلات المتابعة', 'Follow-up Sequences'],
   action_buttons: ['الإجراءات السريعة', 'Quick Actions'],
@@ -51,10 +51,12 @@ export const ACCOUNT_SECTION_LABELS: Record<string, [string, string]> = {
   entry_points: ['تدفقات جمع البيانات', 'User Input Flows'],
   whatsapp_flows: ['نماذج WhatsApp', 'WhatsApp Flows'],
   appointment_booking: ['حجز المواعيد', 'Appointment Booking'],
-  ai_agents: ['مساعدو الذكاء الاصطناعي', 'AI Agents'],
+  ai_agent_configuration: ['إعداد الذكاء الاصطناعي', 'AI Configuration'],
+  ai_agents: ['المساعدون', 'Agents'],
   knowledge: ['قاعدة المعرفة', 'Knowledge'],
   chat_widget: ['نقاط بدء المحادثة', 'Chat Entry'],
   product_catalog: ['كتالوج المنتجات', 'Product Catalog'],
+  autoresponder: ['الرد التلقائي', 'Auto Responder'],
   integrations: ['التكاملات', 'Integrations'],
   settings: ['إعدادات الحساب', 'Bot Settings'],
 };

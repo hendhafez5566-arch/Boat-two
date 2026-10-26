@@ -1,5 +1,6 @@
 'use client';
 import dynamic from 'next/dynamic';
+import { AgentRouting } from '../business/AgentRouting';
 import { useData } from '../business/useData';
 import { useLocale } from '../product/locale';
 import ChannelSettings from '../product/ChannelSettings';
@@ -31,6 +32,27 @@ export default function AccountPanel({
     }[]
   >('/channels', []);
   const channel = channels.data.find((item) => item.id === channelId);
+  if (section === 'ai_agent_configuration')
+    return (
+      <section className="stack">
+        <header className="page-heading">
+          <div>
+            <h1>{t('إعداد الذكاء الاصطناعي', 'AI Configuration')}</h1>
+            <p>
+              {t(
+                'اختر المساعد لهذا البوت. تحدد قواعد التوجيه أي مساعد يبدأ المحادثة.',
+                'Select agents for this bot. Routing rules decide which agent starts.',
+              )}
+            </p>
+          </div>
+        </header>
+        {channelId ? (
+          <AgentRouting key={channelId} channelId={channelId} />
+        ) : (
+          <p>{t('اختر حسابًا من القائمة.', 'Choose an account from the list.')}</p>
+        )}
+      </section>
+    );
   if (section === 'whatsapp_flows')
     return channel?.type === 'whatsapp' ? (
       <WhatsAppFlows key={channelId} channelId={channelId} />
@@ -54,7 +76,8 @@ export default function AccountPanel({
     );
   if (section === 'appointment_booking') return <Commerce initialTab="appointments" />;
   if (section === 'product_catalog') return <Commerce initialTab="products" />;
-  if (section === 'integrations' || section === 'webhook_workflows') return <Integrations />;
+  if (section === 'integrations' || section === 'autoresponder' || section === 'webhook_workflows')
+    return <Integrations />;
   if (section === 'ai_agents') return <Agents />;
   if (section === 'knowledge') return <Knowledge />;
   return (

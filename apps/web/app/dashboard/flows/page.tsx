@@ -58,7 +58,12 @@ export default function BotManager() {
   const [channelType, setChannelType] = useState('all');
   const [search, setSearch] = useState('');
   const [folder, setFolder] = useState('*');
-  const [status, setStatus] = useState('all');
+  const [sort, setSort] = useState<{ key: 'name' | 'id' | 'updated_at'; ascending: boolean }>({
+    key: 'updated_at',
+    ascending: false,
+  });
+  const sortBy = (key: 'name' | 'id' | 'updated_at') =>
+    setSort((current) => ({ key, ascending: current.key === key ? !current.ascending : true }));
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [creating, setCreating] = useState(false);
@@ -69,22 +74,35 @@ export default function BotManager() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const lock = useRef(false);
+  useEffect(() => {
+    if (
+      !channels.loading &&
+      channels.data.length &&
+      !new URLSearchParams(window.location.search).has('channelId')
+    )
+      setChannelId(channels.data[0].id);
+  }, [channels.loading, channels.data, setChannelId]);
   const selected = channels.data.find((c) => c.id === channelId);
   const visibleChannels = channels.data.filter(
     (c) =>
       (channelType === 'all' || channelType === c.type) &&
       `${c.name} ${c.external_id ?? ''}`.toLowerCase().includes(channelSearch.toLowerCase()),
   );
-  const filtered = flows.data.filter(
-    (f) =>
-      (section === 'entry_points'
-        ? f.node_types?.some((type) => ['user_input', 'question'].includes(type))
-        : true) &&
-      matchesFlowChannel(f.channel_ids, channelId) &&
-      (folder === '*' || (f.folder_name ?? '') === folder) &&
-      (status === 'all' || f.status === status) &&
-      f.name.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = flows.data
+    .filter(
+      (f) =>
+        (section === 'entry_points'
+          ? f.node_types?.some((type) => ['user_input', 'question'].includes(type))
+          : true) &&
+        matchesFlowChannel(f.channel_ids, channelId) &&
+        (folder === '*' || (f.folder_name ?? '') === folder) &&
+        f.name.toLowerCase().includes(search.toLowerCase()),
+    )
+    .sort(
+      (a, b) =>
+        (sort.ascending ? 1 : -1) *
+        a[sort.key].localeCompare(b[sort.key], language, { numeric: true }),
+    );
   const folders = [
     ...new Set(flows.data.map((f) => f.folder_name).filter((f): f is string => !!f)),
   ];
@@ -94,7 +112,7 @@ export default function BotManager() {
   useEffect(() => {
     setPage(1);
     setMenu(null);
-  }, [search, folder, status, channelId, pageSize, section]);
+  }, [search, folder, channelId, pageSize, section, sort]);
   useEffect(() => {
     if (!menu) return;
     const close = (e: PointerEvent) => {
@@ -218,20 +236,6 @@ export default function BotManager() {
           ))}
         </div>
         <div className={styles.accountList}>
-          <button
-            type="button"
-            className={styles.account}
-            aria-pressed={!channelId}
-            onClick={() => setChannelId('')}
-          >
-            <span className={styles.avatar}>
-              <NavIcon name="flows" />
-            </span>
-            <span>
-              <strong>{t('كل الحسابات', 'All accounts')}</strong>
-              <small>{t('عرض جميع التدفقات', 'Show every flow')}</small>
-            </span>
-          </button>
           {visibleChannels.map((c) => (
             <button
               type="button"
@@ -316,7 +320,13 @@ export default function BotManager() {
         )}
         <AccountWorkspaceContext.Provider value={true}>
           {!isFlowList && (
-            <AccountPanel key={`${section}:${channelId}`} section={section} channelId={channelId} />
+            <div className={styles.panelSurface}>
+              <AccountPanel
+                key={`${section}:${channelId}`}
+                section={section}
+                channelId={channelId}
+              />
+            </div>
           )}
           {isFlowList && (
             <>
@@ -327,11 +337,19 @@ export default function BotManager() {
               >
                 <header className={styles.contentHeader}>
                   <div>
-                    <h2 id="flow-list-title">{t(...ACCOUNT_SECTION_LABELS[section])}</h2>
+                    <h2 id="flow-list-title">
+                      {section === 'entry_points'
+                        ? t('تدفق إدخال البيانات', 'Input Flow')
+                        : t(...ACCOUNT_SECTION_LABELS[section])}
+                    </h2>
                     <p>
                       {t(
-                        'أنشئ ردودًا تلقائية وتدفقات محادثة لهذا الحساب.',
-                        'Create automated replies and conversation flows for this account.',
+                        section === 'entry_points'
+                          ? 'إدارة تدفقات إدخال البيانات ونقاط الدخول.'
+                          : 'إنشاء وإدارة الردود بالكلمات المفتاحية وأتمتة المحادثات.',
+                        section === 'entry_points'
+                          ? 'Manage input flows for data collection and entry points.'
+                          : 'Create and manage keyword based replies and automate conversations.',
                       )}
                     </p>
                   </div>
@@ -368,17 +386,19 @@ export default function BotManager() {
                   </p>
                 )}
                 <div className={styles.filters}>
-                  <select
-                    aria-label={t('المجلد', 'Folder')}
-                    value={folder}
-                    onChange={(e) => setFolder(e.target.value)}
-                  >
-                    <option value="*">{t('كل المجلدات', 'All Folders')}</option>
-                    <option value="">{t('دون مجلد', 'Unfiled')}</option>
-                    {folders.map((f) => (
-                      <option key={f}>{f}</option>
-                    ))}
-                  </select>
+                  {section === 'bot_reply' && (
+                    <select
+                      aria-label={t('المجلد', 'Folder')}
+                      value={folder}
+                      onChange={(e) => setFolder(e.target.value)}
+                    >
+                      <option value="*">{t('كل المجلدات', 'All Folders')}</option>
+                      <option value="">{t('دون مجلد', 'Unfiled')}</option>
+                      {folders.map((f) => (
+                        <option key={f}>{f}</option>
+                      ))}
+                    </select>
+                  )}
                   <label className={styles.search}>
                     <NavIcon name="search" />
                     <input
@@ -389,24 +409,61 @@ export default function BotManager() {
                       placeholder={t('بحث باسم التدفق…', 'Search flows…')}
                     />
                   </label>
-                  <select
-                    aria-label={t('الحالة', 'Status')}
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                  >
-                    <option value="all">{t('كل الحالات', 'All statuses')}</option>
-                    <option value="published">{t('منشور', 'Published')}</option>
-                    <option value="draft">{t('مسودة', 'Draft')}</option>
-                  </select>
                 </div>
                 <div className={styles.tableScroll}>
                   <table className={styles.table}>
                     <thead>
                       <tr>
                         <th scope="col">#</th>
-                        <th scope="col">{t('اسم التدفق', 'Reference Name')}</th>
-                        <th scope="col">{t('الحالة', 'Status')}</th>
-                        <th scope="col">{t('آخر تعديل', 'Updated At')}</th>
+                        {section === 'bot_reply' && (
+                          <th
+                            scope="col"
+                            aria-sort={
+                              sort.key === 'id'
+                                ? sort.ascending
+                                  ? 'ascending'
+                                  : 'descending'
+                                : 'none'
+                            }
+                          >
+                            <button onClick={() => sortBy('id')}>
+                              {t('المعرّف الفريد', 'Unique ID')} <span aria-hidden="true">↕</span>
+                            </button>
+                          </th>
+                        )}
+                        <th
+                          scope="col"
+                          aria-sort={
+                            sort.key === 'name'
+                              ? sort.ascending
+                                ? 'ascending'
+                                : 'descending'
+                              : 'none'
+                          }
+                        >
+                          <button onClick={() => sortBy('name')}>
+                            {section === 'entry_points'
+                              ? t('اسم التدفق', 'Flow Name')
+                              : t('الاسم المرجعي', 'Reference Name')}{' '}
+                            <span aria-hidden="true">↕</span>
+                          </button>
+                        </th>
+                        {section === 'bot_reply' && (
+                          <th
+                            scope="col"
+                            aria-sort={
+                              sort.key === 'updated_at'
+                                ? sort.ascending
+                                  ? 'ascending'
+                                  : 'descending'
+                                : 'none'
+                            }
+                          >
+                            <button onClick={() => sortBy('updated_at')}>
+                              {t('آخر تعديل', 'Updated At')} <span aria-hidden="true">↕</span>
+                            </button>
+                          </th>
+                        )}
                         <th scope="col">{t('الإجراءات', 'Actions')}</th>
                       </tr>
                     </thead>
@@ -414,6 +471,11 @@ export default function BotManager() {
                       {rows.map((f, index) => (
                         <tr key={f.id}>
                           <td>{(currentPage - 1) * pageSize + index + 1}</td>
+                          {section === 'bot_reply' && (
+                            <td title={f.id}>
+                              <span className={styles.uniqueId}>{f.id}</span>
+                            </td>
+                          )}
                           <td>
                             <Link
                               className={styles.flowName}
@@ -421,38 +483,41 @@ export default function BotManager() {
                             >
                               {f.name}
                             </Link>
-                            <small className={styles.flowDetail}>
-                              {f.triggers
-                                .filter((x) => x.type === 'keyword')
-                                .flatMap((x) => x.keywords ?? [])
-                                .join(' · ') || t('تدفق محادثة', 'Conversation flow')}
-                              {!f.channel_ids.length &&
-                                ` · ${t('متاح لكل الحسابات', 'Available to all accounts')}`}
-                            </small>
                           </td>
-                          <td>
-                            <span className={styles.status} data-live={f.status === 'published'}>
-                              {f.status === 'published'
-                                ? `${t('منشور', 'Published')} v${f.published_version}`
-                                : t('مسودة', 'Draft')}
-                            </span>
-                          </td>
-                          <td>
-                            <time dateTime={f.updated_at}>
-                              {new Date(f.updated_at).toLocaleDateString(
-                                language === 'ar' ? 'ar-EG' : 'en-GB',
-                              )}
-                            </time>
-                          </td>
+                          {section === 'bot_reply' && (
+                            <td>
+                              <time dateTime={f.updated_at}>
+                                {new Date(f.updated_at).toLocaleDateString(
+                                  language === 'ar' ? 'ar-EG' : 'en-GB',
+                                )}
+                              </time>
+                            </td>
+                          )}
                           <td>
                             <div className={styles.actions}>
+                              <button
+                                type="button"
+                                className="btn"
+                                disabled={busy}
+                                title={t('نسخ التدفق', 'Duplicate')}
+                                aria-label={`${t('نسخ التدفق', 'Duplicate')}: ${f.name}`}
+                                onClick={() =>
+                                  void act(async () => {
+                                    await api(`/flows/${f.id}/duplicate`, { method: 'POST' });
+                                    await flows.reload();
+                                  })
+                                }
+                              >
+                                <NavIcon name="copy" />
+                              </button>
+
                               <Link
                                 className="btn"
                                 href={channelHref(`/dashboard/flows/${f.id}`, channelId)}
                                 aria-label={`${t('تعديل', 'Edit')}: ${f.name}`}
                                 title={t('تعديل', 'Edit')}
                               >
-                                <NavIcon name="flows" />
+                                <NavIcon name="edit" />
                               </Link>
                               <button
                                 type="button"
@@ -462,7 +527,16 @@ export default function BotManager() {
                                 aria-label={`${t('تصدير', 'Export')}: ${f.name}`}
                                 title={t('تصدير', 'Export')}
                               >
-                                <NavIcon name="delivery" />
+                                <NavIcon name="export" />
+                              </button>
+                              <button
+                                type="button"
+                                className="btn"
+                                title={t('نقل إلى مجلد', 'Move to Folder')}
+                                aria-label={`${t('نقل إلى مجلد', 'Move to Folder')}: ${f.name}`}
+                                onClick={() => setMoving(f)}
+                              >
+                                <NavIcon name="folder" />
                               </button>
                               <div className={styles.actionMenu} data-flow-actions>
                                 <button
@@ -552,7 +626,7 @@ export default function BotManager() {
                       ))}
                       {!rows.length && (
                         <tr>
-                          <td colSpan={5} className={styles.empty}>
+                          <td colSpan={section === 'entry_points' ? 3 : 5} className={styles.empty}>
                             {flows.loading
                               ? t('جارٍ تحميل التدفقات…', 'Loading flows…')
                               : flows.error

@@ -7,7 +7,7 @@
 
 /* ───────────── 1. Tokens ───────────── */
 :root {
-  --primary: #3d5afe;
+  --primary: #5141e3;
   --primary-ink: #fff;
   --primary-soft: color-mix(in srgb, var(--primary) 9%, #fff);
   --primary-softer: color-mix(in srgb, var(--primary) 5%, #fff);
@@ -40,15 +40,16 @@
   --shadow-lg: 0 24px 64px rgb(16 28 51 / 18%);
   --ring: 0 0 0 4px color-mix(in srgb, var(--primary) 18%, transparent);
   --sidebar-w: 268px;
-  --topbar-h: 64px;
+  --topbar-h: 70px;
 }
 
 /* ───────────── 2. Base ───────────── */
 body {
   background: var(--canvas);
   color: var(--ink);
-  font-size: 15px;
-  line-height: 1.6;
+  font-family: 'Plus Jakarta Sans Variable', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
 }
 ::selection {
   background: color-mix(in srgb, var(--primary) 22%, #fff);
@@ -533,7 +534,7 @@ button.card:hover {
   box-shadow: none;
 }
 .page-workspace {
-  padding: 32px 36px 64px;
+  padding: 32px 32px 64px;
   max-width: 1480px;
 }
 
@@ -2107,7 +2108,7 @@ button.underline {
 }
 
 /* Reference navigation: measured 260px expanded / 90px rail, 70px brand row. */
-.product-shell.bs-shell { --bs-line: #e8ecf4; --bs-soft: #f1efff; }
+.product-shell.bs-shell { background: linear-gradient(110deg, #fbfeff, #eaf5fb); --bs-line: #e8ecf4; --bs-soft: #f1efff; }
 .bs-shell .product-sidebar {
   background: #fff; color: #25313b; border-inline-end: 1px solid #e6e8ec;
   padding: 0; display: flex; flex-direction: column; gap: 0;
@@ -2165,7 +2166,7 @@ button.underline {
 .bs-shell .product-content { min-width: 0; flex: 1; }
 .bs-shell .product-content > .product-topbar.bs-topbar {
   display: flex; align-items: center; gap: 12px; flex-wrap: nowrap; height: var(--topbar-h); min-height: var(--topbar-h);
-  padding: 0 20px; background: #fff; backdrop-filter: none; border-bottom: 1px solid var(--bs-line); position: sticky; top: 0; z-index: 30;
+  padding: 0 32px; background: transparent; backdrop-filter: none; border-bottom: 1px solid var(--bs-line); position: sticky; top: 0; z-index: 30;
 }
 .bs-spacer { flex: 1; min-width: 0; }
 .bs-iconbtn, .bs-avatar {
