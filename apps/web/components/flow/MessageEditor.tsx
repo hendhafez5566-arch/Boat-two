@@ -19,22 +19,50 @@ export function EditorSection({
   title,
   description,
   optional = false,
+  kind = 'body',
+  required = false,
   children,
 }: {
   title: string;
   description?: string;
   optional?: boolean;
+  kind?: 'header' | 'body' | 'footer';
+  required?: boolean;
   children: ReactNode;
 }) {
   const { t } = useLocale();
   return (
-    <section className={styles.section}>
-      <div>
-        <h3>
-          {title}
-          {optional && <span className={styles.optional}>{t('اختياري', 'Optional')}</span>}
-        </h3>
-        {description && <p className={styles.description}>{description}</p>}
+    <section className={styles.section} data-kind={kind}>
+      <div className={styles.sectionHead}>
+        <span className={styles.sectionIcon} aria-hidden="true">
+          {kind === 'header' ? (
+            'H'
+          ) : kind === 'footer' ? (
+            <svg viewBox="0 0 24 24" width="19" height="19">
+              <path
+                d="M5 6h10a3 3 0 0 1 0 6H5a3 3 0 0 1 0-6Zm4 9h10a2 2 0 0 1 0 4H9a2 2 0 0 1 0-4Z"
+                fill="currentColor"
+              />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" width="18" height="18">
+              <path
+                d="M5 6h10M5 10h14M5 14h10M5 18h14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
+            </svg>
+          )}
+        </span>
+        <div>
+          <h3>
+            {title}
+            {required && <span className={styles.required}>*</span>}
+            {optional && <span className={styles.optional}>{t('اختياري', 'Optional')}</span>}
+          </h3>
+          {description && <p className={styles.description}>{description}</p>}
+        </div>
       </div>
       {children}
     </section>
@@ -469,55 +497,77 @@ export default function MessageEditor({
         {hasInteractive && (
           <EditorSection
             title={t('عنوان الرسالة', 'Message Header')}
+            kind="header"
             optional
             description={t(
               'نص أو وسائط تظهر أعلى الرسالة.',
               'Text or media shown at the top of the message.',
             )}
           >
-            <label className={styles.field}>
-              {t('نوع العنوان', 'Header Type')}
-              <select
-                value={data.header?.type ?? ''}
-                onChange={(e) =>
-                  set({
-                    header:
-                      e.target.value === 'text'
-                        ? { type: 'text', text: '' }
-                        : e.target.value
-                          ? { type: e.target.value, url: '' }
-                          : undefined,
-                  })
-                }
+            <div className={styles.field}>
+              <span>{t('نوع العنوان', 'Header Type')}</span>
+              <div
+                className={styles.headerTypes}
+                role="group"
+                aria-label={t('نوع العنوان', 'Header Type')}
               >
-                <option value="">{t('بدون عنوان', 'No Header')}</option>
-                <option value="text">{t('نص', 'Text')}</option>
-                <option value="image">{t('صورة', 'Image')}</option>
-              </select>
-            </label>
-            {data.header && (
-              <label className={styles.field}>
-                {data.header.type === 'text'
-                  ? t('نص العنوان', 'Header Text')
-                  : t('رابط الوسائط', 'Media URL')}
+                <button
+                  type="button"
+                  aria-pressed={!data.header || data.header.type === 'text'}
+                  onClick={() =>
+                    set({ header: data.header?.type === 'text' ? data.header : undefined })
+                  }
+                >
+                  <span>{t('نص', 'Text')}</span>
+                  <small>{t('عنوان نصي فقط', 'Text-only header')}</small>
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={data.header?.type === 'image'}
+                  onClick={() =>
+                    set({
+                      header:
+                        data.header?.type === 'image' ? data.header : { type: 'image', url: '' },
+                    })
+                  }
+                >
+                  <span>{t('وسائط', 'Media')}</span>
+                  <small>{t('صورة للرسالة', 'Message image')}</small>
+                </button>
+              </div>
+            </div>
+            <label className={styles.field}>
+              {!data.header || data.header.type === 'text'
+                ? t('نص', 'Text')
+                : t('رابط الصورة', 'Image URL')}
+              <span className={styles.inputShell}>
                 <input
-                  dir={data.header.type === 'text' ? undefined : 'ltr'}
-                  maxLength={data.header.type === 'text' ? 60 : 2000}
-                  value={data.header.type === 'text' ? data.header.text : data.header.url}
+                  aria-label={t('محتوى العنوان', 'Header Content')}
+                  dir={data.header?.type === 'image' ? 'ltr' : undefined}
+                  maxLength={data.header?.type === 'image' ? 2000 : 60}
+                  value={
+                    data.header?.type === 'image' ? data.header.url : (data.header?.text ?? '')
+                  }
                   onChange={(e) =>
                     set({
-                      header: {
-                        ...data.header,
-                        [data.header.type === 'text' ? 'text' : 'url']: e.target.value,
-                      },
+                      header:
+                        data.header?.type === 'image'
+                          ? { ...data.header, url: e.target.value }
+                          : e.target.value
+                            ? { type: 'text', text: e.target.value }
+                            : undefined,
                     })
                   }
                 />
-              </label>
-            )}
+                {data.header?.type !== 'image' && (
+                  <span className={styles.counter}>{(data.header?.text ?? '').length}/60</span>
+                )}
+              </span>
+            </label>
           </EditorSection>
         )}
         <EditorSection
+          required={hasInteractive}
           title={
             hasInteractive ? t('نص الرسالة', 'Message Body') : t('رسالة الرد', 'Reply Message')
           }
@@ -529,7 +579,7 @@ export default function MessageEditor({
           <div className={styles.toolbar}>
             <button
               type="button"
-              className={styles.button}
+              className={`${styles.button} ${styles.variableTrigger}`}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setSuggest((value) => !value)}
               aria-expanded={suggest}
@@ -586,44 +636,53 @@ export default function MessageEditor({
               ))}
             </div>
           )}
-          <textarea
-            ref={input}
-            className={styles.rich}
-            rows={5}
-            maxLength={hasInteractive ? 1024 : 4096}
-            aria-label={t('رسالة الرد', 'Reply Message')}
-            value={data.text ?? ''}
-            onSelect={(e) => {
-              caret.current = {
-                start: e.currentTarget.selectionStart,
-                end: e.currentTarget.selectionEnd,
-              };
-            }}
-            onChange={(e) => {
-              set({ text: e.target.value });
-              caret.current = { start: e.target.selectionStart, end: e.target.selectionEnd };
-            }}
-          />
-          <span className={styles.counter}>
-            {(data.text ?? '').length}/{hasInteractive ? 1024 : 4096}
-          </span>
+          <div className={styles.composer}>
+            <textarea
+              ref={input}
+              className={styles.rich}
+              rows={5}
+              maxLength={hasInteractive ? 1024 : 4096}
+              aria-label={t('رسالة الرد', 'Reply Message')}
+              value={data.text ?? ''}
+              onSelect={(e) => {
+                caret.current = {
+                  start: e.currentTarget.selectionStart,
+                  end: e.currentTarget.selectionEnd,
+                };
+              }}
+              onChange={(e) => {
+                set({ text: e.target.value });
+                caret.current = { start: e.target.selectionStart, end: e.target.selectionEnd };
+              }}
+            />
+            <span className={styles.counter}>
+              {(data.text ?? '').length}/{hasInteractive ? 1024 : 4096}
+            </span>
+          </div>
         </EditorSection>
         {hasInteractive && (
           <EditorSection
             title={t('تذييل الرسالة', 'Message Footer')}
+            kind="footer"
             optional
             description={t(
               'نص اختياري يظهر أسفل الرسالة.',
               'Optional text shown at the bottom of the message.',
             )}
           >
-            <input
-              aria-label={t('تذييل الرسالة', 'Message Footer')}
-              maxLength={60}
-              value={data.footer ?? ''}
-              onChange={(e) => set({ footer: e.target.value || undefined })}
-            />
-            <span className={styles.counter}>{(data.footer ?? '').length}/60</span>
+            <label className={styles.field}>
+              {t('تذييل الرسالة (اختياري)', 'Message Footer (Optional)')}
+              <span className={styles.inputShell}>
+                {' '}
+                <input
+                  aria-label={t('تذييل الرسالة', 'Message Footer')}
+                  maxLength={60}
+                  value={data.footer ?? ''}
+                  onChange={(e) => set({ footer: e.target.value || undefined })}
+                />
+                <span className={styles.counter}>{(data.footer ?? '').length}/60</span>
+              </span>
+            </label>
           </EditorSection>
         )}
         {data.media && (
@@ -658,7 +717,25 @@ export default function MessageEditor({
         )}
       </div>
       <ConfigDisclosure>
-        <ConfigSummary>{t('خيارات الإرسال', 'Delivery Options')}</ConfigSummary>
+        <ConfigSummary>
+          <span className={styles.disclosureHeading}>
+            <span className={styles.sectionIcon} aria-hidden="true">
+              ◷
+            </span>
+            <span>
+              <strong>
+                {t('خيارات الإرسال', 'Delivery Options')}{' '}
+                <span className={styles.optional}>{t('اختياري', 'Optional')}</span>
+              </strong>
+              <small>
+                {t(
+                  'إعدادات مؤشر الكتابة وتأخير الرد.',
+                  'Typing indicator and reply delay settings.',
+                )}
+              </small>
+            </span>
+          </span>
+        </ConfigSummary>
         <DeliveryOptions data={data} onChange={onChange} />
       </ConfigDisclosure>
     </div>

@@ -444,98 +444,8 @@
   width: calc(100% - 32px);
   min-width: 0;
 }
-.inspectorDialog {
-  width: min(820px, calc(100vw - 28px));
-  max-width: none;
-  max-height: calc(100dvh - 28px);
-  padding: 0;
-  border: 1px solid #dce5ef;
-  border-radius: 18px;
-  box-shadow: 0 30px 100px #10283e4d;
-  color: #24394c;
-}
-.inspectorDialog[open] {
-  display: flex;
-  flex-direction: column;
-}
-.inspectorDialog::backdrop,
-.previewDialog::backdrop {
-  background: #142d4660;
-  backdrop-filter: blur(3px);
-}
-.inspectorDialog > header {
-  flex-shrink: 0;
-  padding: 18px 22px;
-  border-bottom: 1px solid #e5ebf2;
-  background: #fff;
-}
-.inspectorDialog > header h2 {
-  font-size: 20px;
-}
-.inspectorDialog > :global(.dialog-body) {
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
-}
-.editorNote {
-  padding: 10px 22px;
-  margin: 0;
-  background: #f5f8fc;
-  color: #536b81;
-  font-size: 12px;
-  line-height: 1.7;
-  flex-shrink: 0;
-}
-.inspectorBody {
-  min-height: 0;
-  flex: 1;
-  overflow: auto;
-  overscroll-behavior: contain;
-  padding: 8px;
-}
-.inspectorBody :global(.flow-inspector-content) {
-  padding: 14px;
-}
-.inspectorBody :where(input:not([type='checkbox']):not([type='radio']), select, textarea) {
-  min-height: 42px;
-  font-size: 14px;
-  color: #263f53;
-}
-.inspectorBody :global(.text-gray-400),
-.inspectorBody :global(.text-gray-500) {
-  color: #5c7083;
-}
-.inspectorDialog :global(.smart-editor-footer) {
-  position: static;
-  flex-shrink: 0;
-  padding: 12px 18px;
-  border-top: 1px solid #e1e8f0;
-  background: #fff;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.inspectorDialog :global(.smart-editor-footer) > span {
-  font-size: 12px;
-  color: #5a7085;
-  margin-inline-end: auto;
-}
-.inspectorDialog :global(.smart-editor-footer) > button {
-  min-height: 40px;
-  padding: 8px 14px;
-  border: 1px solid #d3deea;
-  border-radius: 8px;
-  font: inherit;
-  font-size: 13px;
-  background: #fff;
-}
-.inspectorDialog :global(.smart-editor-footer) :global(.smart-primary) {
-  background: var(--primary);
-  color: #fff;
-  border-color: var(--primary);
+.configurationBody {
+  min-width: 0;
 }
 .previewDialog {
   width: min(440px, calc(100vw - 24px));
@@ -631,36 +541,6 @@
   }
   .finder {
     top: 116px;
-  }
-  .inspectorDialog {
-    width: calc(100vw - 12px);
-    max-height: calc(100dvh - 12px);
-    border-radius: 14px;
-  }
-  .inspectorDialog > header {
-    padding: 12px 16px;
-  }
-  .inspectorDialog > header h2 {
-    font-size: 18px;
-  }
-  .editorNote {
-    padding: 8px 16px;
-  }
-  .inspectorBody {
-    padding: 0;
-  }
-  .inspectorBody :where(input:not([type='checkbox']):not([type='radio']), select, textarea) {
-    font-size: 16px;
-  }
-  .inspectorDialog :global(.smart-editor-footer) {
-    padding: 10px 12px;
-  }
-  .inspectorDialog :global(.smart-editor-footer) > span {
-    width: 100%;
-    margin: 0;
-  }
-  .inspectorDialog :global(.smart-editor-footer) > button {
-    flex: 1;
   }
   .reference {
     width: 250px;

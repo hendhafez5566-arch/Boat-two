@@ -47,6 +47,7 @@ import { validationMessage } from '../../../../lib/validation-message';
 import UnsavedChangesGuard from '../../../../components/flow/UnsavedChangesGuard';
 import { convertChoices } from '../../../../lib/smart-editor';
 import { STEP_GUIDANCE } from '../../../../lib/step-guidance';
+import ConfigurationPanel from '../../../../components/flow/ConfigurationPanel';
 import Inspector from '../../../../components/flow/Inspector';
 import type { ConditionVariable } from '../../../../components/business/ConditionModal';
 import TestPanel from '../../../../components/flow/TestPanel';
@@ -1886,13 +1887,37 @@ function Editor({ id }: { id: string }) {
           </div>
         </Dialog>
 
-        <Dialog
+        <ConfigurationPanel
           open={inspectorOpen && !previewOpen && (tab === 'settings' || !!sel)}
           onClose={() => {
             setInspectorDraft(null);
             setInspectorOpen(false);
           }}
-          className={styles.inspectorDialog}
+          description={
+            choiceSelection?.parentId === sel?.id
+              ? t(
+                  'إعداد عنوان الاختيار وإجراء الضغط والأتمتة الاختيارية.',
+                  'Set the reply label, action type and optional automation when pressed.',
+                )
+              : choicePanel === sel?.id
+                ? t(
+                    'إعداد الاختيارات التي تظهر للمشترك.',
+                    'Configure the replies shown to subscribers.',
+                  )
+                : sel &&
+                    (sel.data.type === 'interactive' ||
+                      (sel.data.type === 'message' && optionsOf(sel.data.data).length))
+                  ? t(
+                      'إعداد عنوان الرسالة التفاعلية ومحتواها وتذييلها.',
+                      'Configure your interactive message header, body and footer.',
+                    )
+                  : sel?.data.type === 'message'
+                    ? t('اكتب رسالة الرد وأدرج المتغيرات.', 'Compose your reply with variables.')
+                    : t(
+                        'إعداد هذه الخطوة في تدفق المحادثة.',
+                        'Configure this step in the conversation flow.',
+                      )
+          }
           title={
             sel && tab === 'node'
               ? choiceSelection?.parentId === sel.id
@@ -1905,7 +1930,7 @@ function Editor({ id }: { id: string }) {
               : t('إعداد بداية التدفق', 'Configure Reference')
           }
         >
-          <div key={tab === 'node' ? selected : 'settings'} className={styles.inspectorBody}>
+          <div key={tab === 'node' ? selected : 'settings'} className={styles.configurationBody}>
             {tab === 'node' &&
               (sel ? (
                 <div>
@@ -2183,7 +2208,7 @@ function Editor({ id }: { id: string }) {
                 setInspectorOpen(false);
               }}
             >
-              {t('إغلاق', 'Close')}
+              <span aria-hidden="true">×</span> {t('إغلاق', 'Close')}
             </button>
             <button
               type="button"
@@ -2200,10 +2225,18 @@ function Editor({ id }: { id: string }) {
                 }
               }}
             >
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M2 1h10l2 2v12H2zM4 1v5h7V1M5 10h6v5H5z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
+              </svg>
               {t('حفظ التغييرات', 'Save Changes')}
             </button>
           </footer>
-        </Dialog>
+        </ConfigurationPanel>
       </div>
     </div>
   );

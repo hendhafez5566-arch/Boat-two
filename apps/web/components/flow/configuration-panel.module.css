@@ -1,0 +1,141 @@
+@import '@fontsource-variable/plus-jakarta-sans';
+.panel {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-start: 0;
+  z-index: 60;
+  width: 576px;
+  max-width: 100vw;
+  height: 100dvh;
+  background: #fff;
+  border-inline-end: 1px solid #e2e8f0;
+  box-shadow: none;
+  color: #0f172a;
+  font-family: 'Plus Jakarta Sans Variable', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  outline: none;
+}
+.scroll {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #cfcfcf #fff;
+  padding-bottom: 104px;
+}
+.header {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 30px 36px 16px;
+  background: #fff;
+}
+.icon {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #2563eb;
+  color: #fff;
+}
+.header h2 {
+  font:
+    700 20px/25px 'Plus Jakarta Sans Variable',
+    Arial,
+    sans-serif;
+  margin: 0;
+  color: #0f172a;
+}
+.header p {
+  font:
+    400 13px/20px 'Plus Jakarta Sans Variable',
+    Arial,
+    sans-serif;
+  color: #64748b;
+  margin: 3px 0 0;
+}
+.content {
+  padding: 0 36px 16px;
+  min-width: 0;
+}
+.content :global(.flow-inspector-content) {
+  padding: 0;
+}
+.content > div {
+  min-width: 0;
+}
+.panel :global(.smart-editor-footer) {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  min-height: 100px;
+  padding: 15px 16px 36px;
+  border-top: 1px solid #eee;
+  background: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  z-index: 2;
+}
+.panel :global(.smart-editor-footer) > button {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font:
+    600 12px/24px 'Plus Jakarta Sans Variable',
+    Arial,
+    sans-serif;
+  box-shadow: 0 1px 3px #0f172a08;
+  cursor: pointer;
+}
+.panel :global(.smart-editor-footer) > :global(.smart-primary) {
+  background: #0d8bf1;
+  border-color: #0d8bf1;
+  color: white;
+  box-shadow: 0 2px 6px #acb5f6;
+}
+.panel :global(.smart-editor-footer) svg {
+  width: 14px;
+  height: 14px;
+}
+@media (max-width: 640px) {
+  .panel {
+    width: 100vw;
+  }
+  .header {
+    padding: 22px 20px 16px;
+  }
+  .header h2 {
+    font-size: 18px;
+    line-height: 25px;
+  }
+  .content {
+    padding: 0 20px 16px;
+  }
+  .panel :global(.smart-editor-footer) {
+    padding: 15px 20px max(20px, env(safe-area-inset-bottom));
+    min-height: 86px;
+  }
+  .scroll {
+    padding-bottom: 102px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    scroll-behavior: auto;
+  }
+}
