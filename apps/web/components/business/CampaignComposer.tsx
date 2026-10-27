@@ -312,7 +312,7 @@ export function CampaignComposer({
             </label>
           </div>
           {reference && (
-            <div className="form-grid">
+            <div className={styles.filterGrid}>
               <AudienceFilterSelect
                 label={t('تضمين الوسوم', 'Include label ids')}
                 options={labelOptions.data.map(({ name }) => ({ id: name, name }))}

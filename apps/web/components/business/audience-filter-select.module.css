@@ -47,6 +47,10 @@
   color: #8c91a0;
 }
 .menu {
+  position: absolute;
+  z-index: 20;
+  inset-inline: 0;
+  top: 100%;
   padding: 8px;
   border: 1px solid #e4e6fc;
   border-radius: 8px;

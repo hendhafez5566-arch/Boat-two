@@ -22,7 +22,12 @@ export function AudienceFilterSelect({
   return (
     <div className={styles.field}>
       <span id={id}>{label}</span>
-      <details className={styles.select}>
+      <details
+        className={styles.select}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
+        }}
+      >
         <summary
           aria-labelledby={id}
           aria-disabled={disabled}
