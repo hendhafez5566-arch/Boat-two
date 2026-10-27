@@ -1,5 +1,7 @@
 'use client';
 import { InboxFilters, EMPTY_INBOX_FILTERS } from '../../../components/inbox/InboxFilters';
+import { InboxFollowupDialog } from '../../../components/inbox/InboxFollowupDialog';
+import { InboxContactDialog } from '../../../components/inbox/InboxContactDialog';
 import { InboxCustomerPanel } from '../../../components/inbox/InboxCustomerPanel';
 import styles from './inbox.module.css';
 import { useChannelContext } from '../../../components/product/useChannelContext';
@@ -60,6 +62,9 @@ export default function Inbox() {
   const { t, language } = useLocale();
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [showContext, setShowContext] = useState(false);
+  const [followupOpen, setFollowupOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<'name' | 'email' | null>(null);
+  const [profileRefresh, setProfileRefresh] = useState(0);
   const [actionsOpen, setActionsOpen] = useState(true);
   const [tab, setTab] = useState<Tab>('active');
   useEffect(() => {
@@ -96,6 +101,23 @@ export default function Inbox() {
   const [canned, setCanned] = useState<any[]>([]);
   const [me, setMe] = useState<string>('');
   const [text, setText] = useState('');
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const emojiHost = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!emojiOpen) return;
+    const dismiss = (event: PointerEvent) => {
+      if (!emojiHost.current?.contains(event.target as Node)) setEmojiOpen(false);
+    };
+    const key = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setEmojiOpen(false);
+    };
+    document.addEventListener('pointerdown', dismiss);
+    document.addEventListener('keydown', key);
+    return () => {
+      document.removeEventListener('pointerdown', dismiss);
+      document.removeEventListener('keydown', key);
+    };
+  }, [emojiOpen]);
   const [internal, setInternal] = useState(false);
   const [attach, setAttach] = useState<any>(null);
   const drafts = useRef(new ConversationDrafts());
@@ -223,6 +245,9 @@ export default function Inbox() {
     selRef.current = id;
     setDetail(null);
     setDetailLoading(true);
+    setFollowupOpen(false);
+    setEditingContact(null);
+    setEmojiOpen(false);
     setMessageSearch('');
     setMsgs([]);
     setSelId(id);
@@ -545,6 +570,9 @@ export default function Inbox() {
       acting={acting}
       canManage={workspaceRole !== 'agent'}
       act={act}
+      refreshToken={profileRefresh}
+      onFollowup={() => setFollowupOpen(true)}
+      onEditEmail={() => setEditingContact('email')}
       onNote={() => {
         setInternal(true);
         setShowContext(false);
@@ -740,7 +768,7 @@ export default function Inbox() {
                   <div className="inbox-row">
                     {workspaceRole !== 'agent' && (
                       <input
-                        aria-label={`تحديد ${title(c)}`}
+                        aria-label={`${t('تحديد', 'Select')} ${title(c)}`}
                         type="checkbox"
                         checked={checked.includes(c.id)}
                         onClick={(e) => e.stopPropagation()}
@@ -753,6 +781,20 @@ export default function Inbox() {
                     )}
                     <span className="inbox-avatar" aria-hidden="true">
                       {String(title(c)).trim().charAt(0).toUpperCase() || '?'}
+                      <span
+                        className={styles.channelBadge}
+                        title={CH[c.channel_type] || c.channel_type}
+                      >
+                        <NavIcon
+                          name={
+                            c.channel_type === 'web'
+                              ? 'globe'
+                              : c.channel_type === 'whatsapp'
+                                ? 'phone'
+                                : 'chat'
+                          }
+                        />
+                      </span>
                     </span>
                     <div className="inbox-body">
                       <div className="inbox-line">
@@ -786,14 +828,6 @@ export default function Inbox() {
                       <div className="inbox-chips">
                         <span className="inbox-chip is-channel">
                           {c.channel_name || CH[c.channel_type] || c.channel_type}
-                        </span>
-                        <span
-                          className={`inbox-chip ${c.handled_by === 'bot' ? 'is-bot' : 'is-agent'}`}
-                        >
-                          {c.handled_by === 'bot' ? t('بوت', 'Bot') : t('موظف', 'Agent')}
-                        </span>
-                        <span className={`inbox-chip ${c.assignee_name ? '' : 'is-warn'}`}>
-                          {c.assignee_name ? c.assignee_name : t('غير معيّنة', 'Unassigned')}
                         </span>
                         {tab === 'closed' && (
                           <span className="inbox-chip">{t('مغلقة', 'Closed')}</span>
@@ -910,10 +944,22 @@ export default function Inbox() {
                     <NavIcon name="undo" />
                   </button>
                   <span className={styles.threadAvatar}>
-                    {String(title(detail)).trim().slice(0, 2)}
+                    {String(title(detail)).trim().charAt(0).toUpperCase()}
                   </span>
                   <div className={styles.threadIdentity}>
-                    <strong>{title(detail)}</strong>
+                    <strong>
+                      {title(detail)}
+                      {workspaceRole !== 'agent' && (
+                        <button
+                          type="button"
+                          className={styles.editName}
+                          aria-label={t('تعديل اسم العميل', 'Edit customer name')}
+                          onClick={() => setEditingContact('name')}
+                        >
+                          <NavIcon name="edit" />
+                        </button>
+                      )}
+                    </strong>
                     <small>{detail.contact_phone || detail.channel_name}</small>
                   </div>
                   <div className={styles.threadTools}>
@@ -927,6 +973,13 @@ export default function Inbox() {
                     </button>
                     <button
                       type="button"
+                      aria-label={t('تعيين متابعة', 'Set Follow-up')}
+                      onClick={() => setFollowupOpen(true)}
+                    >
+                      <NavIcon name="stopwatch" />
+                    </button>
+                    <button
+                      type="button"
                       aria-label={t('إجراءات المحادثة', 'Chat actions')}
                       aria-expanded={actionsOpen}
                       onClick={() => {
@@ -935,7 +988,7 @@ export default function Inbox() {
                         else setShowContext(true);
                       }}
                     >
-                      <NavIcon name="more" />
+                      <NavIcon name="moreVertical" />
                     </button>
                     <button
                       type="button"
@@ -957,7 +1010,7 @@ export default function Inbox() {
                               language === 'ar' ? 'ar-EG' : 'en-US',
                             )
                           : '—',
-                        'user',
+                        'userClock',
                       ],
                       [
                         t('آخر ظهور', 'Last Seen'),
@@ -966,10 +1019,14 @@ export default function Inbox() {
                               language === 'ar' ? 'ar-EG' : 'en-US',
                             )
                           : '—',
-                        'sessions',
+                        'eye',
                       ],
-                      [t('اللغة', 'Language'), detail.contact_attributes?.language || '—', 'globe'],
-                      [t('البلد', 'Country'), detail.contact_attributes?.country || '—', 'globe'],
+                      [
+                        t('اللغة', 'Language'),
+                        detail.contact_attributes?.language || '—',
+                        'language',
+                      ],
+                      [t('البلد', 'Country'), detail.contact_attributes?.country || '—', 'pin'],
                       [
                         t('المنطقة الزمنية', 'Timezone'),
                         detail.contact_attributes?.timezone || '—',
@@ -1073,7 +1130,7 @@ export default function Inbox() {
                     </p>
                   )}
                   {detail.handled_by === 'bot' && !internal && (
-                    <p className="mb-1 text-xs text-gray-500">
+                    <p className="sr-only" id="inbox-takeover-hint">
                       {t(
                         'البوت يتولى هذه المحادثة. إرسال رد يستلمها تلقائيًا.',
                         'The bot handles this conversation. Sending a reply takes over automatically.',
@@ -1112,6 +1169,9 @@ export default function Inbox() {
                     <textarea
                       ref={composerInput}
                       aria-label={t('محرر الرد', 'Reply composer')}
+                      aria-describedby={
+                        detail.handled_by === 'bot' && !internal ? 'inbox-takeover-hint' : undefined
+                      }
                       value={text}
                       onChange={(e) => setText(e.target.value)}
                       onKeyDown={(e) => {
@@ -1135,6 +1195,64 @@ export default function Inbox() {
                       }
                       className="composer-input flex-1 rounded border p-2"
                     />
+                    {!internal && (
+                      <div ref={emojiHost} className={styles.emojiHost}>
+                        <button
+                          type="button"
+                          className={styles.emojiButton}
+                          aria-label={t('رموز تعبيرية', 'Emoji')}
+                          aria-expanded={emojiOpen}
+                          disabled={!!windowExpired || !!detail.blocked}
+                          onClick={() => setEmojiOpen((value) => !value)}
+                        >
+                          <NavIcon name="smile" />
+                        </button>
+                        {emojiOpen && (
+                          <div
+                            className={styles.emojiPicker}
+                            role="group"
+                            aria-label={t('اختيار رمز تعبيري', 'Choose emoji')}
+                          >
+                            {[
+                              '😀',
+                              '😊',
+                              '😍',
+                              '👍',
+                              '🙏',
+                              '❤️',
+                              '🎉',
+                              '✅',
+                              '👋',
+                              '🌹',
+                              '🤝',
+                              '🤔',
+                            ].map((emoji) => (
+                              <button
+                                type="button"
+                                key={emoji}
+                                aria-label={emoji}
+                                onClick={() => {
+                                  const input = composerInput.current;
+                                  const start = input?.selectionStart ?? text.length;
+                                  const end = input?.selectionEnd ?? text.length;
+                                  setText(text.slice(0, start) + emoji + text.slice(end));
+                                  setEmojiOpen(false);
+                                  requestAnimationFrame(() => {
+                                    input?.focus();
+                                    input?.setSelectionRange(
+                                      start + emoji.length,
+                                      start + emoji.length,
+                                    );
+                                  });
+                                }}
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div className="composer-actions">
                       <label
                         className={`composer-attach ${internal ? 'is-disabled' : ''}`}
@@ -1178,6 +1296,35 @@ export default function Inbox() {
             )}
           </section>
 
+          {detail && (
+            <>
+              <InboxFollowupDialog
+                key={`followup-${detail.id}`}
+                open={followupOpen}
+                detail={detail}
+                onClose={() => setFollowupOpen(false)}
+                onSaved={async () => {
+                  setProfileRefresh((value) => value + 1);
+                }}
+              />
+              <InboxContactDialog
+                key={`contact-${detail.id}`}
+                field={editingContact}
+                contactId={detail.contact_id}
+                onClose={() => setEditingContact(null)}
+                onSaved={async () => {
+                  const id = selRef.current;
+                  if (!id) return;
+                  const updated = await api(`/conversations/${id}`);
+                  if (selRef.current === id) {
+                    setDetail(updated);
+                    setProfileRefresh((value) => value + 1);
+                  }
+                  await loadList();
+                }}
+              />
+            </>
+          )}
           {/* ---------- تفاصيل العميل ---------- */}
           <div className="hidden lg:contents">{actionsOpen && !showContext && customerPanel}</div>
           <Dialog

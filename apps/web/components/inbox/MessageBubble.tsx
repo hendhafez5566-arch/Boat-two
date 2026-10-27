@@ -78,9 +78,9 @@ export default function MessageBubble({
 }) {
   const { t, language } = useLocale();
   const c = m.content ?? {};
-  const time = new Date(m.created_at ?? m.createdAt).toLocaleTimeString(
+  const time = new Date(m.created_at ?? m.createdAt).toLocaleString(
     language === 'ar' ? 'ar-EG' : 'en-US',
-    { hour: '2-digit', minute: '2-digit' },
+    { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' },
   );
   const senderType = m.sender_type ?? m.senderType;
   const isInternal = m.is_internal ?? m.isInternal;
@@ -116,67 +116,68 @@ export default function MessageBubble({
 
   return (
     <div className={`msg-row ${mine ? 'is-out' : 'is-in'}`}>
-      <div
-        className={`msg-bubble ${mine ? 'is-out' : 'is-in'} ${status === 'failed' ? 'is-failed' : ''}`}
-      >
-        {mine && who && <div className="msg-who">{who}</div>}
-        {c.telegramSender && <small className="block">{c.telegramSender.name}</small>}
-        {c.header?.type === 'text' && <strong className="block">{c.header.text}</strong>}
-        {c.header?.type === 'image' && (
-          <img src={c.header.url} alt="" className="mb-1 max-h-64 rounded" />
-        )}
-        {c.media &&
-          (c.media.url ? (
-            c.media.kind === 'image' ? (
-              <a href={c.media.url} target="_blank" rel="noreferrer">
-                <img src={c.media.url} alt="" className="mb-1 max-h-64 rounded" />
-              </a>
-            ) : c.media.kind === 'video' ? (
-              <video src={c.media.url} controls className="mb-1 max-h-64 rounded" />
-            ) : c.media.kind === 'audio' ? (
-              <audio src={c.media.url} controls className="mb-1" />
-            ) : (
-              <a href={c.media.url} target="_blank" rel="noreferrer" className="msg-file">
-                📎 {c.media.filename ?? 'ملف'}
-              </a>
-            )
-          ) : c.media.providerMediaId ? (
-            <ProviderMedia conversationId={conversationId} messageId={m.id} kind={c.media.kind} />
-          ) : null)}
-        {c.media?.caption && <div className="whitespace-pre-wrap">{c.media.caption}</div>}
-        {c.text && <div className="whitespace-pre-wrap break-words">{c.text}</div>}
-        {c.footer && <small className="block opacity-80">{c.footer}</small>}
-        {c.order && (
-          <section>
-            <strong>طلب من الكتالوج</strong>
-            {c.order.items.map((item: any, i: number) => (
-              <p key={i}>
-                {item.retailerId} × {item.quantity} · {item.price} {item.currency}
-              </p>
-            ))}
-          </section>
-        )}
-        {c.flowReply && (
-          <details>
-            <summary>بيانات نموذج WhatsApp</summary>
-            <pre dir="ltr">{JSON.stringify(c.flowReply, null, 2)}</pre>
-          </details>
-        )}
-        {c.location && <div>📍 {c.location.name ?? `${c.location.lat}, ${c.location.lng}`}</div>}
-        {c.reply && !c.text && <div>↩ {c.reply.title}</div>}
-        {options.length > 0 && (
-          <div className="mt-1 flex flex-wrap gap-1">
-            {options.map((o: any) => (
-              <span
-                key={o.id}
-                className="rounded-full border border-current px-2 py-0.5 text-xs opacity-80"
-              >
-                {o.title}
-              </span>
-            ))}
-          </div>
-        )}
-        <div className="msg-meta">
+      <div className="msg-stack">
+        <div
+          className={`msg-bubble ${mine ? 'is-out' : 'is-in'} ${status === 'failed' ? 'is-failed' : ''}`}
+        >
+          {c.telegramSender && <small className="block">{c.telegramSender.name}</small>}
+          {c.header?.type === 'text' && <strong className="block">{c.header.text}</strong>}
+          {c.header?.type === 'image' && (
+            <img src={c.header.url} alt="" className="mb-1 max-h-64 rounded" />
+          )}
+          {c.media &&
+            (c.media.url ? (
+              c.media.kind === 'image' ? (
+                <a href={c.media.url} target="_blank" rel="noreferrer">
+                  <img src={c.media.url} alt="" className="mb-1 max-h-64 rounded" />
+                </a>
+              ) : c.media.kind === 'video' ? (
+                <video src={c.media.url} controls className="mb-1 max-h-64 rounded" />
+              ) : c.media.kind === 'audio' ? (
+                <audio src={c.media.url} controls className="mb-1" />
+              ) : (
+                <a href={c.media.url} target="_blank" rel="noreferrer" className="msg-file">
+                  📎 {c.media.filename ?? 'ملف'}
+                </a>
+              )
+            ) : c.media.providerMediaId ? (
+              <ProviderMedia conversationId={conversationId} messageId={m.id} kind={c.media.kind} />
+            ) : null)}
+          {c.media?.caption && <div className="whitespace-pre-wrap">{c.media.caption}</div>}
+          {c.text && <div className="whitespace-pre-wrap break-words">{c.text}</div>}
+          {c.footer && <small className="block opacity-80">{c.footer}</small>}
+          {c.order && (
+            <section>
+              <strong>طلب من الكتالوج</strong>
+              {c.order.items.map((item: any, i: number) => (
+                <p key={i}>
+                  {item.retailerId} × {item.quantity} · {item.price} {item.currency}
+                </p>
+              ))}
+            </section>
+          )}
+          {c.flowReply && (
+            <details>
+              <summary>بيانات نموذج WhatsApp</summary>
+              <pre dir="ltr">{JSON.stringify(c.flowReply, null, 2)}</pre>
+            </details>
+          )}
+          {c.location && <div>📍 {c.location.name ?? `${c.location.lat}, ${c.location.lng}`}</div>}
+          {c.reply && !c.text && <div>↩ {c.reply.title}</div>}
+          {options.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {options.map((o: any) => (
+                <span
+                  key={o.id}
+                  className="rounded-full border border-current px-2 py-0.5 text-xs opacity-80"
+                >
+                  {o.title}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="msg-meta" title={who || undefined}>
           <span>{time}</span>
           {mine && status && status !== 'failed' && (
             <span className={status === 'read' ? 'text-sky-200' : ''}>{TICKS[status] ?? ''}</span>

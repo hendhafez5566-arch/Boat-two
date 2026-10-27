@@ -1,18 +1,19 @@
 .panel {
-  width: 380px;
+  width: 385px;
   flex: none;
   overflow-y: auto;
-  background: #f8f8fb;
+  background: #f8f9fb;
   border-inline-start: 1px solid #f0edf5;
   color: #282b32;
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1.5;
 }
 .heading {
   display: flex;
   align-items: center;
   gap: 10px;
   justify-content: space-between;
-  min-height: 70px;
+  min-height: 71px;
   padding: 15px 12px;
   background: #fff;
   position: sticky;
@@ -38,10 +39,10 @@
   height: 15px;
 }
 .card {
-  margin: 8px 8px 16px;
+  margin: 7px 7px 17px;
   background: #fff;
-  border: 1px solid #eae8f0;
-  border-radius: 16px;
+  border: 1px solid #e9eaf0;
+  border-radius: 12px;
   overflow: hidden;
 }
 .card h3,
@@ -49,15 +50,21 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px;
+  padding: 12px 14px;
   margin: 0;
-  font-size: 12px;
-  font-weight: 600;
+  min-height: 44.5px;
+  font-size: 13px;
+  line-height: 19.5px;
+  font-weight: 700;
   border-bottom: 1px solid #f1eff5;
 }
 .card summary {
   cursor: pointer;
   list-style: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 18.75px;
+  min-height: 42.75px;
 }
 .card summary::-webkit-details-marker {
   display: none;
@@ -78,8 +85,8 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-around;
-  padding: 16px 8px 12px;
-  gap: 6px;
+  padding: 14px;
+  gap: 10px;
 }
 .quick button {
   display: grid;
@@ -88,8 +95,9 @@
   border: 0;
   background: transparent;
   padding: 0;
-  font-size: 10px;
-  color: #626770;
+  font-size: 11px;
+  line-height: 13.75px;
+  color: #4b5563;
   cursor: pointer;
 }
 .quick button > span {
@@ -97,7 +105,7 @@
   height: 46px;
   display: grid;
   place-items: center;
-  border: 1px solid #eae8f0;
+  border: 1px solid #e9eaf0;
   border-radius: 50%;
   background: #faf9fd;
 }
@@ -108,18 +116,31 @@
 }
 .facts {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   padding: 14px;
   margin: 0;
   font-size: 11px;
+  line-height: 14.3px;
 }
 .facts div {
   display: grid;
-  grid-template-columns: 42% minmax(0, 1fr);
+  grid-template-columns: 41% minmax(0, 1fr);
   gap: 8px;
 }
 .facts dt {
-  color: #8a8e96;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.facts dt svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  color: #9ca3af;
+}
+.facts p {
+  margin: 0;
 }
 .facts dd {
   margin: 0;
@@ -129,7 +150,9 @@
   display: grid;
   gap: 14px;
   padding: 14px;
-  color: #555b66;
+  color: #374151;
+  font-size: 12px;
+  line-height: 18px;
 }
 .fields label {
   display: grid;
@@ -139,8 +162,9 @@
 .fields select {
   min-width: 0;
   width: 100%;
-  padding: 12px;
-  border: 1px solid #e9e7ef;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid #e9eaf0;
   border-radius: 5px;
   background: #fff;
   font: inherit;
@@ -273,6 +297,9 @@
   padding: 7px 11px;
   cursor: pointer;
   color: #7550dd;
+  border-radius: 20px;
+  font-size: 11px;
+  line-height: 16px;
 }
 .followupForm footer {
   display: flex;
@@ -284,4 +311,57 @@
   display: grid;
   gap: 7px;
   margin-top: 8px;
+}
+
+.panel::-webkit-scrollbar {
+  width: 10px;
+}
+.panel::-webkit-scrollbar-thumb {
+  background: #d2d6df;
+  border-radius: 6px;
+  border: 2px solid #f8f9fb;
+}
+.crmCard h3 {
+  min-height: 53px;
+}
+.card > summary .addFollowup {
+  margin-inline-start: auto;
+}
+.card > summary > svg {
+  flex: none;
+}
+.addFollowup {
+  border: 1px solid #e9eaf0;
+  border-radius: 16px;
+  padding: 3px 9px;
+  background: #f8f9fb;
+  color: #6a49f2;
+  font-size: 11px;
+  cursor: pointer;
+}
+.inlineEdit {
+  display: inline-flex;
+  vertical-align: middle;
+  border: 0;
+  background: transparent;
+  color: #6a49f2;
+  padding: 0 4px;
+  cursor: pointer;
+}
+.inlineEdit svg {
+  width: 14px;
+  height: 14px;
+}
+.followupDialog {
+  width: min(560px, calc(100vw - 32px));
+  border-radius: 20px;
+}
+.followupDialog > header {
+  padding: 16px;
+}
+.followupDialog > header h2 {
+  font-size: 14px;
+}
+.followupDialog :global(.dialog-body) {
+  padding: 16px;
 }

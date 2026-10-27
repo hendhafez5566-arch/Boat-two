@@ -2,6 +2,7 @@
   display: flex;
   gap: 10px;
   align-items: flex-start;
+  position: relative;
 }
 .inbox :global(.inbox-avatar) {
   display: grid;
@@ -10,6 +11,7 @@
   width: 46px;
   height: 46px;
   flex-basis: 46px;
+  position: relative;
   background: #e8f5e9;
   color: #478c50;
   border-radius: 50%;
@@ -89,7 +91,7 @@
   justify-content: flex-end;
   align-items: center;
   gap: 6px;
-  margin-top: 4px;
+  margin-top: 0;
   opacity: 0.7;
   font-size: 10px;
 }
@@ -185,14 +187,14 @@
   border-radius: 0;
   box-shadow: none;
   overflow: hidden;
-  background: #fafafa;
+  background: #fbfbfc;
   font:
     400 14px/21px 'Plus Jakarta Sans Variable',
     Arial,
     sans-serif;
 }
 .rail {
-  width: 76px;
+  width: 75px;
   flex-shrink: 0;
   height: 100dvh;
   display: flex;
@@ -260,7 +262,7 @@
   align-items: center;
   gap: 4px;
   background: #f8f8fb;
-  padding: 20px 8px 18px;
+  padding: 20px 8px;
 }
 .searchBar :global(.inbox-search) {
   background: #fff;
@@ -371,6 +373,9 @@
   font-size: 10px;
 }
 .inbox :global(.inbox-row) > input {
+  position: absolute;
+  inset-inline-start: 5px;
+  top: 8px;
   width: 13px;
   opacity: 0;
   transition: opacity 0.15s;
@@ -384,10 +389,10 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
-  min-height: 70px;
+  padding: 12px 30px;
+  min-height: 74px;
   flex: none;
-  background: #fafafa;
+  background: #fbfbfc;
 }
 .threadAvatar {
   display: grid;
@@ -426,8 +431,8 @@
 }
 .threadTools button,
 .back {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   display: grid;
   place-items: center;
   padding: 6px;
@@ -448,17 +453,18 @@
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   flex: none;
-  margin: 4px 16px 14px;
+  margin: 0 29px 17px;
   padding: 12px 10px;
   gap: 8px;
   border: 1px solid #eae8ef;
-  border-radius: 12px;
-  background: #f8f8fb;
+  border-radius: 11px;
+  background: #f8f9fb;
 }
 .customerStrip div {
   position: relative;
   min-width: 0;
   padding-inline-start: 24px;
+  min-height: 30.64px;
   border-inline-end: 1px solid #eae8ef;
 }
 .customerStrip div:last-child {
@@ -473,12 +479,15 @@
   color: #8257e7;
 }
 .customerStrip dt {
-  color: #a3a5ad;
-  font-size: 10px;
+  color: #9ca3af;
+  font-size: 10.5px;
+  line-height: 13.65px;
   white-space: nowrap;
 }
 .customerStrip dd {
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 12.65px;
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -493,7 +502,7 @@
 }
 .inbox :global(.thread-msgs) {
   min-height: 0;
-  background: #fafafa;
+  background: #fbfbfc;
   padding: 14px 24px;
 }
 .inbox :global(.msg-row) {
@@ -517,8 +526,8 @@
 }
 .inbox :global(.composer) {
   border: 0;
-  padding: 12px 16px 24px;
-  background: #fafafa;
+  padding: 12px 16px 28px;
+  background: #fbfbfc;
 }
 .inbox :global(.composer-modes) {
   display: flex;
@@ -547,8 +556,9 @@
   flex-direction: row;
   align-items: center;
   border: 1px solid #ece8f5;
-  border-radius: 38px;
-  padding: 8px 10px;
+  border-radius: 50px;
+  padding: 0 10px;
+  min-height: 75px;
   gap: 8px;
   background: #fff;
 }
@@ -557,12 +567,13 @@
   box-shadow: none;
   outline: 0;
   background: transparent;
-  min-height: 48px;
+  min-height: 57px;
   max-height: 140px;
   resize: none;
   border-radius: 0;
-  padding: 8px;
-  font-size: 13px;
+  padding: 9px 4px;
+  font-size: 14px;
+  line-height: 20px;
 }
 .inbox :global(.composer-actions) {
   display: contents;
@@ -625,4 +636,98 @@
   .inbox :global(.inbox-row) > input {
     opacity: 1;
   }
+}
+
+.inbox :global(.msg-stack) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: min(80%, 520px);
+  gap: 5px;
+}
+.inbox :global(.msg-row.is-out .msg-stack) {
+  align-items: flex-end;
+}
+.inbox :global(.msg-stack .msg-bubble) {
+  max-width: 100%;
+}
+.editName {
+  display: inline-flex;
+  margin-inline-start: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #6a49f2;
+  vertical-align: middle;
+  cursor: pointer;
+}
+.editName svg {
+  width: 14px;
+  height: 14px;
+}
+.threadTools button:last-child {
+  border: 1px solid #e5e7eb;
+  width: 30px;
+  height: 30px;
+}
+.threadTools button:last-child[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+.emojiHost {
+  position: relative;
+  flex: none;
+}
+.emojiButton {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  color: #a1a1aa;
+  width: 24px;
+  height: 34px;
+  cursor: pointer;
+}
+.emojiPicker {
+  position: absolute;
+  bottom: 48px;
+  inset-inline-end: 0;
+  z-index: 5;
+  width: 220px;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  background: #fff;
+  border: 1px solid #e9eaf0;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px #29233f1a;
+}
+.emojiPicker button {
+  background: transparent;
+  border: 0;
+  padding: 3px;
+  font-size: 22px;
+  cursor: pointer;
+}
+.emojiPicker button:hover {
+  background: #f1edfc;
+  border-radius: 5px;
+}
+
+.channelBadge {
+  position: absolute;
+  inset-inline-end: -2px;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  color: #34b76a;
+}
+.channelBadge svg {
+  width: 12px;
+  height: 12px;
 }
