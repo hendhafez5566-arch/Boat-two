@@ -60,6 +60,7 @@ export default function Inbox() {
   const { t, language } = useLocale();
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [showContext, setShowContext] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(true);
   const [tab, setTab] = useState<Tab>('active');
   useEffect(() => {
     const key = new URLSearchParams(window.location.search).get('tab');
@@ -129,6 +130,9 @@ export default function Inbox() {
   const msgsRef = useRef<any[]>([]);
   const bottom = useRef<HTMLDivElement>(null);
   const composerInput = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (internal) composerInput.current?.focus();
+  }, [internal]);
   selRef.current = selId;
   msgsRef.current = msgs;
 
@@ -544,7 +548,6 @@ export default function Inbox() {
       onNote={() => {
         setInternal(true);
         setShowContext(false);
-        requestAnimationFrame(() => composerInput.current?.focus());
       }}
       onRefresh={async () => {
         const id = selRef.current;
@@ -925,7 +928,12 @@ export default function Inbox() {
                     <button
                       type="button"
                       aria-label={t('إجراءات المحادثة', 'Chat actions')}
-                      onClick={() => setShowContext(true)}
+                      aria-expanded={actionsOpen}
+                      onClick={() => {
+                        if (window.matchMedia('(min-width: 1024px)').matches)
+                          setActionsOpen((value) => !value);
+                        else setShowContext(true);
+                      }}
                     >
                       <NavIcon name="more" />
                     </button>
@@ -1064,7 +1072,7 @@ export default function Inbox() {
                       )}
                     </p>
                   )}
-                  {detail.handled_by === 'bot' && (
+                  {detail.handled_by === 'bot' && !internal && (
                     <p className="mb-1 text-xs text-gray-500">
                       {t(
                         'البوت يتولى هذه المحادثة. إرسال رد يستلمها تلقائيًا.',
@@ -1171,7 +1179,7 @@ export default function Inbox() {
           </section>
 
           {/* ---------- تفاصيل العميل ---------- */}
-          <div className="hidden lg:contents">{!showContext && customerPanel}</div>
+          <div className="hidden lg:contents">{actionsOpen && !showContext && customerPanel}</div>
           <Dialog
             open={showContext && !!detail}
             onClose={() => setShowContext(false)}
