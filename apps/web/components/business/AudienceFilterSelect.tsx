@@ -34,7 +34,9 @@ export function AudienceFilterSelect({
         className={styles.select}
         ref={root}
         onKeyDown={(event) => {
-          if (event.key === 'Escape') {
+          if (event.key === 'Escape' && event.currentTarget.open) {
+            event.preventDefault();
+            event.stopPropagation();
             event.currentTarget.open = false;
             event.currentTarget.querySelector('summary')?.focus();
           }
