@@ -92,6 +92,7 @@ export function CampaignComposer({
   const [templates, setTemplates] = useState<Template[]>([]),
     [loading, setLoading] = useState(false);
   const [audience, setAudience] = useState<Audience | null>(null);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
   const review = useRef(0),
@@ -170,6 +171,7 @@ export function CampaignComposer({
   }
   async function save() {
     setBusy(true);
+    setSaving(true);
     setError('');
     try {
       // Counts are advisory; scheduling and each send still recheck consent and channel policy.
@@ -206,6 +208,7 @@ export function CampaignComposer({
       setError((e as Error).message);
     } finally {
       setBusy(false);
+      setSaving(false);
     }
   }
   const labels = [
@@ -332,7 +335,9 @@ export function CampaignComposer({
             </div>
           )}
           <button type="button" className="btn" disabled={!channel || busy} onClick={checkAudience}>
-            {t('مراجعة الجمهور', 'Review audience')}
+            {busy && !saving
+              ? t('جارٍ مراجعة الجمهور…', 'Reviewing audience…')
+              : t('مراجعة الجمهور', 'Review audience')}
           </button>
           {audience && (
             <>
@@ -489,7 +494,7 @@ export function CampaignComposer({
       )}
       {(reference || step === 2) && (
         <div className="stack">
-          <h3>{name}</h3>
+          <h3>{name || t('معاينة الرسالة', 'Message Preview')}</h3>
           <p>
             {selectedChannel?.name} ·{' '}
             {segments.find((s) => s.id === segment)?.name ||
@@ -531,7 +536,7 @@ export function CampaignComposer({
               }
               onClick={save}
             >
-              {busy ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ المسودة', 'Save draft')}
+              {saving ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ المسودة', 'Save draft')}
             </button>
           </div>
         </div>
