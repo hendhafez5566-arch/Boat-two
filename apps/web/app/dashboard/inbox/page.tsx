@@ -755,9 +755,15 @@ export default function Inbox() {
                       <div className="inbox-line">
                         <strong className="inbox-name truncate">{title(c)}</strong>
                         <time className="inbox-time" dateTime={c.last_message_at}>
-                          {new Date(c.last_message_at).toLocaleTimeString(
+                          {new Date(c.last_message_at).toLocaleString(
                             language === 'ar' ? 'ar-EG' : 'en-US',
-                            { hour: '2-digit', minute: '2-digit' },
+                            {
+                              year: '2-digit',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            },
                           )}
                         </time>
                       </div>
@@ -776,7 +782,7 @@ export default function Inbox() {
                       </div>
                       <div className="inbox-chips">
                         <span className="inbox-chip is-channel">
-                          {CH[c.channel_type] ?? c.channel_type}
+                          {c.channel_name || CH[c.channel_type] || c.channel_type}
                         </span>
                         <span
                           className={`inbox-chip ${c.handled_by === 'bot' ? 'is-bot' : 'is-agent'}`}

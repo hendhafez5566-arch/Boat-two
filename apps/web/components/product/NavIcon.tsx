@@ -55,7 +55,7 @@ const paths: Record<string, string> = {
     'M3 7h13v10H3V7Zm13 4h3l3 3v3h-6M6 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4M18 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4',
   billing: 'M3 5h18v14H3V5Zm0 4h18M7 15h4',
   settings:
-    'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2',
+    'M9 3h6l.6 2.3 2 .9 2.2-.6 3 5-1.7 1.7v2.3l1.7 1.7-3 5-2.2-.6-2 .9L15 24H9l-.6-2.4-2-.9-2.2.6-3-5L3 14.6v-2.3L1.2 10.6l3-5 2.2.6 2-.9L9 3ZM16 13a4 4 0 1 0-8 0 4 4 0 0 0 8 0Z',
 };
 export function NavIcon({ name }: { name: string }) {
   return (
