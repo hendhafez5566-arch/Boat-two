@@ -1,10 +1,14 @@
 import { z } from 'zod';
 export const filtersSchema = z.object({
-  channelId:z.string().uuid().optional(),
-  listId:z.string().uuid().optional(),
-  sequenceId:z.string().uuid().optional(),
-  sequenceStatus:z.enum(['active','completed','stopped']).optional(),
-  consentStatus:z.enum(['opted_in','opted_out','unknown']).optional(),
+  channelId: z.string().uuid().optional(),
+  listId: z.string().uuid().optional(),
+  includeTags: z.array(z.string().trim().min(1).max(50)).max(30).optional(),
+  excludeTags: z.array(z.string().trim().min(1).max(50)).max(30).optional(),
+  includeListIds: z.array(z.string().uuid()).max(30).optional(),
+  excludeListIds: z.array(z.string().uuid()).max(30).optional(),
+  sequenceId: z.string().uuid().optional(),
+  sequenceStatus: z.enum(['active', 'completed', 'stopped']).optional(),
+  consentStatus: z.enum(['opted_in', 'opted_out', 'unknown']).optional(),
   q: z.string().max(100).optional(),
   lifecycle: z.enum(['lead', 'qualified', 'customer', 'inactive']).optional(),
   tag: z.string().max(50).optional(),
@@ -169,11 +173,59 @@ export function contactWhere(filters: Filters) {
       filters.ownerId ?? null,
     ],
   };
-  const clauses:string[]=[];
-  const bind=(value:string)=>{base.params.push(value);return '$'+base.params.length;};
-  if(filters.channelId)clauses.push(`EXISTS(SELECT 1 FROM contact_channels fcc WHERE fcc.contact_id=contacts.id AND fcc.channel_id=${bind(filters.channelId)}::uuid)`);
-  if(filters.listId)clauses.push(`EXISTS(SELECT 1 FROM contact_list_members flm WHERE flm.contact_id=contacts.id AND flm.list_id=${bind(filters.listId)}::uuid)`);
-  if(filters.sequenceId||filters.sequenceStatus){const conditions=['fse.contact_id=contacts.id'];if(filters.sequenceId)conditions.push(`fse.sequence_id=${bind(filters.sequenceId)}::uuid`);if(filters.sequenceStatus)conditions.push(`fse.status=${bind(filters.sequenceStatus)}`);clauses.push(`EXISTS(SELECT 1 FROM sequence_enrollments fse WHERE ${conditions.join(' AND ')})`);}
-  if(filters.consentStatus){const channel=filters.channelId?` AND fcs.channel_id=${bind(filters.channelId)}::uuid`:'';clauses.push(filters.consentStatus==='unknown'?`NOT EXISTS(SELECT 1 FROM contact_consents fcs WHERE fcs.contact_id=contacts.id${channel})`:`EXISTS(SELECT 1 FROM contact_consents fcs WHERE fcs.contact_id=contacts.id${channel} AND fcs.status=${bind(filters.consentStatus)})`);}
-  return{sql:base.sql+(clauses.length?' AND '+clauses.join(' AND '):''),params:base.params};
+  const clauses: string[] = [];
+  const bind = (value: string) => {
+    base.params.push(value);
+    return '$' + base.params.length;
+  };
+  for (const [key, excluded] of [
+    ['includeTags', false],
+    ['excludeTags', true],
+  ] as const) {
+    if (filters[key]?.length) {
+      const values = bind(JSON.stringify(filters[key]));
+      clauses.push(
+        `${excluded ? 'NOT ' : ''}(COALESCE(tags,ARRAY[]::text[]) && ARRAY(SELECT jsonb_array_elements_text(${values}::jsonb)))`,
+      );
+    }
+  }
+  for (const [key, excluded] of [
+    ['includeListIds', false],
+    ['excludeListIds', true],
+  ] as const) {
+    if (filters[key]?.length) {
+      const values = bind(JSON.stringify(filters[key]));
+      clauses.push(
+        `${excluded ? 'NOT ' : ''}EXISTS(SELECT 1 FROM contact_list_members flm WHERE flm.contact_id=contacts.id AND flm.list_id IN (SELECT value::uuid FROM jsonb_array_elements_text(${values}::jsonb) AS value))`,
+      );
+    }
+  }
+  if (filters.channelId)
+    clauses.push(
+      `EXISTS(SELECT 1 FROM contact_channels fcc WHERE fcc.contact_id=contacts.id AND fcc.channel_id=${bind(filters.channelId)}::uuid)`,
+    );
+  if (filters.listId)
+    clauses.push(
+      `EXISTS(SELECT 1 FROM contact_list_members flm WHERE flm.contact_id=contacts.id AND flm.list_id=${bind(filters.listId)}::uuid)`,
+    );
+  if (filters.sequenceId || filters.sequenceStatus) {
+    const conditions = ['fse.contact_id=contacts.id'];
+    if (filters.sequenceId) conditions.push(`fse.sequence_id=${bind(filters.sequenceId)}::uuid`);
+    if (filters.sequenceStatus) conditions.push(`fse.status=${bind(filters.sequenceStatus)}`);
+    clauses.push(
+      `EXISTS(SELECT 1 FROM sequence_enrollments fse WHERE ${conditions.join(' AND ')})`,
+    );
+  }
+  if (filters.consentStatus) {
+    const channel = filters.channelId ? ` AND fcs.channel_id=${bind(filters.channelId)}::uuid` : '';
+    clauses.push(
+      filters.consentStatus === 'unknown'
+        ? `NOT EXISTS(SELECT 1 FROM contact_consents fcs WHERE fcs.contact_id=contacts.id${channel})`
+        : `EXISTS(SELECT 1 FROM contact_consents fcs WHERE fcs.contact_id=contacts.id${channel} AND fcs.status=${bind(filters.consentStatus)})`,
+    );
+  }
+  return {
+    sql: base.sql + (clauses.length ? ' AND ' + clauses.join(' AND ') : ''),
+    params: base.params,
+  };
 }

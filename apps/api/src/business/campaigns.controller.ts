@@ -71,6 +71,17 @@ export class CampaignsController {
       return { items: rows, total, page: q.page, limit: q.limit };
     });
   }
+  @Get('labels') labels(@Req() r: AuthedRequest) {
+    return this.db.withTenant(
+      r.user.tenantId,
+      async (c) =>
+        (
+          await c.query(
+            'SELECT DISTINCT unnest(tags) AS name FROM contacts WHERE merged_into_id IS NULL AND archived_at IS NULL ORDER BY name',
+          )
+        ).rows,
+    );
+  }
   @Get('summary') summary(@Req() r: AuthedRequest, @Query() query: unknown) {
     const { channelId } = parse(z.object({ channelId: z.string().uuid().optional() }), query);
     return this.db.withTenant(r.user.tenantId, async (c) => {

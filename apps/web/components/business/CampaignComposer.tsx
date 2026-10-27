@@ -1,4 +1,5 @@
 'use client';
+import { AudienceFilterSelect } from './AudienceFilterSelect';
 import styles from './campaign-configuration.module.css';
 import { useData } from './useData';
 import AudienceSummary, { Audience } from './AudienceSummary';
@@ -72,8 +73,11 @@ export function CampaignComposer({
 }) {
   const { t } = useLocale();
   const reference = layout === 'reference';
-  const [labelFilter, setLabelFilter] = useState('');
-  const [listFilter, setListFilter] = useState('');
+  const [includeTags, setIncludeTags] = useState<string[]>([]);
+  const [excludeTags, setExcludeTags] = useState<string[]>([]);
+  const [includeListIds, setIncludeListIds] = useState<string[]>([]);
+  const [excludeListIds, setExcludeListIds] = useState<string[]>([]);
+  const labelOptions = useData<{ name: string }[]>(reference ? '/campaigns/labels' : null, []);
   const [broadcastMode, setBroadcastMode] = useState<'window' | 'template'>('window');
   const lists = useData<{ id: string; name: string }[]>(reference ? '/contact-lists' : null, []);
   const [step, setStep] = useState(0),
@@ -107,8 +111,10 @@ export function CampaignComposer({
   const selectedChannel = channels.find((c) => c.id === channel),
     filters = {
       ...(segments.find((s) => s.id === segment)?.filters || {}),
-      ...(labelFilter.trim() ? { tag: labelFilter.trim() } : {}),
-      ...(listFilter ? { listId: listFilter } : {}),
+      ...(includeTags.length ? { includeTags } : {}),
+      ...(excludeTags.length ? { excludeTags } : {}),
+      ...(includeListIds.length ? { includeListIds } : {}),
+      ...(excludeListIds.length ? { excludeListIds } : {}),
     };
   const selectedTemplate = templates.find((x) => x.name + '|' + x.language === template);
   const validContent =
@@ -147,7 +153,7 @@ export function CampaignComposer({
   useEffect(() => {
     review.current++;
     setAudience(null);
-  }, [channel, segment, labelFilter, listFilter]);
+  }, [channel, segment, includeTags, excludeTags, includeListIds, excludeListIds]);
   async function checkAudience() {
     const version = ++review.current;
     setBusy(true);
@@ -307,30 +313,35 @@ export function CampaignComposer({
           </div>
           {reference && (
             <div className="form-grid">
-              <label className="field">
-                {t('تضمين الوسم', 'Include label')}
-                <input
-                  value={labelFilter}
-                  maxLength={50}
-                  onChange={(e) => setLabelFilter(e.target.value)}
-                  placeholder={t('كل الوسوم', 'All labels')}
-                />
-              </label>
-              <label className="field">
-                {t('تضمين قائمة المشتركين', 'Include Subscriber List')}
-                <select
-                  value={listFilter}
-                  onChange={(e) => setListFilter(e.target.value)}
-                  disabled={lists.loading || !!lists.error}
-                >
-                  <option value="">{t('كل القوائم', 'All lists')}</option>
-                  {lists.data.map((list) => (
-                    <option key={list.id} value={list.id}>
-                      {list.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <AudienceFilterSelect
+                label={t('تضمين الوسوم', 'Include label ids')}
+                options={labelOptions.data.map(({ name }) => ({ id: name, name }))}
+                value={includeTags}
+                onChange={setIncludeTags}
+                disabled={labelOptions.loading || !!labelOptions.error}
+              />
+              <AudienceFilterSelect
+                label={t('استبعاد الوسوم', 'Exclude label ids')}
+                options={labelOptions.data.map(({ name }) => ({ id: name, name }))}
+                value={excludeTags}
+                onChange={setExcludeTags}
+                disabled={labelOptions.loading || !!labelOptions.error}
+              />
+              <AudienceFilterSelect
+                label={t('تضمين قوائم المشتركين', 'Include Subscriber Lists')}
+                options={lists.data}
+                value={includeListIds}
+                onChange={setIncludeListIds}
+                disabled={lists.loading || !!lists.error}
+              />
+              <AudienceFilterSelect
+                label={t('استبعاد قوائم المشتركين', 'Exclude Subscriber Lists')}
+                options={lists.data}
+                value={excludeListIds}
+                onChange={setExcludeListIds}
+                disabled={lists.loading || !!lists.error}
+              />
+              {labelOptions.error && <p role="alert">{labelOptions.error}</p>}
               {lists.error && <p role="alert">{lists.error}</p>}
             </div>
           )}
