@@ -79,7 +79,7 @@
 .card h3 a svg {
   width: 15px;
   height: 15px;
-  color: #7b55db;
+  color: #6a49f2;
 }
 .quick {
   display: flex;
@@ -185,7 +185,7 @@
   border-radius: 5px;
   padding: 8px;
   background: #fff;
-  color: #7550dd;
+  color: #6a49f2;
   font: inherit;
   cursor: pointer;
 }
@@ -220,7 +220,7 @@
 .actions svg {
   width: 16px;
   height: 16px;
-  color: #7b55db;
+  color: #6a49f2;
 }
 .panel button:disabled {
   opacity: 0.5;
@@ -296,7 +296,7 @@
   background: #fff;
   padding: 7px 11px;
   cursor: pointer;
-  color: #7550dd;
+  color: #6a49f2;
   border-radius: 20px;
   font-size: 11px;
   line-height: 16px;
