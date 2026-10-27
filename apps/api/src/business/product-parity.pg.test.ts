@@ -342,6 +342,67 @@ test('subscriber profiles and inbox views execute against PostgreSQL with tenant
       },
     );
     await t.test(
+      'inbox filters, date bounds and subscriber sort use the same cursor ordering',
+      async () => {
+        const second = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+        const old = (await pg.query<any>('SELECT tags FROM contacts WHERE id=$1', [contact]))
+          .rows[0].tags;
+        await pg.query('UPDATE contacts SET tags=$2 WHERE id=$1', [contact, ['INBOX-AUDIT']]);
+        await pg.query(
+          "UPDATE conversations SET last_message_at='2026-10-20T12:00:00Z',last_inbound_at='2026-10-20T11:00:00Z' WHERE id=$1",
+          [conversation],
+        );
+        await pg.query(
+          "INSERT INTO conversations(id,tenant_id,channel_id,contact_id,last_message_at,last_inbound_at) VALUES($1,$2,$3,$4,'2026-10-21T12:00:00Z','2026-10-19T11:00:00Z')",
+          [second, tenant, account, contact],
+        );
+        try {
+          assert.equal((await inbox.list(req, { orderBy: 'communication' })).items[0].id, second);
+          const first = await inbox.list(req, { orderBy: 'subscriber', limit: 1 });
+          assert.equal(first.items[0].id, conversation);
+          assert.equal(
+            (await inbox.list(req, { orderBy: 'subscriber', limit: 1, cursor: first.nextCursor }))
+              .items[0].id,
+            second,
+          );
+          assert.equal(
+            (await inbox.list(req, { tag: 'INBOX-AUDIT', sequenceId: sequence })).items.length,
+            2,
+          );
+          assert.equal((await inbox.list(req, { tag: 'missing' })).items.length, 0);
+          const options = await inbox.filterOptions(req);
+          assert.deepEqual(options.labels, [{ name: 'INBOX-AUDIT' }]);
+          assert.equal(options.sequences.length, 1);
+          assert.equal(options.sequences[0].id, sequence);
+          assert.equal((await inbox.list(req, { tag: '%_' })).items.length, 0);
+          assert.equal(
+            (
+              await inbox.list(req, {
+                orderBy: 'communication',
+                from: '2026-10-21T00:00:00.000Z',
+                to: '2026-10-21T23:59:59.999Z',
+              })
+            ).items[0].id,
+            second,
+          );
+          assert.equal(
+            (await inbox.list(req, { orderBy: 'subscriber', from: '2026-10-20T00:00:00.000Z' }))
+              .items.length,
+            1,
+          );
+          assert.equal((await inbox.list(req, { handledBy: 'human' })).items.length, 0);
+          assert.equal((await inbox.list(req, { assignee: 'unassigned' })).items.length, 2);
+          assert.throws(
+            () => inbox.list(req, { from: '2026-10-22T00:00:00Z', to: '2026-10-20T00:00:00Z' }),
+            /date range/,
+          );
+        } finally {
+          await pg.query('DELETE FROM conversations WHERE id=$1', [second]);
+          await pg.query('UPDATE contacts SET tags=$2 WHERE id=$1', [contact, old]);
+        }
+      },
+    );
+    await t.test(
       'important and archived views and account counts use real persisted flags',
       async () => {
         await inbox.update(req, conversation, { important: true });

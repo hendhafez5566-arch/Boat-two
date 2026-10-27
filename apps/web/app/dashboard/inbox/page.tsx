@@ -1,4 +1,6 @@
 'use client';
+import { InboxFilters, EMPTY_INBOX_FILTERS } from '../../../components/inbox/InboxFilters';
+import { InboxCustomerPanel } from '../../../components/inbox/InboxCustomerPanel';
 import styles from './inbox.module.css';
 import { useChannelContext } from '../../../components/product/useChannelContext';
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -45,6 +47,7 @@ const TAB_QUERY: Record<Tab, string> = {
   blocked: 'view=blocked',
 };
 const CH: Record<string, string> = {
+  telegram: 'Telegram',
   web: 'Web',
   whatsapp: 'WhatsApp',
   facebook: 'Facebook',
@@ -63,6 +66,16 @@ export default function Inbox() {
     if (key && key in TAB_QUERY) setTab(key as Tab);
   }, []);
   const [q, setQ] = useState('');
+  const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState(EMPTY_INBOX_FILTERS);
+  const [infoOpen, setInfoOpen] = useState(true);
+  const [messageSearch, setMessageSearch] = useState('');
+  const [searchMessages, setSearchMessages] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [olderLoading, setOlderLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const skipBottom = useRef(false);
+  const threadScroll = useRef<HTMLDivElement>(null);
   const [channelId, setChannelId] = useChannelContext();
   const [items, setItems] = useState<any[]>([]);
   const [nextBefore, setNextBefore] = useState<string | null>(null);
@@ -101,13 +114,21 @@ export default function Inbox() {
   const [error, setError] = useState('');
   const [notifPerm, setNotifPerm] = useState<string>('granted');
 
-  const queryKey = `${TAB_QUERY[tab]}${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ''}${channelId ? `&channelId=${channelId}` : ''}`;
+  const queryParams = new URLSearchParams(TAB_QUERY[tab]);
+  if (q.trim()) queryParams.set('q', q.trim());
+  if (channelId) queryParams.set('channelId', channelId);
+  for (const key of ['tag', 'sequenceId', 'assignee', 'handledBy', 'orderBy'] as const)
+    if (filters[key]) queryParams.set(key, filters[key]);
+  if (filters.from) queryParams.set('from', filters.from + 'T00:00:00.000Z');
+  if (filters.to) queryParams.set('to', filters.to + 'T23:59:59.999Z');
+  const queryKey = queryParams.toString();
   const currentQuery = useRef(queryKey);
   currentQuery.current = queryKey;
   const [listLoading, setListLoading] = useState(true);
   const selRef = useRef<string | null>(null);
   const msgsRef = useRef<any[]>([]);
   const bottom = useRef<HTMLDivElement>(null);
+  const composerInput = useRef<HTMLTextAreaElement>(null);
   selRef.current = selId;
   msgsRef.current = msgs;
 
@@ -128,7 +149,7 @@ export default function Inbox() {
       setNextBefore(r.nextCursor);
       setChecked([]);
     } catch (e: any) {
-      setError(e.message);
+      if (currentQuery.current === qs) setError(e.message);
     } finally {
       if (currentQuery.current === qs) setListLoading(false);
     }
@@ -185,6 +206,10 @@ export default function Inbox() {
     loadCounts();
   }, [loadCounts]);
   useEffect(() => {
+    if (skipBottom.current) {
+      skipBottom.current = false;
+      return;
+    }
     bottom.current?.scrollIntoView({ block: 'end' });
   }, [msgs.length, selId]);
 
@@ -193,6 +218,8 @@ export default function Inbox() {
     const draft = drafts.current.read(id);
     selRef.current = id;
     setDetail(null);
+    setDetailLoading(true);
+    setMessageSearch('');
     setMsgs([]);
     setSelId(id);
     setError('');
@@ -212,13 +239,15 @@ export default function Inbox() {
       if (d.unread_count > 0) api(`/conversations/${id}/read`, { method: 'POST' }).catch(() => {});
     } catch (e: any) {
       if (selRef.current === id) setError(e.message);
+    } finally {
+      if (selRef.current === id) setDetailLoading(false);
     }
   }, []);
 
   async function moreConversations() {
     if (!nextBefore || loadingMore) return;
     setLoadingMore(true);
-    const qs = `${TAB_QUERY[tab]}${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ''}${channelId ? `&channelId=${channelId}` : ''}&cursor=${encodeURIComponent(nextBefore)}`;
+    const qs = `${queryKey}&cursor=${encodeURIComponent(nextBefore)}`;
     try {
       const r = await api<any>(`/conversations?${qs}`);
       if (currentQuery.current !== qs.split('&cursor=')[0]) return;
@@ -284,10 +313,29 @@ export default function Inbox() {
   }, [loadList, loadCounts]);
 
   const loadOlder = async () => {
-    if (!selId || !msgs.length) return;
-    const m = await api<any>(`/conversations/${selId}/messages?beforeSeq=${msgs[0].seq}&limit=50`);
-    setMsgs((cur) => [...m.items, ...cur]);
-    setHasMore(m.hasMore);
+    if (!selId || !msgs.length || olderLoading) return;
+    const id = selId;
+    const before = msgs[0].seq;
+    setOlderLoading(true);
+    try {
+      const m = await api<any>(`/conversations/${id}/messages?beforeSeq=${before}&limit=50`);
+      if (selRef.current !== id) return;
+      const height = threadScroll.current?.scrollHeight || 0;
+      const older = m.items.filter((x: any) => !msgsRef.current.some((y) => y.id === x.id));
+      if (older.length) {
+        skipBottom.current = true;
+        setMsgs((cur) => [...older, ...cur]);
+      }
+      setHasMore(m.hasMore);
+      requestAnimationFrame(() => {
+        if (threadScroll.current && selRef.current === id)
+          threadScroll.current.scrollTop += threadScroll.current.scrollHeight - height;
+      });
+    } catch (e) {
+      if (selRef.current === id) setError((e as Error).message);
+    } finally {
+      setOlderLoading(false);
+    }
   };
 
   // تحديثات لحظية
@@ -345,16 +393,19 @@ export default function Inbox() {
       refreshSoon();
       if (e.conversationId === cur) {
         api<any>(`/conversations/${cur}`)
-          .then(setDetail)
+          .then((updated) => {
+            if (selRef.current === cur) setDetail(updated);
+          })
           .catch(() => {});
         const last = msgsRef.current.reduce((n, x) => Math.max(n, Number(x.seq) || 0), 0);
         api<any>(`/conversations/${cur}/messages?afterSeq=${last}`)
-          .then((r) =>
-            setMsgs((list) => [
-              ...list,
-              ...r.items.filter((x: any) => !list.some((y) => y.id === x.id)),
-            ]),
-          )
+          .then((r) => {
+            if (selRef.current === cur)
+              setMsgs((list) => [
+                ...list,
+                ...r.items.filter((x: any) => !list.some((y) => y.id === x.id)),
+              ]);
+          })
           .catch(() => {});
       }
     }
@@ -387,15 +438,11 @@ export default function Inbox() {
         .catch(() => {});
     return ok;
   };
-  const ownerName = (d: any): string | null => {
-    if (!d?.assigned_to) return d?.assignee_name || null;
-    const m = team.find((x) => x.user_id === d.assigned_to);
-    return m?.full_name || m?.email || d.assignee_name || names[d.assigned_to] || null;
-  };
 
   async function upload(file: File) {
     const uploadingId = selRef.current;
     setError('');
+    setUploading(true);
     const f = new FormData();
     f.append('file', file);
     try {
@@ -403,11 +450,24 @@ export default function Inbox() {
       if (selRef.current === uploadingId) setAttach(result);
     } catch (e: any) {
       setError(e.message);
+    } finally {
+      setUploading(false);
     }
   }
 
   async function send() {
-    if (!selId || sendLock.current || busy || (!internal && detail?.blocked)) return;
+    if (
+      !selId ||
+      sendLock.current ||
+      busy ||
+      uploading ||
+      (!internal &&
+        (detail?.blocked ||
+          (detail?.channel_type === 'whatsapp' &&
+            (!detail?.whatsapp_window_expires_at ||
+              new Date(detail.whatsapp_window_expires_at) <= new Date()))))
+    )
+      return;
     const sendingId = selId;
     const sentDraft = { ...composerState.current };
     const t = text.trim();
@@ -453,7 +513,9 @@ export default function Inbox() {
   }
 
   const windowExpired =
-    detail?.whatsapp_window_expires_at && new Date(detail.whatsapp_window_expires_at) < new Date();
+    detail?.channel_type === 'whatsapp' &&
+    (!detail?.whatsapp_window_expires_at ||
+      new Date(detail.whatsapp_window_expires_at) <= new Date());
   const suggestions =
     text.startsWith('/') && !internal
       ? canned
@@ -467,240 +529,34 @@ export default function Inbox() {
     setText(c.content.replace(/\{\{\s*(contact\.)?name\s*\}\}/g, detail?.contact_name ?? ''));
   const title = (c: any) => c.contact_name || c.contact_phone || t('زائر', 'Visitor');
 
-  const slaOver = !!(
-    detail &&
-    detail.sla_minutes &&
-    detail.last_inbound_at &&
-    detail.status !== 'closed' &&
-    detail.unread_count > 0 &&
-    Date.now() - new Date(detail.last_inbound_at).getTime() > detail.sla_minutes * 60000
-  );
-  const showSla = !!(
-    detail &&
-    detail.sla_minutes &&
-    detail.last_inbound_at &&
-    detail.status !== 'closed'
-  );
-  const fmtTime = (v: string) =>
-    new Date(v).toLocaleTimeString(language === 'ar' ? 'ar-EG' : 'en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   const customerPanel = detail && selId && (
-    <aside
-      className="customer-panel cp w-full lg:w-72 overflow-y-auto bg-white p-4"
-      aria-label={t('بيانات العميل', 'Customer details')}
-    >
-      <section className="cp-card cp-id">
-        <span className="cp-avatar" aria-hidden="true">
-          {String(title(detail)).trim().charAt(0).toUpperCase() || '?'}
-        </span>
-        <strong className="cp-name">
-          {detail.contact_name || detail.contact_phone || t('زائر', 'Visitor')}
-        </strong>
-        <div className="inbox-chips">
-          <span className="inbox-chip is-channel">
-            {CH[detail.channel_type] ?? detail.channel_type}
-            {detail.channel_name ? ` · ${detail.channel_name}` : ''}
-          </span>
-          <span className={`inbox-chip ${detail.handled_by === 'bot' ? 'is-bot' : 'is-agent'}`}>
-            {detail.handled_by === 'bot' ? t('البوت', 'Bot') : t('موظف', 'Agent')}
-          </span>
-        </div>
-        <dl className="cp-list">
-          <div>
-            <dt>{t('الهاتف', 'Phone')}</dt>
-            <dd dir="ltr" className="cp-ltr">
-              {detail.contact_phone || '—'}
-            </dd>
-          </div>
-          <div>
-            <dt>{t('الإيميل', 'Email')}</dt>
-            <dd dir="ltr" className="cp-ltr">
-              {detail.contact_email || '—'}
-            </dd>
-          </div>
-          {detail.contact_since && (
-            <div>
-              <dt>{t('عميل منذ', 'Customer since')}</dt>
-              <dd>
-                {new Date(detail.contact_since).toLocaleDateString(
-                  language === 'ar' ? 'ar-EG' : 'en-US',
-                )}
-              </dd>
-            </div>
-          )}
-        </dl>
-        <Link href="/dashboard/crm" className="btn cp-crm">
-          {t('فتح CRM', 'Open CRM')}
-        </Link>
-      </section>
-
-      <section className="cp-card" aria-labelledby="cp-conv">
-        <h3 id="cp-conv" className="cp-h">
-          {t('المحادثة', 'Conversation')}
-        </h3>
-        <div className="cp-statusrow">
-          <span className={`inbox-chip ${detail.status === 'closed' ? '' : 'is-agent'}`}>
-            {detail.status === 'closed'
-              ? t('مغلقة', 'Closed')
-              : detail.status === 'pending'
-                ? t('معلّقة', 'Pending')
-                : t('مفتوحة', 'Open')}
-          </span>
-          {detail.status !== 'closed' && (
-            <button
-              type="button"
-              className="thread-btn"
-              disabled={acting}
-              onClick={() =>
-                act(
-                  `/conversations/${selId}`,
-                  'PATCH',
-                  { status: detail.status === 'pending' ? 'open' : 'pending' },
-                  detail.status === 'pending'
-                    ? t('أُلغي التعليق.', 'Hold removed.')
-                    : t('عُلّقت المحادثة.', 'Conversation put on hold.'),
-                )
-              }
-            >
-              {detail.status === 'pending'
-                ? t('إلغاء التعليق', 'Remove hold')
-                : t('تعليق', 'Put on hold')}
-            </button>
-          )}
-        </div>
-        <label className="cp-field">
-          <span>{t('القسم', 'Department')}</span>
-          <select
-            value={detail.department_id || ''}
-            disabled={acting}
-            onChange={(e) =>
-              act(
-                `/conversations/${selId}`,
-                'PATCH',
-                { departmentId: e.target.value || null },
-                t('تم تحديث القسم.', 'Department updated.'),
-              )
-            }
-          >
-            <option value="">{t('غير معيّن', 'Unassigned')}</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <dl className="cp-list">
-          <div>
-            <dt>{t('المسؤول', 'Handled by')}</dt>
-            <dd>
-              {detail.handled_by === 'bot'
-                ? `🤖 ${t('البوت', 'Bot')}${detail.flow_waiting ? ` (${t('ينتظر ردّ العميل', 'waiting for the customer')})` : ''}`
-                : `🧑 ${ownerName(detail) || t('موظف (غير معيّنة)', 'Agent (unassigned)')}`}
-            </dd>
-          </div>
-        </dl>
-        {showSla && (
-          <p className={`cp-status ${slaOver ? 'is-bad' : 'is-ok'}`} role="status">
-            <b>SLA</b> ·{' '}
-            {slaOver
-              ? t('تجاوز هدف الرد', 'Response target exceeded')
-              : t('ضمن هدف الرد', 'Within response target')}{' '}
-            · {detail.sla_minutes} {t('دقيقة', 'min')}
-          </p>
-        )}
-        {detail.whatsapp_window_expires_at && (
-          <p className={`cp-status ${windowExpired ? 'is-bad' : 'is-ok'}`} role="status">
-            <b>{t('نافذة واتساب', 'WhatsApp window')}</b> ·{' '}
-            {windowExpired
-              ? t('انتهت — الرد الحر معطّل', 'Expired — free-form replies are off')
-              : `${t('مفتوحة حتى', 'Open until')} ${fmtTime(detail.whatsapp_window_expires_at)}`}
-          </p>
-        )}
-      </section>
-
-      <section className="cp-card" aria-labelledby="cp-tags">
-        <h3 id="cp-tags" className="cp-h">
-          {t('الوسوم', 'Tags')}
-        </h3>
-        <div className="cp-tags">
-          {(detail.contact_tags || []).length ? (
-            (detail.contact_tags || []).map((tag: string) => (
-              <span className="badge cp-tag" key={tag}>
-                {tag}
-              </span>
-            ))
-          ) : (
-            <span className="cp-empty">{t('لا توجد وسوم بعد', 'No tags yet')}</span>
-          )}
-        </div>
-        <form
-          onSubmit={async (e) => {
-            e.preventDefault();
-            const f = new FormData(e.currentTarget);
-            try {
-              const contact = await api<any>(`/crm/contacts/${detail.contact_id}`);
-              await api(`/crm/contacts/${detail.contact_id}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                  name: contact.name || 'Visitor',
-                  email: contact.email,
-                  phone: contact.phone,
-                  lifecycle: contact.lifecycle,
-                  tags: String(f.get('tags') || '')
-                    .split(',')
-                    .map((s) => s.trim())
-                    .filter(Boolean),
-                  attributes: contact.attributes,
-                  ownerId: contact.owner_id,
-                  allowDuplicate: true,
-                }),
-              });
-              setDetail(await api(`/conversations/${selId}`));
-            } catch (e) {
-              setError((e as Error).message);
-            }
-          }}
-        >
-          <label className="cp-field">
-            <span>{t('تعديل الوسوم', 'Edit tags')}</span>
-            <input
-              name="tags"
-              key={detail.contact_id + (detail.contact_tags || []).join(',')}
-              defaultValue={(detail.contact_tags || []).join(', ')}
-              placeholder={t('وسوم مفصولة بفاصلة', 'Comma-separated tags')}
-            />
-          </label>
-          <small className="cp-hint">
-            {t('افصل بين الوسوم بفاصلة، ثم احفظ.', 'Separate tags with commas, then save.')}
-          </small>
-          <button className="btn btn-primary cp-save">{t('حفظ الوسوم', 'Save tags')}</button>
-        </form>
-      </section>
-
-      <section className="cp-card" aria-labelledby="cp-fields">
-        <h3 id="cp-fields" className="cp-h">
-          {t('بيانات مخصصة', 'Custom fields')}
-        </h3>
-        {Object.keys(detail.contact_attributes ?? {}).length > 0 ? (
-          <dl className="cp-list">
-            {Object.entries(detail.contact_attributes).map(([k, v]) => (
-              <div key={k}>
-                <dt>{k}</dt>
-                <dd className="break-words">{String(v)}</dd>
-              </div>
-            ))}
-          </dl>
-        ) : (
-          <p className="cp-empty">
-            {t('لا توجد بيانات مخصصة لهذا العميل.', 'No custom fields for this customer.')}
-          </p>
-        )}
-      </section>
-    </aside>
+    <InboxCustomerPanel
+      key={detail.id}
+      detail={detail}
+      notes={msgs.filter(
+        (m) => (m.is_internal ?? m.isInternal) && (m.sender_type ?? m.senderType) !== 'system',
+      )}
+      team={team}
+      departments={departments}
+      acting={acting}
+      canManage={workspaceRole !== 'agent'}
+      act={act}
+      onNote={() => {
+        setInternal(true);
+        setShowContext(false);
+        requestAnimationFrame(() => composerInput.current?.focus());
+      }}
+      onRefresh={async () => {
+        const id = selRef.current;
+        if (id) {
+          const d = await api(`/conversations/${id}`);
+          if (selRef.current === id) setDetail(d);
+        }
+      }}
+      onError={setError}
+    />
   );
+
   return (
     <div className={`premium-inbox ${styles.inbox}`}>
       <nav className={styles.rail} aria-label={t('تصفية المحادثات', 'Filter conversations')}>
@@ -714,17 +570,7 @@ export default function Inbox() {
         </button>
         <div className={styles.railTabs}>
           {(
-            [
-              'mine',
-              'active',
-              'important',
-              'unread',
-              'archived',
-              'blocked',
-              'closed',
-              'unassigned',
-              'bot',
-            ] as Tab[]
+            ['mine', 'active', 'important', 'unread', 'archived', 'blocked', 'closed'] as Tab[]
           ).map((key) => {
             const definition = TABS.find(([value]) => value === key)!;
             const label =
@@ -754,7 +600,7 @@ export default function Inbox() {
                   name={
                     {
                       mine: 'user',
-                      active: 'inbox',
+                      active: 'chat',
                       important: 'star',
                       unread: 'unread',
                       archived: 'archive',
@@ -778,75 +624,6 @@ export default function Inbox() {
         </Link>
       </nav>
       <div className={styles.body}>
-        <Dialog
-          open={optionsOpen}
-          onClose={() => setOptionsOpen(false)}
-          title={t('تصفية وإعدادات الوارد', 'Inbox filters and options')}
-        >
-          <header className="inbox-top flex items-center gap-3 border-b bg-white px-3 py-2">
-            <a href="/dashboard" className="underline">
-              {t('الرئيسية', 'Overview')}
-            </a>
-            <h1 className="inbox-title flex-1 text-sm font-semibold">
-              {t('صندوق الوارد', 'Inbox')}
-              {typeof counts.unread === 'number' && counts.unread > 0 && (
-                <span
-                  className="inbox-unread-total"
-                  aria-label={t('محادثات غير مقروءة', 'Unread conversations')}
-                >
-                  {counts.unread}
-                </span>
-              )}
-            </h1>
-            {selId && (
-              <button className="btn lg:hidden" onClick={() => setShowContext(true)}>
-                {t('ملف العميل', 'Customer profile')}
-              </button>
-            )}
-            {notifPerm === 'default' && (
-              <button
-                onClick={() => Notification.requestPermission().then(setNotifPerm)}
-                className="rounded border px-2 py-1 text-xs"
-              >
-                {t('تفعيل الإشعارات', 'Enable notifications')}
-              </button>
-            )}
-            <label className="flex items-center gap-1 text-xs">
-              <input
-                type="checkbox"
-                checked={myAvailability}
-                onChange={(e) => {
-                  api('/team/me/availability', {
-                    method: 'PATCH',
-                    body: JSON.stringify({ available: e.target.checked }),
-                  }).then(() =>
-                    setTeam((t) =>
-                      t.map((m) => (m.user_id === me ? { ...m, available: e.target.checked } : m)),
-                    ),
-                  );
-                }}
-              />{' '}
-              {t('متاح', 'Available')}
-            </label>
-            <a href="/dashboard/inbox/settings" className="text-xs underline">
-              {t('الإعدادات', 'Settings')}
-            </a>
-          </header>
-          <select
-            aria-label={t('القناة', 'Channel')}
-            value={channelId}
-            onChange={(e) => setChannelId(e.target.value)}
-            className="w-full rounded border p-1.5"
-          >
-            <option value="">{t('كل القنوات', 'All channels')}</option>
-            {channels.map((c) => (
-              <option key={c.id} value={c.id}>
-                {CH[c.type]} {c.name}
-              </option>
-            ))}
-          </select>
-        </Dialog>
-
         {error && (
           <p role="alert" className="bg-red-50 px-4 py-2 text-red-700">
             {error}
@@ -857,22 +634,27 @@ export default function Inbox() {
           <aside
             className={`${selId ? 'hidden md:flex' : 'flex'} inbox-list w-full flex-col border-l bg-white md:w-80`}
           >
-            <div className={styles.searchBar}>
+            <form
+              className={styles.searchBar}
+              onSubmit={(e) => {
+                e.preventDefault();
+                setQ(search);
+              }}
+            >
               <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
                 aria-label={t('بحث المحادثات', 'Search conversations')}
-                placeholder={t(
-                  'بحث بالاسم أو الرقم أو نص الرسالة…',
-                  'Search name, phone or messages…',
-                )}
+                placeholder={t('اكتب واضغط Enter للبحث', 'Type and submit to search')}
                 className="inbox-search w-full rounded border p-1.5"
               />
               <button
                 type="button"
                 className={styles.filterButton}
+                data-inbox-filter-toggle
+                aria-expanded={optionsOpen}
                 aria-label={t('الفلاتر', 'Filters')}
-                onClick={() => setOptionsOpen(true)}
+                onClick={() => setOptionsOpen((value) => !value)}
               >
                 <NavIcon name="filter" />
               </button>
@@ -884,9 +666,50 @@ export default function Inbox() {
                   void loadCounts();
                 }}
               >
-                <NavIcon name="redo" />
+                <NavIcon name="refresh" />
               </button>
-            </div>
+            </form>
+            <InboxFilters
+              open={optionsOpen}
+              onClose={() => setOptionsOpen(false)}
+              value={{ ...filters, channelId }}
+              onChange={({ channelId, ...next }) => {
+                setChannelId(channelId);
+                setFilters(next);
+              }}
+              channels={channels}
+              team={team}
+            >
+              <label>
+                <input
+                  type="checkbox"
+                  checked={myAvailability}
+                  onChange={async (e) => {
+                    const available = e.target.checked;
+                    try {
+                      await api('/team/me/availability', {
+                        method: 'PATCH',
+                        body: JSON.stringify({ available }),
+                      });
+                      setTeam((rows) =>
+                        rows.map((m) => (m.user_id === me ? { ...m, available } : m)),
+                      );
+                    } catch (error) {
+                      setError((error as Error).message);
+                    }
+                  }}
+                />
+                {t('متاح لاستلام المحادثات', 'Available for assignment')}
+              </label>
+              {notifPerm === 'default' && (
+                <button
+                  type="button"
+                  onClick={() => Notification.requestPermission().then(setNotifPerm)}
+                >
+                  {t('تفعيل الإشعارات', 'Enable notifications')}
+                </button>
+              )}
+            </InboxFilters>
             {workspaceRole !== 'agent' && checked.length > 0 && (
               <div className="p-2 flex gap-2 items-center">
                 <span>{checked.length} محدد</span>
@@ -976,6 +799,7 @@ export default function Inbox() {
                   {listLoading ? (
                     t('جارٍ التحميل…', 'Loading…')
                   ) : q.trim() ||
+                    Object.entries(filters).some(([key, value]) => key !== 'orderBy' && !!value) ||
                     channelId ||
                     tab !== 'active' ||
                     Number(counts.active || 0) + Number(counts.closed || 0) > 0 ? (
@@ -990,6 +814,8 @@ export default function Inbox() {
                         className="btn"
                         onClick={() => {
                           setQ('');
+                          setSearch('');
+                          setFilters(EMPTY_INBOX_FILTERS);
                           setChannelId('');
                           setTab('active');
                         }}
@@ -1036,7 +862,11 @@ export default function Inbox() {
 
           {/* ---------- الخيط ---------- */}
           <section className={`${selId ? 'flex' : 'hidden md:flex'} min-w-0 flex-1 flex-col`}>
-            {!detail || !selId ? (
+            {detailLoading ? (
+              <div className={styles.empty} role="status">
+                {t('جارٍ تحميل المحادثة…', 'Loading conversation…')}
+              </div>
+            ) : !detail || !selId ? (
               <div className={styles.empty}>
                 <img src="/navigation/shared-inbox.svg" alt="" />
                 <h1>{t('صندوق الوارد المشترك', 'Shared Inbox')}</h1>
@@ -1055,221 +885,100 @@ export default function Inbox() {
               </div>
             ) : (
               <>
-                <div className="thread-head flex flex-wrap items-center gap-2 border-b bg-white px-3 py-2">
+                <header className={styles.threadHeader}>
                   <button
+                    type="button"
+                    className={styles.back}
                     aria-label={t('رجوع للقائمة', 'Back to list')}
                     onClick={() => {
+                      if (selRef.current)
+                        drafts.current.write(selRef.current, composerState.current);
+                      selRef.current = null;
                       setSelId(null);
                       setDetail(null);
                     }}
-                    className="thread-back md:hidden"
                   >
-                    {language === 'ar' ? '→' : '←'}
+                    <NavIcon name="undo" />
                   </button>
-                  <div className="thread-who">
-                    <strong className="truncate">
-                      {detail.contact_name || detail.contact_phone || t('زائر', 'Visitor')}
-                    </strong>
-                    <div className="inbox-chips">
-                      <span className="inbox-chip is-channel">
-                        {CH[detail.channel_type] ?? detail.channel_type}
-                      </span>
-                      <span
-                        className={`inbox-chip ${detail.handled_by === 'bot' ? 'is-bot' : 'is-agent'}`}
-                      >
-                        {detail.handled_by === 'bot'
-                          ? t('البوت يتولى', 'Handled by bot')
-                          : t('موظف يتولى', 'Handled by agent')}
-                      </span>
-                      <span
-                        className={`inbox-chip ${detail.status === 'closed' ? '' : 'is-agent'}`}
-                      >
-                        {detail.status === 'closed' ? t('مغلقة', 'Closed') : t('مفتوحة', 'Open')}
-                      </span>
-                    </div>
+                  <span className={styles.threadAvatar}>
+                    {String(title(detail)).trim().slice(0, 2)}
+                  </span>
+                  <div className={styles.threadIdentity}>
+                    <strong>{title(detail)}</strong>
+                    <small>{detail.contact_phone || detail.channel_name}</small>
                   </div>
-                  <div
-                    className="handoff"
-                    role="group"
-                    aria-label={t('الإسناد والتحويل', 'Assignment and handoff')}
-                  >
-                    <div
-                      className={`handoff-owner ${detail.handled_by === 'bot' ? 'is-bot' : 'is-agent'}`}
-                    >
-                      <small>{t('المسؤول الآن', 'Responsible now')}</small>
-                      <b>
-                        {detail.handled_by === 'bot'
-                          ? `🤖 ${t('البوت', 'Bot')}`
-                          : `🧑 ${ownerName(detail) || t('موظف (غير معيّنة)', 'Agent (unassigned)')}`}
-                      </b>
-                    </div>
-                    <select
-                      value={detail.assigned_to ?? ''}
-                      disabled={acting}
-                      onChange={(e) =>
-                        act(
-                          `/conversations/${selId}`,
-                          'PATCH',
-                          { assignedTo: e.target.value || null },
-                          t('تم تحديث الموظف المسؤول.', 'Assignee updated.'),
-                        )
-                      }
-                      aria-label={t('إسناد إلى موظف', 'Assign to agent')}
-                      className="thread-assign rounded border p-1"
-                    >
-                      <option value="">{t('غير معيّنة', 'Unassigned')}</option>
-                      {team.map((m) => (
-                        <option key={m.user_id} value={m.user_id}>
-                          {m.full_name || m.email}
-                          {m.available ? '' : t(' (غير متاح)', ' (unavailable)')}
-                        </option>
-                      ))}
-                    </select>
+                  <div className={styles.threadTools}>
                     <button
-                      disabled={acting}
-                      onClick={() =>
-                        act(
-                          `/conversations/${selId}/auto-assign`,
-                          'POST',
-                          undefined,
-                          t('تم التوزيع التلقائي.', 'Auto-assigned.'),
-                        )
-                      }
-                      className="thread-btn"
-                    >
-                      {t('توزيع تلقائي', 'Auto assign')}
-                    </button>
-                    {detail.handled_by === 'bot' ? (
-                      <button
-                        disabled={acting}
-                        onClick={() => {
-                          if (
-                            confirm(
-                              t(
-                                'استلام المحادثة؟ سيتوقف البوت عن الرد على هذا العميل حتى تعيدها له.',
-                                'Take over? The bot will stop replying to this customer until you hand it back.',
-                              ),
-                            )
-                          )
-                            void act(
-                              `/conversations/${selId}/takeover`,
-                              'POST',
-                              undefined,
-                              t(
-                                'استلمت المحادثة. البوت متوقف عنها.',
-                                'You took over. The bot is paused for this chat.',
-                              ),
-                            );
-                        }}
-                        className="thread-btn is-primary"
-                      >
-                        {acting ? '…' : t('استلام من البوت', 'Take over')}
-                      </button>
-                    ) : (
-                      <button
-                        disabled={acting}
-                        onClick={() => {
-                          if (
-                            confirm(
-                              t(
-                                'إعادة إدارة المحادثة للبوت؟ سيستأنف التعامل مع الرسائل الجديدة حسب إعدادات التدفق.',
-                                'Return this chat to the bot? It will handle new messages according to its flow settings.',
-                              ),
-                            )
-                          )
-                            void act(
-                              `/conversations/${selId}/release`,
-                              'POST',
-                              undefined,
-                              t('أُعيدت المحادثة للبوت.', 'Handed back to the bot.'),
-                            );
-                        }}
-                        className="thread-btn"
-                      >
-                        {acting ? '…' : t('إعادة للبوت', 'Return to bot')}
-                      </button>
-                    )}
-                    <button
-                      disabled={acting}
                       type="button"
-                      className="thread-btn"
-                      onClick={() =>
-                        void act(
-                          `/conversations/${selId}`,
-                          'PATCH',
-                          { important: !detail.important },
-                          t('حُدّثت الأهمية.', 'Importance updated.'),
-                        )
-                      }
+                      aria-label={t('بحث الرسائل', 'Search messages')}
+                      aria-expanded={searchMessages}
+                      onClick={() => setSearchMessages((v) => !v)}
                     >
-                      {detail.important
-                        ? t('إزالة من المهمة', 'Remove Important')
-                        : t('تمييز كمهمة', 'Mark Important')}
+                      <NavIcon name="search" />
                     </button>
                     <button
-                      disabled={acting}
                       type="button"
-                      className="thread-btn"
-                      onClick={() =>
-                        void act(
-                          `/conversations/${selId}`,
-                          'PATCH',
-                          { archived: !detail.archived_at },
-                          t('حُدّثت الأرشفة.', 'Archive updated.'),
-                        )
-                      }
+                      aria-label={t('إجراءات المحادثة', 'Chat actions')}
+                      onClick={() => setShowContext(true)}
                     >
-                      {detail.archived_at ? t('استعادة', 'Unarchive') : t('أرشفة', 'Archive')}
+                      <NavIcon name="more" />
                     </button>
                     <button
-                      disabled={acting}
                       type="button"
-                      className="thread-btn"
-                      onClick={() =>
-                        void act(
-                          `/conversations/${selId}`,
-                          'PATCH',
-                          { blocked: !detail.blocked },
-                          t('حُدّث الحظر لهذا الحساب.', 'Account block updated.'),
-                        )
-                      }
+                      aria-label={t('إظهار معلومات العميل', 'Toggle customer info')}
+                      aria-expanded={infoOpen}
+                      onClick={() => setInfoOpen((v) => !v)}
                     >
-                      {detail.blocked ? t('إلغاء الحظر', 'Unblock') : t('حظر', 'Block')}
+                      <NavIcon name="chevron" />
                     </button>
-                    {detail.status === 'closed' ? (
-                      <button
-                        disabled={acting}
-                        onClick={() =>
-                          act(
-                            `/conversations/${selId}`,
-                            'PATCH',
-                            { status: 'open' },
-                            t('أُعيد فتح المحادثة.', 'Conversation reopened.'),
-                          )
-                        }
-                        className="thread-btn is-primary"
-                      >
-                        {t('إعادة فتح', 'Reopen')}
-                      </button>
-                    ) : (
-                      <button
-                        disabled={acting}
-                        onClick={() => {
-                          if (confirm(t('إغلاق هذه المحادثة؟', 'Close this conversation?')))
-                            void act(
-                              `/conversations/${selId}`,
-                              'PATCH',
-                              { status: 'closed' },
-                              t('أُغلقت المحادثة.', 'Conversation closed.'),
-                            );
-                        }}
-                        className="thread-btn is-danger"
-                      >
-                        {t('إغلاق', 'Close')}
-                      </button>
-                    )}
                   </div>
-                </div>
+                </header>
+                {infoOpen && (
+                  <dl className={styles.customerStrip}>
+                    {[
+                      [
+                        t('عميل منذ', 'Customer Since'),
+                        detail.contact_since
+                          ? new Date(detail.contact_since).toLocaleDateString(
+                              language === 'ar' ? 'ar-EG' : 'en-US',
+                            )
+                          : '—',
+                        'user',
+                      ],
+                      [
+                        t('آخر ظهور', 'Last Seen'),
+                        detail.last_inbound_at
+                          ? new Date(detail.last_inbound_at).toLocaleString(
+                              language === 'ar' ? 'ar-EG' : 'en-US',
+                            )
+                          : '—',
+                        'sessions',
+                      ],
+                      [t('اللغة', 'Language'), detail.contact_attributes?.language || '—', 'globe'],
+                      [t('البلد', 'Country'), detail.contact_attributes?.country || '—', 'globe'],
+                      [
+                        t('المنطقة الزمنية', 'Timezone'),
+                        detail.contact_attributes?.timezone || '—',
+                        'sessions',
+                      ],
+                    ].map(([label, value, icon]) => (
+                      <div key={label}>
+                        <NavIcon name={icon} />
+                        <dt>{label}</dt>
+                        <dd title={value}>{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+                {searchMessages && (
+                  <input
+                    className={styles.messageSearch}
+                    aria-label={t('بحث داخل الرسائل المحملة', 'Search loaded messages')}
+                    placeholder={t('بحث داخل الرسائل المحملة…', 'Search loaded messages…')}
+                    value={messageSearch}
+                    onChange={(e) => setMessageSearch(e.target.value)}
+                  />
+                )}
 
                 {notice && (
                   <p className="handoff-notice" role="status">
@@ -1281,18 +990,27 @@ export default function Inbox() {
                     {t('جارٍ التنفيذ…', 'Working…')}
                   </p>
                 )}
-                <div className="thread-msgs flex-1 overflow-y-auto p-3">
+                <div ref={threadScroll} className="thread-msgs flex-1 overflow-y-auto p-3">
                   {hasMore && (
                     <button
                       onClick={loadOlder}
+                      disabled={olderLoading}
                       className="mx-auto mb-2 block rounded border bg-white px-3 py-1 text-xs"
                     >
                       {t('تحميل رسائل أقدم', 'Load older messages')}
                     </button>
                   )}
-                  {msgs.map((m) => (
-                    <MessageBubble key={m.id} m={m} conversationId={selId} name={nameOf} />
-                  ))}
+                  {msgs
+                    .filter(
+                      (m) =>
+                        !messageSearch.trim() ||
+                        preview(m.content)
+                          .toLocaleLowerCase()
+                          .includes(messageSearch.trim().toLocaleLowerCase()),
+                    )
+                    .map((m) => (
+                      <MessageBubble key={m.id} m={m} conversationId={selId} name={nameOf} />
+                    ))}
                   <div ref={bottom} />
                 </div>
 
@@ -1308,7 +1026,7 @@ export default function Inbox() {
                       className={!internal ? 'is-on' : ''}
                       onClick={() => setInternal(false)}
                     >
-                      {t('رد للعميل', 'Reply to customer')}
+                      {t('رد', 'Reply')}
                     </button>
                     <button
                       type="button"
@@ -1316,7 +1034,7 @@ export default function Inbox() {
                       className={internal ? 'is-on is-note' : ''}
                       onClick={() => setInternal(true)}
                     >
-                      🔒 {t('ملاحظة داخلية', 'Internal note')}
+                      {t('ملاحظة', 'Note')}
                     </button>
                   </div>
                   {internal && (
@@ -1378,6 +1096,7 @@ export default function Inbox() {
                   )}
                   <div className="composer-row">
                     <textarea
+                      ref={composerInput}
                       aria-label={t('محرر الرد', 'Reply composer')}
                       value={text}
                       onChange={(e) => setText(e.target.value)}
@@ -1407,26 +1126,36 @@ export default function Inbox() {
                         className={`composer-attach ${internal ? 'is-disabled' : ''}`}
                         title={t('إرفاق ملف', 'Attach file')}
                       >
-                        <NavIcon name="knowledge" />{' '}
-                        <span className="composer-attach-label">{t('إرفاق', 'Attach')}</span>
+                        <NavIcon name="plus" />
+                        <span className="sr-only">{t('إرفاق', 'Attach')}</span>
                         <input
                           aria-label={t('إرفاق ملف', 'Attach file')}
                           type="file"
                           hidden
                           onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])}
-                          disabled={internal}
+                          disabled={internal || uploading || !!windowExpired || !!detail.blocked}
                         />
                       </label>
                       <button
                         onClick={send}
-                        disabled={busy || (!internal && !!detail?.blocked)}
+                        disabled={
+                          busy ||
+                          uploading ||
+                          (!text.trim() && (internal || !attach)) ||
+                          (!internal && (!!detail?.blocked || !!windowExpired))
+                        }
                         className={`composer-send ${internal ? 'is-note' : ''}`}
                       >
-                        {busy
-                          ? '…'
-                          : internal
-                            ? t('حفظ الملاحظة', 'Save note')
-                            : t('إرسال', 'Send')}
+                        {busy ? (
+                          '…'
+                        ) : internal ? (
+                          t('حفظ الملاحظة', 'Save note')
+                        ) : (
+                          <>
+                            <NavIcon name="campaigns" />
+                            <span className="sr-only">{t('إرسال', 'Send')}</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -1436,7 +1165,7 @@ export default function Inbox() {
           </section>
 
           {/* ---------- تفاصيل العميل ---------- */}
-          <div className="hidden lg:contents">{customerPanel}</div>
+          <div className="hidden lg:contents">{!showContext && customerPanel}</div>
           <Dialog
             open={showContext && !!detail}
             onClose={() => setShowContext(false)}

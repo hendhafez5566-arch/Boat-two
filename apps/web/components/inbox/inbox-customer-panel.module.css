@@ -1,0 +1,215 @@
+.panel {
+  width: 380px;
+  flex: none;
+  overflow-y: auto;
+  background: #f8f8fb;
+  border-inline-start: 1px solid #f0edf5;
+  color: #282b32;
+  font-size: 12px;
+}
+.heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+  min-height: 70px;
+  padding: 15px 12px;
+  background: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.heading h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 400;
+}
+.heading a {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  border: 1px solid #eeedf4;
+  border-radius: 5px;
+  padding: 6px;
+}
+.heading svg {
+  width: 15px;
+  height: 15px;
+}
+.card {
+  margin: 8px 8px 16px;
+  background: #fff;
+  border: 1px solid #eae8f0;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.card h3,
+.card summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  border-bottom: 1px solid #f1eff5;
+}
+.card summary {
+  cursor: pointer;
+  list-style: none;
+}
+.card summary::-webkit-details-marker {
+  display: none;
+}
+.card summary svg {
+  width: 15px;
+  height: 15px;
+}
+.card[open] summary svg {
+  transform: rotate(180deg);
+}
+.card h3 a svg {
+  width: 15px;
+  height: 15px;
+  color: #7b55db;
+}
+.quick {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-around;
+  padding: 16px 8px 12px;
+  gap: 6px;
+}
+.quick button {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 10px;
+  color: #626770;
+  cursor: pointer;
+}
+.quick button > span {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #eae8f0;
+  border-radius: 50%;
+  background: #faf9fd;
+}
+.quick button > .green {
+  background: #d7fff2;
+  color: #078a6d;
+  border-color: #8ad6c0;
+}
+.facts {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  margin: 0;
+  font-size: 11px;
+}
+.facts div {
+  display: grid;
+  grid-template-columns: 42% minmax(0, 1fr);
+  gap: 8px;
+}
+.facts dt {
+  color: #8a8e96;
+}
+.facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.fields {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  color: #555b66;
+}
+.fields label {
+  display: grid;
+  gap: 7px;
+}
+.fields input,
+.fields select {
+  min-width: 0;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e9e7ef;
+  border-radius: 5px;
+  background: #fff;
+  font: inherit;
+}
+.fields form {
+  display: grid;
+  gap: 7px;
+}
+.fields p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.fields small {
+  color: #92959c;
+}
+.secondary {
+  border: 1px solid #e9e7ef;
+  border-radius: 5px;
+  padding: 8px;
+  background: #fff;
+  color: #7550dd;
+  font: inherit;
+  cursor: pointer;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding-top: 7px;
+}
+.chips span {
+  background: #f1edfc;
+  border-radius: 4px;
+  padding: 4px 7px;
+}
+.actions {
+  display: grid;
+  gap: 4px;
+  padding: 0 12px 12px;
+}
+.actions button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: #faf9fd;
+  border-radius: 5px;
+  padding: 9px;
+  text-align: start;
+  cursor: pointer;
+  font: inherit;
+}
+.actions svg {
+  width: 16px;
+  height: 16px;
+  color: #7b55db;
+}
+.panel button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+@media (max-width: 1199px) {
+  .panel {
+    width: 310px;
+  }
+}
+@media (max-width: 1023px) {
+  .panel {
+    width: 100%;
+    border: 0;
+  }
+}

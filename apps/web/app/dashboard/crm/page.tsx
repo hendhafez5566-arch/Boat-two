@@ -127,6 +127,22 @@ export default function CRM() {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState(blank);
   const [selected, setSelected] = useState<Contact | null>(null);
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('contact');
+    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return;
+    let active = true;
+    profileDismissed.current = true;
+    api<Contact>(`/crm/contacts/${id}`)
+      .then((contact) => {
+        if (active) setSelected(contact);
+      })
+      .catch((error) => {
+        if (active) setError(error.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
   const [viewMode, setViewMode] = useState('list');
   const [sort, setSort] = useState('latest');
   const [pageSize, setPageSize] = useState(10);
