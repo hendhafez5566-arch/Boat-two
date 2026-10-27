@@ -230,7 +230,7 @@ function Shell({ children }: { children: ReactNode }) {
   ].filter(([k]) => allowedKey(k));
   return (
     <div
-      className={`product-shell bs-shell ${isInbox ? 'inbox-shell' : ''} ${collapsed || isFlowEditor ? 'nav-collapsed' : 'nav-expanded'}`}
+      className={`product-shell bs-shell ${isInbox ? 'inbox-shell' : ''} ${(collapsed && !isInbox) || isFlowEditor ? 'nav-collapsed' : 'nav-expanded'}`}
       style={brand ? ({ '--primary': brand.primary_color } as CSSProperties) : undefined}
     >
       {open && <div className="bs-scrim" onClick={() => setOpen(false)} />}

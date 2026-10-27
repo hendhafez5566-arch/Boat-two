@@ -268,51 +268,53 @@ export default function SubscriberProfile({
                     </dl>
                   </section>
                 </div>
-                <Dialog
-                  open={overviewEditing}
-                  onClose={() => setOverviewEditing(false)}
-                  title={t('تعديل ملف المشترك', 'Edit subscriber profile')}
-                >
-                  <form className={styles.form} key={contact.updated_at} onSubmit={saveOverview}>
-                    <h3>{t('عن المشترك', 'About')}</h3>
-                    <label>
-                      {t('الاسم', 'Name')}
-                      <input
-                        name="name"
-                        defaultValue={contact.name}
-                        required
-                        maxLength={120}
-                        disabled={!canManage}
-                      />
-                    </label>
-                    <label>
-                      {t('الهاتف', 'Phone')}
-                      <input
-                        name="phone"
-                        type="tel"
-                        dir="ltr"
-                        defaultValue={contact.phone ?? ''}
-                        maxLength={30}
-                        disabled={!canManage}
-                      />
-                    </label>
-                    <label>
-                      {t('البريد الإلكتروني', 'Email')}
-                      <input
-                        name="email"
-                        type="email"
-                        dir="ltr"
-                        defaultValue={contact.email ?? ''}
-                        disabled={!canManage}
-                      />
-                    </label>
-                    {canManage && (
-                      <button className="btn btn-primary" disabled={busy}>
-                        {t('حفظ التغييرات', 'Save Changes')}
-                      </button>
-                    )}
-                  </form>
-                </Dialog>
+                {overviewEditing && (
+                  <Dialog
+                    open={overviewEditing}
+                    onClose={() => setOverviewEditing(false)}
+                    title={t('تعديل ملف المشترك', 'Edit subscriber profile')}
+                  >
+                    <form className={styles.form} key={contact.updated_at} onSubmit={saveOverview}>
+                      <h3>{t('عن المشترك', 'About')}</h3>
+                      <label>
+                        {t('الاسم', 'Name')}
+                        <input
+                          name="name"
+                          defaultValue={contact.name}
+                          required
+                          maxLength={120}
+                          disabled={!canManage}
+                        />
+                      </label>
+                      <label>
+                        {t('الهاتف', 'Phone')}
+                        <input
+                          name="phone"
+                          type="tel"
+                          dir="ltr"
+                          defaultValue={contact.phone ?? ''}
+                          maxLength={30}
+                          disabled={!canManage}
+                        />
+                      </label>
+                      <label>
+                        {t('البريد الإلكتروني', 'Email')}
+                        <input
+                          name="email"
+                          type="email"
+                          dir="ltr"
+                          defaultValue={contact.email ?? ''}
+                          disabled={!canManage}
+                        />
+                      </label>
+                      {canManage && (
+                        <button className="btn btn-primary" disabled={busy}>
+                          {t('حفظ التغييرات', 'Save Changes')}
+                        </button>
+                      )}
+                    </form>
+                  </Dialog>
+                )}
                 <h3>{t('المحادثات', 'Conversations')}</h3>
                 {profile.timeline.conversations.map((row) => (
                   <Link

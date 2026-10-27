@@ -2166,6 +2166,7 @@ button.underline {
 .product-shell.inbox-shell { display: block; }
 .inbox-shell .product-sidebar { display: none; position: fixed; inset-block: 0; inset-inline-start: 0; width: 260px; z-index: 100; }
 .inbox-shell .product-sidebar.is-open { display: flex; }
+.inbox-shell .bs-close { display: inline-flex; position: absolute; inset-inline-end: 8px; top: 8px; width: 28px; height: 28px; padding: 4px; background: transparent; border: 0; }
 .inbox-shell .product-sidebar .nav-label, .inbox-shell .product-sidebar .brand > span:not(.brand-mark), .inbox-shell .product-sidebar .nav-chevron { display: block; }
 .inbox-shell .product-sidebar nav a, .inbox-shell .nav-more-btn { justify-content: flex-start; padding-inline: 12px; }
 .inbox-shell .product-sidebar .nav-more-panel.is-open { display: block; }
