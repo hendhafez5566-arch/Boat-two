@@ -1,4 +1,6 @@
 'use client';
+import styles from './campaign-configuration.module.css';
+import { useData } from './useData';
 import AudienceSummary, { Audience } from './AudienceSummary';
 import {
   RichCampaignContent,
@@ -61,15 +63,22 @@ export function CampaignComposer({
   channels,
   segments,
   onSaved,
+  layout = 'wizard',
 }: {
   channels: Channel[];
   segments: Segment[];
   onSaved: () => Promise<void>;
+  layout?: 'wizard' | 'reference';
 }) {
   const { t } = useLocale();
+  const reference = layout === 'reference';
+  const [labelFilter, setLabelFilter] = useState('');
+  const [listFilter, setListFilter] = useState('');
+  const [broadcastMode, setBroadcastMode] = useState<'window' | 'template'>('window');
+  const lists = useData<{ id: string; name: string }[]>(reference ? '/contact-lists' : null, []);
   const [step, setStep] = useState(0),
     [name, setName] = useState(''),
-    [channel, setChannel] = useState(''),
+    [channel, setChannel] = useState(channels.length === 1 ? channels[0].id : ''),
     [segment, setSegment] = useState('');
   const [rich, setRich] = useState<CampaignContent>({});
   const [frequency, setFrequency] = useState(24),
@@ -87,16 +96,33 @@ export function CampaignComposer({
     [busy, setBusy] = useState(false);
   const review = useRef(0),
     heading = useRef<HTMLHeadingElement>(null);
-  useEffect(()=>{if(channel&&!channels.some(c=>c.id===channel)){setChannel('');setAudience(null);setStep(0);}},[channels,channel]);
+  useEffect(() => {
+    if (channel && !channels.some((c) => c.id === channel)) {
+      setChannel('');
+      setAudience(null);
+      setStep(0);
+    }
+  }, [channels, channel]);
   const selectedChannel = channels.find((c) => c.id === channel),
-    filters = segments.find((s) => s.id === segment)?.filters || {};
+    filters = {
+      ...(segments.find((s) => s.id === segment)?.filters || {}),
+      ...(labelFilter.trim() ? { tag: labelFilter.trim() } : {}),
+      ...(listFilter ? { listId: listFilter } : {}),
+    };
   const selectedTemplate = templates.find((x) => x.name + '|' + x.language === template);
-  const validContent = selectedTemplate
-    ? validTemplateValue(selectedTemplate, templateValue)
-    : validCampaignContent({ ...rich, text });
+  const validContent =
+    reference &&
+    selectedChannel?.type === 'whatsapp' &&
+    broadcastMode === 'template' &&
+    !selectedTemplate
+      ? false
+      : selectedTemplate
+        ? validTemplateValue(selectedTemplate, templateValue)
+        : validCampaignContent({ ...rich, text });
   useEffect(() => {
     let active = true;
     setTemplate('');
+    if (reference && selectedChannel?.type === 'whatsapp') setBroadcastMode('template');
     setTemplates([]);
     setTemplateValue({ name: '', language: '', bodyParams: [] });
     setError('');
@@ -116,11 +142,11 @@ export function CampaignComposer({
     return () => {
       active = false;
     };
-  }, [channel, selectedChannel?.type]);
+  }, [channel, selectedChannel?.type, reference]);
   useEffect(() => {
     review.current++;
     setAudience(null);
-  }, [channel, segment]);
+  }, [channel, segment, labelFilter, listFilter]);
   async function checkAudience() {
     const version = ++review.current;
     setBusy(true);
@@ -188,27 +214,41 @@ export function CampaignComposer({
     t('المعاينة والمراجعة', 'Preview & review'),
   ];
   return (
-    <section className="card stack" aria-label={t('إنشاء حملة', 'Create campaign')}>
-      <h2 ref={heading} tabIndex={-1}>
-        {t('حملة جديدة', 'New campaign')} · {t(`الخطوة ${step + 1} من 3`, `Step ${step + 1} of 3`)}
-      </h2>
-      <ol className="flex flex-wrap gap-3" aria-label={t('خطوات الإنشاء', 'Creation steps')}>
-        {labels.map((label, index) => (
-          <li
-            key={label}
-            aria-current={step === index ? 'step' : undefined}
-            className={step === index ? 'badge' : 'muted'}
-          >
-            {index + 1}. {label}
-          </li>
-        ))}
-      </ol>
+    <section
+      className={reference ? styles.configuration : 'card stack'}
+      aria-label={t('إنشاء حملة', 'Create campaign')}
+    >
+      {!reference && (
+        <>
+          <h2 ref={heading} tabIndex={-1}>
+            {t('حملة جديدة', 'New campaign')} ·{' '}
+            {t(`الخطوة ${step + 1} من 3`, `Step ${step + 1} of 3`)}
+          </h2>
+          <ol className="flex flex-wrap gap-3" aria-label={t('خطوات الإنشاء', 'Creation steps')}>
+            {labels.map((label, index) => (
+              <li
+                key={label}
+                aria-current={step === index ? 'step' : undefined}
+                className={step === index ? 'badge' : 'muted'}
+              >
+                {index + 1}. {label}
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+      {reference && (
+        <div className={styles.actionType}>
+          <strong>{t('نوع الإجراء', 'Action Type')}</strong>
+          <span>{t('حملة بث', 'Broadcasting')}</span>
+        </div>
+      )}
       {error && (
         <p role="alert" className="notice error">
           {error}
         </p>
       )}
-      {step === 0 && (
+      {(reference || step === 0) && (
         <div className="stack">
           <div className="form-grid">
             <label className="field">
@@ -262,32 +302,102 @@ export function CampaignComposer({
               />
             </label>
           </div>
-          <button className="btn" disabled={!channel || busy} onClick={checkAudience}>
+          {reference && (
+            <div className="form-grid">
+              <label className="field">
+                {t('تضمين الوسم', 'Include label')}
+                <input
+                  value={labelFilter}
+                  maxLength={50}
+                  onChange={(e) => setLabelFilter(e.target.value)}
+                  placeholder={t('كل الوسوم', 'All labels')}
+                />
+              </label>
+              <label className="field">
+                {t('تضمين قائمة المشتركين', 'Include Subscriber List')}
+                <select
+                  value={listFilter}
+                  onChange={(e) => setListFilter(e.target.value)}
+                  disabled={lists.loading || !!lists.error}
+                >
+                  <option value="">{t('كل القوائم', 'All lists')}</option>
+                  {lists.data.map((list) => (
+                    <option key={list.id} value={list.id}>
+                      {list.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {lists.error && <p role="alert">{lists.error}</p>}
+            </div>
+          )}
+          <button type="button" className="btn" disabled={!channel || busy} onClick={checkAudience}>
             {t('مراجعة الجمهور', 'Review audience')}
           </button>
           {audience && (
-            <><AudienceSummary audience={audience} />{!audience.eligible && <p className="notice">{t('يمكنك متابعة كتابة الرسالة وحفظ مسودة. الجدولة تتطلب جمهورًا مؤهلًا وتظل مستقلة عن الحفظ.','You can compose and save a draft. Scheduling requires an eligible audience and remains separate from saving.')}</p>}</>
+            <>
+              <AudienceSummary audience={audience} />
+              {!audience.eligible && (
+                <p className="notice">
+                  {t(
+                    'يمكنك متابعة كتابة الرسالة وحفظ مسودة. الجدولة تتطلب جمهورًا مؤهلًا وتظل مستقلة عن الحفظ.',
+                    'You can compose and save a draft. Scheduling requires an eligible audience and remains separate from saving.',
+                  )}
+                </p>
+              )}
+            </>
           )}
-          <button
-            className="btn btn-primary"
-            disabled={
-              !name.trim() ||
-              !channel ||
-              !audience ||
-              !Number.isInteger(frequency) ||
-              frequency < 1 ||
-              frequency > 720 ||
-              busy
-            }
-            onClick={() => move(1)}
-          >
-            {t('التالي', 'Next')}
-          </button>
+          {!reference && (
+            <button
+              className="btn btn-primary"
+              disabled={
+                !name.trim() ||
+                !channel ||
+                !audience ||
+                !Number.isInteger(frequency) ||
+                frequency < 1 ||
+                frequency > 720 ||
+                busy
+              }
+              onClick={() => move(1)}
+            >
+              {t('التالي', 'Next')}
+            </button>
+          )}
         </div>
       )}
-      {step === 1 && (
+      {(reference || step === 1) && (
         <div className="stack">
-          {selectedChannel?.type === 'whatsapp' && (
+          {reference && <h3>{t('نوع البث والمحتوى', 'Broadcast type and content')}</h3>}
+          {reference && selectedChannel?.type === 'whatsapp' && (
+            <fieldset className={styles.broadcastTypes}>
+              <legend>{t('نوع البث', 'Broadcast type')}</legend>
+              <label>
+                <input
+                  type="radio"
+                  name="broadcastMode"
+                  checked={broadcastMode === 'window'}
+                  onChange={() => {
+                    setBroadcastMode('window');
+                    setTemplate('');
+                  }}
+                />
+                <strong>{t('24 ساعة', '24 hours')}</strong>
+                <small>{t('داخل نافذة الرد', 'Within the reply window')}</small>
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="broadcastMode"
+                  checked={broadcastMode === 'template'}
+                  onChange={() => setBroadcastMode('template')}
+                />
+                <strong>{t('في أي وقت', 'Anytime')}</strong>
+                <small>{t('قالب WhatsApp معتمد', 'Approved WhatsApp template')}</small>
+              </label>
+            </fieldset>
+          )}
+          {selectedChannel?.type === 'whatsapp' && (!reference || broadcastMode === 'template') && (
             <label className="field">
               {t('قالب WhatsApp المعتمد', 'Approved WhatsApp template')}
               <select
@@ -323,20 +433,22 @@ export function CampaignComposer({
                 onChange={setTemplateValue}
               />
             )
-          ) : (
+          ) : !reference || selectedChannel?.type !== 'whatsapp' || broadcastMode === 'window' ? (
             <>
-              <div className="form-grid">
-                {copy.map(([ar, en, arText, enText]) => (
-                  <button
-                    type="button"
-                    className="btn"
-                    key={en}
-                    onClick={() => setText(t(arText, enText))}
-                  >
-                    {t(ar, en)}
-                  </button>
-                ))}
-              </div>
+              {!reference && (
+                <div className="form-grid">
+                  {copy.map(([ar, en, arText, enText]) => (
+                    <button
+                      type="button"
+                      className="btn"
+                      key={en}
+                      onClick={() => setText(t(arText, enText))}
+                    >
+                      {t(ar, en)}
+                    </button>
+                  ))}
+                </div>
+              )}
               <RichCampaignContent
                 value={{ ...rich, text }}
                 onChange={(value) => {
@@ -345,6 +457,13 @@ export function CampaignComposer({
                 }}
               />
             </>
+          ) : (
+            <p>
+              {t(
+                'اختر قالبًا معتمدًا لإكمال المحتوى.',
+                'Choose an approved template to complete the content.',
+              )}
+            </p>
           )}
           <p className="muted">
             {t(
@@ -352,21 +471,23 @@ export function CampaignComposer({
               'Supports text, media, reply buttons, menus and approved templates with supported headers and buttons. Reply windows, consent and channel policy are checked at delivery.',
             )}
           </p>
-          <div className="form-actions">
-            <button className="btn" onClick={() => move(0)}>
-              {t('السابق', 'Back')}
-            </button>
-            <button
-              className="btn btn-primary"
-              disabled={!validContent || loading}
-              onClick={() => move(2)}
-            >
-              {t('معاينة الرسالة', 'Preview message')}
-            </button>
-          </div>
+          {!reference && (
+            <div className="form-actions">
+              <button className="btn" onClick={() => move(0)}>
+                {t('السابق', 'Back')}
+              </button>
+              <button
+                className="btn btn-primary"
+                disabled={!validContent || loading}
+                onClick={() => move(2)}
+              >
+                {t('معاينة الرسالة', 'Preview message')}
+              </button>
+            </div>
+          )}
         </div>
       )}
-      {step === 2 && (
+      {(reference || step === 2) && (
         <div className="stack">
           <h3>{name}</h3>
           <p>
@@ -392,10 +513,24 @@ export function CampaignComposer({
             )}
           </p>
           <div className="form-actions">
-            <button className="btn" disabled={busy} onClick={() => move(1)}>
-              {t('تعديل الرسالة', 'Edit message')}
-            </button>
-            <button className="btn btn-primary" disabled={busy || !validContent} onClick={save}>
+            {!reference && (
+              <button className="btn" disabled={busy} onClick={() => move(1)}>
+                {t('تعديل الرسالة', 'Edit message')}
+              </button>
+            )}
+            <button
+              className="btn btn-primary"
+              disabled={
+                busy ||
+                loading ||
+                !validContent ||
+                !name.trim() ||
+                !channel ||
+                (reference &&
+                  (!audience || !Number.isInteger(frequency) || frequency < 1 || frequency > 720))
+              }
+              onClick={save}
+            >
               {busy ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ المسودة', 'Save draft')}
             </button>
           </div>

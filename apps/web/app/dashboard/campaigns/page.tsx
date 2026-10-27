@@ -1,5 +1,6 @@
 'use client';
 import { NavIcon } from '../../../components/product/NavIcon';
+import ConfigurationPanel from '../../../components/flow/ConfigurationPanel';
 import { Dialog } from '../../../components/product/ProductUI';
 import SequencesPanel from '../../../components/workspace/SequencesPanel';
 import styles from '../../../components/business/broadcast.module.css';
@@ -359,7 +360,7 @@ export default function Campaigns() {
               </article>
             ))}
           </section>
-          <Dialog
+          <ConfigurationPanel
             open={creating}
             onClose={() => {
               if (!busy) setCreating(false);
@@ -367,6 +368,7 @@ export default function Campaigns() {
             title={t('إنشاء حملة', 'Create Campaign')}
           >
             <CampaignComposer
+              layout="reference"
               channels={channels.data.filter((c) => !channelId || c.id === channelId)}
               segments={segments.data}
               onSaved={async () => {
@@ -376,7 +378,12 @@ export default function Campaigns() {
                 void summary.reload();
               }}
             />
-          </Dialog>
+            <footer className="smart-editor-footer">
+              <button type="button" onClick={() => setCreating(false)}>
+                {t('إغلاق', 'Close')}
+              </button>
+            </footer>
+          </ConfigurationPanel>
           <section className={styles.campaignCard} aria-label={t('الحملات', 'Campaigns')}>
             <section className={styles.filters}>
               <select

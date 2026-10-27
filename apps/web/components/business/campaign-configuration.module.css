@@ -1,0 +1,108 @@
+.configuration {
+  display: grid;
+  gap: 16px;
+  color: #25313b;
+}
+.configuration > div:not(.actionType),
+.configuration > :global(.stack) {
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+.configuration :global(.form-grid) {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+.configuration :global(.field) {
+  font-size: 12px;
+  color: #43505e;
+  gap: 6px;
+}
+.configuration input:not([type='radio']),
+.configuration select,
+.configuration textarea {
+  font:
+    400 14px/21px 'Plus Jakarta Sans Variable',
+    Arial,
+    sans-serif;
+  background: #fdfdff;
+  border: 1px solid #e4e6fc;
+  border-radius: 8px;
+  padding: 10px 12px;
+  width: 100%;
+  min-width: 0;
+}
+.configuration h3 {
+  font-size: 14px;
+  margin: 0;
+}
+.configuration :global(.btn) {
+  font-size: 12px;
+  border-radius: 8px;
+}
+.configuration :global(.muted),
+.configuration :global(.notice) {
+  font-size: 11px;
+  line-height: 18px;
+}
+.actionType {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+.actionType strong {
+  font-size: 14px;
+}
+.actionType span {
+  font-size: 13px;
+  border: 1px solid #e4e6fc;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fdfdff;
+}
+.broadcastTypes {
+  display: flex;
+  gap: 10px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.broadcastTypes legend {
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.broadcastTypes label {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  align-items: center;
+  gap: 4px 8px;
+  border: 1px solid #e4e6fc;
+  border-radius: 8px;
+  padding: 12px;
+  flex: 1;
+  cursor: pointer;
+}
+.broadcastTypes label:has(input:checked) {
+  background: #eff6ff;
+  border-color: #3b82f6;
+}
+.broadcastTypes input {
+  grid-row: 1 / 3;
+}
+.broadcastTypes strong {
+  font-size: 12px;
+}
+.broadcastTypes small {
+  font-size: 10px;
+  color: #7b8794;
+}
+@media (max-width: 640px) {
+  .configuration input:not([type='radio']),
+  .configuration select,
+  .configuration textarea {
+    font-size: 16px;
+  }
+}
