@@ -1,6 +1,8 @@
 'use client';
 import { FormEvent, useRef, useState } from 'react';
 import Link from 'next/link';
+import { Dialog } from '../product/ProductUI';
+import { NavIcon } from '../product/NavIcon';
 import { api } from '../../lib/api';
 import { useData } from './useData';
 import { useLocale } from '../product/locale';
@@ -87,6 +89,7 @@ export default function SubscriberProfile({
     '/crm/fields',
     [],
   );
+  const [overviewEditing, setOverviewEditing] = useState(false);
   const [tab, setTab] = useState('overview'),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
@@ -122,13 +125,14 @@ export default function SubscriberProfile({
   function saveOverview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    void run(() =>
-      patch({
+    void run(async () => {
+      await patch({
         name: String(form.get('name')).trim(),
         phone: String(form.get('phone') || '') || null,
         email: String(form.get('email') || '') || null,
-      }),
-    );
+      });
+      setOverviewEditing(false);
+    });
   }
   return (
     <aside className={styles.profile} aria-label={t('ملف المشترك', 'Subscriber profile')}>
@@ -138,6 +142,19 @@ export default function SubscriberProfile({
           <h2>{contact?.name || t('ملف المشترك', 'Subscriber profile')}</h2>
           <p dir="ltr">{contact?.phone || contact?.email || '—'}</p>
         </div>
+        {canManage && (
+          <button
+            type="button"
+            className="btn"
+            aria-label={t('تعديل ملف المشترك', 'Edit subscriber profile')}
+            onClick={() => {
+              setTab('overview');
+              setOverviewEditing(true);
+            }}
+          >
+            <NavIcon name="edit" />
+          </button>
+        )}
         <button
           type="button"
           className="btn"
@@ -199,45 +216,103 @@ export default function SubscriberProfile({
           <div className={styles.profileBody}>
             {tab === 'overview' && (
               <>
-                <form className={styles.form} key={contact.updated_at} onSubmit={saveOverview}>
-                  <h3>{t('عن المشترك', 'About')}</h3>
-                  <label>
-                    {t('الاسم', 'Name')}
-                    <input
-                      name="name"
-                      defaultValue={contact.name}
-                      required
-                      maxLength={120}
-                      disabled={!canManage}
-                    />
-                  </label>
-                  <label>
-                    {t('الهاتف', 'Phone')}
-                    <input
-                      name="phone"
-                      type="tel"
-                      dir="ltr"
-                      defaultValue={contact.phone ?? ''}
-                      maxLength={30}
-                      disabled={!canManage}
-                    />
-                  </label>
-                  <label>
-                    {t('البريد الإلكتروني', 'Email')}
-                    <input
-                      name="email"
-                      type="email"
-                      dir="ltr"
-                      defaultValue={contact.email ?? ''}
-                      disabled={!canManage}
-                    />
-                  </label>
-                  {canManage && (
-                    <button className="btn btn-primary" disabled={busy}>
-                      {t('حفظ التغييرات', 'Save Changes')}
-                    </button>
-                  )}
-                </form>
+                <div className={styles.overviewGrid}>
+                  <section className={styles.overviewCard}>
+                    <h3>{t('عن المشترك', 'About')}</h3>
+                    <dl>
+                      <div>
+                        <dt>{t('الهاتف', 'Phone')}</dt>
+                        <dd dir="ltr">{contact.phone || '—'}</dd>
+                      </div>
+                      <div>
+                        <dt>{t('البريد الإلكتروني', 'Email')}</dt>
+                        <dd dir="ltr">{contact.email || '—'}</dd>
+                      </div>
+                      <div>
+                        <dt>{t('معرّف المشترك', 'Subscriber ID')}</dt>
+                        <dd dir="ltr">{contact.id}</dd>
+                      </div>
+                      <div>
+                        <dt>{t('تاريخ الإضافة', 'Added')}</dt>
+                        <dd>{date(contact.created_at)}</dd>
+                      </div>
+                    </dl>
+                  </section>
+                  <section className={styles.overviewCard}>
+                    <h3>{t('التفاعل', 'Engagement')}</h3>
+                    <dl>
+                      <div>
+                        <dt>{t('آخر تواصل', 'Last Communication')}</dt>
+                        <dd>
+                          {date(
+                            profile.timeline.conversations
+                              .map((row) => row.last_message_at)
+                              .filter(Boolean)
+                              .sort()
+                              .at(-1),
+                          )}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>{t('المحادثات', 'Conversations')}</dt>
+                        <dd>{profile.timeline.conversations.length}</dd>
+                      </div>
+                      <div>
+                        <dt>{t('المرحلة', 'Lifecycle')}</dt>
+                        <dd>{statusLabel(contact.lifecycle, t)}</dd>
+                      </div>
+                      <div>
+                        <dt>{t('آخر تحديث للملف', 'Profile Updated')}</dt>
+                        <dd>{date(contact.updated_at)}</dd>
+                      </div>
+                    </dl>
+                  </section>
+                </div>
+                <Dialog
+                  open={overviewEditing}
+                  onClose={() => setOverviewEditing(false)}
+                  title={t('تعديل ملف المشترك', 'Edit subscriber profile')}
+                >
+                  <form className={styles.form} key={contact.updated_at} onSubmit={saveOverview}>
+                    <h3>{t('عن المشترك', 'About')}</h3>
+                    <label>
+                      {t('الاسم', 'Name')}
+                      <input
+                        name="name"
+                        defaultValue={contact.name}
+                        required
+                        maxLength={120}
+                        disabled={!canManage}
+                      />
+                    </label>
+                    <label>
+                      {t('الهاتف', 'Phone')}
+                      <input
+                        name="phone"
+                        type="tel"
+                        dir="ltr"
+                        defaultValue={contact.phone ?? ''}
+                        maxLength={30}
+                        disabled={!canManage}
+                      />
+                    </label>
+                    <label>
+                      {t('البريد الإلكتروني', 'Email')}
+                      <input
+                        name="email"
+                        type="email"
+                        dir="ltr"
+                        defaultValue={contact.email ?? ''}
+                        disabled={!canManage}
+                      />
+                    </label>
+                    {canManage && (
+                      <button className="btn btn-primary" disabled={busy}>
+                        {t('حفظ التغييرات', 'Save Changes')}
+                      </button>
+                    )}
+                  </form>
+                </Dialog>
                 <h3>{t('المحادثات', 'Conversations')}</h3>
                 {profile.timeline.conversations.map((row) => (
                   <Link

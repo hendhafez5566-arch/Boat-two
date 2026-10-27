@@ -1,6 +1,10 @@
 .page {
   display: grid;
-  gap: 18px;
+  gap: 16px;
+  font:
+    400 14px/21px 'Plus Jakarta Sans Variable',
+    Arial,
+    sans-serif;
   min-width: 0;
   color: #263b4d;
 }
@@ -21,7 +25,7 @@
 .filters select {
   width: 100%;
   min-width: 0;
-  min-height: 46px;
+  min-height: 50px;
   border: 1px solid #e0e6ef;
   background: white;
   border-radius: 9px;
@@ -31,7 +35,7 @@
   color: #30485d;
 }
 .filters input[type='search'] {
-  grid-column: span 2;
+  grid-column: auto;
 }
 .filterActions {
   display: flex;
@@ -54,25 +58,35 @@
   border: 1px solid #e7ecf4;
   border-radius: 16px;
   box-shadow: 0 5px 16px #203b4c05;
-  padding: 18px;
+  padding: 16px;
   display: grid;
-  gap: 7px;
+  grid-template-columns: 40px minmax(0, 1fr);
+  column-gap: 14px;
+  row-gap: 4px;
+  min-height: 92px;
 }
-.statistics article > span {
+.statistics article > span:not(.statIcon) {
+  grid-column: 2;
+  grid-row: 1;
   font-size: 12px;
   color: #536b81;
 }
 .statistics strong {
-  font-size: 24px;
-  font-weight: 600;
+  grid-column: 2;
+  grid-row: 2;
+  font-size: 18px;
+  line-height: 22px;
+  font-weight: 500;
 }
 .statistics small {
+  grid-column: 2;
+  grid-row: 3;
   font-size: 11px;
   color: #5d7389;
 }
 .workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
   gap: 18px;
   align-items: start;
   min-width: 0;
@@ -89,7 +103,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 15px;
+  padding: 18px;
+  min-height: 104px;
+  align-content: center;
   flex-wrap: wrap;
   border-bottom: 1px solid #e9eef4;
   font-size: 12px;
@@ -121,11 +137,11 @@
 }
 .subscriberList :global(.product-table) {
   font-size: 12px;
-  min-width: 450px;
+  min-width: 440px;
   width: 100%;
 }
 .subscriberList :global(.product-table) td {
-  padding: 13px 10px;
+  padding: 16px 10px;
 }
 .subscriberList :global(.product-table) td:nth-child(2) {
   min-width: 150px;
@@ -441,7 +457,7 @@
   padding: 12px;
   white-space: pre-wrap;
 }
-@media (max-width: 1250px) {
+@media (max-width: 1050px) {
   .workspace {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -487,5 +503,247 @@
   }
   .filters input[type='search'] {
     grid-column: auto;
+  }
+}
+
+.heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 0;
+}
+.heading h1 {
+  margin: 0;
+  font:
+    600 22px/29px 'Plus Jakarta Sans Variable',
+    Arial,
+    sans-serif;
+}
+.heading p {
+  margin: 5px 0 0;
+  color: #6d7782;
+  font-size: 12px;
+}
+.headActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.headActions :global(.btn) {
+  min-height: 52px;
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  background: white;
+  border: 1px solid #dfe4ec;
+  color: #5446c8;
+  border-radius: 9px;
+}
+.headActions svg {
+  width: 14px;
+  height: 14px;
+}
+.dropdown {
+  position: relative;
+}
+.dropdownMenu {
+  position: absolute;
+  inset-inline-end: 0;
+  top: calc(100% + 6px);
+  z-index: 45;
+  min-width: 210px;
+  display: grid;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #e7eaf0;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px #263b4d1c;
+}
+.dropdownMenu button,
+.dropdownMenu a {
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  padding: 10px;
+  text-align: start;
+  color: #354451;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.dropdownMenu button:hover,
+.dropdownMenu a:hover {
+  background: #f3f1ff;
+}
+.statIcon {
+  grid-column: 1;
+  grid-row: 1 / 4;
+  align-self: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: #f0efff;
+  color: #5141e3;
+}
+.statIcon svg {
+  width: 22px;
+  height: 22px;
+}
+.statIcon[data-tone='retained'],
+.statIcon[data-tone='subscribed'] {
+  background: #e1fbed;
+  color: #2eb976;
+}
+.statIcon[data-tone='in_sequences'] {
+  background: #eff7ff;
+  color: #5141e3;
+}
+.identity {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-width: 150px;
+}
+.identity > div {
+  min-width: 0;
+}
+.rowAvatar {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #e9eef5;
+  color: #778497;
+  font-size: 16px;
+}
+.subscriberList .subscriberName {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  text-align: start;
+  font:
+    600 12px/18px 'Plus Jakarta Sans Variable',
+    Arial,
+    sans-serif;
+  color: #25313b;
+  cursor: pointer;
+}
+.identity small {
+  display: block;
+  color: #939ba8;
+  font-size: 10px;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+.inlineTags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.inlineTags button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #8995a6;
+  font-size: 10px !important;
+  cursor: pointer;
+}
+.statePills {
+  display: grid;
+  gap: 5px;
+  justify-items: start;
+  white-space: nowrap;
+}
+.statePills span {
+  font-size: 10px;
+  padding: 3px 7px;
+  border-radius: 5px;
+  line-height: 15px;
+}
+.statePills span::before {
+  content: '•';
+  margin-inline-end: 4px;
+}
+.statePills [data-tone='green'] {
+  color: #26a86c;
+  background: #edfbf4;
+}
+.statePills [data-tone='blue'] {
+  color: #3669dd;
+  background: #f0f5ff;
+}
+.statePills [data-tone='muted'] {
+  color: #788391;
+  background: #f4f6f8;
+}
+.statePills small {
+  font-size: 10px;
+  color: #909aa7;
+}
+.rowActions {
+  display: flex;
+  gap: 4px;
+}
+.rowActions :global(.btn) {
+  padding: 5px !important;
+  min-width: 28px;
+  min-height: 28px !important;
+  margin: 0 !important;
+  border-radius: 6px;
+}
+.rowActions svg {
+  width: 13px;
+  height: 13px;
+}
+.overviewGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.overviewCard {
+  border: 1px solid #edf0f3;
+  border-radius: 12px;
+  padding: 16px;
+}
+.overviewCard h3 {
+  font-weight: 400;
+  margin-bottom: 16px;
+}
+.overviewCard dl {
+  margin: 0;
+  display: grid;
+  gap: 15px;
+}
+.overviewCard dt {
+  color: #929ba6;
+  font-size: 11px;
+}
+.overviewCard dd {
+  margin: 4px 0 0;
+  color: #43505e;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .heading {
+    align-items: start;
+    flex-wrap: wrap;
+  }
+  .headActions {
+    flex-wrap: wrap;
+  }
+  .headActions :global(.btn) {
+    min-height: 42px;
+    padding: 8px 12px;
+  }
+  .overviewGrid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

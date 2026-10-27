@@ -200,6 +200,12 @@ function Shell({ children }: { children: ReactNode }) {
     role === 'agent' &&
     (restrictedForAgents.includes(path.split('/')[2] ?? '') ||
       path.startsWith('/dashboard/inbox/settings'));
+  const isInbox = path === '/dashboard/inbox';
+  useEffect(() => {
+    const show = () => setOpen((value) => !value);
+    window.addEventListener('boat:toggle-navigation', show);
+    return () => window.removeEventListener('boat:toggle-navigation', show);
+  }, []);
   const isFlowEditor = /^\/dashboard\/flows\/(?!new$)[^/]+$/.test(path);
   const focused = path.startsWith('/dashboard/inbox') || /^\/dashboard\/flows\/[^/]+$/.test(path);
   const allowedKey = (key: string) => role !== 'agent' || !restrictedForAgents.includes(key);
@@ -224,7 +230,7 @@ function Shell({ children }: { children: ReactNode }) {
   ].filter(([k]) => allowedKey(k));
   return (
     <div
-      className={`product-shell bs-shell ${collapsed || isFlowEditor ? 'nav-collapsed' : 'nav-expanded'}`}
+      className={`product-shell bs-shell ${isInbox ? 'inbox-shell' : ''} ${collapsed || isFlowEditor ? 'nav-collapsed' : 'nav-expanded'}`}
       style={brand ? ({ '--primary': brand.primary_color } as CSSProperties) : undefined}
     >
       {open && <div className="bs-scrim" onClick={() => setOpen(false)} />}
@@ -321,7 +327,7 @@ function Shell({ children }: { children: ReactNode }) {
         </nav>
       </aside>
       <div className="product-content">
-        {!isFlowEditor && (
+        {!isFlowEditor && !isInbox && (
           <header className="product-topbar bs-topbar">
             <button
               className="bs-iconbtn bs-burger"

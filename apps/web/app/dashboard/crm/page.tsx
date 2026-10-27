@@ -1,4 +1,5 @@
 'use client';
+import { NavIcon } from '../../../components/product/NavIcon';
 import SubscriberProfile from '../../../components/business/SubscriberProfile';
 import styles from '../../../components/business/subscribers.module.css';
 import { useChannelContext } from '../../../components/product/useChannelContext';
@@ -6,7 +7,7 @@ import { Dialog } from '../../../components/product/ProductUI';
 import { statusLabel } from '../../../components/product/status';
 import { CrmJobs } from '../../../components/business/CrmJobs';
 import { ContactLifecycle } from '../../../components/business/ContactLifecycle';
-import { CSSProperties, FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
@@ -55,13 +56,31 @@ const blank = {
 };
 const COLUMNS = ['contact', 'lifecycle', 'tags', 'id'] as const;
 type Column = (typeof COLUMNS)[number];
-const tagHue = (tag: string) => [...tag].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 7);
 
 export default function CRM() {
   const { t } = useLocale();
   const workspace = useData<{ role: string }>('/workspace', { role: '' });
   const canManage = ['owner', 'admin'].includes(workspace.data.role);
   const [tab, setTab] = useState('contacts');
+  const [headMenu, setHeadMenu] = useState<string | null>(null);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const profileDismissed = useRef(false);
+  useEffect(() => {
+    if (!headMenu) return;
+    const close = (event: PointerEvent) => {
+      if (!(event.target as Element).closest('[data-subscriber-menu]')) setHeadMenu(null);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setHeadMenu(null);
+    };
+    document.addEventListener('pointerdown', close);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('pointerdown', close);
+      document.removeEventListener('keydown', escape);
+    };
+  }, [headMenu]);
   const [cols, setCols] = useState<Column[]>(['contact', 'lifecycle', 'tags']);
   useEffect(() => {
     try {
@@ -87,7 +106,7 @@ export default function CRM() {
     [sequenceId, setSequenceId] = useState(''),
     [sequenceStatus, setSequenceStatus] = useState(''),
     [consentStatus, setConsentStatus] = useState('');
-  const filterChannels = useData<{ id: string; name: string }[]>('/channels', []);
+  const filterChannels = useData<{ id: string; name: string; type: string }[]>('/channels', []);
   const filterLists = useData<{ id: string; name: string }[]>(
     canManage ? '/contact-lists' : null,
     [],
@@ -126,6 +145,22 @@ export default function CRM() {
     `/crm/contacts?${filter}&page=${page}&limit=${pageSize}&sort=${sort}`,
     { items: [], total: 0 },
   );
+  useEffect(() => {
+    if (!selected && !profileDismissed.current && contacts.data.items.length)
+      setSelected(contacts.data.items[0]);
+  }, [contacts.data.items, selected]);
+  const editContact = (contact: Contact) => {
+    setEdit(contact.id);
+    setForm({
+      name: contact.name || '',
+      email: contact.email || '',
+      phone: contact.phone || '',
+      lifecycle: contact.lifecycle,
+      tags: contact.tags.join(', '),
+      ownerId: contact.owner_id || '',
+      attributes: JSON.stringify(contact.attributes, null, 2),
+    });
+  };
   const summary = useData<{
     total: number;
     retained: number;
@@ -272,45 +307,120 @@ export default function CRM() {
   ];
   return (
     <main className={styles.page}>
-      <div className="page-heading">
+      <header className={styles.heading}>
         <div>
           <h1>{t('المشتركون', 'Subscribers')}</h1>
           <p>
             {t(
-              'إدارة جمهورك وتصنيفه عبر جميع الحسابات والقنوات.',
-              'Manage and segment your audience across all channels.',
+              'إدارة جمهورك وتصنيفه عبر جميع القنوات',
+              'Manage and segment your audience across all channels',
             )}
           </p>
         </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => {
-            setEdit(null);
-            setForm(blank);
-            setShowCreate(true);
-            setTab('contacts');
-          }}
-        >
-          {t('إضافة عميل', 'Add contact')}
-        </button>
-        <button className="btn" onClick={refresh}>
-          {t('تحديث', 'Refresh')}
-        </button>
-      </div>
-      <nav className={styles.navigation} aria-label={t('أقسام العملاء', 'Subscriber sections')}>
-        {tabs.map(([id, ar, en]) => (
+        <div className={styles.headActions}>
+          <div className={styles.dropdown} data-subscriber-menu>
+            <button
+              className="btn"
+              type="button"
+              aria-expanded={headMenu === 'transfer'}
+              onClick={() => setHeadMenu(headMenu === 'transfer' ? null : 'transfer')}
+            >
+              <NavIcon name="export" />
+              {t('تصدير / استيراد', 'Export/Import')}
+              <NavIcon name="chevron" />
+            </button>
+            {headMenu === 'transfer' && (
+              <div className={styles.dropdownMenu}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHeadMenu(null);
+                    void exportContacts();
+                  }}
+                >
+                  {t('تصدير CSV', 'Export CSV')}
+                </button>
+                {canManage && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHeadMenu(null);
+                      setImportOpen(true);
+                    }}
+                  >
+                    {t('استيراد وإدارة الملفات', 'Import and manage files')}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <div className={styles.dropdown} data-subscriber-menu>
+            <button
+              className="btn"
+              type="button"
+              aria-expanded={headMenu === 'manage'}
+              onClick={() => setHeadMenu(headMenu === 'manage' ? null : 'manage')}
+            >
+              <NavIcon name="settings" />
+              {t('إدارة', 'Manage')}
+              <NavIcon name="chevron" />
+            </button>
+            {headMenu === 'manage' && (
+              <div className={styles.dropdownMenu}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHeadMenu(null);
+                    setEdit(null);
+                    setForm(blank);
+                    setShowCreate(true);
+                    setTab('contacts');
+                  }}
+                >
+                  {t('إضافة مشترك', 'Add subscriber')}
+                </button>
+                {tabs.map(([id, ar, en]) => (
+                  <button
+                    type="button"
+                    key={id}
+                    onClick={() => {
+                      setHeadMenu(null);
+                      setTab(id);
+                      setPage(1);
+                    }}
+                  >
+                    {t(ar, en)}
+                  </button>
+                ))}
+                <Link href="/dashboard/crm/lists">{t('القوائم', 'Lists')}</Link>
+              </div>
+            )}
+          </div>
           <button
-            key={id}
-            className={`btn ${tab === id ? 'btn-primary' : ''}`}
-            onClick={() => {
-              setTab(id);
-              setPage(1);
-            }}
+            className="btn"
+            type="button"
+            aria-label={t('تحديث', 'Refresh')}
+            onClick={refresh}
           >
-            {t(ar, en)}
+            <NavIcon name="redo" />
           </button>
-        ))}
-      </nav>
+        </div>
+      </header>
+      {tab !== 'contacts' && (
+        <nav className={styles.navigation}>
+          <button className="btn" onClick={() => setTab('contacts')}>
+            {t('العودة للمشتركين', 'Back to subscribers')}
+          </button>
+          <span>{t(...(tabs.find(([key]) => key === tab)?.slice(1) as [string, string]))}</span>
+        </nav>
+      )}
+      <Dialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title={t('تصدير واستيراد المشتركين', 'Subscriber Export/Import')}
+      >
+        {canManage && <CrmJobs />}
+      </Dialog>
       {(error ||
         contacts.error ||
         deals.error ||
@@ -332,6 +442,18 @@ export default function CRM() {
             className={styles.filters}
             aria-label={t('تصفية المشتركين', 'Subscriber filters')}
           >
+            <select
+              aria-label={t('القناة', 'Channel')}
+              value={filterChannels.data.find((c) => c.id === channelId)?.type || ''}
+              onChange={(e) => {
+                setChannelId(filterChannels.data.find((c) => c.type === e.target.value)?.id || '');
+              }}
+            >
+              <option value="">{t('كل القنوات', 'All channels')}</option>
+              {[...new Set(filterChannels.data.map((c) => c.type))].map((type) => (
+                <option key={type}>{type}</option>
+              ))}
+            </select>
             <select
               aria-label={t('الحساب', 'Account')}
               value={channelId}
@@ -400,6 +522,9 @@ export default function CRM() {
             />
           </section>
           <div className={styles.filterActions}>
+            <button className="btn" type="button" onClick={() => setToolsOpen(true)}>
+              {t('إضافة فلتر', 'Add Filter')}
+            </button>
             <span>
               {contacts.data.total} {t('نتيجة', 'subscribers')}
             </span>
@@ -421,9 +546,6 @@ export default function CRM() {
             >
               {t('مسح التصفية', 'Clear All')}
             </button>
-            <button className="btn" onClick={exportContacts}>
-              {t('تصدير CSV', 'Export CSV')}
-            </button>
           </div>
           {summary.error && (
             <p className="notice error" role="alert">
@@ -443,18 +565,34 @@ export default function CRM() {
               ] as const
             ).map(([key, label]) => (
               <article key={key}>
+                <span className={styles.statIcon} data-tone={key}>
+                  <NavIcon
+                    name={
+                      key === 'total'
+                        ? 'crm'
+                        : key === 'retained'
+                          ? 'check'
+                          : key === 'subscribed'
+                            ? 'user'
+                            : 'sequences'
+                    }
+                  />
+                </span>
                 <span>{label}</span>
                 <strong>{summary.loading ? '…' : summary.error ? '—' : summary.data[key]}</strong>
-                <small>{t('ضمن نتائج التصفية', 'Within current filters')}</small>
+                <small>
+                  {key === 'total'
+                    ? t('ضمن نتائج التصفية', 'Within current filters')
+                    : `${summary.data.total ? Math.round((summary.data[key] / summary.data.total) * 100) : 0}% ${t('من الإجمالي', 'of total')}`}
+                </small>
               </article>
             ))}
           </div>
-          <details className="card" open={bulkIds.length > 0 || undefined}>
-            <summary>
-              {t('الفلاتر والأدوات المتقدمة', 'Advanced filters and tools')}{' '}
-              {(stage || tag || archiveFilter !== 'active') &&
-                t('· توجد فلاتر نشطة', '· filters active')}
-            </summary>
+          <Dialog
+            open={toolsOpen}
+            onClose={() => setToolsOpen(false)}
+            title={t('الفلاتر والإجراءات الجماعية', 'Filters and Bulk Actions')}
+          >
             <Link href="/dashboard/crm/work" className="btn">
               {t('إدارة المبيعات والمتابعات المتقدمة', 'Manage sales and follow-ups')}
             </Link>
@@ -515,7 +653,7 @@ export default function CRM() {
               </div>
             </details>
             {canManage && <ContactLifecycle act={act} busy={busy} />}
-            {canManage && <CrmJobs />}
+
             {canManage && bulkIds.length > 0 && (
               <form
                 className="card space-y-3"
@@ -632,7 +770,7 @@ export default function CRM() {
                 </button>
               </form>
             )}
-          </details>
+          </Dialog>
           <div className={styles.workspace}>
             <section className={styles.subscriberList} data-view={viewMode}>
               <div className={styles.listToolbar}>
@@ -649,11 +787,23 @@ export default function CRM() {
                       )
                     }
                   />
-                  {t('تحديد الصفحة', 'Select Page')}
+                  {t('تحديد الكل', 'Select all')}
                 </label>
                 <span>
                   {bulkIds.length > 0 ? `${bulkIds.length} ${t('محدد', 'selected')}` : ''}
                 </span>
+                <button
+                  className="btn"
+                  disabled={!bulkIds.length}
+                  onClick={() => setToolsOpen(true)}
+                >
+                  {t('إجراءات جماعية', 'Bulk Actions')}
+                  <NavIcon name="chevron" />
+                </button>
+                <button className="btn" onClick={() => setToolsOpen(true)}>
+                  {t('خيارات', 'Options')}
+                  <NavIcon name="chevron" />
+                </button>
                 <select
                   aria-label={t('ترتيب المشتركين', 'Sort subscribers')}
                   value={sort}
@@ -669,7 +819,8 @@ export default function CRM() {
                   aria-pressed={viewMode === 'list'}
                   onClick={() => setViewMode('list')}
                 >
-                  {t('قائمة', 'List')}
+                  <span className="sr-only">{t('قائمة', 'List')}</span>
+                  <NavIcon name="inbox" />
                 </button>
                 <button
                   className="btn"
@@ -677,19 +828,18 @@ export default function CRM() {
                   aria-pressed={viewMode === 'grid'}
                   onClick={() => setViewMode('grid')}
                 >
-                  {t('شبكة', 'Grid')}
+                  <span className="sr-only">{t('شبكة', 'Grid')}</span>
+                  <NavIcon name="" />
                 </button>
               </div>
               <div className={styles.tableScroll}>
                 <table className="product-table">
-                  <thead>
+                  <thead className="sr-only">
                     <tr>
                       <th>{t('تحديد', 'Select')}</th>
-                      <th>{t('العميل', 'Customer')}</th>
-                      {cols.includes('contact') && <th>{t('التواصل', 'Contact')}</th>}
-                      {cols.includes('lifecycle') && <th>{t('المرحلة', 'Lifecycle')}</th>}
-                      {cols.includes('tags') && <th>{t('الوسوم', 'Tags')}</th>}
-                      <th />
+                      <th>{t('المشترك', 'Subscriber')}</th>
+                      <th>{t('الحالة', 'Status')}</th>
+                      <th>{t('الإجراءات', 'Actions')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -711,97 +861,95 @@ export default function CRM() {
                           />
                         </td>
                         <td>
-                          <button className="font-bold underline" onClick={() => setSelected(c)}>
-                            {c.name}
-                          </button>
-                          <div className="stack text-xs">
-                            {(c.lists ?? []).map((l) => (
-                              <span key={l.id}>
-                                {t('قائمة', 'List')}: {l.name}
-                              </span>
-                            ))}
-                            {(c.sequences ?? []).map((seq) => (
-                              <span key={seq.id}>
-                                {seq.name}: {seq.status}
-                              </span>
-                            ))}
-                            {(c.consents ?? []).map((consent) => (
-                              <span key={consent.channelId}>
-                                {filterChannels.data.find((ch) => ch.id === consent.channelId)
-                                  ?.name ?? t('قناة', 'Channel')}
-                                : {consent.status}
-                              </span>
-                            ))}
-                            {!(c.consents ?? []).length && (
-                              <span>
-                                {t('لا توجد موافقة تسويق موثقة', 'No documented marketing consent')}
-                              </span>
+                          <div className={styles.identity}>
+                            <span className={styles.rowAvatar} aria-hidden="true">
+                              {c.name.slice(0, 2)}
+                            </span>
+                            <div>
+                              <button
+                                className={styles.subscriberName}
+                                onClick={() => {
+                                  profileDismissed.current = false;
+                                  setSelected(c);
+                                }}
+                              >
+                                {c.name}
+                              </button>
+                              {cols.includes('contact') && (
+                                <small dir="ltr">{c.phone || c.email || '—'}</small>
+                              )}
+                              {cols.includes('tags') && (
+                                <div className={styles.inlineTags}>
+                                  {c.tags.map((x) => (
+                                    <button
+                                      type="button"
+                                      key={x}
+                                      title={t('تصفية بهذا الوسم', 'Filter by this label')}
+                                      onClick={() => {
+                                        setTag(x);
+                                        setPage(1);
+                                      }}
+                                    >
+                                      {x}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                              {cols.includes('id') && <small dir="ltr">{c.id}</small>}
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div className={styles.statePills}>
+                            <span data-tone={c.archived_at ? 'muted' : 'green'}>
+                              {c.archived_at ? t('مؤرشف', 'Archived') : t('نشط', 'Retained')}
+                            </span>
+                            <span
+                              data-tone={
+                                (c.consents || []).some(
+                                  (consent) =>
+                                    (!channelId || consent.channelId === channelId) &&
+                                    consent.status === 'opted_in',
+                                )
+                                  ? 'blue'
+                                  : 'muted'
+                              }
+                            >
+                              {(c.consents || []).some(
+                                (consent) =>
+                                  (!channelId || consent.channelId === channelId) &&
+                                  consent.status === 'opted_in',
+                              )
+                                ? t('مشترك', 'Subscribed')
+                                : t('موافقة غير موثقة', 'No opt-in')}
+                            </span>
+                            {cols.includes('lifecycle') && (
+                              <small>{statusLabel(c.lifecycle, t)}</small>
                             )}
                           </div>
                         </td>
-                        {cols.includes('contact') && <td>{c.email || c.phone || '—'}</td>}
-                        {cols.includes('lifecycle') && (
-                          <td>
-                            <span className="badge">{statusLabel(c.lifecycle, t)}</span>
-                          </td>
-                        )}
-                        {cols.includes('tags') && (
-                          <td>
-                            {c.tags.length
-                              ? c.tags.map((x) => (
-                                  <button
-                                    type="button"
-                                    key={x}
-                                    className="tag-chip"
-                                    title={t('تصفية بهذا الوسم', 'Filter by this tag')}
-                                    style={{ '--tag-hue': tagHue(x) } as CSSProperties}
-                                    onClick={() => {
-                                      setTag(x);
-                                      setPage(1);
-                                    }}
-                                  >
-                                    {x}
-                                  </button>
-                                ))
-                              : '—'}
-                          </td>
-                        )}
                         <td>
-                          <button
-                            className="btn"
-                            onClick={() => {
-                              setEdit(c.id);
-                              setForm({
-                                name: c.name || '',
-                                email: c.email || '',
-                                phone: c.phone || '',
-                                lifecycle: c.lifecycle,
-                                tags: c.tags.join(', '),
-                                ownerId: c.owner_id || '',
-                                attributes: JSON.stringify(c.attributes, null, 2),
-                              });
-                            }}
-                          >
-                            {t('تعديل', 'Edit')}
-                          </button>
-                          <button
-                            className="btn"
-                            disabled={busy || !canManage}
-                            onClick={() =>
-                              void act(
-                                '/crm/contacts/' + c.id + '/archive',
-                                { archived: !c.archived_at },
-                                'PATCH',
-                              ).catch(() => {})
-                            }
-                          >
-                            {c.archived_at ? t('استعادة', 'Restore') : t('أرشفة', 'Archive')}
-                          </button>
-                          {cols.includes('id') && (
-                            <small className="block select-all" dir="ltr">
-                              {c.id}
-                            </small>
-                          )}
+                          <div className={styles.rowActions}>
+                            <button
+                              type="button"
+                              className="btn"
+                              aria-label={t('ملف المشترك: ', 'Subscriber actions: ') + c.name}
+                              onClick={() => {
+                                profileDismissed.current = false;
+                                setSelected(c);
+                              }}
+                            >
+                              <NavIcon name="user" />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn"
+                              aria-label={t('تعديل: ', 'Edit: ') + c.name}
+                              onClick={() => editContact(c)}
+                            >
+                              <NavIcon name="edit" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -853,7 +1001,10 @@ export default function CRM() {
                 key={selected.id}
                 contactId={selected.id}
                 canManage={canManage}
-                onClose={() => setSelected(null)}
+                onClose={() => {
+                  profileDismissed.current = true;
+                  setSelected(null);
+                }}
                 onChanged={() => {
                   void contacts.reload();
                   void summary.reload();

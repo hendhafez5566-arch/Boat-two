@@ -1,0 +1,176 @@
+.inbox {
+  display: flex;
+  flex-direction: row;
+  height: 100dvh !important;
+  min-height: 0 !important;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: hidden;
+  background: #fafafa;
+  font:
+    400 14px/21px 'Plus Jakarta Sans Variable',
+    Arial,
+    sans-serif;
+}
+.rail {
+  width: 76px;
+  flex-shrink: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  align-items: center;
+  border-inline-end: 1px solid #f0f1f4;
+}
+.rail > button {
+  margin: 18px 0 20px;
+}
+.rail button,
+.rail a {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 50px;
+  height: 48px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: #080b0e;
+  cursor: pointer;
+}
+.rail button svg,
+.rail a svg {
+  width: 23px;
+  height: 23px;
+}
+.railTabs {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  align-items: center;
+  justify-content: space-around;
+  overflow: auto;
+}
+.railTabs button[aria-pressed='true'] {
+  color: #7549ed;
+  background: #fbf9ff;
+}
+.rail > a {
+  margin-top: auto;
+  margin-bottom: 10px;
+}
+.body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  height: 100dvh;
+}
+.inbox :global(.inbox-list) {
+  width: 380px;
+  flex: none;
+  background: #f8f8fb;
+  border: 0;
+}
+.searchBar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #f8f8fb;
+  padding: 20px 8px 18px;
+}
+.searchBar :global(.inbox-search) {
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 6px 0 0 6px;
+  box-shadow: 0 2px 5px #25313b08;
+  height: 40px;
+  min-height: 40px;
+  width: 0;
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.searchBar button {
+  display: grid;
+  place-items: center;
+  height: 40px;
+  width: 40px;
+  flex: none;
+  border: 1px solid #e4e2eb;
+  background: #fff;
+  border-radius: 5px;
+  color: #7549ed;
+}
+.searchBar .filterButton {
+  background: #7549ed;
+  color: #fff;
+  border-color: #7549ed;
+  border-radius: 0;
+  margin-inline-start: -4px;
+}
+.inbox :global(.inbox-list) :global(ul) {
+  padding: 0 8px;
+}
+.inbox :global(.inbox-list) :global(.inbox-item) {
+  background: #fff;
+  border-radius: 0;
+  border-bottom: 1px solid #eef0f4;
+  padding: 12px 16px;
+}
+.empty {
+  margin: auto;
+  text-align: center;
+  padding: 30px;
+  color: #111;
+}
+.empty img {
+  width: 300px;
+  max-width: 80%;
+  margin: 0 auto 20px;
+  display: block;
+}
+.empty h1 {
+  color: #8060d6;
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 400;
+  margin: 0 0 8px;
+}
+.empty h2 {
+  font-size: 14px;
+  font-weight: 400;
+  margin: 0 0 6px;
+}
+.empty p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 21px;
+}
+@media (max-width: 900px) {
+  .inbox :global(.inbox-list) {
+    width: 320px;
+  }
+  .rail {
+    width: 60px;
+  }
+}
+@media (max-width: 767px) {
+  .rail {
+    width: 52px;
+  }
+  .rail button,
+  .rail a {
+    width: 42px;
+    height: 40px;
+  }
+  .inbox :global(.inbox-list) {
+    width: 100%;
+  }
+  .empty {
+    padding: 20px;
+  }
+}

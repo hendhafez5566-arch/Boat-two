@@ -2162,6 +2162,17 @@ button.underline {
   .bs-shell.nav-collapsed .nav-more-btn { justify-content: center; padding-inline: 0; }
 }
 
+/* The inbox owns its compact filter rail and opens the workspace navigation as a drawer. */
+.product-shell.inbox-shell { display: block; }
+.inbox-shell .product-sidebar { display: none; position: fixed; inset-block: 0; inset-inline-start: 0; width: 260px; z-index: 100; }
+.inbox-shell .product-sidebar.is-open { display: flex; }
+.inbox-shell .product-sidebar .nav-label, .inbox-shell .product-sidebar .brand > span:not(.brand-mark), .inbox-shell .product-sidebar .nav-chevron { display: block; }
+.inbox-shell .product-sidebar nav a, .inbox-shell .nav-more-btn { justify-content: flex-start; padding-inline: 12px; }
+.inbox-shell .product-sidebar .nav-more-panel.is-open { display: block; }
+.inbox-shell .bs-scrim { display: block; position: fixed; inset: 0; z-index: 90; background: #0f172a40; }
+.inbox-shell .focused-workspace > div { height: 100dvh; }
+.inbox-shell .focused-workspace { padding: 0; }
+
 /* topbar */
 .bs-shell .product-content { min-width: 0; flex: 1; }
 .bs-shell .product-content > .product-topbar.bs-topbar {

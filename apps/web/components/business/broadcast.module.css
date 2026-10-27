@@ -1,14 +1,18 @@
 .page {
   display: grid;
   gap: 18px;
+  font:
+    400 14px/21px 'Plus Jakarta Sans Variable',
+    Arial,
+    sans-serif;
   min-width: 0;
 }
 .mode {
   display: flex;
   gap: 6px;
   align-items: center;
-  padding: 4px;
-  background: #eeedf7;
+  padding: 0;
+  background: transparent;
   border-radius: 10px;
   justify-self: start;
 }
@@ -16,7 +20,8 @@
   padding: 9px 22px;
   border: 0;
   border-radius: 7px;
-  background: transparent;
+  background: white;
+  border: 1px solid #e5e9f0;
   color: #53687c;
   font: inherit;
   font-size: 13px;
@@ -39,7 +44,7 @@
 .filters select {
   width: 100%;
   min-width: 0;
-  min-height: 44px;
+  min-height: 52px;
   border: 1px solid #e0e7f0;
   border-radius: 8px;
   padding: 10px;
@@ -59,21 +64,28 @@
   gap: 12px;
 }
 .statistics article {
-  padding: 18px;
+  padding: 16px;
+  min-height: 108px;
+  grid-template-columns: 40px minmax(0, 1fr);
+  column-gap: 14px;
+  row-gap: 4px;
   border: 1px solid #e5ebf3;
   border-radius: 14px;
   background: white;
   box-shadow: 0 4px 16px #233a4b06;
   display: grid;
-  gap: 10px;
 }
-.statistics span {
-  font-size: 12px;
-  color: #526c82;
+.statistics article > span:not(.statIcon) {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: 11px;
+  color: #7b8490;
 }
 .statistics strong {
-  font-size: 24px;
-  font-weight: 600;
+  grid-column: 2;
+  grid-row: 2;
+  font-size: 20px;
+  font-weight: 400;
   color: #293f55;
 }
 .pagination {
@@ -117,5 +129,178 @@
   }
   .statistics article {
     padding: 14px;
+  }
+}
+
+.heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 20px;
+}
+.heading > div:first-child {
+  max-width: 350px;
+}
+.heading h1 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 29px;
+  font-weight: 600;
+}
+.heading p {
+  margin: 5px 0 0;
+  font-size: 13px;
+  color: #78828d;
+}
+.headActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.headActions :global(.btn),
+.mode button {
+  min-height: 42px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.headActions svg {
+  width: 15px;
+  height: 15px;
+}
+.channelTabs {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.channelTabs button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border: 1px solid #e6e8ef;
+  border-radius: 8px;
+  background: #fff;
+  color: #56616e;
+  font:
+    600 12px/18px 'Plus Jakarta Sans Variable',
+    Arial,
+    sans-serif;
+  cursor: pointer;
+}
+.channelTabs button[aria-pressed='true'] {
+  background: #efedff;
+  color: #5141e3;
+  border-color: #e5e1fb;
+}
+.channelTabs svg {
+  width: 14px;
+  height: 14px;
+}
+.currentBot {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  border: 1px solid #e6ebf0;
+  background: #ffffff80;
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: #78828d;
+}
+.currentBot svg {
+  width: 15px;
+  height: 15px;
+  color: #7565dd;
+}
+.currentBot strong {
+  color: #374151;
+  font-weight: 500;
+}
+.statIcon {
+  grid-column: 1;
+  grid-row: 1 / 4;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #f1f0ff;
+  color: #5141e3;
+}
+.statIcon[data-tone='completed'] {
+  background: #e1fbed;
+  color: #33b47c;
+}
+.statIcon[data-tone='readRate'] {
+  background: #fff7cf;
+  color: #e9b01c;
+}
+.statIcon[data-tone='failed'] {
+  background: #fde9f5;
+  color: #d14e9b;
+}
+.statIcon svg {
+  width: 22px;
+  height: 22px;
+}
+.statistics small {
+  grid-column: 2;
+  grid-row: 3;
+  font-size: 11px;
+  color: #89929d;
+}
+.campaignCard {
+  background: #fff;
+  border: 1px solid #edf0f3;
+  border-radius: 18px;
+  padding: 28px;
+  box-shadow: 0 4px 12px #263b4d08;
+  min-width: 0;
+}
+.campaignCard .filters {
+  border: 0;
+  border-radius: 0;
+  padding: 0 0 20px;
+}
+.campaignTable {
+  overflow: auto;
+  border: 1px solid #e9edf2;
+  border-radius: 12px;
+}
+.campaignTable :global(.product-table) {
+  min-width: 920px;
+}
+.campaignTable :global(.product-table) th {
+  text-transform: uppercase;
+  font-size: 10px;
+  padding: 14px 12px;
+  color: #78828f;
+}
+.campaignCard .pagination {
+  background: #fafbfe;
+  padding: 14px;
+  border: 1px solid #edf0f3;
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+}
+@media (max-width: 1000px) {
+  .heading {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 700px) {
+  .campaignCard {
+    padding: 16px;
+  }
+  .statistics article {
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 5px 10px;
+  }
+  .statIcon {
+    width: 32px;
+    height: 32px;
   }
 }

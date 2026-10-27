@@ -1,4 +1,9 @@
 const paths: Record<string, string> = {
+  star: 'm12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1 3-6Z',
+  unread: 'M3 3l18 18M4 9a8 8 0 0 0 14 9M9 4a8 8 0 0 1 11 11M3 21l2-5',
+  archive: 'M3 4h18v5H3V4Zm2 5v12h14V9M9 13h6',
+  blocked: 'M6 6l12 12M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+  filter: 'M3 4h18l-7 8v8l-4-2v-6L3 4Z',
   copy: 'M8 8h12v13H8V8ZM16 8V3H3v13h5',
   edit: 'm15 4 5 5M4 20l5-1L21 7l-5-5L4 14v6Z',
   export: 'M4 10v11h16V10M12 16V2m-5 5 5-5 5 5',
