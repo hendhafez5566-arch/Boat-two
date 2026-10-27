@@ -213,3 +213,75 @@
     border: 0;
   }
 }
+
+.labelEditor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  padding: 6px;
+  border: 1px solid #e9e7ef;
+  border-radius: 5px;
+}
+.labelEditor > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #f1edfc;
+  border-radius: 4px;
+  padding: 4px 7px;
+}
+.labelEditor button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+}
+.labelEditor input {
+  flex: 1 1 160px;
+  padding: 5px;
+  border: 0;
+}
+.followupForm {
+  display: grid;
+  gap: 18px;
+}
+.followupForm p {
+  margin: 0;
+  color: #737984;
+}
+.followupForm label {
+  display: grid;
+  gap: 8px;
+}
+.followupForm input {
+  width: 100%;
+  border: 1px solid #e9e7ef;
+  border-radius: 6px;
+  padding: 11px;
+  font: inherit;
+}
+.quickTimes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.quickTimes button {
+  border: 1px solid #e9e7ef;
+  border-radius: 5px;
+  background: #fff;
+  padding: 7px 11px;
+  cursor: pointer;
+  color: #7550dd;
+}
+.followupForm footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.listControls {
+  display: grid;
+  gap: 7px;
+  margin-top: 8px;
+}

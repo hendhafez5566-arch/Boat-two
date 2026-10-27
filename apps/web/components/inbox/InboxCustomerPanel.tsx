@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { api } from '../../lib/api';
 import { useData } from '../business/useData';
 import { useLocale } from '../product/locale';
+import { Dialog } from '../product/ProductUI';
 import { NavIcon } from '../product/NavIcon';
 import styles from './inbox-customer-panel.module.css';
 type Props = {
@@ -33,8 +34,52 @@ export function InboxCustomerPanel({
 }: Props) {
   const { t, language } = useLocale();
   const profile = useData<any>(`/crm/contacts/${detail.contact_id}/profile`, null);
+  const lists = useData<any[]>(canManage ? '/contact-lists' : null, []);
+  const [listBusy, setListBusy] = useState(false);
+  const [listName, setListName] = useState('');
   const [more, setMore] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [labels, setLabels] = useState<string[]>(detail.contact_tags || []);
+  const [labelText, setLabelText] = useState('');
+  const [followupOpen, setFollowupOpen] = useState(false);
+  const [followupBusy, setFollowupBusy] = useState(false);
+  const [followupError, setFollowupError] = useState('');
+  const [dueAt, setDueAt] = useState('');
+  const [reason, setReason] = useState('');
+  function quickTime(hours: number) {
+    const date = new Date(Date.now() + hours * 3600000);
+    date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+    setDueAt(date.toISOString().slice(0, 16));
+  }
+  function openFollowup() {
+    quickTime(24);
+    setFollowupError('');
+    setFollowupOpen(true);
+  }
+  async function saveFollowup(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (followupBusy || !reason.trim() || !dueAt) return;
+    setFollowupBusy(true);
+    setFollowupError('');
+    try {
+      await api('/crm/tasks', {
+        method: 'POST',
+        body: JSON.stringify({
+          contactId: detail.contact_id,
+          title: reason.trim(),
+          dueAt: new Date(dueAt).toISOString(),
+          assignedTo: detail.assigned_to || null,
+        }),
+      });
+      setReason('');
+      setFollowupOpen(false);
+      await profile.reload();
+    } catch (error) {
+      setFollowupError((error as Error).message);
+    } finally {
+      setFollowupBusy(false);
+    }
+  }
   const contact = profile.data?.contact;
   const timeline = profile.data?.timeline;
   const allNotes = [...notes, ...(timeline?.notes || [])];
@@ -47,26 +92,56 @@ export function InboxCustomerPanel({
     detail.channel_type === 'whatsapp' &&
     (!detail.whatsapp_window_expires_at ||
       new Date(detail.whatsapp_window_expires_at) <= new Date());
+  async function assignList(id: string) {
+    if (!canManage || listBusy || !id) return;
+    setListBusy(true);
+    try {
+      await api(`/contact-lists/${id}/members`, {
+        method: 'POST',
+        body: JSON.stringify({ contactId: detail.contact_id }),
+      });
+      await profile.reload();
+    } catch (error) {
+      onError((error as Error).message);
+    } finally {
+      setListBusy(false);
+    }
+  }
+  async function createList() {
+    if (!canManage || listBusy || !listName.trim()) return;
+    setListBusy(true);
+    try {
+      const list = await api<any>('/contact-lists', {
+        method: 'POST',
+        body: JSON.stringify({ name: listName.trim() }),
+      });
+      await api(`/contact-lists/${list.id}/members`, {
+        method: 'POST',
+        body: JSON.stringify({ contactId: detail.contact_id }),
+      });
+      setListName('');
+      await Promise.all([profile.reload(), lists.reload()]);
+    } catch (error) {
+      onError((error as Error).message);
+    } finally {
+      setListBusy(false);
+    }
+  }
   async function saveTags(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canManage || !contact || saving) return;
-    const form = new FormData(event.currentTarget);
+
     setSaving(true);
     try {
       await api(`/crm/contacts/${detail.contact_id}/profile`, {
         method: 'PATCH',
         body: JSON.stringify({
-          tags: [
-            ...new Set(
-              String(form.get('tags') || '')
-                .split(',')
-                .map((x) => x.trim())
-                .filter(Boolean),
-            ),
-          ],
+          tags: [...new Set([...labels, labelText.trim()].filter(Boolean))],
           expectedUpdatedAt: contact.updated_at,
         }),
       });
+      setLabels([...new Set([...labels, labelText.trim()].filter(Boolean))]);
+      setLabelText('');
       await profile.reload();
       await onRefresh();
     } catch (error) {
@@ -303,14 +378,39 @@ export function InboxCustomerPanel({
           <form onSubmit={saveTags}>
             <label>
               {t('الوسوم', 'Labels')}
-              <input
-                name="tags"
-                disabled={!canManage}
-                key={(detail.contact_tags || []).join(',')}
-                defaultValue={(detail.contact_tags || []).join(', ')}
-                placeholder={t('وسوم مفصولة بفاصلة', 'Comma-separated labels')}
-                maxLength={1500}
-              />
+              <div className={styles.labelEditor}>
+                {labels.map((label) => (
+                  <span key={label}>
+                    {label}
+                    <button
+                      type="button"
+                      disabled={!canManage || saving}
+                      aria-label={`${t('إزالة الوسم', 'Remove label')} ${label}`}
+                      onClick={() => setLabels(labels.filter((value) => value !== label))}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                <input
+                  name="tags"
+                  disabled={!canManage || saving || labels.length >= 30}
+                  value={labelText}
+                  onChange={(event) => setLabelText(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+                    event.preventDefault();
+                    if (!labelText.trim() || labels.length >= 30) return;
+                    setLabels([...new Set([...labels, labelText.trim()])]);
+                    setLabelText('');
+                  }}
+                  placeholder={t(
+                    'اكتب اسمًا واضغط Enter لإضافة وسم',
+                    'Type a name and hit Enter to add a label',
+                  )}
+                  maxLength={50}
+                />
+              </div>
             </label>
             <button className={styles.secondary} disabled={!canManage || !contact || saving}>
               {saving ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ الوسوم', 'Save labels')}
@@ -325,6 +425,46 @@ export function InboxCustomerPanel({
                 <small>{t('لا توجد قوائم', 'No lists assigned')}</small>
               )}
             </div>
+            {canManage && (
+              <div className={styles.listControls}>
+                {lists.error && <small role="alert">{lists.error}</small>}
+                <select
+                  aria-label={t('إضافة إلى قائمة', 'Add to list')}
+                  value=""
+                  disabled={listBusy || lists.loading}
+                  onChange={(event) => void assignList(event.target.value)}
+                >
+                  <option value="">{t('اختر قائمة', 'Select a list')}</option>
+                  {(lists.data || [])
+                    .filter(
+                      (list) =>
+                        !profile.data?.lists?.some((assigned: any) => assigned.id === list.id),
+                    )
+                    .map((list) => (
+                      <option key={list.id} value={list.id}>
+                        {list.name}
+                      </option>
+                    ))}
+                </select>
+                <input
+                  aria-label={t('قائمة جديدة', 'New list')}
+                  value={listName}
+                  disabled={listBusy}
+                  maxLength={120}
+                  placeholder={t(
+                    'اكتب اسمًا واضغط Enter لإنشاء قائمة',
+                    'Type a name and hit Enter to create a list',
+                  )}
+                  onChange={(event) => setListName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                      event.preventDefault();
+                      void createList();
+                    }
+                  }}
+                />
+              </div>
+            )}
           </div>
           <div>
             <span>{t('تسلسل الرسائل', 'Message Sequence')}</span>
@@ -362,7 +502,7 @@ export function InboxCustomerPanel({
           </label>
         </div>
       </details>
-      <details className={styles.card}>
+      <details open className={styles.card}>
         <summary>
           {t('الحقول المخصصة', 'Custom Fields')}
           <NavIcon name="chevron" />
@@ -379,9 +519,10 @@ export function InboxCustomerPanel({
           )}
         </dl>
       </details>
-      <details className={styles.card}>
+      <details open className={styles.card}>
         <summary>
-          {t('المتابعات', 'Follow-ups')} ({timeline?.tasks?.length || 0})<NavIcon name="chevron" />
+          {t('سجل المتابعات', 'Follow-up History')} ({timeline?.tasks?.length || 0})
+          <NavIcon name="chevron" />
         </summary>
         <div className={styles.fields}>
           {timeline?.tasks?.length ? (
@@ -393,12 +534,12 @@ export function InboxCustomerPanel({
           ) : (
             <p>{t('لا توجد متابعات', 'No follow-up history')}</p>
           )}
-          <Link href={`/dashboard/crm?contact=${detail.contact_id}`}>
-            {t('إدارة المتابعات', 'Manage follow-ups')}
-          </Link>
+          <button className={styles.secondary} onClick={openFollowup}>
+            + {t('إضافة متابعة', 'Add Follow-up')}
+          </button>
         </div>
       </details>
-      <details className={styles.card}>
+      <details open className={styles.card}>
         <summary>
           {t('ملاحظات', 'Notes')} ({allNotes.length || 0})<NavIcon name="chevron" />
         </summary>
@@ -418,6 +559,65 @@ export function InboxCustomerPanel({
           </button>
         </div>
       </details>
+      <Dialog
+        open={followupOpen}
+        onClose={() => {
+          if (!followupBusy) setFollowupOpen(false);
+        }}
+        title={t('تعيين متابعة', 'Set Follow-up')}
+      >
+        <form className={styles.followupForm} onSubmit={saveFollowup}>
+          <p>{t('حدد موعد تذكير وسبب المتابعة', 'Schedule a reminder with a reason')}</p>
+          {followupError && <p role="alert">{followupError}</p>}
+          <label>
+            {t('التاريخ والوقت', 'Date & Time')} *
+            <input
+              required
+              type="datetime-local"
+              value={dueAt}
+              onChange={(event) => setDueAt(event.target.value)}
+              disabled={followupBusy}
+            />
+          </label>
+          <div className={styles.quickTimes}>
+            {[1, 2, 4, 6, 12, 24].map((hours) => (
+              <button
+                type="button"
+                key={hours}
+                disabled={followupBusy}
+                onClick={() => quickTime(hours)}
+              >
+                {hours === 24
+                  ? t('يوم واحد', '1 Day')
+                  : `${hours} ${t('ساعة', hours === 1 ? 'Hour' : 'Hours')}`}
+              </button>
+            ))}
+          </div>
+          <label>
+            {t('السبب', 'Reason')} *
+            <input
+              required
+              maxLength={200}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              disabled={followupBusy}
+            />
+          </label>
+          <footer>
+            <button
+              type="button"
+              className={styles.secondary}
+              disabled={followupBusy}
+              onClick={() => setFollowupOpen(false)}
+            >
+              {t('إلغاء', 'Cancel')}
+            </button>
+            <button className="btn btn-primary" disabled={followupBusy || !reason.trim() || !dueAt}>
+              {followupBusy ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ المتابعة', 'Save Follow-up')}
+            </button>
+          </footer>
+        </form>
+      </Dialog>
     </aside>
   );
 }
