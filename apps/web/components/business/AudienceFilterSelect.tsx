@@ -1,5 +1,5 @@
 'use client';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useLocale } from '../product/locale';
 import styles from './audience-filter-select.module.css';
 
@@ -18,12 +18,27 @@ export function AudienceFilterSelect({
 }) {
   const { t } = useLocale();
   const id = useId();
+  const root = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const closeOutside = (event: PointerEvent) => {
+      if (root.current && !root.current.contains(event.target as Node)) root.current.open = false;
+    };
+    document.addEventListener('pointerdown', closeOutside);
+    return () => document.removeEventListener('pointerdown', closeOutside);
+  }, []);
   const [query, setQuery] = useState('');
   return (
     <div className={styles.field}>
       <span id={id}>{label}</span>
       <details
         className={styles.select}
+        ref={root}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.currentTarget.open = false;
+            event.currentTarget.querySelector('summary')?.focus();
+          }
+        }}
         onBlur={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
         }}
