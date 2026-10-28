@@ -76,8 +76,19 @@ export default function AccountPanel({
     );
   if (section === 'appointment_booking') return <Commerce initialTab="appointments" />;
   if (section === 'product_catalog') return <Commerce initialTab="products" />;
-  if (section === 'integrations' || section === 'autoresponder' || section === 'webhook_workflows')
-    return <Integrations />;
+  if (section === 'webhook_workflows')
+    return (
+      <section className="stack">
+        <h1>{t('مسارات Webhook', 'Webhook Workflows')}</h1>
+        <p>
+          {t(
+            'مسارات Webhook غير متاحة في هذه النسخة بعد.',
+            'Webhook workflows are not available in this version yet.',
+          )}
+        </p>
+      </section>
+    );
+  if (section === 'integrations' || section === 'autoresponder') return <Integrations />;
   if (section === 'ai_agents') return <Agents />;
   if (section === 'knowledge') return <Knowledge />;
   return (

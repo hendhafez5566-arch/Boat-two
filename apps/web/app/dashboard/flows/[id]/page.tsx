@@ -1337,9 +1337,6 @@ function Editor({ id }: { id: string }) {
                 >
                   {focused ? t('إنهاء التركيز', 'Exit focus') : t('ملء الشاشة', 'Full screen')}
                 </button>
-                <a href={channelHref(`/dashboard/flows/${id}/workspace`, accountContext)}>
-                  {t('تفاصيل التدفق', 'Flow details')}
-                </a>
                 {meta.status === 'published' && (
                   <button type="button" disabled={busy} onClick={unpublish}>
                     {t('إيقاف النشر', 'Unpublish')}

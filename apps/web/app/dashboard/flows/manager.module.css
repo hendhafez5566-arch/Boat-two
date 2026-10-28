@@ -412,37 +412,6 @@
   width: 13px;
   height: 13px;
 }
-.actionMenu {
-  position: relative;
-}
-.menu {
-  position: fixed;
-  z-index: 60;
-  width: 200px;
-  border: 1px solid #e1e7f0;
-  border-radius: 10px;
-  background: white;
-  box-shadow: 0 12px 30px #23354925;
-  padding: 5px;
-  display: grid;
-}
-.menu a,
-.menu button {
-  display: block;
-  background: transparent;
-  border: 0;
-  border-radius: 5px;
-  text-align: start;
-  padding: 10px;
-  color: #253549;
-  font: inherit;
-  font-size: 12px;
-  line-height: 1.4;
-}
-.menu a:hover,
-.menu button:hover {
-  background: #f3f1fa;
-}
 .empty {
   text-align: center;
   padding: 55px 20px !important;
@@ -477,26 +446,6 @@
   min-height: 34px;
   font-size: 12px;
 }
-.import {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-  color: #586679;
-  font-size: 12px;
-}
-.import label {
-  position: relative;
-  overflow: hidden;
-  cursor: pointer;
-}
-.import input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-  width: 100%;
-}
 .form {
   display: grid;
   gap: 18px;
@@ -511,12 +460,6 @@
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
-}
-.form .checkbox {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 400;
 }
 .formActions {
   display: flex;
@@ -642,4 +585,45 @@
     align-items: start;
     flex-wrap: wrap;
   }
+}
+
+.managerOptions {
+  position: relative;
+}
+.managerOptions > button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.managerOptions svg {
+  width: 14px;
+  height: 14px;
+}
+.optionsMenu {
+  position: absolute;
+  inset-inline-end: 0;
+  top: calc(100% + 5px);
+  width: 220px;
+  z-index: 30;
+  background: #fff;
+  border: 1px solid #e6e9ef;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px #25313b1a;
+  padding: 5px;
+}
+.optionsMenu button {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  padding: 10px 12px;
+  text-align: start;
+  font: inherit;
+  font-size: 12px;
+  color: #596574;
+  cursor: pointer;
+}
+.optionsMenu button:hover {
+  background: #f4f1ff;
+  color: #6551df;
 }

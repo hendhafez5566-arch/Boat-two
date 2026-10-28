@@ -801,77 +801,8 @@ button.card:hover {
   font-size: 0.8rem;
 }
 
-/* ───────────── 7. Bot creation wizard ───────────── */
-.bot-wizard {
-  max-width: 1180px;
-}
-.wizard-stepper {
-  gap: 0;
-  margin: 0 0 24px;
-  padding: 14px 18px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-xs);
-  counter-reset: none;
-}
-.wizard-stepper li {
-  flex: 1;
-  justify-content: flex-start;
-  gap: 9px;
-  color: var(--faint);
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-.wizard-stepper li:not(:last-child)::after {
-  content: '';
-  flex: 1;
-  height: 2px;
-  margin-inline: 10px;
-  border-radius: 2px;
-  background: var(--line);
-}
-.wizard-stepper li.is-complete:not(:last-child)::after {
-  background: var(--primary);
-}
-.wizard-stepper li > span {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  background: #eceff5;
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-.wizard-stepper li.is-current {
-  color: var(--ink);
-}
-.wizard-stepper li.is-current > span {
-  background: var(--primary);
-  color: #fff;
-  box-shadow: var(--ring);
-}
-.wizard-stepper li.is-complete {
-  color: var(--ink-2);
-}
-.wizard-stepper li.is-complete > span {
-  background: var(--primary);
-  color: #fff;
-}
-.wizard-layout {
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 24px;
-  align-items: start;
-}
-.wizard-content {
-  padding: 32px;
-  min-height: 480px;
-}
-.wizard-content > h2,
-.wizard-content > .stack > h2 {
-  font-size: 1.45rem;
-  margin: 0 0 6px;
-}
+/* Shared cards and phone preview */
+
 .goal-grid {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 14px;
@@ -920,15 +851,7 @@ button.card:hover {
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E")
     center / 12px no-repeat;
 }
-.wizard-footer {
-  margin-top: 28px;
-  padding-top: 20px;
-}
-.wizard-companion {
-  padding: 0;
-  position: sticky;
-  top: calc(var(--topbar-h) + 20px);
-}
+
 .phone-preview {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -1003,21 +926,6 @@ button.card:hover {
   color: var(--primary);
   font-size: 0.82rem;
   font-weight: 600;
-}
-.wizard-tip {
-  margin: 14px 4px 0;
-  color: var(--muted);
-  font-size: 0.8rem;
-  line-height: 1.8;
-}
-.wizard-preview > div {
-  border-radius: var(--radius-md);
-}
-.wizard-review {
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--surface-muted);
 }
 
 /* ───────────── 8. Visual builder ───────────── */
@@ -1224,23 +1132,7 @@ button.card:hover {
 }
 
 /* ───────────── 10. Responsive ───────────── */
-@media (max-width: 1100px) {
-  .wizard-layout {
-    grid-template-columns: minmax(0, 1fr) 280px;
-  }
-}
-@media (max-width: 900px) {
-  .wizard-layout {
-    grid-template-columns: 1fr;
-  }
-  .wizard-companion {
-    display: block;
-    position: static;
-  }
-  .wizard-stepper li:not(:last-child)::after {
-    margin-inline: 6px;
-  }
-}
+
 @media (max-width: 700px) {
   :root {
     --topbar-h: 58px;
@@ -1262,15 +1154,7 @@ button.card:hover {
     width: 100%;
     justify-content: flex-end;
   }
-  .wizard-content {
-    padding: 20px;
-  }
-  .wizard-stepper {
-    padding: 12px;
-  }
-  .wizard-companion {
-    display: none;
-  }
+
 }
 @media (max-width: 760px) {
   .auth-experience {
@@ -2101,9 +1985,7 @@ button.underline {
 }
 
 @media (max-width:480px) {
-  .wizard-stepper {gap:4px;padding:8px;}
-  .wizard-stepper li {gap:0;min-width:0;justify-content:center;}
-  .wizard-stepper li:not(:last-child)::after {display:none;}
+
   .account-actions > div {position:fixed;inset-inline:12px;top:calc(var(--topbar-h) + 8px);min-width:0;width:auto;}
 }
 
