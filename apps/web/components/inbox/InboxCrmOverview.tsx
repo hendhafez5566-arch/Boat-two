@@ -54,8 +54,11 @@ export function InboxCrmOverview({
     };
     return labels[String(score)] ?? score ?? '—';
   };
-  const date = (value: string) =>
-    value ? new Date(value).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US') : '—';
+  const date = (value: string) => {
+    if (!value) return '—';
+    const [year, month, day] = value.slice(0, 10).split('-').map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US');
+  };
   function edit() {
     if (!contact || pipelines.loading) return;
     const pipeline =
@@ -72,7 +75,7 @@ export function InboxCrmOverview({
       expectedClose: deal?.expected_close ? String(deal.expected_close).slice(0, 10) : '',
       ownerId: deal?.owner_id || '',
       score: contact.attributes?.lead_score == null ? '' : String(contact.attributes.lead_score),
-      source: contact.attributes?.source || '',
+      source: String(contact.attributes?.source ?? ''),
     });
     setError('');
   }
