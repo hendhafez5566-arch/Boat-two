@@ -220,3 +220,98 @@
     min-height: 0;
   }
 }
+.profileHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.profileHeading > button {
+  color: #5141e3;
+  border-color: #dedaf5;
+}
+.profilesTable {
+  min-width: 420px;
+}
+.rowActions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.emptyProfiles {
+  text-align: center;
+  height: 100px;
+}
+.panel > .tools {
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+.panel > .footer {
+  margin-top: 20px;
+}
+.integrationDialog {
+  width: 800px;
+  max-width: calc(100vw - 32px);
+  border-radius: 16px;
+}
+.integrationForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 158px;
+  gap: 24px;
+  padding: 12px 12px 28px;
+}
+.profileFields {
+  display: grid;
+  gap: 16px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.profileFields label {
+  color: #6c737d;
+  font-size: 11px;
+}
+.profileFields input {
+  min-height: 48px;
+  font-size: 13px;
+}
+.providerNav {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+}
+.providerNav button {
+  border: 0;
+  border-radius: 7px;
+  padding: 10px 14px;
+  background: transparent;
+  color: #3677cf;
+  text-align: start;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.providerNav button[aria-pressed='true'] {
+  background: #f5f2ff;
+  color: #5141e3;
+}
+.providerNav button:disabled {
+  cursor: default;
+}
+.profileSave {
+  border-top: 1px solid #e6e8ec;
+  padding-top: 20px;
+}
+@media (max-width: 700px) {
+  .integrationForm {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .providerNav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    grid-row: 1;
+  }
+}

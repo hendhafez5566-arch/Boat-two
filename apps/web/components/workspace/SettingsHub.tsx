@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import { useLocale } from '../product/locale';
 import { NavIcon } from '../product/NavIcon';
-import WorkspaceSettings from './WorkspaceSettingsPanel';
 import Sessions from './SessionsPanel';
 import Audit from './AuditPanel';
 import Integrations from './IntegrationsPanel';
@@ -17,11 +16,16 @@ export default function SettingsHub() {
       const query = new URLSearchParams(window.location.search);
       const value = query.get('tab') || query.get('action');
       setTab(
-        value === 'workspace'
-          ? 'workspace'
-          : value && value !== 'security' && value !== 'security-tab'
-            ? 'integrations'
-            : 'security',
+        [
+          'integrations',
+          'email-tab',
+          'sms-tab',
+          'emailauto-tab',
+          'salla-tab',
+          'thirdparty-api-tab',
+        ].includes(value || '')
+          ? 'integrations'
+          : 'security',
       );
     };
     read();
@@ -47,11 +51,7 @@ export default function SettingsHub() {
           role="tablist"
           aria-label={t('أقسام الإعدادات', 'Settings sections')}
         >
-          <button
-            role="tab"
-            aria-selected={tab === 'security' || tab === 'workspace'}
-            onClick={() => select('security')}
-          >
+          <button role="tab" aria-selected={tab === 'security'} onClick={() => select('security')}>
             <NavIcon name="shield" />
             {t('الأمان', 'Security')}
             <small>{t('الإعدادات', 'Settings')}</small>
@@ -79,7 +79,9 @@ export default function SettingsHub() {
                 ? t('تكاملات API', 'API Integration')
                 : t('الأمان', 'Security')}
             </h2>
-            <p>{t('الإعدادات', 'Settings')}</p>
+            <p>
+              {tab === 'integrations' ? t('التكاملات', 'Integration') : t('الإعدادات', 'Settings')}
+            </p>
           </header>
           <AccountWorkspaceContext.Provider value={true}>
             {tab === 'integrations' ? (
@@ -93,7 +95,7 @@ export default function SettingsHub() {
                 >
                   <button
                     role="tab"
-                    aria-selected={tab !== 'workspace' && security === 'devices'}
+                    aria-selected={security === 'devices'}
                     onClick={() => {
                       select('security');
                       setSecurity('devices');
@@ -105,7 +107,7 @@ export default function SettingsHub() {
                   </button>
                   <button
                     role="tab"
-                    aria-selected={tab !== 'workspace' && security === 'activity'}
+                    aria-selected={security === 'activity'}
                     onClick={() => {
                       select('security');
                       setSecurity('activity');
@@ -115,24 +117,9 @@ export default function SettingsHub() {
                     {t('سجل النشاط', 'Activity Logs')}
                     <small>{t('السجلات', 'Logs')}</small>
                   </button>
-                  <button
-                    role="tab"
-                    aria-selected={tab === 'workspace'}
-                    onClick={() => select('workspace')}
-                  >
-                    <NavIcon name="settings" />
-                    {t('إعدادات الشركة', 'Workspace Settings')}
-                    <small>{t('الإعدادات', 'Settings')}</small>
-                  </button>
                 </nav>
                 <div className={styles.panel}>
-                  {tab === 'workspace' ? (
-                    <WorkspaceSettings />
-                  ) : security === 'devices' ? (
-                    <Sessions />
-                  ) : (
-                    <Audit />
-                  )}
+                  {security === 'devices' ? <Sessions /> : <Audit />}
                 </div>
               </div>
             )}
