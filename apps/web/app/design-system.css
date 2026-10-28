@@ -2254,57 +2254,6 @@ button.underline {
 @media (max-width: 380px) { .bs-meters .bs-meter:nth-child(3) { display: none; } }
 [dir='rtl'] .bs-shell .nav-more-btn .nav-chevron { transform-origin: center; }
 
-/* ───────────── 100. Stage 2 — Dashboard home (.dash) ───────────── */
-.dash { display: flex; flex-direction: column; gap: 22px; max-width: 1240px; margin-inline: auto; width: 100%; }
-.dash h1 { font-size: 1.6rem; line-height: 1.3; margin: 2px 0 4px; font-weight: 800; }
-.dash h2 { font-size: 1rem; font-weight: 700; margin: 0 0 10px; }
-.dash .dash-h { font-size: .95rem; color: var(--ink-2); margin-bottom: 12px; }
-.dash-hero { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 22px 24px; border-radius: 18px; border: 1px solid var(--bs-line, #e8ecf4);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 12%, #fff), #fff 70%); }
-.dash-hero p { margin: 0; color: var(--ink-2); }
-.dash-hero .eyebrow { color: var(--primary); font-weight: 700; font-size: .75rem; margin: 0; }
-.dash-card { background: #fff; border: 1px solid var(--bs-line, #e8ecf4); border-radius: 16px; padding: 18px 20px; box-shadow: var(--shadow-xs); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.dash-card .muted, .dash .muted { color: var(--muted, #6b7488); margin: 0; font-size: .86rem; }
-.dash-setup { flex-direction: row; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; border-color: color-mix(in srgb, var(--primary) 30%, #fff); background: color-mix(in srgb, var(--primary) 5%, #fff); }
-.dash-setup-main { flex: 1; min-width: 240px; } .dash-setup-main p { margin: 0 0 10px; font-size: .88rem; color: var(--ink-2); }
-.dash-progress { height: 8px; border-radius: 99px; background: #e6eaf3; overflow: hidden; }
-.dash-progress span { display: block; height: 100%; background: var(--primary); border-radius: 99px; }
-.dash-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
-.dash-stat { display: flex; align-items: center; gap: 14px; padding: 16px 18px; background: #fff; border: 1px solid var(--bs-line, #e8ecf4); border-radius: 16px; text-decoration: none; color: inherit; box-shadow: var(--shadow-xs); transition: box-shadow .15s, transform .15s; }
-.dash-stat:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
-.dash-stat-icon { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; flex: none; background: var(--t-bg); color: var(--t-fg); }
-.dash-stat-icon svg { width: 22px; height: 22px; }
-.tone-blue { --t-bg: #e8f0ff; --t-fg: #2f6fed; } .tone-amber { --t-bg: #fff3dc; --t-fg: #d98a07; }
-.tone-green { --t-bg: #e1f7ec; --t-fg: #1ba767; } .tone-violet { --t-bg: #efe9ff; --t-fg: #7a4de0; }
-.dash-stat-body { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
-.dash-stat-body small { color: var(--muted, #6b7488); font-size: .8rem; }
-.dash-stat-body strong { font-size: 1.7rem; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
-.dash-quick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.dash-quick-item { display: flex; align-items: center; gap: 12px; padding: 14px 16px; min-height: 64px; background: #fff; border: 1px solid var(--bs-line, #e8ecf4); border-radius: 14px; text-decoration: none; color: var(--ink); transition: border-color .15s, background .15s; }
-.dash-quick-item:hover { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 5%, #fff); }
-.dash-quick-item strong { display: block; font-size: .92rem; } .dash-quick-item small { display: block; color: var(--muted, #6b7488); font-size: .76rem; }
-.dash-quick-icon { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; flex: none; background: color-mix(in srgb, var(--primary) 12%, #fff); color: var(--primary); }
-.dash-quick-icon svg { width: 20px; height: 20px; }
-.dash-cols { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-.dash-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.dash-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.dash-bars { display: flex; align-items: flex-end; gap: 6px; overflow-x: auto; padding-bottom: 4px; min-height: 190px; }
-.dash-bars > div { flex: 1; min-width: 40px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; text-align: center; }
-.dash-bars i { display: block; width: 22px; border-radius: 6px 6px 3px 3px; background: linear-gradient(var(--primary), color-mix(in srgb, var(--primary) 55%, #fff)); }
-.dash-bars strong { font-size: .8rem; } .dash-bars small { font-size: .66rem; color: var(--muted, #6b7488); line-height: 1.2; }
-.dash-note { margin-top: 6px !important; }
-.dash-row { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 10px; background: #f8f9fc; text-decoration: none; color: var(--ink); font-size: .88rem; }
-.dash-row:hover { background: color-mix(in srgb, var(--primary) 8%, #fff); }
-.dash-row small { color: var(--muted, #6b7488); }
-.dash-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.dash-card .form-actions { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
-@media (max-width: 1100px) { .dash-stats, .dash-quick { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dash-cols, .dash-cols-3 { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 560px) {
-  .dash { gap: 16px; } .dash h1 { font-size: 1.3rem; } .dash-hero { padding: 16px; } .dash-hero .btn { width: 100%; justify-content: center; }
-  .dash-stats { gap: 10px; } .dash-stat { padding: 12px; gap: 10px; flex-direction: column; align-items: flex-start; } .dash-stat-body strong { font-size: 1.4rem; }
-  .dash-quick { grid-template-columns: 1fr; } .dash-card { padding: 14px; }
-}
-
 /* ───────────── 102. Stage 4 — Getting started (/dashboard/onboarding) ───────────── */
 .ob { display: flex; flex-direction: column; gap: 20px; max-width: 880px; margin-inline: auto; width: 100%; }
 .ob-hero { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; padding: 24px; border-radius: 18px; border: 1px solid var(--bs-line, #e8ecf4); background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 12%, #fff), #fff 70%); }

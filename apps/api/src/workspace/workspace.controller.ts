@@ -1,3 +1,4 @@
+import { dashboardChannelSchema, dashboardSummary } from './dashboard-summary';
 import { InvitationMail } from '../mail/invitation-mail';
 import {
   BadRequestException,
@@ -62,6 +63,14 @@ export class WorkspaceController {
       const tokens=aiEnabled?(await c.query("SELECT COALESCE(sum(input_tokens+output_tokens),0)::text AS n FROM ai_usage WHERE period=date_trunc('month',now())::date")).rows[0].n:undefined;
       return { tenant, role: req.user.role, plan, aiEnabled,usage: { agents, ...counts,...(aiEnabled?{ai_tokens:tokens}:{}) } };
     });
+  }
+
+  @Get('workspace/dashboard')
+  dashboard(@Req() req: AuthedRequest, @Query('channel') channel?: string) {
+    const selected = parse(dashboardChannelSchema, channel);
+    return this.db.withTenant(req.user.tenantId, (c) => dashboardSummary(
+      c, selected, req.user.userId, env.AI_PROVIDER_CALLS_ENABLED === 'true',
+    ));
   }
 
   @Get('workspace/overview')

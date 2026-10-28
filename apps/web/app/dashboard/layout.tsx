@@ -10,30 +10,16 @@ import { useBrand } from '../../components/product/BrandContext';
 import { useLocale } from '../../components/product/locale';
 const links = [
   ['', '◈', 'لوحة المعلومات', 'Dashboard'],
-  ['onboarding', '◷', 'دليل البداية', 'Getting started'],
   ['inbox', '▤', 'صندوق الوارد المشترك', 'Shared Inbox'],
   ['crm', '◉', 'مدير المشتركين', 'Subscriber Manager'],
   ['flows', '⌘', 'مدير البوت', 'Chatbot Manager'],
   ['campaigns', '➤', 'البث', 'Broadcasting'],
-  ['sequences', '⏱', 'التسلسلات', 'Sequences'],
-  ['automations', '⚡', 'أتمتة الأعمال', 'Automations'],
-  ['agents', '✧', 'مساعدو AI', 'AI agents'],
-  ['knowledge', '▣', 'قاعدة المعرفة', 'Knowledge'],
-  ['reports', '▤', 'التقارير والتحليلات', 'Reports & analytics'],
-  ['commerce', '▣', 'التجارة والمواعيد والنشر', 'Commerce, bookings & social'],
   ['social', '▣', 'النشر الاجتماعي', 'Social Posting'],
-  ['integrations', '⇄', 'التكاملات وWebhooks', 'Integrations & webhooks'],
   ['channels', '◎', 'ربط الحساب', 'Connect Account'],
-  ['departments', '♧', 'الأقسام وSLA', 'Departments & SLA'],
   ['team', '♧', 'مدير المستخدمين', 'User Manager'],
   ['packages', '◇', 'مدير الباقات', 'Package Manager'],
   ['billing', '◇', 'الفوترة', 'Billing'],
-  ['branding', '◈', 'هوية الشركة', 'Branding'],
   ['settings', '⚙', 'الإعدادات والتكاملات', 'Settings & Integration'],
-  ['sessions', '◷', 'جلسات الحساب', 'Account sessions'],
-  ['delivery', '⇄', 'التسليم والأحداث', 'Delivery & events'],
-  ['audit', '↗', 'سجل النشاط', 'Activity log'],
-  ['ai', '✦', 'المساعد الذكي', 'AI assistant'],
 ];
 const controlKeys = ['settings', 'packages', 'team', 'billing'];
 const primaryKeys = ['', 'inbox', 'channels', 'flows', 'crm', 'campaigns', 'social'];
@@ -224,7 +210,6 @@ function Shell({ children }: { children: ReactNode }) {
     ['billing', 'billing', 'الفوترة', 'Billing'],
     ['sessions', 'shield', 'الأمان والأجهزة', 'Security and sessions'],
     ['billing', 'upgrade', 'الترقية إلى Pro', 'Upgrade to Pro'],
-    ['integrations', 'integrations', 'التكاملات', 'Integrations'],
     ['support', 'support', 'تذاكر الدعم', 'Support'],
     ['developer', 'developer', 'API للمطور', 'Developer API'],
   ].filter(([k]) => allowedKey(k));

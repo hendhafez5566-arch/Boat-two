@@ -1,8 +1,4 @@
-import Panel from '../../../components/workspace/IntegrationsPanel';
+import { redirect } from 'next/navigation';
 export default function Page() {
-  return (
-    <main>
-      <Panel />
-    </main>
-  );
+  redirect('/dashboard/settings?tab=integrations');
 }
