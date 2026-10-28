@@ -157,6 +157,7 @@
 .fields label {
   display: grid;
   gap: 7px;
+  font-weight: 400;
 }
 .fields input,
 .fields select {
@@ -278,7 +279,8 @@
   display: grid;
   gap: 8px;
 }
-.followupForm input {
+.followupForm input,
+.followupForm select {
   width: 100%;
   border: 1px solid #e9e7ef;
   border-radius: 6px;
@@ -364,4 +366,29 @@
 }
 .followupDialog :global(.dialog-body) {
   padding: 16px;
+}
+
+.sequenceControl {
+  display: grid;
+  gap: 8px;
+}
+.enrollments {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 5px;
+}
+.enrollments li {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  background: #f5f2fe;
+  border-radius: 5px;
+}
+.enrollments small {
+  display: block;
+  margin-top: 3px;
 }

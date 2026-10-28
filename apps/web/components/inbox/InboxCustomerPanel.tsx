@@ -2,6 +2,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { InboxFieldDialog } from './InboxFieldDialog';
+import { InboxSequences } from './InboxSequences';
+import { type ContactField } from '../../lib/inbox-contact-fields';
 import { api } from '../../lib/api';
 import { useData } from '../business/useData';
 import { useLocale } from '../product/locale';
@@ -41,8 +44,10 @@ export function InboxCustomerPanel({
   const profile = useData<any>(`/crm/contacts/${detail.contact_id}/profile`, null);
   const lists = useData<any[]>(canManage ? '/contact-lists' : null, []);
   useEffect(() => {
-    void profile.reload();
+    if (refreshToken) void profile.reload();
   }, [refreshToken, profile.reload]);
+  const fields = useData<ContactField[]>('/crm/fields', []);
+  const [editingField, setEditingField] = useState<ContactField | null>(null);
   const [listBusy, setListBusy] = useState(false);
   const [listName, setListName] = useState('');
   const [more, setMore] = useState(false);
@@ -69,6 +74,18 @@ export function InboxCustomerPanel({
         method: 'POST',
         body: JSON.stringify({ contactId: detail.contact_id }),
       });
+      await profile.reload();
+    } catch (error) {
+      onError((error as Error).message);
+    } finally {
+      setListBusy(false);
+    }
+  }
+  async function removeList(id: string) {
+    if (!canManage || listBusy) return;
+    setListBusy(true);
+    try {
+      await api(`/contact-lists/${id}/members/${detail.contact_id}`, { method: 'DELETE' });
       await profile.reload();
     } catch (error) {
       onError((error as Error).message);
@@ -235,6 +252,43 @@ export function InboxCustomerPanel({
                 ? t('إلغاء التعليق', 'Remove hold')
                 : t('تعليق', 'Put on hold')}
             </button>
+            <button
+              className={styles.secondary}
+              disabled={acting}
+              onClick={() =>
+                void act(
+                  `/conversations/${detail.id}/auto-assign`,
+                  'POST',
+                  undefined,
+                  t('تم التوزيع التلقائي.', 'Auto assigned.'),
+                )
+              }
+            >
+              {t('توزيع تلقائي', 'Auto assign')}
+            </button>
+            <div className={styles.fields}>
+              {' '}
+              <label>
+                {t('القسم', 'Department')}
+                <select
+                  disabled={acting}
+                  value={detail.department_id || ''}
+                  onChange={(e) =>
+                    void patch(
+                      { departmentId: e.target.value || null },
+                      t('تم تحديث القسم.', 'Department updated.'),
+                    )
+                  }
+                >
+                  <option value="">{t('غير معيّن', 'Unassigned')}</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </div>
         )}
       </section>
@@ -367,20 +421,6 @@ export function InboxCustomerPanel({
               ))}
             </select>
           </label>
-          <button
-            className={styles.secondary}
-            disabled={acting}
-            onClick={() =>
-              void act(
-                `/conversations/${detail.id}/auto-assign`,
-                'POST',
-                undefined,
-                t('تم التوزيع التلقائي.', 'Auto assigned.'),
-              )
-            }
-          >
-            {t('توزيع تلقائي', 'Auto assign')}
-          </button>
           <form onSubmit={saveTags}>
             <label>
               {t('الوسوم', 'Labels')}
@@ -426,7 +466,22 @@ export function InboxCustomerPanel({
             <span>{t('قوائم المشتركين', 'Lists')}</span>
             <div className={styles.chips}>
               {profile.data?.lists?.length ? (
-                profile.data.lists.map((list: any) => <span key={list.id}>{list.name}</span>)
+                profile.data.lists.map((list: any) => (
+                  <span key={list.id}>
+                    {list.name}
+                    {canManage && (
+                      <button
+                        type="button"
+                        className={styles.inlineEdit}
+                        disabled={listBusy}
+                        aria-label={`${t('إزالة من القائمة', 'Remove from list')} ${list.name}`}
+                        onClick={() => void removeList(list.id)}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </span>
+                ))
               ) : (
                 <small>{t('لا توجد قوائم', 'No lists assigned')}</small>
               )}
@@ -472,40 +527,35 @@ export function InboxCustomerPanel({
               </div>
             )}
           </div>
-          <div>
-            <span>{t('تسلسل الرسائل', 'Message Sequence')}</span>
-            <div className={styles.chips}>
-              {profile.data?.sequences?.length ? (
-                profile.data.sequences.map((seq: any) => (
-                  <span key={seq.id}>
-                    {seq.name} · {seq.status}
-                  </span>
-                ))
-              ) : (
-                <small>{t('لا توجد تسلسلات', 'No sequences assigned')}</small>
-              )}
-            </div>
-          </div>
+          <InboxSequences
+            contactId={detail.contact_id}
+            channelId={detail.channel_id}
+            assigned={profile.data?.sequences || []}
+            canManage={canManage}
+            onSaved={async () => {
+              await profile.reload();
+            }}
+          />
           <label>
-            {t('القسم', 'Department')}
+            {t('تعيين حقل مخصص', 'Assign Custom Fields')}
             <select
-              disabled={acting}
-              value={detail.department_id || ''}
-              onChange={(e) =>
-                void patch(
-                  { departmentId: e.target.value || null },
-                  t('تم تحديث القسم.', 'Department updated.'),
+              value=""
+              disabled={!canManage || fields.loading || !contact}
+              onChange={(event) =>
+                setEditingField(
+                  fields.data.find((field) => field.key === event.target.value) || null,
                 )
               }
             >
-              <option value="">{t('غير معيّن', 'Unassigned')}</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
+              <option value="">{t('اختر حقلًا مخصصًا', 'Select Custom Field')}</option>
+              {fields.data.map((field) => (
+                <option key={field.id} value={field.key}>
+                  {field.label}
                 </option>
               ))}
             </select>
           </label>
+          {fields.error && <small role="alert">{fields.error}</small>}
         </div>
       </details>
       <details open className={styles.card}>
@@ -514,14 +564,36 @@ export function InboxCustomerPanel({
           <NavIcon name="chevron" />
         </summary>
         <dl className={styles.facts}>
-          {Object.entries(detail.contact_attributes || {}).map(([key, value]) => (
-            <div key={key}>
-              <dt>{key}</dt>
-              <dd>{String(value)}</dd>
-            </div>
-          ))}
-          {!Object.keys(detail.contact_attributes || {}).length && (
-            <p>{t('لا توجد حقول مخصصة', 'No custom fields assigned')}</p>
+          {fields.data
+            .filter((field) => contact?.attributes?.[field.key] != null)
+            .map((field) => (
+              <div key={field.key}>
+                <dt>{field.label}</dt>
+                <dd>
+                  {typeof contact.attributes[field.key] === 'boolean'
+                    ? contact.attributes[field.key]
+                      ? t('نعم', 'Yes')
+                      : t('لا', 'No')
+                    : String(contact.attributes[field.key])}
+                  {canManage && (
+                    <button
+                      type="button"
+                      className={styles.inlineEdit}
+                      aria-label={`${t('تعديل', 'Edit')} ${field.label}`}
+                      onClick={() => setEditingField(field)}
+                    >
+                      <NavIcon name="edit" />
+                    </button>
+                  )}
+                </dd>
+              </div>
+            ))}
+          {!fields.data.some((field) => contact?.attributes?.[field.key] != null) && (
+            <p>
+              {fields.loading || profile.loading
+                ? t('جارٍ التحميل…', 'Loading…')
+                : t('لا توجد حقول مخصصة', 'No custom fields assigned')}
+            </p>
           )}
         </dl>
       </details>
@@ -572,6 +644,15 @@ export function InboxCustomerPanel({
           </button>
         </div>
       </details>
+      <InboxFieldDialog
+        field={editingField}
+        contactId={detail.contact_id}
+        onClose={() => setEditingField(null)}
+        onSaved={async () => {
+          await profile.reload();
+          await onRefresh();
+        }}
+      />
     </aside>
   );
 }

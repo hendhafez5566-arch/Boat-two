@@ -342,6 +342,39 @@ test('subscriber profiles and inbox views execute against PostgreSQL with tenant
       },
     );
     await t.test(
+      'typed custom field partial saves retain zero false and unrelated data',
+      async () => {
+        await pg.query(
+          "INSERT INTO crm_fields(tenant_id,key,type) VALUES($1,'inbox_number','number'),($1,'inbox_flag','boolean'),($1,'inbox_date','date')",
+          [tenant],
+        );
+        const before = await crm.profile(tenant, contact);
+        const typed = await crm.patchProfile(tenant, contact, {
+          attributes: { inbox_number: 0, inbox_flag: false, inbox_date: '2028-02-29' },
+          expectedUpdatedAt: new Date(before.contact.updated_at).toISOString(),
+        });
+        assert.equal(typed.contact.attributes.inbox_number, 0);
+        assert.equal(typed.contact.attributes.inbox_flag, false);
+        assert.equal(typed.contact.attributes.inbox_date, '2028-02-29');
+        assert.equal(typed.contact.attributes.kept, 'value');
+        assert.deepEqual(typed.contact.tags, before.contact.tags);
+        await assert.rejects(
+          crm.patchProfile(tenant, contact, {
+            attributes: { inbox_number: 'wrong type' },
+            expectedUpdatedAt: new Date(typed.contact.updated_at).toISOString(),
+          }),
+          /Invalid custom field/,
+        );
+        const cleared = await crm.patchProfile(tenant, contact, {
+          attributes: { inbox_flag: null },
+          expectedUpdatedAt: new Date(typed.contact.updated_at).toISOString(),
+        });
+        assert.equal(cleared.contact.attributes.inbox_flag, null);
+        assert.equal(cleared.contact.attributes.inbox_number, 0);
+        assert.equal(cleared.contact.attributes.kept, 'value');
+      },
+    );
+    await t.test(
       'inbox filters, date bounds and subscriber sort use the same cursor ordering',
       async () => {
         const second = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
