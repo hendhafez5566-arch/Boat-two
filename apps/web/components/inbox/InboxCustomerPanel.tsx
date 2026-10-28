@@ -1,6 +1,6 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { InboxCrmOverview } from './InboxCrmOverview';
 import { InboxFieldDialog } from './InboxFieldDialog';
@@ -15,7 +15,6 @@ type Props = {
   detail: any;
   notes: any[];
   team: any[];
-  departments: any[];
   acting: boolean;
   canManage: boolean;
   act: (path: string, method: string, body?: any, notice?: string) => Promise<boolean>;
@@ -30,7 +29,6 @@ export function InboxCustomerPanel({
   detail,
   notes,
   team,
-  departments,
   acting,
   canManage,
   act,
@@ -42,6 +40,15 @@ export function InboxCustomerPanel({
   onError,
 }: Props) {
   const { t, language } = useLocale();
+  const panel = useRef<HTMLElement>(null);
+  function jump(target: string) {
+    const element = panel.current?.querySelector<HTMLElement>(`[data-inbox-target="${target}"]`);
+    if (!element) return;
+    const section = element.closest('details');
+    if (section) section.open = true;
+    element.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    element.focus({ preventScroll: true });
+  }
   const profile = useData<any>(`/crm/contacts/${detail.contact_id}/profile`, null);
   const lists = useData<any[]>(canManage ? '/contact-lists' : null, []);
   useEffect(() => {
@@ -138,6 +145,7 @@ export function InboxCustomerPanel({
   }
   return (
     <aside
+      ref={panel}
       className={`customer-panel ${styles.panel}`}
       aria-label={t('إجراءات المحادثة وبيانات العميل', 'Chat actions and customer details')}
     >
@@ -171,126 +179,43 @@ export function InboxCustomerPanel({
               ? t('إيقاف البوت', 'Pause Bot')
               : t('استئناف البوت', 'Resume Bot')}
           </button>
-          <button type="button" onClick={onFollowup}>
-            <span>
-              <NavIcon name="calendar" />
-            </span>
-            {t('متابعة', 'Follow-up')}
-          </button>
           <button type="button" onClick={onNote}>
             <span>
               <NavIcon name="audit" />
             </span>
             {t('ملاحظات', 'Notes')}
           </button>
-          <button type="button" aria-expanded={more} onClick={() => setMore((v) => !v)}>
+          {more && (
+            <>
+              <button type="button" onClick={onFollowup}>
+                <span>
+                  <NavIcon name="calendar" />
+                </span>
+                {t('متابعة', 'Follow-up')}
+              </button>
+              {[
+                ['labels', 'star', t('إضافة وسم', 'Add Label')],
+                ['agent', 'user', t('تعيين فريق', 'Assign Team')],
+                ['sequence', 'sequences', t('إضافة تسلسل', 'Add Sequence')],
+                ['custom', 'audit', t('حقل مخصص', 'Custom Field')],
+                ['window', 'sessions', t('نافذة الرسائل', 'Messaging Window')],
+              ].map(([target, icon, label]) => (
+                <button type="button" key={target} onClick={() => jump(target)}>
+                  <span>
+                    <NavIcon name={icon} />
+                  </span>
+                  {label}
+                </button>
+              ))}
+            </>
+          )}
+          <button type="button" aria-expanded={more} onClick={() => setMore((value) => !value)}>
             <span>
-              <NavIcon name="more" />
+              <NavIcon name={more ? 'chevron' : 'more'} />
             </span>
-            {t('المزيد', 'See More')}
+            {more ? t('عرض أقل', 'See Less') : t('المزيد', 'See More')}
           </button>
         </div>
-        {more && (
-          <div className={styles.actions}>
-            <button
-              disabled={acting}
-              onClick={() =>
-                void patch(
-                  { important: !detail.important },
-                  t('تم تحديث الأهمية.', 'Importance updated.'),
-                )
-              }
-            >
-              <NavIcon name="star" />
-              {detail.important
-                ? t('إزالة الأهمية', 'Remove Important')
-                : t('تمييز كمهمة', 'Mark Important')}
-            </button>
-            <button
-              disabled={acting}
-              onClick={() =>
-                void patch(
-                  { archived: !detail.archived_at },
-                  t('تم تحديث الأرشفة.', 'Archive updated.'),
-                )
-              }
-            >
-              <NavIcon name="archive" />
-              {detail.archived_at ? t('استعادة', 'Unarchive') : t('أرشفة', 'Archive')}
-            </button>
-            <button
-              disabled={acting}
-              onClick={() =>
-                void patch({ blocked: !detail.blocked }, t('تم تحديث الحظر.', 'Block updated.'))
-              }
-            >
-              <NavIcon name="blocked" />
-              {detail.blocked ? t('إلغاء الحظر', 'Unblock') : t('حظر', 'Block')}
-            </button>
-            <button
-              disabled={acting}
-              onClick={() =>
-                void patch(
-                  { status: detail.status === 'closed' ? 'open' : 'closed' },
-                  t('تم تحديث حالة المحادثة.', 'Conversation status updated.'),
-                )
-              }
-            >
-              <NavIcon name="check" />
-              {detail.status === 'closed' ? t('إعادة فتح', 'Reopen') : t('حل المحادثة', 'Resolve')}
-            </button>
-            <button
-              disabled={acting}
-              onClick={() =>
-                void patch(
-                  { status: detail.status === 'pending' ? 'open' : 'pending' },
-                  t('تم تحديث التعليق.', 'Hold updated.'),
-                )
-              }
-            >
-              {detail.status === 'pending'
-                ? t('إلغاء التعليق', 'Remove hold')
-                : t('تعليق', 'Put on hold')}
-            </button>
-            <button
-              className={styles.secondary}
-              disabled={acting}
-              onClick={() =>
-                void act(
-                  `/conversations/${detail.id}/auto-assign`,
-                  'POST',
-                  undefined,
-                  t('تم التوزيع التلقائي.', 'Auto assigned.'),
-                )
-              }
-            >
-              {t('توزيع تلقائي', 'Auto assign')}
-            </button>
-            <div className={styles.fields}>
-              {' '}
-              <label>
-                {t('القسم', 'Department')}
-                <select
-                  disabled={acting}
-                  value={detail.department_id || ''}
-                  onChange={(e) =>
-                    void patch(
-                      { departmentId: e.target.value || null },
-                      t('تم تحديث القسم.', 'Department updated.'),
-                    )
-                  }
-                >
-                  <option value="">{t('غير معيّن', 'Unassigned')}</option>
-                  {departments.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          </div>
-        )}
       </section>
       <InboxCrmOverview
         contact={contact}
@@ -307,16 +232,17 @@ export function InboxCustomerPanel({
         <dl className={styles.facts}>
           {[
             [t('البريد الإلكتروني', 'Email'), detail.contact_email || t('غير محدد', 'Not set')],
-            [t('الهاتف', 'Phone'), detail.contact_phone],
             [t('آخر ظهور', 'Last Seen'), time(detail.last_inbound_at)],
             [t('اسم البوت', 'Bot Name'), detail.channel_name],
             [
               t('الحالة', 'Status'),
-              detail.status === 'closed'
-                ? t('محلولة', 'Resolved')
-                : detail.status === 'pending'
-                  ? t('معلقة', 'Pending')
-                  : t('مفتوحة', 'Open'),
+              timeline?.consent?.find((row: any) => row.channel_id === detail.channel_id)
+                ?.status === 'opted_in'
+                ? t('مشترك', 'Subscribed')
+                : timeline?.consent?.find((row: any) => row.channel_id === detail.channel_id)
+                      ?.status === 'opted_out'
+                  ? t('غير مشترك', 'Unsubscribed')
+                  : '—',
             ],
             [
               t('نافذة الرسائل', 'Messaging Window'),
@@ -326,10 +252,15 @@ export function InboxCustomerPanel({
                   : t('نافذة الرد مفتوحة', 'Reply window open')
                 : t('حسب سياسة القناة', 'Channel policy'),
             ],
+            [t('مصدر الاشتراك', 'OPT-IN Through'), contact?.attributes?.opt_in_through || '—'],
           ].map(([label, value], index) => (
-            <div key={label}>
+            <div
+              key={label}
+              data-inbox-target={index === 4 ? 'window' : undefined}
+              tabIndex={index === 4 ? -1 : undefined}
+            >
               <dt>
-                <NavIcon name={['mail', 'phone', 'eye', 'agents', 'user', 'sessions'][index]} />
+                <NavIcon name={['mail', 'eye', 'agents', 'user', 'sessions', 'logout'][index]} />
                 {label}
               </dt>
               <dd>
@@ -358,6 +289,7 @@ export function InboxCustomerPanel({
           <label>
             {t('الموظف المسؤول', 'Assigned Agent')}
             <select
+              data-inbox-target="agent"
               disabled={acting}
               value={detail.assigned_to || ''}
               onChange={(e) =>
@@ -393,6 +325,7 @@ export function InboxCustomerPanel({
                   </span>
                 ))}
                 <input
+                  data-inbox-target="labels"
                   name="tags"
                   disabled={!canManage || saving || labels.length >= 30}
                   value={labelText}
@@ -493,6 +426,7 @@ export function InboxCustomerPanel({
           <label>
             {t('تعيين حقل مخصص', 'Assign Custom Fields')}
             <select
+              data-inbox-target="custom"
               value=""
               disabled={!canManage || fields.loading || !contact}
               onChange={(event) =>

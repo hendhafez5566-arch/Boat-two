@@ -1,4 +1,5 @@
 'use client';
+import { InboxConversationMenu } from '../../../components/inbox/InboxConversationMenu';
 import { InboxFilters, EMPTY_INBOX_FILTERS } from '../../../components/inbox/InboxFilters';
 import { InboxFollowupDialog } from '../../../components/inbox/InboxFollowupDialog';
 import { InboxContactDialog } from '../../../components/inbox/InboxContactDialog';
@@ -85,7 +86,6 @@ export default function Inbox() {
   const [channelId, setChannelId] = useChannelContext();
   const [items, setItems] = useState<any[]>([]);
   const [nextBefore, setNextBefore] = useState<string | null>(null);
-  const [checked, setChecked] = useState<string[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [workspaceRole, setWorkspaceRole] = useState('agent');
   const [counts, setCounts] = useState<any>({});
@@ -94,9 +94,6 @@ export default function Inbox() {
   const [msgs, setMsgs] = useState<any[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [team, setTeam] = useState<any[]>([]);
-  const [departments, setDepartments] = useState<
-    { id: string; name: string; sla_minutes: number }[]
-  >([]);
   const [channels, setChannels] = useState<any[]>([]);
   const [canned, setCanned] = useState<any[]>([]);
   const [me, setMe] = useState<string>('');
@@ -173,7 +170,6 @@ export default function Inbox() {
       if (currentQuery.current !== qs) return;
       setItems(r.items);
       setNextBefore(r.nextCursor);
-      setChecked([]);
     } catch (e: any) {
       if (currentQuery.current === qs) setError(e.message);
     } finally {
@@ -209,9 +205,6 @@ export default function Inbox() {
       .catch(() => {});
     api<any>('/team')
       .then((r) => setTeam(r.members))
-      .catch(() => {});
-    api<typeof departments>('/departments')
-      .then(setDepartments)
       .catch(() => {});
     const requested = new URLSearchParams(window.location.search).get('conversation');
     if (requested) setTimeout(() => open(requested), 0);
@@ -286,29 +279,6 @@ export default function Inbox() {
       setError((e as Error).message);
     } finally {
       setLoadingMore(false);
-    }
-  }
-  async function bulkClose() {
-    if (!checked.length || !confirm(`إغلاق ${checked.length} محادثة؟`)) return;
-    setBusy(true);
-    try {
-      const r = await api<{ results: { id: string; ok: boolean; error?: string }[] }>(
-        '/conversations/bulk',
-        { method: 'POST', body: JSON.stringify({ ids: checked, patch: { status: 'closed' } }) },
-      );
-      const failed = r.results.filter((x) => !x.ok);
-      if (failed.length) setError(failed.map((x) => x.error).join('، '));
-      setChecked([]);
-      await loadList();
-      loadCounts();
-      if (selId)
-        api<any>(`/conversations/${selId}`)
-          .then(setDetail)
-          .catch(() => {});
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
     }
   }
   // Reconcile missed SSE events after reconnects and while a tab is visible.
@@ -566,7 +536,6 @@ export default function Inbox() {
         (m) => (m.is_internal ?? m.isInternal) && (m.sender_type ?? m.senderType) !== 'system',
       )}
       team={team}
-      departments={departments}
       acting={acting}
       canManage={workspaceRole !== 'agent'}
       act={act}
@@ -741,14 +710,6 @@ export default function Inbox() {
                 </button>
               )}
             </InboxFilters>
-            {workspaceRole !== 'agent' && checked.length > 0 && (
-              <div className="p-2 flex gap-2 items-center">
-                <span>{checked.length} محدد</span>
-                <button disabled={busy} onClick={bulkClose} className="rounded border p-1">
-                  {t('إغلاق المحدد', 'Close selected')}
-                </button>
-              </div>
-            )}
             <ul className="flex-1 overflow-y-auto">
               {items.map((c) => (
                 <li
@@ -766,19 +727,6 @@ export default function Inbox() {
                   className={`inbox-item cursor-pointer border-b px-3 py-2 hover:bg-gray-50 ${selId === c.id ? 'is-selected' : ''} ${c.unread_count > 0 ? 'is-unread' : ''}`}
                 >
                   <div className="inbox-row">
-                    {workspaceRole !== 'agent' && (
-                      <input
-                        aria-label={`${t('تحديد', 'Select')} ${title(c)}`}
-                        type="checkbox"
-                        checked={checked.includes(c.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) =>
-                          setChecked((ids) =>
-                            e.target.checked ? [...ids, c.id] : ids.filter((x) => x !== c.id),
-                          )
-                        }
-                      />
-                    )}
                     <span className="inbox-avatar" aria-hidden="true">
                       {String(title(c)).trim().charAt(0).toUpperCase() || '?'}
                       <span
@@ -832,6 +780,7 @@ export default function Inbox() {
                         {tab === 'closed' && (
                           <span className="inbox-chip">{t('مغلقة', 'Closed')}</span>
                         )}
+                        <InboxConversationMenu conversation={c} disabled={acting} onAction={act} />
                       </div>
                     </div>
                   </div>

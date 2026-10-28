@@ -82,11 +82,11 @@
   color: #6a49f2;
 }
 .quick {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-around;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: start;
   padding: 14px;
-  gap: 10px;
+  gap: 18px 10px;
 }
 .quick button {
   display: grid;
@@ -200,28 +200,6 @@
   background: #f1edfc;
   border-radius: 4px;
   padding: 4px 7px;
-}
-.actions {
-  display: grid;
-  gap: 4px;
-  padding: 0 12px 12px;
-}
-.actions button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 0;
-  background: #faf9fd;
-  border-radius: 5px;
-  padding: 9px;
-  text-align: start;
-  cursor: pointer;
-  font: inherit;
-}
-.actions svg {
-  width: 16px;
-  height: 16px;
-  color: #6a49f2;
 }
 .panel button:disabled {
   opacity: 0.5;

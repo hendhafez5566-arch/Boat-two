@@ -93,6 +93,7 @@ export function InboxSequences({
       {canManage && (
         <>
           <select
+            data-inbox-target="sequence"
             aria-label={t('اختيار تسلسل رسائل', 'Select message sequence')}
             value={selected}
             disabled={busy || sequences.loading || !choices.length}

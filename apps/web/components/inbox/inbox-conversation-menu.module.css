@@ -1,0 +1,66 @@
+.root {
+  display: inline-flex;
+  position: relative;
+  margin-inline-start: auto;
+}
+.trigger {
+  width: 24px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+}
+.trigger svg {
+  width: 16px;
+  height: 16px;
+}
+.menu {
+  position: fixed;
+  z-index: 50;
+  display: grid;
+  gap: 2px;
+  width: 212px;
+  padding: 7px;
+  border: 1px solid #e9eaf0;
+  border-radius: 6px;
+  background: white;
+  box-shadow: 0 8px 25px #2022331a;
+}
+.menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 8px;
+  text-align: start;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #4b5563;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.menu button:hover {
+  background: #f5f2ff;
+  color: #6a49f2;
+}
+.menu button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.menu svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+.menu p {
+  color: #b91c1c;
+  font-size: 12px;
+  padding: 6px;
+  margin: 0;
+}

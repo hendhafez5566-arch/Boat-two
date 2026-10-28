@@ -372,19 +372,6 @@
   border-radius: 0;
   font-size: 10px;
 }
-.inbox :global(.inbox-row) > input {
-  position: absolute;
-  inset-inline-start: 5px;
-  top: 8px;
-  width: 13px;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-.inbox :global(.inbox-item):hover :global(.inbox-row) > input,
-.inbox :global(.inbox-row) > input:focus,
-.inbox :global(.inbox-row) > input:checked {
-  opacity: 1;
-}
 .threadHeader {
   display: flex;
   align-items: center;
@@ -632,9 +619,6 @@
   }
   .inbox :global(.composer-actions) > * {
     flex: none;
-  }
-  .inbox :global(.inbox-row) > input {
-    opacity: 1;
   }
 }
 
