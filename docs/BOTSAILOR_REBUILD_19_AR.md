@@ -21,4 +21,5 @@
 
 ## التحقق
 - TypeScript وESLint للملفات المعدلة: ناجحان.
-- Next.js build والنشر: قيد التحقق.
+- Next.js build كامل: ناجح محليًا (40 صفحة)؛ TypeScript وESLint وgit diff --check ناجحة.
+- Railway: SUCCESS للنشر 14605060-2f1e-4a59-97c9-26331dc915fe، commit 74a049f5b383e06fe4c0c07046a8f80e1c0fce3d. Healthcheck /login نجح، وسجل التشغيل يؤكد Next.js Ready. لم يلزم نشر API أو تعديل قاعدة البيانات لهذه الدفعة.
