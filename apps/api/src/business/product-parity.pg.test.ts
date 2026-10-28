@@ -17,6 +17,7 @@ test('subscriber profiles and inbox views execute against PostgreSQL with tenant
     EXTERNAL_DELIVERY_ENABLED: 'false',
   });
   const { CrmService } = await import('./crm.service');
+  const { overviewSchema } = await import('./crm-overview');
   const { InboxController } = await import('../inbox/inbox.controller');
   const { CampaignsController } = await import('./campaigns.controller');
   const { OutboundService } = await import('../messaging/outbound.service');
@@ -341,6 +342,85 @@ test('subscriber profiles and inbox views execute against PostgreSQL with tenant
         await assert.rejects(crm.profile(tenant, foreignContact), /not found/);
       },
     );
+    await t.test('overview save is atomic versioned and tenant scoped', async () => {
+      const migration = readFileSync(
+        resolve('src/database/migrations/092_crm_expected_close.sql'),
+        'utf8',
+      );
+      await pg.exec(migration);
+      await pg.exec(migration);
+      const pipelineId = 'a1111111-1111-4111-8111-111111111111';
+      const foreignPipeline = 'a2222222-2222-4222-8222-222222222222';
+      await pg.query(
+        'INSERT INTO crm_pipelines(id,tenant_id,name,stages) VALUES($1,$2,\'Sales\',\'["New","Qualified"]\'),($3,$4,\'Foreign\',\'["New","Qualified"]\')',
+        [pipelineId, tenant, foreignPipeline, other],
+      );
+      const before = await crm.profile(tenant, contact);
+      const input = overviewSchema.parse({
+        expectedContactUpdatedAt: new Date(before.contact.updated_at).toISOString(),
+        expectedDealId: null,
+        expectedDealUpdatedAt: null,
+        leadScore: 'hot',
+        source: 'Inbox',
+        deal: {
+          pipelineId,
+          stage: 'New',
+          title: 'Inbox deal',
+          valueCents: 1250,
+          currency: 'EGP',
+          expectedClose: '2028-02-29',
+          ownerId: null,
+        },
+      });
+      const created = await crm.updateOverview(tenant, contact, input);
+      const deal = created.timeline.deals[0];
+      assert.equal(deal.title, 'Inbox deal');
+      assert.equal(Number(deal.value_cents), 1250);
+      assert.equal(new Date(deal.expected_close).toISOString().slice(0, 10), '2028-02-29');
+      assert.equal(created.contact.attributes.lead_score, 'hot');
+      assert.equal(created.contact.attributes.kept, 'value');
+      await assert.rejects(crm.updateOverview(tenant, contact, input), /changed/);
+      const edit = {
+        ...input,
+        expectedContactUpdatedAt: new Date(created.contact.updated_at).toISOString(),
+        expectedDealId: deal.id,
+        expectedDealUpdatedAt: new Date(deal.updated_at).toISOString(),
+      };
+      await assert.rejects(
+        crm.updateOverview(tenant, contact, {
+          ...edit,
+          deal: { ...edit.deal!, pipelineId: foreignPipeline },
+        }),
+        /Invalid pipeline/,
+      );
+      await assert.rejects(crm.updateOverview(tenant, foreignContact, edit), /not found/);
+      await pg.query(
+        "INSERT INTO crm_fields(tenant_id,key,type) VALUES($1,'lead_score','number')",
+        [tenant],
+      );
+      await assert.rejects(
+        crm.updateOverview(tenant, contact, {
+          ...edit,
+          deal: { ...edit.deal!, title: 'Must roll back' },
+        }),
+        /Invalid custom field/,
+      );
+      assert.equal((await crm.profile(tenant, contact)).timeline.deals[0].title, 'Inbox deal');
+      await pg.query("DELETE FROM crm_fields WHERE tenant_id=$1 AND key='lead_score'", [tenant]);
+      const saved = await crm.updateOverview(tenant, contact, {
+        ...edit,
+        leadScore: 'cold',
+        deal: { ...edit.deal!, stage: 'Qualified', valueCents: 0, expectedClose: null },
+      });
+      assert.equal(Number(saved.timeline.deals[0].value_cents), 0);
+      assert.equal(saved.timeline.deals[0].expected_close, null);
+      assert.equal(saved.contact.attributes.lead_score, 'cold');
+      assert.equal(
+        overviewSchema.safeParse({ ...edit, deal: { ...edit.deal!, expectedClose: '2026-02-30' } })
+          .success,
+        false,
+      );
+    });
     await t.test(
       'typed custom field partial saves retain zero false and unrelated data',
       async () => {

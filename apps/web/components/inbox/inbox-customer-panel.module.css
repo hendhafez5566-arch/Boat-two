@@ -392,3 +392,62 @@
   display: block;
   margin-top: 3px;
 }
+
+.crmHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.crmHeaderActions > a,
+.crmHeaderActions > button {
+  border: 1px solid #e9eaf0;
+  border-radius: 5px;
+  padding: 5px;
+  font-size: 11px;
+  gap: 4px;
+}
+.crmEditor {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  font-size: 11px;
+  line-height: 16px;
+}
+.crmEditor label {
+  display: grid;
+  grid-template-columns: 40% minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  font-weight: 400;
+}
+.crmEditor input,
+.crmEditor select {
+  width: 100%;
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid #e9eaf0;
+  border-radius: 5px;
+  background: white;
+  font: inherit;
+}
+.crmEditor footer {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+.moneyField {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+}
+.moneyField select {
+  width: 70px;
+  flex: none;
+}
+.crmError {
+  color: #b91c1c;
+  padding: 10px 14px;
+  margin: 0;
+  font-size: 12px;
+}

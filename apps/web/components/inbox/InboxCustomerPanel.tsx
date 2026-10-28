@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { InboxCrmOverview } from './InboxCrmOverview';
 import { InboxFieldDialog } from './InboxFieldDialog';
 import { InboxSequences } from './InboxSequences';
 import { type ContactField } from '../../lib/inbox-contact-fields';
@@ -57,7 +58,6 @@ export function InboxCustomerPanel({
   const contact = profile.data?.contact;
   const timeline = profile.data?.timeline;
   const allNotes = [...notes, ...(timeline?.notes || [])];
-  const deal = timeline?.deals?.find((row: any) => !['won', 'lost'].includes(row.status));
   const patch = (body: any, notice: string) =>
     act(`/conversations/${detail.id}`, 'PATCH', body, notice);
   const time = (value: string) =>
@@ -292,62 +292,16 @@ export function InboxCustomerPanel({
           </div>
         )}
       </section>
-      <section className={`${styles.card} ${styles.crmCard}`}>
-        <h3>
-          {t('نظرة عامة على CRM', 'CRM Overview')}
-          <Link
-            href={`/dashboard/crm?contact=${detail.contact_id}`}
-            aria-label={t('فتح CRM', 'Open CRM')}
-          >
-            <NavIcon name="edit" />
-          </Link>
-        </h3>
-        <dl className={styles.facts}>
-          {[
-            [t('مسار المبيعات', 'Pipeline'), deal?.pipeline_name],
-            [t('المرحلة', 'Stage'), deal?.stage],
-            [
-              t('الصفقة النشطة', 'Active Deal'),
-              deal?.title || t('لا توجد صفقة نشطة', 'No active deal'),
-            ],
-            [
-              t('قيمة الصفقة', 'Deal Value'),
-              deal ? `${Number(deal.value_cents || 0) / 100} ${deal.currency || ''}` : '—',
-            ],
-            [
-              t('الإغلاق المتوقع', 'Expected Close'),
-              deal?.expected_close ? time(deal.expected_close) : '—',
-            ],
-            [
-              t('مسؤول الصفقة', 'Deal Owner'),
-              team.find((m) => m.user_id === deal?.owner_id)?.full_name,
-            ],
-            [t('درجة العميل', 'Lead Score'), detail.contact_attributes?.lead_score],
-            [t('المصدر', 'Source'), detail.contact_attributes?.source],
-          ].map(([label, value], index) => (
-            <div key={label}>
-              <dt>
-                <NavIcon
-                  name={
-                    [
-                      'flows',
-                      'flag',
-                      'handshake',
-                      'coins',
-                      'calendar',
-                      'user',
-                      'temperature',
-                      'share',
-                    ][index]
-                  }
-                />
-                {label}
-              </dt>
-              <dd>{value ?? '—'}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
+      <InboxCrmOverview
+        contact={contact}
+        deals={timeline?.deals || []}
+        team={team}
+        canManage={canManage}
+        onSaved={async () => {
+          await profile.reload();
+          await onRefresh();
+        }}
+      />
       <section className={styles.card}>
         <h3>{t('ملخص العميل', 'Customer Snapshot')}</h3>
         <dl className={styles.facts}>

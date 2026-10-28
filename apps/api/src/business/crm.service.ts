@@ -7,6 +7,7 @@ import {
 import { z } from 'zod';
 import { DatabaseService } from '../database/database.service';
 import { PlansService } from '../plans/plans.service';
+import { type OverviewInput } from './crm-overview';
 import { contactSchema, contactWhere, Filters } from './schemas';
 @Injectable()
 export class CrmService {
@@ -96,6 +97,84 @@ export class CrmService {
         inputs,
         timeline: await this.timeline(tenant, id),
       };
+    });
+  }
+  updateOverview(tenant: string, id: string, input: OverviewInput) {
+    return this.db.withTenant(tenant, async (c) => {
+      // Use the same lock order as profile saves; the whole overview commits together.
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+      const contact = (await c.query('SELECT * FROM contacts WHERE id=$1 FOR UPDATE', [id]))
+        .rows[0];
+      if (!contact || contact.merged_into_id) throw new NotFoundException('Contact not found');
+      if (
+        new Date(contact.updated_at).getTime() !==
+        new Date(input.expectedContactUpdatedAt).getTime()
+      )
+        throw new ConflictException('Contact changed. Reload before saving.');
+      if (input.deal) {
+        const d = input.deal;
+        const pipeline = (
+          await c.query('SELECT stages FROM crm_pipelines WHERE id=$1 FOR SHARE', [d.pipelineId])
+        ).rows[0];
+        if (!pipeline?.stages.includes(d.stage))
+          throw new BadRequestException('Invalid pipeline or stage');
+        if (
+          d.ownerId &&
+          !(await c.query('SELECT 1 FROM memberships WHERE user_id=$1', [d.ownerId])).rowCount
+        )
+          throw new BadRequestException('Owner must be a workspace member');
+      }
+      const current = (
+        await c.query(
+          "SELECT * FROM crm_deals WHERE contact_id=$1 AND status='open' ORDER BY updated_at DESC,id LIMIT 1 FOR UPDATE",
+          [id],
+        )
+      ).rows[0];
+      if (
+        (current?.id ?? null) !== input.expectedDealId ||
+        (current &&
+          new Date(current.updated_at).getTime() !==
+            new Date(input.expectedDealUpdatedAt!).getTime())
+      )
+        throw new ConflictException('Deal changed. Reload before saving.');
+      if (input.deal) {
+        const d = input.deal;
+        if (current) {
+          await c.query(
+            'UPDATE crm_deals SET pipeline_id=$2,stage=$3,title=$4,value_cents=$5,currency=$6,expected_close=$7,owner_id=$8,updated_at=now() WHERE id=$1',
+            [
+              current.id,
+              d.pipelineId,
+              d.stage,
+              d.title,
+              d.valueCents,
+              d.currency,
+              d.expectedClose,
+              d.ownerId,
+            ],
+          );
+        } else {
+          await c.query(
+            'INSERT INTO crm_deals(tenant_id,contact_id,pipeline_id,stage,title,value_cents,currency,expected_close,owner_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+            [
+              tenant,
+              id,
+              d.pipelineId,
+              d.stage,
+              d.title,
+              d.valueCents,
+              d.currency,
+              d.expectedClose,
+              d.ownerId,
+            ],
+          );
+        }
+      }
+      // Any profile validation failure rolls back the deal change as well.
+      return this.patchProfile(tenant, id, {
+        expectedUpdatedAt: input.expectedContactUpdatedAt,
+        attributes: { lead_score: input.leadScore, source: input.source },
+      });
     });
   }
   patchProfile(
@@ -213,7 +292,7 @@ export class CrmService {
       ).rows,
       deals: (
         await c.query(
-          'SELECT d.*,p.name AS pipeline_name FROM crm_deals d JOIN crm_pipelines p ON p.id=d.pipeline_id WHERE contact_id=$1 ORDER BY updated_at DESC LIMIT 100',
+          'SELECT d.*,p.name AS pipeline_name FROM crm_deals d JOIN crm_pipelines p ON p.id=d.pipeline_id WHERE contact_id=$1 ORDER BY updated_at DESC,d.id LIMIT 100',
           [id],
         )
       ).rows,

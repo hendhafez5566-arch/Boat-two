@@ -18,8 +18,8 @@ CREATE TABLE flow_versions(id uuid PRIMARY KEY,tenant_id uuid,graph jsonb,trigge
 CREATE TABLE flow_sessions(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),tenant_id uuid,conversation_id uuid,flow_id uuid,status text,wait_kind text,version_id uuid,expires_at timestamptz,created_at timestamptz DEFAULT now(),state jsonb DEFAULT '{}',updated_at timestamptz DEFAULT now());
 CREATE TABLE crm_fields(tenant_id uuid,key text,type text);
 CREATE TABLE crm_tasks(id uuid,tenant_id uuid,contact_id uuid,title text,due_at timestamptz,status text);
-CREATE TABLE crm_pipelines(id uuid,tenant_id uuid,name text);
-CREATE TABLE crm_deals(id uuid,tenant_id uuid,contact_id uuid,pipeline_id uuid,updated_at timestamptz);
+CREATE TABLE crm_pipelines(id uuid PRIMARY KEY,tenant_id uuid,name text,stages jsonb DEFAULT '["New","Qualified"]');
+CREATE TABLE crm_deals(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),tenant_id uuid,contact_id uuid,pipeline_id uuid,title text,stage text,value_cents bigint DEFAULT 0,currency text DEFAULT 'USD',status text DEFAULT 'open',owner_id uuid,updated_at timestamptz DEFAULT now());
 CREATE TABLE crm_notes(id uuid,tenant_id uuid,contact_id uuid,created_by uuid,body text,created_at timestamptz DEFAULT now());
 CREATE TABLE domain_events(id uuid,tenant_id uuid,type text,payload jsonb,status text,created_at timestamptz DEFAULT now(),seq bigint);
 CREATE TABLE campaigns(id uuid PRIMARY KEY,tenant_id uuid,channel_id uuid,name text,status text,created_at timestamptz DEFAULT now(),scheduled_at timestamptz);

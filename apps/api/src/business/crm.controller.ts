@@ -17,6 +17,7 @@ import { z } from 'zod';
 import { Roles } from '../auth/decorators';
 import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
+import { overviewSchema } from './crm-overview';
 import { CrmService } from './crm.service';
 import { contactSchema, filtersSchema, pagination } from './schemas';
 @Controller('crm')
@@ -392,6 +393,13 @@ export class CrmController {
         )
       ).rows[0];
     });
+  }
+  @Patch('contacts/:id/overview') @Roles('owner', 'admin') overview(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.crm.updateOverview(r.user.tenantId, id, parse(overviewSchema, body));
   }
   @Get('fields') fields(@Req() r: AuthedRequest) {
     return this.crm.db.withTenant(
