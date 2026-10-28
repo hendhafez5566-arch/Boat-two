@@ -209,7 +209,7 @@ function Shell({ children }: { children: ReactNode }) {
     ['settings', 'user', 'حسابي', 'My account'],
     ['billing', 'billing', 'الفوترة', 'Billing'],
     ['sessions', 'shield', 'الأمان والأجهزة', 'Security and sessions'],
-    ['billing', 'upgrade', 'الترقية إلى Pro', 'Upgrade to Pro'],
+    ['pricing', 'upgrade', 'الترقية إلى Pro', 'Upgrade to Pro'],
     ['support', 'support', 'تذاكر الدعم', 'Support'],
     ['developer', 'developer', 'API للمطور', 'Developer API'],
   ].filter(([k]) => allowedKey(k));

@@ -1,215 +1,317 @@
 'use client';
-import { SubscriptionRequests } from '../../../components/business/SubscriptionRequests';
-import { BillingReconciliation } from '../../../components/business/BillingReconciliation';
-import { BillingInvoices } from '../../../components/business/BillingInvoices';
-import { BillingEvents } from '../../../components/business/BillingEvents';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { api } from '../../../lib/api';
+import { useData } from '../../../components/business/useData';
 import { useLocale } from '../../../components/product/locale';
-type Plan = {
-  code: string;
-  name: string;
-  price_cents: number;
+import { Dialog } from '../../../components/product/ProductUI';
+import { NavIcon } from '../../../components/product/NavIcon';
+import {
+  billingDocument,
+  billingMoney,
+  BillingPlan,
+  BillingStatus,
+  BillingWorkspace,
+} from '../../../lib/billing-display';
+import styles from './billing.module.css';
+type Invoice = {
+  provider_id: string;
+  number: string | null;
   currency: string;
-  interval: string;
-  limits: Record<string, number>;
-  features: Record<string, boolean>;
-};
-type Workspace = {
-  role: string;
-  plan: {
-    plan_code: string;
-    plan_name: string;
-    status: string;
-    trial_ends_at: string | null;
-    limits: Record<string, number>;
-  };
-  usage: Record<string, number>;
+  amount_paid: string;
+  paid_at: string | null;
+  pdf_url: string | null;
+  hosted_url: string | null;
 };
 export default function Billing() {
   const { t } = useLocale();
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [ws, setWs] = useState<Workspace | null>(null);
-  const [status, setStatus] = useState<{
-    configured: boolean;
-    portalAvailable: boolean;
-    subscription?: {
-      currentPeriodEnd: string | null;
-      cancelAtPeriodEnd: boolean;
-      status: string;
-      linked: boolean;
-      pastDueSince: string | null;
-      graceDays: number;
-    };
-  }>({ configured: false, portalAvailable: false });
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+  const ws = useData<BillingWorkspace | null>('/workspace', null);
+  const plans = useData<BillingPlan[]>('/plans', []);
+  const status = useData<BillingStatus | null>('/billing/status', null);
+  const [search, setSearch] = useState(''),
+    [draftSearch, setDraftSearch] = useState('');
+  const [from, setFrom] = useState(''),
+    [to, setTo] = useState('');
+  const [datesOpen, setDatesOpen] = useState(false),
+    [dateError, setDateError] = useState('');
+  const [page, setPage] = useState(1),
+    [limit, setLimit] = useState(25);
+  const allowed = ['owner', 'admin'].includes(ws.data?.role || '');
+  const query = new URLSearchParams({
+    status: 'paid',
+    page: String(page),
+    limit: String(limit),
+    search,
+    ...(from ? { from } : {}),
+    ...(to ? { to } : {}),
+  });
+  const log = useData<{
+    items: Invoice[];
+    total: number;
+    page: number;
+    limit: number;
+    filters: { search: string; from: string; to: string };
+  } | null>(allowed ? '/billing/invoices?' + query : null, null);
+  const data =
+    !log.loading &&
+    !log.error &&
+    log.data?.page === page &&
+    log.data.limit === limit &&
+    log.data.filters.search === search &&
+    log.data.filters.from === from &&
+    log.data.filters.to === to
+      ? log.data
+      : null;
   useEffect(() => {
-    Promise.all([
-      api<Plan[]>('/plans'),
-      api<Workspace>('/workspace'),
-      api<typeof status>('/billing/status'),
-    ])
-      .then(([p, w, s]) => {
-        setPlans(p);
-        setWs(w);
-        setStatus(s);
-      })
-      .catch((e) => setError(e.message));
-  }, []);
-  async function pay(path: string, body?: unknown) {
-    setBusy(true);
-    setError('');
-    try {
-      const r = await api<{ url: string }>(path, {
-        method: 'POST',
-        body: body ? JSON.stringify(body) : undefined,
-      });
-      const u = new URL(r.url);
-      if (u.protocol !== 'https:') throw new Error('Invalid billing redirect');
-      window.location.assign(u.href);
-    } catch (e) {
-      setError((e as Error).message);
-      setBusy(false);
-    }
-  }
+    if (data && page > Math.max(1, Math.ceil(data.total / limit)))
+      setPage(Math.max(1, Math.ceil(data.total / limit)));
+  }, [data, page, limit]);
+  const plan = plans.data.find((p) => p.code === ws.data?.plan.plan_code);
+  const expiry =
+    status.data?.subscription?.currentPeriodEnd ||
+    (ws.data?.plan.status === 'trialing' ? ws.data.plan.trial_ends_at : null);
+  const free = plan?.price_cents === 0;
+  const error = ws.error || plans.error || status.error || log.error;
   return (
-    <main className="stack">
-      <p className="notice">
-        {t(
-          'تغييرات الخطة تحتفظ بكمية الاشتراك الحالية؛ السعر المعروض للوحدة. الاشتراكات متعددة البنود أو المقاسة تحتاج مراجعة قبل التعديل.',
-          'Plan changes retain the current subscription quantity; displayed prices are per unit. Multi-item or metered subscriptions require review before changes.',
-        )}
-      </p>
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow">{t('الاشتراك والاستهلاك', 'PLAN & USAGE')}</p>
-          <h1>{t('اشتراك ينمو مع شركتك', 'A plan that grows with you')}</h1>
-          <p>{ws ? `${ws.plan.plan_name} · ${ws.plan.status}` : t('جارٍ التحميل…', 'Loading…')}</p>
-        </div>
-        <button
-          className="btn"
-          disabled={!status.portalAvailable || busy || ws?.role !== 'owner'}
-          onClick={() => pay('/billing/portal')}
-        >
-          {t('الفواتير وطرق الدفع', 'Invoices & payment methods')}
-        </button>
-      </div>
+    <main className={styles.page}>
+      <header className={styles.heading}>
+        <h1>{t('الفوترة', 'Billing')}</h1>
+        <p>{t('الخطة والإضافات وسجل الدفع', 'Plan, addons, and payment history')}</p>
+      </header>
       {error && (
-        <p className="notice error" role="alert">
+        <p role="alert" className="notice error">
           {error}
         </p>
       )}
-      {!status.configured && (
-        <p className="notice">
-          {t(
-            'الدفع غير مفعّل في هذه البيئة. يلزم إعداد Stripe والأسعار بواسطة مشغّل المنصة. لن يتم خصم أي مبلغ.',
-            'Billing is not configured in this environment. The platform operator must configure Stripe and prices. No payment will be taken.',
-          )}
-        </p>
-      )}
-      {status.subscription?.pastDueSince && (
-        <p className="notice" role="status">
-          {t('تأخر السداد منذ: ', 'Payment overdue since: ')}
-          {new Date(status.subscription.pastDueSince).toLocaleDateString()} ·{' '}
-          {t('فترة السماح بالأيام: ', 'Grace period in days: ')}
-          {status.subscription.graceDays}.{' '}
-          {t(
-            'بعدها تُطبق حدود الخطة المجانية دون حذف بياناتك. حدّث طريقة الدفع من بوابة الفوترة.',
-            'Afterwards free-plan limits apply without deleting your data. Update your payment method in the billing portal.',
-          )}
-        </p>
-      )}
-      {status.subscription?.currentPeriodEnd && (
-        <p className="notice">
-          {status.subscription.cancelAtPeriodEnd
-            ? t('ينتهي الاشتراك في: ', 'Subscription ends on: ')
-            : t('نهاية الفترة الحالية: ', 'Current period ends: ')}
-          {new Date(status.subscription.currentPeriodEnd).toLocaleDateString()}
-        </p>
-      )}
-      {ws && (
-        <section className="card">
-          <h2>{t('استهلاك الشهر الحالي', 'Current usage')}</h2>
-          <div className="card-grid">
-            {Object.entries(ws.usage).map(([key, value]) => {
-              const limit = ws.plan.limits[key];
-              return (
-                <div key={key}>
-                  <p className="muted">
-                    {(
-                      {
-                        agents: t('الموظفون', 'Team members'),
-                        channels: t('القنوات', 'Channels'),
-                        flows: t('السيناريوهات', 'Flows'),
-                        contacts: t('جهات الاتصال', 'Contacts'),
-                        messages_per_month: t('رسائل هذا الشهر', 'Messages this month'),
-                      } as Record<string, string>
-                    )[key] || key}
-                  </p>
-                  <strong>
-                    {value} / {limit === -1 ? '∞' : (limit ?? '—')}
-                  </strong>
-                  <div className="progress-track">
-                    <div
-                      style={{ width: `${limit > 0 ? Math.min(100, (value / limit) * 100) : 0}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+      <section
+        className={styles.summary}
+        aria-label={t('ملخص الاشتراك', 'Account package statistics')}
+      >
+        <div>
+          <span className={`${styles.icon} ${styles.package}`}>
+            <NavIcon name="upgrade" />
+          </span>
+          <div>
+            <small>{t('الباقة', 'Package')}</small>
+            <strong>{ws.data?.plan.plan_name || '—'}</strong>
+            <Link className={styles.upgrade} href="/dashboard/pricing">
+              {t('الترقية إلى Pro', 'Upgrade to Pro')}
+            </Link>
           </div>
-        </section>
-      )}
-      <div className="card-grid">
-        {plans.map((p) => (
-          <section className="card" key={p.code}>
-            <span className="badge">{p.name}</span>
-            <div className="metric">
-              {new Intl.NumberFormat(undefined, { style: 'currency', currency: p.currency }).format(
-                p.price_cents / 100,
+        </div>
+        <div>
+          <span className={`${styles.icon} ${styles.price}`}>
+            <NavIcon name="coins" />
+          </span>
+          <div>
+            <small>{t('السعر والصلاحية', 'Price & Validity')}</small>
+            <strong>
+              {plan
+                ? free
+                  ? t('مجاني (مدة غير محدودة)', 'Free (Unlimited)')
+                  : `${billingMoney(plan.price_cents, plan.currency)} (${plan.interval === 'year' ? t('سنة', 'year') : t('شهر', 'month')})`
+                : '—'}
+            </strong>
+          </div>
+        </div>
+        <div>
+          <span className={`${styles.icon} ${styles.expiry}`}>
+            <NavIcon name="calendar" />
+          </span>
+          <div>
+            <small>{t('انتهاء الحساب', 'Account Expiry')}</small>
+            <strong>
+              {expiry
+                ? new Date(expiry).toLocaleDateString()
+                : free
+                  ? t('بدون انتهاء', 'Never')
+                  : '—'}
+            </strong>
+          </div>
+        </div>
+      </section>
+      <section className={styles.log} aria-busy={log.loading}>
+        <h2>{t('سجل المعاملات', 'Transaction Log')}</h2>
+        <p className={styles.subtitle}>{t('المعاملات الأخيرة', 'Recent Transactions')}</p>
+        <div className={styles.tools}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              setSearch(draftSearch.trim());
+              setPage(1);
+            }}
+          >
+            <NavIcon name="search" />
+            <input
+              type="search"
+              value={draftSearch}
+              maxLength={200}
+              onChange={(e) => setDraftSearch(e.target.value)}
+              placeholder={t('ابحث واضغط Enter…', 'Search & Enter…')}
+              aria-label={t('البحث في المعاملات', 'Search transactions')}
+            />
+          </form>
+          <button
+            type="button"
+            className={styles.dateButton}
+            onClick={() => {
+              setDateError('');
+              setDatesOpen(true);
+            }}
+          >
+            <NavIcon name="calendar" />
+            {t('تصفية التاريخ', 'Date Filter')}
+          </button>
+        </div>
+        {(from || to) && (
+          <div className={styles.range}>
+            <span>
+              {from || '…'} — {to || '…'}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setFrom('');
+                setTo('');
+                setPage(1);
+              }}
+            >
+              {t('مسح', 'Clear')}
+            </button>
+          </div>
+        )}
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                {[
+                  '#',
+                  t('المعرف', 'ID'),
+                  t('البريد', 'Email'),
+                  t('الطريقة', 'Method'),
+                  t('المبلغ', 'Amount'),
+                  t('المنتج', 'Product'),
+                  t('النوع', 'Type'),
+                  t('دورة الفوترة', 'Billing Cycle'),
+                  t('تاريخ الدفع', 'Paid At'),
+                  t('الفاتورة', 'Invoice'),
+                ].map((label) => (
+                  <th key={label}>{label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data?.items.map((row, i) => {
+                const document = billingDocument(row.pdf_url) || billingDocument(row.hosted_url);
+                return (
+                  <tr key={row.provider_id}>
+                    <td>{(page - 1) * limit + i + 1}</td>
+                    <td title={row.provider_id}>{row.number || row.provider_id}</td>
+                    <td>—</td>
+                    <td>Stripe</td>
+                    <td>{billingMoney(row.amount_paid, row.currency)}</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>{row.paid_at ? new Date(row.paid_at).toLocaleString() : '—'}</td>
+                    <td>
+                      {document ? (
+                        <a href={document} target="_blank" rel="noopener noreferrer">
+                          {t('عرض', 'View')}
+                        </a>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+              {(!data || !data.items.length) && (
+                <tr>
+                  <td colSpan={10} className={styles.empty}>
+                    {!allowed && !ws.loading
+                      ? t('هذه الصفحة تحتاج صلاحيات إدارية', 'Management access required')
+                      : log.loading || ws.loading
+                        ? t('جارٍ التحميل…', 'Loading…')
+                        : error
+                          ? '—'
+                          : t('لا توجد بيانات في الجدول', 'No data available in table')}
+                  </td>
+                </tr>
               )}
-              <small className="muted">
-                {' '}
-                / {p.interval === 'year' ? t('سنة', 'year') : t('شهر', 'month')}
-              </small>
-            </div>
-            <p className="muted">
-              {p.limits.agents === -1 ? '∞' : p.limits.agents} {t('موظف', 'agents')} ·{' '}
-              {p.limits.channels === -1 ? '∞' : p.limits.channels} {t('قنوات', 'channels')}
-            </p>
-            <p className="muted">
-              {p.limits.flows === -1 ? '∞' : p.limits.flows} {t('سيناريو', 'flows')} ·{' '}
-              {p.limits.ai_credits} {t('رد ذكاء اصطناعي', 'AI replies')}
-            </p>
-            <div className="form-actions">
-              <button
-                className="btn btn-primary"
-                disabled={
-                  !status.configured ||
-                  busy ||
-                  ws?.role !== 'owner' ||
-                  !p.price_cents ||
-                  (!!status.subscription?.linked &&
-                    ['active', 'trialing', 'past_due'].includes(status.subscription.status)) ||
-                  ws?.plan.plan_code === p.code
-                }
-                onClick={() => pay('/billing/checkout', { planCode: p.code })}
-              >
-                {ws?.plan.plan_code === p.code
-                  ? t('الخطة الحالية', 'Current plan')
-                  : t('الاشتراك عبر Stripe', 'Subscribe with Stripe')}
-              </button>
-            </div>
-          </section>
-        ))}
-      </div>
-      {['owner', 'admin'].includes(ws?.role ?? '') && <BillingInvoices />}
-      {ws?.role === 'owner' && (
-        <SubscriptionRequests plans={plans} linked={!!status.subscription?.linked} />
-      )}
-      <BillingReconciliation />
-      <BillingEvents />
+            </tbody>
+          </table>
+        </div>
+        <footer className={styles.footer}>
+          <select
+            value={limit}
+            aria-label={t('عدد الصفوف', 'Rows per page')}
+            onChange={(e) => {
+              setLimit(Number(e.target.value));
+              setPage(1);
+            }}
+          >
+            {[5, 10, 25, 50, 100, 200, 500].map((n) => (
+              <option key={n}>{n}</option>
+            ))}
+          </select>
+          <span>
+            {data
+              ? `${data.total ? (page - 1) * limit + 1 : 0}–${Math.min(page * limit, data.total)} ${t('من', 'of')} ${data.total}`
+              : '—'}
+          </span>
+          <div>
+            <button
+              type="button"
+              disabled={log.loading || page === 1}
+              onClick={() => setPage(page - 1)}
+            >
+              {t('السابق', 'Previous')}
+            </button>
+            <button
+              type="button"
+              disabled={log.loading || !data || page * limit >= data.total}
+              onClick={() => setPage(page + 1)}
+            >
+              {t('التالي', 'Next')}
+            </button>
+          </div>
+        </footer>
+      </section>
+      <Dialog
+        open={datesOpen}
+        title={t('تصفية التاريخ', 'Date Filter')}
+        onClose={() => setDatesOpen(false)}
+      >
+        <form
+          key={`${datesOpen}:${from}:${to}`}
+          className="stack"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const values = new FormData(e.currentTarget),
+              a = String(values.get('from') || ''),
+              b = String(values.get('to') || '');
+            if (a && b && a > b) {
+              setDateError(t('تاريخ البداية يجب أن يسبق النهاية', 'Start must precede end'));
+              return;
+            }
+            setFrom(a);
+            setTo(b);
+            setPage(1);
+            setDatesOpen(false);
+          }}
+        >
+          {dateError && <p role="alert">{dateError}</p>}
+          <label className="field">
+            {t('من', 'From')}
+            <input type="date" name="from" defaultValue={from} />
+          </label>
+          <label className="field">
+            {t('إلى', 'To')}
+            <input type="date" name="to" defaultValue={to} />
+          </label>
+          <button className="btn btn-primary">{t('تطبيق', 'Apply')}</button>
+        </form>
+      </Dialog>
     </main>
   );
 }
