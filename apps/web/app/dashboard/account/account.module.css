@@ -150,6 +150,9 @@
   gap: 22px;
 }
 .panel button {
+  background: #29ce89;
+  border-color: #29ce89;
+  color: white;
   justify-self: start;
   display: flex;
   align-items: center;

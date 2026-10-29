@@ -209,7 +209,7 @@ export default function Account() {
                   <option value="en">English</option>
                 </select>
               </label>
-              <button className="btn primary" type="submit">
+              <button className="btn" type="submit">
                 {' '}
                 <NavIcon name="edit" />{' '}
                 {busy ? t('جارٍ التحديث…', 'Updating…') : t('تحديث', 'Update')}
