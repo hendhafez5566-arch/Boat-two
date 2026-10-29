@@ -2,8 +2,7 @@
 import ChannelScope from '../product/ChannelScope';
 import { useChannelContext } from '../product/useChannelContext';
 
-import { NavIcon } from '../product/NavIcon';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useData } from '../business/useData';
 import { useLocale } from '../product/locale';
@@ -39,18 +38,6 @@ type Booking = {
   calendar_status: string;
   calendar_error: string | null;
 };
-type Social = {
-  id: string;
-  channel_id: string;
-  channel_name: string;
-  kind: string;
-  body: string;
-  media_urls: string[];
-  status: string;
-  provider_id: string | null;
-  error: string | null;
-  scheduled_at: string | null;
-};
 export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
   const { t } = useLocale();
   const [channelId, setChannelId] = useChannelContext();
@@ -58,12 +45,10 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [result, setResult] = useState(''),
-    [editing, setEditing] = useState<Product | null>(null),
-    [postKind, setPostKind] = useState('text');
+    [editing, setEditing] = useState<Product | null>(null);
   const products = useData<Product[]>('/commerce/products', []),
     services = useData<Service[]>('/commerce/services', []),
     bookings = useData<Booking[]>('/commerce/appointments', []),
-    posts = useData<Social[]>('/commerce/social', []),
     channels = useData<{ id: string; name: string; type: string }[]>('/channels', []),
     contacts = useData<{ items: { id: string; name: string; email: string | null }[] }>(
       '/crm/contacts?limit=100',
@@ -73,15 +58,34 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
       '/integrations',
       [],
     );
+  const actionLock = useRef(false);
   async function act(fn: () => Promise<unknown>) {
+    if (actionLock.current) return;
+    actionLock.current = true;
     setBusy(true);
+    setResult('');
     setError('');
     try {
-      setResult(JSON.stringify(await fn(), null, 2));
-      await Promise.all([products.reload(), services.reload(), bookings.reload(), posts.reload()]);
+      const response = (await fn()) as {
+        available?: boolean;
+        persisted?: boolean;
+        start?: string;
+        end?: string;
+        content?: { text?: string };
+      };
+      setResult(
+        response?.available && response.persisted === false
+          ? t('الموعد متاح دون إنشاء حجز.', 'The time is available; no booking was created.') +
+              (response.start && response.end
+                ? ` ${new Date(response.start).toLocaleString()} — ${new Date(response.end).toLocaleString()}`
+                : '')
+          : response?.content?.text || t('تم تنفيذ الإجراء.', 'Action completed.'),
+      );
+      await Promise.all([products.reload(), services.reload(), bookings.reload()]);
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      actionLock.current = false;
       setBusy(false);
     }
   }
@@ -94,20 +98,17 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
         workspaceWide
       />
       <h1>
-        {initialTab === 'social'
-          ? t('النشر الاجتماعي', 'Social Posting')
-          : initialTab === 'appointments'
-            ? t('حجز المواعيد', 'Appointment Booking')
-            : initialTab === 'products'
-              ? t('كتالوج المنتجات', 'Product Catalog')
-              : t('التجارة والمواعيد والنشر', 'Commerce, appointments and publishing')}
+        {initialTab === 'appointments'
+          ? t('حجز المواعيد', 'Appointment Booking')
+          : initialTab === 'products'
+            ? t('كتالوج المنتجات', 'Product Catalog')
+            : t('التجارة والمواعيد', 'Commerce and appointments')}
       </h1>
       {!initialTab && (
         <nav className="form-actions">
           {[
             ['products', 'المنتجات', 'Products'],
             ['appointments', 'المواعيد', 'Appointments'],
-            ['social', 'النشر الاجتماعي', 'Social publishing'],
           ].map(([id, ar, en]) => (
             <button className="btn" key={id} aria-pressed={tab === id} onClick={() => setTab(id)}>
               {t(ar, en)}
@@ -121,9 +122,9 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
           </Link>
         </nav>
       )}
-      {(error || products.error || services.error || posts.error) && (
+      {(error || products.error || services.error) && (
         <p className="notice error" role="alert">
-          {error || products.error || services.error || posts.error}
+          {error || products.error || services.error}
         </p>
       )}
       {tab === 'products' && (
@@ -435,233 +436,10 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
           </section>
         </>
       )}
-      {tab === 'social' && (
-        <>
-          <section
-            className="social-posting-modes"
-            aria-label={t('اختيار نوع المنشور', 'Choose a post format')}
-          >
-            {[
-              [
-                'image',
-                'campaigns',
-                'منشور متعدد الوسائط',
-                'Multimedia post',
-                'نص وصورة أو فيديو',
-                'Text, image or video',
-              ],
-              [
-                'cta',
-                'flows',
-                'منشور بدعوة لاتخاذ إجراء',
-                'CTA post',
-                'رابط واضح لاتخاذ الخطوة التالية',
-                'A link to the next action',
-              ],
-              [
-                'carousel',
-                'channels',
-                'منشور شرائح أو فيديو',
-                'Carousel / video post',
-                'مجموعة صور أو فيديو لحسابك',
-                'Multiple images or a video',
-              ],
-            ].map(([kind, icon, ar, en, descriptionAr, descriptionEn]) => (
-              <article className="card stack" key={kind}>
-                <span className="tile-icon">
-                  <NavIcon name={icon} />
-                </span>
-                <h2>{t(ar, en)}</h2>
-                <p>{t(descriptionAr, descriptionEn)}</p>
-                <button
-                  type="button"
-                  className="btn"
-                  aria-pressed={postKind === kind}
-                  onClick={() => {
-                    setPostKind(kind);
-                    document
-                      .getElementById('social-draft-form')
-                      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }}
-                >
-                  {t('إعداد المسودة', 'Prepare draft')}
-                </button>
-              </article>
-            ))}
-          </section>
-          <p className="notice">
-            {t(
-              'الحفظ والمعاينة لا ينشران. النشر والجدولة يتطلبان إجراءً منفصلًا وصلاحيات Meta واعتماد المشغل.',
-              'Saving and previewing do not publish. Publishing and scheduling require separate authorization, Meta permissions and operator enablement.',
-            )}
-          </p>
-          <form
-            id="social-draft-form"
-            className="card stack"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const f = new FormData(e.currentTarget);
-              void act(() =>
-                api('/commerce/social', {
-                  method: 'POST',
-                  body: JSON.stringify({
-                    channelId: f.get('channel'),
-                    kind: postKind,
-                    body: f.get('body'),
-                    mediaUrls: String(f.get('media') || '')
-                      .split('\n')
-                      .map((s) => s.trim())
-                      .filter(Boolean),
-                    ...(f.get('link') ? { linkUrl: f.get('link') } : {}),
-                  }),
-                }),
-              );
-            }}
-          >
-            <h2>{t('مسودة منشور', 'Post draft')}</h2>
-            <label className="field">
-              {t(
-                'الصفحة أو حساب Instagram الاحترافي',
-                'Facebook page or Instagram professional account',
-              )}
-              <select required name="channel">
-                <option value="">{t('اختر', 'Choose')}</option>
-                {channels.data
-                  .filter(
-                    (c) =>
-                      ['facebook', 'instagram'].includes(c.type) &&
-                      (!channelId || c.id === channelId),
-                  )
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} · {c.type}
-                    </option>
-                  ))}
-              </select>
-            </label>
-            <label className="field">
-              {t('نوع المنشور', 'Post type')}
-              <select value={postKind} onChange={(e) => setPostKind(e.target.value)}>
-                {['text', 'image', 'video', 'carousel', 'cta'].map((v) => (
-                  <option key={v}>{v}</option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              {t('المحتوى', 'Content')}
-              <textarea name="body" required maxLength={4096} rows={5} />
-            </label>
-            <label className="field">
-              {t('روابط HTTPS — رابط واحد لكل سطر', 'HTTPS media URLs — one per line')}
-              <textarea name="media" dir="ltr" rows={4} />
-            </label>
-            <label className="field">
-              {t('رابط CTA', 'CTA link')}
-              <input type="url" name="link" required={postKind === 'cta'} />
-            </label>
-            <button className="btn" disabled={busy}>
-              {t('حفظ مسودة فقط', 'Save draft only')}
-            </button>
-          </form>
-          <section className="card stack">
-            {posts.data
-              .filter((p) => !channelId || p.channel_id === channelId)
-              .map((p) => (
-                <article className="card stack" key={p.id}>
-                  <strong>
-                    {p.channel_name} · {p.kind} · {p.status}
-                  </strong>
-                  <p style={{ whiteSpace: 'pre-wrap' }}>{p.body}</p>
-                  <div className="form-actions">
-                    {p.media_urls.map((url) => (
-                      <a key={url} href={url} target="_blank" rel="noopener noreferrer">
-                        {t('عرض وسيط', 'View media')}
-                      </a>
-                    ))}
-                  </div>
-                  {p.provider_id && <code>{p.provider_id}</code>}
-                  {p.error && <p role="alert">{p.error}</p>}
-                  <button
-                    className="btn"
-                    disabled={busy}
-                    onClick={() =>
-                      void act(() => api(`/commerce/social/${p.id}/preview`, { method: 'POST' }))
-                    }
-                  >
-                    {t('معاينة Mock', 'Mock preview')}
-                  </button>
-                  {p.status === 'draft' && (
-                    <form
-                      className="form-actions"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        if (
-                          !confirm(
-                            t(
-                              'تفويض النشر الخارجي في الموعد المحدد؟',
-                              'Authorize external publication at the selected time?',
-                            ),
-                          )
-                        )
-                          return;
-                        const f = new FormData(e.currentTarget);
-                        void act(() =>
-                          api(`/commerce/social/${p.id}/queue`, {
-                            method: 'POST',
-                            body: JSON.stringify({
-                              confirm: true,
-                              scheduledAt: new Date(String(f.get('at'))).toISOString(),
-                            }),
-                          }),
-                        );
-                      }}
-                    >
-                      <label>
-                        {t('الموعد حسب جهازك', 'Schedule in device timezone')}
-                        <input name="at" type="datetime-local" required />
-                      </label>
-                      <button className="btn" disabled={busy}>
-                        {t('تفويض الجدولة', 'Authorize scheduling')}
-                      </button>
-                    </form>
-                  )}
-                  {['failed', 'ambiguous'].includes(p.status) && (
-                    <button
-                      className="btn"
-                      disabled={busy}
-                      onClick={() => {
-                        if (
-                          confirm(
-                            t(
-                              'هل راجعت المزود وتحققت أن المنشور السابق غير منشور؟ ستُنشأ مسودة جديدة فقط.',
-                              'Have you checked the provider and confirmed the previous post is unpublished? A new draft only will be created.',
-                            ),
-                          )
-                        )
-                          void act(() =>
-                            api(`/commerce/social/${p.id}/retry-draft`, {
-                              method: 'POST',
-                              body: JSON.stringify({ reconciled: true }),
-                            }),
-                          );
-                      }}
-                    >
-                      {t('مسودة إعادة محاولة بعد المراجعة', 'Retry draft after reconciliation')}
-                    </button>
-                  )}
-                </article>
-              ))}
-          </section>
-        </>
-      )}
       {result && (
-        <pre
-          className="card"
-          dir="ltr"
-          style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
-        >
+        <p role="status" style={{ whiteSpace: 'pre-wrap' }}>
           {result}
-        </pre>
+        </p>
       )}
     </section>
   );

@@ -1,0 +1,258 @@
+.page {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+  color: #303a47;
+  font:
+    400 13px/1.6 Arial,
+    sans-serif;
+}
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.heading h1 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+.heading p {
+  font-size: 12px;
+  color: #82909e;
+  margin: 5px 0 0;
+}
+.formats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+.formats > a {
+  display: grid;
+  gap: 15px;
+  justify-items: start;
+  padding: 30px;
+  background: white;
+  border: 1px solid #e7ebef;
+  border-radius: 16px;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 3px 10px #28374908;
+}
+.formats h2 {
+  font-size: 19px;
+  font-weight: 500;
+  margin: 0;
+}
+.formats p {
+  margin: 0;
+  min-height: 46px;
+  color: #87919f;
+  font-size: 13px;
+}
+.formats strong {
+  border: 1px solid #e3ddfc;
+  border-radius: 7px;
+  padding: 8px 20px;
+  color: #6954e5;
+  font-size: 12px;
+  font-weight: 500;
+}
+.formatIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: #f0edff;
+  color: #8b7bec;
+  display: grid;
+  place-items: center;
+}
+.formatIcon svg {
+  width: 26px;
+  height: 26px;
+}
+.breadcrumb {
+  color: #9aa2ad;
+  font-size: 11px;
+}
+.breadcrumb a {
+  color: #7060d9;
+  text-decoration: none;
+}
+.card {
+  background: #fff;
+  border: 1px solid #e7ebef;
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 3px 10px #28374905;
+  min-width: 0;
+}
+.filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.filters input,
+.filters select {
+  border: 1px solid #e1e5ec;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: white;
+  color: #7c8795;
+  font: inherit;
+  min-width: 0;
+}
+.filters input {
+  margin-inline-start: auto;
+}
+.tableWrap {
+  overflow: auto;
+}
+.tableWrap table {
+  width: 100%;
+  min-width: 1000px;
+  border-collapse: collapse;
+  font-size: 11px;
+  text-align: start;
+}
+.tableWrap th {
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-transform: uppercase;
+  background: #fafbfc;
+  color: #7b8592;
+  padding: 14px 10px;
+  border-bottom: 1px solid #e2e6ec;
+  text-align: start;
+}
+.tableWrap td {
+  padding: 15px 10px;
+  border-bottom: 1px solid #edf0f4;
+  color: #6a7583;
+  max-width: 180px;
+  overflow-wrap: anywhere;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+}
+.actions button,
+.actions a {
+  border: 0;
+  background: transparent;
+  color: #6e59df;
+  padding: 0;
+  text-decoration: none;
+  font: inherit;
+  cursor: pointer;
+}
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 20px;
+  color: #8b96a3;
+  font-size: 12px;
+}
+.pagination select {
+  border: 1px solid #e3e7ed;
+  border-radius: 7px;
+  padding: 7px;
+  color: inherit;
+  background: white;
+}
+.pagination button {
+  border: 0;
+  background: transparent;
+  color: #6e59df;
+  cursor: pointer;
+  font: inherit;
+}
+.pagination button:disabled {
+  color: #c0c6ce;
+  cursor: default;
+}
+.pagination button:first-of-type {
+  margin-inline-start: auto;
+}
+.composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(250px, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.composer form {
+  display: grid;
+  gap: 22px;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #e7eaf0;
+  padding-bottom: 10px;
+}
+.tabs button {
+  border: 0;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font: inherit;
+  background: transparent;
+  color: #84909f;
+  cursor: pointer;
+}
+.tabs button[aria-pressed='true'] {
+  background: #f1edff;
+  color: #6b54e0;
+}
+.preview p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 18px 0;
+}
+.preview img,
+.preview video {
+  width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+.preview small {
+  overflow-wrap: anywhere;
+  color: #7d8a98;
+}
+.formFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #e7ebf1;
+  padding-top: 20px;
+}
+.formFooter a {
+  color: #7560db;
+  text-decoration: none;
+}
+@media (max-width: 850px) {
+  .formats {
+    grid-template-columns: 1fr;
+  }
+  .composer {
+    grid-template-columns: 1fr;
+  }
+  .heading {
+    flex-wrap: wrap;
+  }
+  .card {
+    padding: 18px;
+  }
+  .pagination {
+    flex-wrap: wrap;
+  }
+  .filters input {
+    margin: 0;
+    width: 100%;
+  }
+}

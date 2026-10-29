@@ -1406,9 +1406,6 @@ textarea::placeholder {
   overflow-wrap: anywhere;
 }
 
-.social-posting-modes {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:16px;}
-.social-posting-modes article {min-width:0;align-items:start;}
-.social-posting-modes h2 {font-size:1.1rem;}
 
 .page-workspace .btn, .focused-workspace .btn {white-space:normal;max-inline-size:100%;overflow-wrap:anywhere;}
 
