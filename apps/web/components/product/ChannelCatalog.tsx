@@ -13,7 +13,7 @@ const channels = [
   },
   {
     id: 'facebook',
-    name: 'Facebook Messenger',
+    name: 'Facebook',
     mark: 'f',
     color: '#0866ff',
     ar: 'رسائل صفحة نشاطك',
@@ -32,8 +32,8 @@ const channels = [
     name: 'Telegram',
     mark: '➤',
     color: '#0088cc',
-    ar: 'موصل Bot API للمحادثات والوسائط والمجموعات الاختيارية — يحتاج إعداد Webhook واختبارًا حيًا',
-    en: 'Bot API adapter with media and opt-in groups — requires webhook setup and live validation',
+    ar: 'اربط بوت Telegram لأتمتة الرسائل وإدارة المحادثات.',
+    en: 'Connect your Telegram Bot to automate messages and manage conversations.',
   },
   {
     id: 'web',
@@ -45,11 +45,11 @@ const channels = [
   },
   {
     id: 'google',
-    name: 'Google Sheets',
+    name: 'Google',
     mark: 'G',
     color: '#188038',
-    ar: 'تفويض مستقل للقراءة وكتابة Sheets وCalendar بأقل صلاحية.',
-    en: 'Separate authorization for Sheets reads, writes and Calendar with purpose-specific scopes.',
+    ar: 'اربط حساب Google لإدارة التكاملات والخدمات.',
+    en: 'Connect your Google account to manage integrations and services.',
   },
 ];
 export default function ChannelCatalog({

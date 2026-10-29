@@ -22,22 +22,16 @@ type Channel = {
   connectionHealth?: { state: string; checkedAt: string | null; reason: string };
 };
 
+const CHANNEL_NAMES: Record<string, string> = {
+  whatsapp: 'WhatsApp',
+  facebook: 'Facebook',
+  instagram: 'Instagram',
+  telegram: 'Telegram',
+  web: 'Webchat',
+};
 const FIELDS: Record<string, { key: string; label: string }[]> = {
   telegram: [{ key: 'botToken', label: 'BotFather token' }],
   web: [],
-  whatsapp: [
-    { key: 'phoneNumberId', label: 'Phone Number ID' },
-    { key: 'wabaId', label: 'WhatsApp Business Account ID' },
-    { key: 'accessToken', label: 'Access Token' },
-  ],
-  facebook: [
-    { key: 'pageId', label: 'Page ID' },
-    { key: 'pageAccessToken', label: 'Page Access Token' },
-  ],
-  instagram: [
-    { key: 'igAccountId', label: 'Instagram Account ID' },
-    { key: 'pageAccessToken', label: 'Page Access Token' },
-  ],
 };
 
 export default function Channels() {
@@ -166,7 +160,7 @@ export default function Channels() {
             <option value="all">{t('كل المنصات', 'All platforms')}</option>
             {['whatsapp', 'facebook', 'instagram', 'telegram', 'web'].map((type) => (
               <option key={type} value={type}>
-                {type === 'web' ? 'Webchat' : type}
+                {CHANNEL_NAMES[type] || type}
               </option>
             ))}
           </select>
@@ -414,9 +408,7 @@ export default function Channels() {
         onClose={() => {
           if (!busy) setConnectOpen(false);
         }}
-        title={
-          t('ربط الحساب', 'Connect Account') + ' · ' + (selected === 'web' ? 'Webchat' : selected)
-        }
+        title={t('ربط الحساب', 'Connect Account') + ' · ' + (CHANNEL_NAMES[selected] || selected)}
       >
         {['web', 'telegram'].includes(selected) ? (
           <>
