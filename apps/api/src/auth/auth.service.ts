@@ -1,3 +1,4 @@
+import { AccountProfile, saveAccountProfile } from './account-profile';
 import {
   BadRequestException,
   ConflictException,
@@ -181,9 +182,15 @@ export class AuthService {
     return { ...tokens, tenantId, role: space.role };
   }
 
+  async updateProfile(userId: string, input: AccountProfile) {
+    const user = await saveAccountProfile(this.db, userId, input);
+    if (!user) throw new UnauthorizedException();
+    return { user };
+  }
+
   async me(userId: string) {
     const r = await this.db.query(
-      'SELECT id, email, full_name, created_at FROM users WHERE id = $1',
+      'SELECT id, email, full_name, created_at, account_profile FROM users WHERE id = $1',
       [userId],
     );
     return { user: r.rows[0], workspaces: await this.workspaces(userId) };

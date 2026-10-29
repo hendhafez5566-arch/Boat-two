@@ -1,0 +1,247 @@
+.page {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+  color: #29323c;
+  font-size: 13px;
+}
+.page h1 {
+  font-size: 21px;
+  font-weight: 600;
+  margin: 0;
+}
+.page header p {
+  font-size: 12px;
+  color: #7e8894;
+  margin: 4px 0 0;
+}
+.summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid #e7ebef;
+  border-radius: 16px;
+  background: #fff;
+  padding: 12px 0;
+  box-shadow: 0 4px 12px #25313b05;
+}
+.summary > div {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 22px;
+}
+.summary > div + div {
+  border-inline-start: 1px solid #e7ebef;
+}
+.summary > div > span {
+  width: 55px;
+  height: 55px;
+  display: grid;
+  place-items: center;
+  border-radius: 17px;
+  flex: none;
+}
+.summary svg {
+  width: 24px;
+  height: 24px;
+}
+.summary small {
+  display: block;
+  color: #69717c;
+  font-size: 14px;
+}
+.summary strong,
+.summary a {
+  font-size: 15px;
+  font-weight: 600;
+}
+.summary a {
+  color: #5848dc;
+  text-decoration: none;
+}
+.package {
+  background: #edf7ff;
+  color: #5746e9;
+}
+.expiry {
+  background: #fce9f3;
+  color: #bd2678;
+}
+.billing {
+  background: #dffbea;
+  color: #28bd7a;
+}
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 24px;
+  align-items: start;
+}
+.panel {
+  background: #fff;
+  border: 1px solid #e7ebef;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px #25313b06;
+  min-width: 0;
+}
+.panel h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  padding: 17px 20px;
+  border-bottom: 1px solid #edf0f3;
+}
+.panel form {
+  padding: 20px;
+}
+.panel fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 17px;
+  min-width: 0;
+}
+.panel label {
+  display: grid;
+  gap: 7px;
+  font-size: 10px;
+  color: #6f7780;
+  min-width: 0;
+}
+.panel input,
+.panel select,
+.panel textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #e4e7eb;
+  background: white;
+  color: #303740;
+  border-radius: 8px;
+  padding: 13px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+.panel input:read-only {
+  background: #f2f4f5;
+}
+.panel .input {
+  display: flex;
+  align-items: center;
+  border: 1px solid #e4e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.input svg {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  margin-inline-start: 10px;
+}
+.panel .input input {
+  border: 0;
+  border-radius: 0;
+}
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+}
+.panel button {
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.panel button svg {
+  width: 16px;
+  height: 16px;
+}
+.logs {
+  display: grid;
+  gap: 24px;
+}
+.logs summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 17px 20px;
+  cursor: pointer;
+  list-style: none;
+}
+.logs summary::-webkit-details-marker {
+  display: none;
+}
+.logs summary strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+.logs summary small {
+  display: block;
+  color: #86909d;
+  font-size: 11px;
+  margin-top: 3px;
+}
+.logs summary > svg {
+  width: 34px;
+  height: 34px;
+  padding: 9px;
+  border: 1px solid #e1e6eb;
+  border-radius: 7px;
+  box-sizing: border-box;
+  flex: none;
+  color: #8290a0;
+}
+.logs details[open] summary > svg {
+  transform: rotate(180deg);
+}
+.usage {
+  padding: 0 20px 18px;
+}
+.usage > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #edf0f3;
+  padding: 12px 0;
+  gap: 15px;
+}
+.usage p {
+  color: #788492;
+  font-size: 12px;
+}
+@media (max-width: 900px) {
+  .columns {
+    grid-template-columns: 1fr;
+  }
+  .summary > div {
+    padding: 10px;
+    gap: 9px;
+  }
+  .summary > div > span {
+    width: 40px;
+    height: 40px;
+  }
+}
+@media (max-width: 560px) {
+  .summary {
+    grid-template-columns: 1fr;
+  }
+  .summary > div + div {
+    border-inline-start: 0;
+    border-top: 1px solid #edf0f3;
+  }
+  .pair {
+    grid-template-columns: 1fr;
+  }
+  .page {
+    gap: 18px;
+  }
+  .columns {
+    gap: 18px;
+  }
+}

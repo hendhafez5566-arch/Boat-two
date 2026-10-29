@@ -205,7 +205,7 @@ function Shell({ children }: { children: ReactNode }) {
         .slice(0, 8)
     : [];
   const accountLinks = [
-    ['settings', 'user', 'حسابي', 'My account'],
+    ['account', 'user', 'حسابي', 'My account'],
     ['billing', 'billing', 'الفوترة', 'Billing'],
     ['sessions', 'shield', 'الأمان والأجهزة', 'Security and sessions'],
     ['pricing', 'upgrade', 'الترقية إلى Pro', 'Upgrade to Pro'],

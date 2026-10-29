@@ -1,4 +1,5 @@
-import { Body, Controller, Get, HttpCode, Post, Req } from '@nestjs/common';
+import { accountProfileSchema } from './account-profile';
+import { Body, Controller, Get, HttpCode, Patch, Post, Req } from '@nestjs/common';
 import { z } from 'zod';
 import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
@@ -77,6 +78,11 @@ export class AuthController {
   @HttpCode(200)
   switchTenant(@Req() req: AuthedRequest, @Body() body: unknown) {
     return this.auth.switchTenant(req.user.userId, parse(switchSchema, body).tenantId);
+  }
+
+  @Patch('profile')
+  profile(@Req() req: AuthedRequest, @Body() body: unknown) {
+    return this.auth.updateProfile(req.user.userId, parse(accountProfileSchema, body));
   }
 
   @Get('me')
