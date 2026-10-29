@@ -627,3 +627,33 @@
   background: #f4f1ff;
   color: #6551df;
 }
+
+.channelLogo {
+  display: grid;
+  place-items: center;
+  color: #434b58;
+}
+.channelLogo svg {
+  width: 14px;
+  height: 14px;
+}
+.channelLogo[data-channel='whatsapp'] {
+  color: #25b65f;
+}
+.channelLogo[data-channel='telegram'] {
+  color: #1f9ec5;
+}
+.channelLogo[data-channel='facebook'] {
+  color: #1877f2;
+}
+.channelLogo[data-channel='instagram'] {
+  color: #d1548b;
+}
+.avatar[data-channel='facebook'] {
+  background: #e6f0ff;
+  color: #1877f2;
+}
+.avatar[data-channel='instagram'] {
+  background: #fce8f0;
+  color: #c13584;
+}

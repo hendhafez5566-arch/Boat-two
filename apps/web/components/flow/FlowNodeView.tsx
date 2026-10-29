@@ -128,16 +128,32 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
           >
             ⧉
           </button>
-          <button
-            type="button"
-            className="nodrag danger"
-            title={t('حذف (Delete)', 'Delete (Delete)')}
-            aria-label={t('حذف الخطوة', 'Delete step')}
-            onClick={() => data.actions?.remove(id)}
-          >
-            ✕
-          </button>
         </div>
+      )}
+      {data.actions && (
+        <button
+          type="button"
+          className="flow-node-delete nodrag nopan"
+          title={t('حذف الخطوة', 'Delete step')}
+          aria-label={t('حذف الخطوة', 'Delete step')}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            data.actions?.remove(id);
+          }}
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            aria-hidden="true"
+          >
+            <path d="m6 6 12 12M18 6 6 18" />
+          </svg>
+        </button>
       )}
       <div className="fn-main">
         <div className="flow-node-heading">

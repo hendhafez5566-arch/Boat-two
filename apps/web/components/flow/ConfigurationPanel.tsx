@@ -18,7 +18,7 @@ export default function ConfigurationPanel({
   description?: string;
   children: ReactNode;
 }) {
-  const { language } = useLocale();
+  const { language, t } = useLocale();
   const heading = useId();
   const panel = useRef<HTMLElement>(null);
   const close = useRef(onClose);
@@ -54,6 +54,25 @@ export default function ConfigurationPanel({
     >
       <div className={styles.scroll}>
         <header className={styles.header}>
+          <button
+            type="button"
+            className={styles.close}
+            aria-label={t('إغلاق لوحة الإعدادات', 'Close configuration panel')}
+            title={t('إغلاق', 'Close')}
+            onClick={onClose}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
           <span className={styles.icon} aria-hidden="true">
             <svg viewBox="0 0 24 24" width="20" height="20">
               <path d="m7 4 11 8-6 1-3 6z" fill="currentColor" />

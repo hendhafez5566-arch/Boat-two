@@ -13,6 +13,7 @@ import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useData } from '../../../components/business/useData';
 import { Dialog } from '../../../components/product/ProductUI';
 import { NavIcon } from '../../../components/product/NavIcon';
+import ChannelLogo from '../../../components/product/ChannelLogo';
 import { useLocale } from '../../../components/product/locale';
 import { useChannelContext } from '../../../components/product/useChannelContext';
 import { api } from '../../../lib/api';
@@ -227,17 +228,13 @@ export default function BotManager() {
               onClick={() => setChannelType(type)}
               title={type === 'all' ? t('الكل', 'All') : type}
             >
-              {type === 'all'
-                ? t('الكل', 'All')
-                : type === 'whatsapp'
-                  ? 'WA'
-                  : type === 'telegram'
-                    ? 'TG'
-                    : type === 'facebook'
-                      ? 'f'
-                      : type === 'instagram'
-                        ? 'IG'
-                        : 'Web'}
+              {type === 'all' ? (
+                t('الكل', 'All')
+              ) : (
+                <span className={styles.channelLogo} data-channel={type}>
+                  <ChannelLogo id={type} />
+                </span>
+              )}
               <small>
                 {type === 'all'
                   ? channels.data.length
@@ -256,14 +253,11 @@ export default function BotManager() {
               onClick={() => setChannelId(c.id)}
             >
               <span className={styles.avatar} data-channel={c.type}>
-                <NavIcon name={c.type === 'web' ? 'globe' : 'channels'} />
+                <ChannelLogo id={c.type} />
               </span>
               <span>
                 <strong>{c.name}</strong>
-                <small dir="ltr">
-                  {c.type}
-                  {c.external_id ? ` · ${c.external_id}` : ''}
-                </small>
+                <small dir="ltr">{c.external_id || '—'}</small>
               </span>
             </button>
           ))}
@@ -278,7 +272,7 @@ export default function BotManager() {
       <div className={styles.workspace}>
         <header className={styles.workspaceHeader}>
           <span className={styles.avatar} data-channel={selected?.type}>
-            <NavIcon name="channels" />
+            <ChannelLogo id={selected?.type || 'web'} />
           </span>
           <div>
             <h2>

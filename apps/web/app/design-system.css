@@ -1592,8 +1592,8 @@ button.underline {
 }
 .flow-node-tools {
   position: absolute;
-  top: -34px;
-  inset-inline-end: 0;
+  top: -40px;
+  inset-inline-end: 28px;
   display: none;
   gap: 2px;
   padding: 3px;
@@ -1617,10 +1617,6 @@ button.underline {
 }
 .flow-node-tools button:hover {
   background: var(--primary-soft);
-}
-.flow-node-tools button.danger:hover {
-  background: #fde8ea;
-  color: #b4233a;
 }
 .flow-node-port.is-open::before {
   content: '';
@@ -1756,6 +1752,10 @@ button.underline {
   background: #fffbe0;
 }
 
+/* Deletion stays available without selecting the step or opening its toolbar. */
+.flow-node-delete { position:absolute; top:-13px; inset-inline-end:-13px; z-index:5; display:grid; place-items:center; width:28px; height:28px; padding:0; border:1px solid #f0b8bf; border-radius:50%; background:#fff; color:#d32f45; cursor:pointer; box-shadow:0 2px 5px #25313b12; }
+.flow-node-delete:hover { background:#fff0f2; }
+.flow-node-delete:focus-visible,.edge-delete:focus-visible { outline:2px solid #d32f45; outline-offset:3px; }
 /* ───────────── 20. Designer: safe connecting / disconnecting ───────────── */
 .edge-delete {
   position: absolute;

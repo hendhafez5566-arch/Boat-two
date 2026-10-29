@@ -1391,3 +1391,11 @@ textarea::placeholder {
 
 /* Allow the header to grow when translated text or text zoom wraps. */
 .product-content > .product-topbar {height:auto;min-height:var(--topbar-h);padding-block:8px;flex-wrap:wrap;}
+
+.connected-account-name { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
+.connected-account-logo { display:grid; place-items:center; width:40px; height:40px; border-radius:10px; background:#edf3ff; color:#2563eb; }
+.connected-account-logo svg { width:24px; height:24px; }
+.connected-account-logo[data-channel='whatsapp'] { background:#e5faed; color:#20a556; }
+.connected-account-logo[data-channel='facebook'] { color:#1877f2; }
+.connected-account-logo[data-channel='telegram'] { color:#159dc6; background:#e5f6fc; }
+.connected-account-logo[data-channel='instagram'] { color:#c13584; background:#fce8f0; }

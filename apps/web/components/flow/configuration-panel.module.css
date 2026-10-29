@@ -28,10 +28,14 @@
   padding-bottom: 104px;
 }
 .header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
   display: flex;
   gap: 14px;
   align-items: center;
   padding: 30px 36px 16px;
+  padding-inline-end: 68px;
   background: #fff;
 }
 .icon {
@@ -137,5 +141,37 @@
 @media (prefers-reduced-motion: reduce) {
   .panel {
     scroll-behavior: auto;
+  }
+}
+
+.close {
+  position: absolute;
+  inset-inline-end: 20px;
+  top: 22px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: #fff;
+  color: #d32f45;
+  border: 1px solid #f0b8bf;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.close:hover {
+  background: #fff0f2;
+}
+.close:focus-visible {
+  outline: 2px solid #d32f45;
+  outline-offset: 3px;
+}
+@media (max-width: 640px) {
+  .header {
+    padding-inline-end: 64px;
+  }
+  .close {
+    top: 18px;
+    inset-inline-end: 18px;
   }
 }
