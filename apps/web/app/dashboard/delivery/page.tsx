@@ -1,4 +1,5 @@
 'use client';
+import { DeliveryPolicies } from '../../../components/business/DeliveryPolicies';
 import { statusLabel } from '../../../components/product/status';
 import { useState } from 'react';
 import { api } from '../../../lib/api';
@@ -163,6 +164,7 @@ export default function Delivery() {
           {t('التالي', 'Next')}
         </button>
       </div>
+      <DeliveryPolicies />
     </main>
   );
 }

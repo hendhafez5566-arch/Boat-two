@@ -68,6 +68,12 @@ export default function Campaigns() {
     window.addEventListener('popstate', read);
     return () => window.removeEventListener('popstate', read);
   }, []);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has('channel')) return;
+    const selected = channels.data.find((channel) => channel.id === channelId);
+    if (selected && ['whatsapp', 'facebook', 'telegram'].includes(selected.type))
+      setPlatform(selected.type);
+  }, [channelId, channels.data]);
   function selectPlatform(value: string) {
     setPlatform(value);
     const query = new URLSearchParams(window.location.search);
