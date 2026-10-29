@@ -8,7 +8,7 @@ import { useChannelContext } from '../../../components/product/useChannelContext
 
 import AudienceSummary, { Audience } from '../../../components/business/AudienceSummary';
 import { statusLabel } from '../../../components/product/status';
-import { DeliveryPolicies } from '../../../components/business/DeliveryPolicies';
+import Link from 'next/link';
 import {
   CampaignDraftEditor,
   EditableCampaign,
@@ -26,6 +26,7 @@ type Campaign = EditableCampaign & {
   status: string;
   recipients: number;
   scheduled_at: string | null;
+  channel_type: string;
 };
 type Recipient = {
   id: string;
@@ -42,7 +43,38 @@ type Recipient = {
 export default function Campaigns() {
   const { t } = useLocale();
   const [channelId, setChannelId] = useChannelContext();
-  const [deliveryOpen, setDeliveryOpen] = useState(false);
+  const channels = useData<{ id: string; name: string; type: string }[]>('/channels', []);
+  const [platform, setPlatform] = useState('whatsapp');
+  const [campaignLimit, setCampaignLimit] = useState(5);
+  const [sort, setSort] = useState<'createdAt' | 'name' | 'status' | 'scheduledAt'>('createdAt');
+  const [direction, setDirection] = useState<'asc' | 'desc'>('desc');
+  const [draftSearch, setDraftSearch] = useState('');
+  function sortBy(key: 'name' | 'status' | 'scheduledAt') {
+    setSort(key);
+    setDirection(sort === key && direction === 'asc' ? 'desc' : 'asc');
+  }
+  const platformChannels = channels.data.filter((channel) => channel.type === platform);
+  const activeChannel =
+    platformChannels.find((channel) => channel.id === channelId) || platformChannels[0];
+  const activeChannelId = activeChannel?.id || '';
+  useEffect(() => {
+    const read = () => {
+      const value = new URLSearchParams(window.location.search).get('channel');
+      setPlatform(
+        value && ['whatsapp', 'sms', 'facebook', 'telegram'].includes(value) ? value : 'whatsapp',
+      );
+    };
+    read();
+    window.addEventListener('popstate', read);
+    return () => window.removeEventListener('popstate', read);
+  }, []);
+  function selectPlatform(value: string) {
+    setPlatform(value);
+    const query = new URLSearchParams(window.location.search);
+    query.set('channel', value);
+    window.history.replaceState(window.history.state, '', window.location.pathname + '?' + query);
+    setChannelId(channels.data.find((channel) => channel.type === value)?.id || '');
+  }
   const [mode, setMode] = useState('broadcast'),
     [creating, setCreating] = useState(false),
     [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null),
@@ -52,17 +84,45 @@ export default function Campaigns() {
     [campaignPage, setCampaignPage] = useState(1);
   const query = new URLSearchParams({
     paginated: 'true',
-    limit: '10',
+    limit: String(campaignLimit),
     page: String(campaignPage),
     q: campaignSearch,
-    ...(channelId ? { channelId } : {}),
+    channelType: platform,
+    sort,
+    direction,
+    ...(activeChannelId ? { channelId: activeChannelId } : {}),
     ...(campaignStatus ? { status: campaignStatus } : {}),
   });
-  const result = useData<{ items: Campaign[]; total: number }>('/campaigns?' + query, {
+  const result = useData<{
+    items: Campaign[];
+    total: number;
+    page?: number;
+    limit?: number;
+    filters?: {
+      channelId: string;
+      channelType: string;
+      status: string;
+      q: string;
+      sort: string;
+      direction: string;
+    };
+  }>(activeChannelId ? '/campaigns?' + query : null, {
     items: [],
     total: 0,
   });
-  const list = { ...result, data: result.data.items };
+  const currentResult =
+    !result.loading &&
+    !result.error &&
+    result.data.page === campaignPage &&
+    result.data.limit === campaignLimit &&
+    result.data.filters?.channelId === activeChannelId &&
+    result.data.filters?.channelType === platform &&
+    result.data.filters?.status === campaignStatus &&
+    result.data.filters?.q === campaignSearch.trim() &&
+    result.data.filters?.sort === sort &&
+    result.data.filters?.direction === direction;
+  const list = { ...result, data: currentResult ? result.data.items : [] };
+  const totalCampaigns = currentResult ? result.data.total : 0;
   const summary = useData<{
     total: number;
     completed: number;
@@ -71,30 +131,44 @@ export default function Campaigns() {
     read: number;
     failed: number;
     readRate: number | null;
-  }>('/campaigns/summary' + (channelId ? '?channelId=' + channelId : ''), {
-    total: 0,
-    completed: 0,
-    sent: 0,
-    delivered: 0,
-    read: 0,
-    failed: 0,
-    readRate: null,
-  });
+    filters?: { channelId: string; channelType: string };
+  }>(
+    activeChannelId
+      ? '/campaigns/summary?' +
+          new URLSearchParams({ channelType: platform, channelId: activeChannelId })
+      : null,
+    {
+      total: 0,
+      completed: 0,
+      sent: 0,
+      delivered: 0,
+      read: 0,
+      failed: 0,
+      readRate: null,
+    },
+  );
   useEffect(() => {
     setCampaignPage(1);
     setSelected('');
     setLedger(null);
+    setCreating(false);
+    setEditingCampaign(null);
+    setScheduling(null);
+    setSaved(false);
     ledgerVersion.current++;
-  }, [channelId, campaignSearch, campaignStatus]);
+  }, [activeChannelId, platform, campaignSearch, campaignStatus, campaignLimit, sort, direction]);
 
-  const channels = useData<{ id: string; name: string; type: string }[]>('/channels', []);
   const segments = useData<{ id: string; name: string; filters: Record<string, string> }[]>(
     '/crm/segments',
     [],
   );
-  const visible = list.data.filter((c) => !channelId || c.channel_id === channelId);
+  const visible =
+    list.loading || !activeChannelId
+      ? []
+      : list.data.filter((c) => c.channel_id === activeChannelId && c.channel_type === platform);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const actionLock = useRef(false);
   const [selected, setSelected] = useState('');
   const [ledger, setLedger] = useState<{
     items: Recipient[];
@@ -135,6 +209,8 @@ export default function Campaigns() {
     }
   }
   async function run(fn: () => Promise<unknown>) {
+    if (actionLock.current) return;
+    actionLock.current = true;
     setBusy(true);
     setError('');
     try {
@@ -144,6 +220,7 @@ export default function Campaigns() {
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      actionLock.current = false;
       setBusy(false);
     }
   }
@@ -213,37 +290,18 @@ export default function Campaigns() {
               aria-pressed={mode === 'broadcast'}
               onClick={() => setMode('broadcast')}
             >
-              {t('البث', 'Broadcast')}
+              <NavIcon name="campaigns" /> {t('البث', 'Broadcast')}
             </button>
             <button
               type="button"
               aria-pressed={mode === 'sequence'}
               onClick={() => setMode('sequence')}
             >
-              {t('التسلسلات', 'Sequence')}
+              <NavIcon name="sequences" /> {t('التسلسلات', 'Sequence')}
             </button>
           </nav>
-          <button
-            className="btn"
-            type="button"
-            aria-label={t('إعدادات الإرسال', 'Delivery settings')}
-            onClick={() => setDeliveryOpen(true)}
-          >
-            <NavIcon name="settings" />
-          </button>
-          {mode === 'broadcast' && (
+          {mode === 'broadcast' && activeChannelId && (
             <>
-              <button
-                className="btn"
-                type="button"
-                aria-label={t('تحديث', 'Refresh')}
-                onClick={() => {
-                  void list.reload();
-                  void summary.reload();
-                }}
-              >
-                <NavIcon name="redo" />
-              </button>
               <button className="btn btn-primary" type="button" onClick={() => setCreating(true)}>
                 + {t('إنشاء حملة', 'Create Campaign')}
               </button>
@@ -251,50 +309,33 @@ export default function Campaigns() {
           )}
         </div>
       </header>
-      <Dialog
-        open={deliveryOpen}
-        onClose={() => setDeliveryOpen(false)}
-        title={t('إعدادات الإرسال', 'Delivery settings')}
-      >
-        <DeliveryPolicies />
-      </Dialog>
       {mode === 'sequence' ? (
         <SequencesPanel />
       ) : (
         <>
           <nav className={styles.channelTabs} aria-label={t('قنوات البث', 'Broadcast channels')}>
-            <button type="button" aria-pressed={!channelId} onClick={() => setChannelId('')}>
-              {t('كل القنوات', 'All channels')}
-            </button>
-            {[...new Set(channels.data.map((channel) => channel.type))].map((type) => (
+            {['whatsapp', 'sms', 'facebook', 'telegram'].map((type) => (
               <button
                 type="button"
                 key={type}
-                aria-pressed={
-                  channels.data.find((channel) => channel.id === channelId)?.type === type
-                }
-                onClick={() =>
-                  setChannelId(channels.data.find((channel) => channel.type === type)?.id || '')
-                }
+                aria-pressed={platform === type}
+                onClick={() => selectPlatform(type)}
               >
-                <NavIcon name={type === 'web' ? 'globe' : 'channels'} />
+                <NavIcon name={type} />
                 {type === 'whatsapp'
                   ? 'WhatsApp'
-                  : type === 'telegram'
-                    ? 'Telegram'
+                  : type === 'sms'
+                    ? 'SMS'
                     : type === 'facebook'
                       ? 'Facebook'
-                      : type === 'instagram'
-                        ? 'Instagram'
-                        : t('الموقع', 'Website')}
+                      : 'Telegram'}
               </button>
             ))}
           </nav>
-          {channelId && (
+          {activeChannelId && (
             <div className={styles.currentBot}>
               <NavIcon name="flows" />
-              {t('البوت الحالي:', 'Current bot:')}{' '}
-              <strong>{channels.data.find((channel) => channel.id === channelId)?.name}</strong>
+              {t('البوت الحالي:', 'Current bot:')} <strong>{activeChannel?.name}</strong>
             </div>
           )}
           {(error || list.error) && (
@@ -337,20 +378,23 @@ export default function Campaigns() {
                   <NavIcon
                     name={
                       key === 'completed'
-                        ? 'check'
+                        ? 'circleCheck'
                         : key === 'failed'
-                          ? 'close'
+                          ? 'circleClose'
                           : key === 'readRate'
-                            ? 'reports'
+                            ? 'eye'
                             : 'campaigns'
                     }
                   />
                 </span>
                 <span>{label}</span>
                 <strong>
-                  {summary.loading
+                  {summary.loading || channels.loading
                     ? '…'
-                    : summary.error
+                    : summary.error ||
+                        !activeChannelId ||
+                        summary.data.filters?.channelId !== activeChannelId ||
+                        summary.data.filters?.channelType !== platform
                       ? '—'
                       : summary.data[key] === null
                         ? '—'
@@ -360,177 +404,265 @@ export default function Campaigns() {
               </article>
             ))}
           </section>
-          <ConfigurationPanel
-            open={creating}
-            onClose={() => {
-              if (!busy) setCreating(false);
-            }}
-            title={t('إنشاء حملة', 'Create Campaign')}
-          >
-            <CampaignComposer
-              layout="reference"
-              channels={channels.data.filter((c) => !channelId || c.id === channelId)}
-              segments={segments.data}
-              onSaved={async () => {
-                await list.reload();
-                setSaved(true);
-                setCreating(false);
-                void summary.reload();
-              }}
-            />
-            <footer className="smart-editor-footer">
-              <button type="button" onClick={() => setCreating(false)}>
-                {t('إغلاق', 'Close')}
-              </button>
-            </footer>
-          </ConfigurationPanel>
-          <section className={styles.campaignCard} aria-label={t('الحملات', 'Campaigns')}>
-            <section className={styles.filters}>
-              <select
-                aria-label={t('الحساب', 'Account')}
-                value={channelId}
-                onChange={(e) => setChannelId(e.target.value)}
-              >
-                <option value="">{t('كل الحسابات', 'All accounts')}</option>
-                {channels.data.map((channel) => (
-                  <option key={channel.id} value={channel.id}>
-                    {channel.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                aria-label={t('حالة الحملة', 'Campaign status')}
-                value={campaignStatus}
-                onChange={(e) => setCampaignStatus(e.target.value)}
-              >
-                <option value="">{t('كل الحالات', 'All statuses')}</option>
-                {['draft', 'scheduled', 'running', 'completed', 'cancelled'].map((status) => (
-                  <option key={status} value={status}>
-                    {statusLabel(status, t)}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="search"
-                aria-label={t('البحث في الحملات', 'Search campaigns')}
-                placeholder={t('ابحث عن حملة…', 'Search campaigns…')}
-                value={campaignSearch}
-                onChange={(e) => setCampaignSearch(e.target.value)}
-              />
-            </section>
-            <div className={styles.campaignTable}>
-              <table className="product-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>{t('الحملة', 'Campaign Name')}</th>
-                    <th>{t('الحالة', 'Status')}</th>
-                    <th>{t('الجمهور', 'Recipients')}</th>
-                    <th>{t('تمت معالجته', 'Processed')}</th>
-                    <th>{t('مسلّم', 'Delivered')}</th>
-                    <th>{t('مقروء', 'Opened')}</th>
-                    <th>{t('فشل', 'Unreached')}</th>
-                    <th>{t('الموعد', 'Scheduled At')}</th>
-                    <th>{t('الإجراءات', 'Actions')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visible.map((c, index) => (
-                    <tr key={c.id}>
-                      <td>{(campaignPage - 1) * 10 + index + 1}</td>
-                      <td>
-                        <strong>{c.name}</strong>
-                        <div className="muted">{c.channel_name}</div>
-                      </td>
-                      <td>
-                        <span className="badge">{statusLabel(c.status, t)}</span>
-                      </td>
-                      <td>{c.recipients}</td>
-                      <td>{c.metrics?.processed ?? 0}</td>
-                      <td>{c.metrics?.delivered ?? 0}</td>
-                      <td>{c.metrics?.read ?? 0}</td>
-                      <td>{c.metrics?.failed ?? 0}</td>
-                      <td>{c.scheduled_at ? new Date(c.scheduled_at).toLocaleString() : '—'}</td>
-                      <td>
-                        <div className="flex flex-wrap gap-2">
-                          <button className="btn" onClick={() => view(c.id)}>
-                            {t('النتائج', 'Results')}
-                          </button>
-                          {c.status === 'draft' && (
-                            <button
-                              type="button"
-                              className="btn"
-                              onClick={() => setEditingCampaign(c)}
-                            >
-                              {t('تعديل', 'Edit')}
-                            </button>
-                          )}
-                          {['draft', 'scheduled'].includes(c.status) && (
-                            <button type="button" className="btn" onClick={() => setScheduling(c)}>
-                              {c.status === 'scheduled'
-                                ? t('إعادة الجدولة', 'Reschedule')
-                                : t('جدولة', 'Schedule')}
-                            </button>
-                          )}
-                          {['draft', 'scheduled', 'running'].includes(c.status) && (
-                            <button
-                              className="btn btn-danger"
-                              disabled={busy}
-                              onClick={() =>
-                                confirm(
-                                  t(
-                                    'إلغاء ما لم يُرسل من الحملة؟',
-                                    'Cancel the unsent campaign work?',
-                                  ),
-                                ) &&
-                                run(() => api(`/campaigns/${c.id}/cancel`, { method: 'PATCH' }))
-                              }
-                            >
-                              {t('إلغاء', 'Cancel')}
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {list.loading ? (
-                <p className="empty">{t('جارٍ التحميل…', 'Loading…')}</p>
-              ) : (
-                !visible.length && (
-                  <p className="empty">
-                    {t(
-                      'لا توجد حملات. أنشئ أول مسودة أعلاه.',
-                      'No campaigns. Build your first draft above.',
-                    )}
-                  </p>
+          {!channels.loading && !activeChannelId && (
+            <p className="notice">
+              {platform === 'sms' ? (
+                t(
+                  'بث SMS غير متاح في هذه النسخة بعد.',
+                  'SMS broadcasting is not available in this version yet.',
                 )
+              ) : (
+                <>
+                  {t('لا يوجد بوت متصل بهذه المنصة.', 'No bot connected for this platform.')}{' '}
+                  <Link href="/dashboard/channels">{t('ربط بوت', 'Connect a bot')}</Link>
+                </>
               )}
-            </div>
-            <div className={styles.pagination}>
-              <span>
-                {result.data.total} {t('حملة', 'campaigns')}
-              </span>
-              <button
-                className="btn"
-                type="button"
-                disabled={campaignPage <= 1}
-                onClick={() => setCampaignPage(campaignPage - 1)}
+            </p>
+          )}
+          {activeChannelId && (
+            <>
+              <ConfigurationPanel
+                open={creating}
+                onClose={() => {
+                  if (!busy) setCreating(false);
+                }}
+                title={t('إنشاء حملة', 'Create Campaign')}
               >
-                {t('السابق', 'Previous')}
-              </button>
-              <span>{campaignPage}</span>
-              <button
-                className="btn"
-                type="button"
-                disabled={campaignPage * 10 >= result.data.total}
-                onClick={() => setCampaignPage(campaignPage + 1)}
-              >
-                {t('التالي', 'Next')}
-              </button>
-            </div>
-          </section>
+                <CampaignComposer
+                  layout="reference"
+                  channels={platformChannels.filter((c) => c.id === activeChannelId)}
+                  segments={segments.data}
+                  onSaved={async () => {
+                    await list.reload();
+                    setSaved(true);
+                    setCreating(false);
+                    void summary.reload();
+                  }}
+                />
+                <footer className="smart-editor-footer">
+                  <button type="button" onClick={() => setCreating(false)}>
+                    {t('إغلاق', 'Close')}
+                  </button>
+                </footer>
+              </ConfigurationPanel>
+              <section className={styles.campaignCard} aria-label={t('الحملات', 'Campaigns')}>
+                <section className={styles.filters}>
+                  <select
+                    aria-label={t('الحساب', 'Account')}
+                    value={activeChannelId}
+                    onChange={(e) => setChannelId(e.target.value)}
+                  >
+                    {platformChannels.map((channel) => (
+                      <option key={channel.id} value={channel.id}>
+                        {channel.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    aria-label={t('حالة الحملة', 'Campaign status')}
+                    value={campaignStatus}
+                    onChange={(e) => setCampaignStatus(e.target.value)}
+                  >
+                    <option value="">{t('كل الحالات', 'All statuses')}</option>
+                    {['draft', 'scheduled', 'running', 'completed', 'canceled'].map((status) => (
+                      <option key={status} value={status}>
+                        {statusLabel(status, t)}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="search"
+                    aria-label={t('البحث في الحملات', 'Search campaigns')}
+                    placeholder={t('ابحث واضغط Enter…', 'Search & Enter…')}
+                    maxLength={120}
+                    value={draftSearch}
+                    onChange={(e) => {
+                      setDraftSearch(e.target.value);
+                      if (!e.target.value) setCampaignSearch('');
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') setCampaignSearch(draftSearch);
+                    }}
+                  />
+                </section>
+                <div className={styles.campaignTable}>
+                  <table className="product-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th
+                          aria-sort={
+                            sort === 'name'
+                              ? direction === 'asc'
+                                ? 'ascending'
+                                : 'descending'
+                              : 'none'
+                          }
+                        >
+                          <button
+                            className={styles.sortButton}
+                            type="button"
+                            onClick={() => sortBy('name')}
+                          >
+                            {t('الحملة', 'Campaign Name')}
+                            <NavIcon name="sort" />
+                          </button>
+                        </th>
+                        <th
+                          aria-sort={
+                            sort === 'status'
+                              ? direction === 'asc'
+                                ? 'ascending'
+                                : 'descending'
+                              : 'none'
+                          }
+                        >
+                          <button
+                            className={styles.sortButton}
+                            type="button"
+                            onClick={() => sortBy('status')}
+                          >
+                            {t('الحالة', 'Status')}
+                            <NavIcon name="sort" />
+                          </button>
+                        </th>
+                        <th>{t('الإجراءات', 'Actions')}</th>
+                        <th>{t('تمت معالجته', 'Processed')}</th>
+                        <th>{t('مسلّم', 'Delivered')}</th>
+                        <th>{t('مقروء', 'Opened')}</th>
+                        <th>{t('فشل', 'Unreached')}</th>
+                        <th
+                          aria-sort={
+                            sort === 'scheduledAt'
+                              ? direction === 'asc'
+                                ? 'ascending'
+                                : 'descending'
+                              : 'none'
+                          }
+                        >
+                          <button
+                            className={styles.sortButton}
+                            type="button"
+                            onClick={() => sortBy('scheduledAt')}
+                          >
+                            {t('الموعد', 'Scheduled At')}
+                            <NavIcon name="sort" />
+                          </button>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visible.map((c, index) => (
+                        <tr key={c.id}>
+                          <td>{(campaignPage - 1) * campaignLimit + index + 1}</td>
+                          <td>
+                            <strong>{c.name}</strong>
+                          </td>
+                          <td>
+                            <span className="badge">{statusLabel(c.status, t)}</span>
+                          </td>
+                          <td>
+                            <div className="flex flex-wrap gap-2">
+                              <button className="btn" onClick={() => view(c.id)}>
+                                {t('النتائج', 'Results')}
+                              </button>
+                              {c.status === 'draft' && (
+                                <button
+                                  type="button"
+                                  className="btn"
+                                  onClick={() => setEditingCampaign(c)}
+                                >
+                                  {t('تعديل', 'Edit')}
+                                </button>
+                              )}
+                              {['draft', 'scheduled'].includes(c.status) && (
+                                <button
+                                  type="button"
+                                  className="btn"
+                                  onClick={() => setScheduling(c)}
+                                >
+                                  {c.status === 'scheduled'
+                                    ? t('إعادة الجدولة', 'Reschedule')
+                                    : t('جدولة', 'Schedule')}
+                                </button>
+                              )}
+                              {['draft', 'scheduled', 'running'].includes(c.status) && (
+                                <button
+                                  className="btn btn-danger"
+                                  disabled={busy}
+                                  onClick={() =>
+                                    confirm(
+                                      t(
+                                        'إلغاء ما لم يُرسل من الحملة؟',
+                                        'Cancel the unsent campaign work?',
+                                      ),
+                                    ) &&
+                                    run(() => api(`/campaigns/${c.id}/cancel`, { method: 'PATCH' }))
+                                  }
+                                >
+                                  {t('إلغاء', 'Cancel')}
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                          <td>{c.metrics?.processed ?? 0}</td>
+                          <td>{c.metrics?.delivered ?? 0}</td>
+                          <td>{c.metrics?.read ?? 0}</td>
+                          <td>{c.metrics?.failed ?? 0}</td>
+                          <td>
+                            {c.scheduled_at ? new Date(c.scheduled_at).toLocaleString() : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {list.loading ? (
+                    <p className="empty">{t('جارٍ التحميل…', 'Loading…')}</p>
+                  ) : (
+                    !visible.length && (
+                      <p className="empty">
+                        {t('لا توجد بيانات في الجدول.', 'No data available in table.')}
+                      </p>
+                    )
+                  )}
+                </div>
+                <div className={styles.pagination}>
+                  <select
+                    aria-label={t('عدد الحملات في الصفحة', 'Campaigns per page')}
+                    value={campaignLimit}
+                    onChange={(e) => setCampaignLimit(Number(e.target.value))}
+                  >
+                    {[5, 10, 25].map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
+                  <span>
+                    {totalCampaigns ? (campaignPage - 1) * campaignLimit + 1 : 0} -{' '}
+                    {Math.min(campaignPage * campaignLimit, totalCampaigns)} {t('من', 'of')}{' '}
+                    {totalCampaigns}
+                  </span>
+                  <button
+                    className="btn"
+                    type="button"
+                    disabled={list.loading || campaignPage <= 1}
+                    onClick={() => setCampaignPage(campaignPage - 1)}
+                  >
+                    {t('السابق', 'Previous')}
+                  </button>
+                  <button
+                    className="btn"
+                    type="button"
+                    disabled={list.loading || campaignPage * campaignLimit >= totalCampaigns}
+                    onClick={() => setCampaignPage(campaignPage + 1)}
+                  >
+                    {t('التالي', 'Next')}
+                  </button>
+                </div>
+              </section>
+            </>
+          )}
 
           <Dialog
             open={!!editingCampaign}

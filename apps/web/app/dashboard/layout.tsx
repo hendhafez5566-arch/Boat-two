@@ -205,12 +205,12 @@ function Shell({ children }: { children: ReactNode }) {
         .slice(0, 8)
     : [];
   const accountLinks = [
-    ['account', 'user', 'حسابي', 'My account'],
+    ['account', 'user', 'الحساب', 'Account'],
     ['billing', 'billing', 'الفوترة', 'Billing'],
-    ['sessions', 'shield', 'الأمان والأجهزة', 'Security and sessions'],
+    ['sessions', 'shield', 'الأمان', 'Security'],
     ['pricing', 'upgrade', 'الترقية إلى Pro', 'Upgrade to Pro'],
-    ['support', 'support', 'تذاكر الدعم', 'Support'],
-    ['developer', 'developer', 'API للمطور', 'Developer API'],
+    ['support', 'support', 'تذاكر الدعم', 'Support Ticket'],
+    ['developer', 'developer', 'API للمطور', 'API Developer'],
   ].filter(([k]) => allowedKey(k));
   return (
     <div

@@ -17,6 +17,9 @@
   justify-self: start;
 }
 .mode button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   padding: 9px 22px;
   border: 0;
   border-radius: 7px;
@@ -33,7 +36,7 @@
 }
 .filters {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.5fr;
+  grid-template-columns: 1.8fr 1fr 1.4fr;
   gap: 12px;
   background: #fff;
   border: 1px solid #e2e9f1;
@@ -271,7 +274,7 @@
   border-radius: 12px;
 }
 .campaignTable :global(.product-table) {
-  min-width: 920px;
+  min-width: 1320px;
 }
 .campaignTable :global(.product-table) th {
   text-transform: uppercase;
@@ -303,4 +306,51 @@
     width: 32px;
     height: 32px;
   }
+}
+
+.channelTabs button:first-child svg {
+  color: #5b45dc;
+}
+.channelTabs button:nth-child(2) svg {
+  color: #109b89;
+}
+.channelTabs button:nth-child(3) svg {
+  color: #3688e8;
+}
+.channelTabs button:nth-child(4) svg {
+  color: #179bb7;
+}
+.pagination select {
+  border: 1px solid #e5e9ef;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+}
+
+.sortButton {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  background: transparent;
+  cursor: pointer;
+  text-align: start;
+}
+.sortButton svg {
+  width: 12px;
+  height: 12px;
+  opacity: 0.45;
+}
+.campaignTable th[aria-sort='ascending'] .sortButton svg,
+.campaignTable th[aria-sort='descending'] .sortButton svg {
+  color: #5141e3;
+  opacity: 1;
 }

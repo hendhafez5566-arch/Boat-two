@@ -1,4 +1,10 @@
 import {
+  campaignList,
+  campaignListSchema,
+  campaignScopeSchema,
+  campaignSummary,
+} from './campaign-list';
+import {
   BadRequestException,
   Body,
   Controller,
@@ -35,41 +41,8 @@ export class CampaignsController {
     private campaigns: CampaignsService,
   ) {}
   @Get() list(@Req() r: AuthedRequest, @Query() query: unknown) {
-    const q = parse(
-      pagination.extend({
-        channelId: z.string().uuid().optional(),
-        status: z.enum(['draft', 'scheduled', 'running', 'completed', 'cancelled']).optional(),
-        q: z.string().max(120).default(''),
-        paginated: z.enum(['true', 'false']).default('false'),
-      }),
-      query,
-    );
-    return this.db.withTenant(r.user.tenantId, async (c) => {
-      const params = [
-        q.channelId ?? null,
-        q.status ?? null,
-        q.q ? `%${q.q.replace(/[\\%_]/g, (value) => '\\' + value)}%` : null,
-      ];
-      const where =
-        '($1::uuid IS NULL OR p.channel_id=$1) AND ($2::text IS NULL OR p.status=$2) AND ($3::text IS NULL OR p.name ILIKE $3)';
-      const rows = (
-        await c.query(
-          `SELECT p.*,ch.name AS channel_name,(SELECT count(*)::int FROM campaign_recipients WHERE campaign_id=p.id) AS recipients,
-       (SELECT jsonb_build_object('processed',count(*) FILTER(WHERE r.status<>'pending'),'delivered',count(*) FILTER(WHERE m.status IN ('delivered','read')),'read',count(*) FILTER(WHERE m.status='read'),'failed',count(*) FILTER(WHERE r.status='failed' OR m.status='failed')) FROM campaign_recipients r LEFT JOIN messages m ON m.id=r.message_id WHERE r.campaign_id=p.id) AS metrics
-       FROM campaigns p JOIN channels ch ON ch.id=p.channel_id WHERE ${where} ORDER BY p.created_at DESC,p.id LIMIT $4 OFFSET $5`,
-          [
-            ...params,
-            q.paginated === 'true' ? q.limit : 100,
-            q.paginated === 'true' ? (q.page - 1) * q.limit : 0,
-          ],
-        )
-      ).rows;
-      if (q.paginated !== 'true') return rows;
-      const total = (
-        await c.query(`SELECT count(*)::int AS n FROM campaigns p WHERE ${where}`, params)
-      ).rows[0].n;
-      return { items: rows, total, page: q.page, limit: q.limit };
-    });
+    const q = parse(campaignListSchema, query);
+    return this.db.withTenant(r.user.tenantId, (c) => campaignList(c, q));
   }
   @Get('labels') labels(@Req() r: AuthedRequest) {
     return this.db.withTenant(
@@ -83,29 +56,8 @@ export class CampaignsController {
     );
   }
   @Get('summary') summary(@Req() r: AuthedRequest, @Query() query: unknown) {
-    const { channelId } = parse(z.object({ channelId: z.string().uuid().optional() }), query);
-    return this.db.withTenant(r.user.tenantId, async (c) => {
-      const campaigns = (
-        await c.query(
-          "SELECT count(*)::int AS total,count(*) FILTER(WHERE status='completed')::int AS completed FROM campaigns WHERE created_at>=now()-interval '30 days' AND ($1::uuid IS NULL OR channel_id=$1)",
-          [channelId ?? null],
-        )
-      ).rows[0];
-      const messages = (
-        await c.query(
-          `SELECT count(*) FILTER(WHERE m.status IN ('sent','delivered','read'))::int AS sent,count(*) FILTER(WHERE m.status IN ('delivered','read'))::int AS delivered,count(*) FILTER(WHERE m.status='read')::int AS read,count(*) FILTER(WHERE r.status='failed' OR m.status='failed')::int AS failed FROM campaign_recipients r JOIN campaigns p ON p.id=r.campaign_id LEFT JOIN messages m ON m.id=r.message_id WHERE p.created_at>=now()-interval '30 days' AND ($1::uuid IS NULL OR p.channel_id=$1)`,
-          [channelId ?? null],
-        )
-      ).rows[0];
-      return {
-        ...campaigns,
-        ...messages,
-        readRate: messages.delivered
-          ? Math.round((messages.read / messages.delivered) * 10000) / 100
-          : null,
-        days: 30,
-      };
-    });
+    const scope = parse(campaignScopeSchema, query);
+    return this.db.withTenant(r.user.tenantId, (c) => campaignSummary(c, scope));
   }
   @Post('audience') audience(@Req() r: AuthedRequest, @Body() body: unknown) {
     const b = parse(z.object({ channelId: z.string().uuid(), filters: filtersSchema }), body);

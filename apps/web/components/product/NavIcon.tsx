@@ -1,4 +1,13 @@
 const paths: Record<string, string> = {
+  sort: 'M8 20V4m-4 4 4-4 4 4M16 4v16m-4-4 4 4 4-4',
+  circleCheck: 'M8 12l3 3 5-6M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+  circleClose: 'm9 9 6 6M15 9l-6 6M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+  whatsapp:
+    'M21 11.5a9 9 0 0 1-13.4 7.8L3 21l1.6-5A9 9 0 1 1 21 11.5ZM8 7l-1 1c0 4 5 8 8 8l1-2-3-2-1 1-3-3 1-1-2-2Z',
+  facebook: 'M14 21v-8h3l.5-4H14V7c0-1 1-1 2-1h2V3h-3c-3 0-5 2-5 5v1H7v4h3v8',
+  telegram: 'M22 3 2 11l7 3 3 7 10-18ZM9 14 22 3M12 21l3-5M9 14l6 2 4 3 3-16',
+  sms: 'M21 4H3v14h5l4 4 4-4h5V4ZM7 9h10M7 13h6',
+
   trash: 'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7',
   moreVertical: 'M12 5h.01M12 12h.01M12 19h.01',
   eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12ZM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',
