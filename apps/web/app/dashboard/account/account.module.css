@@ -245,3 +245,29 @@
     gap: 18px;
   }
 }
+
+.usage .tableScroll {
+  display: block;
+  overflow-x: auto;
+  padding: 0;
+  border: 0;
+  margin-top: 12px;
+}
+.usage table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: start;
+}
+.usage th {
+  font-size: 10px;
+  font-weight: 500;
+  color: #8992a0;
+}
+.usage th,
+.usage td {
+  text-align: start;
+  padding: 12px 8px;
+  border-bottom: 1px solid #edf0f3;
+  white-space: nowrap;
+}

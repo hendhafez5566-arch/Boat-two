@@ -43,6 +43,7 @@ export default function Account() {
     [error, setError] = useState(''),
     [saved, setSaved] = useState(false);
   const lock = useRef(false);
+  const [moduleSearch, setModuleSearch] = useState('');
   useEffect(() => {
     if (!me.data?.user) return;
     const user = me.data.user,
@@ -222,22 +223,58 @@ export default function Account() {
             <summary>
               <span>
                 <strong>{t('سجل الاستخدام', 'Usage Log')}</strong>
-                <small>{t('الاستخدام الحالي لحسابك.', 'Current usage for your account.')}</small>
+                <small>
+                  {t(
+                    'حدود الباقة والاستخدام الحالي لحسابك.',
+                    'Module limits and current usage for your account.',
+                  )}
+                </small>
               </span>
               <NavIcon name="chevron" />
             </summary>
             <div className={styles.usage}>
-              {[
-                ['contacts', 'جهات الاتصال', 'Subscribers'],
-                ['messages_per_month', 'الرسائل', 'Messages'],
-                ['channels', 'الحسابات', 'Accounts'],
-                ['agents', 'أعضاء الفريق', 'Team members'],
-              ].map(([key, ar, en]) => (
-                <div key={key}>
-                  <span>{t(ar, en)}</span>
-                  <strong>{ws.data ? (ws.data.usage[key]?.toLocaleString() ?? '—') : '—'}</strong>
-                </div>
-              ))}
+              <input
+                type="search"
+                aria-label={t('البحث في الوحدات', 'Search modules')}
+                placeholder={t('البحث في الوحدات…', 'Search modules…')}
+                value={moduleSearch}
+                onChange={(e) => setModuleSearch(e.target.value)}
+              />
+              <div className={styles.tableScroll}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>{t('الوحدة', 'MODULE')}</th>
+                      <th>{t('الحد', 'LIMIT')}</th>
+                      <th>{t('المستخدم', 'USED')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['channels', 'ربط الحسابات', 'Connect Account'],
+                      ['messages_per_month', 'رصيد الرسائل (شهريًا)', 'Message Credit (monthly)'],
+                      ['contacts', 'المشتركون', 'Subscribers'],
+                      ['agents', 'أعضاء الفريق', 'Team Member'],
+                    ]
+                      .filter(([, ar, en]) =>
+                        (ar + ' ' + en).toLowerCase().includes(moduleSearch.trim().toLowerCase()),
+                      )
+                      .map(([key, ar, en], index) => (
+                        <tr key={key}>
+                          <td>{index + 1}</td>
+                          <td>{t(ar, en)}</td>
+                          <td>
+                            {ws.data?.plan.limits?.[key] === -1
+                              ? t('غير محدود', 'Unlimited')
+                              : (ws.data?.plan.limits?.[key]?.toLocaleString() ?? '—')}
+                          </td>
+                          <td>{ws.data ? (ws.data.usage[key]?.toLocaleString() ?? '—') : '—'}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </details>
           <details className={styles.panel}>
