@@ -525,14 +525,7 @@ button.card:hover {
 .focused-workspace > div {
   height: calc(100dvh - var(--topbar-h));
 }
-.workspace-menu select {
-  background-color: var(--surface-muted);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  font-weight: 600;
-  min-height: 38px;
-  box-shadow: none;
-}
+
 .page-workspace {
   padding: 32px 32px 64px;
   max-width: 1480px;
@@ -2103,16 +2096,14 @@ button.underline {
 .bs-menu-head small { color: var(--faint); }
 .bs-account { position: relative; margin-inline-start: 0; }
 .bs-account > .bs-menu { position: absolute; background: #fff; }
-.bs-shell .workspace-menu select { max-width: 170px; }
+
 .bs-scrim { display: none; }
 
 @media (max-width: 1100px) {
   .bs-meter-text { display: none; }
   .bs-search { width: 180px; }
 }
-@media (max-width: 860px) {
-  .bs-shell .workspace-menu { display: none; }
-}
+
 @media (max-width: 700px) {
   .bs-shell .product-content > .product-topbar.bs-topbar { padding: 0 10px; gap: 6px; }
   .bs-meters { gap: 6px; }

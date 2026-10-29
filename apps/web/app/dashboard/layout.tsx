@@ -1,6 +1,5 @@
 'use client';
 import { statusLabel } from '../../components/product/status';
-import { WorkspaceMenu } from '../../components/product/WorkspaceMenu';
 import { NavIcon } from '../../components/product/NavIcon';
 import { CSSProperties, ReactNode, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -349,7 +348,6 @@ function Shell({ children }: { children: ReactNode }) {
               )}
             </div>
             <div className="bs-spacer" />
-            <WorkspaceMenu name={name} />
             <div className="bs-search" role="search">
               <NavIcon name="search" />
               <input

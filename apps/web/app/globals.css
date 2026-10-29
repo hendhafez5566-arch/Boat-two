@@ -1093,26 +1093,7 @@ textarea::placeholder {
     gap: 10px;
   }
 }
-.workspace-menu {
-  max-width: min(400px, 60vw);
-}
-.workspace-menu select {
-  font-size: 0.8rem;
-  min-height: 38px;
-  border-color: transparent;
-  background: #f4f8f9;
-  padding-inline: 12px;
-}
-.workspace-menu select:disabled {
-  opacity: 1;
-  color: var(--ink);
-  appearance: none;
-}
-.workspace-switch-error {
-  display: block;
-  color: var(--danger);
-  font-size: 0.7rem;
-}
+
 .nav-group {
   color: #8caaae;
   font-size: 0.62rem;
@@ -1405,7 +1386,6 @@ textarea::placeholder {
   min-inline-size: 0;
   overflow-wrap: anywhere;
 }
-
 
 .page-workspace .btn, .focused-workspace .btn {white-space:normal;max-inline-size:100%;overflow-wrap:anywhere;}
 
