@@ -26,7 +26,7 @@ export default function ConfigurationPanel({
   useEffect(() => {
     if (!open) return;
     const prior = document.activeElement as HTMLElement | null;
-    panel.current?.focus();
+    panel.current?.focus({ preventScroll: true });
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !document.querySelector('dialog[open]')) {
         event.preventDefault();
@@ -36,7 +36,7 @@ export default function ConfigurationPanel({
     document.addEventListener('keydown', escape);
     return () => {
       document.removeEventListener('keydown', escape);
-      if (prior?.isConnected) prior.focus();
+      if (prior?.isConnected) prior.focus({ preventScroll: true });
     };
   }, [open]);
   if (!open || typeof document === 'undefined') return null;

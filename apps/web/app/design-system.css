@@ -2196,3 +2196,6 @@ button.underline {
   .auth-v2 .auth-form-content h2 { font-size: 1.4rem; }
   .auth-v2 .locale-switch { top: 14px; inset-inline-end: 14px; background: rgb(255 255 255 / 92%); }
 }
+
+/* Canvas movement belongs to React Flow, never a hidden native scroll offset. */
+.premium-builder .react-flow { overflow: clip; }

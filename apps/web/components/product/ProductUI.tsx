@@ -74,7 +74,7 @@ export function Dialog({
     else if (!open && dialog.open) dialog.close();
     return () => {
       if (dialog.open) dialog.close();
-      previous?.focus();
+      previous?.focus({ preventScroll: true });
     };
   }, [open]);
   return (
