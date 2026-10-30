@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { api } from '../../lib/api';
 import { useLocale } from './locale';
 import { useData } from '../business/useData';
@@ -35,6 +35,41 @@ export default function MetaConnect({ onSaved, selectedKind }: { onSaved: () => 
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [whatsappMode, setWhatsappMode] = useState('cloud');
+  const [existingName, setExistingName] = useState('WhatsApp Business');
+  const [existingPhoneNumberId, setExistingPhoneNumberId] = useState('');
+  const [existingWabaId, setExistingWabaId] = useState('');
+  const [existingToken, setExistingToken] = useState('');
+  const [existingOpen, setExistingOpen] = useState(false);
+  async function attachExisting(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy) return;
+    setError('');
+    if (!/^\\d+$/.test(existingPhoneNumberId.trim()) || !/^\\d+$/.test(existingWabaId.trim())) {
+      setError(t('معرّفا رقم الهاتف وحساب واتساب يجب أن يكونا أرقامًا صحيحة.', 'Phone Number ID and WABA ID must be numeric.'));
+      return;
+    }
+    setBusy(true);
+    try {
+      await api('/channels', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'whatsapp',
+          name: existingName.trim() || 'WhatsApp Business',
+          credentials: {
+            phoneNumberId: existingPhoneNumberId.trim(),
+            wabaId: existingWabaId.trim(),
+            accessToken: existingToken.trim(),
+          },
+        }),
+      });
+      setExistingToken('');
+      onSaved();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   async function connect(kind: string) {
     setBusy(true);
     setError('');
@@ -134,6 +169,40 @@ export default function MetaConnect({ onSaved, selectedKind }: { onSaved: () => 
         <label><input type="radio" name="whatsapp-mode" checked={whatsappMode === 'coexistence'} onChange={() => setWhatsappMode('coexistence')} /> {t('رقم موجود في تطبيق WhatsApp Business — تعايش', 'Existing WhatsApp Business app number — coexistence')}</label>
         <p className="muted">{t('تتحقق Meta من أهلية الرقم والتعايش أثناء التفويض. اختيار هذا المسار لا يؤكد الأهلية ولا ينقل الرقم تلقائيًا.', 'Meta checks number and coexistence eligibility during authorization. Selecting this path does not confirm eligibility or automatically migrate the number.')}</p>
       </fieldset>}
+      {(!selectedKind || selectedKind === 'whatsapp') && (
+        <section className="card stack">
+          <button type="button" className="btn" aria-expanded={existingOpen} onClick={() => setExistingOpen(!existingOpen)}>
+            {t('رقمي متصل بالفعل بـMeta — اربطه بالمنصة دون إعادة التسجيل', 'Already connected to Meta — attach without onboarding again')}
+          </button>
+          {existingOpen && (
+            <form className="stack" onSubmit={attachExisting}>
+              <p className="muted">{t(
+                'استخدم هذا الخيار فقط إذا اكتمل ربط الرقم رسميًا داخل Meta. لن ننقل الرقم أو نسجله مجددًا. يلزم رمز وصول مصرح له بهذا الرقم تحديدًا. حفظ القناة لا يفعّل Webhooks أو إرسال الرسائل تلقائيًا.',
+                'Use only for a number already authorized in Meta. This does not migrate or register your phone again. Use an access token authorized for this exact number. Saving the channel does not automatically activate webhooks or outbound messaging.',
+              )}</p>
+              <label className="field">{t('اسم القناة', 'Channel name')}
+                <input value={existingName} maxLength={80} onChange={(e) => setExistingName(e.target.value)} required autoComplete="off"/>
+              </label>
+              <label className="field">{t('Phone Number ID من Meta', 'Meta Phone Number ID')}
+                <input value={existingPhoneNumberId} onChange={(e) => setExistingPhoneNumberId(e.target.value)} required pattern="[0-9]+" inputMode="numeric" dir="ltr" autoComplete="off"/>
+              </label>
+              <label className="field">{t('WhatsApp Business Account ID (WABA ID)', 'WhatsApp Business Account ID (WABA ID)')}
+                <input value={existingWabaId} onChange={(e) => setExistingWabaId(e.target.value)} required pattern="[0-9]+" inputMode="numeric" dir="ltr" autoComplete="off"/>
+              </label>
+              <label className="field">{t('Access Token بصلاحيات WhatsApp', 'WhatsApp-authorized Access Token')}
+                <input type="password" value={existingToken} onChange={(e) => setExistingToken(e.target.value)} required minLength={10} dir="ltr" autoComplete="off"/>
+              </label>
+              <p className="muted">{t(
+                'أدخل الرمز هنا داخل حسابك فقط، ولا ترسله في المحادثات أو الصور. بعد الحفظ اضغط فحص الاتصال بالمزود، ثم أكمل ضبط الـWebhook.',
+                'Enter the token only inside your account, never in chats or screenshots. After saving, verify the provider connection and configure your webhook.',
+              )}</p>
+              <button className="btn btn-primary" type="submit" disabled={busy}>
+                {busy ? t('جارٍ ربط البيانات…', 'Attaching…') : t('حفظ الربط الحالي دون إعادة التسجيل', 'Attach existing Meta number')}
+              </button>
+            </form>
+          )}
+        </section>
+      )}
       {(!config.data.configured || !config.data.externalEnabled) && (
         <div className="notice"><strong>{t('بانتظار تجهيز الربط','Connection setup pending')}</strong><p>{t('تواصل مع مسؤول المنصة لتجهيز الربط الرسمي. يمكنك استخدام قناة الموقع الآن دون حساب خارجي.','Contact the platform administrator to prepare the official connection. Website chat is available without an external account.')}</p><details><summary>{t('تفاصيل للمسؤول','Administrator details')}</summary>{t(
             'يلزم إعداد تطبيق Meta ومعرّف Embedded Signup وRedirect URI والصلاحيات المعتمدة بواسطة المشغّل.',
