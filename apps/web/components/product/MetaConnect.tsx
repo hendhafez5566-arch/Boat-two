@@ -44,7 +44,7 @@ export default function MetaConnect({ onSaved, selectedKind }: { onSaved: () => 
     event.preventDefault();
     if (busy) return;
     setError('');
-    if (!/^\\d+$/.test(existingPhoneNumberId.trim()) || !/^\\d+$/.test(existingWabaId.trim())) {
+    if (!/^\d+$/.test(existingPhoneNumberId.trim()) || !/^\d+$/.test(existingWabaId.trim())) {
       setError(t('معرّفا رقم الهاتف وحساب واتساب يجب أن يكونا أرقامًا صحيحة.', 'Phone Number ID and WABA ID must be numeric.'));
       return;
     }
