@@ -1,0 +1,11 @@
+{
+  "scope": "local engine only; not HTTP or production capacity",
+  "sessions": 1000,
+  "concurrency": 25,
+  "completed": 1000,
+  "failed": 0,
+  "durationMs": 20.285982999999987,
+  "sessionP50Ms": 0.15461699999997336,
+  "sessionP95Ms": 1.660474000000022,
+  "externalCalls": 0
+}
