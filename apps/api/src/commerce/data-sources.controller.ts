@@ -21,6 +21,7 @@ import { parse } from '../common/zod';
 import { parseCsv } from '../flows/engine/sheet';
 import { DataSourcesService } from './data-sources.service';
 import { sourceSchema } from './data-contracts';
+import { normalizeXlsxNamespaces } from './xlsx-namespaces';
 const rowsSchema = z.array(z.array(z.string().max(4000)).max(100)).max(10001);
 @Controller('commerce/sources')
 @Roles('owner', 'admin')
@@ -76,7 +77,7 @@ export class DataSourcesController {
         }
         if (!entries) throw new Error('Invalid XLSX archive');
         const workbook = new Workbook();
-        await workbook.xlsx.load(file.buffer as never);
+        await workbook.xlsx.load((await normalizeXlsxNamespaces(file.buffer)) as never);
         sheets = workbook.worksheets.map((w) => w.name);
         const ws = sheet ? workbook.getWorksheet(sheet) : workbook.worksheets[0];
         if (!ws) throw new Error('Choose a worksheet');

@@ -164,6 +164,11 @@ export default function DataSourcesPanel() {
     setArchive(false);
   }
   async function upload(f: File, worksheet = '') {
+    // A failed replacement must never leave an older preview available to apply.
+    setPreview(null);
+    setArchive(false);
+    setFile(null);
+    setSample([]);
     const data = new FormData();
     data.set('file', f);
     if (worksheet) data.set('sheet', worksheet);
