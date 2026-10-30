@@ -1078,6 +1078,7 @@ function Editor({ id }: { id: string }) {
         method: 'POST',
         body: JSON.stringify({ expectedUpdatedAt: savedAt }),
       });
+      setUpdatedAt(r.updated_at);
       setMeta((m) => ({ ...m, status: 'published', version: r.version }));
       setIssues([]);
       setWarnings(latest.current === submitted ? (r.warnings ?? []) : []);
@@ -1116,7 +1117,10 @@ function Editor({ id }: { id: string }) {
 
   const unpublish = async () => {
     try {
-      await api(`/flows/${id}/unpublish`, { method: 'POST' });
+      const result = await api<{ updated_at: string }>(`/flows/${id}/unpublish`, {
+        method: 'POST',
+      });
+      setUpdatedAt(result.updated_at);
       setMeta((m) => ({ ...m, status: 'draft', version: null }));
     } catch (e) {
       setMsg((e as Error).message);

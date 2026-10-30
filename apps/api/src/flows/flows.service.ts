@@ -330,22 +330,22 @@ export class FlowsService {
           ],
         )
       ).rows[0];
-      await c.query(
-        "UPDATE flows SET status = 'published', published_version_id = $2, updated_at = now() WHERE id = $1",
+      const updated = await c.query(
+        "UPDATE flows SET status = 'published', published_version_id = $2, updated_at = now() WHERE id = $1 RETURNING updated_at",
         [id, v.id],
       );
-      return { published: true, version: v.version, warnings };
+      return { published: true, version: v.version, warnings, updated_at: updated.rows[0].updated_at };
     });
   }
 
   unpublish(tenantId: string, id: string) {
     return this.db.withTenant(tenantId, async (c) => {
       const r = await c.query(
-        "UPDATE flows SET status = 'draft', published_version_id = NULL, updated_at = now() WHERE id = $1",
+        "UPDATE flows SET status = 'draft', published_version_id = NULL, updated_at = now() WHERE id = $1 RETURNING updated_at",
         [id],
       );
       if (!r.rowCount) throw new NotFoundException('Flow not found');
-      return { published: false };
+      return { published: false, updated_at: r.rows[0].updated_at };
     });
   }
 
