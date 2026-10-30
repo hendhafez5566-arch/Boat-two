@@ -400,6 +400,40 @@ export class DataSourcesService implements OnModuleInit, OnModuleDestroy {
   } | null> {
     const sources = (await this.list(tenant)).filter((s) => s.ai_enabled);
     if (!sources.length) return null;
+    // Follow-up questions must resolve the selected current row even beyond the first search page.
+    if (selected && /سعر|بكام|كام|price|cost|how much|مقاس|لون/i.test(question)) {
+      const wanted = searchTerms(question);
+      for (const source of sources.filter((s) => s.last_success_at)) {
+        try {
+          const item = await this.item(tenant, source.id, selected),
+            tokens = (item.content.text ?? '')
+              .toLowerCase()
+              .normalize('NFKC')
+              .replace(/[أإآ]/g, 'ا')
+              .replace(/ى/g, 'ي')
+              .replace(/ة/g, 'ه')
+              .split(/[^\p{L}\p{N}]+/u);
+          if (
+            wanted.every((term) =>
+              tokens.some((token) =>
+                /^[a-z0-9]+$/.test(term) ? token === term : token.includes(term),
+              ),
+            )
+          ) {
+            return {
+              text:
+                (item.content.text ?? '') +
+                '\nالمعلومات غير المذكورة تحتاج تأكيد الموظف. / Unlisted information requires staff confirmation.',
+              handoff: false,
+              failed: false,
+              sources: [{ title: source.name }],
+            };
+          }
+        } catch {
+          /* Hidden, foreign or unavailable rows cannot supply a follow-up answer. */
+        }
+      }
+    }
     const all = [];
     for (const s of sources.filter((s) => s.last_success_at)) {
       const r = await this.items(tenant, s.id, '', question, 0);

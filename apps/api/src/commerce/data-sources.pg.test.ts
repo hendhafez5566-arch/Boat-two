@@ -327,6 +327,9 @@ test('smart catalog real PostgreSQL RLS, source lifecycle and business acceptanc
         let p: any = await service.preview(tenant, s.id, data);
         await service.apply(tenant, s.id, p.previewId);
         assert.equal((await service.items(tenant, s.id)).total, 300);
+        const last = (await service.items(tenant, s.id, '', '', 37)).items.at(-1)!;
+        const follow = await service.answer(tenant, 'price', last.id);
+        assert.ok(follow!.text.includes(last.name));
         assert.equal((await service.categories(tenant, s.id))[0].count, 300);
         for (const page of [0, 1, 37]) {
           const c = await service.content(tenant, { sourceId: s.id, category: 'طعام/بيتزا', page });
