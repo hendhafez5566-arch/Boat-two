@@ -487,6 +487,21 @@ test('smart catalog real PostgreSQL RLS, source lifecycle and business acceptanc
         /Only/,
       );
     });
+    await t.test('short Arabic item names do not match unrelated child-price labels', async () => {
+      const s = await service.save(
+        tenant,
+        sourceSchema.parse({ name: 'Arabic name regression', kind: 'file', mapping }),
+      );
+      const p: any = await service.preview(tenant, s.id, [
+        rows[0],
+        ['alpha', 'QA عمرة ألفا', 'سياحة/عمرة', 'true', '12555 جنيه', 'أطفال حسب السياسة'],
+        ['beta', 'QA عمرة بيتا', 'سياحة/عمرة', 'true', '12002 جنيه', 'أطفال حسب السياسة'],
+      ]);
+      await service.apply(tenant, s.id, p.previewId);
+      const found = await service.items(tenant, s.id, '', 'QA عمرة ألفا');
+      assert.equal(found.total, 1);
+      assert.equal(found.items[0].name, 'QA عمرة ألفا');
+    });
   } finally {
     await pg.close();
   }

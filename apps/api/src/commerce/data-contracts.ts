@@ -166,6 +166,7 @@ export function itemText(
     .join('\n')
     .slice(0, 3500);
 }
+// Keep short names such as ألفا intact; فا also matches unrelated أطفال price labels.
 export function searchTerms(q: string) {
   return q
     .toLowerCase()
@@ -219,7 +220,7 @@ export function searchTerms(q: string) {
           'برامج',
         ].includes(w),
     )
-    .map((w) => w.replace(/^ال/, '').replace(/ه$/, ''))
+    .map((w) => (w.startsWith('ال') && w.length >= 5 ? w.slice(2) : w).replace(/ه$/, ''))
     .filter((w) => w.length > 1 || /^[a-z0-9]$/.test(w))
     .slice(0, 12);
 }
