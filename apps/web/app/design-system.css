@@ -2198,3 +2198,4 @@ button.underline {
 }
 
 /* Canvas movement belongs to React Flow, never a hidden native scroll offset. */
+.premium-builder .react-flow { overflow: clip !important; }

@@ -1713,7 +1713,6 @@ function Editor({ id }: { id: string }) {
                 <FlowSequencesContext.Provider value={seqInfo}>
                   <FlowButtonStatsContext.Provider value={buttonStats}>
                     <ReactFlow
-                      style={{ overflow: 'clip' }}
                       nodes={canvasNodes}
                       edges={[...cards.edges, ...(reference ? [reference.edge] : [])]}
                       nodeTypes={nodeTypes}
