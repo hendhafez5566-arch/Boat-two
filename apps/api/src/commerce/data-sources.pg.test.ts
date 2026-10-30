@@ -186,6 +186,11 @@ test('smart catalog real PostgreSQL RLS, source lifecycle and business acceptanc
     await t.test(
       'AI reads current values; unsupported field falls back without invented values; injection is data',
       async () => {
+        assert.equal(await service.answer(tenant, 'عنوان الشركة فين؟', selectedId), null);
+        assert.equal(
+          (await service.answer(tenant, 'عنوان الشركة وسعر برنامج مفقود'))!.handoff,
+          true,
+        );
         const answer = await service.answer(
           tenant,
           'سعر الفرد في الغرفة الثلاثية كام؟',

@@ -157,6 +157,9 @@ export default function DataSourcesPanel() {
     setFile(null);
     setSample([]);
     setPage(0);
+    setTotal(0);
+    setQuery('');
+    setError('');
     setCategory('');
     setCategories([]);
     setRuns([]);

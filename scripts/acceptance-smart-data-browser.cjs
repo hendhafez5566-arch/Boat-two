@@ -10,7 +10,7 @@ const runtime = createRequire(
 const { chromium } = runtime('playwright');
 const root = 'http://localhost:3000',
   api = 'http://127.0.0.1:4000',
-  out = 'docs/acceptance/2026-10-30-smart-data';
+  out = process.env.BOAT_ACCEPTANCE_OUT || 'docs/acceptance/2026-10-30-smart-data';
 fs.mkdirSync(out, { recursive: true });
 (async () => {
   const tokens = await (await fetch(api + '/fixture/tokens')).json();
@@ -101,6 +101,19 @@ fs.mkdirSync(out, { recursive: true });
     assert.equal((await fetch(api + '/commerce/sources')).status, 401);
     const items = await (await get('/commerce/sources/' + sources[0].id + '/items')).json();
     assert.equal(items.total, 2);
+    // Switching source must not carry a prior business's search or pagination into the new form.
+    await page.getByRole('textbox', { name: 'بحث', exact: true }).fill('عمرة جديدة');
+    await page.getByRole('button', { name: 'عرض', exact: true }).click();
+    await page.locator('article').filter({ hasText: 'عمرة اقتصادية' }).waitFor({ state: 'hidden' });
+    await page.getByRole('button', { name: 'إضافة مصدر', exact: true }).click();
+    assert.equal(
+      await page.getByRole('textbox', { name: 'اسم المصدر', exact: true }).inputValue(),
+      '',
+    );
+    await page.getByRole('combobox', { name: 'المصدر', exact: true }).selectOption(sources[0].id);
+    assert.equal(await page.getByRole('textbox', { name: 'بحث', exact: true }).inputValue(), '');
+    await page.getByRole('button', { name: 'معاينة ما يراه العميل والسجل', exact: true }).click();
+    await page.getByText('سعر الفرد ثلاثي: 13500 جنيه', { exact: true }).waitFor();
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({ path: out + '/04-catalog-ar-mobile.png', fullPage: true });
     assert.equal(

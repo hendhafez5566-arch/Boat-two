@@ -11,6 +11,7 @@ import { DatabaseService } from '../database/database.service';
 import { GoogleService } from '../integrations/google.service';
 import { CatalogItem, SourceInput, normalizeRows, itemText, searchTerms } from './data-contracts';
 import { OutContent } from '../flows/engine/types';
+import { isGeneralCompanyQuestion } from './catalog-routing';
 @Injectable()
 export class DataSourcesService implements OnModuleInit, OnModuleDestroy {
   constructor(
@@ -400,6 +401,7 @@ export class DataSourcesService implements OnModuleInit, OnModuleDestroy {
   } | null> {
     const sources = (await this.list(tenant)).filter((s) => s.ai_enabled);
     if (!sources.length) return null;
+    if (isGeneralCompanyQuestion(question)) return null;
     // Follow-up questions must resolve the selected current row even beyond the first search page.
     if (selected && /سعر|بكام|كام|price|cost|how much|مقاس|لون/i.test(question)) {
       const wanted = searchTerms(question);
