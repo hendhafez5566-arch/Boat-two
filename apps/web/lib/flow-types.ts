@@ -437,7 +437,9 @@ export function summary(type: NodeType, d: Record<string, any>, language = 'ar')
     case 'product':
       return d.productId || 'اختر منتجًا';
     case 'catalog':
-      return `${(d.productIds ?? []).length} products · ${d.text ?? ''}`;
+      return d.sourceId
+        ? `${en ? 'Dynamic catalog' : 'كتالوج ديناميكي'} · ${d.category || d.text || ''}`
+        : `${(d.productIds ?? []).length} products · ${d.text ?? ''}`;
     case 'appointment':
       return d.start || 'اختر خدمة وموعدًا';
     case 'whatsapp_flow':

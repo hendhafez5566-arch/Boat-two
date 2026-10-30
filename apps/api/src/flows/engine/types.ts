@@ -140,6 +140,7 @@ export interface FlowState {
     deliveryPending?: boolean;
     formToken?: string;
     catalogOptions?: { id: string; title: string }[];
+    catalogPage?: number;
   };
   totalSteps: number;
 }
@@ -172,6 +173,24 @@ export interface AiResult {
 
 export interface EngineDeps {
   setContactField?(field: 'name' | 'email' | 'phone', value: string): Promise<void>;
+  dynamicCatalog?(req: {
+    sourceId: string;
+    category?: string;
+    categoryKey?: string;
+    query?: string;
+    page?: number;
+    fields?: string[];
+    text?: string;
+  }): Promise<OutContent>;
+  dynamicItem?(
+    source: string,
+    id: string,
+    fields?: string[],
+  ): Promise<{
+    selection: { id: string; name: string; category: string; source: string };
+    content: OutContent;
+    attachment?: OutContent;
+  }>;
   productContent?(id: string, native: boolean): Promise<OutContent>;
   catalogContent?(
     ids: string[],

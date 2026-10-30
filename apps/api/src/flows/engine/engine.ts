@@ -467,6 +467,53 @@ export class FlowEngine {
     state: FlowState,
   ): Promise<EngineResult> {
     if (node.type === 'catalog') {
+      if (node.data.sourceId) {
+        const d = node.data,
+          reply = ctx.lastMessage.replyId;
+        const chosen = state.waiting?.catalogOptions?.find((o) => o.id === reply);
+        const page = state.waiting?.catalogPage ?? 0;
+        if (!chosen) return this.finish('waiting', state);
+        if (reply?.startsWith('dynamic:category:') || reply === 'dynamic:categories') {
+          state.vars['__catalog_cat_' + node.id] =
+            reply === 'dynamic:categories' ? '' : reply.slice('dynamic:category:'.length);
+          state.vars['__catalog_page_' + node.id] = 0;
+          state.waiting = null;
+          return this.run(ctx, state, node.id);
+        }
+        if (reply === 'dynamic:next' || reply === 'dynamic:prev') {
+          state.vars['__catalog_page_' + node.id] = Math.max(
+            0,
+            page + (reply === 'dynamic:next' ? 1 : -1),
+          );
+          state.waiting = null;
+          return this.run(ctx, state, node.id);
+        }
+        if (!this.deps.dynamicItem) throw new RunError('Dynamic catalog adapter unavailable');
+        let current: Awaited<ReturnType<NonNullable<EngineDeps['dynamicItem']>>>;
+        try {
+          current = await this.deps.dynamicItem(
+            d.sourceId,
+            chosen.id.slice('dynamic:'.length),
+            d.fields,
+          );
+        } catch {
+          await this.send({
+            text:
+              d.emptyText ||
+              'العنصر غير متاح حاليًا. اختر من القائمة الحالية. / Item unavailable. Please browse the current list.',
+          });
+          state.waiting = null;
+          return this.run(ctx, state, node.id);
+        }
+        state.vars[d.saveAs || 'selectedProductId'] = current.selection.id;
+        state.vars[(d.saveAs || 'selectedProductId') + '_name'] = current.selection.name;
+        await this.deps.setContactAttribute('catalogSelection', current.selection);
+        await this.deps.addNote('Catalog inquiry: ' + JSON.stringify(current.selection));
+        if (current.attachment) await this.send(current.attachment);
+        await this.send(current.content);
+        state.waiting = null;
+        return this.run(ctx, state, node.edges.next ?? null);
+      }
       const chosen = state.waiting?.catalogOptions?.find((o) => o.id === ctx.lastMessage.replyId);
       if (!chosen) return this.finish('waiting', state);
       state.vars[node.data.saveAs || 'selectedProductId'] = chosen.id.slice('product:'.length);
@@ -597,6 +644,35 @@ export class FlowEngine {
         await this.send(await this.deps.productContent(d.productId, !!d.native));
         return { kind: 'goto', handle: 'next' };
       case 'catalog': {
+        if (d.sourceId) {
+          if (!this.deps.dynamicCatalog) throw new RunError('Dynamic catalog adapter unavailable');
+          const page = Number(state.vars['__catalog_page_' + node.id] || 0);
+          const content = await this.deps.dynamicCatalog({
+            sourceId: d.sourceId,
+            category: interpolate(d.category || '', r),
+            categoryKey: String(state.vars['__catalog_cat_' + node.id] || ''),
+            query: interpolate(d.query || '', r),
+            page,
+            fields: d.fields,
+            text: interpolate(d.text, r),
+          });
+          const choices = content.list?.sections.flatMap((s) => s.rows) ?? [];
+          if (!choices.length) {
+            await this.send({
+              text: d.emptyText || 'لا توجد نتائج متاحة. / No available results.',
+            });
+            return { kind: 'goto', handle: 'next' };
+          }
+          await this.send(content);
+          state.waiting = {
+            nodeId: node.id,
+            kind: 'answer',
+            retries: 0,
+            catalogPage: page,
+            catalogOptions: choices.map((o) => ({ id: o.id, title: o.title })),
+          };
+          return { kind: 'wait' };
+        }
         if (!this.deps.catalogContent) throw new RunError('Catalog adapter unavailable');
         if (d.selectable && d.native)
           throw new RunError(

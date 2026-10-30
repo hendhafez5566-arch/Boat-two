@@ -1,3 +1,4 @@
+import { DataSourcesService } from '../commerce/data-sources.service';
 import { readSystemActions, inboundSystemAction } from './system-actions';
 import { SequencesService } from '../sequences/sequences.service';
 import { FlowActionsService } from './flow-actions.service';
@@ -56,6 +57,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     private readonly actions: FlowActionsService,
     private readonly google: GoogleService,
     private readonly commerce: CommerceService,
+    private readonly dataSources: DataSourcesService = new DataSourcesService(db, google),
   ) {}
 
   onModuleInit() {
@@ -283,7 +285,13 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         tags: loaded.conv.tags ?? [],
       },
       channel: { id: loaded.conv.channel_id, type: loaded.conv.channel_type },
-      lastMessage: { text, replyId, media: e.content.media, formReply: e.content.flowReply, order: e.content.order },
+      lastMessage: {
+        text,
+        replyId,
+        media: e.content.media,
+        formReply: e.content.flowReply,
+        order: e.content.order,
+      },
     };
     const base: Loaded = {
       eventId: e.messageId,
@@ -527,6 +535,8 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
   private makeDeps(b: Loaded, flowId?: string): EngineDeps {
     return {
       setContactField: (key, value) => this.actions.writeSystemField(b, key, value),
+      dynamicCatalog: (req) => this.dataSources.content(b.tenantId, req),
+      dynamicItem: (source, id, fields) => this.dataSources.item(b.tenantId, source, id, fields),
       productContent: (id, native) => {
         if (native && b.ctx.channel.type !== 'whatsapp')
           throw new Error('Native products require WhatsApp');

@@ -1,3 +1,4 @@
+import { DataSourcesService } from '../commerce/data-sources.service';
 import {
   BadRequestException,
   ConflictException,
@@ -35,6 +36,7 @@ export class FlowsService {
     private readonly ai: AiService,
     private readonly google?: GoogleService,
     private readonly commerce?: CommerceService,
+    private readonly dataSources?: DataSourcesService,
   ) {}
 
   list(tenantId: string) {
@@ -334,7 +336,12 @@ export class FlowsService {
         "UPDATE flows SET status = 'published', published_version_id = $2, updated_at = now() WHERE id = $1 RETURNING updated_at",
         [id, v.id],
       );
-      return { published: true, version: v.version, warnings, updated_at: updated.rows[0].updated_at };
+      return {
+        published: true,
+        version: v.version,
+        warnings,
+        updated_at: updated.rows[0].updated_at,
+      };
     });
   }
 
@@ -453,6 +460,8 @@ export class FlowsService {
         attrs['system.' + key] = value;
         transcript.push({ role: 'system', content: `MOCK system field ${key}: ${value}` });
       },
+      dynamicCatalog: (req) => this.dataSources!.content(tenantId, req),
+      dynamicItem: (source, id, fields) => this.dataSources!.item(tenantId, source, id, fields),
       productContent: async (id, native) => {
         if (!this.commerce) throw new Error('Commerce unavailable');
         transcript.push({ role: 'system', content: 'MOCK product preview; no external delivery' });
