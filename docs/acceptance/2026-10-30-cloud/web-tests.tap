@@ -1,0 +1,18 @@
+✔ billing amounts respect currency minor units and reject invalid input (15.965546ms)
+✔ invoice documents reject script URLs, embedded credentials and lookalike hosts (0.260121ms)
+✔ subscription dates use explicit language, named months and saved account timezone (5.366216ms)
+✔ channel context survives feature navigation while unrestricted legacy bots remain visible (1.049189ms)
+✔ cards derive, re-source edges and keep the saved graph identical (2.459131ms)
+✔ rtl default offset goes left; list-only and plain messages get no cards (0.868818ms)
+✔ list rows become cards too and keep their option edges and layout (0.407103ms)
+✔ field edits preserve zero and false instead of erasing them (0.768507ms)
+✔ clearing a field is explicit null for the partial profile update (0.192249ms)
+✔ rejects invalid dates numbers and boolean strings before persisting (0.720835ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 373.37975
