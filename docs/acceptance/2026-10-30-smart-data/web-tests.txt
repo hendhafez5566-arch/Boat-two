@@ -1,0 +1,70 @@
+TAP version 13
+# Subtest: billing amounts respect currency minor units and reject invalid input
+ok 1 - billing amounts respect currency minor units and reject invalid input
+  ---
+  duration_ms: 16.735874
+  type: 'test'
+  ...
+# Subtest: invoice documents reject script URLs, embedded credentials and lookalike hosts
+ok 2 - invoice documents reject script URLs, embedded credentials and lookalike hosts
+  ---
+  duration_ms: 0.250311
+  type: 'test'
+  ...
+# Subtest: subscription dates use explicit language, named months and saved account timezone
+ok 3 - subscription dates use explicit language, named months and saved account timezone
+  ---
+  duration_ms: 8.087267
+  type: 'test'
+  ...
+# Subtest: channel context survives feature navigation while unrestricted legacy bots remain visible
+ok 4 - channel context survives feature navigation while unrestricted legacy bots remain visible
+  ---
+  duration_ms: 1.42528
+  type: 'test'
+  ...
+# Subtest: cards derive, re-source edges and keep the saved graph identical
+ok 5 - cards derive, re-source edges and keep the saved graph identical
+  ---
+  duration_ms: 2.678727
+  type: 'test'
+  ...
+# Subtest: rtl default offset goes left; list-only and plain messages get no cards
+ok 6 - rtl default offset goes left; list-only and plain messages get no cards
+  ---
+  duration_ms: 0.49319
+  type: 'test'
+  ...
+# Subtest: list rows become cards too and keep their option edges and layout
+ok 7 - list rows become cards too and keep their option edges and layout
+  ---
+  duration_ms: 0.571166
+  type: 'test'
+  ...
+# Subtest: field edits preserve zero and false instead of erasing them
+ok 8 - field edits preserve zero and false instead of erasing them
+  ---
+  duration_ms: 0.989705
+  type: 'test'
+  ...
+# Subtest: clearing a field is explicit null for the partial profile update
+ok 9 - clearing a field is explicit null for the partial profile update
+  ---
+  duration_ms: 0.189351
+  type: 'test'
+  ...
+# Subtest: rejects invalid dates numbers and boolean strings before persisting
+ok 10 - rejects invalid dates numbers and boolean strings before persisting
+  ---
+  duration_ms: 1.03279
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 772.021316
