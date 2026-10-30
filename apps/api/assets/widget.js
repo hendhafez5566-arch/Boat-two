@@ -126,6 +126,8 @@
   }
 
   function addBubble(who, content) {
+    // Replaying history must consume earlier choices just like a live reply.
+    if (who === 'me') disableChips();
     var b = h('div', 'm ' + who);
     content = content || {};
     if (content.media) {
