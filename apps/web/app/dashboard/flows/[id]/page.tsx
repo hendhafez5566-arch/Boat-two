@@ -720,13 +720,19 @@ function Editor({ id }: { id: string }) {
     if (copySelection([nid])) pasteClipboard();
   };
 
+  const fitAllSteps = () => {
+    // Decorative reference/button nodes can still be unmeasured. React Flow's
+    // fitView otherwise rejects the entire request instead of fitting real steps.
+    const measured = rf.getNodes().filter((node) => !!node.width && !!node.height && !node.hidden);
+    if (measured.length) rf.fitView({ nodes: measured, padding: 0.25, maxZoom: 1, duration: 300 });
+  };
   const autoLayout = () => {
     if (!nodes.length) return;
     const arranged = nodes.map((n) => ({ ...n, data: { ...n.data, layout: undefined } }));
     const pos = computeLayout(arranged, edges, startId, language === 'ar', btnDims);
     setNodes(arranged.map((n) => ({ ...n, position: pos[n.id] ?? n.position })));
     setDirty(true);
-    setTimeout(() => rf.fitView({ padding: 0.25, maxZoom: 1, duration: 300 }), 50);
+    setTimeout(fitAllSteps, 50);
   };
 
   const focusNode = (nid: string) => {
@@ -842,7 +848,41 @@ function Editor({ id }: { id: string }) {
     return () => window.removeEventListener('keydown', keys);
   });
 
+  const configurationIssue = () => {
+    if (!meta.name.trim()) return t('أدخل اسم التدفق.', 'Enter a flow name.');
+    if (!Number.isInteger(meta.priority) || meta.priority < -100 || meta.priority > 100)
+      return t(
+        'الأولوية يجب أن تكون عددًا صحيحًا بين -100 و100.',
+        'Priority must be an integer between -100 and 100.',
+      );
+    for (const trigger of meta.triggers) {
+      if (
+        trigger.type === 'keyword' &&
+        (!trigger.keywords.length ||
+          trigger.keywords.some((word) => !word.trim() || word.length > 100))
+      )
+        return t(
+          'أدخل كلمة مفتاحية واحدة على الأقل، لا تزيد عن100حرف، في إعداد البداية.',
+          'Enter at least one keyword, up to 100 characters, in the start settings.',
+        );
+      if (
+        trigger.type === 'reply_id' &&
+        (!trigger.ids.length || trigger.ids.some((value) => !value.trim() || value.length > 200))
+      )
+        return t(
+          'أدخل معرّف زر صحيحًا في إعداد البداية.',
+          'Enter a valid reply identifier in the start settings.',
+        );
+    }
+    return '';
+  };
   const save = async () => {
+    const problem = configurationIssue();
+    if (problem) {
+      setMsg(problem);
+      setSaveState('error');
+      throw new Error(problem);
+    }
     if (saving.current)
       throw new Error(t('انتظر اكتمال الحفظ الحالي', 'Wait for the current save'));
     saving.current = true;
@@ -983,6 +1023,12 @@ function Editor({ id }: { id: string }) {
   }
 
   const check = async () => {
+    const problem = configurationIssue();
+    if (problem) {
+      setMsg(problem);
+      setValidationState('unchecked');
+      return;
+    }
     const submitted = latest.current,
       request = ++validationRequest.current;
     validationSnapshot.current = submitted;
@@ -1805,11 +1851,7 @@ function Editor({ id }: { id: string }) {
                           >
                             +
                           </button>
-                          <button
-                            type="button"
-                            className="canvas-fit"
-                            onClick={() => rf.fitView({ padding: 0.25, maxZoom: 1, duration: 300 })}
-                          >
+                          <button type="button" className="canvas-fit" onClick={fitAllSteps}>
                             {t('إظهار كل الخطوات', 'Fit all steps')}
                           </button>
                           <small className="canvas-hint">
@@ -2061,7 +2103,7 @@ function Editor({ id }: { id: string }) {
                               'Comma-separated keywords: price, cost',
                             )}
                             defaultValue={trigger.keywords.join('، ')}
-                            onBlur={(e) =>
+                            onChange={(e) =>
                               setTriggers(
                                 meta.triggers.map((x, j) =>
                                   j === i
@@ -2111,7 +2153,7 @@ function Editor({ id }: { id: string }) {
                             'Comma-separated button identifiers',
                           )}
                           defaultValue={trigger.ids.join(', ')}
-                          onBlur={(e) =>
+                          onChange={(e) =>
                             setTriggers(
                               meta.triggers.map((x, j) =>
                                 j === i
@@ -2187,6 +2229,9 @@ function Editor({ id }: { id: string }) {
                     className={inp}
                     type="number"
                     aria-label={t('الأولوية', 'Priority')}
+                    min={-100}
+                    max={100}
+                    step={1}
                     value={meta.priority}
                     onChange={(e) => {
                       setMeta({ ...meta, priority: Number(e.target.value) || 0 });
