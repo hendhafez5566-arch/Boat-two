@@ -862,7 +862,7 @@ function Editor({ id }: { id: string }) {
           trigger.keywords.some((word) => !word.trim() || word.length > 100))
       )
         return t(
-          'أدخل كلمة مفتاحية واحدة على الأقل، لا تزيد عن100حرف، في إعداد البداية.',
+          'أدخل كلمة مفتاحية واحدة على الأقل، لا تزيد عن 100 حرف، في إعداد البداية.',
           'Enter at least one keyword, up to 100 characters, in the start settings.',
         );
       if (
@@ -1713,6 +1713,7 @@ function Editor({ id }: { id: string }) {
                 <FlowSequencesContext.Provider value={seqInfo}>
                   <FlowButtonStatsContext.Provider value={buttonStats}>
                     <ReactFlow
+                      style={{ overflow: 'clip' }}
                       nodes={canvasNodes}
                       edges={[...cards.edges, ...(reference ? [reference.edge] : [])]}
                       nodeTypes={nodeTypes}
