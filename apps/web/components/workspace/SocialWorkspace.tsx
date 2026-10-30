@@ -70,6 +70,14 @@ export default function SocialWorkspace({
   const accounts = channels.data.filter((c) =>
     format === 'multimedia' ? ['facebook', 'instagram'].includes(c.type) : c.type === 'facebook',
   );
+  const kindLabels: Record<string, string> = {
+    text: t('نص', 'Text'),
+    link: t('رابط', 'Link'),
+    image: t('صورة / صور متعددة', 'Image / Carousel'),
+    video: t('فيديو', 'Video'),
+    carousel: t('صور متعددة', 'Carousel'),
+    cta: t('دعوة لاتخاذ إجراء', 'Call to action'),
+  };
   const filtered = posts.data.filter(
     (p) =>
       socialFormat(p) === format &&
@@ -163,6 +171,19 @@ export default function SocialWorkspace({
               });
             }}
           >
+            {!channels.loading && !channels.error && accounts.length === 0 && (
+              <p role="status" className="notice">
+                {t(
+                  format === 'multimedia'
+                    ? 'اربط حساب Facebook أو Instagram أولًا لتتمكن من حفظ المنشور.'
+                    : 'اربط صفحة Facebook أولًا لتتمكن من حفظ المنشور.',
+                  format === 'multimedia'
+                    ? 'Connect a Facebook or Instagram account before saving a post.'
+                    : 'Connect a Facebook page before saving a post.',
+                )}{' '}
+                <Link href="/dashboard/channels">{t('ربط حساب', 'Connect account')}</Link>
+              </p>
+            )}
             <label className="field">
               {t('الصفحة أو الحساب', 'Page or account')}
               <select required value={channel} onChange={(e) => setChannel(e.target.value)}>
@@ -191,18 +212,7 @@ export default function SocialWorkspace({
                     setLink('');
                   }}
                 >
-                  {
-                    (
-                      {
-                        text: t('نص', 'Text'),
-                        link: t('رابط', 'Link'),
-                        image: t('صورة / صور متعددة', 'Image / Carousel'),
-                        video: t('فيديو', 'Video'),
-                        carousel: t('صور متعددة', 'Carousel'),
-                        cta: 'CTA',
-                      } as Record<string, string>
-                    )[k]
-                  }
+                  {kindLabels[k]}
                 </button>
               ))}
             </div>
@@ -251,7 +261,10 @@ export default function SocialWorkspace({
             )}
             <footer className={styles.formFooter}>
               <Link href={base}>{t('رجوع', 'Back')}</Link>
-              <button className="btn btn-primary" disabled={busy || posts.loading}>
+              <button
+                className="btn btn-primary"
+                disabled={busy || posts.loading || channels.loading || !!channels.error || !chosen}
+              >
                 {t('حفظ مسودة', 'Save Draft')}
               </button>
             </footer>
@@ -290,7 +303,9 @@ export default function SocialWorkspace({
                   ? ['carousel', 'video']
                   : ['text', 'link', 'image', 'carousel', 'video']
               ).map((k) => (
-                <option key={k}>{k}</option>
+                <option key={k} value={k}>
+                  {kindLabels[k]}
+                </option>
               ))}
             </select>
             <select

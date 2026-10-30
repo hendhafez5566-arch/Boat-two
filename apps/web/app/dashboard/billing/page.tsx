@@ -6,6 +6,7 @@ import { useLocale } from '../../../components/product/locale';
 import { Dialog } from '../../../components/product/ProductUI';
 import { NavIcon } from '../../../components/product/NavIcon';
 import {
+  billingDate,
   billingDocument,
   billingMoney,
   BillingPlan,
@@ -23,7 +24,11 @@ type Invoice = {
   hosted_url: string | null;
 };
 export default function Billing() {
-  const { t } = useLocale();
+  const { t, language } = useLocale();
+  const me = useData<{ user: { account_profile?: { timezone?: string } } } | null>(
+    '/auth/me',
+    null,
+  );
   const ws = useData<BillingWorkspace | null>('/workspace', null);
   const plans = useData<BillingPlan[]>('/plans', []);
   const status = useData<BillingStatus | null>('/billing/status', null);
@@ -121,7 +126,7 @@ export default function Billing() {
             <small>{t('انتهاء الحساب', 'Account Expiry')}</small>
             <strong>
               {expiry
-                ? new Date(expiry).toLocaleDateString()
+                ? billingDate(expiry, language, me.data?.user.account_profile?.timezone || 'UTC')
                 : free
                   ? t('بدون انتهاء', 'Never')
                   : '—'}

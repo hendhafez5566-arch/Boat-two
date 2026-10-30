@@ -5,7 +5,11 @@ import { useData } from '../../../components/business/useData';
 import { useLocale } from '../../../components/product/locale';
 import { NavIcon } from '../../../components/product/NavIcon';
 import { api } from '../../../lib/api';
-import type { BillingStatus, BillingWorkspace } from '../../../lib/billing-display';
+import {
+  billingDate,
+  type BillingStatus,
+  type BillingWorkspace,
+} from '../../../lib/billing-display';
 import styles from './account.module.css';
 type Profile = { phone: string; address: string; timezone: string; language: string };
 type User = {
@@ -19,13 +23,6 @@ type Workspace = BillingWorkspace & {
   aiEnabled: boolean;
   plan: BillingWorkspace['plan'] & { limits?: Record<string, number> };
 };
-function dateLabel(value: string, language: string, timezone: string) {
-  try {
-    return new Date(value).toLocaleDateString(language, { timeZone: timezone });
-  } catch {
-    return '—';
-  }
-}
 export default function Account() {
   const { t, language, toggle } = useLocale();
   const me = useData<{ user: User } | null>('/auth/me', null);
@@ -111,7 +108,7 @@ export default function Account() {
             <small>{t('انتهاء الحساب', 'Account Expiry')}</small>
             <strong>
               {expiry
-                ? dateLabel(expiry, language, form.timezone)
+                ? billingDate(expiry, language, me.data?.user.account_profile?.timezone || 'UTC')
                 : billing.data && ws.data
                   ? t('غير محدد', 'Not specified')
                   : '—'}

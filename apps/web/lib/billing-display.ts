@@ -1,3 +1,18 @@
+export function billingDate(value: string, language: string, timezone: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '—';
+  try {
+    return new Intl.DateTimeFormat(language === 'ar' ? 'ar-EG' : 'en-GB', {
+      timeZone: timezone,
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(date);
+  } catch {
+    return '—';
+  }
+}
+
 export function billingMoney(minor: string | number, currency: string) {
   const code = currency.toUpperCase();
   if (!/^[A-Z]{3}$/.test(code) || !Number.isFinite(Number(minor))) return '—';
