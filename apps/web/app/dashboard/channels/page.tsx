@@ -280,6 +280,22 @@ export default function Channels() {
                         'راجع صلاحيات الحساب ثم أعد التفويض.',
                         'Review account permissions and authorize again.',
                       ),
+                      waba_not_subscribed: t(
+                        'تطبيق Meta غير مشترك في حساب واتساب هذا. راجع Subscribe webhooks في Production setup على WABA الصحيح.',
+                        'The Meta app is not subscribed to this WABA. Check Subscribe webhooks on the correct WABA in Production setup.',
+                      ),
+                      waba_webhook_override: t(
+                        'حساب واتساب يرسل إشعاراته إلى عنوان Webhook مختلف. راجع إعداد Override لدى Meta.',
+                        'This WABA uses another webhook URL override. Review the Meta override settings.',
+                      ),
+                      waba_subscription_unverified: t(
+                        'تعذّر تأكيد اشتراك WABA؛ راجع WABA ID وإعداد META_APP_ID.',
+                        'WABA subscription could not be confirmed; check WABA ID and META_APP_ID.',
+                      ),
+                      waba_subscription_check_failed: t(
+                        'تعذّر قراءة اشتراكات WABA. تأكد أن التوكين له صلاحية whatsapp_business_management.',
+                        'Unable to read WABA subscriptions. Ensure the token has whatsapp_business_management permission.',
+                      ),
                       external_access_disabled: t(
                         'الفحص الخارجي غير مفعّل لدى مسؤول المنصة.',
                         'External verification is disabled by the operator.',
