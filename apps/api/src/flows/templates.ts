@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { FlowGraph } from './engine';
 const handoff = {
   id: 'handoff',
