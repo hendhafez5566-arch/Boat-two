@@ -4,6 +4,7 @@ import {
   previewBotDeliveryAllowed,
   isScopedPreviewConversation,
   selectPreviewWelcomeFlow,
+  selectPreviewRestartFlow,
   type PreviewBotMessage,
 } from './preview-bot-delivery';
 
@@ -56,4 +57,19 @@ test('preview may restart only one compatible published welcome flow', () => {
   assert.equal(selectPreviewWelcomeFlow([welcome,other,wrong],'only-preview-channel'),welcome);
   assert.equal(selectPreviewWelcomeFlow([welcome,{...welcome,id:'duplicate'}],'only-preview-channel'),null);
   assert.equal(selectPreviewWelcomeFlow([other,wrong],'only-preview-channel'),null);
+});
+
+test('preview restart uses the exact last published bot, even with two welcome bots', () => {
+  const first={flow_id:'first',triggers:[{type:'first_message'}],channel_ids:['only-preview-channel']};
+  const second={flow_id:'second',triggers:[{type:'first_message'}],channel_ids:['only-preview-channel']};
+  assert.equal(selectPreviewRestartFlow([first,second],'only-preview-channel','second'),second);
+  assert.equal(selectPreviewRestartFlow([first,second],'only-preview-channel','missing'),null);
+  assert.equal(selectPreviewRestartFlow([first],'only-preview-channel','missing'),first);
+});
+test('preview restart refuses flows on other channels or unpublished history', () => {
+  const other={flow_id:'other',triggers:[{type:'first_message'}],channel_ids:['another-channel']};
+  const general={flow_id:'general',triggers:[{type:'any_message'}],channel_ids:['only-preview-channel']};
+  assert.equal(selectPreviewRestartFlow([other,general],'only-preview-channel','other'),null);
+  assert.equal(selectPreviewRestartFlow([other,general],'only-preview-channel','general'),general);
+  assert.equal(selectPreviewRestartFlow([], 'only-preview-channel','general'),null);
 });
