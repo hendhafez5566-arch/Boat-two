@@ -1,4 +1,5 @@
 'use client';
+import DataSourcesPanel from './DataSourcesPanel';
 import ChannelScope from '../product/ChannelScope';
 import { useChannelContext } from '../product/useChannelContext';
 
@@ -108,6 +109,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
         <nav className="form-actions">
           {[
             ['products', 'المنتجات', 'Products'],
+            ['sources','مصادر البيانات','Data sources'],
             ['appointments', 'المواعيد', 'Appointments'],
           ].map(([id, ar, en]) => (
             <button className="btn" key={id} aria-pressed={tab === id} onClick={() => setTab(id)}>
@@ -127,6 +129,8 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
           {error || products.error || services.error}
         </p>
       )}
+      {(tab==='sources'||initialTab==='products')&&<DataSourcesPanel/>}
+      {tab==='products'&&!initialTab&&<button className="btn" onClick={()=>setTab('sources')}>{t('مصادر البيانات والكتالوج الديناميكي','Data sources and dynamic catalog')}</button>}
       {tab === 'products' && (
         <>
           <form

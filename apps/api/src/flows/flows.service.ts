@@ -1,3 +1,4 @@
+import { DataSourcesService } from '../commerce/data-sources.service';
 import {
   BadRequestException,
   ConflictException,
@@ -35,6 +36,7 @@ export class FlowsService {
     private readonly ai: AiService,
     private readonly google?: GoogleService,
     private readonly commerce?: CommerceService,
+    private readonly dataSources?: DataSourcesService,
   ) {}
 
   list(tenantId: string) {
@@ -181,12 +183,19 @@ export class FlowsService {
       )
         throw new ConflictException('Flow changed in another editor. Reload before saving.');
       if (input.channelIds?.length) {
-        const ok = await c.query(
-          'SELECT count(*)::int AS n FROM channels WHERE id = ANY($1::uuid[])',
-          [input.channelIds],
+        const uniqueIds = [...new Set(input.channelIds)];
+        const existing = await c.query<{ id: string }>(
+          'SELECT id FROM channels WHERE id = ANY($1::uuid[])',
+          [uniqueIds],
         );
-        if (ok.rows[0].n !== input.channelIds.length)
-          throw new BadRequestException('Unknown channel id');
+        const known = new Set(existing.rows.map((row) => row.id));
+        const missing = uniqueIds.filter((channelId) => !known.has(channelId));
+        if (missing.length)
+          throw new BadRequestException({
+            code: 'FLOW_CHANNEL_NOT_FOUND',
+            message: 'A previously selected channel no longer exists. Choose a connected channel in bot settings.',
+            missingChannelIds: missing,
+          });
       }
       const r = await c.query(
         `UPDATE flows SET
@@ -301,6 +310,22 @@ export class FlowsService {
       if (!f) throw new NotFoundException('Flow not found');
       if (expected && new Date(expected).getTime() !== new Date(f.updated_at).getTime())
         throw new ConflictException('Draft changed before publishing');
+      // A channel may have been disconnected after a draft was saved.
+      // Never silently drop missing IDs: an empty selection means ALL channels.
+      if (f.channel_ids?.length) {
+        const available = await c.query<{ id: string }>(
+          'SELECT id FROM channels WHERE id = ANY($1::uuid[])',
+          [f.channel_ids],
+        );
+        const known = new Set(available.rows.map((row) => row.id));
+        const missing = (f.channel_ids as string[]).filter((channelId) => !known.has(channelId));
+        if (missing.length)
+          throw new BadRequestException({
+            code: 'FLOW_CHANNEL_NOT_FOUND',
+            message: 'One or more linked channels were removed. Reassign channels before publishing.',
+            missingChannelIds: missing,
+          });
+      }
 
       const expanded = await this.expand(tenantId, f.draft_graph, id);
       await this.prepareAlternate(tenantId, id, expanded);
@@ -334,7 +359,52 @@ export class FlowsService {
         "UPDATE flows SET status = 'published', published_version_id = $2, updated_at = now() WHERE id = $1 RETURNING updated_at",
         [id, v.id],
       );
-      return { published: true, version: v.version, warnings, updated_at: updated.rows[0].updated_at };
+      // Publishing a bot selects it as the active chat bot for the channels
+      // linked to that bot. Only this tenant's channels are reachable here.
+      // An empty channel_ids array intentionally means all tenant channels.
+      const selectedChannels = await c.query<{ id: string }>(
+        `UPDATE channels
+           SET settings=jsonb_set(
+             COALESCE(settings,'{}'::jsonb),
+             '{activeBotFlowId}', to_jsonb($1::text), true
+           )
+         WHERE cardinality($2::uuid[])=0 OR id=ANY($2::uuid[])
+         RETURNING id`,
+        [id, f.channel_ids ?? []],
+      );
+
+      // This is the owner's isolated QA conversation, not a customer chat.
+      // Publishing switches it immediately from an old handoff/waiting flow,
+      // without changing any other conversation or Meta credentials.
+      const previewChannel = process.env.WHATSAPP_PREVIEW_BOT_CHANNEL_ID;
+      const previewConversation = process.env.WHATSAPP_PREVIEW_BOT_CONVERSATION_ID;
+      if (process.env.BOAT_PREVIEW_ONLY === 'true' &&
+          process.env.WHATSAPP_PREVIEW_BOT_ENABLED === 'true' &&
+          previewChannel && previewConversation &&
+          selectedChannels.rows.some((ch) => ch.id === previewChannel)) {
+        const qa = await c.query(
+          "SELECT id FROM conversations WHERE id=$1 AND channel_id=$2 FOR UPDATE",
+          [previewConversation, previewChannel],
+        );
+        if (qa.rowCount) {
+          await c.query(
+            "UPDATE flow_sessions SET status='expired',updated_at=now() WHERE conversation_id=$1 AND status='waiting'",
+            [previewConversation],
+          );
+          await c.query(
+            "UPDATE conversations SET handled_by='bot',assigned_to=NULL,status='open' WHERE id=$1",
+            [previewConversation],
+          );
+        }
+      }
+
+      return {
+        published: true,
+        version: v.version,
+        warnings,
+        activatedChannelCount: selectedChannels.rowCount ?? 0,
+        updated_at: updated.rows[0].updated_at,
+      };
     });
   }
 
@@ -345,6 +415,11 @@ export class FlowsService {
         [id],
       );
       if (!r.rowCount) throw new NotFoundException('Flow not found');
+      // Never leave a channel pointing to a bot that has just been unpublished.
+      await c.query(
+        `UPDATE channels SET settings=settings-'activeBotFlowId'
+         WHERE settings->>'activeBotFlowId'=$1`, [id],
+      );
       return { published: false, updated_at: r.rows[0].updated_at };
     });
   }
@@ -453,6 +528,8 @@ export class FlowsService {
         attrs['system.' + key] = value;
         transcript.push({ role: 'system', content: `MOCK system field ${key}: ${value}` });
       },
+      dynamicCatalog: (req) => this.dataSources!.content(tenantId, req),
+      dynamicItem: (source, id, fields) => this.dataSources!.item(tenantId, source, id, fields),
       productContent: async (id, native) => {
         if (!this.commerce) throw new Error('Commerce unavailable');
         transcript.push({ role: 'system', content: 'MOCK product preview; no external delivery' });

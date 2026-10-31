@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ConflictException,
   Get,
   Param,
   ParseUUIDPipe,
@@ -22,6 +23,7 @@ import { env } from '../config/env';
 import { CryptoService } from './crypto.service';
 import { ChannelsService } from './channels.service';
 import { GRAPH } from './adapters/adapter';
+import { inspectMetaMessagingPermission } from './meta-messaging-inspection';
 type Asset = {
   id: string;
   name: string;
@@ -40,15 +42,21 @@ export class MetaConnectController {
     return {
       configured: !!env.META_APP_ID && !!env.META_APP_SECRET,
       externalEnabled: env.EXTERNAL_DELIVERY_ENABLED === 'true',
+      connectEnabled:
+        env.META_CONNECT_ENABLED === 'true' || env.EXTERNAL_DELIVERY_ENABLED === 'true',
       appId: env.META_APP_ID || null,
       embeddedConfigId: env.META_EMBEDDED_CONFIG_ID || null,
       redirectUri: `${env.PUBLIC_API_URL}/channels/meta/callback`,
     };
   }
   private ready() {
-    if (env.EXTERNAL_DELIVERY_ENABLED !== 'true' || !env.META_APP_ID || !env.META_APP_SECRET)
+    if (
+      (env.META_CONNECT_ENABLED !== 'true' && env.EXTERNAL_DELIVERY_ENABLED !== 'true') ||
+      !env.META_APP_ID ||
+      !env.META_APP_SECRET
+    )
       throw new ServiceUnavailableException(
-        'Operator must configure Meta app, approved permissions, redirect URI and explicitly enable external access',
+        'Operator must configure Meta app, approved permissions, redirect URI and explicitly enable Meta connection setup',
       );
   }
   @Roles('owner', 'admin')
@@ -77,7 +85,12 @@ export class MetaConnectController {
     });
     return { state, authorizeUrl: `https://www.facebook.com/v21.0/dialog/oauth?${params}` };
   }
-  private async exchange(state: string, code: string, embedded = false) {
+  private async exchange(
+    state: string,
+    code: string,
+    embedded = false,
+    owner?: AuthedRequest['user'],
+  ) {
     this.ready();
     const lookup = (
       await this.db.query<{ id: string; tenant_id: string }>(
@@ -86,11 +99,15 @@ export class MetaConnectController {
       )
     ).rows[0];
     if (!lookup) throw new BadRequestException('Connection state expired or already consumed');
+    if (owner && lookup.tenant_id !== owner.tenantId)
+      throw new BadRequestException('Connection owner mismatch');
     const row = await this.db.withTenant(lookup.tenant_id, async (c) => {
       const s = (
         await c.query('SELECT * FROM meta_connections WHERE id=$1 FOR UPDATE', [lookup.id])
       ).rows[0];
-      if (s.consumed || new Date(s.expires_at) < new Date())
+      if (!s || (owner && (s.tenant_id !== owner.tenantId || s.user_id !== owner.userId)))
+        throw new BadRequestException('Connection owner mismatch');
+      if (s.consumed || new Date(s.expires_at) <= new Date())
         throw new BadRequestException('State already consumed');
       if (embedded !== (s.kind === 'whatsapp'))
         throw new BadRequestException('Wrong connection flow');
@@ -227,9 +244,16 @@ export class MetaConnectController {
       }),
       body,
     );
-    const { row, token } = await this.exchange(b.state, b.code, true);
+    const { row, token } = await this.exchange(b.state, b.code, true, r.user);
     if (row.tenant_id !== r.user.tenantId || row.user_id !== r.user.userId)
       throw new BadRequestException('Connection owner mismatch');
+    const auth = await inspectMetaMessagingPermission(token);
+    if (auth.tokenType !== 'SYSTEM_USER')
+      throw new BadRequestException('Meta login configuration must issue a System User access token');
+    if (auth.status !== 'granted' || !auth.managementGranted)
+      throw new BadRequestException(
+        'Meta must grant WhatsApp messaging and management permissions',
+      );
     const response = await fetch(`${GRAPH}/${b.wabaId}/phone_numbers?fields=id&limit=100`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(30000),
@@ -237,10 +261,29 @@ export class MetaConnectController {
     const data = (await response.json()) as { data?: { id: string }[] };
     if (!response.ok || !data.data?.some((p) => p.id === b.phoneNumberId))
       throw new BadRequestException('Selected phone number does not belong to granted WABA');
-    return this.channels.create(r.user.tenantId, {
+    // Reauthorization preserves channel, sessions, contacts and published bindings.
+    // A phone already attached to another tenant must never be transferred here.
+    const existing = await this.channels.lookup('whatsapp', b.phoneNumberId);
+    if (existing && existing.tenant_id !== r.user.tenantId)
+      throw new ConflictException('This account is already connected');
+    if (existing) {
+      await this.channels.reconnect(r.user.tenantId, existing.id, token, b.wabaId);
+      const webhookReady = await this.channels.completeWhatsAppSubscription(
+        r.user.tenantId,
+        existing.id,
+      );
+      return { id: existing.id, reauthorized: true, webhookReady };
+    }
+    const created = await this.channels.create(r.user.tenantId, {
       type: 'whatsapp',
       name: b.name,
       credentials: { phoneNumberId: b.phoneNumberId, wabaId: b.wabaId, accessToken: token },
     });
+    await this.channels.inspectAuthorization(r.user.tenantId, created.id);
+    const webhookReady = await this.channels.completeWhatsAppSubscription(
+      r.user.tenantId,
+      created.id,
+    );
+    return { ...created, webhookReady };
   }
 }

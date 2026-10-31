@@ -1,3 +1,4 @@
+import {CommerceModule} from '../commerce/commerce.module';
 import { GenerationBudget } from './generation-budget';
 import { GenerationController } from './generation.controller';
 import { AiToolExecution } from './tool-execution';
@@ -12,6 +13,7 @@ import { AiService } from './ai.service';
 import { KnowledgeService } from './knowledge/knowledge.service';
 
 @Module({
+  imports:[CommerceModule],
   controllers: [
     GenerationController,
     KnowledgeRetentionController,

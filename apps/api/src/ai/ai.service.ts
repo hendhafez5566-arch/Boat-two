@@ -1,3 +1,4 @@
+import { DataSourcesService } from '../commerce/data-sources.service';
 import { GenerationBudget } from './generation-budget';
 import { AiToolExecution } from './tool-execution';
 import { OpenAiProvider } from './providers/openai';
@@ -74,6 +75,7 @@ export class AiService {
     private readonly knowledge: KnowledgeService,
     private readonly crypto: CryptoService,
     private readonly tools: AiToolExecution,
+    private readonly dataSources: DataSourcesService,
     private readonly generation: GenerationBudget = new GenerationBudget(db, plans, effects),
   ) {}
 
@@ -281,6 +283,21 @@ export class AiService {
       return this.fail(settings, 'model_tools_unsupported', settings.handoff_enabled);
     if (agent?.provider_id && !agent.provider_enabled)
       return this.fail(settings, 'agent_provider_disabled');
+    const selected = p.contactId
+      ? await this.db.withTenant(
+          tenantId,
+          async (c) =>
+            (
+              await c.query(
+                "SELECT attributes->'catalogSelection'->>'id' AS id FROM contacts WHERE id=$1",
+                [p.contactId],
+              )
+            ).rows[0]?.id,
+        )
+      : undefined;
+    const catalogAnswer = await this.dataSources.answer(tenantId, p.question, selected);
+    if (catalogAnswer) return catalogAnswer;
+
     const provider: LlmProvider | null = agent?.provider_enabled
       ? new (agent.kind === 'openai' ? OpenAiProvider : AnthropicProvider)(
           this.crypto.decrypt<{ apiKey: string }>(agent.credentials_enc).apiKey,

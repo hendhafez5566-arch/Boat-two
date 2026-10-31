@@ -1,5 +1,6 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import DynamicCatalogSettings from './DynamicCatalogSettings';
 import configStyles from './automation-config.module.css';
 import NativeFlowNodeEditor from './NativeFlowNodeEditor';
 import { useLocale } from '../product/locale';
@@ -481,77 +482,87 @@ export default function Inspector({
       )}
       {['product', 'catalog'].includes(type) && (
         <EditorSection title={t('منتجات الكتالوج', 'Catalog products')}>
-          <label>
-            {t('اختر المنتج أو صفوف القسم', 'Choose product or section rows')}
-            <select
-              multiple={type === 'catalog'}
-              value={type === 'catalog' ? (data.productIds ?? []) : (data.productId ?? '')}
-              onChange={(e) =>
-                set(
-                  type === 'catalog'
-                    ? { productIds: Array.from(e.target.selectedOptions).map((o) => o.value) }
-                    : { productId: e.target.value },
-                )
-              }
-            >
-              <option value="" disabled>
-                {t('اختر', 'Choose')}
-              </option>
-              {products
-                .filter((p) => !p.archived)
-                .map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-            </select>
-          </label>
-          {type === 'catalog' && (
+          {type === 'catalog' && <DynamicCatalogSettings data={data} set={set} />}
+          {!data.sourceId && (
             <>
+              <label>
+                {t('اختر المنتج أو صفوف القسم', 'Choose product or section rows')}
+                <select
+                  multiple={type === 'catalog'}
+                  value={type === 'catalog' ? (data.productIds ?? []) : (data.productId ?? '')}
+                  onChange={(e) =>
+                    set(
+                      type === 'catalog'
+                        ? { productIds: Array.from(e.target.selectedOptions).map((o) => o.value) }
+                        : { productId: e.target.value },
+                    )
+                  }
+                >
+                  <option value="" disabled>
+                    {t('اختر', 'Choose')}
+                  </option>
+                  {products
+                    .filter((p) => !p.archived)
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              {type === 'catalog' && (
+                <>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={!!data.selectable}
+                      disabled={!!data.native}
+                      onChange={(e) => set({ selectable: e.target.checked })}
+                    />
+                    {t(
+                      'انتظار اختيار منتج من قائمة (10 منتجات كحد أقصى)',
+                      'Wait for a product selection from list rows (up to 10 products)',
+                    )}
+                  </label>
+                  {data.selectable && (
+                    <label>
+                      {t('حفظ معرف المنتج في متغير', 'Save product ID to variable')}
+                      <input
+                        value={data.saveAs ?? 'selectedProductId'}
+                        onChange={(e) => set({ saveAs: e.target.value })}
+                      />
+                    </label>
+                  )}
+                </>
+              )}
+              {type === 'catalog' && (
+                <F label={t('نص الكتالوج', 'Catalog message')}>
+                  <Txt v={data.text} on={(text) => set({ text })} />
+                </F>
+              )}
               <label>
                 <input
                   type="checkbox"
-                  checked={!!data.selectable}
-                  disabled={!!data.native}
-                  onChange={(e) => set({ selectable: e.target.checked })}
+                  checked={!!data.native}
+                  onChange={(e) =>
+                    set({
+                      native: e.target.checked,
+                      ...(e.target.checked ? { selectable: false } : {}),
+                    })
+                  }
                 />
                 {t(
-                  'انتظار اختيار منتج من قائمة (10 منتجات كحد أقصى)',
-                  'Wait for a product selection from list rows (up to 10 products)',
+                  'كتالوج WhatsApp أصلي (يتطلب اعتماد المزود ومعرفاته)',
+                  'Native WhatsApp catalog (requires approved provider IDs)',
                 )}
               </label>
-              {data.selectable && (
-                <label>
-                  {t('حفظ معرف المنتج في متغير', 'Save product ID to variable')}
-                  <input
-                    value={data.saveAs ?? 'selectedProductId'}
-                    onChange={(e) => set({ saveAs: e.target.value })}
-                  />
-                </label>
-              )}
             </>
           )}
-          {type === 'catalog' && (
+          {data.sourceId && (
             <F label={t('نص الكتالوج', 'Catalog message')}>
               <Txt v={data.text} on={(text) => set({ text })} />
             </F>
           )}
-          <label>
-            <input
-              type="checkbox"
-              checked={!!data.native}
-              onChange={(e) =>
-                set({
-                  native: e.target.checked,
-                  ...(e.target.checked ? { selectable: false } : {}),
-                })
-              }
-            />
-            {t(
-              'كتالوج WhatsApp أصلي (يتطلب اعتماد المزود ومعرفاته)',
-              'Native WhatsApp catalog (requires approved provider IDs)',
-            )}
-          </label>
           <a href="/dashboard/commerce" target="_blank" rel="noopener noreferrer">
             {t('إدارة المنتجات والأسعار', 'Manage products and prices')}
           </a>
@@ -1656,6 +1667,14 @@ export default function Inspector({
                 ))}
               </select>
             </label>
+            {!data.connectionId && (
+              <p role="note">
+                {t(
+                  'تنبيه خصوصية: الرابط العام يكشف بيانات الشيت لمن يمتلكه. لا تستخدمه لبيانات العملاء أو المعلومات السرية؛ استخدم ربط Google الخاص.',
+                  'Privacy: a public link exposes sheet data to anyone holding it. Use private Google authorization for customer or confidential data.',
+                )}
+              </p>
+            )}
             {data.connectionId && (
               <>
                 <F label={t('معرف الشيت', 'Spreadsheet ID')}>

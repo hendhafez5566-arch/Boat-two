@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useLocale } from '../product/locale';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import MediaPreview from './MediaPreview';
 import { ConfigDisclosure, ConfigSummary } from './ConfigDisclosure';
 import ListPreview from './ListPreview';
@@ -37,6 +37,11 @@ export default function TestPanel({
   const [error, setError] = useState('');
   const [statusError, setStatusError] = useState('');
   const [showVars, setShowVars] = useState(false);
+  const chatRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const chat = chatRef.current;
+    if (chat) chat.scrollTop = chat.scrollHeight;
+  }, [log, busy]);
 
   async function run(body: Record<string, unknown>, youSaid?: string) {
     if (busy) return;
@@ -192,7 +197,7 @@ export default function TestPanel({
           </ConfigDisclosure>
         </div>
       )}
-      <div className="tp-chat" aria-live="polite">
+      <div ref={chatRef} className="tp-chat" aria-live="polite">
         {!log.length && !busy && (
           <div className="tp-empty">
             <strong>{t('جاهز للتجربة', 'Ready to test')}</strong>

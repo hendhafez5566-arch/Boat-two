@@ -14,6 +14,7 @@ import { MetaAdapter } from './adapters/meta.adapter';
 import { WhatsAppAdapter } from './adapters/whatsapp.adapter';
 import { TelegramAdapter } from './adapters/telegram.adapter';
 import { ProviderError, sendWithTyping } from './adapters/adapter';
+import { previewBotDeliveryAllowed } from './preview-bot-delivery';
 @Injectable()
 export class OutboundService implements OnModuleInit, OnModuleDestroy {
   private timer?: NodeJS.Timeout;
@@ -117,10 +118,11 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
               return null;
             }
           }
+          const previewBotAllowed = previewBotDeliveryAllowed(message, !!marketing);
           if (
             !message ||
             message.channel_status !== 'active' ||
-            env.EXTERNAL_DELIVERY_ENABLED !== 'true'
+            (env.EXTERNAL_DELIVERY_ENABLED !== 'true' && !previewBotAllowed)
           ) {
             await c.query(
               "UPDATE outbound_jobs SET status='blocked',error='External delivery disabled or channel inactive',updated_at=now() WHERE id=$1",
@@ -227,6 +229,16 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
                 ? 'failed'
                 : 'ambiguous';
           await this.db.withTenant(job.tenant_id, async (c) => {
+            if (row.channel_type === 'whatsapp' && known && (e.providerCode === 190 || e.status === 401)) {
+              // This result applies only to the token actually used for this send.
+              // An in-flight failure must never invalidate a newly rotated token.
+              await c.query(
+                `UPDATE channels SET settings=jsonb_set(settings,'{metaAuthorization}',$2::jsonb)
+                 WHERE id=$1 AND credentials_enc IS NOT DISTINCT FROM $3`,
+                [row.channel_id, JSON.stringify({ status: 'invalid_token', reason: 'invalid',
+                  checkedAt: new Date().toISOString(), expiresAt: null }), row.credentials_enc],
+              );
+            }
             await c.query(
               "UPDATE outbound_jobs SET status=$2,error=$3,lease_until=NULL,available_at=now()+interval '30 seconds',updated_at=now() WHERE id=$1",
               [row.jobId, status, (e as Error).message.slice(0, 300)],

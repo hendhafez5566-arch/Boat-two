@@ -1,3 +1,4 @@
+import { DataSourcesService } from '../commerce/data-sources.service';
 import { readSystemActions, inboundSystemAction } from './system-actions';
 import { SequencesService } from '../sequences/sequences.service';
 import { FlowActionsService } from './flow-actions.service';
@@ -11,6 +12,7 @@ import { AiService } from '../ai/ai.service';
 import { AssignmentService } from '../inbox/assignment.service';
 import { DatabaseService } from '../database/database.service';
 import { MessageContent } from '../messaging/message-content';
+
 import { MessageReceivedEvent, MessagingService } from '../messaging/messaging.service';
 import {
   EngineDeps,
@@ -56,6 +58,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     private readonly actions: FlowActionsService,
     private readonly google: GoogleService,
     private readonly commerce: CommerceService,
+    private readonly dataSources: DataSourcesService = new DataSourcesService(db, google),
   ) {}
 
   onModuleInit() {
@@ -231,6 +234,28 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         return { conv, session, graph: g.graph as FlowGraph };
       }
 
+      // Publishing a flow in Bot Manager makes it the primary chat bot
+      // for that tenant channel. Keep any existing waiting conversation
+      // on its saved version; on the next new turn use the published choice.
+      const primaryFlowId = (conv.channel_settings as Record<string, unknown> | null)
+        ?.activeBotFlowId;
+      if (!e.eventName && typeof primaryFlowId === 'string') {
+        const primaryFlow = (await c.query(
+          `SELECT f.id AS flow_id, fv.id AS version_id, fv.graph
+             FROM flows f JOIN flow_versions fv ON fv.id=f.published_version_id
+            WHERE f.id=$1 AND f.status='published' AND NOT f.is_component
+              AND (cardinality(fv.channel_ids)=0 OR $2=ANY(fv.channel_ids))`,
+          [primaryFlowId, conv.channel_id],
+        )).rows[0] as {
+          flow_id: string; version_id: string; graph: FlowGraph;
+        } | undefined;
+        // Do not silently run a different bot if the selected bot was
+        // moved, deleted or unpublished while a channel still references it.
+        return primaryFlow
+          ? { conv, primaryFlow }
+          : { conv, primaryUnavailable: true };
+      }
+
       const cands = (
         await c.query(
           `SELECT f.id AS flow_id, fv.id AS version_id, f.priority, fv.triggers, fv.channel_ids, fv.graph
@@ -283,7 +308,13 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         tags: loaded.conv.tags ?? [],
       },
       channel: { id: loaded.conv.channel_id, type: loaded.conv.channel_type },
-      lastMessage: { text, replyId, media: e.content.media, formReply: e.content.flowReply, order: e.content.order },
+      lastMessage: {
+        text,
+        replyId,
+        media: e.content.media,
+        formReply: e.content.flowReply,
+        order: e.content.order,
+      },
     };
     const base: Loaded = {
       eventId: e.messageId,
@@ -293,6 +324,15 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       channelId: loaded.conv.channel_id,
       ctx,
     };
+
+    if ('primaryUnavailable' in loaded && loaded.primaryUnavailable) {
+      this.log.warn('Active channel bot is not published for this channel; refusing to route to another bot');
+      return;
+    }
+    if ('primaryFlow' in loaded && loaded.primaryFlow) {
+      await this.startFlow(base, ctx, loaded.primaryFlow);
+      return;
+    }
 
     if ('systemFlow' in loaded && loaded.systemFlow) {
       if (loaded.actionKey === 'human')
@@ -527,6 +567,8 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
   private makeDeps(b: Loaded, flowId?: string): EngineDeps {
     return {
       setContactField: (key, value) => this.actions.writeSystemField(b, key, value),
+      dynamicCatalog: (req) => this.dataSources.content(b.tenantId, req),
+      dynamicItem: (source, id, fields) => this.dataSources.item(b.tenantId, source, id, fields),
       productContent: (id, native) => {
         if (native && b.ctx.channel.type !== 'whatsapp')
           throw new Error('Native products require WhatsApp');

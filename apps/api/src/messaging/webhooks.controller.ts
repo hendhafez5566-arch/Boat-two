@@ -87,7 +87,33 @@ export class WebhooksController implements OnModuleInit, OnModuleDestroy {
     @Body() body: Record<string, unknown>,
   ) {
     this.verifySignature(req, sig);
-    await this.enqueue(parseWhatsApp(body));
+    const events = parseWhatsApp(body);
+    const outcome = await this.enqueue(events);
+    // Operational counters only: never log tokens, phone IDs, contact details,
+    // message bodies or message IDs. Distinguishes successful HTTP delivery
+    // from an event ignored by the parser or without an active channel.
+    const permittedFields = new Set([
+      'messages', 'smb_message_echoes', 'message_echoes', 'history',
+      'smb_app_state_sync', 'message_template_status_update',
+      'message_template_quality_update', 'account_update',
+    ]);
+    const entries = Array.isArray(body.entry) ? body.entry : [];
+    const fields = [...new Set(entries.flatMap((entry) => {
+      if (!entry || typeof entry !== 'object') return [];
+      const changes = (entry as { changes?: unknown }).changes;
+      if (!Array.isArray(changes)) return [];
+      return changes.map((c) => {
+        const field = c && typeof c === 'object' && 'field' in c ? c.field : null;
+        return typeof field === 'string' && permittedFields.has(field) ? field : 'other';
+      });
+    }))].slice(0, 8);
+    const summary = JSON.stringify({
+      fields, parsedMessages: events.filter((ev) => ev.kind === 'message').length,
+      parsedStatuses: events.filter((ev) => ev.kind === 'status').length,
+      persisted: outcome.matched, noChannel: outcome.unmatched,
+    });
+    if (!events.length || outcome.unmatched) this.log.warn(`WhatsApp webhook diagnostics ${summary}`);
+    else this.log.log(`WhatsApp webhook diagnostics ${summary}`);
     return { received: true };
   }
 
@@ -136,9 +162,10 @@ export class WebhooksController implements OnModuleInit, OnModuleDestroy {
 
   private async enqueue(events: InboundEvent[]) {
     // Respond only after durable insertion. A database failure returns non-2xx so Meta retries.
+    let matched = 0, unmatched = 0;
     for (const ev of events) {
       const channel = await this.channels.lookup(ev.channelType, ev.externalChannelId);
-      if (!channel || channel.status !== 'active') continue;
+      if (!channel || channel.status !== 'active') { unmatched++; continue; }
       const payload = JSON.stringify(ev);
       const key = createHash('sha256').update(payload).digest('hex');
       await this.db.withTenant(channel.tenant_id, (c) =>
@@ -147,7 +174,9 @@ export class WebhooksController implements OnModuleInit, OnModuleDestroy {
           [channel.tenant_id, channel.id, key, payload],
         ),
       );
+      matched++;
     }
+    return { matched, unmatched };
   }
 
   private async tick() {

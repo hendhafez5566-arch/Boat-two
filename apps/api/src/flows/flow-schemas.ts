@@ -141,7 +141,12 @@ export const nodeSchema = z.discriminatedUnion('type', [
     ...nodeBase,
     type: z.literal('catalog'),
     data: z.object({
-      productIds: z.array(z.string().uuid()).min(1).max(30),
+      productIds: z.array(z.string().uuid()).max(30).default([]),
+      sourceId: z.string().uuid().optional(),
+      category: z.string().max(300).optional(),
+      query: z.string().max(300).optional(),
+      fields: z.array(z.string().max(120)).max(40).optional(),
+      emptyText: z.string().max(1024).optional(),
       native: z.boolean().default(false),
       text: z.string().min(1).max(1024),
       selectable: z.boolean().optional(),
@@ -562,7 +567,20 @@ export const updateFlowSchema = z.object({
 
 export const testFlowSchema = z.object({
   contactAttributes: z
-    .record(z.union([z.string().max(2000), z.number(), z.boolean(), z.null()]))
+    .record(
+      z.union([
+        z.string().max(2000),
+        z.number(),
+        z.boolean(),
+        z.null(),
+        z.object({
+          id: z.string().uuid(),
+          name: z.string().max(120),
+          category: z.string().max(300),
+          source: z.string().uuid(),
+        }),
+      ]),
+    )
     .optional(),
   state: z.unknown().optional(),
   text: z.string().max(2000).default(''),

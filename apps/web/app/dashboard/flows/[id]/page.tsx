@@ -30,7 +30,7 @@ import { deriveFlowReference } from '../../../../lib/flow-reference';
 import { channelHref, selectedChannel } from '../../../../lib/channel-context';
 import styles from '../../../../components/flow/editor-shell.module.css';
 import { NavIcon } from '../../../../components/product/NavIcon';
-import { NodeIcon, nodeLabel } from '../../../../components/flow/presentation';
+import { NodeIcon, nodeLabel, editorLabel } from '../../../../components/flow/presentation';
 import FlowNodeView from '../../../../components/flow/FlowNodeView';
 import {
   FlowAnalyticsContext,
@@ -160,6 +160,7 @@ function Editor({ id }: { id: string }) {
     version: null,
   });
   const [channels, setChannels] = useState<{ id: string; name: string; type: string }[]>([]);
+  const [channelsLoaded, setChannelsLoaded] = useState(false);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [warnings, setWarnings] = useState<Issue[]>([]);
   const [validationState, setValidationState] = useState<
@@ -293,9 +294,9 @@ function Editor({ id }: { id: string }) {
         status: f.status,
         version: f.published_version,
       });
-      api<any[]>('/channels')
-        .then(setChannels)
-        .catch(() => {});
+      api<{ id: string; name: string; type: string }[]>('/channels')
+        .then((rows) => { setChannels(rows); setChannelsLoaded(true); })
+        .catch(() => { setChannelsLoaded(false); setMsg(t('تعذّر تحميل القنوات. أعد فتح الصفحة قبل النشر.', 'Cannot load connected channels. Reload before publishing.')); });
     })().catch((e) => setMsg(e.message));
   }, [id, setNodes, setEdges]);
 
@@ -848,7 +849,14 @@ function Editor({ id }: { id: string }) {
     return () => window.removeEventListener('keydown', keys);
   });
 
+  const staleChannelIds = channelsLoaded
+    ? meta.channelIds.filter((channelId) => !channels.some((c) => c.id === channelId))
+    : [];
   const configurationIssue = () => {
+    if (meta.channelIds.length && !channelsLoaded)
+      return t('لا يمكن التحقق من القنوات. أعد تحميل الصفحة قبل الحفظ.', 'Cannot verify channels. Reload before saving.');
+    if (staleChannelIds.length)
+      return t('البوت مرتبط بقناة محذوفة أو غير موجودة. اختر قناة متصلة من إعدادات البوت لتصحيح الربط قبل الحفظ.', 'This bot refers to a missing channel. Select a connected channel in settings before saving.');
     if (!meta.name.trim()) return t('أدخل اسم التدفق.', 'Enter a flow name.');
     if (!Number.isInteger(meta.priority) || meta.priority < -100 || meta.priority > 100)
       return t(
@@ -1086,7 +1094,9 @@ function Editor({ id }: { id: string }) {
       setMsg(`${t('تم النشر', 'Published')} v${r.version}`);
       setPublishOutcome({
         kind: 'success',
-        text: `${t('تم نشر نسخة البوت', 'Bot version published')} v${r.version}. ${t('تأكد من تفعيل القناة قبل استقبال محادثات العملاء.', 'Make sure a channel is active before expecting live customer conversations.')}`,
+        text: `${t('تم نشر نسخة البوت', 'Bot version published')} v${r.version}. ${r.activatedChannelCount > 0
+          ? t(`البوت ده أصبح النشط على ${r.activatedChannelCount} قناة مرتبطة. الرسائل الجديدة هتروح له مباشرة.`, `This bot is now active for ${r.activatedChannelCount} linked channel(s). New messages will use it.`)
+          : t('لم تتوفر قناة مرتبطة للتفعيل. راجع ربط القنوات.', 'No linked channels were found; review channel bindings.')}`,
       });
     } catch (e: any) {
       if (latest.current === submitted && e.details?.errors) {
@@ -1251,6 +1261,16 @@ function Editor({ id }: { id: string }) {
             setDirty(true);
           }}
         />
+        {staleChannelIds.length > 0 && (
+          <button
+            type="button"
+            className="btn btn-danger"
+            onClick={openSettings}
+            title={t('إصلاح القناة قبل الحفظ أو النشر', 'Fix missing channel before saving or publishing')}
+          >
+            {t('القناة القديمة غير موجودة — تصحيح الربط', 'Missing channel — fix link')}
+          </button>
+        )}
         {meta.channelIds.length === 1 && (
           <span className={styles.channelBadge}>
             {channels.find((channel) => channel.id === meta.channelIds[0])?.name ??
@@ -2004,6 +2024,29 @@ function Editor({ id }: { id: string }) {
                     data={inspectorDraft?.id === sel.id ? inspectorDraft.data : sel.data.data}
                     onChange={(data) => setInspectorDraft({ id: sel.id, data })}
                   />
+                  <ConfigDisclosure className="smart-section">
+                    <ConfigSummary>{t('الخطوات التالية', 'Next steps')}</ConfigSummary>
+                    <p className="muted">{t('اختر وجهة كل مسار بدل سحب التوصيلات. تغيير الوجهة يحدّث المسودة.', 'Choose each path destination without dragging. Changing a destination updates the draft.')}</p>
+                    {handlesFor(sel.data.type, sel.data.data).map((handle) => (
+                      <label className="field" key={handle.id}>
+                        {editorLabel(handle.label, language)}
+                        <select
+                          aria-label={`${t('الخطوة التالية', 'Next step')} — ${editorLabel(handle.label, language)}`}
+                          value={edges.find((edge) => edge.source === sel.id && edge.sourceHandle === handle.id)?.target ?? ''}
+                          onChange={(event) => {
+                            if (event.target.value) onConnect({ source: sel.id, sourceHandle: handle.id, target: event.target.value, targetHandle: null });
+                            else {
+                              setEdges((links) => links.filter((edge) => edge.source !== sel.id || edge.sourceHandle !== handle.id));
+                              setDirty(true);
+                            }
+                          }}
+                        >
+                          <option value="">{t('بدون توصيل', 'Not connected')}</option>
+                          {nodes.filter((node) => node.id !== sel.id).map((node) => <option key={node.id} value={node.id}>{stepCaption(node.id)}</option>)}
+                        </select>
+                      </label>
+                    ))}
+                  </ConfigDisclosure>
                 </div>
               ) : (
                 <p className="p-4 text-sm text-gray-500">
@@ -2202,6 +2245,34 @@ function Editor({ id }: { id: string }) {
                       'Channels (none selected = all channels)',
                     )}
                   </div>
+                  {staleChannelIds.length > 0 && (
+                    <div role="alert" className="notice error mb-3">
+                      <p>{t(
+                        'هذه النسخة مرتبطة بقناة لم تعد موجودة. تصميم البوت محفوظ؛ اختر القناة الصحيحة أدناه لتصحيح الربط قبل النشر.',
+                        'This flow references a removed channel. Its design is intact; choose the correct connected channel below before publishing.',
+                      )}</p>
+                      {channels.length > 0 ? channels.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          className="btn mt-2 mr-2"
+                          onClick={() => {
+                            setMeta((m) => ({
+                              ...m,
+                              channelIds: Array.from(new Set([
+                                ...m.channelIds.filter((value) => channels.some((available) => available.id === value)),
+                                c.id,
+                              ])),
+                            }));
+                            setDirty(true);
+                            setMsg(t('تم تحديث القناة؛ احفظ البوت وانشره.', 'Channel fixed. Save and publish the flow.'));
+                          }}
+                        >
+                          {t('ربط البوت بقناة', 'Link bot to')} {c.name} ({c.type})
+                        </button>
+                      )) : <p>{t('لا توجد أي قناة متصلة. اربط قناة أولًا ثم أعد فتح المحرر.', 'No connected channels found. Add a channel first and reopen the editor.')}</p>}
+                    </div>
+                  )}
                   {channels.map((c) => (
                     <label key={c.id} className="flex items-center gap-2 py-0.5">
                       <input
@@ -2210,8 +2281,13 @@ function Editor({ id }: { id: string }) {
                         onChange={(e) => {
                           setMeta({
                             ...meta,
+                            // Choosing a visible channel also clears orphan references.
+                            // Never silently clear all references: [] means all channels.
                             channelIds: e.target.checked
-                              ? [...meta.channelIds, c.id]
+                              ? Array.from(new Set([
+                                  ...meta.channelIds.filter((value) => channels.some((row) => row.id === value)),
+                                  c.id,
+                                ]))
                               : meta.channelIds.filter((x) => x !== c.id),
                           });
                           setDirty(true);

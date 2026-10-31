@@ -1,0 +1,1119 @@
+TAP version 13
+# Subtest: chunkText: keeps all content, respects max size, carries headings and overlap
+ok 1 - chunkText: keeps all content, respects max size, carries headings and overlap
+  ---
+  duration_ms: 2.201816
+  type: 'test'
+  ...
+# Subtest: chunkText: splits very long text without separators, ignores empty input
+ok 2 - chunkText: splits very long text without separators, ignores empty input
+  ---
+  duration_ms: 0.401135
+  type: 'test'
+  ...
+# Subtest: faq: one chunk per Q/A and round-trips through text storage
+ok 3 - faq: one chunk per Q/A and round-trips through text storage
+  ---
+  duration_ms: 0.30387
+  type: 'test'
+  ...
+# Subtest: htmlToText strips scripts/nav, keeps headings & lists, decodes entities
+ok 4 - htmlToText strips scripts/nav, keeps headings & lists, decodes entities
+  ---
+  duration_ms: 0.765816
+  type: 'test'
+  ...
+# Subtest: buildOrTsQuery: normalized, deduped, injection-safe
+ok 5 - buildOrTsQuery: normalized, deduped, injection-safe
+  ---
+  duration_ms: 1.576508
+  type: 'test'
+  ...
+# Subtest: rrfFuse prefers items present in both rankings
+ok 6 - rrfFuse prefers items present in both rankings
+  ---
+  duration_ms: 0.281698
+  type: 'test'
+  ...
+# Subtest: toVectorLiteral validates numbers; periodStart is month start UTC
+ok 7 - toVectorLiteral validates numbers; periodStart is month start UTC
+  ---
+  duration_ms: 0.928627
+  type: 'test'
+  ...
+# Subtest: toChatMessages: alternates roles, merges, starts and ends with user
+ok 8 - toChatMessages: alternates roles, merges, starts and ends with user
+  ---
+  duration_ms: 0.44479
+  type: 'test'
+  ...
+# Subtest: messageToText describes media, replies and locations
+ok 9 - messageToText describes media, replies and locations
+  ---
+  duration_ms: 0.273005
+  type: 'test'
+  ...
+# Subtest: buildSystemPrompt: grounding rules, handoff toggle, injection hardening
+ok 10 - buildSystemPrompt: grounding rules, handoff toggle, injection hardening
+  ---
+  duration_ms: 1.025712
+  type: 'test'
+  ...
+# Subtest: parseAnthropicResponse: text, tool use, usage
+ok 11 - parseAnthropicResponse: text, tool use, usage
+  ---
+  duration_ms: 0.278643
+  type: 'test'
+  ...
+# Subtest: catalog grounding honors disabled agents and answers without invoking a paid provider or stale knowledge
+ok 12 - catalog grounding honors disabled agents and answers without invoking a paid provider or stale knowledge
+  ---
+  duration_ms: 184.777755
+  type: 'test'
+  ...
+# Subtest: token cost uses configured per-million rates and keeps unknown prices unknown
+ok 13 - token cost uses configured per-million rates and keeps unknown prices unknown
+  ---
+  duration_ms: 1.172719
+  type: 'test'
+  ...
+# Subtest: OpenAI adapter translates the shared request, tool calls and usage without network
+ok 14 - OpenAI adapter translates the shared request, tool calls and usage without network
+  ---
+  duration_ms: 3.369057
+  type: 'test'
+  ...
+# Subtest: OpenAI adapter does not replay an ambiguous provider failure or disclose error body
+ok 15 - OpenAI adapter does not replay an ambiguous provider failure or disclose error body
+  ---
+  duration_ms: 0.818063
+  type: 'test'
+  ...
+# Subtest: Anthropic never retries uncertain or rejected paid calls and does not disclose provider bodies
+ok 16 - Anthropic never retries uncertain or rejected paid calls and does not disclose provider bodies
+  ---
+  duration_ms: 5.191961
+  type: 'test'
+  ...
+# Subtest: profile writes only the authenticated user and leaves credentials and memberships untouched
+ok 17 - profile writes only the authenticated user and leaves credentials and memberships untouched
+  ---
+  duration_ms: 1906.921412
+  type: 'test'
+  ...
+# Subtest: invoice log uses literal search, UTC paid dates, consistent pages and tenant RLS
+ok 18 - invoice log uses literal search, UTC paid dates, consistent pages and tenant RLS
+  ---
+  duration_ms: 1812.667879
+  type: 'test'
+  ...
+# Subtest: invoice links allow only authenticated HTTPS Stripe hosts
+ok 19 - invoice links allow only authenticated HTTPS Stripe hosts
+  ---
+  duration_ms: 1.851712
+  type: 'test'
+  ...
+# Subtest: invoice snapshots reject malformed amounts and prioritize paid over equal-time failures
+ok 20 - invoice snapshots reject malformed amounts and prioritize paid over equal-time failures
+  ---
+  duration_ms: 2.49914
+  type: 'test'
+  ...
+# Subtest: licensed subscription quantity is preserved and metered/invalid changes require review
+ok 21 - licensed subscription quantity is preserved and metered/invalid changes require review
+  ---
+  duration_ms: 2.781137
+  type: 'test'
+  ...
+# Subtest: campaign inclusion is any selected value; exclusions override inclusion without changing consent
+ok 22 - campaign inclusion is any selected value; exclusions override inclusion without changing consent
+  ---
+  duration_ms: 2060.80178
+  type: 'test'
+  ...
+# Subtest: broadcast list and summary share platform, account, tenant and literal-search boundaries
+ok 23 - broadcast list and summary share platform, account, tenant and literal-search boundaries
+  ---
+  duration_ms: 2007.881231
+  type: 'test'
+  ...
+# Subtest: subscriber profiles and inbox views execute against PostgreSQL with tenant RLS
+    # Subtest: system action configuration is versioned, tenant isolated and executes opt-out and handoff
+    ok 1 - system action configuration is versioned, tenant isolated and executes opt-out and handoff
+      ---
+      duration_ms: 247.946606
+      type: 'test'
+      ...
+    # Subtest: campaign pagination, literal search and delivered/read statistics query PostgreSQL
+    ok 2 - campaign pagination, literal search and delivered/read statistics query PostgreSQL
+      ---
+      duration_ms: 20.548675
+      type: 'test'
+      ...
+    # Subtest: summary uses current filters and excludes another tenant
+    ok 3 - summary uses current filters and excludes another tenant
+      ---
+      duration_ms: 20.906951
+      type: 'test'
+      ...
+    # Subtest: profile updates preserve untouched attributes, reject stale saves and foreign IDs
+    ok 4 - profile updates preserve untouched attributes, reject stale saves and foreign IDs
+      ---
+      duration_ms: 28.446116
+      type: 'test'
+      ...
+    # Subtest: overview save is atomic versioned and tenant scoped
+    ok 5 - overview save is atomic versioned and tenant scoped
+      ---
+      duration_ms: 64.700391
+      type: 'test'
+      ...
+    # Subtest: typed custom field partial saves retain zero false and unrelated data
+    ok 6 - typed custom field partial saves retain zero false and unrelated data
+      ---
+      duration_ms: 49.00721
+      type: 'test'
+      ...
+    # Subtest: inbox filters, date bounds and subscriber sort use the same cursor ordering
+    ok 7 - inbox filters, date bounds and subscriber sort use the same cursor ordering
+      ---
+      duration_ms: 42.563291
+      type: 'test'
+      ...
+    # Subtest: important and archived views and account counts use real persisted flags
+    ok 8 - important and archived views and account counts use real persisted flags
+      ---
+      duration_ms: 23.844403
+      type: 'test'
+      ...
+    # Subtest: account blocking expires waiting sessions and prevents queued provider delivery
+    ok 9 - account blocking expires waiting sessions and prevents queued provider delivery
+      ---
+      duration_ms: 35.134301
+      type: 'test'
+      ...
+    1..9
+ok 24 - subscriber profiles and inbox views execute against PostgreSQL with tenant RLS
+  ---
+  duration_ms: 2513.691797
+  type: 'test'
+  ...
+# Subtest: combined filters bind relationships without interpreting list membership as consent
+ok 25 - combined filters bind relationships without interpreting list membership as consent
+  ---
+  duration_ms: 3.935187
+  type: 'test'
+  ...
+# Subtest: nested AND/OR conditions compile to bound SQL and reject excessive depth
+ok 26 - nested AND/OR conditions compile to bound SQL and reject excessive depth
+  ---
+  duration_ms: 4.174592
+  type: 'test'
+  ...
+# Subtest: recursive automation branches/delays keep HTTPS policy and bounded nesting
+ok 27 - recursive automation branches/delays keep HTTPS policy and bounded nesting
+  ---
+  duration_ms: 3.903521
+  type: 'test'
+  ...
+# Subtest: catalog list keeps configured order, exact prices and stable IDs, and refuses missing products
+ok 28 - catalog list keeps configured order, exact prices and stable IDs, and refuses missing products
+  ---
+  duration_ms: 210.319522
+  type: 'test'
+  ...
+# Subtest: money is exact and booking intervals cannot cross a closed gap
+ok 29 - money is exact and booking intervals cannot cross a closed gap
+  ---
+  duration_ms: 3.699558
+  type: 'test'
+  ...
+# Subtest: native products, sections and WhatsApp Flows build real provider payloads with mock transport
+ok 30 - native products, sections and WhatsApp Flows build real provider payloads with mock transport
+  ---
+  duration_ms: 6.032493
+  type: 'test'
+  ...
+# Subtest: smart catalog real PostgreSQL RLS, source lifecycle and business acceptance
+    # Subtest: tourism initial import, flexible prices, stable identity and repeated sync
+    ok 1 - tourism initial import, flexible prices, stable identity and repeated sync
+      ---
+      duration_ms: 43.489977
+      type: 'test'
+      ...
+    # Subtest: new item and price update appear without changing a flow
+    ok 2 - new item and price update appear without changing a flow
+      ---
+      duration_ms: 21.779519
+      type: 'test'
+      ...
+    # Subtest: hide prevents list/search/direct stale ID/AI access; restore works
+    ok 3 - hide prevents list/search/direct stale ID/AI access; restore works
+      ---
+      duration_ms: 44.8967
+      type: 'test'
+      ...
+    # Subtest: missing rows require explicit archive; no physical deletion
+    ok 4 - missing rows require explicit archive; no physical deletion
+      ---
+      duration_ms: 31.586702
+      type: 'test'
+      ...
+    # Subtest: failed/partial/duplicate/changed-column updates retain last good catalog
+    ok 5 - failed/partial/duplicate/changed-column updates retain last good catalog
+      ---
+      duration_ms: 20.678049
+      type: 'test'
+      ...
+    # Subtest: preview revision conflict, one-use token and cross-tenant isolation
+    ok 6 - preview revision conflict, one-use token and cross-tenant isolation
+      ---
+      duration_ms: 34.450111
+      type: 'test'
+      ...
+    # Subtest: AI reads current values; unsupported field falls back without invented values; injection is data
+    ok 7 - AI reads current values; unsupported field falls back without invented values; injection is data
+      ---
+      duration_ms: 12.11506
+      type: 'test'
+      ...
+    # Subtest: real runtime persists CRM inquiry and human takeover in PostgreSQL with mock transport
+    ok 8 - real runtime persists CRM inquiry and human takeover in PostgreSQL with mock transport
+      ---
+      duration_ms: 134.322079
+      type: 'test'
+      ...
+    # Subtest: restaurant 300 rows, nested categories, paginated list <=10, search/update/hide
+    ok 9 - restaurant 300 rows, nested categories, paginated list <=10, search/update/hide
+      ---
+      duration_ms: 480.855134
+      type: 'test'
+      ...
+    # Subtest: clothing custom size/color fields, hidden product and no invented stock
+    ok 10 - clothing custom size/color fields, hidden product and no invented stock
+      ---
+      duration_ms: 33.557419
+      type: 'test'
+      ...
+    # Subtest: Google mock sync and outage; multiple sources stay independent
+    ok 11 - Google mock sync and outage; multiple sources stay independent
+      ---
+      duration_ms: 24.348173
+      type: 'test'
+      ...
+    # Subtest: automatic Google retry keeps fixed IDs and clears stale status after recovery
+    ok 12 - automatic Google retry keeps fixed IDs and clears stale status after recovery
+      ---
+      duration_ms: 30.310311
+      type: 'test'
+      ...
+    # Subtest: 10000-row input bounds, text-only pricing, duplicate keys and unsafe links
+    ok 13 - 10000-row input bounds, text-only pricing, duplicate keys and unsafe links
+      ---
+      duration_ms: 11.171051
+      type: 'test'
+      ...
+    # Subtest: CSV UTF8, XLSX worksheets, formulas and file validation
+    ok 14 - CSV UTF8, XLSX worksheets, formulas and file validation
+      ---
+      duration_ms: 84.818603
+      type: 'test'
+      ...
+    1..14
+ok 31 - smart catalog real PostgreSQL RLS, source lifecycle and business acceptance
+  ---
+  duration_ms: 2818.853061
+  type: 'test'
+  ...
+# Subtest: social drafts preserve campaign metadata, migration is repeatable, and RLS blocks foreign accounts
+ok 32 - social drafts preserve campaign metadata, migration is repeatable, and RLS blocks foreign accounts
+  ---
+  duration_ms: 1738.657273
+  type: 'test'
+  ...
+# Subtest: outside-hours starts defer to the next opening and execute the original start rather than its next edge
+ok 33 - outside-hours starts defer to the next opening and execute the original start rather than its next edge
+  ---
+  duration_ms: 17.686208
+  type: 'test'
+  ...
+# Subtest: closed-hours answers remain waiting without saving or running actions
+ok 34 - closed-hours answers remain waiting without saving or running actions
+  ---
+  duration_ms: 0.856468
+  type: 'test'
+  ...
+# Subtest: opening calculation handles overnight ranges, timezone offsets and invalid policy input
+ok 35 - opening calculation handles overnight ranges, timezone offsets and invalid policy input
+  ---
+  duration_ms: 4.075945
+  type: 'test'
+  ...
+# Subtest: off-hours routing resumes its frozen alternate graph and system fields keep their destination
+ok 36 - off-hours routing resumes its frozen alternate graph and system fields keep their destination
+  ---
+  duration_ms: 0.995644
+  type: 'test'
+  ...
+# Subtest: button and list actions survive API parsing and save/reopen without changing option IDs
+ok 37 - button and list actions survive API parsing and save/reopen without changing option IDs
+  ---
+  duration_ms: 4.218496
+  type: 'test'
+  ...
+# Subtest: choice actions run in order with variables before routing and never leak into provider buttons
+ok 38 - choice actions run in order with variables before routing and never leak into provider buttons
+  ---
+  duration_ms: 2.270793
+  type: 'test'
+  ...
+# Subtest: assignment stops the bot; unavailable executor and failed actions do not continue the flow
+ok 39 - assignment stops the bot; unavailable executor and failed actions do not continue the flow
+  ---
+  duration_ms: 0.591266
+  type: 'test'
+  ...
+# Subtest: collection completion actions run only after all validated answers
+ok 40 - collection completion actions run only after all validated answers
+  ---
+  duration_ms: 1.154008
+  type: 'test'
+  ...
+# Subtest: optional questions skip without overwriting attributes; ordinary questions save contact fields only when selected
+ok 41 - optional questions skip without overwriting attributes; ordinary questions save contact fields only when selected
+  ---
+  duration_ms: 0.659947
+  type: 'test'
+  ...
+# Subtest: normalizeText unifies Arabic variants and digits
+ok 42 - normalizeText unifies Arabic variants and digits
+  ---
+  duration_ms: 1.406403
+  type: 'test'
+  ...
+# Subtest: interpolate: variables, escaping, whole-value type
+ok 43 - interpolate: variables, escaping, whole-value type
+  ---
+  duration_ms: 0.883318
+  type: 'test'
+  ...
+# Subtest: conditions: Arabic digits, contains, numeric compare, regex
+ok 44 - conditions: Arabic digits, contains, numeric compare, regex
+  ---
+  duration_ms: 1.129653
+  type: 'test'
+  ...
+# Subtest: conditions: label matches whole tag, any/all, empty set
+ok 45 - conditions: label matches whole tag, any/all, empty set
+  ---
+  duration_ms: 0.311201
+  type: 'test'
+  ...
+# Subtest: parseAnswer validates number/email/phone
+ok 46 - parseAnswer validates number/email/phone
+  ---
+  duration_ms: 0.923086
+  type: 'test'
+  ...
+# Subtest: business hours incl. overnight and timezone
+ok 47 - business hours incl. overnight and timezone
+  ---
+  duration_ms: 13.140398
+  type: 'test'
+  ...
+# Subtest: message → question → condition → end with variables
+ok 48 - message → question → condition → end with variables
+  ---
+  duration_ms: 2.178336
+  type: 'test'
+  ...
+# Subtest: question: retries exhausted follows fail edge
+ok 49 - question: retries exhausted follows fail edge
+  ---
+  duration_ms: 0.359542
+  type: 'test'
+  ...
+# Subtest: buttons route by reply id, by typed title, fallback, and re-prompt limit
+ok 50 - buttons route by reply id, by typed title, fallback, and re-prompt limit
+  ---
+  duration_ms: 0.91851
+  type: 'test'
+  ...
+# Subtest: delay waits and resumes
+ok 51 - delay waits and resumes
+  ---
+  duration_ms: 0.587019
+  type: 'test'
+  ...
+# Subtest: loops are stopped
+ok 52 - loops are stopped
+  ---
+  duration_ms: 1.038768
+  type: 'test'
+  ...
+# Subtest: set_variable / set_attribute / split / business_hours / handoff / end
+ok 53 - set_variable / set_attribute / split / business_hours / handoff / end
+  ---
+  duration_ms: 0.706225
+  type: 'test'
+  ...
+# Subtest: http_request: success maps response, failure takes error edge, url/body escaping
+ok 54 - http_request: success maps response, failure takes error edge, url/body escaping
+  ---
+  duration_ms: 0.616913
+  type: 'test'
+  ...
+# Subtest: send failure becomes an error result (e.g. WhatsApp window)
+ok 55 - send failure becomes an error result (e.g. WhatsApp window)
+  ---
+  duration_ms: 0.271121
+  type: 'test'
+  ...
+# Subtest: matchFlow: specificity, priority, channel filter, once-per-conversation
+ok 56 - matchFlow: specificity, priority, channel filter, once-per-conversation
+  ---
+  duration_ms: 0.528373
+  type: 'test'
+  ...
+# Subtest: validateGraph catches broken graphs and accepts good ones
+ok 57 - validateGraph catches broken graphs and accepts good ones
+  ---
+  duration_ms: 1.005389
+  type: 'test'
+  ...
+# Subtest: isBlockedIp blocks internal ranges (SSRF)
+ok 58 - isBlockedIp blocks internal ranges (SSRF)
+  ---
+  duration_ms: 4.212428
+  type: 'test'
+  ...
+# Subtest: shop scenario: menu → order question → API → confirmation, in Arabic
+ok 59 - shop scenario: menu → order question → API → confirmation, in Arabic
+  ---
+  duration_ms: 0.916327
+  type: 'test'
+  ...
+# Subtest: ai_reply as start node answers the first message, then converses until exit keyword
+ok 60 - ai_reply as start node answers the first message, then converses until exit keyword
+  ---
+  duration_ms: 0.439811
+  type: 'test'
+  ...
+# Subtest: ai_reply not at start waits for the next message instead of answering the old one
+ok 61 - ai_reply not at start waits for the next message instead of answering the old one
+  ---
+  duration_ms: 0.190863
+  type: 'test'
+  ...
+# Subtest: ai_reply: max turns, handoff edge, default handoff, failure edge
+ok 62 - ai_reply: max turns, handoff edge, default handoff, failure edge
+  ---
+  duration_ms: 0.784552
+  type: 'test'
+  ...
+# Subtest: validateGraph: ai_reply warns without handoff/error edges
+ok 63 - validateGraph: ai_reply warns without handoff/error edges
+  ---
+  duration_ms: 0.143112
+  type: 'test'
+  ...
+# Subtest: location, cta_url and template nodes send rich content and continue
+ok 64 - location, cta_url and template nodes send rich content and continue
+  ---
+  duration_ms: 0.319563
+  type: 'test'
+  ...
+# Subtest: validate: new nodes require their key fields
+ok 65 - validate: new nodes require their key fields
+  ---
+  duration_ms: 0.198934
+  type: 'test'
+  ...
+# Subtest: sequence node enrolls the contact and continues; failures do not stop the flow
+ok 66 - sequence node enrolls the contact and continues; failures do not stop the flow
+  ---
+  duration_ms: 0.201418
+  type: 'test'
+  ...
+# Subtest: user_input: asks questions in order, saves custom fields, then thank-you and next node
+ok 67 - user_input: asks questions in order, saves custom fields, then thank-you and next node
+  ---
+  duration_ms: 0.747457
+  type: 'test'
+  ...
+# Subtest: user_input: retries exhausted stops the flow without saving
+ok 68 - user_input: retries exhausted stops the flow without saving
+  ---
+  duration_ms: 0.197532
+  type: 'test'
+  ...
+# Subtest: user_input: validation rejects duplicate keys and 1-option choices
+ok 69 - user_input: validation rejects duplicate keys and 1-option choices
+  ---
+  duration_ms: 0.124825
+  type: 'test'
+  ...
+# Subtest: media blocks: send media with interpolated url, skip caption for audio, reject bad urls
+ok 70 - media blocks: send media with interpolated url, skip caption for audio, reject bad urls
+  ---
+  duration_ms: 0.266084
+  type: 'test'
+  ...
+# Subtest: random_number: inclusive integer range saved as variable, validated
+ok 71 - random_number: inclusive integer range saved as variable, validated
+  ---
+  duration_ms: 0.314296
+  type: 'test'
+  ...
+# Subtest: interactive message: routes by chosen button and needs options
+ok 72 - interactive message: routes by chosen button and needs options
+  ---
+  duration_ms: 0.198174
+  type: 'test'
+  ...
+# Subtest: parseSheetUrl: share, gid, published links; rejects other hosts and junk
+ok 73 - parseSheetUrl: share, gid, published links; rejects other hosts and junk
+  ---
+  duration_ms: 0.562964
+  type: 'test'
+  ...
+# Subtest: parseCsv + lookupRow: quotes, newlines in cells, phone digits, missing column
+ok 74 - parseCsv + lookupRow: quotes, newlines in cells, phone digits, missing column
+  ---
+  duration_ms: 0.440372
+  type: 'test'
+  ...
+# Subtest: sheet_fetch: found maps columns, not_found / error / blocked host take their edges
+ok 75 - sheet_fetch: found maps columns, not_found / error / blocked host take their edges
+  ---
+  duration_ms: 1.303981
+  type: 'test'
+  ...
+# Subtest: sheet_fetch validation: needs a Google link; button layout is ignored by the engine
+ok 76 - sheet_fetch validation: needs a Google link; button layout is ignored by the engine
+  ---
+  duration_ms: 0.173067
+  type: 'test'
+  ...
+# Subtest: clickableOptions: buttons, list rows, and only the current user_input choice question
+ok 77 - clickableOptions: buttons, list rows, and only the current user_input choice question
+  ---
+  duration_ms: 0.251292
+  type: 'test'
+  ...
+# Subtest: WhatsApp form waits through unrelated/stale replies, isolates sessions and resumes after reopening
+ok 78 - WhatsApp form waits through unrelated/stale replies, isolates sessions and resumes after reopening
+  ---
+  duration_ms: 0.557135
+  type: 'test'
+  ...
+# Subtest: commerce nodes reject missing product/service/form configuration before publication
+ok 79 - commerce nodes reject missing product/service/form configuration before publication
+  ---
+  duration_ms: 2.877261
+  type: 'test'
+  ...
+# Subtest: selectable catalog persists canonical product ID and branches using the saved choice after reopening
+ok 80 - selectable catalog persists canonical product ID and branches using the saved choice after reopening
+  ---
+  duration_ms: 0.463887
+  type: 'test'
+  ...
+# Subtest: question reply formats reject malformed URLs, calendar dates and times
+ok 81 - question reply formats reject malformed URLs, calendar dates and times
+  ---
+  duration_ms: 0.43238
+  type: 'test'
+  ...
+# Subtest: file questions require matching inbound attachments and preserve provider references
+ok 82 - file questions require matching inbound attachments and preserve provider references
+  ---
+  duration_ms: 0.225664
+  type: 'test'
+  ...
+# Subtest: user input file questions save verified media and advance to the following question
+ok 83 - user input file questions save verified media and advance to the following question
+  ---
+  duration_ms: 0.26319
+  type: 'test'
+  ...
+# Subtest: image questions require matching inbound attachments and preserve provider references
+ok 84 - image questions require matching inbound attachments and preserve provider references
+  ---
+  duration_ms: 0.159947
+  type: 'test'
+  ...
+# Subtest: user input image questions save verified media and advance to the following question
+ok 85 - user input image questions save verified media and advance to the following question
+  ---
+  duration_ms: 0.264982
+  type: 'test'
+  ...
+# Subtest: video questions require matching inbound attachments and preserve provider references
+ok 86 - video questions require matching inbound attachments and preserve provider references
+  ---
+  duration_ms: 0.177122
+  type: 'test'
+  ...
+# Subtest: user input video questions save verified media and advance to the following question
+ok 87 - user input video questions save verified media and advance to the following question
+  ---
+  duration_ms: 0.151334
+  type: 'test'
+  ...
+# Subtest: dynamic catalog pages, current detail checks, CRM inquiry and existing handoff survive restored state
+ok 88 - dynamic catalog pages, current detail checks, CRM inquiry and existing handoff survive restored state
+  ---
+  duration_ms: 0.703432
+  type: 'test'
+  ...
+# Subtest: dynamic catalog empty results follow existing next edge without waiting
+ok 89 - dynamic catalog empty results follow existing next edge without waiting
+  ---
+  duration_ms: 0.180747
+  type: 'test'
+  ...
+# Subtest: start repetition respects daily and once policies without changing legacy defaults
+ok 90 - start repetition respects daily and once policies without changing legacy defaults
+  ---
+  duration_ms: 1.507202
+  type: 'test'
+  ...
+# Subtest: published component expands into an executable immutable parent graph
+ok 91 - published component expands into an executable immutable parent graph
+  ---
+  duration_ms: 3.639318
+  type: 'test'
+  ...
+# Subtest: recursive components cannot publish
+ok 92 - recursive components cannot publish
+  ---
+  duration_ms: 0.828547
+  type: 'test'
+  ...
+# Subtest: components cannot silently close the parent conversation
+ok 93 - components cannot silently close the parent conversation
+  ---
+  duration_ms: 0.27047
+  type: 'test'
+  ...
+# Subtest: durable action receipts deduplicate events, reject changed replays and isolate tenants
+ok 94 - durable action receipts deduplicate events, reject changed replays and isolate tenants
+  ---
+  duration_ms: 3.590297
+  type: 'test'
+  ...
+# Subtest: department assignments reject missing tenant membership before changing conversations
+ok 95 - department assignments reject missing tenant membership before changing conversations
+  ---
+  duration_ms: 0.400012
+  type: 'test'
+  ...
+# Subtest: creating from an account validates the tenant-visible channel and inserts its binding atomically
+ok 96 - creating from an account validates the tenant-visible channel and inserts its binding atomically
+  ---
+  duration_ms: 2.740788
+  type: 'test'
+  ...
+# Subtest: foreign or missing channels reject creation before inserting a flow
+ok 97 - foreign or missing channels reject creation before inserting a flow
+  ---
+  duration_ms: 0.78303
+  type: 'test'
+  ...
+# Subtest: legacy create requests keep the existing unrestricted channel behavior
+ok 98 - legacy create requests keep the existing unrestricted channel behavior
+  ---
+  duration_ms: 1.039629
+  type: 'test'
+  ...
+# Subtest: portable flow roundtrip retains branches, actions and layout but excludes production channel bindings
+ok 99 - portable flow roundtrip retains branches, actions and layout but excludes production channel bindings
+  ---
+  duration_ms: 6.252563
+  type: 'test'
+  ...
+# Subtest: section-specific creation produces localized complete input flows and preserves legacy greeting creation
+ok 100 - section-specific creation produces localized complete input flows and preserves legacy greeting creation
+  ---
+  duration_ms: 4.103216
+  type: 'test'
+  ...
+# Subtest: publish/unpublish revisions allow subsequent saves and reject stale editors
+ok 101 - publish/unpublish revisions allow subsequent saves and reject stale editors
+  ---
+  duration_ms: 1661.201571
+  type: 'test'
+  ...
+# Subtest: system actions remain disabled by default and use exact normalized keywords
+ok 102 - system actions remain disabled by default and use exact normalized keywords
+  ---
+  duration_ms: 2.997083
+  type: 'test'
+  ...
+# Subtest: enabled actions require valid published-flow references and unambiguous keywords
+ok 103 - enabled actions require valid published-flow references and unambiguous keywords
+  ---
+  duration_ms: 0.646497
+  type: 'test'
+  ...
+# Subtest: TenantBus isolates tenants, unsubscribes, survives bad listeners
+ok 104 - TenantBus isolates tenants, unsubscribes, survives bad listeners
+  ---
+  duration_ms: 1.336487
+  type: 'test'
+  ...
+# Subtest: pickLeastLoaded: lowest load, respects cap, random tie-break
+ok 105 - pickLeastLoaded: lowest load, respects cap, random tie-break
+  ---
+  duration_ms: 0.242669
+  type: 'test'
+  ...
+# Subtest: escapeLike neutralizes wildcards
+ok 106 - escapeLike neutralizes wildcards
+  ---
+  duration_ms: 0.182049
+  type: 'test'
+  ...
+# Subtest: storage: names, kinds, sniffing, download names
+ok 107 - storage: names, kinds, sniffing, download names
+  ---
+  duration_ms: 0.936025
+  type: 'test'
+  ...
+# Subtest: an active realtime stream stops replay immediately after its session is revoked
+ok 108 - an active realtime stream stops replay immediately after its session is revoked
+  ---
+  duration_ms: 1005.288268
+  type: 'test'
+  ...
+# Subtest: Google read/write/calendar requests preserve scope boundaries and never invite attendees
+ok 109 - Google read/write/calendar requests preserve scope boundaries and never invite attendees
+  ---
+  duration_ms: 4.386839
+  type: 'test'
+  ...
+# Subtest: mailing adapters build provider-specific requests rather than generic success stubs
+ok 110 - mailing adapters build provider-specific requests rather than generic success stubs
+  ---
+  duration_ms: 0.668579
+  type: 'test'
+  ...
+# Subtest: Google contacts request has read-only scope, bounded pagination and safe normalized CRM data
+ok 111 - Google contacts request has read-only scope, bounded pagination and safe normalized CRM data
+  ---
+  duration_ms: 6.902481
+  type: 'test'
+  ...
+# Subtest: Google OAuth mock: read-only catalog scopes, one-use state, encrypted credentials and scoped reads
+ok 112 - Google OAuth mock: read-only catalog scopes, one-use state, encrypted credentials and scoped reads
+  ---
+  duration_ms: 169.873876
+  type: 'test'
+  ...
+# Subtest: local activation and website creation never establish provider connectivity
+ok 113 - local activation and website creation never establish provider connectivity
+  ---
+  duration_ms: 0.786504
+  type: 'test'
+  ...
+# Subtest: provider evidence expires; disabled channels override even fresh evidence
+ok 114 - provider evidence expires; disabled channels override even fresh evidence
+  ---
+  duration_ms: 1.232293
+  type: 'test'
+  ...
+# Subtest: WhatsApp button and list payloads preserve native header/footer without external delivery
+ok 115 - WhatsApp button and list payloads preserve native header/footer without external delivery
+  ---
+  duration_ms: 7.682675
+  type: 'test'
+  ...
+# Subtest: message delivery delay resumes that same node once, then enters its choices
+ok 116 - message delivery delay resumes that same node once, then enters its choices
+  ---
+  duration_ms: 2.157362
+  type: 'test'
+  ...
+# Subtest: post-formatting validation rejects signature overflow for text and media captions
+ok 117 - post-formatting validation rejects signature overflow for text and media captions
+  ---
+  duration_ms: 3.815684
+  type: 'test'
+  ...
+# Subtest: Telegram inbound private chats and callbacks preserve IDs; groups and invalid updates are ignored
+ok 118 - Telegram inbound private chats and callbacks preserve IDs; groups and invalid updates are ignored
+  ---
+  duration_ms: 1.694507
+  type: 'test'
+  ...
+# Subtest: Telegram webhook secret rejects missing, unequal length and incorrect values
+ok 119 - Telegram webhook secret rejects missing, unequal length and incorrect values
+  ---
+  duration_ms: 0.269289
+  type: 'test'
+  ...
+# Subtest: Telegram outbound mock sends stable callback IDs and rejects truncation or WhatsApp templates
+ok 120 - Telegram outbound mock sends stable callback IDs and rejects truncation or WhatsApp templates
+  ---
+  duration_ms: 4.473327
+  type: 'test'
+  ...
+# Subtest: Telegram rejects forged callback participants, empty and oversized callback values
+ok 121 - Telegram rejects forged callback participants, empty and oversized callback values
+  ---
+  duration_ms: 0.221118
+  type: 'test'
+  ...
+# Subtest: Telegram media retain private provider IDs; opted-in groups share the chat but retain the sender
+ok 122 - Telegram media retain private provider IDs; opted-in groups share the chat but retain the sender
+  ---
+  duration_ms: 0.269719
+  type: 'test'
+  ...
+# Subtest: Telegram file download is bounded, rejects traversal/oversize and never returns its credential URL
+ok 123 - Telegram file download is bounded, rejects traversal/oversize and never returns its credential URL
+  ---
+  duration_ms: 10.821418
+  type: 'test'
+  ...
+# Subtest: supported structures reject authentication, unknown variants, gaps and duplicate component types
+ok 124 - supported structures reject authentication, unknown variants, gaps and duplicate component types
+  ---
+  duration_ms: 1.593297
+  type: 'test'
+  ...
+# Subtest: approved header/button definition requires exact types, indices and nonempty values
+ok 125 - approved header/button definition requires exact types, indices and nonempty values
+  ---
+  duration_ms: 5.391035
+  type: 'test'
+  ...
+# Subtest: text and static headers preserve BODY-only compatibility without accepting extra inputs
+ok 126 - text and static headers preserve BODY-only compatibility without accepting extra inputs
+  ---
+  duration_ms: 0.310128
+  type: 'test'
+  ...
+# Subtest: media headers reject private URLs, credentials and filename misuse; schemas reject unknown fields
+ok 127 - media headers reject private URLs, credentials and filename misuse; schemas reject unknown fields
+  ---
+  duration_ms: 2.837828
+  type: 'test'
+  ...
+# Subtest: WhatsApp adapter emits exact header/body/indexed button contract without static button parameters
+ok 128 - WhatsApp adapter emits exact header/body/indexed button contract without static button parameters
+  ---
+  duration_ms: 8.580328
+  type: 'test'
+  ...
+# Subtest: draft authoring builds exact provider examples for text, media and dynamic URLs
+ok 129 - draft authoring builds exact provider examples for text, media and dynamic URLs
+  ---
+  duration_ms: 3.643069
+  type: 'test'
+  ...
+# Subtest: draft authoring rejects missing/wrong samples, unsupported components and unsafe combinations
+ok 130 - draft authoring rejects missing/wrong samples, unsupported components and unsafe combinations
+  ---
+  duration_ms: 1.744882
+  type: 'test'
+  ...
+# Subtest: typing runs before delivery, is bounded, strips internal metadata and skips unsupported channels
+ok 131 - typing runs before delivery, is bounded, strips internal metadata and skips unsupported channels
+  ---
+  duration_ms: 1.773032
+  type: 'test'
+  ...
+# Subtest: typing adapters use real provider actions via mock transport without sending a message
+ok 132 - typing adapters use real provider actions via mock transport without sending a message
+  ---
+  duration_ms: 3.196579
+  type: 'test'
+  ...
+# Subtest: WhatsApp typing references the last inbound message and skips without it
+ok 133 - WhatsApp typing references the last inbound message and skips without it
+  ---
+  duration_ms: 6.963211
+  type: 'test'
+  ...
+# [Nest] 340  - 10/30/2026, 6:25:49 PM    WARN [WebhooksController] Telegram callback acknowledgement unavailable; inbound choice remains queued
+# Subtest: webhook acknowledges only after durable enqueue completes
+ok 134 - webhook acknowledges only after durable enqueue completes
+  ---
+  duration_ms: 199.698616
+  type: 'test'
+  ...
+# Subtest: enqueue database failure propagates so provider can retry
+ok 135 - enqueue database failure propagates so provider can retry
+  ---
+  duration_ms: 1.614631
+  type: 'test'
+  ...
+# Subtest: invalid signature cannot enqueue a job
+ok 136 - invalid signature cannot enqueue a job
+  ---
+  duration_ms: 0.959701
+  type: 'test'
+  ...
+# Subtest: signature covers exact raw body rather than parsed representation
+ok 137 - signature covers exact raw body rather than parsed representation
+  ---
+  duration_ms: 1.109964
+  type: 'test'
+  ...
+# Subtest: Telegram persists callback before answering it and ignores acknowledgement failure
+ok 138 - Telegram persists callback before answering it and ignores acknowledgement failure
+  ---
+  duration_ms: 5.751326
+  type: 'test'
+  ...
+# Subtest: Meta Flow requests preserve API contracts and never follow provider pagination URLs
+ok 139 - Meta Flow requests preserve API contracts and never follow provider pagination URLs
+  ---
+  duration_ms: 11.193865
+  type: 'test'
+  ...
+# Subtest: native draft structure and preview URLs reject ambiguous or unsafe input
+ok 140 - native draft structure and preview URLs reject ambiguous or unsafe input
+  ---
+  duration_ms: 1.103384
+  type: 'test'
+  ...
+# Subtest: native WhatsApp Flow lifecycle uses PostgreSQL claims, tenant isolation and explicit provider receipts
+    # Subtest: local drafts need no external access, reject stale edits and exclude foreign tenants
+    ok 1 - local drafts need no external access, reject stale edits and exclude foreign tenants
+      ---
+      duration_ms: 25.17984
+      type: 'test'
+      ...
+    # Subtest: a durable registration claim prevents a second provider request
+    ok 2 - a durable registration claim prevents a second provider request
+      ---
+      duration_ms: 12.691212
+      type: 'test'
+      ...
+    # Subtest: publication needs a current uploaded definition and zero validation errors
+    ok 3 - publication needs a current uploaded definition and zero validation errors
+      ---
+      duration_ms: 76.599441
+      type: 'test'
+      ...
+    # Subtest: status refresh verifies the owning WABA and filters preview URLs
+    ok 4 - status refresh verifies the owning WABA and filters preview URLs
+      ---
+      duration_ms: 9.151671
+      type: 'test'
+      ...
+    # Subtest: unknown create outcomes block automatic retry and reconcile only with matching provider evidence
+    ok 5 - unknown create outcomes block automatic retry and reconcile only with matching provider evidence
+      ---
+      duration_ms: 34.42158
+      type: 'test'
+      ...
+    # Subtest: explicit provider rejection releases the claim but preserves a local draft
+    ok 6 - explicit provider rejection releases the claim but preserves a local draft
+      ---
+      duration_ms: 17.527244
+      type: 'test'
+      ...
+    # Subtest: stale upload claims recover without treating unknown validation as a successful upload
+    ok 7 - stale upload claims recover without treating unknown validation as a successful upload
+      ---
+      duration_ms: 33.37439
+      type: 'test'
+      ...
+    # Subtest: uncertain registration can merge its definition with a separately synchronized provider receipt
+    ok 8 - uncertain registration can merge its definition with a separately synchronized provider receipt
+      ---
+      duration_ms: 22.158241
+      type: 'test'
+      ...
+    1..8
+ok 141 - native WhatsApp Flow lifecycle uses PostgreSQL claims, tenant isolation and explicit provider receipts
+  ---
+  duration_ms: 2505.415429
+  type: 'test'
+  ...
+# Subtest: operator scopes are explicit, additive and fail closed
+ok 142 - operator scopes are explicit, additive and fail closed
+  ---
+  duration_ms: 1.829108
+  type: 'test'
+  ...
+# Subtest: operation grants bind method, target and complete body with canonical object keys
+ok 143 - operation grants bind method, target and complete body with canonical object keys
+  ---
+  duration_ms: 10.917789
+  type: 'test'
+  ...
+# Subtest: TOTP matches RFC 6238 SHA1 vectors
+ok 144 - TOTP matches RFC 6238 SHA1 vectors
+  ---
+  duration_ms: 1.513169
+  type: 'test'
+  ...
+# Subtest: TOTP allows only adjacent windows and fixed six-digit codes
+ok 145 - TOTP allows only adjacent windows and fixed six-digit codes
+  ---
+  duration_ms: 1.165184
+  type: 'test'
+  ...
+# Subtest: free delays add minutes/hours/days
+ok 146 - free delays add minutes/hours/days
+  ---
+  duration_ms: 1.516624
+  type: 'test'
+  ...
+# Subtest: fixed send time moves to the next occurrence in the sequence time zone
+ok 147 - fixed send time moves to the next occurrence in the sequence time zone
+  ---
+  duration_ms: 18.01314
+  type: 'test'
+  ...
+# Subtest: default delivery time applies to day-based steps only
+ok 148 - default delivery time applies to day-based steps only
+  ---
+  duration_ms: 0.78356
+  type: 'test'
+  ...
+# Subtest: sequence center and reviewed bulk enrollment execute PostgreSQL with RLS and no provider calls
+    # Subtest: message metrics, literal search and tenant filtering are real SQL
+    ok 1 - message metrics, literal search and tenant filtering are real SQL
+      ---
+      duration_ms: 27.105663
+      type: 'test'
+      ...
+    # Subtest: review snapshots eligible marketing contacts and rechecks consent before assignment
+    ok 2 - review snapshots eligible marketing contacts and rechecks consent before assignment
+      ---
+      duration_ms: 45.049306
+      type: 'test'
+      ...
+    # Subtest: new contacts enter once, while changed/expired sequence reviews cannot be applied
+    ok 3 - new contacts enter once, while changed/expired sequence reviews cannot be applied
+      ---
+      duration_ms: 54.441115
+      type: 'test'
+      ...
+    1..3
+ok 149 - sequence center and reviewed bulk enrollment execute PostgreSQL with RLS and no provider calls
+  ---
+  duration_ms: 2672.289161
+  type: 'test'
+  ...
+# Subtest: dashboard uses thirty UTC days, platform scoping, distinct subscriptions and tenant RLS
+ok 150 - dashboard uses thirty UTC days, platform scoping, distinct subscriptions and tenant RLS
+  ---
+  duration_ms: 2458.087841
+  type: 'test'
+  ...
+1..150
+# tests 184
+# suites 0
+# pass 184
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 38088.935131

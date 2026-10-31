@@ -26,6 +26,8 @@ function harness(
   graph: FlowGraph,
   opts: {
     catalogContent?: EngineDeps['catalogContent'];
+    dynamicCatalog?: EngineDeps['dynamicCatalog'];
+    dynamicItem?: EngineDeps['dynamicItem'];
     http?: EngineDeps['http'];
     random?: () => number;
     now?: Date;
@@ -38,6 +40,8 @@ function harness(
   const aiCalls: { instructions?: string; text: string }[] = [];
   const deps: EngineDeps = {
     catalogContent: opts.catalogContent,
+    dynamicCatalog: opts.dynamicCatalog,
+    dynamicItem: opts.dynamicItem,
     ai: async (req) => {
       aiCalls.push(req);
       return opts.ai ? opts.ai(req) : { text: `AI:${req.text}`, handoff: false };
@@ -1494,3 +1498,98 @@ for (const kind of ['file', 'image', 'video'] as const) {
     assert.equal(h.attrs.travelDate, '2026-12-25');
   });
 }
+
+test('dynamic catalog pages, current detail checks, CRM inquiry and existing handoff survive restored state', async () => {
+  const source = '11111111-1111-4111-8111-111111111111',
+    id = '22222222-2222-4222-8222-222222222222';
+  const graph: FlowGraph = {
+    startNodeId: 'catalog',
+    nodes: [
+      node(
+        'catalog',
+        'catalog',
+        { sourceId: source, text: 'Choose', category: 'عمرة', fields: ['ثلاثي'] },
+        { next: 'staff' },
+      ),
+      node('staff', 'handoff', {}),
+    ],
+  };
+  assert.equal(validateGraph(graph).errors.length, 0);
+  let hidden = false;
+  const pages: number[] = [];
+  const dynamicCatalog: EngineDeps['dynamicCatalog'] = async (req) => {
+    pages.push(req.page ?? 0);
+    assert.equal(req.sourceId, source);
+    return {
+      text: 'Choose',
+      list: {
+        buttonText: 'Browse',
+        sections: [
+          {
+            rows: [
+              { id: 'dynamic:' + id, title: 'Old name' },
+              { id: req.page ? 'dynamic:prev' : 'dynamic:next', title: 'Page' },
+            ],
+          },
+        ],
+      },
+    };
+  };
+  const dynamicItem: EngineDeps['dynamicItem'] = async (s, p, fields) => {
+    assert.equal(s, source);
+    assert.equal(p, id);
+    assert.deepEqual(fields, ['ثلاثي']);
+    if (hidden) throw new Error('unavailable');
+    return {
+      selection: { id, name: 'Current name', category: 'عمرة', source },
+      content: { text: 'Current price: 13500' },
+    };
+  };
+  const h = harness(graph, { dynamicCatalog, dynamicItem });
+  let first = await h.engine.start(h.ctx, newState());
+  assert.equal(first.status, 'waiting');
+  h.say('Next', 'dynamic:next');
+  first = await h.engine.resume(h.ctx, JSON.parse(JSON.stringify(first.state)));
+  assert.deepEqual(pages, [0, 1]);
+  hidden = true;
+  h.say('Old name', 'dynamic:' + id);
+  first = await h.engine.resume(h.ctx, JSON.parse(JSON.stringify(first.state)));
+  assert.equal(first.status, 'waiting');
+  assert.equal(h.attrs.catalogSelection, undefined);
+  assert.equal(h.calls.handoff, 0);
+  hidden = false;
+  const reopened = harness(graph, { dynamicCatalog, dynamicItem });
+  reopened.say('Old name', 'dynamic:' + id);
+  const done = await reopened.engine.resume(reopened.ctx, JSON.parse(JSON.stringify(first.state)));
+  assert.equal(done.state.vars.selectedProductId, id);
+  assert.deepEqual(reopened.attrs.catalogSelection, {
+    id,
+    name: 'Current name',
+    category: 'عمرة',
+    source,
+  });
+  assert.equal(reopened.calls.handoff, 1);
+  assert.match(reopened.sent[0].text!, /13500/);
+});
+test('dynamic catalog empty results follow existing next edge without waiting', async () => {
+  const graph: FlowGraph = {
+    startNodeId: 'c',
+    nodes: [
+      node(
+        'c',
+        'catalog',
+        {
+          sourceId: '11111111-1111-4111-8111-111111111111',
+          text: 'Choose',
+          emptyText: 'No current items',
+        },
+        { next: 'end' },
+      ),
+      node('end', 'end'),
+    ],
+  };
+  const h = harness(graph, { dynamicCatalog: async () => ({ text: 'Empty' }) });
+  const r = await h.engine.start(h.ctx, newState());
+  assert.equal(r.status, 'completed');
+  assert.equal(h.sent[0].text, 'No current items');
+});

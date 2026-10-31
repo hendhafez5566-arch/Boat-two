@@ -1,0 +1,26 @@
+✔ catalog grounding honors disabled agents and answers without invoking a paid provider or stale knowledge (243.991544ms)
+▶ smart catalog real PostgreSQL RLS, source lifecycle and business acceptance
+  ✔ tourism initial import, flexible prices, stable identity and repeated sync (45.612568ms)
+  ✔ new item and price update appear without changing a flow (25.081847ms)
+  ✔ hide prevents list/search/direct stale ID/AI access; restore works (48.381998ms)
+  ✔ missing rows require explicit archive; no physical deletion (30.038574ms)
+  ✔ failed/partial/duplicate/changed-column updates retain last good catalog (24.325298ms)
+  ✔ preview revision conflict, one-use token and cross-tenant isolation (42.59336ms)
+  ✔ AI reads current values; unsupported field falls back without invented values; injection is data (13.682324ms)
+  ✔ real runtime persists CRM inquiry and human takeover in PostgreSQL with mock transport (167.445566ms)
+  ✔ restaurant 300 rows, nested categories, paginated list <=10, search/update/hide (586.053447ms)
+  ✔ clothing custom size/color fields, hidden product and no invented stock (37.295508ms)
+  ✔ Google mock sync and outage; multiple sources stay independent (25.005245ms)
+  ✔ automatic Google retry keeps fixed IDs and clears stale status after recovery (21.970953ms)
+  ✔ 10000-row input bounds, text-only pricing, duplicate keys and unsafe links (12.272146ms)
+  ✔ CSV UTF8, XLSX worksheets, formulas and file validation (100.485097ms)
+✔ smart catalog real PostgreSQL RLS, source lifecycle and business acceptance (3402.082988ms)
+✔ Google OAuth mock: read-only catalog scopes, one-use state, encrypted credentials and scoped reads (283.506993ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4298.248984

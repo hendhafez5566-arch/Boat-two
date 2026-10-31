@@ -74,7 +74,13 @@ export function parseWhatsApp(body: Obj): InboundEvent[] {
           externalChannelId: phoneNumberId,
           externalMessageId: s.id,
           status: s.status,
-          error: s.errors?.[0]?.title ?? s.errors?.[0]?.message,
+          // Preserve provider code for actionable diagnosis; don't include any
+          // customer identity, token or message text from webhook error_data.
+          error: s.errors?.[0]
+            ? [Number.isInteger(s.errors[0].code) ? `(#${s.errors[0].code})` : '',
+               String(s.errors[0].title ?? s.errors[0].message ?? '').slice(0, 180)]
+                .filter(Boolean).join(' ')
+            : undefined,
         });
       }
     }

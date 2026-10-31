@@ -15,6 +15,8 @@
     "@nestjs/event-emitter": "^2.0.4",
     "@nestjs/jwt": "^10.2.0",
     "@nestjs/platform-express": "^10.4.4",
+    "exceljs": "4.4.0",
+    "jszip": "3.10.2",
     "mammoth": "^1.8.0",
     "nestjs-pino": "^4.1.0",
     "pdf-parse": "^1.1.1",
@@ -23,6 +25,7 @@
     "pino-http": "^10.3.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "saxes": "6.0.0",
     "stripe": "^17.2.0",
     "zod": "^3.23.8"
   },
