@@ -30,6 +30,15 @@ type BotReadiness = {
     sessionWaitKind: string | null;
     sessionCreatedAt: string | null;
     pendingInboundEvents: number;
+    restartFlowName: string | null;
+    restartEligible: boolean;
+    lastBotReply: null | {
+      createdAt: string;
+      status: string;
+      jobStatus: string | null;
+      category: string;
+      code: string | null;
+    };
   };
 };
 
@@ -483,7 +492,23 @@ export default function Channels() {
                         <p>{t('حالة المحادثة', 'Conversation')}: {botDiagnostics[c.id].previewConversation!.status}</p>
                         <p>{t('جلسة البوت', 'Flow session')}: {botDiagnostics[c.id].previewConversation!.sessionStatus || t('لا توجد', 'None')} {botDiagnostics[c.id].previewConversation!.sessionWaitKind ? `(${botDiagnostics[c.id].previewConversation!.sessionWaitKind})` : ''}</p>
                         <p>{t('أحداث الاستقبال المعلقة أو الفاشلة', 'Pending/failed inbound events')}: {botDiagnostics[c.id].previewConversation!.pendingInboundEvents}</p>
-                        {botDiagnostics[c.id].previewBotEnabled && (
+                        <p>{t('البوت المختار لمحادثة التجربة', 'Selected preview flow')}: {botDiagnostics[c.id].previewConversation!.restartFlowName ?? t('لا يوجد بوت محدد', 'No uniquely selected flow')}</p>
+                        {botDiagnostics[c.id].previewConversation!.lastBotReply && (
+                          <p>
+                            {t('آخر رد للبوت', 'Last bot reply')} — {new Date(botDiagnostics[c.id].previewConversation!.lastBotReply!.createdAt).toLocaleString()}:
+                            {' '}{botDiagnostics[c.id].previewConversation!.lastBotReply!.status}
+                            {' / '}{botDiagnostics[c.id].previewConversation!.lastBotReply!.jobStatus ?? '—'}
+                            {botDiagnostics[c.id].previewConversation!.lastBotReply!.category !== 'other' && (
+                              <> — {botDiagnostics[c.id].previewConversation!.lastBotReply!.category}
+                                {botDiagnostics[c.id].previewConversation!.lastBotReply!.code ? ` (#${botDiagnostics[c.id].previewConversation!.lastBotReply!.code})` : ''}
+                              </>
+                            )}
+                          </p>
+                        )}
+                        {!botDiagnostics[c.id].previewConversation!.restartEligible && (
+                          <p className="notice">{t('لم يمكن تحديد بوت واحد لإعادة تشغيل هذه المحادثة. راجع البوتات المنشورة أو جرّب بوتًا محددًا أولًا.', 'No single bot could be selected for this test conversation. Check published bots or run a specific bot first.')}</p>
+                        )}
+                        {botDiagnostics[c.id].previewBotEnabled && botDiagnostics[c.id].previewConversation!.restartEligible && (
                           <button className="btn" type="button" disabled={busy} onClick={() => restartPreviewBot(c)}>
                             {t('إعادة تشغيل البوت لمحادثة التجربة فقط', 'Restart bot for this preview conversation only')}
                           </button>
@@ -498,7 +523,7 @@ export default function Channels() {
                       </div>
                     ))}
                     {botDiagnostics[c.id].activeConversationsHuman > 0 && <p className="notice">{t('المحادثات المستلمة بواسطة موظف لا يرد عليها البوت. أعد محادثة التجربة للبوت من Inbox عند انتهاء الموظف.', 'The bot does not reply in human-owned conversations. Return the test conversation to the bot from Inbox when the agent is finished.')}</p>}
-                    {botDiagnostics[c.id].previewBotEnabled && botDiagnostics[c.id].flowTriggers.filter((f) => f.types.includes('first_message')).length > 1 && <p className="notice">{t('يوجد أكثر من بوت ترحيب لهذه القناة؛ إعادة التشغيل التجريبية الآمنة تتطلب بوت ترحيب واحدًا. راجع قنوات تشغيل البوتات قبل التجربة.', 'More than one welcome flow matches this channel. Safe preview restart requires one welcome flow. Review flow channel bindings before testing.')}</p>}
+                    {botDiagnostics[c.id].previewBotEnabled && botDiagnostics[c.id].flowTriggers.filter((f) => f.types.includes('first_message')).length > 1 && !botDiagnostics[c.id].previewConversation?.restartEligible && <p className="notice">{t('يوجد أكثر من بوت ترحيب لهذه القناة ولم يمكن تحديد البوت المستخدم سابقًا.', 'Multiple welcome flows are published and no previously used bot could be selected.')}</p>}
                     {!botDiagnostics[c.id].publishedFlowCount && (
                       <p className="notice">{t('انشر بوتًا واربطه بقناة واتساب. ليس مطلوبًا كتابة أي رسالة اختبار خاصة.', 'Publish a flow linked to WhatsApp. No special test keyword is needed.')}</p>
                     )}
