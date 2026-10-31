@@ -183,12 +183,19 @@ export class FlowsService {
       )
         throw new ConflictException('Flow changed in another editor. Reload before saving.');
       if (input.channelIds?.length) {
-        const ok = await c.query(
-          'SELECT count(*)::int AS n FROM channels WHERE id = ANY($1::uuid[])',
-          [input.channelIds],
+        const uniqueIds = [...new Set(input.channelIds)];
+        const existing = await c.query<{ id: string }>(
+          'SELECT id FROM channels WHERE id = ANY($1::uuid[])',
+          [uniqueIds],
         );
-        if (ok.rows[0].n !== input.channelIds.length)
-          throw new BadRequestException('Unknown channel id');
+        const known = new Set(existing.rows.map((row) => row.id));
+        const missing = uniqueIds.filter((channelId) => !known.has(channelId));
+        if (missing.length)
+          throw new BadRequestException({
+            code: 'FLOW_CHANNEL_NOT_FOUND',
+            message: 'A previously selected channel no longer exists. Choose a connected channel in bot settings.',
+            missingChannelIds: missing,
+          });
       }
       const r = await c.query(
         `UPDATE flows SET
@@ -303,6 +310,22 @@ export class FlowsService {
       if (!f) throw new NotFoundException('Flow not found');
       if (expected && new Date(expected).getTime() !== new Date(f.updated_at).getTime())
         throw new ConflictException('Draft changed before publishing');
+      // A channel may have been disconnected after a draft was saved.
+      // Never silently drop missing IDs: an empty selection means ALL channels.
+      if (f.channel_ids?.length) {
+        const available = await c.query<{ id: string }>(
+          'SELECT id FROM channels WHERE id = ANY($1::uuid[])',
+          [f.channel_ids],
+        );
+        const known = new Set(available.rows.map((row) => row.id));
+        const missing = (f.channel_ids as string[]).filter((channelId) => !known.has(channelId));
+        if (missing.length)
+          throw new BadRequestException({
+            code: 'FLOW_CHANNEL_NOT_FOUND',
+            message: 'One or more linked channels were removed. Reassign channels before publishing.',
+            missingChannelIds: missing,
+          });
+      }
 
       const expanded = await this.expand(tenantId, f.draft_graph, id);
       await this.prepareAlternate(tenantId, id, expanded);
