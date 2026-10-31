@@ -17,7 +17,7 @@ const testMessage: PreviewBotMessage = {
   flow_id: 'flow-id',
   created_at: '2026-10-31T11:59:00Z',
   last_inbound_at: '2026-10-31T11:58:00Z',
-  last_inbound_text: 'BOAT-TEST-003',
+  preview_trigger_at: '2026-10-31T11:58:00Z',
   content: { },
 };
 test('only explicit opt-in preview bot flow replies can be sent', () => {
@@ -27,7 +27,13 @@ test('only explicit opt-in preview bot flow replies can be sent', () => {
   assert.equal(previewBotDeliveryAllowed({ ...testMessage, sender_type: 'agent' }, false, settings, now), false);
   assert.equal(previewBotDeliveryAllowed({ ...testMessage, flow_id: null }, false, settings, now), false);
   assert.equal(previewBotDeliveryAllowed({ ...testMessage, content: { template: {} } }, false, settings, now), false);
-  assert.equal(previewBotDeliveryAllowed({ ...testMessage, last_inbound_text: 'hello' }, false, settings, now), false);
+  assert.equal(previewBotDeliveryAllowed({ ...testMessage, preview_trigger_at: null }, false, settings, now), false);
+  assert.equal(previewBotDeliveryAllowed({ ...testMessage, preview_trigger_at: '2026-10-31T11:29:00Z' }, false, settings, now), false);
+  assert.equal(previewBotDeliveryAllowed({ ...testMessage, preview_trigger_at: '2026-10-31T11:59:30Z' }, false, settings, now), false);
+  assert.equal(previewBotDeliveryAllowed({ ...testMessage, preview_trigger_at: '2026-10-31T11:40:00Z' }, false, settings, now), false);
+  // Still eligible after customer replies with an email, an image, or a button,
+  // because only the initiating QA keyword, not the latest text, authorizes the session.
+  assert.equal(previewBotDeliveryAllowed({ ...testMessage, last_inbound_at: '2026-10-31T11:59:30Z' }, false, settings, now), true);
   assert.equal(previewBotDeliveryAllowed({ ...testMessage, created_at: '2026-10-31T11:00:00Z' }, false, settings, now), false);
   assert.equal(previewBotDeliveryAllowed({ ...testMessage, last_inbound_at: '2026-10-31T11:00:00Z' }, false, settings, now), false);
   assert.equal(previewBotDeliveryAllowed(testMessage, false, { ...settings, BOAT_PREVIEW_ONLY: 'false' }, now), false);
