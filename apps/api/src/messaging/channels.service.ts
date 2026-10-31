@@ -11,6 +11,7 @@ import { DatabaseService } from '../database/database.service';
 import { PlansService } from '../plans/plans.service';
 import { CryptoService } from './crypto.service';
 import { connectionHealth, ConnectionHealth } from './connection-health';
+import { inspectWhatsAppSubscription } from './whatsapp-subscription';
 import { GRAPH, ProviderError } from './adapters/adapter';
 import { telegramCall } from './adapters/telegram.adapter';
 
@@ -116,9 +117,59 @@ export class ChannelsService {
         headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10000),
       });
       const result = await response.json() as { id?: string; error?: { code?: number } };
-      health = response.ok && result.id === row.external_id
-        ? { state: 'connected', checkedAt, reason: 'provider_verified' }
-        : { state: result.error?.code === 190 ? 'expired' : 'needs_action', checkedAt, reason: result.error?.code === 190 ? 'authorization_expired' : 'provider_rejected' };
+      if (!response.ok || result.id !== row.external_id) {
+        health = {
+          state: result.error?.code === 190 ? 'expired' : 'needs_action',
+          checkedAt,
+          reason: result.error?.code === 190 ? 'authorization_expired' : 'provider_rejected',
+        };
+      } else if (row.type === 'whatsapp') {
+        // Phone-ID access alone does not establish webhook delivery: the app
+        // must separately be subscribed to the selected WhatsApp Business Account.
+        // This checks the subscription without changing Meta's configuration.
+        if (!credentials.wabaId || !env.META_APP_ID) {
+          health = { state: 'needs_action', checkedAt, reason: 'waba_subscription_unverified' };
+        } else {
+          const sub = await fetch(
+            `${GRAPH}/${encodeURIComponent(credentials.wabaId)}/subscribed_apps`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+              signal: AbortSignal.timeout(10000),
+            },
+          );
+          const data = await sub.json() as {
+            data?: unknown[];
+            error?: { code?: number };
+          };
+          if (!sub.ok) {
+            health = {
+              state: data.error?.code === 190 ? 'expired' : 'needs_action',
+              checkedAt,
+              reason: data.error?.code === 190
+                ? 'authorization_expired' : 'waba_subscription_check_failed',
+            };
+          } else {
+            const subscription = inspectWhatsAppSubscription(
+              data,
+              env.META_APP_ID,
+              `${env.PUBLIC_API_URL.replace(/\\/$/, '')}/webhooks/whatsapp`,
+            );
+            health = {
+              state: subscription === 'subscribed' ? 'connected' : 'needs_action',
+              checkedAt,
+              reason: subscription === 'subscribed'
+                ? 'provider_verified'
+                : subscription === 'missing'
+                  ? 'waba_not_subscribed'
+                  : subscription === 'overridden'
+                    ? 'waba_webhook_override'
+                    : 'waba_subscription_unverified',
+            };
+          }
+        }
+      } else {
+        health = { state: 'connected', checkedAt, reason: 'provider_verified' };
+      }
       }
     } catch(e) {
       health = e instanceof ProviderError && e.status === 401
