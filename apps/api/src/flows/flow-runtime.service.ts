@@ -12,7 +12,7 @@ import { AiService } from '../ai/ai.service';
 import { AssignmentService } from '../inbox/assignment.service';
 import { DatabaseService } from '../database/database.service';
 import { MessageContent } from '../messaging/message-content';
-import { isScopedPreviewConversation, selectPreviewWelcomeFlow } from '../messaging/preview-bot-delivery';
+import { isScopedPreviewConversation, selectPreviewRestartFlow } from '../messaging/preview-bot-delivery';
 import { MessageReceivedEvent, MessagingService } from '../messaging/messaging.service';
 import {
   EngineDeps,
@@ -259,7 +259,16 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
               flow_id: string; version_id: string;
               triggers: { type: string }[]; channel_ids: string[]; graph: FlowGraph;
             }[];
-            const previewFlow = selectPreviewWelcomeFlow(published, conv.channel_id);
+            // This preview conversation may have two published bots. The latest
+            // actual flow session identifies which bot the tester was using.
+            // Do not force a new trigger or choose an arbitrary other flow.
+            const previousSession = (await c.query(
+              "SELECT flow_id FROM flow_sessions WHERE conversation_id=$1 ORDER BY created_at DESC LIMIT 1",
+              [e.conversationId],
+            )).rows[0] as { flow_id: string } | undefined;
+            const previewFlow = selectPreviewRestartFlow(
+              published, conv.channel_id, previousSession?.flow_id,
+            );
             if (previewFlow) return { conv, previewFlow };
           }
         }
