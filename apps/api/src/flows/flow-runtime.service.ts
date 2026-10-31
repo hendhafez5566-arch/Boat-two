@@ -12,7 +12,7 @@ import { AiService } from '../ai/ai.service';
 import { AssignmentService } from '../inbox/assignment.service';
 import { DatabaseService } from '../database/database.service';
 import { MessageContent } from '../messaging/message-content';
-import { isScopedPreviewConversation, selectPreviewRestartFlow } from '../messaging/preview-bot-delivery';
+
 import { MessageReceivedEvent, MessagingService } from '../messaging/messaging.service';
 import {
   EngineDeps,
@@ -234,53 +234,26 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         return { conv, session, graph: g.graph as FlowGraph };
       }
 
-      // Start the same test bot on ANY inbound message after the previous
-      // session completes, but NEVER interrupt a waiting question or delay.
-      // The exception applies to one preview conversation, not all customers.
-      if (!e.eventName && isScopedPreviewConversation(
-        conv.channel_id, e.conversationId, conv.channel_type,
-      )) {
-        const cutoff = process.env.WHATSAPP_PREVIEW_BOT_AFTER;
-        if (cutoff && Number.isFinite(Date.parse(cutoff))) {
-          const fresh = await c.query(
-            "SELECT 1 FROM messages WHERE id=$1 AND conversation_id=$2 AND direction='in' AND created_at >= $3::timestamptz AND created_at > now()-interval '15 minutes'",
-            [e.messageId, e.conversationId, cutoff],
-          );
-          if (fresh.rowCount) {
-            const published = (
-              await c.query(
-                `SELECT f.id AS flow_id,v.id AS version_id,v.triggers,v.channel_ids,v.graph
-                 FROM flows f JOIN flow_versions v ON v.id=f.published_version_id
-                 WHERE f.status='published' AND NOT f.is_component
-                   AND (cardinality(v.channel_ids)=0 OR $1=ANY(v.channel_ids))`,
-                [conv.channel_id],
-              )
-            ).rows as {
-              flow_id: string; version_id: string;
-              triggers: { type: string }[]; channel_ids: string[]; graph: FlowGraph;
-            }[];
-            // This preview conversation may have two published bots. The latest
-            // actual flow session identifies which bot the tester was using.
-            // Do not force a new trigger or choose an arbitrary other flow.
-            const previousSession = (await c.query(
-              "SELECT flow_id FROM flow_sessions WHERE conversation_id=$1 ORDER BY created_at DESC LIMIT 1",
-              [e.conversationId],
-            )).rows[0] as { flow_id: string } | undefined;
-            const settings = conv.channel_settings as Record<string, unknown> | null;
-            const explicitlySelected = typeof settings?.previewTestFlowId === 'string'
-              ? settings.previewTestFlowId : null;
-            // A chosen preview flow wins over a previously used lead-capture
-            // bot, regardless of its first-message trigger or other flows.
-            const previewFlow = explicitlySelected
-              ? published.find((flow) => flow.flow_id === explicitlySelected) ?? null
-              : selectPreviewRestartFlow(published, conv.channel_id, previousSession?.flow_id);
-            if (previewFlow) return { conv, previewFlow };
-            if (explicitlySelected) {
-              this.log.warn('Selected preview WhatsApp bot is no longer published for this channel');
-              return { conv, selectedPreviewUnavailable: true };
-            }
-          }
-        }
+      // Publishing a flow in Bot Manager makes it the primary chat bot
+      // for that tenant channel. Keep any existing waiting conversation
+      // on its saved version; on the next new turn use the published choice.
+      const primaryFlowId = (conv.channel_settings as Record<string, unknown> | null)
+        ?.activeBotFlowId;
+      if (!e.eventName && typeof primaryFlowId === 'string') {
+        const primaryFlow = (await c.query(
+          `SELECT f.id AS flow_id, fv.id AS version_id, fv.graph
+             FROM flows f JOIN flow_versions fv ON fv.id=f.published_version_id
+            WHERE f.id=$1 AND f.status='published' AND NOT f.is_component
+              AND (cardinality(fv.channel_ids)=0 OR $2=ANY(fv.channel_ids))`,
+          [primaryFlowId, conv.channel_id],
+        )).rows[0] as {
+          flow_id: string; version_id: string; graph: FlowGraph;
+        } | undefined;
+        // Do not silently run a different bot if the selected bot was
+        // moved, deleted or unpublished while a channel still references it.
+        return primaryFlow
+          ? { conv, primaryFlow }
+          : { conv, primaryUnavailable: true };
       }
 
       const cands = (
@@ -352,11 +325,12 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       ctx,
     };
 
-    if ('selectedPreviewUnavailable' in loaded && loaded.selectedPreviewUnavailable) return;
-
-    if ('previewFlow' in loaded && loaded.previewFlow) {
-      this.log.log('Scoped WhatsApp QA inbound started the published welcome flow');
-      await this.startFlow(base, ctx, loaded.previewFlow);
+    if ('primaryUnavailable' in loaded && loaded.primaryUnavailable) {
+      this.log.warn('Active channel bot is not published for this channel; refusing to route to another bot');
+      return;
+    }
+    if ('primaryFlow' in loaded && loaded.primaryFlow) {
+      await this.startFlow(base, ctx, loaded.primaryFlow);
       return;
     }
 
