@@ -12,7 +12,7 @@ import { AiService } from '../ai/ai.service';
 import { AssignmentService } from '../inbox/assignment.service';
 import { DatabaseService } from '../database/database.service';
 import { MessageContent } from '../messaging/message-content';
-import { isScopedPreviewTestMessage, selectPreviewWelcomeFlow } from '../messaging/preview-bot-delivery';
+import { isScopedPreviewConversation, selectPreviewWelcomeFlow } from '../messaging/preview-bot-delivery';
 import { MessageReceivedEvent, MessagingService } from '../messaging/messaging.service';
 import {
   EngineDeps,
@@ -211,40 +211,6 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       }
       if (conv.handled_by !== 'bot') return null;
 
-      // Preview-only repeatable QA: never changes normal first_message
-      // behavior for ordinary customers or other channels.
-      if (!e.eventName && isScopedPreviewTestMessage(conv.channel_id, conv.channel_type, text)) {
-        const cutoff = process.env.WHATSAPP_PREVIEW_BOT_AFTER;
-        const fresh = Number.isFinite(Date.parse(cutoff ?? '')) && (
-          await c.query(
-            "SELECT 1 FROM messages WHERE id=$1 AND conversation_id=$2 AND direction='in' AND created_at >= $3::timestamptz AND created_at > now()-interval '15 minutes'",
-            [e.messageId, e.conversationId, cutoff],
-          )
-        ).rowCount;
-        if (fresh) {
-          const published = (
-            await c.query(
-              `SELECT f.id AS flow_id,v.id AS version_id,v.triggers,v.channel_ids,v.graph
-               FROM flows f JOIN flow_versions v ON v.id=f.published_version_id
-               WHERE f.status='published' AND NOT f.is_component
-                 AND (cardinality(v.channel_ids)=0 OR $1=ANY(v.channel_ids))`,
-              [conv.channel_id],
-            )
-          ).rows as {
-            flow_id: string; version_id: string;
-            triggers: { type: string }[]; channel_ids: string[]; graph: FlowGraph;
-          }[];
-          const previewFlow = selectPreviewWelcomeFlow(published, conv.channel_id);
-          if (previewFlow) {
-            await c.query(
-              "UPDATE flow_sessions SET status='expired',updated_at=now() WHERE conversation_id=$1 AND status='waiting'",
-              [e.conversationId],
-            );
-            return { conv, previewFlow };
-          }
-        }
-      }
-
       let session = (
         await c.query(
           "SELECT * FROM flow_sessions WHERE conversation_id = $1 AND status = 'waiting'",
@@ -266,6 +232,37 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
           await c.query('SELECT graph FROM flow_versions WHERE id = $1', [session.version_id])
         ).rows[0];
         return { conv, session, graph: g.graph as FlowGraph };
+      }
+
+      // Start the same test bot on ANY inbound message after the previous
+      // session completes, but NEVER interrupt a waiting question or delay.
+      // The exception applies to one preview conversation, not all customers.
+      if (!e.eventName && isScopedPreviewConversation(
+        conv.channel_id, e.conversationId, conv.channel_type,
+      )) {
+        const cutoff = process.env.WHATSAPP_PREVIEW_BOT_AFTER;
+        if (cutoff && Number.isFinite(Date.parse(cutoff))) {
+          const fresh = await c.query(
+            "SELECT 1 FROM messages WHERE id=$1 AND conversation_id=$2 AND direction='in' AND created_at >= $3::timestamptz AND created_at > now()-interval '15 minutes'",
+            [e.messageId, e.conversationId, cutoff],
+          );
+          if (fresh.rowCount) {
+            const published = (
+              await c.query(
+                `SELECT f.id AS flow_id,v.id AS version_id,v.triggers,v.channel_ids,v.graph
+                 FROM flows f JOIN flow_versions v ON v.id=f.published_version_id
+                 WHERE f.status='published' AND NOT f.is_component
+                   AND (cardinality(v.channel_ids)=0 OR $1=ANY(v.channel_ids))`,
+                [conv.channel_id],
+              )
+            ).rows as {
+              flow_id: string; version_id: string;
+              triggers: { type: string }[]; channel_ids: string[]; graph: FlowGraph;
+            }[];
+            const previewFlow = selectPreviewWelcomeFlow(published, conv.channel_id);
+            if (previewFlow) return { conv, previewFlow };
+          }
+        }
       }
 
       const cands = (
@@ -338,7 +335,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     };
 
     if ('previewFlow' in loaded && loaded.previewFlow) {
-      this.log.log('Scoped WhatsApp QA message restarted the published welcome flow');
+      this.log.log('Scoped WhatsApp QA inbound started the published welcome flow');
       await this.startFlow(base, ctx, loaded.previewFlow);
       return;
     }
