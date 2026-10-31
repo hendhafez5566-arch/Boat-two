@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ConflictException,
   Delete,
   Get,
   NotFoundException,
@@ -17,6 +18,7 @@ import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
 import { ChannelsService, createChannelSchema, updateChannelSchema } from './channels.service';
 import { classifyOutboundFailure } from './meta-messaging-inspection';
+import { selectPreviewRestartFlow } from './preview-bot-delivery';
 
 @Controller('channels')
 export class ChannelsController {
@@ -52,13 +54,14 @@ export class ChannelsController {
       )).rows[0];
       if (!channel) throw new NotFoundException('Channel not found');
       const flows = (await c.query(
-        `SELECT f.id,f.name,v.triggers,f.draft_graph,v.graph AS published_graph FROM flows f
+        `SELECT f.id,f.name,v.triggers,v.channel_ids,f.draft_graph,v.graph AS published_graph FROM flows f
          JOIN flow_versions v ON v.id=f.published_version_id
          WHERE f.status='published' AND NOT f.is_component
          AND (cardinality(v.channel_ids)=0 OR $1=ANY(v.channel_ids))`,
         [id],
       )).rows as {
         id: string; name: string; triggers: { type: string; keywords?: string[] }[];
+        channel_ids: string[];
         draft_graph: { nodes?: { type: string }[] } | null;
         published_graph: { nodes?: { type: string }[] } | null;
       }[];
@@ -79,17 +82,36 @@ export class ChannelsController {
         ? process.env.WHATSAPP_PREVIEW_BOT_CONVERSATION_ID : undefined;
       const preview = previewId ? (await c.query(
         `SELECT cv.handled_by,cv.status,cv.last_inbound_at,
-                fs.status AS session_status,fs.wait_kind,fs.created_at AS session_created_at,
+                fs.flow_id AS session_flow_id,fs.status AS session_status,
+                fs.wait_kind,fs.created_at AS session_created_at,
                 (SELECT count(*)::int FROM domain_events de
                  WHERE de.aggregate_id=cv.id::text AND de.type='message.received'
                    AND de.status IN ('failed','pending')) AS pending_inbound_events
            FROM conversations cv
            LEFT JOIN LATERAL (
-             SELECT status,wait_kind,created_at FROM flow_sessions
+             SELECT flow_id,status,wait_kind,created_at FROM flow_sessions
               WHERE conversation_id=cv.id ORDER BY created_at DESC LIMIT 1
            ) fs ON true
           WHERE cv.id=$1 AND cv.channel_id=$2`,[previewId,id],
       )).rows[0] : undefined;
+      const previewCandidate = preview
+        ? selectPreviewRestartFlow(
+          flows.map((flow) => ({ ...flow, flow_id: flow.id })),
+          id,
+          (preview.session_flow_id as string | null) ?? null,
+        )
+        : null;
+      const lastBot = previewId ? (await c.query(
+        `SELECT m.created_at,m.status,j.status AS job_status,
+                COALESCE(m.error,j.error,'') AS failure
+           FROM messages m
+           LEFT JOIN outbound_jobs j ON j.message_id=m.id
+          WHERE m.channel_id=$1 AND m.conversation_id=$2 AND m.sender_type='bot'
+            AND m.direction='out'
+          ORDER BY m.created_at DESC LIMIT 1`, [id,previewId],
+      )).rows[0] as {
+        created_at: Date; status: string; job_status: string | null; failure: string;
+      } | undefined : undefined;
       return {
         active: channel.status === 'active',
         publishedFlowCount: flows.length,
@@ -122,6 +144,14 @@ export class ChannelsController {
           sessionWaitKind: preview.wait_kind as string | null,
           sessionCreatedAt: preview.session_created_at as Date | null,
           pendingInboundEvents: Number(preview.pending_inbound_events ?? 0),
+          restartFlowName: previewCandidate?.name ?? null,
+          restartEligible: !!previewCandidate,
+          lastBotReply: lastBot ? {
+            createdAt: lastBot.created_at,
+            status: lastBot.status,
+            jobStatus: lastBot.job_status,
+            ...classifyOutboundFailure(lastBot.failure),
+          } : null,
         } : null,
       };
     });
@@ -156,14 +186,25 @@ export class ChannelsController {
       if (!channel || !cv || cv.status === 'closed')
         throw new NotFoundException('Active preview conversation not found');
       const published = (await c.query(
-        `SELECT v.triggers,v.channel_ids FROM flows f
+        `SELECT f.id AS flow_id,f.name,v.triggers,v.channel_ids FROM flows f
          JOIN flow_versions v ON v.id=f.published_version_id
          WHERE f.status='published' AND NOT f.is_component
            AND (cardinality(v.channel_ids)=0 OR $1=ANY(v.channel_ids))`,
         [id],
-      )).rows as { triggers: { type: string }[]; channel_ids: string[] }[];
-      if (published.filter((f) => f.triggers.some((t) => t.type === 'first_message')).length !== 1)
-        throw new NotFoundException('Exactly one published welcome bot is required');
+      )).rows as {
+        flow_id: string; name: string;
+        triggers: { type: string }[]; channel_ids: string[];
+      }[];
+      const previous = (await c.query(
+        "SELECT flow_id FROM flow_sessions WHERE conversation_id=$1 ORDER BY created_at DESC LIMIT 1",
+        [conversationId],
+      )).rows[0] as { flow_id: string } | undefined;
+      const chosen = selectPreviewRestartFlow(published, id, previous?.flow_id);
+      if (!chosen)
+        throw new ConflictException({
+          code: 'PREVIEW_BOT_AMBIGUOUS',
+          message: 'Cannot choose a single published preview bot. Publish one welcome bot or run a bot in this test conversation first.',
+        });
       const expired = await c.query(
         "UPDATE flow_sessions SET status='expired',updated_at=now() WHERE conversation_id=$1 AND status='waiting'",
         [conversationId],
@@ -172,7 +213,7 @@ export class ChannelsController {
         "UPDATE conversations SET handled_by='bot',assigned_to=NULL WHERE id=$1",
         [conversationId],
       );
-      return { restoredToBot: true, previousWaitingSessions: expired.rowCount ?? 0 };
+      return { restoredToBot: true, flowName: chosen.name, previousWaitingSessions: expired.rowCount ?? 0 };
     });
   }
 
