@@ -22,6 +22,15 @@ type BotReadiness = {
   recentBlocked: number;
   recentFailed: number;
   previewBotEnabled: boolean;
+  previewConversation: null | {
+    handledBy: string;
+    status: string;
+    lastInboundAt: string | null;
+    sessionStatus: string | null;
+    sessionWaitKind: string | null;
+    sessionCreatedAt: string | null;
+    pendingInboundEvents: number;
+  };
 };
 
 type WhatsAppAuthDiagnostics = {
@@ -132,6 +141,27 @@ export default function Channels() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function restartPreviewBot(c: Channel) {
+    if (!window.confirm(t(
+      'سيتم إرجاع محادثة الاختبار وحدها إلى البوت وإنهاء أي سؤال منتظر قديم. المحادثات الأخرى لن تتأثر. هل تريد المتابعة؟',
+      'Return ONLY the preview conversation to the bot and expire any old waiting step? Other conversations stay unchanged.',
+    ))) return;
+    setBusy(true);
+    setError('');
+    try {
+      await api(`/channels/${c.id}/preview-restart`, {
+        method: 'POST', body: JSON.stringify({ confirm: true }),
+      });
+      const result = await api<BotReadiness>(`/channels/${c.id}/bot-readiness`);
+      setBotDiagnostics((prev) => ({ ...prev, [c.id]: result }));
+      setTokenNotice(t(
+        'تمت إعادة محادثة التجربة للبوت. ابعت رسالة واتساب عادية جديدة وجرب الرد.',
+        'Preview conversation returned to the bot. Send an ordinary WhatsApp message to test.',
+      ));
+    } catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
   }
 
   async function inspectWhatsAppAuth(c: Channel) {
@@ -446,6 +476,20 @@ export default function Channels() {
                     <p>{t('المحادثات المسندة للبوت', 'Bot-owned conversations')}: {botDiagnostics[c.id].activeConversationsBot} · {t('للموظفين', 'Human-owned')}: {botDiagnostics[c.id].activeConversationsHuman}</p>
                     <p>{t('ردود البوت المنشأة آخر 6 ساعات', 'Bot replies created in last 6h')}: {botDiagnostics[c.id].recentBotReplies} · {t('ردود أُرسلت', 'Sent replies')}: {botDiagnostics[c.id].recentSent} · {t('إرسال محظور', 'Blocked deliveries')}: {botDiagnostics[c.id].recentBlocked} · {t('إرسال فاشل', 'Failed deliveries')}: {botDiagnostics[c.id].recentFailed}</p>
                     <p>{t('وضع إرسال البوت التجريبي', 'Scoped preview bot delivery')}: {botDiagnostics[c.id].previewBotEnabled ? t('مفعّل', 'Enabled') : t('غير مفعّل', 'Disabled')}</p>
+                    {botDiagnostics[c.id].previewConversation && (
+                      <section className="stack">
+                        <strong>{t('حالة محادثة واتساب التجريبية الحالية', 'Current preview conversation status')}</strong>
+                        <p>{t('المسؤول', 'Owner')}: {botDiagnostics[c.id].previewConversation!.handledBy === 'bot' ? t('البوت', 'Bot') : t('الموظف', 'Human')}</p>
+                        <p>{t('حالة المحادثة', 'Conversation')}: {botDiagnostics[c.id].previewConversation!.status}</p>
+                        <p>{t('جلسة البوت', 'Flow session')}: {botDiagnostics[c.id].previewConversation!.sessionStatus || t('لا توجد', 'None')} {botDiagnostics[c.id].previewConversation!.sessionWaitKind ? `(${botDiagnostics[c.id].previewConversation!.sessionWaitKind})` : ''}</p>
+                        <p>{t('أحداث الاستقبال المعلقة أو الفاشلة', 'Pending/failed inbound events')}: {botDiagnostics[c.id].previewConversation!.pendingInboundEvents}</p>
+                        {botDiagnostics[c.id].previewBotEnabled && (
+                          <button className="btn" type="button" disabled={busy} onClick={() => restartPreviewBot(c)}>
+                            {t('إعادة تشغيل البوت لمحادثة التجربة فقط', 'Restart bot for this preview conversation only')}
+                          </button>
+                        )}
+                      </section>
+                    )}
                     {botDiagnostics[c.id].flowTriggers.map((f, idx) => (
                       <div key={idx}>
                         <p><strong>{f.name}</strong>: {f.types.join(', ')}</p>
