@@ -11,6 +11,18 @@ import { statusLabel } from '../../../components/product/status';
 import { Dialog } from '../../../components/product/ProductUI';
 import { api, getSession } from '../../../lib/api';
 
+type BotReadiness = {
+  active: boolean;
+  publishedFlowCount: number;
+  flowTriggers: { name: string; types: string[]; matchesTestKeyword: boolean }[];
+  activeConversationsBot: number;
+  activeConversationsHuman: number;
+  recentBotReplies: number;
+  recentBlocked: number;
+  recentFailed: number;
+  previewBotEnabled: boolean;
+};
+
 type Channel = {
   id: string;
   type: string;
@@ -42,6 +54,7 @@ export default function Channels() {
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState('');
   const [items, setItems] = useState<Channel[]>([]);
+  const [botDiagnostics, setBotDiagnostics] = useState<Record<string, BotReadiness>>({});
   const [type, setType] = useState('web');
   const [error, setError] = useState('');
   const [selected, setSelected] = useState('whatsapp');
@@ -75,6 +88,19 @@ export default function Channels() {
       setItems((rows) =>
         rows.map((row) => (row.id === c.id ? { ...row, connectionHealth: health } : row)),
       );
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function inspectBot(c: Channel) {
+    setBusy(true);
+    setError('');
+    try {
+      const result = await api<BotReadiness>(`/channels/${c.id}/bot-readiness`);
+      setBotDiagnostics((prev) => ({ ...prev, [c.id]: result }));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -258,6 +284,28 @@ export default function Channels() {
               >
                 {t('فحص الاتصال بالمزود', 'Verify provider connection')}
               </button>
+            )}
+            {c.type === 'whatsapp' && (
+              <>
+                <button type="button" className="btn" disabled={busy} onClick={() => inspectBot(c)}>
+                  {t('تشخيص ردود البوت', 'Diagnose bot replies')}
+                </button>
+                {botDiagnostics[c.id] && (
+                  <section className="card stack" role="status">
+                    <strong>{t('تشخيص إرسال الرد الآلي', 'Bot reply diagnostics')}</strong>
+                    <p>{t('عدد البوتات المنشورة لهذه القناة', 'Published flows on this channel')}: {botDiagnostics[c.id].publishedFlowCount}</p>
+                    <p>{t('المحادثات المسندة للبوت', 'Bot-owned conversations')}: {botDiagnostics[c.id].activeConversationsBot} · {t('للموظفين', 'Human-owned')}: {botDiagnostics[c.id].activeConversationsHuman}</p>
+                    <p>{t('ردود البوت المنشأة آخر 6 ساعات', 'Bot replies created in last 6h')}: {botDiagnostics[c.id].recentBotReplies} · {t('إرسال محظور', 'Blocked deliveries')}: {botDiagnostics[c.id].recentBlocked} · {t('إرسال فاشل', 'Failed deliveries')}: {botDiagnostics[c.id].recentFailed}</p>
+                    <p>{t('وضع إرسال البوت التجريبي', 'Scoped preview bot delivery')}: {botDiagnostics[c.id].previewBotEnabled ? t('مفعّل', 'Enabled') : t('غير مفعّل', 'Disabled')}</p>
+                    {botDiagnostics[c.id].flowTriggers.map((f, idx) => (
+                      <p key={idx}>{f.name}: {f.types.join(', ')} {f.matchesTestKeyword ? '✓ BOAT-TEST' : ''}</p>
+                    ))}
+                    {!botDiagnostics[c.id].publishedFlowCount && (
+                      <p className="notice">{t('انشر بوتًا واربطه بقناة واتساب، وأضف مشغّل كلمة مفتاحية BOAT-TEST-003 للتجربة.', 'Publish a flow on WhatsApp with keyword trigger BOAT-TEST-003 for testing.')}</p>
+                    )}
+                  </section>
+                )}
+              </>
             )}
             {c.connectionHealth?.reason && (
               <p className="muted">
