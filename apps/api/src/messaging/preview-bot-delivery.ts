@@ -76,3 +76,30 @@ export function selectPreviewWelcomeFlow<T extends {
   );
   return eligible.length === 1 ? eligible[0] : null;
 }
+
+
+/**
+ * An explicit preview chat may restart its MOST RECENTLY used published bot.
+ * The previously executed flow is unambiguous even if multiple welcome bots
+ * exist on the same channel. Without history, fall back to the single-welcome
+ * rule. Never use this choice for ordinary customer conversations.
+ */
+export function selectPreviewRestartFlow<T extends {
+  flow_id: string;
+  triggers: { type: string }[];
+  channel_ids: string[];
+}>(
+  flows: T[],
+  channelId: string,
+  previousFlowId?: string | null,
+): T | null {
+  if (previousFlowId) {
+    const previous = flows.find((flow) =>
+      flow.flow_id === previousFlowId &&
+      Array.isArray(flow.channel_ids) &&
+      (!flow.channel_ids.length || flow.channel_ids.includes(channelId)),
+    );
+    if (previous) return previous;
+  }
+  return selectPreviewWelcomeFlow(flows, channelId);
+}
