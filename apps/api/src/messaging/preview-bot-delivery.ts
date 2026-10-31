@@ -41,3 +41,34 @@ export function previewBotDeliveryAllowed(
     && now - lastInbound >= 0
     && now - lastInbound <= 15 * 60_000;
 }
+
+/** A preview-only message that may restart the already published welcome bot.
+ * This is intentionally not a production trigger or a general flow reset.
+ */
+export function isScopedPreviewTestMessage(
+  channelId: string,
+  channelType: string,
+  text: string,
+  settings: Record<string, string | undefined> = process.env,
+): boolean {
+  return settings.BOAT_PREVIEW_ONLY === 'true'
+    && settings.WHATSAPP_PREVIEW_BOT_ENABLED === 'true'
+    && settings.WHATSAPP_PREVIEW_BOT_CHANNEL_ID === channelId
+    && !!settings.WHATSAPP_PREVIEW_BOT_AFTER
+    && channelType === 'whatsapp'
+    && /^BOAT-TEST-[0-9]{3,8}$/.test(text.trim());
+}
+
+/** Only a single matching, published first-message flow can be restarted. */
+export function selectPreviewWelcomeFlow<T extends {
+  triggers: { type: string }[];
+  channel_ids: string[];
+}>(flows: T[], channelId: string): T | null {
+  const eligible = flows.filter((flow) =>
+    Array.isArray(flow.triggers) &&
+    flow.triggers.some((trigger) => trigger.type === 'first_message') &&
+    Array.isArray(flow.channel_ids) &&
+    (!flow.channel_ids.length || flow.channel_ids.includes(channelId))
+  );
+  return eligible.length === 1 ? eligible[0] : null;
+}
