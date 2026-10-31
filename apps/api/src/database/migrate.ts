@@ -40,7 +40,24 @@ async function main() {
         if (confirmation.rows[0]?.channel !== process.env.WHATSAPP_PREVIEW_BOT_CHANNEL_ID)
           throw new Error('Scoped QA seed session was not established');
       }
-      await client.query(readFileSync(join(dir, file), 'utf8'));
+      let script = readFileSync(join(dir, file), 'utf8');
+      if (file === '098_preview_catalog_direct.sql' &&
+          process.env.BOAT_PREVIEW_ONLY === 'true' &&
+          process.env.WHATSAPP_PREVIEW_BOT_ENABLED === 'true') {
+        // This is a narrowly scoped recovery for the missed preview import.
+        // Inline only strongly validated UUIDs; never interpolate customer input.
+        const channel = process.env.WHATSAPP_PREVIEW_BOT_CHANNEL_ID ?? '';
+        const conversation = process.env.WHATSAPP_PREVIEW_BOT_CONVERSATION_ID ?? '';
+        const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (!uuid.test(channel) || !uuid.test(conversation))
+          throw new Error('Preview scope UUIDs are required for one-time catalog import');
+        script = script
+          .replace("nullif(current_setting('boat.preview_seed_channel', true), '')", `'${channel}'::text`)
+          .replace("nullif(current_setting('boat.preview_seed_conversation', true), '')", `'${conversation}'::text`);
+        if (script.includes("current_setting('boat.preview_seed_"))
+          throw new Error('Preview seed parameters could not be bound');
+      }
+      await client.query(script);
       await client.query('INSERT INTO schema_migrations(name) VALUES ($1)', [file]);
       await client.query('COMMIT');
     } catch (e) {
