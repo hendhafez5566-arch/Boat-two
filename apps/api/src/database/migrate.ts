@@ -43,6 +43,31 @@ async function main() {
       throw e;
     }
   }
+  // Verify the one-time QA import actually persisted; report counts only,
+  // never phone numbers, customer content, credentials, or token values.
+  if (process.env.BOAT_PREVIEW_ONLY === 'true' &&
+      process.env.WHATSAPP_PREVIEW_BOT_ENABLED === 'true' &&
+      process.env.WHATSAPP_PREVIEW_BOT_CHANNEL_ID) {
+    const check = await client.query(
+      `SELECT
+         COUNT(DISTINCT s.id)::int AS data_sources,
+         COUNT(DISTINCT f.id)::int AS published_bots,
+         COUNT(DISTINCT cp.id) FILTER (WHERE NOT cp.archived)::int AS visible_catalog_items,
+         COUNT(DISTINCT cp.id) FILTER (WHERE cp.archived)::int AS hidden_catalog_items,
+         BOOL_OR(c.settings->>'activeBotFlowId'=f.id::text) AS bot_activated
+       FROM channels c
+       LEFT JOIN catalog_sources s ON s.tenant_id=c.tenant_id
+         AND s.name='كتالوج سياحي تجريبي — ملف Excel'
+       LEFT JOIN catalog_products cp ON cp.source_id=s.id
+       LEFT JOIN flows f ON f.tenant_id=c.tenant_id
+         AND f.name='تجربة بوت سياحي ديناميكي — كتالوج Excel'
+         AND f.status='published'
+       WHERE c.id=$1::uuid AND c.type='whatsapp'
+         AND c.external_id='1280213898505884'`,
+      [process.env.WHATSAPP_PREVIEW_BOT_CHANNEL_ID],
+    );
+    console.log('QA_TOURISM_EXCEL_CHECK', JSON.stringify(check.rows[0] ?? {}));
+  }
   console.log('Migrations up to date');
   await client.end();
 }
