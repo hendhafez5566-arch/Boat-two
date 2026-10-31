@@ -24,6 +24,22 @@ type BotReadiness = {
   previewBotEnabled: boolean;
 };
 
+type WhatsAppAuthDiagnostics = {
+  token: {
+    status: 'granted' | 'missing_permission' | 'invalid_token' | 'wrong_app' | 'unknown';
+    expiresAt: string | null;
+    reason: string;
+  };
+  recentFailures: {
+    createdAt: string;
+    messageStatus: string;
+    jobStatus: string | null;
+    category: 'authentication' | 'permission' | 'provider_limit' | 'delivery_blocked' | 'other';
+    code: string | null;
+  }[];
+  checkedAt: string;
+};
+
 type Channel = {
   id: string;
   type: string;
@@ -56,6 +72,11 @@ export default function Channels() {
   const [copied, setCopied] = useState('');
   const [items, setItems] = useState<Channel[]>([]);
   const [botDiagnostics, setBotDiagnostics] = useState<Record<string, BotReadiness>>({});
+  const [authDiagnostics, setAuthDiagnostics] = useState<Record<string, WhatsAppAuthDiagnostics>>({});
+  const [editingTokenId, setEditingTokenId] = useState<string | null>(null);
+  const [replacementToken, setReplacementToken] = useState('');
+  const [tokenNotice, setTokenNotice] = useState('');
+
   const [type, setType] = useState('web');
   const [error, setError] = useState('');
   const [selected, setSelected] = useState('whatsapp');
@@ -102,6 +123,49 @@ export default function Channels() {
     try {
       const result = await api<BotReadiness>(`/channels/${c.id}/bot-readiness`);
       setBotDiagnostics((prev) => ({ ...prev, [c.id]: result }));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function inspectWhatsAppAuth(c: Channel) {
+    setBusy(true);
+    setError('');
+    try {
+      const result = await api<WhatsAppAuthDiagnostics>(`/channels/${c.id}/whatsapp-auth-diagnostics`);
+      setAuthDiagnostics((prev) => ({ ...prev, [c.id]: result }));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function rotateWhatsAppToken(event: React.FormEvent<HTMLFormElement>, c: Channel) {
+    event.preventDefault();
+    if (busy || replacementToken.trim().length < 10) return;
+    setBusy(true);
+    setError('');
+    setTokenNotice('');
+    try {
+      await api(`/channels/${c.id}/credentials`, {
+        method: 'POST',
+        body: JSON.stringify({ accessToken: replacementToken.trim() }),
+      });
+      setReplacementToken('');
+      setEditingTokenId(null);
+      setAuthDiagnostics((prev) => {
+        const next = { ...prev };
+        delete next[c.id];
+        return next;
+      });
+      setTokenNotice(t(
+        'تم حفظ التوكين الجديد على نفس قناة واتساب، بدون إعادة Coexistence. اضغط فحص اتصال Meta ثم فحص صلاحيات الإرسال.',
+        'The new token was saved on the same WhatsApp channel without reconnecting Coexistence. Verify provider and messaging permission next.',
+      ));
+      await load();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -232,6 +296,7 @@ export default function Channels() {
           </button>
         </p>
       )}
+      {tokenNotice && <p className="notice" role="status">{tokenNotice}</p>}
       {saved && (
         <p className="notice" role="status">
           {t('أُضيفت القناة.', 'Channel added.')}
@@ -290,7 +355,81 @@ export default function Channels() {
               <>
                 <button type="button" className="btn" disabled={busy} onClick={() => inspectBot(c)}>
                   {t('تشخيص ردود البوت', 'Diagnose bot replies')}
+                </button>                <button type="button" className="btn" disabled={busy} onClick={() => inspectWhatsAppAuth(c)}>
+                  {t('فحص صلاحيات الإرسال وأخطاء Meta', 'Check Meta messaging permissions and errors')}
                 </button>
+                {authDiagnostics[c.id] && (
+                  <section className="card stack" role="status">
+                    <strong>{t('تشخيص صلاحية إرسال واتساب', 'WhatsApp outbound authorization')}</strong>
+                    <p>{t('صلاحية التوكين للإرسال', 'Messaging token permission')}: {
+                      ({
+                        granted: t('موجودة', 'Granted'),
+                        missing_permission: t('ناقصة: whatsapp_business_messaging', 'Missing whatsapp_business_messaging'),
+                        invalid_token: t('التوكين غير صالح أو منتهي', 'Token invalid or expired'),
+                        wrong_app: t('التوكين تابع لتطبيق Meta مختلف', 'Token belongs to a different Meta app'),
+                        unknown: t('تعذّر التحقق من الصلاحيات', 'Permission check unavailable'),
+                      } as Record<string, string>)[authDiagnostics[c.id].token.status]
+                    }</p>
+                    {authDiagnostics[c.id].token.expiresAt && (
+                      <p>{t('انتهاء التوكين', 'Token expiry')}: {new Date(authDiagnostics[c.id].token.expiresAt!).toLocaleString()}</p>
+                    )}
+                    <p>{t('أخطاء الإرسال المسجلة آخر 6 ساعات', 'Outbound failures in last 6h')}: {authDiagnostics[c.id].recentFailures.length}</p>
+                    {authDiagnostics[c.id].recentFailures.slice(0, 5).map((failure, i) => (
+                      <p key={i}>
+                        {new Date(failure.createdAt).toLocaleTimeString()} — {
+                          ({
+                            authentication: t('خطأ مصادقة من المزود', 'Provider authentication error'),
+                            permission: t('نقص صلاحيات', 'Insufficient permission'),
+                            provider_limit: t('حد إرسال من المزود', 'Provider rate limit'),
+                            delivery_blocked: t('منع إرسال محلي', 'Local delivery blocked'),
+                            other: t('خطأ إرسال آخر', 'Other outbound error'),
+                          } as Record<string, string>)[failure.category]
+                        }{failure.code ? ` (#${failure.code})` : ''}
+                      </p>
+                    ))}
+                    {authDiagnostics[c.id].recentFailures.some((failure) =>
+                      ['authentication', 'permission'].includes(failure.category),
+                    ) || ['invalid_token', 'missing_permission', 'wrong_app'].includes(authDiagnostics[c.id].token.status) ? (
+                      <p className="notice">{t(
+                        'الربط واستقبال الرسائل لا يضمنان صلاحية الإرسال. أنشئ توكين من تطبيق Bot two بصلاحية whatsapp_business_messaging وwhatsapp_business_management، ثم حدّث التوكين فقط هنا.',
+                        'Receiving messages does not prove outgoing permission. Generate a token for the Bot two Meta app with whatsapp_business_messaging and whatsapp_business_management, then update only the token here.',
+                      )}</p>
+                    ) : null}
+                  </section>
+                )}
+                {authDiagnostics[c.id] && (
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={busy}
+                    onClick={() => {
+                      setEditingTokenId(editingTokenId === c.id ? null : c.id);
+                      setReplacementToken('');
+                      setTokenNotice('');
+                    }}
+                  >
+                    {t('تحديث توكين Meta لنفس الرقم', 'Update Meta token for this number')}
+                  </button>
+                )}
+                {editingTokenId === c.id && (
+                  <form className="card stack" onSubmit={(event) => rotateWhatsAppToken(event, c)}>
+                    <label className="field">
+                      {t('توكين جديد من Meta (لا يظهر ولا يُعاد عرضه)', 'New Meta token (never displayed again)')}
+                      <input
+                        type="password"
+                        autoComplete="off"
+                        required
+                        minLength={10}
+                        value={replacementToken}
+                        onChange={(event) => setReplacementToken(event.target.value)}
+                      />
+                    </label>
+                    <p>{t('يُحدَّث رمز الوصول فقط؛ لا يتغيّر الرقم أو Phone Number ID أو Coexistence. الرسائل الفاشلة لن يعاد إرسالها تلقائيًا.', 'Only the access token changes; the phone number and Coexistence stay intact. Previously failed messages are not automatically retried.')}</p>
+                    <button type="submit" className="btn" disabled={busy || replacementToken.trim().length < 10}>
+                      {t('حفظ التوكين على القناة الحالية', 'Save token to existing channel')}
+                    </button>
+                  </form>
+                )}
                 {botDiagnostics[c.id] && (
                   <section className="card stack" role="status">
                     <strong>{t('تشخيص إرسال الرد الآلي', 'Bot reply diagnostics')}</strong>
