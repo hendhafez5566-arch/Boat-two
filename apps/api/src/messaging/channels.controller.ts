@@ -80,6 +80,7 @@ export class ChannelsController {
         activeConversationsBot: handlers.find((h) => h.handled_by === 'bot')?.n ?? 0,
         activeConversationsHuman: handlers.filter((h) => h.handled_by !== 'bot').reduce((n, h) => n + h.n, 0),
         recentBotReplies: messages.filter((m) => m.sender_type === 'bot').length,
+        recentSent: messages.filter((m) => m.sender_type === 'bot' && ['sent', 'delivered', 'read'].includes(m.status)).length,
         recentBlocked: messages.filter((m) => m.job_status === 'blocked').length,
         recentFailed: messages.filter((m) => m.job_status === 'failed').length,
         previewBotEnabled: process.env.BOAT_PREVIEW_ONLY === 'true' &&
