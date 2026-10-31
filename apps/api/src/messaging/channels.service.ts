@@ -100,8 +100,9 @@ export class ChannelsService {
       (await c.query('SELECT * FROM channels WHERE id=$1', [id])).rows[0]);
     if (!row) throw new NotFoundException('Channel not found');
     if (row.type === 'web' || row.status !== 'active') return connectionHealth(row);
-    if (env.EXTERNAL_DELIVERY_ENABLED !== 'true')
-      return { state: 'needs_action', checkedAt: null, reason: 'external_access_disabled' };
+    // Provider verification is a read-only request. Keep it available while
+    // EXTERNAL_DELIVERY_ENABLED is off so admins can test credentials safely
+    // without enabling message delivery for all tenants.
     const credentials = this.credentials(row);
     const token = credentials.accessToken || credentials.pageAccessToken;
     const checkedAt = new Date().toISOString();
