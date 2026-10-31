@@ -1,5 +1,4 @@
-// @ts-nocheck
-import type { FlowGraph } from './engine';
+import type { FlowGraph, FlowNode } from './engine';
 const handoff = {
   id: 'handoff',
   type: 'handoff' as const,
@@ -56,7 +55,7 @@ export const FLOW_TEMPLATES: { id: string; name: string; description: string; gr
             { id: 'abroad', value: 'رحلات خارجية', text: '🌍 رحلات خارجية\\nقولي الدولة وموعد السفر وعدد المسافرين، وفريقنا يقترح برنامجًا مناسبًا حسب التوافر.' },
             { id: 'visa', value: 'تأشيرات', text: '🛂 استفسارات التأشيرات\\nالمتطلبات تختلف حسب الجنسية والوجهة والغرض من السفر. فريق التأشيرات هيراجع التفاصيل قبل تأكيد أي إجراء.' },
             { id: 'offers', value: 'العروض الحالية', text: '🎁 أحدث العروض\\nيسعدنا نرشح لك أفضل برنامج مناسب. العروض والأسعار والتوافر يتم تأكيدها عند الطلب، مش هنعرض أسعارًا غير محدثة.' },
-          ].flatMap((service, index) => [
+          ].flatMap((service, index): FlowNode[] => [
             {
               id: `interest_${service.id}`,
               type: 'set_attribute' as const,
