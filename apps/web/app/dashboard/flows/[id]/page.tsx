@@ -1259,6 +1259,16 @@ function Editor({ id }: { id: string }) {
             setDirty(true);
           }}
         />
+        {staleChannelIds.length > 0 && (
+          <button
+            type="button"
+            className="btn btn-danger"
+            onClick={openSettings}
+            title={t('إصلاح القناة قبل الحفظ أو النشر', 'Fix missing channel before saving or publishing')}
+          >
+            {t('القناة القديمة غير موجودة — تصحيح الربط', 'Missing channel — fix link')}
+          </button>
+        )}
         {meta.channelIds.length === 1 && (
           <span className={styles.channelBadge}>
             {channels.find((channel) => channel.id === meta.channelIds[0])?.name ??
