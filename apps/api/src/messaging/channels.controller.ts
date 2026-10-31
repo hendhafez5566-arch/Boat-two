@@ -50,7 +50,7 @@ export class ChannelsController {
   botReadiness(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.db.withTenant(req.user.tenantId, async (c) => {
       const channel = (await c.query(
-        'SELECT id,type,status FROM channels WHERE id=$1', [id],
+        'SELECT id,type,status,settings FROM channels WHERE id=$1', [id],
       )).rows[0];
       if (!channel) throw new NotFoundException('Channel not found');
       const flows = (await c.query(
@@ -94,12 +94,13 @@ export class ChannelsController {
            ) fs ON true
           WHERE cv.id=$1 AND cv.channel_id=$2`,[previewId,id],
       )).rows[0] : undefined;
+      const selectedFlowId = typeof channel.settings?.previewTestFlowId === 'string'
+        ? channel.settings.previewTestFlowId as string : null;
+      const eligibleFlows = flows.map((flow) => ({ ...flow, flow_id: flow.id }));
       const previewCandidate = preview
-        ? selectPreviewRestartFlow(
-          flows.map((flow) => ({ ...flow, flow_id: flow.id })),
-          id,
-          (preview.session_flow_id as string | null) ?? null,
-        )
+        ? selectedFlowId
+          ? eligibleFlows.find((f) => f.id === selectedFlowId) ?? null
+          : selectPreviewRestartFlow(eligibleFlows, id, (preview.session_flow_id as string | null) ?? null)
         : null;
       const lastBot = previewId ? (await c.query(
         `SELECT m.created_at,m.status,j.status AS job_status,
@@ -145,6 +146,7 @@ export class ChannelsController {
           sessionCreatedAt: preview.session_created_at as Date | null,
           pendingInboundEvents: Number(preview.pending_inbound_events ?? 0),
           restartFlowName: previewCandidate?.name ?? null,
+          selectedFlowId,
           restartEligible: !!previewCandidate,
           lastBotReply: lastBot ? {
             createdAt: lastBot.created_at,
@@ -154,6 +156,65 @@ export class ChannelsController {
           } : null,
         } : null,
       };
+    });
+  }
+
+  /** Explicit owner action: select a published bot only for the existing
+   * preview WhatsApp conversation. This does not change published flows,
+   * provider authorization or any other customer's routing.
+   */
+  @Roles('owner', 'admin')
+  @Post(':id/preview-activate')
+  previewActivate(
+    @Req() req: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const { flowId } = parse(z.object({
+      flowId: z.string().uuid(),
+      confirm: z.literal(true),
+    }), body);
+    if (process.env.BOAT_PREVIEW_ONLY !== 'true' ||
+        process.env.WHATSAPP_PREVIEW_BOT_ENABLED !== 'true' ||
+        process.env.WHATSAPP_PREVIEW_BOT_CHANNEL_ID !== id ||
+        !process.env.WHATSAPP_PREVIEW_BOT_CONVERSATION_ID)
+      throw new NotFoundException('Preview mode is unavailable for this channel');
+    const conversationId = process.env.WHATSAPP_PREVIEW_BOT_CONVERSATION_ID;
+    return this.db.withTenant(req.user.tenantId, async (c) => {
+      const channel = (await c.query(
+        "SELECT id FROM channels WHERE id=$1 AND type='whatsapp' AND status='active' FOR UPDATE",
+        [id],
+      )).rows[0];
+      const cv = (await c.query(
+        "SELECT id,status FROM conversations WHERE id=$1 AND channel_id=$2 FOR UPDATE",
+        [conversationId,id],
+      )).rows[0];
+      if (!channel || !cv || cv.status==='closed')
+        throw new NotFoundException('Active preview WhatsApp conversation not found');
+      const flow = (await c.query(
+        `SELECT f.id,f.name
+           FROM flows f JOIN flow_versions v ON v.id=f.published_version_id
+          WHERE f.id=$1 AND f.status='published' AND NOT f.is_component
+            AND (cardinality(v.channel_ids)=0 OR $2=ANY(v.channel_ids))`,
+        [flowId,id],
+      )).rows[0];
+      if (!flow) throw new NotFoundException('Published bot not available for this channel');
+      await c.query(
+        `UPDATE channels SET settings=jsonb_set(
+          COALESCE(settings,'{}'::jsonb),'{previewTestFlowId}',to_jsonb($2::text),true)
+          WHERE id=$1`,
+        [id,flowId],
+      );
+      const sessions = await c.query(
+        "UPDATE flow_sessions SET status='expired',updated_at=now() WHERE conversation_id=$1 AND status='waiting'",
+        [conversationId],
+      );
+      await c.query(
+        "UPDATE conversations SET handled_by='bot',assigned_to=NULL WHERE id=$1",
+        [conversationId],
+      );
+      return { activated: true, flowId: flow.id, flowName: flow.name,
+        previousWaitingSessions: sessions.rowCount ?? 0 };
     });
   }
 
@@ -176,7 +237,7 @@ export class ChannelsController {
     const conversationId = process.env.WHATSAPP_PREVIEW_BOT_CONVERSATION_ID;
     return this.db.withTenant(req.user.tenantId, async (c) => {
       const channel = (await c.query(
-        "SELECT id FROM channels WHERE id=$1 AND type='whatsapp' AND status='active'",
+        "SELECT id,settings FROM channels WHERE id=$1 AND type='whatsapp' AND status='active'",
         [id],
       )).rows[0];
       const cv = (await c.query(
@@ -199,7 +260,11 @@ export class ChannelsController {
         "SELECT flow_id FROM flow_sessions WHERE conversation_id=$1 ORDER BY created_at DESC LIMIT 1",
         [conversationId],
       )).rows[0] as { flow_id: string } | undefined;
-      const chosen = selectPreviewRestartFlow(published, id, previous?.flow_id);
+      const selected = typeof channel?.settings?.previewTestFlowId === 'string'
+        ? channel.settings.previewTestFlowId as string : null;
+      const chosen = selected
+        ? published.find((f) => f.flow_id === selected) ?? null
+        : selectPreviewRestartFlow(published, id, previous?.flow_id);
       if (!chosen)
         throw new ConflictException({
           code: 'PREVIEW_BOT_AMBIGUOUS',
