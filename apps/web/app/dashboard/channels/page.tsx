@@ -355,7 +355,8 @@ export default function Channels() {
               <>
                 <button type="button" className="btn" disabled={busy} onClick={() => inspectBot(c)}>
                   {t('تشخيص ردود البوت', 'Diagnose bot replies')}
-                </button>                <button type="button" className="btn" disabled={busy} onClick={() => inspectWhatsAppAuth(c)}>
+                </button>
+                <button type="button" className="btn" disabled={busy} onClick={() => inspectWhatsAppAuth(c)}>
                   {t('فحص صلاحيات الإرسال وأخطاء Meta', 'Check Meta messaging permissions and errors')}
                 </button>
                 {authDiagnostics[c.id] && (
