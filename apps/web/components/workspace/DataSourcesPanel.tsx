@@ -2,18 +2,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
-type Mapping = {
-  id: string;
-  name: string;
-  description?: string;
-  category?: string;
-  visible?: string;
-  order?: string;
-  categoryOrder?: string;
-  image?: string;
-  link?: string;
-  fields: { column: string; label: string; kind: 'text' | 'price' }[];
-};
+import { suggestCatalogMapping, type CatalogMapping as Mapping } from '../../lib/catalog-mapping';
 type Source = {
   id: string;
   name: string;
@@ -58,7 +47,9 @@ const mappingKey = (m: Mapping) =>
     m.fields.map((f) => [f.column, f.label, f.kind]),
   ]);
 const blank: Mapping = { id: '', name: '', fields: [] };
-export default function DataSourcesPanel() {
+export default function DataSourcesPanel({
+  onApplied,
+}: { onApplied?: (sourceId: string) => void } = {}) {
   const { t, language } = useLocale();
   const [sources, setSources] = useState<Source[]>([]),
     [editing, setEditing] = useState<Source | null>(null),
@@ -78,6 +69,7 @@ export default function DataSourcesPanel() {
     [ai, setAi] = useState(false),
     [preview, setPreview] = useState<Preview | null>(null),
     [archive, setArchive] = useState(false),
+    [visibilityConfirmed, setVisibilityConfirmed] = useState(false),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [items, setItems] = useState<Item[]>([]),
@@ -110,7 +102,7 @@ export default function DataSourcesPanel() {
       .then(setConnections)
       .catch(() => {});
   }, []);
-  async function act(fn: () => Promise<void>) {
+  async function act(fn: () => Promise<unknown>) {
     if (busy) return;
     setBusy(true);
     setError('');
@@ -183,6 +175,10 @@ export default function DataSourcesPanel() {
     setSheets(v.sheets);
     setSheet(worksheet || v.sheets[0]);
     setHeaders(v.rows[0] ?? []);
+    if (!editing) {
+      setMapping(suggestCatalogMapping(v.rows[0] ?? []));
+      if (!name) setName(f.name.replace(/\.(xlsx|csv)$/i, ''));
+    }
     setSample(v.rows.slice(1, 6));
     setPreview(null);
   }
@@ -196,6 +192,7 @@ export default function DataSourcesPanel() {
     const r = await google({ operation: 'sheet_read', spreadsheetId: spreadsheet, range: sheet });
     const rows = (r.data.values ?? []) as string[][];
     setHeaders(rows[0] ?? []);
+    if (!editing) setMapping(suggestCatalogMapping(rows[0] ?? []));
     setSample(rows.slice(1, 6));
     setPreview(null);
   }
@@ -216,26 +213,28 @@ export default function DataSourcesPanel() {
     setEditing(v);
     setPreview(null);
     await refresh();
+    return v;
   }
-  async function makePreview() {
-    if (!editing) throw new Error(t('احفظ الربط أولًا', 'Save the source first'));
+  async function makePreview(source = editing) {
+    if (!source) throw new Error(t('احفظ الربط أولًا', 'Save the source first'));
     let v: Preview;
     if (kind === 'file') {
       if (!file) throw new Error(t('ارفع النسخة الأحدث من الملف', 'Upload the latest file'));
       const data = new FormData();
       data.set('file', file);
       data.set('sheet', sheet);
-      v = await api<Preview>('/commerce/sources/' + editing.id + '/file-preview', {
+      v = await api<Preview>('/commerce/sources/' + source.id + '/file-preview', {
         method: 'POST',
         body: data,
       });
     } else
-      v = await api<Preview>('/commerce/sources/' + editing.id + '/preview', {
+      v = await api<Preview>('/commerce/sources/' + source.id + '/preview', {
         method: 'POST',
         body: '{}',
       });
     setPreview(v);
     setArchive(false);
+    setVisibilityConfirmed(false);
   }
   async function browse(next = 0) {
     if (!editing) return;
@@ -263,6 +262,11 @@ export default function DataSourcesPanel() {
   return (
     <section dir={language === 'ar' ? 'rtl' : 'ltr'} className="panel" style={{ minWidth: 0 }}>
       <h2>{t('مصادر البيانات والكتالوج الديناميكي', 'Data sources and dynamic catalog')}</h2>
+      <ol className="catalog-steps" aria-label={t('خطوات إعداد الكتالوج', 'Catalog setup steps')}>
+        <li>{t('١. ارفع ملفًا أو اربط شيت', '1. Upload a file or connect a sheet')}</li>
+        <li>{t('٢. راجع الأعمدة ومعاينة العميل', '2. Review columns and customer preview')}</li>
+        <li>{t('٣. طبّق التحديث واستخدمه في البوت', '3. Apply and use in your bot')}</li>
+      </ol>
       <p>
         {t(
           'صمّم البوت مرة واحدة وحدّث المحتوى من هنا. الملفات المحلية تتطلب رفع نسخة أحدث.',
@@ -363,17 +367,47 @@ export default function DataSourcesPanel() {
           <button
             className="btn"
             disabled={busy}
+            onClick={() => {
+              // Open before awaiting OAuth so popup blockers do not discard it;
+              // keep the editor and its unsaved draft in the original tab.
+              const authWindow = window.open('about:blank', '_blank');
+              if (!authWindow) {
+                setError(
+                  t(
+                    'اسمح بفتح نافذة الربط ثم حاول مجددًا',
+                    'Allow the connection popup and try again',
+                  ),
+                );
+                return;
+              }
+              authWindow.opener = null;
+              void act(async () => {
+                try {
+                  const r = await api<{ authorizeUrl: string }>('/integrations/google/start', {
+                    method: 'POST',
+                    body: JSON.stringify({ purposes: ['sheets_read'] }),
+                  });
+                  authWindow.location.href = r.authorizeUrl;
+                } catch (e) {
+                  authWindow.close();
+                  throw e;
+                }
+              });
+            }}
+          >
+            {t('ربط Google للقراءة فقط', 'Connect Google read only')}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={busy}
             onClick={() =>
               void act(async () => {
-                const r = await api<{ authorizeUrl: string }>('/integrations/google/start', {
-                  method: 'POST',
-                  body: JSON.stringify({ purposes: ['sheets_read'] }),
-                });
-                window.location.assign(r.authorizeUrl);
+                setConnections(await api<typeof connections>('/integrations'));
               })
             }
           >
-            {t('ربط Google للقراءة فقط', 'Connect Google read only')}
+            {t('تحديث الحسابات بعد الربط', 'Refresh accounts after connecting')}
           </button>
           <label>
             {t('حساب Google', 'Google account')}
@@ -473,7 +507,13 @@ export default function DataSourcesPanel() {
       )}
       {headers.length > 0 && (
         <>
-          <h3>{t('ربط الأعمدة', 'Map columns')}</h3>
+          <h3>{t('راجع الأعمدة المقترحة', 'Review suggested columns')}</h3>
+          <p>
+            {t(
+              'راجع المعرّف والاسم. الأعمدة الإضافية لا تظهر للعميل إلا باختيارك.',
+              'Check the stable key and name. Extra columns are shown only when you select them.',
+            )}
+          </p>
           <div className="form-grid">
             {labels.map(([key, ar, en]) => (
               <label key={key}>
@@ -509,7 +549,16 @@ export default function DataSourcesPanel() {
                         setMapping({
                           ...mapping,
                           fields: e.target.checked
-                            ? [...mapping.fields, { column: h, label: h, kind: 'text' }]
+                            ? [
+                                ...mapping.fields,
+                                {
+                                  column: h,
+                                  label: h,
+                                  kind: /price|cost|سعر|اسعار|أسعار|تكلف/i.test(h)
+                                    ? 'price'
+                                    : 'text',
+                                },
+                              ]
                             : mapping.fields.filter((f) => f.column !== h),
                         })
                       }
@@ -579,13 +628,16 @@ export default function DataSourcesPanel() {
           )}
         </>
       )}
-      <label>
-        <input type="checkbox" checked={ai} onChange={(e) => setAi(e.target.checked)} />
-        {t(
-          'اعتماد الكتالوج لردود المساعد: الإجابات من بياناته الحالية فقط، والتحويل للموظف للمعلومات الناقصة',
-          'Use this catalog for assistant replies: current catalog data only, with staff handoff for missing information',
-        )}
-      </label>
+      <details>
+        <summary>{t('إعدادات متقدمة للمساعد', 'Advanced assistant settings')}</summary>
+        <label>
+          <input type="checkbox" checked={ai} onChange={(e) => setAi(e.target.checked)} />
+          {t(
+            'اعتماد الكتالوج لردود المساعد: الإجابات من بياناته الحالية فقط، والتحويل للموظف للمعلومات الناقصة',
+            'Use this catalog for assistant replies: current catalog data only, with staff handoff for missing information',
+          )}
+        </label>
+      </details>
       {dirty && (
         <p role="status">
           {t(
@@ -596,6 +648,18 @@ export default function DataSourcesPanel() {
       )}
       <div className="form-actions">
         <button
+          className="btn primary"
+          disabled={busy || !name || !mapping.id || !mapping.name || (kind === 'file' && !file)}
+          onClick={() =>
+            void act(async () => {
+              const source = !editing || dirty ? await save() : editing;
+              await makePreview(source);
+            })
+          }
+        >
+          {t('مراجعة معاينة العميل', 'Review customer preview')}
+        </button>
+        <button
           disabled={busy || !name || !mapping.id || !mapping.name}
           className="btn primary"
           onClick={() => void act(save)}
@@ -605,7 +669,7 @@ export default function DataSourcesPanel() {
         <button
           disabled={busy || !editing || dirty}
           className="btn"
-          onClick={() => void act(makePreview)}
+          onClick={() => void act(() => makePreview())}
         >
           {t('مزامنة الآن ومعاينة التحديث', 'Sync now and preview update')}
         </button>
@@ -659,9 +723,25 @@ export default function DataSourcesPanel() {
                   'I reviewed the complete file and want to archive missing rows',
                 )}
               </label>
+              {preview.items.some((item) => item.visible === false) && (
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={visibilityConfirmed}
+                    onChange={(event) => setVisibilityConfirmed(event.target.checked)}
+                  />
+                  {t(
+                    'راجعت العناصر المخفية في هذا التحديث',
+                    'I reviewed hidden items in this update',
+                  )}
+                </label>
+              )}
               <button
                 className="btn primary"
-                disabled={busy}
+                disabled={
+                  busy ||
+                  (preview.items.some((item) => item.visible === false) && !visibilityConfirmed)
+                }
                 onClick={() =>
                   void act(async () => {
                     await api('/commerce/sources/' + editing!.id + '/apply', {
@@ -676,6 +756,7 @@ export default function DataSourcesPanel() {
                     const latest = await api<Source[]>('/commerce/sources');
                     setEditing(latest.find((s) => s.id === editing!.id) ?? null);
                     await browse(0);
+                    onApplied?.(editing!.id);
                   })
                 }
               >
