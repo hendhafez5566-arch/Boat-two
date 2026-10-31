@@ -18,6 +18,7 @@ type BotReadiness = {
   activeConversationsBot: number;
   activeConversationsHuman: number;
   recentBotReplies: number;
+  recentSent: number;
   recentBlocked: number;
   recentFailed: number;
   previewBotEnabled: boolean;
@@ -295,7 +296,7 @@ export default function Channels() {
                     <strong>{t('تشخيص إرسال الرد الآلي', 'Bot reply diagnostics')}</strong>
                     <p>{t('عدد البوتات المنشورة لهذه القناة', 'Published flows on this channel')}: {botDiagnostics[c.id].publishedFlowCount}</p>
                     <p>{t('المحادثات المسندة للبوت', 'Bot-owned conversations')}: {botDiagnostics[c.id].activeConversationsBot} · {t('للموظفين', 'Human-owned')}: {botDiagnostics[c.id].activeConversationsHuman}</p>
-                    <p>{t('ردود البوت المنشأة آخر 6 ساعات', 'Bot replies created in last 6h')}: {botDiagnostics[c.id].recentBotReplies} · {t('إرسال محظور', 'Blocked deliveries')}: {botDiagnostics[c.id].recentBlocked} · {t('إرسال فاشل', 'Failed deliveries')}: {botDiagnostics[c.id].recentFailed}</p>
+                    <p>{t('ردود البوت المنشأة آخر 6 ساعات', 'Bot replies created in last 6h')}: {botDiagnostics[c.id].recentBotReplies} · {t('ردود أُرسلت', 'Sent replies')}: {botDiagnostics[c.id].recentSent} · {t('إرسال محظور', 'Blocked deliveries')}: {botDiagnostics[c.id].recentBlocked} · {t('إرسال فاشل', 'Failed deliveries')}: {botDiagnostics[c.id].recentFailed}</p>
                     <p>{t('وضع إرسال البوت التجريبي', 'Scoped preview bot delivery')}: {botDiagnostics[c.id].previewBotEnabled ? t('مفعّل', 'Enabled') : t('غير مفعّل', 'Disabled')}</p>
                     {botDiagnostics[c.id].flowTriggers.map((f, idx) => (
                       <p key={idx}>{f.name}: {f.types.join(', ')} {f.matchesTestKeyword ? '✓ BOAT-TEST' : ''}</p>
