@@ -16,6 +16,7 @@ import { Roles } from '../auth/decorators';
 import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
 import { ChannelsService, createChannelSchema, updateChannelSchema } from './channels.service';
+import { inspectMetaMessagingPermission, classifyOutboundFailure } from './meta-messaging-inspection';
 
 @Controller('channels')
 export class ChannelsController {
@@ -97,6 +98,55 @@ export class ChannelsController {
           process.env.WHATSAPP_PREVIEW_BOT_CHANNEL_ID === id,
       };
     });
+  }
+
+  /** Authenticated, tenant-scoped, read-only diagnostics. Never returns tokens,
+   * phone numbers, message bodies or raw provider errors.
+   */
+  @Roles('owner', 'admin')
+  @Get(':id/whatsapp-auth-diagnostics')
+  async whatsappAuthDiagnostics(
+    @Req() req: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const result = await this.db.withTenant(req.user.tenantId, async (c) => {
+      const channel = (await c.query(
+        "SELECT * FROM channels WHERE id=$1 AND type='whatsapp'", [id],
+      )).rows[0];
+      if (!channel) throw new NotFoundException('WhatsApp channel not found');
+      const recent = (await c.query(
+        `SELECT m.created_at, m.status, m.error AS message_error,
+                j.status AS job_status, j.error AS job_error
+           FROM messages m
+           LEFT JOIN LATERAL (
+             SELECT status,error FROM outbound_jobs
+              WHERE message_id=m.id ORDER BY updated_at DESC LIMIT 1
+           ) j ON true
+          WHERE m.channel_id=$1 AND m.direction='out'
+            AND m.created_at>now()-interval '6 hours'
+            AND (m.status='failed' OR j.status IN ('failed','blocked','ambiguous'))
+          ORDER BY m.created_at DESC LIMIT 10`, [id],
+      )).rows as {
+        created_at: Date;
+        status: string;
+        message_error: string | null;
+        job_status: string | null;
+        job_error: string | null;
+      }[];
+      return { channel, recent };
+    });
+    const credentials = this.channels.credentials(result.channel);
+    const auth = await inspectMetaMessagingPermission(credentials.accessToken ?? '');
+    return {
+      token: auth,
+      recentFailures: result.recent.map((row) => ({
+        createdAt: row.created_at,
+        messageStatus: row.status,
+        jobStatus: row.job_status,
+        ...classifyOutboundFailure(row.message_error ?? row.job_error ?? ''),
+      })),
+      checkedAt: new Date().toISOString(),
+    };
   }
 
   @Roles('owner', 'admin')
