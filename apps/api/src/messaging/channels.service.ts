@@ -152,7 +152,7 @@ export class ChannelsService {
             const subscription = inspectWhatsAppSubscription(
               data,
               env.META_APP_ID,
-              `${env.PUBLIC_API_URL.replace(/\\/$/, '')}/webhooks/whatsapp`,
+              `${env.PUBLIC_API_URL.replace(/\/$/, '')}/webhooks/whatsapp`,
             );
             health = {
               state: subscription === 'subscribed' ? 'connected' : 'needs_action',
