@@ -16,7 +16,7 @@ import { Roles } from '../auth/decorators';
 import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
 import { ChannelsService, createChannelSchema, updateChannelSchema } from './channels.service';
-import { inspectMetaMessagingPermission, classifyOutboundFailure } from './meta-messaging-inspection';
+import { classifyOutboundFailure } from './meta-messaging-inspection';
 
 @Controller('channels')
 export class ChannelsController {
@@ -135,17 +135,15 @@ export class ChannelsController {
       }[];
       return { channel, recent };
     });
-    const credentials = this.channels.credentials(result.channel);
-    const auth = await inspectMetaMessagingPermission(credentials.accessToken ?? '');
+    const authorization = await this.channels.inspectAuthorization(req.user.tenantId, id);
     return {
-      token: auth,
+      ...authorization,
       recentFailures: result.recent.map((row) => ({
         createdAt: row.created_at,
         messageStatus: row.status,
         jobStatus: row.job_status,
         ...classifyOutboundFailure(row.message_error ?? row.job_error ?? ''),
       })),
-      checkedAt: new Date().toISOString(),
     };
   }
 

@@ -1,6 +1,7 @@
 'use client';
 import { useState, type FormEvent } from 'react';
 import { api } from '../../lib/api';
+import { embeddedSignupSession } from '../../lib/meta-signup';
 import { useLocale } from './locale';
 import { useData } from '../business/useData';
 type SDK = {
@@ -15,6 +16,7 @@ export default function MetaConnect({ onSaved, selectedKind }: { onSaved: () => 
   const config = useData<{
     configured: boolean;
     externalEnabled: boolean;
+    connectEnabled?: boolean;
     appId: string | null;
     embeddedConfigId: string | null;
     redirectUri: string;
@@ -82,21 +84,8 @@ export default function MetaConnect({ onSaved, selectedKind }: { onSaved: () => 
         window.location.assign(result.authorizeUrl);
         return;
       }
-      let wabaId = '',
-        phoneNumberId = '';
-      const listener = (event: MessageEvent) => {
-        if (!['https://www.facebook.com', 'https://web.facebook.com'].includes(event.origin))
-          return;
-        try {
-          const value = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-          if (value.type === 'WA_EMBEDDED_SIGNUP' && value.event === 'FINISH') {
-            wabaId = value.data.waba_id;
-            phoneNumberId = value.data.phone_number_id;
-          }
-        } catch {
-          /* The action helper displays the error. */
-        }
-      };
+      const signup = embeddedSignupSession();
+      const listener = (event: MessageEvent) => signup.receive(event.origin, event.data);
       window.addEventListener('message', listener);
       try {
         const win = window as Window & { FB?: SDK };
@@ -116,7 +105,7 @@ export default function MetaConnect({ onSaved, selectedKind }: { onSaved: () => 
             config_id: config.data.embeddedConfigId,
             response_type: 'code',
             override_default_response_type: true,
-            extras: { setup: {}, sessionInfoVersion: '3', ...(whatsappMode === 'coexistence' ? { featureType: 'whatsapp_business_app_onboarding' } : {}) },
+            extras: { setup: {}, version: 'v4', sessionInfoVersion: '3', ...(whatsappMode === 'coexistence' ? { featureType: 'whatsapp_business_app_onboarding' } : {}) },
           }),
         );
         if (!response.authResponse?.code)
@@ -126,14 +115,8 @@ export default function MetaConnect({ onSaved, selectedKind }: { onSaved: () => 
               'Connection canceled or no authorization code returned.',
             ),
           );
-        if (!wabaId || !phoneNumberId)
-          throw new Error(
-            t(
-              'لم تكتمل بيانات Embedded Signup. ابدأ من جديد.',
-              'Embedded Signup did not return account/phone IDs. Start again.',
-            ),
-          );
-        await api('/channels/meta/embedded/complete', {
+        const { wabaId, phoneNumberId } = await signup.wait();
+        const attached = await api<{ webhookReady?: boolean }>('/channels/meta/embedded/complete', {
           method: 'POST',
           body: JSON.stringify({
             state: result.state,
@@ -144,7 +127,9 @@ export default function MetaConnect({ onSaved, selectedKind }: { onSaved: () => 
           }),
         });
         onSaved();
+        if (attached.webhookReady === false) setError(t('تم حفظ التفويض، لكن اشتراك Webhook يحتاج مراجعة من مسؤول المنصة. افحص اتصال القناة قبل تشغيل البوت.', 'Authorization saved, but the webhook subscription needs administrator review. Verify the channel before running the bot.'));
       } finally {
+        signup.dispose();
         window.removeEventListener('message', listener);
       }
     } catch (e) {
@@ -203,7 +188,7 @@ export default function MetaConnect({ onSaved, selectedKind }: { onSaved: () => 
           )}
         </section>
       )}
-      {(!config.data.configured || !config.data.externalEnabled) && (
+      {(!config.data.configured || !(config.data.connectEnabled ?? config.data.externalEnabled)) && (
         <div className="notice"><strong>{t('بانتظار تجهيز الربط','Connection setup pending')}</strong><p>{t('تواصل مع مسؤول المنصة لتجهيز الربط الرسمي. يمكنك استخدام قناة الموقع الآن دون حساب خارجي.','Contact the platform administrator to prepare the official connection. Website chat is available without an external account.')}</p><details><summary>{t('تفاصيل للمسؤول','Administrator details')}</summary>{t(
             'يلزم إعداد تطبيق Meta ومعرّف Embedded Signup وRedirect URI والصلاحيات المعتمدة بواسطة المشغّل.',
             'The operator must configure the Meta app, Embedded Signup configuration, redirect URI and approved permissions.',
@@ -223,7 +208,7 @@ export default function MetaConnect({ onSaved, selectedKind }: { onSaved: () => 
             disabled={
               busy ||
               !config.data.configured ||
-              !config.data.externalEnabled ||
+              !(config.data.connectEnabled ?? config.data.externalEnabled) ||
               (kind === 'whatsapp' && !config.data.embeddedConfigId)
             }
             onClick={() => connect(kind)}

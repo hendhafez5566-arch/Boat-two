@@ -37,6 +37,7 @@ const schema = z.object({
   TRIAL_DAYS: z.coerce.number().default(14),
   PUBLIC_API_URL: z.string().url().default('http://localhost:4000'),
   ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, 'ENCRYPTION_KEY must be 64 hex chars'),
+  META_CONNECT_ENABLED: z.enum(['true', 'false']).default('false'),
   META_APP_ID: z.string().optional(),
   META_EMBEDDED_CONFIG_ID: z.string().optional(),
   META_APP_SECRET: z.string().optional(),

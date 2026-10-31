@@ -30,7 +30,7 @@ import { deriveFlowReference } from '../../../../lib/flow-reference';
 import { channelHref, selectedChannel } from '../../../../lib/channel-context';
 import styles from '../../../../components/flow/editor-shell.module.css';
 import { NavIcon } from '../../../../components/product/NavIcon';
-import { NodeIcon, nodeLabel } from '../../../../components/flow/presentation';
+import { NodeIcon, nodeLabel, editorLabel } from '../../../../components/flow/presentation';
 import FlowNodeView from '../../../../components/flow/FlowNodeView';
 import {
   FlowAnalyticsContext,
@@ -2022,6 +2022,29 @@ function Editor({ id }: { id: string }) {
                     data={inspectorDraft?.id === sel.id ? inspectorDraft.data : sel.data.data}
                     onChange={(data) => setInspectorDraft({ id: sel.id, data })}
                   />
+                  <ConfigDisclosure className="smart-section">
+                    <ConfigSummary>{t('الخطوات التالية', 'Next steps')}</ConfigSummary>
+                    <p className="muted">{t('اختر وجهة كل مسار بدل سحب التوصيلات. تغيير الوجهة يحدّث المسودة.', 'Choose each path destination without dragging. Changing a destination updates the draft.')}</p>
+                    {handlesFor(sel.data.type, sel.data.data).map((handle) => (
+                      <label className="field" key={handle.id}>
+                        {editorLabel(handle.label, language)}
+                        <select
+                          aria-label={`${t('الخطوة التالية', 'Next step')} — ${editorLabel(handle.label, language)}`}
+                          value={edges.find((edge) => edge.source === sel.id && edge.sourceHandle === handle.id)?.target ?? ''}
+                          onChange={(event) => {
+                            if (event.target.value) onConnect({ source: sel.id, sourceHandle: handle.id, target: event.target.value, targetHandle: null });
+                            else {
+                              setEdges((links) => links.filter((edge) => edge.source !== sel.id || edge.sourceHandle !== handle.id));
+                              setDirty(true);
+                            }
+                          }}
+                        >
+                          <option value="">{t('بدون توصيل', 'Not connected')}</option>
+                          {nodes.filter((node) => node.id !== sel.id).map((node) => <option key={node.id} value={node.id}>{stepCaption(node.id)}</option>)}
+                        </select>
+                      </label>
+                    ))}
+                  </ConfigDisclosure>
                 </div>
               ) : (
                 <p className="p-4 text-sm text-gray-500">

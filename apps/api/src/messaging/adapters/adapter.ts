@@ -16,6 +16,7 @@ export class ProviderError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly providerCode?: number,
   ) {
     super(message);
   }
@@ -28,12 +29,16 @@ export async function graphPost(url: string, token: string, body: unknown) {
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(30000),
   });
-  const data = (await res.json().catch(() => ({}))) as { error?: { message?: string } } & Record<
+  const data = (await res.json().catch(() => ({}))) as { error?: { message?: string; code?: number } } & Record<
     string,
     unknown
   >;
-  if (!res.ok)
-    throw new ProviderError(data.error?.message ?? `Graph API error ${res.status}`, res.status);
+  if (!res.ok) {
+    const code = Number.isInteger(data.error?.code) ? data.error!.code : undefined;
+    const kind = code === 190 ? 'authentication' : code === 10 || code === 200 || code === 131005 ? 'permission' : 'request';
+    // Provider descriptions can echo submitted fields. Keep safe codes only.
+    throw new ProviderError(`Meta ${kind} error${code ? ` (#${code})` : ''}; HTTP ${res.status}`, res.status, code);
+  }
   return data;
 }
 

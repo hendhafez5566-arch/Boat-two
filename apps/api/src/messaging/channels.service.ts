@@ -11,6 +11,7 @@ import { DatabaseService } from '../database/database.service';
 import { PlansService } from '../plans/plans.service';
 import { CryptoService } from './crypto.service';
 import { connectionHealth, ConnectionHealth } from './connection-health';
+import { inspectMetaMessagingPermission, MessagingAuthorization } from './meta-messaging-inspection';
 import { inspectWhatsAppSubscription } from './whatsapp-subscription';
 import { GRAPH, ProviderError } from './adapters/adapter';
 import { telegramCall } from './adapters/telegram.adapter';
@@ -108,7 +109,18 @@ export class ChannelsService {
     const token = credentials.accessToken || credentials.pageAccessToken;
     const checkedAt = new Date().toISOString();
     let health: ConnectionHealth;
+    let authorization: (MessagingAuthorization & { checkedAt: string }) | undefined;
     try {
+      if (row.type === 'whatsapp') {
+        authorization = { ...await inspectMetaMessagingPermission(token ?? ''), checkedAt };
+        if (authorization.status !== 'granted') {
+          health = { state: authorization.status === 'invalid_token' ? 'expired' : 'needs_action', checkedAt,
+            reason: authorization.status === 'invalid_token' ? 'authorization_expired' : 'messaging_permission_required' };
+        }
+      }
+      if (authorization && authorization.status !== 'granted') {
+        // Do not mark a phone-readable token as able to send messages.
+      } else
       if (row.type === 'telegram') {
         const account=await telegramCall(credentials.botToken,'getMe');
         health={state:String(account.id)===row.external_id?'connected':'needs_action',checkedAt,reason:String(account.id)===row.external_id?'provider_verified':'provider_rejected'};
@@ -177,11 +189,51 @@ export class ChannelsService {
         : { state: 'needs_action', checkedAt, reason: e instanceof ProviderError && e.status < 500 ? 'provider_rejected' : 'provider_unreachable' };
     }
     const saved = await this.db.withTenant(tenantId, (c) => c.query(
-      `UPDATE channels SET settings=jsonb_set(settings,'{connectionHealth}',$2::jsonb) WHERE id=$1 AND status='active' AND credentials_enc IS NOT DISTINCT FROM $3`,
-      [id, JSON.stringify(health), row.credentials_enc],
+      `UPDATE channels SET settings=jsonb_set(settings,'{connectionHealth}',$2::jsonb) || $4::jsonb WHERE id=$1 AND status='active' AND credentials_enc IS NOT DISTINCT FROM $3`,
+      [id, JSON.stringify(health!), row.credentials_enc, JSON.stringify(authorization ? { metaAuthorization: authorization } : {})],
     ));
     if (!saved.rowCount) return {state:'needs_action',checkedAt:null,reason:'verification_required'};
-    return health;
+    return connectionHealth({ ...row, settings: { ...row.settings, connectionHealth: health!, ...(authorization ? { metaAuthorization: authorization } : {}) } });
+  }
+
+  /** Only called after the owner completes Embedded Signup for these assets.
+   * Never registers a phone or overrides an existing callback destination. */
+  async completeWhatsAppSubscription(tenantId: string, id: string): Promise<boolean> {
+    if (env.META_CONNECT_ENABLED !== 'true' && env.EXTERNAL_DELIVERY_ENABLED !== 'true') return false;
+    const row = await this.db.withTenant(tenantId, async (c) =>
+      (await c.query("SELECT * FROM channels WHERE id=$1 AND type='whatsapp' AND status='active'", [id])).rows[0]);
+    if (!row) throw new NotFoundException('WhatsApp channel not found');
+    const credentials = this.credentials(row);
+    if (!credentials.wabaId || !env.META_APP_ID) return false;
+    try {
+      const url = `${GRAPH}/${encodeURIComponent(credentials.wabaId)}/subscribed_apps`;
+      const options = { headers: { Authorization: `Bearer ${credentials.accessToken}` }, signal: AbortSignal.timeout(10000) };
+      const response = await fetch(url, options);
+      if (!response.ok) return false;
+      const subscription = inspectWhatsAppSubscription(await response.json(), env.META_APP_ID,
+        `${env.PUBLIC_API_URL.replace(/\/$/, '')}/webhooks/whatsapp`);
+      if (subscription === 'subscribed') return true;
+      if (subscription !== 'missing') return false;
+      const attached = await fetch(url, { ...options, method: 'POST', signal: AbortSignal.timeout(10000) });
+      const result = await attached.json() as { success?: boolean };
+      return attached.ok && result.success === true;
+    } catch { return false; }
+  }
+
+  /** Sanitized status only. A concurrent credential rotation invalidates this check. */
+  async inspectAuthorization(tenantId: string, id: string) {
+    const row = await this.db.withTenant(tenantId, async (c) =>
+      (await c.query("SELECT * FROM channels WHERE id=$1 AND type='whatsapp'", [id])).rows[0]);
+    if (!row) throw new NotFoundException('WhatsApp channel not found');
+    const auth = await inspectMetaMessagingPermission(this.credentials(row).accessToken ?? '');
+    const checkedAt = new Date().toISOString();
+    const saved = await this.db.withTenant(tenantId, (c) => c.query(
+      `UPDATE channels SET settings=jsonb_set(settings,'{metaAuthorization}',$2::jsonb)
+       WHERE id=$1 AND credentials_enc IS NOT DISTINCT FROM $3 RETURNING settings`,
+      [id, JSON.stringify({ ...auth, checkedAt }), row.credentials_enc],
+    ));
+    if (!saved.rowCount) throw new ConflictException('Credentials changed during verification; check again');
+    return { token: auth, checkedAt, connectionHealth: connectionHealth({ ...row, settings: saved.rows[0].settings }) };
   }
 
   /** من الـ webhook أو الويدجت: بدون سياق شركة */
@@ -268,7 +320,7 @@ export class ChannelsService {
     });
   }
 
-  reconnect(tenantId: string, id: string, accessToken: string, wabaId?: string) {
+  async reconnect(tenantId: string, id: string, accessToken: string, wabaId?: string) {
     return this.db.withTenant(tenantId, async (c) => {
       const row = (
         await c.query('SELECT type,external_id,credentials_enc FROM channels WHERE id=$1 FOR UPDATE', [id])
@@ -277,12 +329,29 @@ export class ChannelsService {
       if (row.type === 'web')
         throw new BadRequestException('Website channels do not use provider tokens');
       const credentials = this.credentials(row as ChannelRow);
+      let authorization: (MessagingAuthorization & { checkedAt: string }) | undefined;
+      if (row.type === 'whatsapp') {
+        authorization = { ...await inspectMetaMessagingPermission(accessToken), checkedAt: new Date().toISOString() };
+        if (authorization.status !== 'granted')
+          throw new BadRequestException('Meta token is invalid, expired, belongs to another app, or lacks messaging permission');
+        const accountId = wabaId ?? credentials.wabaId;
+        if (!accountId) throw new BadRequestException('WABA ID required to verify the same phone number');
+        if (credentials.wabaId && accountId !== credentials.wabaId)
+          throw new BadRequestException('Token refresh cannot change the connected WABA');
+        const response = await fetch(`${GRAPH}/${encodeURIComponent(accountId)}/phone_numbers?fields=id&limit=100`, {
+          headers: { Authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(10000),
+        });
+        const data = await response.json() as { data?: { id?: string }[] };
+        if (!response.ok || !Array.isArray(data.data) || !data.data.some((p) => p.id === row.external_id))
+          throw new BadRequestException('Meta token must have access to this exact phone number and WABA');
+      }
       if(row.type==='telegram'&&(!/^\d{5,20}:[A-Za-z0-9_-]{20,100}$/.test(accessToken)||accessToken.split(':')[0]!==row.external_id))throw new BadRequestException('Token must belong to the same Telegram bot');
       credentials[row.type === 'telegram'?'botToken':row.type === 'whatsapp' ? 'accessToken' : 'pageAccessToken'] = accessToken;
       if (row.type === 'whatsapp' && wabaId) credentials.wabaId = wabaId;
-      await c.query("UPDATE channels SET credentials_enc=$2,status='active',settings=settings-'connectionHealth' WHERE id=$1", [
+      await c.query("UPDATE channels SET credentials_enc=$2,status='active',settings=(settings-'connectionHealth'-'metaAuthorization') || $3::jsonb WHERE id=$1", [
         id,
         this.crypto.encrypt(credentials),
+        JSON.stringify(authorization ? { metaAuthorization: authorization } : {}),
       ]);
       return { saved: true, verified: false };
     });

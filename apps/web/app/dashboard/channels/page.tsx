@@ -28,6 +28,9 @@ type WhatsAppAuthDiagnostics = {
   token: {
     status: 'granted' | 'missing_permission' | 'invalid_token' | 'wrong_app' | 'unknown';
     expiresAt: string | null;
+    dataAccessExpiresAt?: string | null;
+    managementGranted?: boolean;
+    tokenType?: string | null;
     reason: string;
   };
   recentFailures: {
@@ -38,6 +41,7 @@ type WhatsAppAuthDiagnostics = {
     code: string | null;
   }[];
   checkedAt: string;
+  connectionHealth?: Channel['connectionHealth'];
 };
 
 type Channel = {
@@ -136,6 +140,7 @@ export default function Channels() {
     try {
       const result = await api<WhatsAppAuthDiagnostics>(`/channels/${c.id}/whatsapp-auth-diagnostics`);
       setAuthDiagnostics((prev) => ({ ...prev, [c.id]: result }));
+      if (result.connectionHealth) setItems((rows) => rows.map((row) => row.id === c.id ? { ...row, connectionHealth: result.connectionHealth } : row));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -162,8 +167,8 @@ export default function Channels() {
         return next;
       });
       setTokenNotice(t(
-        'تم حفظ التوكين الجديد على نفس قناة واتساب، بدون إعادة Coexistence. اضغط فحص اتصال Meta ثم فحص صلاحيات الإرسال.',
-        'The new token was saved on the same WhatsApp channel without reconnecting Coexistence. Verify provider and messaging permission next.',
+        'تم التحقق من صلاحية التوكين ووصوله لنفس رقم واتساب وحفظه. افحص اتصال المزود للتأكد من اشتراك Webhook. لا تُعتبر هذه الخطوة اختبار إرسال حي.',
+        'The token was validated for messaging and this exact phone, then saved. Verify the webhook subscription next. This is not a live delivery test.',
       ));
       await load();
     } catch (e) {
@@ -374,6 +379,9 @@ export default function Channels() {
                     {authDiagnostics[c.id].token.expiresAt && (
                       <p>{t('انتهاء التوكين', 'Token expiry')}: {new Date(authDiagnostics[c.id].token.expiresAt!).toLocaleString()}</p>
                     )}
+                    {authDiagnostics[c.id].token.managementGranted === false && <p className="notice">{t('صلاحية إدارة حساب واتساب غير موجودة؛ قد يتعذر فحص اشتراك Webhook.', 'WhatsApp management permission is missing; webhook subscription checks may fail.')}</p>}
+                    {authDiagnostics[c.id].token.tokenType === 'USER' && <p className="notice">{t('هذا توكين مستخدم. استخدم تفويض Embedded Signup أو System User المناسب للتشغيل المستمر.', 'This is a user token. Use Embedded Signup authorization or the appropriate System User for ongoing operation.')}</p>}
+                    {authDiagnostics[c.id].token.status === 'granted' && !authDiagnostics[c.id].token.expiresAt && <p>{t('لم تُبلغ Meta عن موعد انتهاء للتوكين؛ يظل قابلاً للإلغاء.', 'Meta reported no scheduled token expiry; access can still be revoked.')}</p>}
                     <p>{t('أخطاء الإرسال المسجلة آخر 6 ساعات', 'Outbound failures in last 6h')}: {authDiagnostics[c.id].recentFailures.length}</p>
                     {authDiagnostics[c.id].recentFailures.slice(0, 5).map((failure, i) => (
                       <p key={i}>
@@ -445,6 +453,8 @@ export default function Channels() {
                         {f.draftSteps > f.publishedSteps && <p className="notice">{t('المسودة فيها خطوات أكثر من المنشور. احفظ وانشر أحدث نسخة من محرر البوت.', 'The draft has more steps than the published version. Save and publish the latest version in the bot editor.')}</p>}
                       </div>
                     ))}
+                    {botDiagnostics[c.id].activeConversationsHuman > 0 && <p className="notice">{t('المحادثات المستلمة بواسطة موظف لا يرد عليها البوت. أعد محادثة التجربة للبوت من Inbox عند انتهاء الموظف.', 'The bot does not reply in human-owned conversations. Return the test conversation to the bot from Inbox when the agent is finished.')}</p>}
+                    {botDiagnostics[c.id].previewBotEnabled && botDiagnostics[c.id].flowTriggers.filter((f) => f.types.includes('first_message')).length > 1 && <p className="notice">{t('يوجد أكثر من بوت ترحيب لهذه القناة؛ إعادة التشغيل التجريبية الآمنة تتطلب بوت ترحيب واحدًا. راجع قنوات تشغيل البوتات قبل التجربة.', 'More than one welcome flow matches this channel. Safe preview restart requires one welcome flow. Review flow channel bindings before testing.')}</p>}
                     {!botDiagnostics[c.id].publishedFlowCount && (
                       <p className="notice">{t('انشر بوتًا واربطه بقناة واتساب. ليس مطلوبًا كتابة أي رسالة اختبار خاصة.', 'Publish a flow linked to WhatsApp. No special test keyword is needed.')}</p>
                     )}
@@ -457,6 +467,9 @@ export default function Channels() {
                 {
                   (
                     {
+                      authorization_expiring: t('تفويض Meta ينتهي خلال 7 أيام. جدّد التفويض قبل توقف الإرسال.', 'Meta authorization expires within 7 days. Renew it before delivery stops.'),
+                      messaging_permission_required: t('تعذّر إثبات صلاحية إرسال واتساب. افحص صلاحيات Meta.', 'WhatsApp messaging permission is not verified. Check Meta authorization.'),
+                      authorization_unavailable: t('تعذر التحقق من تفويض Meta الآن. أعد الفحص قبل اعتماد الاتصال.', 'Meta authorization could not be verified. Check again before relying on the connection.'),
                       provider_verified: t(
                         'تم التحقق من الحساب لدى المزود.',
                         'Provider account verified.',

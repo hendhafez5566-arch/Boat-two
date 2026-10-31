@@ -4,6 +4,9 @@ import { GRAPH } from './adapters/adapter';
 export type MessagingAuthorization = {
   status: 'granted' | 'missing_permission' | 'invalid_token' | 'wrong_app' | 'unknown';
   expiresAt: string | null;
+  dataAccessExpiresAt?: string | null;
+  managementGranted?: boolean;
+  tokenType?: string | null;
   reason: 'valid' | 'no_messaging_scope' | 'invalid' | 'wrong_app' | 'unavailable';
 };
 
@@ -12,7 +15,9 @@ export async function inspectMetaMessagingPermission(
   token: string,
 ): Promise<MessagingAuthorization> {
   const unknown: MessagingAuthorization = {
-    status: 'unknown', expiresAt: null, reason: 'unavailable',
+    status: 'unknown',
+    expiresAt: null,
+    reason: 'unavailable',
   };
   if (!token || !env.META_APP_ID || !env.META_APP_SECRET) return unknown;
   try {
@@ -23,13 +28,15 @@ export async function inspectMetaMessagingPermission(
       signal: AbortSignal.timeout(8_000),
     });
     if (!response.ok) return unknown;
-    const body = await response.json() as {
+    const body = (await response.json()) as {
       data?: {
         app_id?: string;
         is_valid?: boolean;
         scopes?: string[];
         granular_scopes?: { scope: string }[];
         expires_at?: number;
+        data_access_expires_at?: number;
+        type?: string;
       };
     };
     const data = body.data;
@@ -38,29 +45,49 @@ export async function inspectMetaMessagingPermission(
       typeof data.expires_at === 'number' && data.expires_at > 0
         ? new Date(data.expires_at * 1000).toISOString()
         : null;
-    if (!data.is_valid)
-      return { status: 'invalid_token', expiresAt, reason: 'invalid' };
-    if (data.app_id && data.app_id !== env.META_APP_ID)
-      return { status: 'wrong_app', expiresAt, reason: 'wrong_app' };
+    const dataAccessExpiresAt =
+      typeof data.data_access_expires_at === 'number' && data.data_access_expires_at > 0
+        ? new Date(data.data_access_expires_at * 1000).toISOString()
+        : null;
+    const details = {
+      expiresAt,
+      dataAccessExpiresAt,
+      tokenType: ['USER', 'SYSTEM_USER', 'PAGE'].includes(data.type ?? '') ? data.type! : null,
+    };
+    if (
+      !data.is_valid ||
+      [expiresAt, dataAccessExpiresAt].some((time) => time && Date.parse(time) <= Date.now())
+    )
+      return { status: 'invalid_token', ...details, reason: 'invalid' };
+    if (!data.app_id) return { ...unknown, ...details };
+    if (data.app_id !== env.META_APP_ID)
+      return { status: 'wrong_app', ...details, reason: 'wrong_app' };
     const scopes = new Set([
       ...(Array.isArray(data.scopes) ? data.scopes : []),
-      ...(Array.isArray(data.granular_scopes)
-        ? data.granular_scopes.map((x) => x.scope)
-        : []),
+      ...(Array.isArray(data.granular_scopes) ? data.granular_scopes.map((x) => x.scope) : []),
     ]);
     if (!Array.isArray(data.scopes) && !Array.isArray(data.granular_scopes))
-      return { ...unknown, expiresAt };
+      return { ...unknown, ...details };
     return scopes.has('whatsapp_business_messaging')
-      ? { status: 'granted', expiresAt, reason: 'valid' }
-      : { status: 'missing_permission', expiresAt, reason: 'no_messaging_scope' };
+      ? {
+          status: 'granted',
+          ...details,
+          managementGranted: scopes.has('whatsapp_business_management'),
+          reason: 'valid',
+        }
+      : {
+          status: 'missing_permission',
+          ...details,
+          managementGranted: scopes.has('whatsapp_business_management'),
+          reason: 'no_messaging_scope',
+        };
   } catch {
     return unknown;
   }
 }
 
 export function classifyOutboundFailure(reason: string): {
-  category: 'authentication' | 'permission' | 'provider_limit' |
-    'delivery_blocked' | 'other';
+  category: 'authentication' | 'permission' | 'provider_limit' | 'delivery_blocked' | 'other';
   code: string | null;
 } {
   const value = reason.slice(0, 450);
