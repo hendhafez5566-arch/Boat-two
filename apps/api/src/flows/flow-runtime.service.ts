@@ -266,10 +266,19 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
               "SELECT flow_id FROM flow_sessions WHERE conversation_id=$1 ORDER BY created_at DESC LIMIT 1",
               [e.conversationId],
             )).rows[0] as { flow_id: string } | undefined;
-            const previewFlow = selectPreviewRestartFlow(
-              published, conv.channel_id, previousSession?.flow_id,
-            );
+            const settings = conv.channel_settings as Record<string, unknown> | null;
+            const explicitlySelected = typeof settings?.previewTestFlowId === 'string'
+              ? settings.previewTestFlowId : null;
+            // A chosen preview flow wins over a previously used lead-capture
+            // bot, regardless of its first-message trigger or other flows.
+            const previewFlow = explicitlySelected
+              ? published.find((flow) => flow.flow_id === explicitlySelected) ?? null
+              : selectPreviewRestartFlow(published, conv.channel_id, previousSession?.flow_id);
             if (previewFlow) return { conv, previewFlow };
+            if (explicitlySelected) {
+              this.log.warn('Selected preview WhatsApp bot is no longer published for this channel');
+              return { conv, selectedPreviewUnavailable: true };
+            }
           }
         }
       }
@@ -342,6 +351,8 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       channelId: loaded.conv.channel_id,
       ctx,
     };
+
+    if ('selectedPreviewUnavailable' in loaded && loaded.selectedPreviewUnavailable) return;
 
     if ('previewFlow' in loaded && loaded.previewFlow) {
       this.log.log('Scoped WhatsApp QA inbound started the published welcome flow');
