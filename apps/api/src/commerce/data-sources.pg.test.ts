@@ -87,6 +87,28 @@ test('smart catalog real PostgreSQL RLS, source lifecycle and business acceptanc
  ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;ALTER TABLE contacts FORCE ROW LEVEL SECURITY;CREATE POLICY tenant_isolation ON contacts USING(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);`);
     let selectedId = '';
     await t.test(
+      'preview reports hidden rows outside the first twenty customer samples',
+      async () => {
+        const large = [
+          rows[0],
+          ...Array.from({ length: 22 }, (_, index) => [
+            'bulk-' + index,
+            'Item ' + index,
+            'General',
+            index === 21 ? 'false' : 'true',
+            '100',
+            '',
+          ]),
+        ];
+        const preview = await service.preview(tenant, source.id, large);
+        assert.equal(preview.total, 22);
+        assert.equal(preview.items.length, 20);
+        assert.ok(preview.items.every((item) => item.visible));
+        assert.equal(preview.hidden, 1);
+      },
+    );
+
+    await t.test(
       'tourism initial import, flexible prices, stable identity and repeated sync',
       async () => {
         let p: any = await service.preview(tenant, source.id, rows);

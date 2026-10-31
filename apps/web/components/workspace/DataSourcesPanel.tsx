@@ -30,6 +30,7 @@ type Preview = {
   previewId?: string;
   items: Item[];
   total: number;
+  hidden?: number;
   missing: number;
   errors: { row: number; message: string }[];
 };
@@ -49,7 +50,11 @@ const mappingKey = (m: Mapping) =>
 const blank: Mapping = { id: '', name: '', fields: [] };
 export default function DataSourcesPanel({
   onApplied,
-}: { onApplied?: (sourceId: string) => void } = {}) {
+  onDraftStateChange,
+}: {
+  onApplied?: (sourceId: string) => void;
+  onDraftStateChange?: (state: { dirty: boolean; busy: boolean }) => void;
+} = {}) {
   const { t, language } = useLocale();
   const [sources, setSources] = useState<Source[]>([]),
     [editing, setEditing] = useState<Source | null>(null),
@@ -92,6 +97,20 @@ export default function DataSourcesPanel({
         (connection !== editing.connection_id ||
           spreadsheet !== editing.spreadsheet_id ||
           sheet !== editing.sheet_range)));
+  const unsaved = dirty || !!file || (!editing && !!(name || headers.length || spreadsheet));
+  useEffect(() => {
+    onDraftStateChange?.({ dirty: unsaved, busy });
+  }, [unsaved, busy, onDraftStateChange]);
+  useEffect(() => {
+    const protect = (event: BeforeUnloadEvent) => {
+      if (unsaved || busy) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', protect);
+    return () => window.removeEventListener('beforeunload', protect);
+  }, [unsaved, busy]);
   useEffect(() => {
     setPreview(null);
   }, [mapping, name, kind, connection, spreadsheet, sheet, auto, ai]);
@@ -115,6 +134,17 @@ export default function DataSourcesPanel({
     }
   }
   function select(s: Source | null) {
+    if (busy) return;
+    if (
+      unsaved &&
+      !window.confirm(
+        t(
+          'توجد بيانات مصدر لم تُطبق. هل تريد تجاهلها؟',
+          'There are unapplied source changes. Discard them?',
+        ),
+      )
+    )
+      return;
     setEditing(s);
     setName(s?.name ?? '');
     setKind(s?.kind ?? 'file');
@@ -248,6 +278,8 @@ export default function DataSourcesPanel({
     setCategories(await api('/commerce/sources/' + editing.id + '/categories'));
     setRuns(await api('/commerce/sources/' + editing.id + '/runs'));
   }
+  const hiddenCount =
+    preview?.hidden ?? preview?.items.filter((item) => item.visible === false).length ?? 0;
   const labels: [keyof Omit<Mapping, 'fields'>, string, string][] = [
     ['id', 'المعرف الثابت', 'Stable item key'],
     ['name', 'الاسم', 'Name'],
@@ -283,6 +315,7 @@ export default function DataSourcesPanel({
           {t('المصدر', 'Source')}
           <select
             aria-label={t('المصدر', 'Source')}
+            disabled={busy}
             value={editing?.id ?? ''}
             onChange={(e) => select(sources.find((s) => s.id === e.target.value) ?? null)}
           >
@@ -294,7 +327,7 @@ export default function DataSourcesPanel({
             ))}
           </select>
         </label>
-        <button className="btn" onClick={() => select(null)}>
+        <button className="btn" disabled={busy} onClick={() => select(null)}>
           {t('إضافة مصدر', 'Add source')}
         </button>
       </div>
@@ -685,6 +718,7 @@ export default function DataSourcesPanel({
         <section aria-label={t('معاينة التحديث', 'Update preview')}>
           <h3>
             {t('معاينة التحديث', 'Update preview')} — {preview.total}
+            {hiddenCount > 0 && ` · ${hiddenCount} ${t('عنصر مخفي', 'hidden item(s)')}`}
           </h3>
           {preview.errors.map((e, i) => (
             <p role="alert" key={i}>
@@ -723,7 +757,7 @@ export default function DataSourcesPanel({
                   'I reviewed the complete file and want to archive missing rows',
                 )}
               </label>
-              {preview.items.some((item) => item.visible === false) && (
+              {hiddenCount > 0 && (
                 <label>
                   <input
                     type="checkbox"
@@ -738,10 +772,7 @@ export default function DataSourcesPanel({
               )}
               <button
                 className="btn primary"
-                disabled={
-                  busy ||
-                  (preview.items.some((item) => item.visible === false) && !visibilityConfirmed)
-                }
+                disabled={busy || (hiddenCount > 0 && !visibilityConfirmed)}
                 onClick={() =>
                   void act(async () => {
                     await api('/commerce/sources/' + editing!.id + '/apply', {
@@ -752,6 +783,7 @@ export default function DataSourcesPanel({
                       }),
                     });
                     setPreview(null);
+                    setFile(null);
                     await refresh();
                     const latest = await api<Source[]>('/commerce/sources');
                     setEditing(latest.find((s) => s.id === editing!.id) ?? null);

@@ -61,7 +61,9 @@ export default function Campaigns() {
     const read = () => {
       const value = new URLSearchParams(window.location.search).get('channel');
       setPlatform(
-        value && ['whatsapp', 'sms', 'facebook', 'telegram'].includes(value) ? value : 'whatsapp',
+        value && ['whatsapp', 'sms', 'facebook', 'telegram', 'instagram', 'web'].includes(value)
+          ? value
+          : 'whatsapp',
       );
     };
     read();
@@ -70,8 +72,11 @@ export default function Campaigns() {
   }, []);
   useEffect(() => {
     if (new URLSearchParams(window.location.search).has('channel')) return;
-    const selected = channels.data.find((channel) => channel.id === channelId);
-    if (selected && ['whatsapp', 'facebook', 'telegram'].includes(selected.type))
+    const selected = channels.data.find((channel) => channel.id === channelId) || channels.data[0];
+    if (
+      selected &&
+      ['whatsapp', 'facebook', 'telegram', 'instagram', 'web'].includes(selected.type)
+    )
       setPlatform(selected.type);
   }, [channelId, channels.data]);
   function selectPlatform(value: string) {
@@ -320,7 +325,15 @@ export default function Campaigns() {
       ) : (
         <>
           <nav className={styles.channelTabs} aria-label={t('قنوات البث', 'Broadcast channels')}>
-            {['whatsapp', 'sms', 'facebook', 'telegram'].map((type) => (
+            {[
+              'whatsapp',
+              'sms',
+              'facebook',
+              'telegram',
+              ...['instagram', 'web'].filter((type) =>
+                channels.data.some((channel) => channel.type === type),
+              ),
+            ].map((type) => (
               <button
                 type="button"
                 key={type}
@@ -334,7 +347,11 @@ export default function Campaigns() {
                     ? 'SMS'
                     : type === 'facebook'
                       ? 'Facebook'
-                      : 'Telegram'}
+                      : type === 'telegram'
+                        ? 'Telegram'
+                        : type === 'instagram'
+                          ? 'Instagram'
+                          : 'Webchat'}
               </button>
             ))}
           </nav>

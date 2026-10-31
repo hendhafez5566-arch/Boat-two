@@ -1,0 +1,101 @@
+// Full AppModule acceptance sandbox. No route/controller/service mocks.
+// Only DatabaseService transport is adapted to embedded PostgreSQL; tenant RLS is enforced.
+import { createRequire } from 'node:module';
+import { readFileSync, readdirSync } from 'node:fs';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { resolve } from 'node:path';
+const local = createRequire(resolve('apps/api/package.json'));
+Object.assign(process.env, {
+  NODE_ENV: 'test',
+  API_PORT: '4000',
+  APP_URL: 'http://localhost:3000',
+  PUBLIC_API_URL: 'http://localhost:4000',
+  DATABASE_URL: 'postgres://app_user:local-only@localhost/isolated',
+  REDIS_URL: 'redis://localhost:6379',
+  JWT_SECRET: 'isolated-full-app-secret-never-used-externally',
+  ENCRYPTION_KEY: '0'.repeat(64),
+  EXTERNAL_DELIVERY_ENABLED: 'false',
+  EMAIL_DELIVERY_ENABLED: 'false',
+  AI_PROVIDER_CALLS_ENABLED: 'false',
+  BOAT_PREVIEW_ONLY: 'true',
+  WHATSAPP_PREVIEW_BOT_ENABLED: 'false',
+});
+(async () => {
+  const { PGlite } = local('@electric-sql/pglite');
+  const { pgcrypto } = local('@electric-sql/pglite/contrib/pgcrypto');
+  const { vector } = local(process.env.BOAT_QA_VECTOR_MODULE || '@electric-sql/pglite-pgvector');
+  const pg = new PGlite({ extensions: { vector, pgcrypto } });
+  await pg.waitReady;
+  await pg.exec(
+    'CREATE ROLE app_user NOLOGIN NOSUPERUSER NOBYPASSRLS; CREATE TABLE schema_migrations(name text PRIMARY KEY,applied_at timestamptz DEFAULT now());',
+  );
+  const dir = 'apps/api/src/database/migrations';
+  let count = 0;
+  for (const name of readdirSync(dir)
+    .filter((n) => n.endsWith('.sql'))
+    .sort()) {
+    try {
+      await pg.transaction(async (tx) => {
+        await tx.exec(readFileSync(dir + '/' + name, 'utf8'));
+        await tx.query('INSERT INTO schema_migrations(name) VALUES($1)', [name]);
+      });
+      count++;
+    } catch (e) {
+      throw new Error('Migration ' + name + ': ' + e.message);
+    }
+  }
+  console.log('FULL_SCHEMA_MIGRATIONS', count);
+  local('reflect-metadata');
+  const { DatabaseService } = local('./dist/database/database.service');
+  const { requestContext } = local('./dist/common/request-context');
+  const scope = new AsyncLocalStorage();
+  const wrap = (tx) => ({
+    query: async (sql, args = []) => {
+      const r = args.length
+        ? await tx.query(sql, args)
+        : await tx.exec(sql).then((rs) => rs[rs.length - 1] || { rows: [], affectedRows: 0 });
+      return { ...r, rowCount: r.affectedRows || r.rows.length };
+    },
+  });
+  const transaction = (tenant, fn) =>
+    pg.transaction(async (tx) => {
+      await tx.exec('SET LOCAL ROLE app_user');
+      if (tenant) await tx.query("SELECT set_config('app.tenant_id',$1,true)", [tenant]);
+      const actor = requestContext.getStore()?.user;
+      if (actor?.tenantId === tenant)
+        await tx.query("SELECT set_config('app.actor_id',$1,true)", [actor.userId]);
+      const client = wrap(tx);
+      return scope.run({ tenant, client }, () => fn(client));
+    });
+  DatabaseService.prototype.query = function (sql, args = []) {
+    const active = scope.getStore();
+    return active ? active.client.query(sql, args) : transaction(null, (c) => c.query(sql, args));
+  };
+  DatabaseService.prototype.withTenant = function (tenant, fn) {
+    const active = scope.getStore();
+    if (active) {
+      if (active.tenant !== tenant) throw Error('Cross-tenant transaction');
+      return fn(active.client);
+    }
+    return transaction(tenant, fn);
+  };
+  DatabaseService.prototype.detached = DatabaseService.prototype.withTenant;
+  const { NestFactory } = local('@nestjs/core');
+  const { AppModule } = local('./dist/app.module');
+  const app = await NestFactory.create(AppModule, { logger: ['error'], rawBody: true });
+  app.useBodyParser('json', { limit: '1mb' });
+  app.use((req, res, next) => requestContext.run(req, next));
+  app.enableCors();
+  await app.listen(4000, '127.0.0.1');
+  console.log('FULL_APP_READY 4000');
+  const stop = async () => {
+    await app.close();
+    await pg.close();
+    process.exit(0);
+  };
+  process.on('SIGTERM', stop);
+  process.on('SIGINT', stop);
+})().catch((e) => {
+  console.error(e);
+  process.exitCode = 1;
+});

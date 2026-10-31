@@ -20,6 +20,7 @@ export default function DynamicCatalogSettings({
 }) {
   const { t } = useLocale();
   const [manageOpen, setManageOpen] = useState(false);
+  const [sourceState, setSourceState] = useState({ dirty: false, busy: false });
   const [sources, setSources] = useState<Source[]>([]),
     [categories, setCategories] = useState<{ name: string; count: number }[]>([]),
     [error, setError] = useState('');
@@ -38,11 +39,19 @@ export default function DynamicCatalogSettings({
     void refreshSources();
   }, []);
   useEffect(() => {
+    let active = true;
     setCategories([]);
     if (data.sourceId)
       api<typeof categories>('/commerce/sources/' + data.sourceId + '/categories')
-        .then(setCategories)
-        .catch((e) => setError(e.message));
+        .then((next) => {
+          if (active) setCategories(next);
+        })
+        .catch((e) => {
+          if (active) setError(e.message);
+        });
+    return () => {
+      active = false;
+    };
   }, [data.sourceId]);
   return (
     <section>
@@ -70,6 +79,17 @@ export default function DynamicCatalogSettings({
       <Dialog
         open={manageOpen}
         onClose={() => {
+          if (sourceState.busy) return;
+          if (
+            sourceState.dirty &&
+            !window.confirm(
+              t(
+                'توجد بيانات مصدر لم تُطبق. هل تريد إغلاقها؟ مسودة البوت محفوظة داخل المحرر.',
+                'There are unapplied source changes. Close them? Your bot draft stays in the editor.',
+              ),
+            )
+          )
+            return;
           setManageOpen(false);
           void refreshSources();
         }}
@@ -78,9 +98,15 @@ export default function DynamicCatalogSettings({
       >
         {manageOpen && (
           <DataSourcesPanel
+            onDraftStateChange={setSourceState}
             onApplied={async (sourceId) => {
               if (await refreshSources()) {
-                set({ sourceId, category: '', fields: [], native: false, selectable: true });
+                set({
+                  sourceId,
+                  ...(sourceId !== data.sourceId ? { category: '', fields: [] } : {}),
+                  native: false,
+                  selectable: true,
+                });
                 setManageOpen(false);
               }
             }}
