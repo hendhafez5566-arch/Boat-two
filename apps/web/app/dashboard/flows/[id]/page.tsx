@@ -1094,7 +1094,9 @@ function Editor({ id }: { id: string }) {
       setMsg(`${t('تم النشر', 'Published')} v${r.version}`);
       setPublishOutcome({
         kind: 'success',
-        text: `${t('تم نشر نسخة البوت', 'Bot version published')} v${r.version}. ${t('تأكد من تفعيل القناة قبل استقبال محادثات العملاء.', 'Make sure a channel is active before expecting live customer conversations.')}`,
+        text: `${t('تم نشر نسخة البوت', 'Bot version published')} v${r.version}. ${r.activatedChannelCount > 0
+          ? t(`البوت ده أصبح النشط على ${r.activatedChannelCount} قناة مرتبطة. الرسائل الجديدة هتروح له مباشرة.`, `This bot is now active for ${r.activatedChannelCount} linked channel(s). New messages will use it.`)
+          : t('لم تتوفر قناة مرتبطة للتفعيل. راجع ربط القنوات.', 'No linked channels were found; review channel bindings.')}`,
       });
     } catch (e: any) {
       if (latest.current === submitted && e.details?.errors) {
