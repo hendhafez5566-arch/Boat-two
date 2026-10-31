@@ -1,5 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
+import DataSourcesPanel from '../workspace/DataSourcesPanel';
+import { Dialog } from '../product/ProductUI';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 type Source = { id: string; name: string; mapping: { fields: { label: string }[] } };
@@ -17,13 +19,23 @@ export default function DynamicCatalogSettings({
   set: (v: Record<string, unknown>) => void;
 }) {
   const { t } = useLocale();
+  const [manageOpen, setManageOpen] = useState(false);
   const [sources, setSources] = useState<Source[]>([]),
     [categories, setCategories] = useState<{ name: string; count: number }[]>([]),
     [error, setError] = useState('');
+  async function refreshSources() {
+    setError('');
+    try {
+      const next = await api<Source[]>('/commerce/sources');
+      setSources(next);
+      return true;
+    } catch (e) {
+      setError((e as Error).message);
+      return false;
+    }
+  }
   useEffect(() => {
-    api<Source[]>('/commerce/sources')
-      .then(setSources)
-      .catch((e) => setError(e.message));
+    void refreshSources();
   }, []);
   useEffect(() => {
     setCategories([]);
@@ -52,11 +64,29 @@ export default function DynamicCatalogSettings({
           </option>
         </select>
       </label>
-      {!sources.length && (
-        <a href="/dashboard/commerce" target="_blank" rel="noopener noreferrer">
-          {t('أضف مصدر بيانات أولًا', 'Add a data source first')}
-        </a>
-      )}
+      <button type="button" className="btn" onClick={() => setManageOpen(true)}>
+        {t('إضافة أو تحديث مصدر البيانات', 'Add or update a data source')}
+      </button>
+      <Dialog
+        open={manageOpen}
+        onClose={() => {
+          setManageOpen(false);
+          void refreshSources();
+        }}
+        title={t('كتالوج البوت', 'Bot catalog')}
+        className="catalog-source-dialog"
+      >
+        {manageOpen && (
+          <DataSourcesPanel
+            onApplied={async (sourceId) => {
+              if (await refreshSources()) {
+                set({ sourceId, category: '', fields: [], native: false, selectable: true });
+                setManageOpen(false);
+              }
+            }}
+          />
+        )}
+      </Dialog>
       {error && <p role="alert">{error}</p>}
       {data.sourceId && (
         <>

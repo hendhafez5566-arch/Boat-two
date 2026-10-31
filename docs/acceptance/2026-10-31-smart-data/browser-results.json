@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "screenshots": 8,
+  "checks": [
+    "Arabic desktop upload/map/preview/apply",
+    "update price/add/hide without changing source",
+    "owner/agent/anonymous/two-tenant API roles",
+    "Arabic mobile no overflow",
+    "English mobile LTR no overflow",
+    "English desktop",
+    "real flow save/publish/version restore",
+    "real simulator selection and handoff",
+    "zero page errors"
+  ],
+  "pageErrors": []
+}

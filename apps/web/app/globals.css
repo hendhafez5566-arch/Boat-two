@@ -1399,3 +1399,12 @@ textarea::placeholder {
 .connected-account-logo[data-channel='facebook'] { color:#1877f2; }
 .connected-account-logo[data-channel='telegram'] { color:#159dc6; background:#e5f6fc; }
 .connected-account-logo[data-channel='instagram'] { color:#c13584; background:#fce8f0; }
+
+/* Shared progressive-disclosure layout for catalogs and provider diagnostics. */
+.catalog-steps { display:flex; flex-wrap:wrap; gap:12px; padding:16px; list-style:none; background:#f5f3ff; border-radius:12px; color:#37306b; }
+.catalog-steps li { flex:1 1 180px; }
+.catalog-source-dialog { width:min(1000px, calc(100vw - 24px)); max-width:1000px; }
+.catalog-source-dialog .panel { padding:12px; box-shadow:none; }
+.channel-advanced { margin-block:16px; padding:12px; border:1px solid #e2e8f0; border-radius:12px; }
+.channel-advanced > summary { cursor:pointer; font-weight:600; padding:8px; }
+.catalog-source-dialog .form-grid { grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); }
