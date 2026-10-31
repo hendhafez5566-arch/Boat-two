@@ -48,6 +48,17 @@ async function main() {
   if (process.env.BOAT_PREVIEW_ONLY === 'true' &&
       process.env.WHATSAPP_PREVIEW_BOT_ENABLED === 'true' &&
       process.env.WHATSAPP_PREVIEW_BOT_CHANNEL_ID) {
+    const target = await client.query(
+      `SELECT type,status,external_id='1280213898505884' AS phone_match
+         FROM channels WHERE id=$1::uuid`,
+      [process.env.WHATSAPP_PREVIEW_BOT_CHANNEL_ID],
+    );
+    console.log('QA_PREVIEW_TARGET', JSON.stringify({
+      found: target.rowCount === 1,
+      type: target.rows[0]?.type ?? null,
+      status: target.rows[0]?.status ?? null,
+      phoneMatch: target.rows[0]?.phone_match ?? false,
+    }));
     const check = await client.query(
       `SELECT
          COUNT(DISTINCT s.id)::int AS data_sources,
