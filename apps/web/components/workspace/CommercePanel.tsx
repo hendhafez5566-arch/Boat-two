@@ -42,7 +42,7 @@ type Booking = {
 export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
   const { t } = useLocale();
   const [channelId, setChannelId] = useChannelContext();
-  const [tab, setTab] = useState(initialTab ?? 'products'),
+  const [tab, setTab] = useState(initialTab === 'products' ? 'sources' : (initialTab ?? 'sources')),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [result, setResult] = useState(''),
@@ -105,17 +105,19 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
             ? t('كتالوج المنتجات', 'Product Catalog')
             : t('التجارة والمواعيد', 'Commerce and appointments')}
       </h1>
-      {!initialTab && (
+      {initialTab !== 'appointments' && (
         <nav className="form-actions">
           {[
             ['products', 'المنتجات', 'Products'],
-            ['sources','مصادر البيانات','Data sources'],
+            ['sources', 'مصادر البيانات', 'Data sources'],
             ['appointments', 'المواعيد', 'Appointments'],
-          ].map(([id, ar, en]) => (
-            <button className="btn" key={id} aria-pressed={tab === id} onClick={() => setTab(id)}>
-              {t(ar, en)}
-            </button>
-          ))}
+          ]
+            .filter(([id]) => !initialTab || id !== 'appointments')
+            .map(([id, ar, en]) => (
+              <button className="btn" key={id} aria-pressed={tab === id} onClick={() => setTab(id)}>
+                {t(ar, en)}
+              </button>
+            ))}
           <Link className="btn" href="/dashboard/flows">
             {t('مدير البوت', 'Bot manager')}
           </Link>
@@ -129,8 +131,12 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
           {error || products.error || services.error}
         </p>
       )}
-      {(tab==='sources'||initialTab==='products')&&<DataSourcesPanel/>}
-      {tab==='products'&&!initialTab&&<button className="btn" onClick={()=>setTab('sources')}>{t('مصادر البيانات والكتالوج الديناميكي','Data sources and dynamic catalog')}</button>}
+      {tab === 'sources' && <DataSourcesPanel />}
+      {tab === 'products' && !initialTab && (
+        <button className="btn" onClick={() => setTab('sources')}>
+          {t('مصادر البيانات والكتالوج الديناميكي', 'Data sources and dynamic catalog')}
+        </button>
+      )}
       {tab === 'products' && (
         <>
           <form

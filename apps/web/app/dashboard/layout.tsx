@@ -91,10 +91,10 @@ function Shell({ children }: { children: ReactNode }) {
   const [limits, setLimits] = useState<Record<string, number>>({});
   const [aiEnabled, setAiEnabled] = useState(false);
   const [open, setOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
   useEffect(() => {
     try {
-      setCollapsed(localStorage.getItem('boat.navigation.collapsed') !== 'false');
+      setCollapsed(localStorage.getItem('boat.navigation.collapsed') === 'true');
     } catch {
       /* Device preferences are optional. */
     }

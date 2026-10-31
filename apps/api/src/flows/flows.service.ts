@@ -373,30 +373,7 @@ export class FlowsService {
         [id, f.channel_ids ?? []],
       );
 
-      // This is the owner's isolated QA conversation, not a customer chat.
-      // Publishing switches it immediately from an old handoff/waiting flow,
-      // without changing any other conversation or Meta credentials.
-      const previewChannel = process.env.WHATSAPP_PREVIEW_BOT_CHANNEL_ID;
-      const previewConversation = process.env.WHATSAPP_PREVIEW_BOT_CONVERSATION_ID;
-      if (process.env.BOAT_PREVIEW_ONLY === 'true' &&
-          process.env.WHATSAPP_PREVIEW_BOT_ENABLED === 'true' &&
-          previewChannel && previewConversation &&
-          selectedChannels.rows.some((ch) => ch.id === previewChannel)) {
-        const qa = await c.query(
-          "SELECT id FROM conversations WHERE id=$1 AND channel_id=$2 FOR UPDATE",
-          [previewConversation, previewChannel],
-        );
-        if (qa.rowCount) {
-          await c.query(
-            "UPDATE flow_sessions SET status='expired',updated_at=now() WHERE conversation_id=$1 AND status='waiting'",
-            [previewConversation],
-          );
-          await c.query(
-            "UPDATE conversations SET handled_by='bot',assigned_to=NULL,status='open' WHERE id=$1",
-            [previewConversation],
-          );
-        }
-      }
+      // Publishing never resets conversations or changes human ownership.
 
       return {
         published: true,

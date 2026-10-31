@@ -1,0 +1,14 @@
+{
+  "build": "PASS Web/API + TypeScript",
+  "apiTests": {
+    "pass": 209,
+    "fail": 0
+  },
+  "editorReferenceSuites": 3,
+  "catalogMapping": "PASS",
+  "catalogRegression": "PASS Chromium UI/API, Arabic/English, mobile/desktop, source update/add/hide, flow publish/restore/simulator",
+  "fullApplication": "PASS three tenants, all 98 migrations, real Nest AppModule",
+  "newEslintFindings": 0,
+  "legacyEslintErrors": 173,
+  "legacyEslintWarnings": 1
+}

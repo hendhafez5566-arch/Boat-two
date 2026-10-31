@@ -21,12 +21,20 @@ async function main() {
     console.log('Applying', file);
     await client.query('BEGIN');
     try {
+      // Historical demo migrations remain byte-for-byte intact. Never authorize
+      // their active-flow/session changes as part of an ordinary deployment.
+      // Existing applied migrations and owner demo data are left untouched.
+      const allowLegacyDemoBootstrap = process.env.BOAT_ALLOW_LEGACY_DEMO_BOOTSTRAP === 'true';
       // Explicitly authorize a ONE-TIME QA bootstrap only in the preview
       // environment and for the preconfigured test WhatsApp channel. The SQL
       // migration will additionally verify the Meta phone-number ID.
-      if ((file === '096_preview_catalog_demo.sql' || file === '097_preview_catalog_demo_retry.sql') &&
-          process.env.BOAT_PREVIEW_ONLY === 'true' &&
-          process.env.WHATSAPP_PREVIEW_BOT_ENABLED === 'true') {
+      if (
+        (file === '096_preview_catalog_demo.sql' ||
+          file === '097_preview_catalog_demo_retry.sql') &&
+        allowLegacyDemoBootstrap &&
+        process.env.BOAT_PREVIEW_ONLY === 'true' &&
+        process.env.WHATSAPP_PREVIEW_BOT_ENABLED === 'true'
+      ) {
         await client.query(
           "SELECT set_config('boat.preview_seed_channel', $1, true), set_config('boat.preview_seed_conversation', $2, true)",
           [
@@ -41,9 +49,12 @@ async function main() {
           throw new Error('Scoped QA seed session was not established');
       }
       let script = readFileSync(join(dir, file), 'utf8');
-      if (file === '098_preview_catalog_direct.sql' &&
-          process.env.BOAT_PREVIEW_ONLY === 'true' &&
-          process.env.WHATSAPP_PREVIEW_BOT_ENABLED === 'true') {
+      if (
+        file === '098_preview_catalog_direct.sql' &&
+        allowLegacyDemoBootstrap &&
+        process.env.BOAT_PREVIEW_ONLY === 'true' &&
+        process.env.WHATSAPP_PREVIEW_BOT_ENABLED === 'true'
+      ) {
         // This is a narrowly scoped recovery for the missed preview import.
         // Inline only strongly validated UUIDs; never interpolate customer input.
         const channel = process.env.WHATSAPP_PREVIEW_BOT_CHANNEL_ID ?? '';
@@ -52,8 +63,14 @@ async function main() {
         if (!uuid.test(channel) || !uuid.test(conversation))
           throw new Error('Preview scope UUIDs are required for one-time catalog import');
         script = script
-          .replace("nullif(current_setting('boat.preview_seed_channel', true), '')", `'${channel}'::text`)
-          .replace("nullif(current_setting('boat.preview_seed_conversation', true), '')", `'${conversation}'::text`);
+          .replace(
+            "nullif(current_setting('boat.preview_seed_channel', true), '')",
+            `'${channel}'::text`,
+          )
+          .replace(
+            "nullif(current_setting('boat.preview_seed_conversation', true), '')",
+            `'${conversation}'::text`,
+          );
         if (script.includes("current_setting('boat.preview_seed_"))
           throw new Error('Preview seed parameters could not be bound');
       }
@@ -64,42 +81,6 @@ async function main() {
       await client.query('ROLLBACK');
       throw e;
     }
-  }
-  // Verify the one-time QA import actually persisted; report counts only,
-  // never phone numbers, customer content, credentials, or token values.
-  if (process.env.BOAT_PREVIEW_ONLY === 'true' &&
-      process.env.WHATSAPP_PREVIEW_BOT_ENABLED === 'true' &&
-      process.env.WHATSAPP_PREVIEW_BOT_CHANNEL_ID) {
-    const target = await client.query(
-      `SELECT type,status,external_id='1280213898505884' AS phone_match
-         FROM channels WHERE id=$1::uuid`,
-      [process.env.WHATSAPP_PREVIEW_BOT_CHANNEL_ID],
-    );
-    console.log('QA_PREVIEW_TARGET', JSON.stringify({
-      found: target.rowCount === 1,
-      type: target.rows[0]?.type ?? null,
-      status: target.rows[0]?.status ?? null,
-      phoneMatch: target.rows[0]?.phone_match ?? false,
-    }));
-    const check = await client.query(
-      `SELECT
-         COUNT(DISTINCT s.id)::int AS data_sources,
-         COUNT(DISTINCT f.id)::int AS published_bots,
-         COUNT(DISTINCT cp.id) FILTER (WHERE NOT cp.archived)::int AS visible_catalog_items,
-         COUNT(DISTINCT cp.id) FILTER (WHERE cp.archived)::int AS hidden_catalog_items,
-         BOOL_OR(c.settings->>'activeBotFlowId'=f.id::text) AS bot_activated
-       FROM channels c
-       LEFT JOIN catalog_sources s ON s.tenant_id=c.tenant_id
-         AND s.name='كتالوج سياحي تجريبي — ملف Excel'
-       LEFT JOIN catalog_products cp ON cp.source_id=s.id
-       LEFT JOIN flows f ON f.tenant_id=c.tenant_id
-         AND f.name='تجربة بوت سياحي ديناميكي — كتالوج Excel'
-         AND f.status='published'
-       WHERE c.id=$1::uuid AND c.type='whatsapp'
-         AND c.external_id='1280213898505884'`,
-      [process.env.WHATSAPP_PREVIEW_BOT_CHANNEL_ID],
-    );
-    console.log('QA_TOURISM_EXCEL_CHECK', JSON.stringify(check.rows[0] ?? {}));
   }
   console.log('Migrations up to date');
   await client.end();

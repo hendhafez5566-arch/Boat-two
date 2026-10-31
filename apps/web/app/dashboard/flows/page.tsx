@@ -20,7 +20,14 @@ import { api } from '../../../lib/api';
 import { channelHref, matchesFlowChannel } from '../../../lib/channel-context';
 import styles from './manager.module.css';
 
-type Channel = { id: string; name: string; type: string; status: string; external_id?: string };
+type Channel = {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  external_id?: string;
+  settings?: { activeBotFlowId?: string };
+};
 type Flow = {
   id: string;
   name: string;
@@ -499,6 +506,7 @@ export default function BotManager() {
                             </button>
                           </th>
                         )}
+                        <th scope="col">{t('الحالة', 'Status')}</th>
                         <th scope="col">{t('الإجراءات', 'Actions')}</th>
                       </tr>
                     </thead>
@@ -528,6 +536,17 @@ export default function BotManager() {
                               </time>
                             </td>
                           )}
+                          <td>
+                            <span className="badge" role="status">
+                              {f.status === 'draft'
+                                ? t('مسودة', 'Draft')
+                                : selected?.settings?.activeBotFlowId === f.id
+                                  ? selected.status === 'active'
+                                    ? t('نشط على القناة', 'Active on channel')
+                                    : t('متوقف على القناة', 'Channel paused')
+                                  : t('منشور', 'Published')}
+                            </span>
+                          </td>
                           <td>
                             <div className={styles.actions}>
                               <button
@@ -589,7 +608,7 @@ export default function BotManager() {
                       ))}
                       {!rows.length && (
                         <tr>
-                          <td colSpan={section === 'entry_points' ? 3 : 5} className={styles.empty}>
+                          <td colSpan={section === 'entry_points' ? 4 : 6} className={styles.empty}>
                             {flows.loading
                               ? t('جارٍ تحميل التدفقات…', 'Loading flows…')
                               : flows.error

@@ -27,6 +27,7 @@ const { FlowEngine } = local('./dist/flows/engine/engine');
 const { newState } = local('./dist/flows/engine/types');
 const tenant = '11111111-1111-4111-8111-111111111111',
   other = '22222222-2222-4222-8222-222222222222',
+  store = '55555555-5555-4555-8555-555555555555',
   user = '33333333-3333-4333-8333-333333333333',
   agent = '44444444-4444-4444-8444-444444444444';
 (async () => {
@@ -57,9 +58,9 @@ const tenant = '11111111-1111-4111-8111-111111111111',
     },
   };
   await pg.exec(
-    `CREATE ROLE app_user;GRANT USAGE ON SCHEMA public TO app_user;CREATE TABLE tenants(id uuid PRIMARY KEY,suspended_at timestamptz);CREATE TABLE users(id uuid PRIMARY KEY,session_version int DEFAULT 0,disabled_at timestamptz);CREATE TABLE memberships(tenant_id uuid,user_id uuid,role text);CREATE TABLE integration_connections(id uuid PRIMARY KEY,tenant_id uuid NOT NULL,provider text,enabled boolean,UNIQUE(tenant_id,id));CREATE TABLE contacts(id uuid PRIMARY KEY,tenant_id uuid,attributes jsonb DEFAULT '{}',UNIQUE(tenant_id,id));CREATE TABLE channels(id uuid PRIMARY KEY,tenant_id uuid,UNIQUE(tenant_id,id));GRANT SELECT ON tenants,memberships,integration_connections TO app_user;GRANT SELECT,UPDATE ON contacts TO app_user;CREATE FUNCTION audit_core_change() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;`,
+    `CREATE ROLE app_user;GRANT USAGE ON SCHEMA public TO app_user;CREATE TABLE tenants(id uuid PRIMARY KEY,suspended_at timestamptz);CREATE TABLE users(id uuid PRIMARY KEY,session_version int DEFAULT 0,disabled_at timestamptz);CREATE TABLE memberships(tenant_id uuid,user_id uuid,role text);CREATE TABLE integration_connections(id uuid PRIMARY KEY,tenant_id uuid NOT NULL,provider text,enabled boolean,UNIQUE(tenant_id,id));CREATE TABLE contacts(id uuid PRIMARY KEY,tenant_id uuid,attributes jsonb DEFAULT '{}',UNIQUE(tenant_id,id));CREATE TABLE channels(id uuid PRIMARY KEY,tenant_id uuid,settings jsonb DEFAULT '{}',UNIQUE(tenant_id,id));GRANT SELECT ON tenants,memberships,integration_connections TO app_user;GRANT SELECT,UPDATE ON contacts,channels TO app_user;CREATE FUNCTION audit_core_change() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;`,
   );
-  for (const table of ['memberships', 'integration_connections', 'contacts'])
+  for (const table of ['memberships', 'integration_connections', 'contacts', 'channels'])
     await pg.exec(
       `ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY;ALTER TABLE ${table} FORCE ROW LEVEL SECURITY;CREATE POLICY tenant_isolation ON ${table} USING(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);`,
     );
@@ -68,6 +69,8 @@ const tenant = '11111111-1111-4111-8111-111111111111',
     readFileSync('apps/api/src/database/migrations/095_smart_data_sources.sql', 'utf8'),
   );
   await pg.query('INSERT INTO tenants(id) VALUES($1),($2)', [tenant, other]);
+  await pg.query('INSERT INTO tenants(id) VALUES($1)', [store]);
+  await pg.query("INSERT INTO memberships VALUES($1,$2,'owner')", [store, user]);
   await pg.query('INSERT INTO users(id) VALUES($1),($2)', [user, agent]);
   await pg.query("INSERT INTO memberships VALUES($1,$2,'owner'),($1,$3,'agent'),($4,$2,'owner')", [
     tenant,
@@ -116,6 +119,7 @@ const tenant = '11111111-1111-4111-8111-111111111111',
       return res.json({
         owner: jwt.sign({ sub: user, tid: tenant, role: 'owner' }),
         agent: jwt.sign({ sub: agent, tid: tenant, role: 'agent' }),
+        store: jwt.sign({ sub: user, tid: store, role: 'owner' }),
         other: jwt.sign({ sub: user, tid: other, role: 'owner' }),
       });
     if (req.path === '/workspace')

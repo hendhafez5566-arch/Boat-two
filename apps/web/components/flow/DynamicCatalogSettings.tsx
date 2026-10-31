@@ -1,5 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
+import DataSourcesPanel from '../workspace/DataSourcesPanel';
+import { Dialog } from '../product/ProductUI';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 type Source = { id: string; name: string; mapping: { fields: { label: string }[] } };
@@ -17,20 +19,39 @@ export default function DynamicCatalogSettings({
   set: (v: Record<string, unknown>) => void;
 }) {
   const { t } = useLocale();
+  const [manageOpen, setManageOpen] = useState(false);
+  const [sourceState, setSourceState] = useState({ dirty: false, busy: false });
   const [sources, setSources] = useState<Source[]>([]),
     [categories, setCategories] = useState<{ name: string; count: number }[]>([]),
     [error, setError] = useState('');
+  async function refreshSources() {
+    setError('');
+    try {
+      const next = await api<Source[]>('/commerce/sources');
+      setSources(next);
+      return true;
+    } catch (e) {
+      setError((e as Error).message);
+      return false;
+    }
+  }
   useEffect(() => {
-    api<Source[]>('/commerce/sources')
-      .then(setSources)
-      .catch((e) => setError(e.message));
+    void refreshSources();
   }, []);
   useEffect(() => {
+    let active = true;
     setCategories([]);
     if (data.sourceId)
       api<typeof categories>('/commerce/sources/' + data.sourceId + '/categories')
-        .then(setCategories)
-        .catch((e) => setError(e.message));
+        .then((next) => {
+          if (active) setCategories(next);
+        })
+        .catch((e) => {
+          if (active) setError(e.message);
+        });
+    return () => {
+      active = false;
+    };
   }, [data.sourceId]);
   return (
     <section>
@@ -52,11 +73,46 @@ export default function DynamicCatalogSettings({
           </option>
         </select>
       </label>
-      {!sources.length && (
-        <a href="/dashboard/commerce" target="_blank" rel="noopener noreferrer">
-          {t('أضف مصدر بيانات أولًا', 'Add a data source first')}
-        </a>
-      )}
+      <button type="button" className="btn" onClick={() => setManageOpen(true)}>
+        {t('إضافة أو تحديث مصدر البيانات', 'Add or update a data source')}
+      </button>
+      <Dialog
+        open={manageOpen}
+        onClose={() => {
+          if (sourceState.busy) return;
+          if (
+            sourceState.dirty &&
+            !window.confirm(
+              t(
+                'توجد بيانات مصدر لم تُطبق. هل تريد إغلاقها؟ مسودة البوت محفوظة داخل المحرر.',
+                'There are unapplied source changes. Close them? Your bot draft stays in the editor.',
+              ),
+            )
+          )
+            return;
+          setManageOpen(false);
+          void refreshSources();
+        }}
+        title={t('كتالوج البوت', 'Bot catalog')}
+        className="catalog-source-dialog"
+      >
+        {manageOpen && (
+          <DataSourcesPanel
+            onDraftStateChange={setSourceState}
+            onApplied={async (sourceId) => {
+              if (await refreshSources()) {
+                set({
+                  sourceId,
+                  ...(sourceId !== data.sourceId ? { category: '', fields: [] } : {}),
+                  native: false,
+                  selectable: true,
+                });
+                setManageOpen(false);
+              }
+            }}
+          />
+        )}
+      </Dialog>
       {error && <p role="alert">{error}</p>}
       {data.sourceId && (
         <>

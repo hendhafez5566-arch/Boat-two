@@ -26,7 +26,7 @@ const fs = require('node:fs');
       }
       if (!ready) throw Error('Fixture did not become ready: ' + url);
     }
-    const child = spawn(process.execPath, ['scripts/acceptance-smart-data-browser.cjs'], {
+    const child = spawn(process.execPath, [process.env.BOAT_BROWSER_SCRIPT || 'scripts/acceptance-smart-data-browser.cjs'], {
       stdio: 'inherit',
       env: process.env,
     });

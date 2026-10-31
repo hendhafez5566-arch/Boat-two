@@ -14,7 +14,14 @@ import { api, getSession } from '../../../lib/api';
 type BotReadiness = {
   active: boolean;
   publishedFlowCount: number;
-  flowTriggers: { name: string; types: string[]; draftSteps: number; publishedSteps: number; publishedReplies: number; matchesTestKeyword: boolean }[];
+  flowTriggers: {
+    name: string;
+    types: string[];
+    draftSteps: number;
+    publishedSteps: number;
+    publishedReplies: number;
+    matchesTestKeyword: boolean;
+  }[];
   activeConversationsBot: number;
   activeConversationsHuman: number;
   recentBotReplies: number;
@@ -95,7 +102,9 @@ export default function Channels() {
   const [copied, setCopied] = useState('');
   const [items, setItems] = useState<Channel[]>([]);
   const [botDiagnostics, setBotDiagnostics] = useState<Record<string, BotReadiness>>({});
-  const [authDiagnostics, setAuthDiagnostics] = useState<Record<string, WhatsAppAuthDiagnostics>>({});
+  const [authDiagnostics, setAuthDiagnostics] = useState<Record<string, WhatsAppAuthDiagnostics>>(
+    {},
+  );
   const [editingTokenId, setEditingTokenId] = useState<string | null>(null);
   const [replacementToken, setReplacementToken] = useState('');
   const [tokenNotice, setTokenNotice] = useState('');
@@ -154,33 +163,51 @@ export default function Channels() {
   }
 
   async function restartPreviewBot(c: Channel) {
-    if (!window.confirm(t(
-      'سيتم إرجاع محادثة الاختبار وحدها إلى البوت وإنهاء أي سؤال منتظر قديم. المحادثات الأخرى لن تتأثر. هل تريد المتابعة؟',
-      'Return ONLY the preview conversation to the bot and expire any old waiting step? Other conversations stay unchanged.',
-    ))) return;
+    if (
+      !window.confirm(
+        t(
+          'سيتم إرجاع محادثة الاختبار وحدها إلى البوت وإنهاء أي سؤال منتظر قديم. المحادثات الأخرى لن تتأثر. هل تريد المتابعة؟',
+          'Return ONLY the preview conversation to the bot and expire any old waiting step? Other conversations stay unchanged.',
+        ),
+      )
+    )
+      return;
     setBusy(true);
     setError('');
     try {
       await api(`/channels/${c.id}/preview-restart`, {
-        method: 'POST', body: JSON.stringify({ confirm: true }),
+        method: 'POST',
+        body: JSON.stringify({ confirm: true }),
       });
       const result = await api<BotReadiness>(`/channels/${c.id}/bot-readiness`);
       setBotDiagnostics((prev) => ({ ...prev, [c.id]: result }));
-      setTokenNotice(t(
-        'تمت إعادة محادثة التجربة للبوت. ابعت رسالة واتساب عادية جديدة وجرب الرد.',
-        'Preview conversation returned to the bot. Send an ordinary WhatsApp message to test.',
-      ));
-    } catch (e) { setError((e as Error).message); }
-    finally { setBusy(false); }
+      setTokenNotice(
+        t(
+          'تمت إعادة محادثة التجربة للبوت. ابعت رسالة واتساب عادية جديدة وجرب الرد.',
+          'Preview conversation returned to the bot. Send an ordinary WhatsApp message to test.',
+        ),
+      );
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function inspectWhatsAppAuth(c: Channel) {
     setBusy(true);
     setError('');
     try {
-      const result = await api<WhatsAppAuthDiagnostics>(`/channels/${c.id}/whatsapp-auth-diagnostics`);
+      const result = await api<WhatsAppAuthDiagnostics>(
+        `/channels/${c.id}/whatsapp-auth-diagnostics`,
+      );
       setAuthDiagnostics((prev) => ({ ...prev, [c.id]: result }));
-      if (result.connectionHealth) setItems((rows) => rows.map((row) => row.id === c.id ? { ...row, connectionHealth: result.connectionHealth } : row));
+      if (result.connectionHealth)
+        setItems((rows) =>
+          rows.map((row) =>
+            row.id === c.id ? { ...row, connectionHealth: result.connectionHealth } : row,
+          ),
+        );
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -206,10 +233,12 @@ export default function Channels() {
         delete next[c.id];
         return next;
       });
-      setTokenNotice(t(
-        'تم التحقق من صلاحية التوكين ووصوله لنفس رقم واتساب وحفظه. افحص اتصال المزود للتأكد من اشتراك Webhook. لا تُعتبر هذه الخطوة اختبار إرسال حي.',
-        'The token was validated for messaging and this exact phone, then saved. Verify the webhook subscription next. This is not a live delivery test.',
-      ));
+      setTokenNotice(
+        t(
+          'تم التحقق من صلاحية التوكين ووصوله لنفس رقم واتساب وحفظه. افحص اتصال المزود للتأكد من اشتراك Webhook. لا تُعتبر هذه الخطوة اختبار إرسال حي.',
+          'The token was validated for messaging and this exact phone, then saved. Verify the webhook subscription next. This is not a live delivery test.',
+        ),
+      );
       await load();
     } catch (e) {
       setError((e as Error).message);
@@ -341,7 +370,11 @@ export default function Channels() {
           </button>
         </p>
       )}
-      {tokenNotice && <p className="notice" role="status">{tokenNotice}</p>}
+      {tokenNotice && (
+        <p className="notice" role="status">
+          {tokenNotice}
+        </p>
+      )}
       {saved && (
         <p className="notice" role="status">
           {t('أُضيفت القناة.', 'Channel added.')}
@@ -397,52 +430,119 @@ export default function Channels() {
               </button>
             )}
             {c.type === 'whatsapp' && (
-              <>
+              <details className="channel-advanced">
+                <summary>
+                  {t('إعدادات متقدمة وتشخيص Meta', 'Advanced settings and Meta diagnostics')}
+                </summary>
                 <button type="button" className="btn" disabled={busy} onClick={() => inspectBot(c)}>
                   {t('تشخيص ردود البوت', 'Diagnose bot replies')}
                 </button>
-                <button type="button" className="btn" disabled={busy} onClick={() => inspectWhatsAppAuth(c)}>
-                  {t('فحص صلاحيات الإرسال وأخطاء Meta', 'Check Meta messaging permissions and errors')}
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy}
+                  onClick={() => inspectWhatsAppAuth(c)}
+                >
+                  {t(
+                    'فحص صلاحيات الإرسال وأخطاء Meta',
+                    'Check Meta messaging permissions and errors',
+                  )}
                 </button>
                 {authDiagnostics[c.id] && (
                   <section className="card stack" role="status">
-                    <strong>{t('تشخيص صلاحية إرسال واتساب', 'WhatsApp outbound authorization')}</strong>
-                    <p>{t('صلاحية التوكين للإرسال', 'Messaging token permission')}: {
-                      ({
-                        granted: t('موجودة', 'Granted'),
-                        missing_permission: t('ناقصة: whatsapp_business_messaging', 'Missing whatsapp_business_messaging'),
-                        invalid_token: t('التوكين غير صالح أو منتهي', 'Token invalid or expired'),
-                        wrong_app: t('التوكين تابع لتطبيق Meta مختلف', 'Token belongs to a different Meta app'),
-                        unknown: t('تعذّر التحقق من الصلاحيات', 'Permission check unavailable'),
-                      } as Record<string, string>)[authDiagnostics[c.id].token.status]
-                    }</p>
+                    <strong>
+                      {t('تشخيص صلاحية إرسال واتساب', 'WhatsApp outbound authorization')}
+                    </strong>
+                    <p>
+                      {t('صلاحية التوكين للإرسال', 'Messaging token permission')}:{' '}
+                      {
+                        (
+                          {
+                            granted: t('موجودة', 'Granted'),
+                            missing_permission: t(
+                              'ناقصة: whatsapp_business_messaging',
+                              'Missing whatsapp_business_messaging',
+                            ),
+                            invalid_token: t(
+                              'التوكين غير صالح أو منتهي',
+                              'Token invalid or expired',
+                            ),
+                            wrong_app: t(
+                              'التوكين تابع لتطبيق Meta مختلف',
+                              'Token belongs to a different Meta app',
+                            ),
+                            unknown: t('تعذّر التحقق من الصلاحيات', 'Permission check unavailable'),
+                          } as Record<string, string>
+                        )[authDiagnostics[c.id].token.status]
+                      }
+                    </p>
                     {authDiagnostics[c.id].token.expiresAt && (
-                      <p>{t('انتهاء التوكين', 'Token expiry')}: {new Date(authDiagnostics[c.id].token.expiresAt!).toLocaleString()}</p>
+                      <p>
+                        {t('انتهاء التوكين', 'Token expiry')}:{' '}
+                        {new Date(authDiagnostics[c.id].token.expiresAt!).toLocaleString()}
+                      </p>
                     )}
-                    {authDiagnostics[c.id].token.managementGranted === false && <p className="notice">{t('صلاحية إدارة حساب واتساب غير موجودة؛ قد يتعذر فحص اشتراك Webhook.', 'WhatsApp management permission is missing; webhook subscription checks may fail.')}</p>}
-                    {authDiagnostics[c.id].token.tokenType === 'USER' && <p className="notice">{t('هذا توكين مستخدم. استخدم تفويض Embedded Signup أو System User المناسب للتشغيل المستمر.', 'This is a user token. Use Embedded Signup authorization or the appropriate System User for ongoing operation.')}</p>}
-                    {authDiagnostics[c.id].token.status === 'granted' && !authDiagnostics[c.id].token.expiresAt && <p>{t('لم تُبلغ Meta عن موعد انتهاء للتوكين؛ يظل قابلاً للإلغاء.', 'Meta reported no scheduled token expiry; access can still be revoked.')}</p>}
-                    <p>{t('أخطاء الإرسال المسجلة آخر 6 ساعات', 'Outbound failures in last 6h')}: {authDiagnostics[c.id].recentFailures.length}</p>
+                    {authDiagnostics[c.id].token.managementGranted === false && (
+                      <p className="notice">
+                        {t(
+                          'صلاحية إدارة حساب واتساب غير موجودة؛ قد يتعذر فحص اشتراك Webhook.',
+                          'WhatsApp management permission is missing; webhook subscription checks may fail.',
+                        )}
+                      </p>
+                    )}
+                    {authDiagnostics[c.id].token.tokenType === 'USER' && (
+                      <p className="notice">
+                        {t(
+                          'هذا توكين مستخدم. استخدم تفويض Embedded Signup أو System User المناسب للتشغيل المستمر.',
+                          'This is a user token. Use Embedded Signup authorization or the appropriate System User for ongoing operation.',
+                        )}
+                      </p>
+                    )}
+                    {authDiagnostics[c.id].token.status === 'granted' &&
+                      !authDiagnostics[c.id].token.expiresAt && (
+                        <p>
+                          {t(
+                            'لم تُبلغ Meta عن موعد انتهاء للتوكين؛ يظل قابلاً للإلغاء.',
+                            'Meta reported no scheduled token expiry; access can still be revoked.',
+                          )}
+                        </p>
+                      )}
+                    <p>
+                      {t('أخطاء الإرسال المسجلة آخر 6 ساعات', 'Outbound failures in last 6h')}:{' '}
+                      {authDiagnostics[c.id].recentFailures.length}
+                    </p>
                     {authDiagnostics[c.id].recentFailures.slice(0, 5).map((failure, i) => (
                       <p key={i}>
-                        {new Date(failure.createdAt).toLocaleTimeString()} — {
-                          ({
-                            authentication: t('خطأ مصادقة من المزود', 'Provider authentication error'),
-                            permission: t('نقص صلاحيات', 'Insufficient permission'),
-                            provider_limit: t('حد إرسال من المزود', 'Provider rate limit'),
-                            delivery_blocked: t('منع إرسال محلي', 'Local delivery blocked'),
-                            other: t('خطأ إرسال آخر', 'Other outbound error'),
-                          } as Record<string, string>)[failure.category]
-                        }{failure.code ? ` (#${failure.code})` : ''}
+                        {new Date(failure.createdAt).toLocaleTimeString()} —{' '}
+                        {
+                          (
+                            {
+                              authentication: t(
+                                'خطأ مصادقة من المزود',
+                                'Provider authentication error',
+                              ),
+                              permission: t('نقص صلاحيات', 'Insufficient permission'),
+                              provider_limit: t('حد إرسال من المزود', 'Provider rate limit'),
+                              delivery_blocked: t('منع إرسال محلي', 'Local delivery blocked'),
+                              other: t('خطأ إرسال آخر', 'Other outbound error'),
+                            } as Record<string, string>
+                          )[failure.category]
+                        }
+                        {failure.code ? ` (#${failure.code})` : ''}
                       </p>
                     ))}
                     {authDiagnostics[c.id].recentFailures.some((failure) =>
                       ['authentication', 'permission'].includes(failure.category),
-                    ) || ['invalid_token', 'missing_permission', 'wrong_app'].includes(authDiagnostics[c.id].token.status) ? (
-                      <p className="notice">{t(
-                        'الربط واستقبال الرسائل لا يضمنان صلاحية الإرسال. أنشئ توكين من تطبيق Bot two بصلاحية whatsapp_business_messaging وwhatsapp_business_management، ثم حدّث التوكين فقط هنا.',
-                        'Receiving messages does not prove outgoing permission. Generate a token for the Bot two Meta app with whatsapp_business_messaging and whatsapp_business_management, then update only the token here.',
-                      )}</p>
+                    ) ||
+                    ['invalid_token', 'missing_permission', 'wrong_app'].includes(
+                      authDiagnostics[c.id].token.status,
+                    ) ? (
+                      <p className="notice">
+                        {t(
+                          'الربط واستقبال الرسائل لا يضمنان صلاحية الإرسال. أنشئ توكين من تطبيق Bot two بصلاحية whatsapp_business_messaging وwhatsapp_business_management، ثم حدّث التوكين فقط هنا.',
+                          'Receiving messages does not prove outgoing permission. Generate a token for the Bot two Meta app with whatsapp_business_messaging and whatsapp_business_management, then update only the token here.',
+                        )}
+                      </p>
                     ) : null}
                   </section>
                 )}
@@ -463,7 +563,10 @@ export default function Channels() {
                 {editingTokenId === c.id && (
                   <form className="card stack" onSubmit={(event) => rotateWhatsAppToken(event, c)}>
                     <label className="field">
-                      {t('توكين جديد من Meta (لا يظهر ولا يُعاد عرضه)', 'New Meta token (never displayed again)')}
+                      {t(
+                        'توكين جديد من Meta (لا يظهر ولا يُعاد عرضه)',
+                        'New Meta token (never displayed again)',
+                      )}
                       <input
                         type="password"
                         autoComplete="off"
@@ -473,8 +576,17 @@ export default function Channels() {
                         onChange={(event) => setReplacementToken(event.target.value)}
                       />
                     </label>
-                    <p>{t('يُحدَّث رمز الوصول فقط؛ لا يتغيّر الرقم أو Phone Number ID أو Coexistence. الرسائل الفاشلة لن يعاد إرسالها تلقائيًا.', 'Only the access token changes; the phone number and Coexistence stay intact. Previously failed messages are not automatically retried.')}</p>
-                    <button type="submit" className="btn" disabled={busy || replacementToken.trim().length < 10}>
+                    <p>
+                      {t(
+                        'يُحدَّث رمز الوصول فقط؛ لا يتغيّر الرقم أو Phone Number ID أو Coexistence. الرسائل الفاشلة لن يعاد إرسالها تلقائيًا.',
+                        'Only the access token changes; the phone number and Coexistence stay intact. Previously failed messages are not automatically retried.',
+                      )}
+                    </p>
+                    <button
+                      type="submit"
+                      className="btn"
+                      disabled={busy || replacementToken.trim().length < 10}
+                    >
                       {t('حفظ التوكين على القناة الحالية', 'Save token to existing channel')}
                     </button>
                   </form>
@@ -482,64 +594,182 @@ export default function Channels() {
                 {botDiagnostics[c.id] && (
                   <section className="card stack" role="status">
                     <strong>{t('تشخيص إرسال الرد الآلي', 'Bot reply diagnostics')}</strong>
-                    <p>{t('عدد البوتات المنشورة لهذه القناة', 'Published flows on this channel')}: {botDiagnostics[c.id].publishedFlowCount}</p>
-                    <p>{t('المحادثات المسندة للبوت', 'Bot-owned conversations')}: {botDiagnostics[c.id].activeConversationsBot} · {t('للموظفين', 'Human-owned')}: {botDiagnostics[c.id].activeConversationsHuman}</p>
-                    <p>{t('ردود البوت المنشأة آخر 6 ساعات', 'Bot replies created in last 6h')}: {botDiagnostics[c.id].recentBotReplies} · {t('ردود أُرسلت', 'Sent replies')}: {botDiagnostics[c.id].recentSent} · {t('إرسال محظور', 'Blocked deliveries')}: {botDiagnostics[c.id].recentBlocked} · {t('إرسال فاشل', 'Failed deliveries')}: {botDiagnostics[c.id].recentFailed}</p>
-                    <p>{t('وضع إرسال البوت التجريبي', 'Scoped preview bot delivery')}: {botDiagnostics[c.id].previewBotEnabled ? t('مفعّل', 'Enabled') : t('غير مفعّل', 'Disabled')}</p>
+                    <p>
+                      {t('عدد البوتات المنشورة لهذه القناة', 'Published flows on this channel')}:{' '}
+                      {botDiagnostics[c.id].publishedFlowCount}
+                    </p>
+                    <p>
+                      {t('المحادثات المسندة للبوت', 'Bot-owned conversations')}:{' '}
+                      {botDiagnostics[c.id].activeConversationsBot} · {t('للموظفين', 'Human-owned')}
+                      : {botDiagnostics[c.id].activeConversationsHuman}
+                    </p>
+                    <p>
+                      {t('ردود البوت المنشأة آخر 6 ساعات', 'Bot replies created in last 6h')}:{' '}
+                      {botDiagnostics[c.id].recentBotReplies} · {t('ردود أُرسلت', 'Sent replies')}:{' '}
+                      {botDiagnostics[c.id].recentSent} · {t('إرسال محظور', 'Blocked deliveries')}:{' '}
+                      {botDiagnostics[c.id].recentBlocked} · {t('إرسال فاشل', 'Failed deliveries')}:{' '}
+                      {botDiagnostics[c.id].recentFailed}
+                    </p>
+                    <p>
+                      {t('وضع إرسال البوت التجريبي', 'Scoped preview bot delivery')}:{' '}
+                      {botDiagnostics[c.id].previewBotEnabled
+                        ? t('مفعّل', 'Enabled')
+                        : t('غير مفعّل', 'Disabled')}
+                    </p>
                     {botDiagnostics[c.id].previewConversation && (
                       <section className="stack">
-                        <strong>{t('حالة محادثة واتساب التجريبية الحالية', 'Current preview conversation status')}</strong>
-                        <p>{t('المسؤول', 'Owner')}: {botDiagnostics[c.id].previewConversation!.handledBy === 'bot' ? t('البوت', 'Bot') : t('الموظف', 'Human')}</p>
-                        <p>{t('حالة المحادثة', 'Conversation')}: {botDiagnostics[c.id].previewConversation!.status}</p>
-                        <p>{t('جلسة البوت', 'Flow session')}: {botDiagnostics[c.id].previewConversation!.sessionStatus || t('لا توجد', 'None')} {botDiagnostics[c.id].previewConversation!.sessionWaitKind ? `(${botDiagnostics[c.id].previewConversation!.sessionWaitKind})` : ''}</p>
-                        <p>{t('أحداث الاستقبال المعلقة أو الفاشلة', 'Pending/failed inbound events')}: {botDiagnostics[c.id].previewConversation!.pendingInboundEvents}</p>
-                        <p>{t('البوت المختار لمحادثة التجربة', 'Selected preview flow')}: {botDiagnostics[c.id].previewConversation!.restartFlowName ?? t('لا يوجد بوت محدد', 'No uniquely selected flow')}</p>
+                        <strong>
+                          {t(
+                            'حالة محادثة واتساب التجريبية الحالية',
+                            'Current preview conversation status',
+                          )}
+                        </strong>
+                        <p>
+                          {t('المسؤول', 'Owner')}:{' '}
+                          {botDiagnostics[c.id].previewConversation!.handledBy === 'bot'
+                            ? t('البوت', 'Bot')
+                            : t('الموظف', 'Human')}
+                        </p>
+                        <p>
+                          {t('حالة المحادثة', 'Conversation')}:{' '}
+                          {botDiagnostics[c.id].previewConversation!.status}
+                        </p>
+                        <p>
+                          {t('جلسة البوت', 'Flow session')}:{' '}
+                          {botDiagnostics[c.id].previewConversation!.sessionStatus ||
+                            t('لا توجد', 'None')}{' '}
+                          {botDiagnostics[c.id].previewConversation!.sessionWaitKind
+                            ? `(${botDiagnostics[c.id].previewConversation!.sessionWaitKind})`
+                            : ''}
+                        </p>
+                        <p>
+                          {t('أحداث الاستقبال المعلقة أو الفاشلة', 'Pending/failed inbound events')}
+                          : {botDiagnostics[c.id].previewConversation!.pendingInboundEvents}
+                        </p>
+                        <p>
+                          {t('البوت المختار لمحادثة التجربة', 'Selected preview flow')}:{' '}
+                          {botDiagnostics[c.id].previewConversation!.restartFlowName ??
+                            t('لا يوجد بوت محدد', 'No uniquely selected flow')}
+                        </p>
                         {botDiagnostics[c.id].previewConversation!.lastBotReply && (
                           <p>
-                            {t('آخر رد للبوت', 'Last bot reply')} — {new Date(botDiagnostics[c.id].previewConversation!.lastBotReply!.createdAt).toLocaleString()}:
-                            {' '}{botDiagnostics[c.id].previewConversation!.lastBotReply!.status}
-                            {' / '}{botDiagnostics[c.id].previewConversation!.lastBotReply!.jobStatus ?? '—'}
-                            {botDiagnostics[c.id].previewConversation!.lastBotReply!.category !== 'other' && (
-                              <> — {botDiagnostics[c.id].previewConversation!.lastBotReply!.category}
-                                {botDiagnostics[c.id].previewConversation!.lastBotReply!.code ? ` (#${botDiagnostics[c.id].previewConversation!.lastBotReply!.code})` : ''}
+                            {t('آخر رد للبوت', 'Last bot reply')} —{' '}
+                            {new Date(
+                              botDiagnostics[c.id].previewConversation!.lastBotReply!.createdAt,
+                            ).toLocaleString()}
+                            : {botDiagnostics[c.id].previewConversation!.lastBotReply!.status}
+                            {' / '}
+                            {botDiagnostics[c.id].previewConversation!.lastBotReply!.jobStatus ??
+                              '—'}
+                            {botDiagnostics[c.id].previewConversation!.lastBotReply!.category !==
+                              'other' && (
+                              <>
+                                {' '}
+                                — {botDiagnostics[c.id].previewConversation!.lastBotReply!.category}
+                                {botDiagnostics[c.id].previewConversation!.lastBotReply!.code
+                                  ? ` (#${botDiagnostics[c.id].previewConversation!.lastBotReply!.code})`
+                                  : ''}
                               </>
                             )}
                           </p>
                         )}
                         {!botDiagnostics[c.id].previewConversation!.restartEligible && (
-                          <p className="notice">{t('لم يمكن تحديد بوت واحد لإعادة تشغيل هذه المحادثة. راجع البوتات المنشورة أو جرّب بوتًا محددًا أولًا.', 'No single bot could be selected for this test conversation. Check published bots or run a specific bot first.')}</p>
+                          <p className="notice">
+                            {t(
+                              'لم يمكن تحديد بوت واحد لإعادة تشغيل هذه المحادثة. راجع البوتات المنشورة أو جرّب بوتًا محددًا أولًا.',
+                              'No single bot could be selected for this test conversation. Check published bots or run a specific bot first.',
+                            )}
+                          </p>
                         )}
-                        {botDiagnostics[c.id].previewBotEnabled && botDiagnostics[c.id].previewConversation!.restartEligible && (
-                          <button className="btn" type="button" disabled={busy} onClick={() => restartPreviewBot(c)}>
-                            {t('إعادة تشغيل البوت لمحادثة التجربة فقط', 'Restart bot for this preview conversation only')}
-                          </button>
-                        )}
+                        {botDiagnostics[c.id].previewBotEnabled &&
+                          botDiagnostics[c.id].previewConversation!.restartEligible && (
+                            <button
+                              className="btn"
+                              type="button"
+                              disabled={busy}
+                              onClick={() => restartPreviewBot(c)}
+                            >
+                              {t(
+                                'إعادة تشغيل البوت لمحادثة التجربة فقط',
+                                'Restart bot for this preview conversation only',
+                              )}
+                            </button>
+                          )}
                       </section>
                     )}
                     {botDiagnostics[c.id].flowTriggers.map((f, idx) => (
                       <div key={idx}>
-                        <p><strong>{f.name}</strong>: {f.types.join(', ')}</p>
-                        <p>{t('خطوات النسخة المنشورة', 'Published steps')}: {f.publishedSteps} · {t('خطوات المسودة', 'Draft steps')}: {f.draftSteps} · {t('خطوات الرسائل والأسئلة المنشورة', 'Published message and question steps')}: {f.publishedReplies}</p>
-                        {f.draftSteps > f.publishedSteps && <p className="notice">{t('المسودة فيها خطوات أكثر من المنشور. احفظ وانشر أحدث نسخة من محرر البوت.', 'The draft has more steps than the published version. Save and publish the latest version in the bot editor.')}</p>}
+                        <p>
+                          <strong>{f.name}</strong>: {f.types.join(', ')}
+                        </p>
+                        <p>
+                          {t('خطوات النسخة المنشورة', 'Published steps')}: {f.publishedSteps} ·{' '}
+                          {t('خطوات المسودة', 'Draft steps')}: {f.draftSteps} ·{' '}
+                          {t(
+                            'خطوات الرسائل والأسئلة المنشورة',
+                            'Published message and question steps',
+                          )}
+                          : {f.publishedReplies}
+                        </p>
+                        {f.draftSteps > f.publishedSteps && (
+                          <p className="notice">
+                            {t(
+                              'المسودة فيها خطوات أكثر من المنشور. احفظ وانشر أحدث نسخة من محرر البوت.',
+                              'The draft has more steps than the published version. Save and publish the latest version in the bot editor.',
+                            )}
+                          </p>
+                        )}
                       </div>
                     ))}
-                    {botDiagnostics[c.id].activeConversationsHuman > 0 && <p className="notice">{t('المحادثات المستلمة بواسطة موظف لا يرد عليها البوت. أعد محادثة التجربة للبوت من Inbox عند انتهاء الموظف.', 'The bot does not reply in human-owned conversations. Return the test conversation to the bot from Inbox when the agent is finished.')}</p>}
-                    {botDiagnostics[c.id].previewBotEnabled && botDiagnostics[c.id].flowTriggers.filter((f) => f.types.includes('first_message')).length > 1 && !botDiagnostics[c.id].previewConversation?.restartEligible && <p className="notice">{t('يوجد أكثر من بوت ترحيب لهذه القناة ولم يمكن تحديد البوت المستخدم سابقًا.', 'Multiple welcome flows are published and no previously used bot could be selected.')}</p>}
+                    {botDiagnostics[c.id].activeConversationsHuman > 0 && (
+                      <p className="notice">
+                        {t(
+                          'المحادثات المستلمة بواسطة موظف لا يرد عليها البوت. أعد محادثة التجربة للبوت من Inbox عند انتهاء الموظف.',
+                          'The bot does not reply in human-owned conversations. Return the test conversation to the bot from Inbox when the agent is finished.',
+                        )}
+                      </p>
+                    )}
+                    {botDiagnostics[c.id].previewBotEnabled &&
+                      botDiagnostics[c.id].flowTriggers.filter((f) =>
+                        f.types.includes('first_message'),
+                      ).length > 1 &&
+                      !botDiagnostics[c.id].previewConversation?.restartEligible && (
+                        <p className="notice">
+                          {t(
+                            'يوجد أكثر من بوت ترحيب لهذه القناة ولم يمكن تحديد البوت المستخدم سابقًا.',
+                            'Multiple welcome flows are published and no previously used bot could be selected.',
+                          )}
+                        </p>
+                      )}
                     {!botDiagnostics[c.id].publishedFlowCount && (
-                      <p className="notice">{t('انشر بوتًا واربطه بقناة واتساب. ليس مطلوبًا كتابة أي رسالة اختبار خاصة.', 'Publish a flow linked to WhatsApp. No special test keyword is needed.')}</p>
+                      <p className="notice">
+                        {t(
+                          'انشر بوتًا واربطه بقناة واتساب. ليس مطلوبًا كتابة أي رسالة اختبار خاصة.',
+                          'Publish a flow linked to WhatsApp. No special test keyword is needed.',
+                        )}
+                      </p>
                     )}
                   </section>
                 )}
-              </>
+              </details>
             )}
             {c.connectionHealth?.reason && (
               <p className="muted">
                 {
                   (
                     {
-                      authorization_expiring: t('تفويض Meta ينتهي خلال 7 أيام. جدّد التفويض قبل توقف الإرسال.', 'Meta authorization expires within 7 days. Renew it before delivery stops.'),
-                      messaging_permission_required: t('تعذّر إثبات صلاحية إرسال واتساب. افحص صلاحيات Meta.', 'WhatsApp messaging permission is not verified. Check Meta authorization.'),
-                      authorization_unavailable: t('تعذر التحقق من تفويض Meta الآن. أعد الفحص قبل اعتماد الاتصال.', 'Meta authorization could not be verified. Check again before relying on the connection.'),
+                      authorization_expiring: t(
+                        'تفويض Meta ينتهي خلال 7 أيام. جدّد التفويض قبل توقف الإرسال.',
+                        'Meta authorization expires within 7 days. Renew it before delivery stops.',
+                      ),
+                      messaging_permission_required: t(
+                        'تعذّر إثبات صلاحية إرسال واتساب. افحص صلاحيات Meta.',
+                        'WhatsApp messaging permission is not verified. Check Meta authorization.',
+                      ),
+                      authorization_unavailable: t(
+                        'تعذر التحقق من تفويض Meta الآن. أعد الفحص قبل اعتماد الاتصال.',
+                        'Meta authorization could not be verified. Check again before relying on the connection.',
+                      ),
                       provider_verified: t(
                         'تم التحقق من الحساب لدى المزود.',
                         'Provider account verified.',

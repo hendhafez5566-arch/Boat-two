@@ -59,6 +59,7 @@ fs.mkdirSync(out, { recursive: true });
     await page
       .getByRole('textbox', { name: 'اسم العرض لـ children', exact: true })
       .fill('أطفال حسب السياسة الخاصة');
+    await page.getByText('إعدادات متقدمة للمساعد', { exact: true }).click();
     await page.getByRole('checkbox', { name: /اعتماد الكتالوج لردود المساعد/ }).check();
     await page.screenshot({ path: out + '/01-mapping-ar-desktop.png', fullPage: true });
     await page.getByRole('button', { name: 'حفظ الربط والإعدادات', exact: true }).click();
@@ -73,6 +74,7 @@ fs.mkdirSync(out, { recursive: true });
       .waitFor({ state: 'hidden' });
     await page.getByText('سعر الفرد ثلاثي: 12500 جنيه', { exact: true }).waitFor();
     // New content and hidden item, same source and same node configuration.
+    await page.waitForFunction(() => !document.querySelector('input[type=file]').disabled);
     await page.locator('input[type=file]').setInputFiles({
       name: 'tourism-new.csv',
       mimeType: 'text/csv',
@@ -84,6 +86,7 @@ fs.mkdirSync(out, { recursive: true });
       ),
     });
     await sync.click();
+    await page.getByRole('checkbox', { name: 'راجعت العناصر المخفية في هذا التحديث', exact: true }).check();
     await page.getByRole('button', { name: 'تطبيق التحديث المعروض', exact: true }).click();
     await page
       .getByRole('button', { name: 'تطبيق التحديث المعروض', exact: true })

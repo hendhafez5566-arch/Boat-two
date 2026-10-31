@@ -117,6 +117,7 @@ export class DataSourcesService implements OnModuleInit, OnModuleDestroy {
           errors: normalized.errors,
           items: normalized.items.slice(0, 20),
           total: normalized.items.length,
+          hidden: normalized.items.filter((item) => item.visible === false).length,
         };
       }
       if (!normalized.items.length) throw new BadRequestException('Empty updates are not applied');
@@ -142,6 +143,7 @@ export class DataSourcesService implements OnModuleInit, OnModuleDestroy {
           previewId: token,
           items: normalized.items.slice(0, 20),
           total: normalized.items.length,
+          hidden: normalized.items.filter((item) => item.visible === false).length,
           missing,
           errors: [],
         };
