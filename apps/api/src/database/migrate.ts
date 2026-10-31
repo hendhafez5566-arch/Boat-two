@@ -24,7 +24,7 @@ async function main() {
       // Explicitly authorize a ONE-TIME QA bootstrap only in the preview
       // environment and for the preconfigured test WhatsApp channel. The SQL
       // migration will additionally verify the Meta phone-number ID.
-      if (file === '096_preview_catalog_demo.sql' &&
+      if ((file === '096_preview_catalog_demo.sql' || file === '097_preview_catalog_demo_retry.sql') &&
           process.env.BOAT_PREVIEW_ONLY === 'true' &&
           process.env.WHATSAPP_PREVIEW_BOT_ENABLED === 'true') {
         await client.query(
@@ -34,6 +34,11 @@ async function main() {
             process.env.WHATSAPP_PREVIEW_BOT_CONVERSATION_ID ?? '',
           ],
         );
+        const confirmation = await client.query<{ channel: string }>(
+          "SELECT current_setting('boat.preview_seed_channel', true) AS channel",
+        );
+        if (confirmation.rows[0]?.channel !== process.env.WHATSAPP_PREVIEW_BOT_CHANNEL_ID)
+          throw new Error('Scoped QA seed session was not established');
       }
       await client.query(readFileSync(join(dir, file), 'utf8'));
       await client.query('INSERT INTO schema_migrations(name) VALUES ($1)', [file]);
