@@ -31,6 +31,7 @@ type BotReadiness = {
     sessionCreatedAt: string | null;
     pendingInboundEvents: number;
     restartFlowName: string | null;
+    selectedFlowId: string | null;
     restartEligible: boolean;
     lastBotReply: null | {
       createdAt: string;
@@ -41,6 +42,8 @@ type BotReadiness = {
     };
   };
 };
+
+type AvailableBot = { id: string; name: string; status: string; channel_ids: string[]; is_component: boolean };
 
 type WhatsAppAuthDiagnostics = {
   token: {
@@ -94,6 +97,8 @@ export default function Channels() {
   const [copied, setCopied] = useState('');
   const [items, setItems] = useState<Channel[]>([]);
   const [botDiagnostics, setBotDiagnostics] = useState<Record<string, BotReadiness>>({});
+  const [availableBots, setAvailableBots] = useState<Record<string, AvailableBot[]>>({});
+  const [previewBotChoice, setPreviewBotChoice] = useState<Record<string, string>>({});
   const [authDiagnostics, setAuthDiagnostics] = useState<Record<string, WhatsAppAuthDiagnostics>>({});
   const [editingTokenId, setEditingTokenId] = useState<string | null>(null);
   const [replacementToken, setReplacementToken] = useState('');
@@ -140,16 +145,87 @@ export default function Channels() {
   }
 
   async function inspectBot(c: Channel) {
-    setBusy(true);
-    setError('');
+    setBusy(true); setError('');
     try {
+      const [result, flows] = await Promise.all([
+        api<BotReadiness>(`/channels/${c.id}/bot-readiness`),
+        api<AvailableBot[]>('/flows'),
+      ]);
+      const published = flows.filter(f => f.status === 'published' && !f.is_component &&
+        (!f.channel_ids?.length || f.channel_ids.includes(c.id)));
+      setBotDiagnostics(prev => ({ ...prev, [c.id]: result }));
+      setAvailableBots(prev => ({ ...prev, [c.id]: published }));
+      setPreviewBotChoice(prev => ({
+        ...prev,
+        [c.id]: result.previewConversation?.selectedFlowId ?? prev[c.id] ?? published[0]?.id ?? '',
+      }));
+    } catch (err) { setError((err as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  async function activatePreviewBot(c: Channel, flowId: string) {
+    if (!flowId) return;
+    if (!window.confirm(t(
+      'تشغيل البوت المختار لمحادثة اختبار واتساب فقط؟ سيُنهي السؤال القديم ويعيد المحادثة للبوت، دون تغيير توكين Meta أو بوتات العملاء.',
+      'Use this bot only for the WhatsApp preview conversation? The previous waiting step will end, without changing Meta authorization or customer bots.',
+    ))) return;
+    setBusy(true); setError('');
+    try {
+      const activated = await api<{ flowName: string }>(`/channels/${c.id}/preview-activate`, {
+        method: 'POST', body: JSON.stringify({flowId,confirm:true}),
+      });
       const result = await api<BotReadiness>(`/channels/${c.id}/bot-readiness`);
-      setBotDiagnostics((prev) => ({ ...prev, [c.id]: result }));
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+      setBotDiagnostics(prev => ({ ...prev, [c.id]: result }));
+      setPreviewBotChoice(prev => ({ ...prev, [c.id]: flowId }));
+      setTokenNotice(t(
+        `تم تفعيل «${activated.flowName}» على محادثة التجربة فقط. ابعت أي رسالة جديدة على واتساب.`,
+        `Activated “${activated.flowName}” for this preview conversation. Send any new WhatsApp message.`,
+      ));
+    } catch (err) { setError((err as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  async function createTourismPreview(c: Channel) {
+    if (!window.confirm(t(
+      'إنشاء ونشر بوت سياحي تجريبي جديد (عمرة وحج ورحلات وتأشيرات وعروض) وتشغيله على محادثة اختبار واتساب فقط؟ لن تُحذف البوتات الحالية.',
+      'Create and publish a new professional tourism preview flow, then activate it only in this WhatsApp test conversation? Existing flows stay untouched.',
+    ))) return;
+    setBusy(true); setError('');
+    try {
+      const flowName = 'بوت شركة السياحة الاحترافي — تجربة واتساب';
+      const flows = await api<AvailableBot[]>('/flows');
+      let flow = flows.find(f => f.name === flowName && !f.is_component &&
+        Array.isArray(f.channel_ids) && f.channel_ids.includes(c.id));
+      if (!flow) {
+        flow = await api<AvailableBot>('/flows', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: flowName,
+            description: 'نموذج سياحي تجريبي بالعربية: عمرة، حج، وجهات داخلية وخارجية، تأشيرات، عروض وCRM وتحويل موظف.',
+            templateId: 'tourism_pro', channelIds: [c.id], language: 'ar',
+          }),
+        });
+      }
+      if (flow.status !== 'published')
+        await api(`/flows/${flow.id}/publish`, { method: 'POST', body: '{}' });
+      const activated = await api<{ flowName: string }>(`/channels/${c.id}/preview-activate`, {
+        method: 'POST', body: JSON.stringify({ flowId: flow.id, confirm: true }),
+      });
+      const [ready, allFlows] = await Promise.all([
+        api<BotReadiness>(`/channels/${c.id}/bot-readiness`),
+        api<AvailableBot[]>('/flows'),
+      ]);
+      setBotDiagnostics(prev => ({ ...prev, [c.id]: ready }));
+      setAvailableBots(prev => ({ ...prev, [c.id]: allFlows.filter(f =>
+        f.status === 'published' && !f.is_component && (!f.channel_ids?.length || f.channel_ids.includes(c.id)),
+      ) }));
+      setPreviewBotChoice(prev => ({ ...prev, [c.id]: flow.id }));
+      setTokenNotice(t(
+        `تم نشر وتشغيل «${activated.flowName}» على محادثة الاختبار. ابعت «السلام عليكم» للرقم 0904 وجرب قائمة الخدمات.`,
+        `Published and activated “${activated.flowName}” for this test chat. Send any message to the WhatsApp number to try the tourism menu.`,
+      ));
+    } catch (err) { setError((err as Error).message); }
+    finally { setBusy(false); }
   }
 
   async function restartPreviewBot(c: Channel) {
@@ -493,6 +569,33 @@ export default function Channels() {
                         <p>{t('جلسة البوت', 'Flow session')}: {botDiagnostics[c.id].previewConversation!.sessionStatus || t('لا توجد', 'None')} {botDiagnostics[c.id].previewConversation!.sessionWaitKind ? `(${botDiagnostics[c.id].previewConversation!.sessionWaitKind})` : ''}</p>
                         <p>{t('أحداث الاستقبال المعلقة أو الفاشلة', 'Pending/failed inbound events')}: {botDiagnostics[c.id].previewConversation!.pendingInboundEvents}</p>
                         <p>{t('البوت المختار لمحادثة التجربة', 'Selected preview flow')}: {botDiagnostics[c.id].previewConversation!.restartFlowName ?? t('لا يوجد بوت محدد', 'No uniquely selected flow')}</p>
+                        {botDiagnostics[c.id].previewBotEnabled && (
+                          <div className="stack">
+                            <strong>{t('اختيار البوت الذي تريد تجربته على واتساب', 'Choose the bot to test on WhatsApp')}</strong>
+                            <select
+                              className="input"
+                              aria-label={t('اختر بوت التجربة', 'Select preview bot')}
+                              value={previewBotChoice[c.id] || ''}
+                              onChange={event => setPreviewBotChoice(prev => ({ ...prev, [c.id]: event.target.value }))}
+                            >
+                              <option value="">{t('اختر بوتًا منشورًا', 'Choose a published bot')}</option>
+                              {(availableBots[c.id] || []).map(flow => (
+                                <option key={flow.id} value={flow.id}>{flow.name}</option>
+                              ))}
+                            </select>
+                            <button className="btn" type="button" disabled={busy || !previewBotChoice[c.id]}
+                              onClick={() => activatePreviewBot(c, previewBotChoice[c.id])}>
+                              {t('تشغيل البوت المختار على رقم الاختبار', 'Activate selected bot on test number')}
+                            </button>
+                            <button className="btn" type="button" disabled={busy} onClick={() => createTourismPreview(c)}>
+                              {t('إنشاء ونشر بوت سياحي احترافي وتجربته', 'Create and try a professional tourism chatbot')}
+                            </button>
+                            <p className="muted">{t(
+                              'التبديل يخص محادثة واتساب التجريبية فقط؛ البوتات المنشورة الأخرى لا تُحذف، ولا يتغيّر Coexistence.',
+                              'Switching affects only the WhatsApp test conversation; published flows and Coexistence remain unchanged.',
+                            )}</p>
+                          </div>
+                        )}
                         {botDiagnostics[c.id].previewConversation!.lastBotReply && (
                           <p>
                             {t('آخر رد للبوت', 'Last bot reply')} — {new Date(botDiagnostics[c.id].previewConversation!.lastBotReply!.createdAt).toLocaleString()}:
