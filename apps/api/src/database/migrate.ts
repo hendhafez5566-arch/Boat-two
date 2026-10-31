@@ -21,6 +21,20 @@ async function main() {
     console.log('Applying', file);
     await client.query('BEGIN');
     try {
+      // Explicitly authorize a ONE-TIME QA bootstrap only in the preview
+      // environment and for the preconfigured test WhatsApp channel. The SQL
+      // migration will additionally verify the Meta phone-number ID.
+      if (file === '096_preview_catalog_demo.sql' &&
+          process.env.BOAT_PREVIEW_ONLY === 'true' &&
+          process.env.WHATSAPP_PREVIEW_BOT_ENABLED === 'true') {
+        await client.query(
+          "SELECT set_config('boat.preview_seed_channel', $1, true), set_config('boat.preview_seed_conversation', $2, true)",
+          [
+            process.env.WHATSAPP_PREVIEW_BOT_CHANNEL_ID ?? '',
+            process.env.WHATSAPP_PREVIEW_BOT_CONVERSATION_ID ?? '',
+          ],
+        );
+      }
       await client.query(readFileSync(join(dir, file), 'utf8'));
       await client.query('INSERT INTO schema_migrations(name) VALUES ($1)', [file]);
       await client.query('COMMIT');
