@@ -9,7 +9,7 @@ export interface PreviewBotMessage {
   flow_id: string | null;
   created_at: Date | string;
   last_inbound_at: Date | string | null;
-  last_inbound_text?: string | null;
+  preview_trigger_at?: Date | string | null;
   content?: { template?: unknown };
 }
 export function previewBotDeliveryAllowed(
@@ -25,21 +25,27 @@ export function previewBotDeliveryAllowed(
   const cutoff = Date.parse(settings.WHATSAPP_PREVIEW_BOT_AFTER);
   const created = new Date(row.created_at).getTime();
   const lastInbound = row.last_inbound_at ? new Date(row.last_inbound_at).getTime() : NaN;
+  const previewStart = row.preview_trigger_at ? new Date(row.preview_trigger_at).getTime() : NaN;
   return row.channel_type === 'whatsapp'
     && row.channel_status === 'active'
     && row.channel_id === settings.WHATSAPP_PREVIEW_BOT_CHANNEL_ID
     && row.sender_type === 'bot'
     && !!row.flow_id
     && !row.content?.template
-    && typeof row.last_inbound_text === 'string'
-    && /^BOAT-TEST-[0-9]{3,8}$/.test(row.last_inbound_text.trim())
+    // The initiating QA keyword remains authorized even after later inputs
+    // (email, attachments, button replies) change the latest inbound message.
     && Number.isFinite(cutoff)
-    && created >= cutoff
+    && Number.isFinite(previewStart)
+    && previewStart >= cutoff
+    && created >= previewStart
     && created <= now + 60_000
+    && now >= previewStart
+    && now - previewStart <= 15 * 60_000
+    && created - previewStart <= 15 * 60_000
     && Number.isFinite(lastInbound)
     && lastInbound <= now + 60_000
-    && now - lastInbound >= 0
-    && now - lastInbound <= 15 * 60_000;
+    && now >= lastInbound
+    && now - lastInbound <= 24 * 60 * 60_000;
 }
 
 /** A preview-only message that may restart the already published welcome bot.
