@@ -51,12 +51,16 @@ export class ChannelsController {
       )).rows[0];
       if (!channel) throw new NotFoundException('Channel not found');
       const flows = (await c.query(
-        `SELECT f.id,f.name,v.triggers FROM flows f
+        `SELECT f.id,f.name,v.triggers,f.draft_graph,v.graph AS published_graph FROM flows f
          JOIN flow_versions v ON v.id=f.published_version_id
          WHERE f.status='published' AND NOT f.is_component
          AND (cardinality(v.channel_ids)=0 OR $1=ANY(v.channel_ids))`,
         [id],
-      )).rows as { id: string; name: string; triggers: { type: string; keywords?: string[] }[] }[];
+      )).rows as {
+        id: string; name: string; triggers: { type: string; keywords?: string[] }[];
+        draft_graph: { nodes?: { type: string }[] } | null;
+        published_graph: { nodes?: { type: string }[] } | null;
+      }[];
       const messages = (await c.query(
         `SELECT m.sender_type,m.status,j.status AS job_status
          FROM messages m LEFT JOIN outbound_jobs j ON j.message_id=m.id
@@ -72,6 +76,11 @@ export class ChannelsController {
         publishedFlowCount: flows.length,
         flowTriggers: flows.slice(0, 10).map((f) => ({
           name: f.name,
+          draftSteps: f.draft_graph?.nodes?.length ?? 0,
+          publishedSteps: f.published_graph?.nodes?.length ?? 0,
+          publishedReplies: f.published_graph?.nodes?.filter((n) =>
+            ['message', 'question', 'user_input', 'interactive', 'whatsapp_flow'].includes(n.type),
+          ).length ?? 0,
           types: f.triggers.map((t) => t.type),
           matchesTestKeyword: f.triggers.some((t) =>
             t.type === 'any_message' ||
