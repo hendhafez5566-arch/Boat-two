@@ -14,6 +14,7 @@ import { MetaAdapter } from './adapters/meta.adapter';
 import { WhatsAppAdapter } from './adapters/whatsapp.adapter';
 import { TelegramAdapter } from './adapters/telegram.adapter';
 import { ProviderError, sendWithTyping } from './adapters/adapter';
+import { previewBotDeliveryAllowed } from './preview-bot-delivery';
 @Injectable()
 export class OutboundService implements OnModuleInit, OnModuleDestroy {
   private timer?: NodeJS.Timeout;
@@ -61,7 +62,7 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
           }
           const message = (
             await c.query(
-              `SELECT m.*,ch.type AS channel_type,ch.status AS channel_status,ch.credentials_enc,cv.last_inbound_at,(SELECT im.external_id FROM messages im WHERE im.conversation_id=m.conversation_id AND im.direction='in' AND im.external_id IS NOT NULL ORDER BY im.created_at DESC LIMIT 1) AS last_inbound_message_id,cc.external_id AS recipient,cc.blocked_at FROM messages m JOIN channels ch ON ch.id=m.channel_id JOIN conversations cv ON cv.id=m.conversation_id JOIN contact_channels cc ON cc.channel_id=m.channel_id AND cc.contact_id=cv.contact_id WHERE m.id=$1`,
+              `SELECT m.*,ch.type AS channel_type,ch.status AS channel_status,ch.credentials_enc,cv.last_inbound_at,(SELECT im.external_id FROM messages im WHERE im.conversation_id=m.conversation_id AND im.direction='in' AND im.external_id IS NOT NULL ORDER BY im.created_at DESC LIMIT 1) AS last_inbound_message_id,(SELECT im.content->>'text' FROM messages im WHERE im.conversation_id=m.conversation_id AND im.direction='in' ORDER BY im.created_at DESC LIMIT 1) AS last_inbound_text,cc.external_id AS recipient,cc.blocked_at FROM messages m JOIN channels ch ON ch.id=m.channel_id JOIN conversations cv ON cv.id=m.conversation_id JOIN contact_channels cc ON cc.channel_id=m.channel_id AND cc.contact_id=cv.contact_id WHERE m.id=$1`,
               [j.message_id],
             )
           ).rows[0];
@@ -117,10 +118,11 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
               return null;
             }
           }
+          const previewBotAllowed = previewBotDeliveryAllowed(message, !!marketing);
           if (
             !message ||
             message.channel_status !== 'active' ||
-            env.EXTERNAL_DELIVERY_ENABLED !== 'true'
+            (env.EXTERNAL_DELIVERY_ENABLED !== 'true' && !previewBotAllowed)
           ) {
             await c.query(
               "UPDATE outbound_jobs SET status='blocked',error='External delivery disabled or channel inactive',updated_at=now() WHERE id=$1",
