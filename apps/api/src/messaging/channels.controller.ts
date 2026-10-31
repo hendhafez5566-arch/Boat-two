@@ -81,7 +81,7 @@ export class ChannelsController {
         `SELECT cv.handled_by,cv.status,cv.last_inbound_at,
                 fs.status AS session_status,fs.wait_kind,fs.created_at AS session_created_at,
                 (SELECT count(*)::int FROM domain_events de
-                 WHERE de.aggregate_id=cv.id AND de.type='message.received'
+                 WHERE de.aggregate_id=cv.id::text AND de.type='message.received'
                    AND de.status IN ('failed','pending')) AS pending_inbound_events
            FROM conversations cv
            LEFT JOIN LATERAL (
