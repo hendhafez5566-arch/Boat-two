@@ -631,7 +631,7 @@ export class CrmController {
     return this.crm.db.withTenant(r.user.tenantId, async (c) => {
       const params: unknown[] = [
         q.q ? '%' + q.q.replace(/[\\%_]/g, '\\$&') + '%' : null,
-        q.status ?? null,
+        q.status || null,
         r.user.role === 'agent' ? r.user.userId : (q.ownerId ?? null),
       ];
       let where = `($1::text IS NULL OR w.title ILIKE $1 OR ct.name ILIKE $1 OR ct.email ILIKE $1) AND ($2::text IS NULL OR w.status=$2) AND ($3::uuid IS NULL OR w.${kind === 'deals' ? 'owner_id' : 'assigned_to'}=$3)`;

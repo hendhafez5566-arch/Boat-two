@@ -448,6 +448,47 @@ try {
       await shot('after-reports-en');
       checks.push('RTL mobile/tablet no document overflow; English reports render');
     }
+    for (const role of ['admin', 'agent']) {
+      const invitation = await req('/team/invitations', token, {
+        email: randomUUID() + '@example.test',
+        role,
+        sendEmail: false,
+      });
+      const staff = await req('/auth/accept-invitation', null, {
+        token: new URL(invitation.inviteUrl).searchParams.get('token'),
+        fullName: sector + ' ' + role,
+        password: 'Synthetic-' + randomUUID(),
+      });
+      const staffContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+      await staffContext.addInitScript((s) => {
+        localStorage.setItem('session', JSON.stringify(s));
+        localStorage.setItem('boat-language', 'ar');
+      }, staff);
+      const staffPage = await staffContext.newPage();
+      staffPage.on('pageerror', (e) => errors.push(e.message));
+      await staffPage.goto('http://localhost:3001/dashboard/crm/sales');
+      await staffPage
+        .getByRole('heading', {
+          name: role === 'agent' ? 'مساحة عملي' : 'الفريق المناسب، في الوقت المناسب',
+          exact: true,
+        })
+        .waitFor();
+      if (role === 'agent')
+        assert.equal(
+          await staffPage.getByLabel('تشغيل التوزيع التلقائي', { exact: true }).count(),
+          0,
+        );
+      else {
+        await staffPage.getByLabel('تشغيل التوزيع التلقائي', { exact: true }).waitFor();
+      }
+      assert.ok(await staffPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      await staffPage.screenshot({
+        path: out + '/' + sector + '-' + role + '-mobile-ar.jpg',
+        quality: 78,
+      });
+      checks.push(sector + ': ' + role + ' mobile workspace respects management role');
+      await staffContext.close();
+    }
     if (index === 2) {
       const me = await req('/auth/me', token);
       const tenantId = me.workspaces[0].tenant_id;

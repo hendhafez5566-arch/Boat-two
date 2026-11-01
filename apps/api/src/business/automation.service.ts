@@ -1,3 +1,4 @@
+import { crmDate } from './crm-overview';
 import { NotificationsService } from './notifications.service';
 import { integrationHeaders } from './integration-auth';
 import { CryptoService } from '../messaging/crypto.service';
@@ -200,8 +201,7 @@ export class AutomationService {
               if (
                 field.type === 'date' &&
                 action.value !== null &&
-                (!/^\d{4}-\d{2}-\d{2}$/.test(String(action.value)) ||
-                  !Number.isFinite(Date.parse(String(action.value))))
+                !crmDate.safeParse(action.value).success
               )
                 throw new Error('Use an ISO date');
               await c.query(

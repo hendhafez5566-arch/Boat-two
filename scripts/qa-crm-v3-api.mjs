@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 const log = openSync('/tmp/boat-crm-v2-api.log', 'w');
 const server = spawn(process.execPath, ['scripts/qa-full-api.mjs'], {
   stdio: ['ignore', log, log],
-  env: { ...process.env, BOAT_CLOUD_REVIEW: 'true' },
+  env: { ...process.env, BOAT_CLOUD_REVIEW: 'true', BOAT_CRM_V3_QA: 'true' },
 });
 let count = 0;
 const sessions = [];
@@ -202,6 +202,8 @@ try {
     await new Promise((r) => setTimeout(r, 1800));
     assert.equal((await request('/crm/deals?contactId=' + own.id, token)).items.length, 1);
     count++;
+    assert.equal((await request('/crm/deals?status=&id=' + deals[0].id, token)).items.length, 1);
+    count++;
     const deal = deals[0];
     await request(
       '/crm/deals/' + deal.id,
@@ -286,6 +288,57 @@ try {
     assert.ok(score.reasons.some((x) => x.key === 'inactive' && x.points === -5));
     assert.ok(['hot', 'warm', 'cold'].includes(score.band));
     count++;
+    for (const [key, type] of [
+      ['budget', 'number'],
+      ['consented', 'boolean'],
+    ])
+      await request('/crm/fields', token, { key, label: key, type });
+    const fieldRule = await request('/automations', token, {
+      name: 'Typed fields',
+      trigger: 'automation.scheduled',
+      enabled: true,
+      conditions: {},
+      actions: [
+        { type: 'field', key: 'budget', value: 0 },
+        { type: 'field', key: 'consented', value: false },
+      ],
+    });
+    await request('/automations/' + fieldRule.id + '/schedule', token, {
+      contactId: own.id,
+      at: new Date().toISOString(),
+    });
+    let fieldContact;
+    for (let i = 0; i < 60; i++) {
+      fieldContact = (await request('/crm/contacts/' + own.id + '/profile', token)).contact;
+      if (fieldContact.attributes.budget === 0 && fieldContact.attributes.consented === false)
+        break;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    assert.equal(fieldContact.attributes.budget, 0);
+    assert.equal(fieldContact.attributes.consented, false);
+    count++;
+    await request('/automations', token, {
+      name: 'Move stage once',
+      trigger: 'crm.deal.stage_changed',
+      enabled: true,
+      conditions: { dealStage: 'New' },
+      actions: [{ type: 'moveDeal', pipelineId: pipeline.id, stage: 'Proposal' }],
+    });
+    const beforeMove = (await request('/crm/deals?contactId=' + own.id, token)).items[0];
+    await request(
+      '/crm/deals/' + beforeMove.id,
+      token,
+      { stage: 'New', expectedUpdatedAt: beforeMove.updated_at },
+      'PATCH',
+    );
+    let movedDeal;
+    for (let i = 0; i < 60; i++) {
+      movedDeal = (await request('/crm/deals?contactId=' + own.id, token)).items[0];
+      if (movedDeal.stage === 'Proposal') break;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    assert.equal(movedDeal.stage, 'Proposal');
+    count++;
     for (const other of sessions) {
       await request('/crm/sales/notifications/' + notice.id, other.accessToken, {}, 'POST', 404);
       const otherConfig = await request('/crm/sales/settings', other.accessToken);
@@ -301,6 +354,16 @@ try {
         404,
       );
     }
+    count++;
+    const workspace = await request('/auth/me', token);
+    const receipts = await request('/__qa/v3/receipts', null, {
+      tenantId: workspace.workspaces[0].tenant_id,
+      contactId: own.id,
+    });
+    assert.equal(receipts.failed, true);
+    assert.equal(receipts.injected, true);
+    assert.equal(receipts.notes, 1);
+    assert.equal(receipts.tasks, 1);
     count++;
     sessions.push(owner);
   }
@@ -322,6 +385,9 @@ try {
           'synthetic preview performs no actions',
           'scoring positive and negative evidence',
           'cross-tenant settings and notification denial',
+          'typed custom-field writes preserve zero and false',
+          'event-scoped stage move and loop suppression',
+          'transient action failure rolls back; replay creates one note and task',
         ],
       },
       null,

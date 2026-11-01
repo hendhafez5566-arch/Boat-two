@@ -1,0 +1,23 @@
+{
+  "apiBuild": "passed",
+  "webBuild": "passed",
+  "typescript": "passed through both production builds",
+  "regression": {
+    "passed": 210,
+    "failed": 0,
+    "skipped": 0,
+    "command": "node --import tsx --test --test-concurrency=1 (all src/**/*.test.ts found by rg)"
+  },
+  "eslint": {
+    "baselineErrors": 173,
+    "currentErrors": 173,
+    "baselineWarnings": 1,
+    "currentWarnings": 1
+  },
+  "database": "103 actual migrations on isolated PGlite with app_user RLS; external native PostgreSQL not available",
+  "liveWhatsApp": "not attempted",
+  "cloudAuthenticatedSmoke": "blocked: browser at login",
+  "apiV3Groups": 69,
+  "browserJourneys": 41,
+  "apiV2RegressionGroups": 45
+}

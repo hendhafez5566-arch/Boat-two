@@ -128,6 +128,62 @@ Object.assign(process.env, {
       }
     }, 1000).unref();
   }
+  if (process.env.BOAT_CRM_V3_QA === 'true') {
+    const { AutomationService } = local('./dist/business/automation.service');
+    app
+      .getHttpAdapter()
+      .getInstance()
+      .post('/__qa/v3/receipts', async (req, res) => {
+        const db = app.get(DatabaseService),
+          engine = app.get(AutomationService),
+          { tenantId, contactId } = req.body;
+        const { randomUUID } = await import('node:crypto');
+        const eventId = randomUUID(),
+          marker = 'Synthetic receipt ' + eventId;
+        const input = {
+          tenantId,
+          contactId,
+          eventId,
+          actions: [
+            { type: 'note', text: marker },
+            { type: 'task', title: marker, delayMinutes: 5 },
+          ],
+        };
+        const original = db.withTenant.bind(db);
+        let injected = false;
+        db.withTenant = (tenant, fn) =>
+          original(tenant, (c) =>
+            fn({
+              ...c,
+              query: async (sql, args = []) => {
+                if (!injected && sql.includes('INSERT INTO crm_tasks') && args.includes(marker)) {
+                  injected = true;
+                  throw Error('Synthetic transient database failure');
+                }
+                return c.query(sql, args);
+              },
+            }),
+          );
+        let failed = false;
+        try {
+          await engine.followup(input);
+        } catch {
+          failed = true;
+        } finally {
+          db.withTenant = original;
+        }
+        await engine.followup(input);
+        await engine.followup(input);
+        const counts = await db.withTenant(tenantId, async (c) => ({
+          notes: (await c.query('SELECT count(*)::int AS n FROM crm_notes WHERE body=$1', [marker]))
+            .rows[0].n,
+          tasks: (
+            await c.query('SELECT count(*)::int AS n FROM crm_tasks WHERE title=$1', [marker])
+          ).rows[0].n,
+        }));
+        res.json({ failed, injected, ...counts });
+      });
+  }
   await app.listen(4000, '127.0.0.1');
   console.log('FULL_APP_READY 4000');
   const stop = async () => {

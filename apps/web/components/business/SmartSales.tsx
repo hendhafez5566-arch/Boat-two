@@ -379,145 +379,149 @@ export function SmartSales() {
             {test && <output>{test}</output>}
           </div>
           <hr />
-          <h2>
-            <NavIcon name="bell" />
-            {t('إعدادات التنبيهات الداخلية', 'Internal notification settings')}
-          </h2>
-          <div className={`${styles.form} ${css.fields}`}>
-            <label>
-              <span>
-                <input
-                  type="checkbox"
-                  checked={draft.notifications.enabled}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      notifications: { ...draft.notifications, enabled: e.target.checked },
-                    })
-                  }
-                />
-                {t('تفعيل التنبيهات', 'Enable notifications')}
-              </span>
-            </label>
-            {[
-              ['dueMinutes', 'التحذير قبل المهمة (دقائق)', 'Task warning (minutes)', 10080],
-              ['replyMinutes', 'انتظار الرد (دقائق)', 'Reply waiting (minutes)', 10080],
-              ['staleDays', 'ركود الصفقة (أيام)', 'Deal inactivity (days)', 365],
-              ['closingDays', 'قبل الإغلاق (أيام)', 'Before close (days)', 90],
-            ].map(([key, ar, en, max]) => (
-              <label key={key}>
-                {t(String(ar), String(en))}
-                <input
-                  type="number"
-                  min={1}
-                  max={Number(max)}
-                  required
-                  value={draft.notifications[key as keyof Notifications] as number}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      notifications: { ...draft.notifications, [key]: Number(e.target.value) },
-                    })
-                  }
-                />
-              </label>
-            ))}
-          </div>
-          <div className={css.employees}>
-            {[
-              'new_lead',
-              'unassigned',
-              'task_due',
-              'task_overdue',
-              'awaiting_reply',
-              'stale_deal',
-              'closing_deal',
-              'assigned',
-              'automation',
-            ].map((kind) => (
-              <div key={kind} className={css.member}>
-                <label>
+          <details>
+            <summary>
+              <h2>
+                <NavIcon name="bell" />
+                {t('إعدادات التنبيهات الداخلية', 'Internal notification settings')}
+              </h2>
+            </summary>
+            <div className={`${styles.form} ${css.fields}`}>
+              <label>
+                <span>
                   <input
                     type="checkbox"
-                    checked={draft.notifications.kinds.includes(kind)}
+                    checked={draft.notifications.enabled}
                     onChange={(e) =>
                       setDraft({
                         ...draft,
-                        notifications: {
-                          ...draft.notifications,
-                          kinds: e.target.checked
-                            ? [...draft.notifications.kinds, kind]
-                            : draft.notifications.kinds.filter((x) => x !== kind),
-                        },
+                        notifications: { ...draft.notifications, enabled: e.target.checked },
                       })
                     }
                   />
-                  {noticeLabel(kind, t)}
+                  {t('تفعيل التنبيهات', 'Enable notifications')}
+                </span>
+              </label>
+              {[
+                ['dueMinutes', 'التحذير قبل المهمة (دقائق)', 'Task warning (minutes)', 10080],
+                ['replyMinutes', 'انتظار الرد (دقائق)', 'Reply waiting (minutes)', 10080],
+                ['staleDays', 'ركود الصفقة (أيام)', 'Deal inactivity (days)', 365],
+                ['closingDays', 'قبل الإغلاق (أيام)', 'Before close (days)', 90],
+              ].map(([key, ar, en, max]) => (
+                <label key={key}>
+                  {t(String(ar), String(en))}
+                  <input
+                    type="number"
+                    min={1}
+                    max={Number(max)}
+                    required
+                    value={draft.notifications[key as keyof Notifications] as number}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        notifications: { ...draft.notifications, [key]: Number(e.target.value) },
+                      })
+                    }
+                  />
                 </label>
-              </div>
-            ))}
-          </div>
-          <p>
-            {t(
-              'التنبيهات داخل المنصة فقط. الافتراضي: الموظف المسؤول، والمدير للعميل دون مسؤول.',
-              'In-app only. Defaults to the assigned employee, or managers for unassigned leads.',
-            )}
-          </p>
-          <fieldset>
-            <legend>
+              ))}
+            </div>
+            <div className={css.employees}>
+              {[
+                'new_lead',
+                'unassigned',
+                'task_due',
+                'task_overdue',
+                'awaiting_reply',
+                'stale_deal',
+                'closing_deal',
+                'assigned',
+                'automation',
+              ].map((kind) => (
+                <div key={kind} className={css.member}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={draft.notifications.kinds.includes(kind)}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          notifications: {
+                            ...draft.notifications,
+                            kinds: e.target.checked
+                              ? [...draft.notifications.kinds, kind]
+                              : draft.notifications.kinds.filter((x) => x !== kind),
+                          },
+                        })
+                      }
+                    />
+                    {noticeLabel(kind, t)}
+                  </label>
+                </div>
+              ))}
+            </div>
+            <p>
               {t(
-                'المستهدفون بالتنبيهات (دون تحديد = الافتراضي)',
-                'Notification recipients (none selected = defaults)',
+                'التنبيهات داخل المنصة فقط. الافتراضي: الموظف المسؤول، والمدير للعميل دون مسؤول.',
+                'In-app only. Defaults to the assigned employee, or managers for unassigned leads.',
               )}
-            </legend>
-            {members.data.members.map((m) => (
-              <label key={m.user_id}>
-                <span>
-                  <input
-                    type="checkbox"
-                    checked={draft.notifications.targetIds.includes(m.user_id)}
-                    onChange={(e) =>
-                      setDraft({
-                        ...draft,
-                        notifications: {
-                          ...draft.notifications,
-                          targetIds: e.target.checked
-                            ? [...draft.notifications.targetIds, m.user_id]
-                            : draft.notifications.targetIds.filter((id) => id !== m.user_id),
-                        },
-                      })
-                    }
-                  />
-                  {m.full_name}
-                </span>
-              </label>
-            ))}
-          </fieldset>
-          <fieldset>
-            <legend>{t('أنواع ذات أولوية عالية', 'High-priority alert types')}</legend>
-            {draft.notifications.kinds.map((kind) => (
-              <label key={kind}>
-                <span>
-                  <input
-                    type="checkbox"
-                    checked={draft.notifications.highPriority.includes(kind)}
-                    onChange={(e) =>
-                      setDraft({
-                        ...draft,
-                        notifications: {
-                          ...draft.notifications,
-                          highPriority: e.target.checked
-                            ? [...draft.notifications.highPriority, kind]
-                            : draft.notifications.highPriority.filter((x) => x !== kind),
-                        },
-                      })
-                    }
-                  />
-                  {noticeLabel(kind, t)}
-                </span>
-              </label>
-            ))}
-          </fieldset>
+            </p>
+            <fieldset>
+              <legend>
+                {t(
+                  'المستهدفون بالتنبيهات (دون تحديد = الافتراضي)',
+                  'Notification recipients (none selected = defaults)',
+                )}
+              </legend>
+              {members.data.members.map((m) => (
+                <label key={m.user_id}>
+                  <span>
+                    <input
+                      type="checkbox"
+                      checked={draft.notifications.targetIds.includes(m.user_id)}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          notifications: {
+                            ...draft.notifications,
+                            targetIds: e.target.checked
+                              ? [...draft.notifications.targetIds, m.user_id]
+                              : draft.notifications.targetIds.filter((id) => id !== m.user_id),
+                          },
+                        })
+                      }
+                    />
+                    {m.full_name}
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+            <fieldset>
+              <legend>{t('أنواع ذات أولوية عالية', 'High-priority alert types')}</legend>
+              {draft.notifications.kinds.map((kind) => (
+                <label key={kind}>
+                  <span>
+                    <input
+                      type="checkbox"
+                      checked={draft.notifications.highPriority.includes(kind)}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          notifications: {
+                            ...draft.notifications,
+                            highPriority: e.target.checked
+                              ? [...draft.notifications.highPriority, kind]
+                              : draft.notifications.highPriority.filter((x) => x !== kind),
+                          },
+                        })
+                      }
+                    />
+                    {noticeLabel(kind, t)}
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+          </details>
           <Button busy={busy} type="submit">
             {t('حفظ الإعدادات', 'Save settings')}
           </Button>

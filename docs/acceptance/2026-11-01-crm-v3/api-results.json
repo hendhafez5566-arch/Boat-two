@@ -1,5 +1,5 @@
 {
-  "passed": 57,
+  "passed": 69,
   "tenants": 3,
   "database": "103 real migrations on isolated PGlite with RLS; no owner database",
   "tests": [
@@ -11,6 +11,9 @@
     "disabled rules stop executing",
     "synthetic preview performs no actions",
     "scoring positive and negative evidence",
-    "cross-tenant settings and notification denial"
+    "cross-tenant settings and notification denial",
+    "typed custom-field writes preserve zero and false",
+    "event-scoped stage move and loop suppression",
+    "transient action failure rolls back; replay creates one note and task"
   ]
 }
