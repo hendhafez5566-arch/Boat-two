@@ -1,0 +1,10 @@
+✔ sequence center and reviewed bulk enrollment execute PostgreSQL with RLS and no provider calls (3066.854743ms)
+✔ dashboard uses thirty UTC days, platform scoping, distinct subscriptions and tenant RLS (2395.323418ms)
+ℹ tests 209
+ℹ suites 0
+ℹ pass 209
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13658.728522

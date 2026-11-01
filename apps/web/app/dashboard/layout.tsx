@@ -10,7 +10,7 @@ import { useLocale } from '../../components/product/locale';
 const links = [
   ['', '◈', 'لوحة المعلومات', 'Dashboard'],
   ['inbox', '▤', 'صندوق الوارد المشترك', 'Shared Inbox'],
-  ['crm', '◉', 'مدير المشتركين', 'Subscriber Manager'],
+  ['crm', '◉', 'إدارة العملاء', 'CRM'],
   ['flows', '⌘', 'مدير البوت', 'Chatbot Manager'],
   ['campaigns', '➤', 'البث', 'Broadcasting'],
   ['social', '▣', 'النشر الاجتماعي', 'Social Posting'],

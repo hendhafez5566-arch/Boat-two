@@ -1,0 +1,136 @@
+import { Body as RequestBody } from '@nestjs/common';
+import { conditionsSchema, conditionWhere, pagination } from './schemas';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { previewSpreadsheet } from '../commerce/data-sources.controller';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+  Req,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { z } from 'zod';
+import { Roles } from '../auth/decorators';
+import { AuthedRequest } from '../common/types';
+import { parse } from '../common/zod';
+import { CrmService } from './crm.service';
+
+@Controller('crm/workspace')
+export class CrmWorkspaceController {
+  constructor(private readonly crm: CrmService) {}
+
+  @Post('import-preview')
+  @Roles('owner', 'admin')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024, files: 1 } }))
+  preview(@UploadedFile() file: Express.Multer.File, @Body('sheet') sheet?: string) {
+    return previewSpreadsheet(file, sheet);
+  }
+
+  @Get('views') views(@Req() r: AuthedRequest) {
+    return this.crm.db.withTenant(
+      r.user.tenantId,
+      async (c) =>
+        (
+          await c.query(
+            'SELECT id,name,filters FROM crm_saved_views ORDER BY created_at DESC LIMIT 100',
+          )
+        ).rows,
+    );
+  }
+
+  @Post('views')
+  @Roles('owner', 'admin')
+  saveView(@Req() r: AuthedRequest, @RequestBody() body: unknown) {
+    const b = parse(
+      z.object({ name: z.string().trim().min(1).max(100), conditions: conditionsSchema }),
+      body,
+    );
+    return this.crm.db.withTenant(
+      r.user.tenantId,
+      async (c) =>
+        (
+          await c.query(
+            'INSERT INTO crm_saved_views(tenant_id,name,filters) VALUES($1,$2,$3) RETURNING *',
+            [r.user.tenantId, b.name, JSON.stringify(b.conditions)],
+          )
+        ).rows[0],
+    );
+  }
+  @Post('search')
+  search(@Req() r: AuthedRequest, @RequestBody() body: unknown) {
+    const b = parse(pagination.extend({ conditions: conditionsSchema }), body);
+    const w = conditionWhere(b.conditions);
+    return this.crm.db.withTenant(r.user.tenantId, async (c) => ({
+      total: (await c.query(`SELECT count(*)::int AS n FROM contacts WHERE ${w.sql}`, w.params))
+        .rows[0].n,
+      items: (
+        await c.query(
+          `SELECT id,name,email,phone,lifecycle FROM contacts WHERE ${w.sql} ORDER BY name,id LIMIT $${w.params.length + 1} OFFSET $${w.params.length + 2}`,
+          [...w.params, b.limit, (b.page - 1) * b.limit],
+        )
+      ).rows,
+    }));
+  }
+
+  @Get('members') members(@Req() r: AuthedRequest) {
+    return this.crm.db.withTenant(r.user.tenantId, async (c) => ({
+      currentUserId: r.user.userId,
+      role: r.user.role,
+      members: (
+        await c.query(
+          'SELECT m.user_id,u.full_name FROM memberships m JOIN users u ON u.id=m.user_id ORDER BY u.full_name',
+        )
+      ).rows,
+    }));
+  }
+
+  @Get('company-contacts') companyContacts(@Req() r: AuthedRequest, @Query() query: unknown) {
+    const q = parse(z.object({ company: z.string().trim().min(1).max(200) }), query);
+    return this.crm.db.withTenant(
+      r.user.tenantId,
+      async (c) =>
+        (
+          await c.query(
+            "SELECT id,name,email,phone FROM contacts WHERE merged_into_id IS NULL AND archived_at IS NULL AND lower(attributes->>'company')=lower($1) ORDER BY name LIMIT 100",
+            [q.company],
+          )
+        ).rows,
+    );
+  }
+
+  @Get('report') @Roles('owner', 'admin') report(@Req() r: AuthedRequest) {
+    return this.crm.db.withTenant(r.user.tenantId, async (c) => {
+      const rows = async (sql: string) => (await c.query(sql)).rows;
+      const contacts = await rows(
+        "SELECT count(*)::int AS total,count(*) FILTER (WHERE lifecycle='customer')::int AS customers,count(*) FILTER (WHERE lifecycle='lead')::int AS leads FROM contacts WHERE merged_into_id IS NULL AND archived_at IS NULL",
+      );
+      const sales = await rows(
+        'SELECT currency,status,count(*)::int AS count,sum(value_cents)::text AS value_cents FROM crm_deals GROUP BY currency,status ORDER BY currency,status',
+      );
+      const sources = await rows(
+        "SELECT COALESCE(NULLIF(attributes->>'source',''),'Unknown') AS source,count(*)::int AS count FROM contacts WHERE merged_into_id IS NULL AND archived_at IS NULL GROUP BY 1 ORDER BY count DESC LIMIT 100",
+      );
+      const followups = await rows(
+        "SELECT count(*) FILTER (WHERE status='open')::int AS open,count(*) FILTER (WHERE status='open' AND due_at<now())::int AS overdue,count(*) FILTER (WHERE status='done')::int AS done FROM crm_tasks",
+      );
+      const employees = await rows(
+        "SELECT u.full_name,m.user_id,(SELECT count(*)::int FROM crm_tasks t WHERE t.assigned_to=m.user_id AND t.status='open' AND t.due_at<now()) AS overdue,(SELECT count(*)::int FROM crm_tasks t WHERE t.assigned_to=m.user_id AND t.status='done') AS completed,(SELECT count(*)::int FROM crm_deals d WHERE d.owner_id=m.user_id AND d.status='won') AS won FROM memberships m JOIN users u ON u.id=m.user_id ORDER BY u.full_name",
+      );
+      const unattended = await rows(
+        "SELECT ct.id,ct.name,ct.updated_at FROM contacts ct WHERE ct.archived_at IS NULL AND ct.merged_into_id IS NULL AND ct.lifecycle IN ('lead','qualified') AND NOT EXISTS (SELECT 1 FROM crm_tasks t WHERE t.contact_id=ct.id AND t.status='open') ORDER BY ct.updated_at LIMIT 50",
+      );
+      return {
+        contacts: contacts[0],
+        sales,
+        sources,
+        followups: followups[0],
+        employees,
+        unattended,
+        generatedAt: new Date().toISOString(),
+      };
+    });
+  }
+}

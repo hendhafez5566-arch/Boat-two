@@ -3,6 +3,7 @@ export function automationLabel(value: string, t: (ar: string, en: string) => st
     note: ['ملاحظة', 'Note'],
     tag: ['إضافة وسم', 'Add tag'],
     task: ['مهمة متابعة', 'Follow-up task'],
+    deal: ['إنشاء فرصة بيع', 'Create opportunity'],
     lifecycle: ['مرحلة العميل', 'Lifecycle'],
     branch: ['تفرّع شرطي', 'Conditional branch'],
     delay: ['انتظار', 'Delay'],

@@ -8,7 +8,7 @@ const local = createRequire(import.meta.url);
 const { chromium } = local(process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES + '/playwright');
 const api = 'http://127.0.0.1:4000',
   web = 'http://localhost:3000',
-  out = 'docs/acceptance/2026-11-01-pr4';
+  out = process.env.BOAT_QA_OUT || 'docs/acceptance/2026-11-01-pr4';
 fs.mkdirSync(out, { recursive: true });
 async function call(path, body, token, method = body ? 'POST' : 'GET', status) {
   const r = await fetch(api + path, {
@@ -346,7 +346,7 @@ async function call(path, body, token, method = body ? 'POST' : 'GET', status) {
           checks,
           pageErrors: errs,
           limits: [
-            'embedded PostgreSQL transport; complete Nest AppModule and all 98 migrations',
+            'embedded PostgreSQL transport; complete Nest AppModule and all current migrations',
             'external delivery and background timers disabled',
             'no Google OAuth or Meta live reply tested',
           ],

@@ -1,0 +1,20 @@
+{
+  "status": "PASS",
+  "testedAt": "2026-11-01T08:22:11.635339+00:00",
+  "environment": "existing Railway Preview; new synthetic QA tenant only",
+  "checks": [
+    "health/db up",
+    "new independent tenant: no channels/no auto-created bot",
+    "customer/deal/owner/expected close/stage persisted",
+    "follow-up assigned/completed",
+    "smart views persisted; legacy segments isolated",
+    "live CSV upload preview",
+    "report reads actual CRM data",
+    "archive/restore preserved"
+  ],
+  "limits": [
+    "No owner tenant or channel changed",
+    "No WhatsApp messages, new Meta webhook, Google OAuth or live Sheets sync tested",
+    "No authenticated Cloud Browser owner session"
+  ]
+}

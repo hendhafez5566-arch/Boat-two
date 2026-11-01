@@ -5,6 +5,7 @@ import { CryptoService } from '../messaging/crypto.service';
 import { DeliveryPolicyController } from './delivery-policy.controller';
 import { ReportsController } from './reports.controller';
 import { CrmJobs, CrmJobsController } from './crm-jobs';
+import { CrmWorkspaceController } from './crm-workspace.controller';
 import { Module } from '@nestjs/common';
 import { MessagingModule } from '../messaging/messaging.module';
 import { CrmService } from './crm.service';
@@ -24,6 +25,7 @@ import { OperationsController } from './operations.controller';
     ReportsController,
     CrmJobsController,
     CrmController,
+    CrmWorkspaceController,
     CampaignsController,
     OperationsController,
   ],

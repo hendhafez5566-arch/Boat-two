@@ -86,6 +86,10 @@ Object.assign(process.env, {
   app.useBodyParser('json', { limit: '1mb' });
   app.use((req, res, next) => requestContext.run(req, next));
   app.enableCors();
+  if (process.env.BOAT_CRM_QA === 'true') {
+    const { installCrmFixtures } = await import('./qa-crm-fixtures.mjs');
+    installCrmFixtures(app, local);
+  }
   await app.listen(4000, '127.0.0.1');
   console.log('FULL_APP_READY 4000');
   const stop = async () => {

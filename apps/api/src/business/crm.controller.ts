@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  ForbiddenException,
   NotFoundException,
   Param,
   ParseUUIDPipe,
@@ -17,7 +18,7 @@ import { z } from 'zod';
 import { Roles } from '../auth/decorators';
 import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
-import { overviewSchema } from './crm-overview';
+import { crmDate, overviewSchema } from './crm-overview';
 import { CrmService } from './crm.service';
 import { contactSchema, filtersSchema, pagination } from './schemas';
 @Controller('crm')
@@ -431,7 +432,11 @@ export class CrmController {
     return this.crm.db.withTenant(
       r.user.tenantId,
       async (c) =>
-        (await c.query('SELECT * FROM crm_segments ORDER BY created_at DESC LIMIT 100')).rows,
+        (
+          await c.query(
+            'SELECT * FROM crm_segments ORDER BY created_at DESC LIMIT 100',
+          )
+        ).rows,
     );
   }
   @Post('segments') @Roles('owner', 'admin') segment(
@@ -615,6 +620,7 @@ export class CrmController {
         status: z.string().max(20).optional(),
         ownerId: z.string().uuid().optional(),
         pipelineId: z.string().uuid().optional(),
+        contactId: z.string().uuid().optional(),
         dueFrom: z.string().datetime().optional(),
         dueTo: z.string().datetime().optional(),
       }),
@@ -637,6 +643,8 @@ export class CrmController {
         where +=
           ' AND ($4::timestamptz IS NULL OR w.due_at >= $4) AND ($5::timestamptz IS NULL OR w.due_at < $5)';
       }
+      params.push(q.contactId ?? null);
+      where += ` AND ($${params.length}::uuid IS NULL OR w.contact_id=$${params.length})`;
       const from = `FROM crm_${kind} w JOIN contacts ct ON ct.id=w.contact_id ${kind === 'deals' ? 'JOIN crm_pipelines p ON p.id=w.pipeline_id' : ''} WHERE ${where}`;
       const total = (await c.query(`SELECT count(*)::int AS n ${from}`, params)).rows[0].n;
       if (exporting && total > 10000)
@@ -666,6 +674,8 @@ export class CrmController {
       z.object({
         contactId: z.string().uuid(),
         pipelineId: z.string().uuid(),
+        ownerId: z.string().uuid().nullable().optional(),
+        expectedClose: crmDate.nullable().optional(),
         title: z.string().min(1).max(200),
         stage: z.string().min(1).max(60),
         valueCents: z.number().int().min(0).max(100000000000),
@@ -676,6 +686,11 @@ export class CrmController {
       }),
       body,
     );
+    if (r.user.role === 'agent') {
+      if (b.ownerId && b.ownerId !== r.user.userId)
+        throw new ForbiddenException('Agents may assign only their own work');
+      b.ownerId = r.user.userId;
+    }
     return this.crm.db.withTenant(r.user.tenantId, async (c) => {
       await this.crm.get(r.user.tenantId, b.contactId);
       const pipeline = (
@@ -683,10 +698,25 @@ export class CrmController {
       ).rows[0];
       if (!pipeline?.stages.includes(b.stage))
         throw new BadRequestException('Invalid pipeline or stage');
+      if (
+        b.ownerId &&
+        !(await c.query('SELECT 1 FROM memberships WHERE user_id=$1', [b.ownerId])).rowCount
+      )
+        throw new BadRequestException('Owner must be a workspace member');
       return (
         await c.query(
-          'INSERT INTO crm_deals(tenant_id,contact_id,pipeline_id,title,stage,value_cents,currency) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *',
-          [r.user.tenantId, b.contactId, b.pipelineId, b.title, b.stage, b.valueCents, b.currency],
+          'INSERT INTO crm_deals(tenant_id,contact_id,pipeline_id,title,stage,value_cents,currency,owner_id,expected_close) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',
+          [
+            r.user.tenantId,
+            b.contactId,
+            b.pipelineId,
+            b.title,
+            b.stage,
+            b.valueCents,
+            b.currency,
+            b.ownerId ?? null,
+            b.expectedClose ?? null,
+          ],
         )
       ).rows[0];
     });
@@ -708,12 +738,28 @@ export class CrmController {
             .regex(/^[A-Z]{3}$/)
             .optional(),
           ownerId: z.string().uuid().nullable().optional(),
+          expectedClose: crmDate.nullable().optional(),
+          lossReason: z.string().trim().max(500).nullable().optional(),
           expectedUpdatedAt: z.string().datetime().optional(),
         })
         .refine((b) => Object.keys(b).some((key) => key !== 'expectedUpdatedAt')),
       body,
     );
     return this.crm.db.withTenant(r.user.tenantId, async (c) => {
+      if (r.user.role === 'agent') {
+        const current = (
+          await c.query('SELECT owner_id FROM crm_deals WHERE id=$1 FOR UPDATE', [id])
+        ).rows[0];
+        if (!current) throw new NotFoundException();
+        if (
+          current.owner_id !== r.user.userId ||
+          (b.ownerId !== undefined && b.ownerId !== r.user.userId)
+        )
+          throw new ForbiddenException(
+            'Only managers may reassign work or edit another employee work',
+          );
+      }
+
       const pipeline = (
         await c.query(
           'SELECT p.stages FROM crm_deals d JOIN crm_pipelines p ON p.id=d.pipeline_id WHERE d.id=$1 FOR SHARE OF p',
@@ -730,7 +776,7 @@ export class CrmController {
         throw new BadRequestException('Owner must be a workspace member');
       const row = (
         await c.query(
-          `UPDATE crm_deals SET stage=COALESCE($2,stage),status=COALESCE($3,status),title=COALESCE($4,title),value_cents=COALESCE($5,value_cents),currency=COALESCE($6,currency),owner_id=CASE WHEN $7 THEN $8::uuid ELSE owner_id END,updated_at=now() WHERE id=$1 AND ($9::timestamptz IS NULL OR date_trunc('milliseconds',updated_at)=$9) RETURNING *`,
+          `UPDATE crm_deals SET stage=COALESCE($2,stage),status=COALESCE($3,status),title=COALESCE($4,title),value_cents=COALESCE($5,value_cents),currency=COALESCE($6,currency),owner_id=CASE WHEN $7 THEN $8::uuid ELSE owner_id END,expected_close=CASE WHEN $10 THEN $11::date ELSE expected_close END,loss_reason=CASE WHEN $12 THEN $13::text ELSE loss_reason END,updated_at=now() WHERE id=$1 AND ($9::timestamptz IS NULL OR date_trunc('milliseconds',updated_at)=$9) RETURNING *`,
           [
             id,
             b.stage ?? null,
@@ -741,6 +787,10 @@ export class CrmController {
             b.ownerId !== undefined,
             b.ownerId ?? null,
             b.expectedUpdatedAt ?? null,
+            b.expectedClose !== undefined,
+            b.expectedClose ?? null,
+            b.lossReason !== undefined,
+            b.lossReason ?? null,
           ],
         )
       ).rows[0];
@@ -761,6 +811,11 @@ export class CrmController {
       }),
       body,
     );
+    if (r.user.role === 'agent') {
+      if (b.assignedTo && b.assignedTo !== r.user.userId)
+        throw new ForbiddenException('Agents may assign only their own work');
+      b.assignedTo = r.user.userId;
+    }
     return this.crm.db.withTenant(r.user.tenantId, async (c) => {
       await this.crm.get(r.user.tenantId, b.contactId);
       if (
@@ -794,6 +849,20 @@ export class CrmController {
       body,
     );
     return this.crm.db.withTenant(r.user.tenantId, async (c) => {
+      if (r.user.role === 'agent') {
+        const current = (
+          await c.query('SELECT assigned_to FROM crm_tasks WHERE id=$1 FOR UPDATE', [id])
+        ).rows[0];
+        if (!current) throw new NotFoundException();
+        if (
+          current.assigned_to !== r.user.userId ||
+          (b.assignedTo !== undefined && b.assignedTo !== r.user.userId)
+        )
+          throw new ForbiddenException(
+            'Only managers may reassign work or edit another employee work',
+          );
+      }
+
       if (
         b.assignedTo &&
         !(await c.query('SELECT 1 FROM memberships WHERE user_id=$1', [b.assignedTo])).rowCount

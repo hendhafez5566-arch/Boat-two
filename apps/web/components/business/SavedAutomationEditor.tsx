@@ -17,6 +17,10 @@ type Conditions = {
 };
 type Action = {
   type: string;
+  pipelineId?: string;
+  stage?: string;
+  valueCents?: number;
+  currency?: string;
   tag?: string;
   text?: string;
   title?: string;
@@ -138,6 +142,7 @@ function Steps({
   path?: string;
 }) {
   const { t } = useLocale();
+  const pipelines = useData<{ id: string; name: string; stages: string[] }[]>('/crm/pipelines', []);
   const patch = (index: number, patch: Partial<Action>) =>
     change(value.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   return (
@@ -175,14 +180,94 @@ function Steps({
             }
           >
             {(depth >= 4
-              ? ['note', 'tag', 'task', 'lifecycle']
-              : ['note', 'tag', 'task', 'lifecycle', 'branch', 'delay', 'http']
+              ? ['note', 'tag', 'task', 'lifecycle', ...(action.type === 'deal' ? ['deal'] : [])]
+              : [
+                  'note',
+                  'tag',
+                  'task',
+                  'lifecycle',
+                  'branch',
+                  'delay',
+                  'http',
+                  ...(action.type === 'deal' ? ['deal'] : []),
+                ]
             ).map((type) => (
               <option key={type} value={type}>
                 {automationLabel(type, t)}
               </option>
             ))}
           </select>
+          {action.type === 'deal' && (
+            <div className="form-grid">
+              <label>
+                {t('العنوان', 'Title')}
+                <input
+                  required
+                  maxLength={200}
+                  value={action.title || ''}
+                  onChange={(e) => patch(index, { title: e.target.value })}
+                />
+              </label>
+              <label>
+                {t('خط المبيعات', 'Pipeline')}
+                <select
+                  required
+                  value={action.pipelineId || ''}
+                  onChange={(e) =>
+                    patch(index, {
+                      pipelineId: e.target.value,
+                      stage: pipelines.data.find((p) => p.id === e.target.value)?.stages[0] || '',
+                    })
+                  }
+                >
+                  <option value="">—</option>
+                  {pipelines.data.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                {t('المرحلة', 'Stage')}
+                <select
+                  required
+                  value={action.stage || ''}
+                  onChange={(e) => patch(index, { stage: e.target.value })}
+                >
+                  {pipelines.data
+                    .find((p) => p.id === action.pipelineId)
+                    ?.stages.map((stage) => (
+                      <option key={stage}>{stage}</option>
+                    ))}
+                </select>
+              </label>
+              <label>
+                {t('القيمة', 'Value')}
+                <input
+                  type="number"
+                  min={0}
+                  max={1000000000}
+                  step="0.01"
+                  value={(action.valueCents || 0) / 100}
+                  onChange={(e) =>
+                    patch(index, { valueCents: Math.round(Number(e.target.value) * 100) })
+                  }
+                />
+              </label>
+              <label>
+                {t('العملة', 'Currency')}
+                <input
+                  required
+                  pattern="[A-Z]{3}"
+                  maxLength={3}
+                  value={action.currency || 'USD'}
+                  onChange={(e) => patch(index, { currency: e.target.value.toUpperCase() })}
+                />
+              </label>
+              {pipelines.error && <p role="alert">{pipelines.error}</p>}
+            </div>
+          )}
           {['note', 'tag', 'task', 'lifecycle'].includes(action.type) && (
             <label className="field">
               {t('التفاصيل', 'Details')}
@@ -343,7 +428,7 @@ function Steps({
     </div>
   );
 }
-export function SavedAutomationEditor({initialRuleId = ''}:{initialRuleId?:string}) {
+export function SavedAutomationEditor({ initialRuleId = '' }: { initialRuleId?: string }) {
   const { t } = useLocale();
   const rules = useData<Rule[]>('/automations', []),
     secrets = useData<
@@ -377,7 +462,12 @@ export function SavedAutomationEditor({initialRuleId = ''}:{initialRuleId?:strin
     [error, setError] = useState(''),
     [message, setMessage] = useState(''),
     [busy, setBusy] = useState(false);
-  useEffect(() => { if(initialRuleId){const target=rules.data.find(row=>row.id===initialRuleId);if(target)setRule(target);} }, [initialRuleId, rules.data]);
+  useEffect(() => {
+    if (initialRuleId) {
+      const target = rules.data.find((row) => row.id === initialRuleId);
+      if (target) setRule(target);
+    }
+  }, [initialRuleId, rules.data]);
   const [versions, setVersions] = useState<
     { revision: number; snapshot: Partial<Rule>; created_at: string }[]
   >([]);

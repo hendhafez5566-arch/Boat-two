@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "checks": [
+    "Travel QA: UI signup/onboarding, generic empty tenant, real catalog import, flow publish/editor, unsaved-source protection, CRM contact, invitation/agent RBAC, local Webchat Inbox takeover/release/note, campaign draft, isolation and mobile",
+    "Restaurant QA: UI signup/onboarding, generic empty tenant, real catalog import, flow publish/editor, unsaved-source protection, CRM contact, invitation/agent RBAC, local Webchat Inbox takeover/release/note, campaign draft, isolation and mobile",
+    "Store QA: UI signup/onboarding, generic empty tenant, real catalog import, flow publish/editor, unsaved-source protection, CRM contact, invitation/agent RBAC, local Webchat Inbox takeover/release/note, campaign draft, isolation and mobile"
+  ],
+  "pageErrors": [],
+  "limits": [
+    "embedded PostgreSQL transport; complete Nest AppModule and all 99 migrations",
+    "external delivery and background timers disabled",
+    "no Google OAuth or Meta live reply tested"
+  ]
+}
