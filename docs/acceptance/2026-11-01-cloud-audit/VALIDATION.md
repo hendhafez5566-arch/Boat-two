@@ -13,3 +13,10 @@ Validation: 209 API/engine/PostgreSQL tests passed (0 skipped); two localized-fe
 Not completed: fresh authenticated registration/three independent tenants, employee/admin sessions, invitation, cross-tenant live attack tests, cloud mobile/tablet coverage, all-page bilingual coverage, real Google OAuth/Sheets sync, Meta delivery, thousands-contact cloud performance, controlled network interruption/forced API errors, runtime bot AND/OR branches, automation replay through UI, drag-based Kanban, all node types, undo/redo/copy/paste and safe delete. These are not marked passed. Prior acceptance reports were not used as evidence for this run.
 
 Readiness: useful for controlled owner-led QA; complete customer pilot acceptance and public-sale readiness remain unapproved because the above gates are open. Source fixes in this PR are proposals pending browser verification.
+
+
+## Continuation checkpoint — isolated review preparation
+
+Continuation starts from verified PR6 HEAD e076fa9; the existing Web/API remain pinned at 1508308 / 803cc29 and were not changed. A separate `boat-cloud-qa-review` service (54948f68-14be-43e9-b6e5-67a89c3c2135) was prepared inside the EXISTING project, with no owner database, provider credentials or persistent volume. Its source is not deployed at this checkpoint. The review gateway starts the complete application and all 99 migrations against ephemeral PostgreSQL, strips inherited secrets from child environments, creates fresh cryptographic keys, and disables external delivery. Production Web/API startup commands are untouched.
+
+Four targeted local Chromium checks passed on the current fixed code: real registration API/onboarding UI through the review helper; tools-menu dismissal on canvas click; simulator terminal restart hint and separated internal diagnostics; opaque sticky header. Build and targeted ESLint pass. These are supplementary LOCAL browser checks, not post-fix Cloud Browser acceptance. Polling and Excel feedback remain pending browser checks. See review/local-smoke.json and CONTINUATION_AR.md. The existing 209-test run is retained as prior evidence and was not rerun without cause.

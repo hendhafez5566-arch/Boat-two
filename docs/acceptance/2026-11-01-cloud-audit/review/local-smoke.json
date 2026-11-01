@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "results": [
+    "gateway isolation, bootstrap through real register API and onboarding UI",
+    "tools menu closes on actual canvas click",
+    "simulator ends with restart hint and diagnostics are outside customer transcript",
+    "sticky header is opaque"
+  ],
+  "limits": [
+    "This is local Chromium, not Cloud Browser acceptance; polling and Excel feedback still require UI checks"
+  ]
+}

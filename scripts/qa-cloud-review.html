@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <meta charset="utf-8" /><title>Boat Two — isolated QA review</title>
+  <style>
+    body {
+      margin: 0;
+      background: #edf1f6;
+      font: 15px Arial;
+      color: #24354b;
+    }
+    header {
+      padding: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      background: white;
+      border-bottom: 1px solid #cbd5e1;
+    }
+    button,
+    select {
+      padding: 9px;
+      border: 1px solid #b9c7d9;
+      border-radius: 7px;
+      background: white;
+      color: #24354b;
+    }
+    button {
+      cursor: pointer;
+    }
+    #viewport {
+      padding: 12px;
+      overflow: auto;
+    }
+    iframe {
+      display: block;
+      margin: auto;
+      border: 1px solid #cad5e4;
+      background: white;
+      height: 1000px;
+      width: 100%;
+      max-width: none;
+    }
+    #status {
+      font-size: 13px;
+    }
+    strong {
+      color: #5b3fe0;
+    }
+  </style>
+  <header>
+    <strong>نسخة مراجعة معزولة — بيانات اصطناعية مؤقتة</strong
+    ><select id="sector" aria-label="نشاط شركة الاختبار">
+      <option value="Travel">سياحة</option>
+      <option value="Restaurant">مطعم</option>
+      <option value="Store">متجر</option></select
+    ><button id="create">إنشاء شركة اختبار مستقلة</button
+    ><select id="company" aria-label="شركة الاختبار">
+      <option value="">اختر شركة</option></select
+    ><button id="owner">دخول المدير التجريبي</button
+    ><button id="employee">دخول الموظف التجريبي</button
+    ><select id="size" aria-label="حجم شاشة التطبيق">
+      <option value="100%">Desktop</option>
+      <option value="768px">Tablet 768px</option>
+      <option value="390px">Mobile 390px</option></select
+    ><span id="status" role="status"
+      >لا اتصال ببيانات المالك أو Meta. يعاد ضبط البيانات عند إعادة تشغيل الخدمة.</span
+    >
+  </header>
+  <div id="viewport"><iframe id="app" title="Boat Two application" src="/register"></iframe></div>
+  <script>
+    const accounts = [];
+    const status = document.querySelector('#status');
+    const iframe = document.querySelector('#app');
+    async function call(path, body, token) {
+      const r = await fetch('/api' + path, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: 'Bearer ' + token } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+      const result = await r.json();
+      if (!r.ok) throw Error(result.message || r.status);
+      return result;
+    }
+    function enter(session) {
+      const lang = localStorage.getItem('boat-language') || 'ar';
+      localStorage.clear();
+      localStorage.setItem('boat-language', lang);
+      localStorage.setItem(
+        'session',
+        JSON.stringify({ accessToken: session.accessToken, refreshToken: session.refreshToken }),
+      );
+      iframe.src = '/dashboard/onboarding';
+    }
+    document.querySelector('#create').onclick = async () => {
+      try {
+        status.textContent = 'جارٍ إنشاء شركة اصطناعية عبر API التسجيل الفعلي…';
+        const id = crypto.randomUUID(),
+          sector = document.querySelector('#sector').value;
+        const session = await call('/auth/register', {
+          fullName: 'QA ' + sector + ' Owner',
+          workspaceName: 'QA ' + sector + ' ' + id.slice(0, 8),
+          email: 'qa-' + id + '@example.test',
+          password: 'Synthetic-' + crypto.randomUUID(),
+        });
+        accounts.push({ sector, owner: session });
+        const option = new Option(sector + ' ' + id.slice(0, 8), String(accounts.length - 1));
+        document.querySelector('#company').add(option);
+        document.querySelector('#company').value = option.value;
+        enter(session);
+        status.textContent =
+          'شركة جديدة مستقلة. اختبر التطبيق داخل الإطار؛ تسجيل الحساب تم ببيانات اصطناعية.';
+      } catch (e) {
+        status.textContent = e.message;
+      }
+    };
+    document.querySelector('#company').onchange = () => {
+      const a = accounts[Number(document.querySelector('#company').value)];
+      if (a) enter(a.owner);
+    };
+    document.querySelector('#owner').onclick = () => {
+      const a = accounts[Number(document.querySelector('#company').value)];
+      if (a) enter(a.owner);
+    };
+    document.querySelector('#employee').onclick = async () => {
+      try {
+        const a = accounts[Number(document.querySelector('#company').value)];
+        if (!a) throw Error('اختر شركة أولًا');
+        if (!a.employee) {
+          const invitation = await call(
+            '/team/invitations',
+            {
+              email: 'qa-agent-' + crypto.randomUUID() + '@example.test',
+              role: 'agent',
+              sendEmail: false,
+            },
+            a.owner.accessToken,
+          );
+          a.employee = await call('/auth/accept-invitation', {
+            token: new URL(invitation.inviteUrl).searchParams.get('token'),
+            password: 'Synthetic-' + crypto.randomUUID(),
+            fullName: 'QA ' + a.sector + ' Agent',
+          });
+        }
+        enter(a.employee);
+        status.textContent = 'جلسة موظف حقيقية بصلاحيات agent؛ لا صلاحيات مالك مخفية.';
+      } catch (e) {
+        status.textContent = e.message;
+      }
+    };
+    document.querySelector('#size').onchange = (e) => {
+      iframe.style.width = e.target.value;
+    };
+  </script>
+</html>

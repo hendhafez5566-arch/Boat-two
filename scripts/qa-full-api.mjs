@@ -2,6 +2,8 @@
 // Only DatabaseService transport is adapted to embedded PostgreSQL; tenant RLS is enforced.
 import { createRequire } from 'node:module';
 import { readFileSync, readdirSync } from 'node:fs';
+import { setInterval } from 'node:timers';
+import { randomBytes } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { resolve } from 'node:path';
 const local = createRequire(resolve('apps/api/package.json'));
@@ -12,8 +14,12 @@ Object.assign(process.env, {
   PUBLIC_API_URL: 'http://localhost:4000',
   DATABASE_URL: 'postgres://app_user:local-only@localhost/isolated',
   REDIS_URL: 'redis://localhost:6379',
-  JWT_SECRET: 'isolated-full-app-secret-never-used-externally',
-  ENCRYPTION_KEY: '0'.repeat(64),
+  JWT_SECRET:
+    process.env.BOAT_CLOUD_REVIEW === 'true'
+      ? randomBytes(48).toString('hex')
+      : 'isolated-full-app-secret-never-used-externally',
+  ENCRYPTION_KEY:
+    process.env.BOAT_CLOUD_REVIEW === 'true' ? randomBytes(32).toString('hex') : '0'.repeat(64),
   EXTERNAL_DELIVERY_ENABLED: 'false',
   EMAIL_DELIVERY_ENABLED: 'false',
   AI_PROVIDER_CALLS_ENABLED: 'false',
@@ -89,6 +95,25 @@ Object.assign(process.env, {
   if (process.env.BOAT_CRM_QA === 'true') {
     const { installCrmFixtures } = await import('./qa-crm-fixtures.mjs');
     installCrmFixtures(app, local);
+  }
+  if (process.env.BOAT_CLOUD_REVIEW === 'true') {
+    const { CrmJobs } = local('./dist/business/crm-jobs');
+    let running = false;
+    setInterval(async () => {
+      if (running) return;
+      running = true;
+      try {
+        const jobs = await pg.query(
+          "SELECT id,tenant_id FROM crm_jobs WHERE kind='import' AND status IN ('pending','running') LIMIT 10",
+        );
+        for (const job of jobs.rows)
+          await app.get(CrmJobs).process({ tenantId: job.tenant_id, jobId: job.id });
+      } catch (e) {
+        console.error('Review import worker', e.message);
+      } finally {
+        running = false;
+      }
+    }, 1000).unref();
   }
   await app.listen(4000, '127.0.0.1');
   console.log('FULL_APP_READY 4000');
