@@ -107,7 +107,7 @@ export async function crmAnalytics(
     );
     const conversations = (
       await rows(
-        `SELECT count(*)::int AS needs_reply FROM conversations WHERE status<>'closed' AND handled_by='agent' AND ($4::uuid IS NULL OR assigned_to=$4) AND EXISTS(SELECT 1 FROM messages m WHERE m.id=(SELECT id FROM messages WHERE conversation_id=conversations.id AND NOT is_internal ORDER BY seq DESC LIMIT 1) AND m.direction='in')`,
+        `SELECT count(*)::int AS needs_reply FROM conversations WHERE status<>'closed' AND archived_at IS NULL AND NOT EXISTS(SELECT 1 FROM contact_channels cc WHERE cc.contact_id=conversations.contact_id AND cc.channel_id=conversations.channel_id AND cc.blocked_at IS NOT NULL) AND handled_by='human' AND ($4::uuid IS NULL OR assigned_to=$4) AND EXISTS(SELECT 1 FROM messages m WHERE m.id=(SELECT id FROM messages WHERE conversation_id=conversations.id AND NOT is_internal ORDER BY seq DESC LIMIT 1) AND m.direction='in')`,
       )
     )[0];
     const bounds = (

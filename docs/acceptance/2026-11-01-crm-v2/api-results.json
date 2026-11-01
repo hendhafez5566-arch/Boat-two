@@ -1,5 +1,5 @@
 {
-  "passed": 42,
+  "passed": 45,
   "tenants": 3,
   "database": "101 real migrations on isolated PGlite with RLS; no owner database",
   "tests": [

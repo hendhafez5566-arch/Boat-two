@@ -1,3 +1,4 @@
+import { URLSearchParams } from 'node:url';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { openSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -29,7 +30,9 @@ try {
   for (let i = 0; i < 300; i++) {
     try {
       if ((await fetch('http://127.0.0.1:4000/health')).ok) break;
-    } catch {}
+    } catch {
+      /* service is starting */
+    }
     await new Promise((r) => setTimeout(r, 300));
   }
   for (const business of ['Travel', 'Restaurant', 'Store']) {
@@ -225,6 +228,24 @@ try {
     );
     const dst = await request('/crm/workspace/analytics?from=2026-11-01&to=2026-11-01', token);
     assert.equal((Date.parse(dst.endAt) - Date.parse(dst.startAt)) / 3600000, 25);
+    count++;
+    const channel = await request('/channels', token, { type: 'web', name: 'Isolated reply QA' });
+    const visitor = await request('/widget/' + channel.external_id + '/session', null, {});
+    const inbound = async () => {
+      const sent = await fetch('http://127.0.0.1:4000/widget/' + channel.external_id + '/messages?visitorId=' + visitor.visitorId, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-visitor-token': visitor.token },
+        body: JSON.stringify({ text: 'Synthetic reply filter QA', clientMsgId: randomUUID() }),
+      });
+      assert.ok(sent.ok, await sent.text());
+    };
+    await inbound();
+    const cv = (await request('/conversations', token)).items[0];
+    await request('/conversations/' + cv.id + '/takeover', token, {});
+    assert.equal((await request('/conversations?needsReply=true', token)).items.length, 1);
+    assert.equal((await request('/crm/workspace/analytics', token)).conversations.needs_reply, 1);
+    await request('/conversations/' + cv.id + '/messages', token, { text: 'Synthetic staff reply' });
+    assert.equal((await request('/conversations?needsReply=true', token)).items.length, 0);
+    assert.equal((await request('/crm/workspace/analytics', token)).conversations.needs_reply, 0);
     count++;
     for (const other of sessions.slice(0, -1))
       await request('/crm/workspace/score/' + c.id, other.accessToken, null, 'GET', 404);

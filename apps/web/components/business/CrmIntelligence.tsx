@@ -330,7 +330,12 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
       )}
       {r && (
         <>
-          <Link className={styles.scope} href="/dashboard/inbox?tab=mine">
+          <Link
+            className={styles.scope}
+            href={
+              '/dashboard/inbox?needsReply=true&tab=' + (r.scope === 'mine' ? 'mine' : 'active')
+            }
+          >
             <NavIcon name="chat" />
             {t(
               'محادثات تنتظر رد الموظف ضمن نطاقك',

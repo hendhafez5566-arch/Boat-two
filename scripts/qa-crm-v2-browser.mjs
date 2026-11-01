@@ -28,7 +28,9 @@ async function ready(url) {
   for (let i = 0; i < 300; i++) {
     try {
       if ((await fetch(url)).ok) return;
-    } catch {}
+    } catch {
+      /* service is starting */
+    }
     await new Promise((r) => setTimeout(r, 300));
   }
   throw Error('Not ready ' + url);
@@ -152,7 +154,7 @@ try {
                 saveAs: 'name',
                 saveToSystem: 'name',
               },
-              edges: { valid: 'reply' },
+              edges: { ok: 'reply' },
             },
             {
               id: 'reply',

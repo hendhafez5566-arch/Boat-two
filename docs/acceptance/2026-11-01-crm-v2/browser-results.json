@@ -1,6 +1,7 @@
 {
-  "passed": 20,
+  "passed": 23,
   "checks": [
+    "Travel: real widget bot question saves CRM identity and returns response",
     "Travel: dashboard unassigned drilldown matches real rows",
     "Travel: actual UI customer form/save",
     "Travel: Kanban drag and accessible stage change persist",
@@ -8,12 +9,14 @@
     "Travel: date preset and filtered CSV download",
     "Travel: Customer360 quick follow-up and readable timeline",
     "RTL mobile/tablet no document overflow; English reports render",
+    "Restaurant: real widget bot question saves CRM identity and returns response",
     "Restaurant: dashboard unassigned drilldown matches real rows",
     "Restaurant: actual UI customer form/save",
     "Restaurant: Kanban drag and accessible stage change persist",
     "Restaurant: overdue filter and completion reflected in API",
     "Restaurant: date preset and filtered CSV download",
     "Restaurant: Customer360 quick follow-up and readable timeline",
+    "Store: real widget bot question saves CRM identity and returns response",
     "Store: dashboard unassigned drilldown matches real rows",
     "Store: actual UI customer form/save",
     "Store: Kanban drag and accessible stage change persist",
