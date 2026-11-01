@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "business": "Travel",
+      "contacts": 3002,
+      "listPage30Ms": 47,
+      "filteredMs": 23,
+      "ui": "customer/deal/stage/task/company/import/report",
+      "api": "dedupe/concurrency/agent/RLS/inbound/automation/archive/3000 rows"
+    },
+    {
+      "business": "Restaurant",
+      "contacts": 3002,
+      "listPage30Ms": 41,
+      "filteredMs": 20,
+      "ui": "customer/deal/stage/task/company/import/report",
+      "api": "dedupe/concurrency/agent/RLS/inbound/automation/archive/3000 rows"
+    },
+    {
+      "business": "Store",
+      "contacts": 3002,
+      "listPage30Ms": 45,
+      "filteredMs": 22,
+      "ui": "customer/deal/stage/task/company/import/report",
+      "api": "dedupe/concurrency/agent/RLS/inbound/automation/archive/3000 rows"
+    }
+  ],
+  "pageErrors": []
+}

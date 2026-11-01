@@ -27,7 +27,7 @@ import * as fs from 'node:fs';
       }
       if (!ready) throw Error('Fixture did not become ready: ' + url);
     }
-    const child = spawn(process.execPath, ['scripts/qa-full-browser.mjs'], {
+    const child = spawn(process.execPath, [process.env.BOAT_QA_BROWSER_SCRIPT || 'scripts/qa-full-browser.mjs'], {
       stdio: 'inherit',
       env: process.env,
     });

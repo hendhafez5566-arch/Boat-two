@@ -96,6 +96,17 @@ export const baseActionSchema = z.discriminatedUnion('type', [
     title: z.string().min(1).max(200),
     delayMinutes: z.number().int().min(0).max(525600),
   }),
+  z.object({
+    type: z.literal('deal'),
+    pipelineId: z.string().uuid(),
+    stage: z.string().trim().min(1).max(60),
+    title: z.string().trim().min(1).max(200),
+    valueCents: z.number().int().min(0).max(100000000000).default(0),
+    currency: z
+      .string()
+      .regex(/^[A-Z]{3}$/)
+      .default('USD'),
+  }),
   z.object({ type: z.literal('note'), text: z.string().min(1).max(4000) }),
 ]);
 export type AutomationAction =

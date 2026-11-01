@@ -161,6 +161,28 @@ export class AutomationService {
                 [tenant, contactId, action.title, action.delayMinutes],
               );
               break;
+            case 'deal': {
+              const pipeline = (
+                await c.query('SELECT stages FROM crm_pipelines WHERE id=$1 FOR SHARE', [
+                  action.pipelineId,
+                ])
+              ).rows[0];
+              if (!pipeline?.stages.includes(action.stage))
+                throw new Error('Choose an existing pipeline stage');
+              await c.query(
+                'INSERT INTO crm_deals(tenant_id,contact_id,pipeline_id,title,stage,value_cents,currency) VALUES($1,$2,$3,$4,$5,$6,$7)',
+                [
+                  tenant,
+                  contactId,
+                  action.pipelineId,
+                  action.title,
+                  action.stage,
+                  action.valueCents,
+                  action.currency,
+                ],
+              );
+              break;
+            }
             case 'note':
               await c.query('INSERT INTO crm_notes(tenant_id,contact_id,body) VALUES($1,$2,$3)', [
                 tenant,

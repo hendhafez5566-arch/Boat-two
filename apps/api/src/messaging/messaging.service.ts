@@ -73,31 +73,50 @@ export class MessagingService {
 
       if (!contactId) {
         await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
-        const count = (await c.query('SELECT count(*)::int AS n FROM contacts')).rows[0].n;
-        await this.plans.assertWithinLimit(c, 'contacts', count);
-        const created = await c.query(
-          'INSERT INTO contacts (tenant_id, name, phone) VALUES ($1, $2, $3) RETURNING id',
-          [
-            channel.tenant_id,
-            msg.contactName ?? null,
-            channel.type === 'whatsapp' ? msg.contactExternalId : null,
-          ],
-        );
-        const link = await c.query(
-          `INSERT INTO contact_channels (tenant_id, contact_id, channel_id, external_id)
-           VALUES ($1, $2, $3, $4) ON CONFLICT (channel_id, external_id) DO NOTHING RETURNING contact_id`,
-          [channel.tenant_id, created.rows[0].id, channel.id, msg.contactExternalId],
-        );
-        if (link.rows[0]) {
-          contactId = link.rows[0].contact_id;
-        } else {
-          await c.query('DELETE FROM contacts WHERE id = $1', [created.rows[0].id]);
-          contactId = (
+        // Reuse an unambiguous existing CRM identity on the first WhatsApp message.
+        // Never merge two deliberately duplicated contacts or modify their consent.
+        if (channel.type === 'whatsapp') {
+          const matches = (
             await c.query(
-              'SELECT contact_id FROM contact_channels WHERE channel_id = $1 AND external_id = $2',
-              [channel.id, msg.contactExternalId],
+              'SELECT id FROM contacts WHERE merged_into_id IS NULL AND normalize_contact_phone(phone)=normalize_contact_phone($1) ORDER BY created_at,id LIMIT 2',
+              [msg.contactExternalId],
             )
-          ).rows[0].contact_id;
+          ).rows;
+          if (matches.length === 1) {
+            contactId = matches[0].id;
+            await c.query(
+              'INSERT INTO contact_channels(tenant_id,contact_id,channel_id,external_id) VALUES($1,$2,$3,$4) ON CONFLICT(channel_id,external_id) DO NOTHING',
+              [channel.tenant_id, contactId, channel.id, msg.contactExternalId],
+            );
+          }
+        }
+        if (!contactId) {
+          const count = (await c.query('SELECT count(*)::int AS n FROM contacts')).rows[0].n;
+          await this.plans.assertWithinLimit(c, 'contacts', count);
+          const created = await c.query(
+            'INSERT INTO contacts (tenant_id, name, phone) VALUES ($1, $2, $3) RETURNING id',
+            [
+              channel.tenant_id,
+              msg.contactName ?? null,
+              channel.type === 'whatsapp' ? msg.contactExternalId : null,
+            ],
+          );
+          const link = await c.query(
+            `INSERT INTO contact_channels (tenant_id, contact_id, channel_id, external_id)
+           VALUES ($1, $2, $3, $4) ON CONFLICT (channel_id, external_id) DO NOTHING RETURNING contact_id`,
+            [channel.tenant_id, created.rows[0].id, channel.id, msg.contactExternalId],
+          );
+          if (link.rows[0]) {
+            contactId = link.rows[0].contact_id;
+          } else {
+            await c.query('DELETE FROM contacts WHERE id = $1', [created.rows[0].id]);
+            contactId = (
+              await c.query(
+                'SELECT contact_id FROM contact_channels WHERE channel_id = $1 AND external_id = $2',
+                [channel.id, msg.contactExternalId],
+              )
+            ).rows[0].contact_id;
+          }
         }
       }
 

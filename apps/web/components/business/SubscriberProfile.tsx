@@ -7,6 +7,7 @@ import { api } from '../../lib/api';
 import { useData } from './useData';
 import { useLocale } from '../product/locale';
 import { statusLabel } from '../product/status';
+import { CrmWork } from './CrmWork';
 import { ContactActivityExport } from './ContactActivityExport';
 import styles from './subscribers.module.css';
 
@@ -52,6 +53,9 @@ type Profile = {
 };
 const tabs = [
   ['overview', 'نظرة عامة', 'Overview'],
+  ['deals', 'فرص البيع', 'Opportunities'],
+  ['tasks', 'المتابعات', 'Follow-ups'],
+  ['company', 'الشركة', 'Company'],
   ['agent', 'الموظف', 'Agent'],
   ['labels', 'الوسوم', 'Labels'],
   ['lists', 'القوائم', 'Lists'],
@@ -214,6 +218,25 @@ export default function SubscriberProfile({
             ))}
           </nav>
           <div className={styles.profileBody}>
+            {tab === 'deals' && <CrmWork kind="deals" compact contactId={contactId} />}
+            {tab === 'tasks' && <CrmWork kind="tasks" compact contactId={contactId} />}
+            {tab === 'company' && (
+              <CompanyContacts
+                contact={contact}
+                canManage={canManage}
+                save={(company) =>
+                  run(() =>
+                    api(`/crm/contacts/${contactId}/profile`, {
+                      method: 'PATCH',
+                      body: JSON.stringify({
+                        attributes: { ...contact.attributes, company },
+                        expectedUpdatedAt: contact.updated_at,
+                      }),
+                    }),
+                  )
+                }
+              />
+            )}
             {tab === 'overview' && (
               <>
                 <div className={styles.overviewGrid}>
@@ -777,5 +800,61 @@ export default function SubscriberProfile({
         </>
       )}
     </aside>
+  );
+}
+
+function CompanyContacts({
+  contact,
+  canManage,
+  save,
+}: {
+  contact: Contact;
+  canManage: boolean;
+  save: (company: string) => Promise<void>;
+}) {
+  const { t } = useLocale();
+  const company = typeof contact.attributes.company === 'string' ? contact.attributes.company : '';
+  const related = useData<{ id: string; name: string }[]>(
+    company ? '/crm/workspace/company-contacts?' + new URLSearchParams({ company }) : null,
+    [],
+  );
+  return (
+    <section>
+      <p>
+        {t(
+          'اختياري للشركات التي تتعامل مع شركات أخرى.',
+          'Optional for businesses selling to other companies.',
+        )}
+      </p>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save(String(new FormData(e.currentTarget).get('company') || '').trim());
+        }}
+      >
+        <label>
+          {t('اسم الشركة', 'Company name')}
+          <input
+            key={company}
+            name="company"
+            defaultValue={company}
+            maxLength={200}
+            disabled={!canManage}
+          />
+        </label>
+        {canManage && (
+          <button className="btn" type="submit">
+            {t('حفظ الشركة', 'Save company')}
+          </button>
+        )}
+      </form>
+      <h3>{t('عملاء الشركة', 'Company contacts')}</h3>
+      {related.error && <p role="alert">{related.error}</p>}
+      {related.data.map((c) => (
+        <p key={c.id}>
+          <Link href={`/dashboard/crm?contact=${c.id}`}>{c.name}</Link>
+        </p>
+      ))}
+    </section>
   );
 }

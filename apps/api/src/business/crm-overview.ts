@@ -1,5 +1,5 @@
 import { z } from 'zod';
-const date = z
+export const crmDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
   .refine((value) => {
@@ -20,7 +20,7 @@ export const overviewSchema = z
         title: z.string().trim().min(1).max(200),
         valueCents: z.number().int().min(0).max(100000000000),
         currency: z.string().regex(/^[A-Z]{3}$/),
-        expectedClose: date.nullable(),
+        expectedClose: crmDate.nullable(),
         ownerId: z.string().uuid().nullable(),
       })
       .strict()

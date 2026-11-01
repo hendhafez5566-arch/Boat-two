@@ -747,3 +747,18 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* CRM content must shrink inside the dashboard, including RTL mobile navigation. */
+.page {
+  grid-template-columns: minmax(0, 1fr);
+}
+.headActions {
+  min-width: 0;
+  max-width: 100%;
+  flex-shrink: 1;
+}
+.headActions :global(.btn-primary) {
+  background: #5b3fe0;
+  color: white;
+  border-color: #5b3fe0;
+}
