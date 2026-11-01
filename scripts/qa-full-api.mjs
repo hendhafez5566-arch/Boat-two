@@ -27,11 +27,13 @@ Object.assign(process.env, {
   WHATSAPP_PREVIEW_BOT_ENABLED: 'false',
 });
 (async () => {
+  console.log('QA_PG_INITIALIZING');
   const { PGlite } = local('@electric-sql/pglite');
   const { pgcrypto } = local('@electric-sql/pglite/contrib/pgcrypto');
   const { vector } = local(process.env.BOAT_QA_VECTOR_MODULE || '@electric-sql/pglite-pgvector');
   const pg = new PGlite({ extensions: { vector, pgcrypto } });
   await pg.waitReady;
+  console.log('QA_PG_READY');
   await pg.exec(
     'CREATE ROLE app_user NOLOGIN NOSUPERUSER NOBYPASSRLS; CREATE TABLE schema_migrations(name text PRIMARY KEY,applied_at timestamptz DEFAULT now());',
   );
@@ -46,6 +48,8 @@ Object.assign(process.env, {
         await tx.query('INSERT INTO schema_migrations(name) VALUES($1)', [name]);
       });
       count++;
+      if (process.env.BOAT_CLOUD_REVIEW === 'true' && count % 20 === 0)
+        console.log('QA_MIGRATIONS_APPLIED', count);
     } catch (e) {
       throw new Error('Migration ' + name + ': ' + e.message);
     }

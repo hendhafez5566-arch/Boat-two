@@ -12,35 +12,33 @@ const children = [];
 const start = (cmd, args, env) => {
   const p = spawn(cmd, args, { stdio: 'inherit', env: { ...safeEnv, ...env } });
   children.push(p);
-  p.on('exit', (code) => {
-    if (code && !stopping) {
-      console.error('Review child failed', cmd, code);
+  p.on('exit', (code, signal) => {
+    if (!stopping) {
+      console.error('Review child failed', cmd, code, signal);
       process.exit(1);
     }
   });
 };
 let stopping = false;
-start(process.execPath, ['scripts/qa-full-api.mjs'], { BOAT_CLOUD_REVIEW: 'true' });
-start('pnpm', ['--filter', 'web', 'start'], {
-  NODE_ENV: 'production',
-  PORT: '3000',
-  NEXT_PUBLIC_API_URL: '/api',
-});
-for (const url of ['http://127.0.0.1:4000/health', 'http://127.0.0.1:3000/login']) {
-  let ready = false;
-  for (let i = 0; i < 150; i++) {
+async function waitFor(url, attempts) {
+  for (let i = 0; i < attempts; i++) {
     try {
-      if ((await fetch(url)).ok) {
-        ready = true;
-        break;
-      }
+      if ((await fetch(url)).ok) return;
     } catch {
       /* starting */
     }
     await new Promise((r) => setTimeout(r, 300));
   }
-  if (!ready) throw Error('Review child failed health check');
+  throw Error('Review child failed health check: ' + url);
 }
+start(process.execPath, ['scripts/qa-full-api.mjs'], { BOAT_CLOUD_REVIEW: 'true' });
+await waitFor('http://127.0.0.1:4000/health', 500);
+start('pnpm', ['--filter', 'web', 'start'], {
+  NODE_ENV: 'production',
+  PORT: '3000',
+  NEXT_PUBLIC_API_URL: '/api',
+});
+await waitFor('http://127.0.0.1:3000/login', 150);
 const html = readFileSync(new URL('./qa-cloud-review.html', import.meta.url));
 const server = createServer((req, res) => {
   if (req.url === '/__review') {
