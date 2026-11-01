@@ -90,13 +90,23 @@ function Editor({ id }: { id: string }) {
   useEffect(() => setAccountContext(selectedChannel(window.location.search)), []);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!moreOpen) return;
     const close = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setMoreOpen(false);
     };
+    const closeOutside = (event: PointerEvent) => {
+      if (event.target instanceof window.Node && !moreRef.current?.contains(event.target))
+        setMoreOpen(false);
+    };
     window.addEventListener('keydown', close);
-    return () => window.removeEventListener('keydown', close);
+    // Capture before React Flow handles the pointer; its canvas can stop bubbling.
+    document.addEventListener('pointerdown', closeOutside, true);
+    return () => {
+      window.removeEventListener('keydown', close);
+      document.removeEventListener('pointerdown', closeOutside, true);
+    };
   }, [moreOpen]);
   // A preview only counts as tested after the simulator successfully processes a request.
   const [, setTestedSnapshot] = useState<string | null>(null);
@@ -1373,7 +1383,7 @@ function Editor({ id }: { id: string }) {
             ? t('نشر التحديث', 'Publish update')
             : t('نشر البوت', 'Publish bot')}
         </button>
-        <div className={styles.more}>
+        <div className={styles.more} ref={moreRef}>
           <button
             type="button"
             className={styles.toolButton}

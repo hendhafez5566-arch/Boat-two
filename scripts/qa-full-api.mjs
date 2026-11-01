@@ -2,18 +2,30 @@
 // Only DatabaseService transport is adapted to embedded PostgreSQL; tenant RLS is enforced.
 import { createRequire } from 'node:module';
 import { readFileSync, readdirSync } from 'node:fs';
+import { setInterval } from 'node:timers';
+import { randomBytes } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { resolve } from 'node:path';
 const local = createRequire(resolve('apps/api/package.json'));
 Object.assign(process.env, {
   NODE_ENV: 'test',
   API_PORT: '4000',
-  APP_URL: 'http://localhost:3000',
-  PUBLIC_API_URL: 'http://localhost:4000',
+  APP_URL:
+    process.env.BOAT_CLOUD_REVIEW === 'true'
+      ? process.env.BOAT_QA_APP_URL || 'http://localhost:3000'
+      : 'http://localhost:3000',
+  PUBLIC_API_URL:
+    process.env.BOAT_CLOUD_REVIEW === 'true'
+      ? process.env.BOAT_QA_PUBLIC_URL || 'http://localhost:4000'
+      : 'http://localhost:4000',
   DATABASE_URL: 'postgres://app_user:local-only@localhost/isolated',
   REDIS_URL: 'redis://localhost:6379',
-  JWT_SECRET: 'isolated-full-app-secret-never-used-externally',
-  ENCRYPTION_KEY: '0'.repeat(64),
+  JWT_SECRET:
+    process.env.BOAT_CLOUD_REVIEW === 'true'
+      ? randomBytes(48).toString('hex')
+      : 'isolated-full-app-secret-never-used-externally',
+  ENCRYPTION_KEY:
+    process.env.BOAT_CLOUD_REVIEW === 'true' ? randomBytes(32).toString('hex') : '0'.repeat(64),
   EXTERNAL_DELIVERY_ENABLED: 'false',
   EMAIL_DELIVERY_ENABLED: 'false',
   AI_PROVIDER_CALLS_ENABLED: 'false',
@@ -21,11 +33,13 @@ Object.assign(process.env, {
   WHATSAPP_PREVIEW_BOT_ENABLED: 'false',
 });
 (async () => {
+  console.log('QA_PG_INITIALIZING');
   const { PGlite } = local('@electric-sql/pglite');
   const { pgcrypto } = local('@electric-sql/pglite/contrib/pgcrypto');
   const { vector } = local(process.env.BOAT_QA_VECTOR_MODULE || '@electric-sql/pglite-pgvector');
   const pg = new PGlite({ extensions: { vector, pgcrypto } });
   await pg.waitReady;
+  console.log('QA_PG_READY');
   await pg.exec(
     'CREATE ROLE app_user NOLOGIN NOSUPERUSER NOBYPASSRLS; CREATE TABLE schema_migrations(name text PRIMARY KEY,applied_at timestamptz DEFAULT now());',
   );
@@ -40,6 +54,8 @@ Object.assign(process.env, {
         await tx.query('INSERT INTO schema_migrations(name) VALUES($1)', [name]);
       });
       count++;
+      if (process.env.BOAT_CLOUD_REVIEW === 'true' && count % 20 === 0)
+        console.log('QA_MIGRATIONS_APPLIED', count);
     } catch (e) {
       throw new Error('Migration ' + name + ': ' + e.message);
     }
@@ -89,6 +105,28 @@ Object.assign(process.env, {
   if (process.env.BOAT_CRM_QA === 'true') {
     const { installCrmFixtures } = await import('./qa-crm-fixtures.mjs');
     installCrmFixtures(app, local);
+  }
+  if (process.env.BOAT_CLOUD_REVIEW === 'true') {
+    const { CrmJobs } = local('./dist/business/crm-jobs');
+    const { EventsService } = local('./dist/events/events.service');
+    let running = false;
+    setInterval(async () => {
+      if (running) return;
+      running = true;
+      try {
+        const jobs = await pg.query(
+          "SELECT id,tenant_id FROM crm_jobs WHERE kind='import' AND status IN ('pending','running') LIMIT 10",
+        );
+        for (const job of jobs.rows)
+          await app.get(CrmJobs).process({ tenantId: job.tenant_id, jobId: job.id });
+        // Drain the real persisted event outbox; external/provider delivery stays disabled.
+        await app.get(EventsService).tick();
+      } catch (e) {
+        console.error('Review internal worker', e.message);
+      } finally {
+        running = false;
+      }
+    }, 1000).unref();
   }
   await app.listen(4000, '127.0.0.1');
   console.log('FULL_APP_READY 4000');

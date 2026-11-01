@@ -1,0 +1,20 @@
+[
+  {
+    "file": "apps/web/app/dashboard/crm/CRM.tsx",
+    "baseErrors": 0,
+    "currentErrors": 0,
+    "newMessages": []
+  },
+  {
+    "file": "apps/web/app/dashboard/layout.tsx",
+    "baseErrors": 0,
+    "currentErrors": 0,
+    "newMessages": []
+  },
+  {
+    "file": "apps/web/components/business/CrmJobs.tsx",
+    "baseErrors": 1,
+    "currentErrors": 1,
+    "newMessages": []
+  }
+]

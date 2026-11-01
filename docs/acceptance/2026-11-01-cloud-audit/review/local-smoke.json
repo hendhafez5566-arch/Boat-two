@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "results": [
+    "gateway isolation, bootstrap through real register API and onboarding UI",
+    "review widget config reaches Next route and API asset with correct public origin",
+    "tools menu closes on actual canvas click",
+    "simulator ends with restart hint and diagnostics are outside customer transcript",
+    "sticky header is opaque",
+    "real 200-row import completion and header count appear without manual refresh",
+    "G07 manual contact creation refreshes header without navigation or reload",
+    "malformed workbook recovery message is localized in English and Arabic",
+    "real widget visitor inbound drains persisted events and receives bot handoff",
+    "SPA navigation refreshes usage after visitor-created contact in another tab"
+  ],
+  "limits": [
+    "This is local Chromium, not Cloud Browser acceptance"
+  ]
+}

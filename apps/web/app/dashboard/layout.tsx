@@ -168,6 +168,34 @@ function Shell({ children }: { children: ReactNode }) {
       })
       .catch((e) => setError(e.message));
   }, []);
+  useEffect(() => {
+    let active = true;
+    let revision = 0;
+    const refreshUsage = async () => {
+      const current = ++revision;
+      try {
+        const result = await api<{
+          usage: Record<string, string | number>;
+          plan: { limits: Record<string, number> };
+        }>('/workspace');
+        if (active && current === revision) {
+          setUsage(result.usage);
+          setLimits(result.plan.limits);
+        }
+      } catch {
+        // An unavailable count is clearer than presenting an old count as current.
+        if (active && current === revision) setUsage({});
+      }
+    };
+    void refreshUsage();
+    window.addEventListener('boat:crm-changed', refreshUsage);
+    window.addEventListener('boat:crm-imported', refreshUsage);
+    return () => {
+      active = false;
+      window.removeEventListener('boat:crm-changed', refreshUsage);
+      window.removeEventListener('boat:crm-imported', refreshUsage);
+    };
+  }, [path]);
   async function logout() {
     const s = getSession();
     try {

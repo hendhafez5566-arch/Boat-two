@@ -1,0 +1,14 @@
+{
+  "baseSha": "90e33d9c6a245d2ac7414b1df79aeb4322e5318b",
+  "currentCodeSha": "da36947b8e51529c2b71fb783a9082e1b7d9838b",
+  "base": {
+    "errors": 173,
+    "warnings": 1
+  },
+  "current": {
+    "errors": 173,
+    "warnings": 1
+  },
+  "newMessages": [],
+  "removedMessages": []
+}
