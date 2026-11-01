@@ -10,8 +10,14 @@ const local = createRequire(resolve('apps/api/package.json'));
 Object.assign(process.env, {
   NODE_ENV: 'test',
   API_PORT: '4000',
-  APP_URL: 'http://localhost:3000',
-  PUBLIC_API_URL: 'http://localhost:4000',
+  APP_URL:
+    process.env.BOAT_CLOUD_REVIEW === 'true'
+      ? process.env.BOAT_QA_APP_URL || 'http://localhost:3000'
+      : 'http://localhost:3000',
+  PUBLIC_API_URL:
+    process.env.BOAT_CLOUD_REVIEW === 'true'
+      ? process.env.BOAT_QA_PUBLIC_URL || 'http://localhost:4000'
+      : 'http://localhost:4000',
   DATABASE_URL: 'postgres://app_user:local-only@localhost/isolated',
   REDIS_URL: 'redis://localhost:6379',
   JWT_SECRET:

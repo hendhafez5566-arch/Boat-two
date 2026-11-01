@@ -58,6 +58,14 @@ try {
     return d;
   };
   const channel = await call('/channels', { type: 'web', name: 'Isolated QA Webchat' });
+  const widgetConfig = await (await fetch('http://127.0.0.1:8080/api/widget-config')).json();
+  assert.equal(widgetConfig.scriptUrl, '/api/widget.js');
+  assert.equal((await fetch('http://127.0.0.1:8080' + widgetConfig.scriptUrl)).status, 200);
+  assert.match(
+    channel.widgetSnippet || JSON.stringify(await call('/channels')),
+    /localhost:8080\/api\/widget.js/,
+  );
+  results.push('review widget config reaches Next route and API asset with correct public origin');
   await call('/workspace/onboarding/complete', {});
   const flow = await call('/flows', {
     name: 'Six fixes QA',

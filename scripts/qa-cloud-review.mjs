@@ -31,7 +31,14 @@ async function waitFor(url, attempts) {
   }
   throw Error('Review child failed health check: ' + url);
 }
-start(process.execPath, ['scripts/qa-full-api.mjs'], { BOAT_CLOUD_REVIEW: 'true' });
+const publicOrigin = process.env.RAILWAY_PUBLIC_DOMAIN
+  ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+  : `http://localhost:${process.env.PORT || 8080}`;
+start(process.execPath, ['scripts/qa-full-api.mjs'], {
+  BOAT_CLOUD_REVIEW: 'true',
+  BOAT_QA_APP_URL: publicOrigin,
+  BOAT_QA_PUBLIC_URL: publicOrigin + '/api',
+});
 await waitFor('http://127.0.0.1:4000/health', 500);
 start('pnpm', ['--filter', 'web', 'start'], {
   NODE_ENV: 'production',
@@ -58,7 +65,7 @@ const server = createServer((req, res) => {
     );
     return;
   }
-  const isApi = req.url.startsWith('/api/');
+  const isApi = req.url.startsWith('/api/') && req.url.split('?')[0] !== '/api/widget-config';
   const path = isApi ? req.url.slice(4) : req.url;
   if (path.startsWith('/__qa')) {
     res.writeHead(404);

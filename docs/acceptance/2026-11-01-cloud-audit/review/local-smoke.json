@@ -2,6 +2,7 @@
   "status": "PASS",
   "results": [
     "gateway isolation, bootstrap through real register API and onboarding UI",
+    "review widget config reaches Next route and API asset with correct public origin",
     "tools menu closes on actual canvas click",
     "simulator ends with restart hint and diagnostics are outside customer transcript",
     "sticky header is opaque",
