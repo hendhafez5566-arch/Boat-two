@@ -1,3 +1,6 @@
+import { InboxModule } from '../inbox/inbox.module';
+import { SalesController } from './sales.controller';
+import { NotificationsService } from './notifications.service';
 import { CrmRetentionController } from './crm-retention.controller';
 import { ContactListsController } from './contact-lists.controller';
 import { IntegrationSecretsController } from './integration-secrets.controller';
@@ -15,9 +18,17 @@ import { CampaignsController } from './campaigns.controller';
 import { AutomationService } from './automation.service';
 import { OperationsController } from './operations.controller';
 @Module({
-  imports: [MessagingModule],
-  providers: [CryptoService, CrmJobs, CrmService, CampaignsService, AutomationService],
+  imports: [MessagingModule, InboxModule],
+  providers: [
+    NotificationsService,
+    CryptoService,
+    CrmJobs,
+    CrmService,
+    CampaignsService,
+    AutomationService,
+  ],
   controllers: [
+    SalesController,
     ContactListsController,
     CrmRetentionController,
     IntegrationSecretsController,

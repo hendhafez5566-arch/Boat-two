@@ -1,0 +1,50 @@
+import { z } from 'zod';
+export const notificationKinds = [
+  'new_lead',
+  'unassigned',
+  'task_due',
+  'task_overdue',
+  'awaiting_reply',
+  'stale_deal',
+  'closing_deal',
+  'assigned',
+  'automation',
+] as const;
+export const notificationSettingsSchema = z
+  .object({
+    enabled: z.boolean().default(true),
+    kinds: z
+      .array(z.enum(notificationKinds))
+      .max(9)
+      .default([...notificationKinds]),
+    dueMinutes: z.number().int().min(1).max(10080).default(60),
+    replyMinutes: z.number().int().min(1).max(10080).default(30),
+    staleDays: z.number().int().min(1).max(365).default(14),
+    closingDays: z.number().int().min(1).max(90).default(3),
+    targetIds: z.array(z.string().uuid()).max(100).default([]),
+    highPriority: z
+      .array(z.enum(notificationKinds))
+      .max(9)
+      .default(['task_overdue', 'awaiting_reply']),
+  })
+  .strict();
+export const assignmentPolicySchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    method: z.enum(['round_robin', 'least_loaded', 'rules']).default('round_robin'),
+    memberIds: z.array(z.string().uuid()).max(100).default([]),
+    rules: z
+      .array(
+        z
+          .object({
+            channelId: z.string().uuid().optional(),
+            departmentId: z.string().uuid().optional(),
+            tag: z.string().trim().min(1).max(50).optional(),
+            memberIds: z.array(z.string().uuid()).min(1).max(100),
+          })
+          .strict(),
+      )
+      .max(30)
+      .default([]),
+  })
+  .strict();

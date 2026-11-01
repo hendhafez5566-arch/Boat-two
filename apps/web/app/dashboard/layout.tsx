@@ -1,4 +1,5 @@
 'use client';
+import { SalesNotifications } from '../../components/business/SalesNotifications';
 import { statusLabel } from '../../components/product/status';
 import { NavIcon } from '../../components/product/NavIcon';
 import { CSSProperties, ReactNode, useEffect, useRef, useState } from 'react';
@@ -408,14 +409,7 @@ function Shell({ children }: { children: ReactNode }) {
                 </div>
               )}
             </div>
-            <Link
-              className="bs-iconbtn bs-bell"
-              href="/dashboard/inbox"
-              aria-label={t('الإشعارات وصندوق الوارد', 'Notifications and inbox')}
-              title={t('صندوق الوارد المشترك', 'Shared Inbox')}
-            >
-              <NavIcon name="bell" />
-            </Link>
+            <SalesNotifications compact />
             <div className="account-actions bs-account" ref={acctRef}>
               <button
                 type="button"

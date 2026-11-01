@@ -617,6 +617,7 @@ export class CrmController {
         ownerId: z.string().uuid().optional(),
         pipelineId: z.string().uuid().optional(),
         contactId: z.string().uuid().optional(),
+        id: z.string().uuid().optional(),
         dueFrom: z.string().datetime().optional(),
         dueTo: z.string().datetime().optional(),
         period: z.enum(['today', 'overdue', 'upcoming']).optional(),
@@ -631,7 +632,7 @@ export class CrmController {
       const params: unknown[] = [
         q.q ? '%' + q.q.replace(/[\\%_]/g, '\\$&') + '%' : null,
         q.status ?? null,
-        q.ownerId ?? null,
+        r.user.role === 'agent' ? r.user.userId : q.ownerId ?? null,
       ];
       let where = `($1::text IS NULL OR w.title ILIKE $1 OR ct.name ILIKE $1 OR ct.email ILIKE $1) AND ($2::text IS NULL OR w.status=$2) AND ($3::uuid IS NULL OR w.${kind === 'deals' ? 'owner_id' : 'assigned_to'}=$3)`;
       if (kind === 'deals') {
@@ -644,6 +645,7 @@ export class CrmController {
       }
       params.push(q.contactId ?? null);
       where += ` AND ($${params.length}::uuid IS NULL OR w.contact_id=$${params.length})`;
+      if (q.id) { params.push(q.id); where += ` AND w.id=$${params.length}::uuid`; }
       if (kind === 'tasks' && q.period) {
         const settings = (await c.query('SELECT settings FROM tenants')).rows[0]?.settings || {};
         let zone = typeof settings.timezone === 'string' ? settings.timezone : 'UTC';

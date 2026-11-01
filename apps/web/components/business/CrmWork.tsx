@@ -62,7 +62,7 @@ export function CrmWork({
     if (p.get('view') === 'table') setView('table');
     if (p.get('allPipelines') === 'true') setAllPipelines(true);
     const dates: Record<string, string> = {};
-    for (const k of ['updatedFrom', 'updatedTo']) {
+    for (const k of ['updatedFrom', 'updatedTo', 'contactId', 'id']) {
       const v = p.get(k);
       if (v) dates[k] = v;
     }

@@ -16,6 +16,8 @@ export function CrmNav() {
         ['/dashboard/crm/tasks', 'المهام والمتابعات', 'Tasks & follow-ups', 'calendar'],
         ['/dashboard/crm/reports', 'التقارير', 'Reports', 'reports'],
         ['/dashboard/crm/segments', 'الشرائح الذكية', 'Smart segments', 'filter'],
+        ['/dashboard/crm/notifications', 'التنبيهات', 'Notifications', 'bell'],
+        ['/dashboard/crm/sales', 'المبيعات الذكية', 'Smart sales', 'users'],
         ['/dashboard/crm/advanced', 'الإعدادات المتقدمة', 'Advanced settings', 'settings'],
       ].map(([href, ar, en, icon]) => (
         <Link key={href} href={href} aria-current={path === href ? 'page' : undefined}>
