@@ -852,7 +852,7 @@ function CompanyContacts({
       {related.error && <p role="alert">{related.error}</p>}
       {related.data.map((c) => (
         <p key={c.id}>
-          <Link href={`/dashboard/crm?contact=${c.id}`}>{c.name}</Link>
+          <a href={`/dashboard/crm?contact=${c.id}`}>{c.name}</a>
         </p>
       ))}
     </section>

@@ -10,7 +10,7 @@ const { chromium } = local(process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES + '/pl
 const { Workbook } = createRequire(new URL('../apps/api/package.json', import.meta.url))('exceljs');
 const base = 'http://127.0.0.1:4000',
   web = 'http://localhost:3000',
-  out = 'docs/acceptance/2026-11-01-crm';
+  out = process.env.BOAT_CRM_QA_OUT || 'docs/acceptance/2026-11-01-crm';
 fs.mkdirSync(out, { recursive: true });
 const checks = [],
   errors = [],
@@ -240,6 +240,11 @@ try {
         (c) => c.name === business + ' Imported',
       ),
     );
+    await page.goto(web + '/dashboard/crm?contact=' + contact.id);
+    await page.getByRole('button', { name: 'Company', exact: true }).click();
+    await page.getByRole('link', { name: business + ' Imported', exact: true }).click();
+    await page.waitForURL((url) => url.searchParams.get('contact') !== contact.id);
+    await page.getByRole('heading', { name: business + ' Imported', exact: true }).waitFor();
     // Real incoming message handler, with external delivery disabled.
     await fixture(tenantId, 'inbound', { phone });
     const profile = await req('/crm/contacts/' + contact.id + '/profile', null, token);
