@@ -186,6 +186,10 @@ try {
   await visitor.getByRole('button', { name: 'إرسال', exact: true }).click();
   await visitor.getByText('QA staff handoff', { exact: true }).waitFor({ timeout: 20000 });
   results.push('real widget visitor inbound drains persisted events and receives bot handoff');
+  await page.getByRole('link', { name: 'إدارة العملاء', exact: true }).click();
+  await page.getByRole('link', { name: /عملاء 202\/20000/ }).waitFor();
+  assert.equal(Number((await call('/workspace')).usage.contacts), 202);
+  results.push('SPA navigation refreshes usage after visitor-created contact in another tab');
   mkdirSync('docs/acceptance/2026-11-01-cloud-audit/review', { recursive: true });
   await page.screenshot({
     path: 'docs/acceptance/2026-11-01-cloud-audit/review/local-review-smoke.jpg',

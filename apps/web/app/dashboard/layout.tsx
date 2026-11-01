@@ -187,6 +187,7 @@ function Shell({ children }: { children: ReactNode }) {
         if (active && current === revision) setUsage({});
       }
     };
+    void refreshUsage();
     window.addEventListener('boat:crm-changed', refreshUsage);
     window.addEventListener('boat:crm-imported', refreshUsage);
     return () => {
@@ -194,7 +195,7 @@ function Shell({ children }: { children: ReactNode }) {
       window.removeEventListener('boat:crm-changed', refreshUsage);
       window.removeEventListener('boat:crm-imported', refreshUsage);
     };
-  }, []);
+  }, [path]);
   async function logout() {
     const s = getSession();
     try {

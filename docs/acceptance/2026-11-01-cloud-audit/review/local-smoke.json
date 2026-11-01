@@ -9,7 +9,8 @@
     "real 200-row import completion and header count appear without manual refresh",
     "G07 manual contact creation refreshes header without navigation or reload",
     "malformed workbook recovery message is localized in English and Arabic",
-    "real widget visitor inbound drains persisted events and receives bot handoff"
+    "real widget visitor inbound drains persisted events and receives bot handoff",
+    "SPA navigation refreshes usage after visitor-created contact in another tab"
   ],
   "limits": [
     "This is local Chromium, not Cloud Browser acceptance"
