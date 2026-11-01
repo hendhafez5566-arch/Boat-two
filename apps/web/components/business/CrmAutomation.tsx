@@ -1,110 +1,261 @@
 'use client';
 import { FormEvent, useState } from 'react';
+import Link from 'next/link';
 import { api } from '../../lib/api';
 import { useData } from './useData';
 import { useLocale } from '../product/locale';
 import { Button } from '../product/ProductUI';
+import { NavIcon } from '../product/NavIcon';
+import { automationLabel } from './automation-labels';
 import styles from './crm-workspace.module.css';
+import css from './sales.module.css';
 export function CrmAutomation() {
   const { t } = useLocale();
   const pipelines = useData<{ id: string; name: string; stages: string[] }[]>('/crm/pipelines', []);
-  const [pipeline, setPipeline] = useState('');
-  const [type, setType] = useState('task');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const team = useData<{ members: { user_id: string; full_name: string }[] }>(
+    '/crm/workspace/members',
+    { members: [] },
+  );
+  const fields = useData<{ key: string; label: string; type: string }[]>('/crm/fields', []);
+  const [name, setName] = useState(''),
+    [trigger, setTrigger] = useState('crm.contacts.insert'),
+    [type, setType] = useState('task'),
+    [title, setTitle] = useState(''),
+    [tag, setTag] = useState(''),
+    [pipeline, setPipeline] = useState(''),
+    [stage, setStage] = useState(''),
+    [user, setUser] = useState(''),
+    [field, setField] = useState(''),
+    [value, setValue] = useState(''),
+    [minutes, setMinutes] = useState(60),
+    [enabled, setEnabled] = useState(false),
+    [linkDeal, setLinkDeal] = useState(false),
+    [preview, setPreview] = useState(''),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(''),
+    [notice, setNotice] = useState('');
   const p = pipelines.data.find((x) => x.id === pipeline) || pipelines.data[0];
+  const f = fields.data.find((x) => x.key === field) || fields.data[0];
+  const action =
+    type === 'task'
+      ? { type, title, delayMinutes: minutes, linkDeal }
+      : type === 'deal'
+        ? {
+            type,
+            title,
+            pipelineId: p?.id,
+            stage: stage || p?.stages[0],
+            valueCents: 0,
+            currency: 'EGP',
+          }
+        : type === 'assign'
+          ? { type, userId: user }
+          : type === 'notify'
+            ? { type, title }
+            : type === 'tag'
+              ? { type, tag: value }
+              : type === 'lifecycle'
+                ? { type, value: value || 'qualified' }
+                : type === 'field'
+                  ? {
+                      type,
+                      key: f?.key,
+                      value:
+                        f?.type === 'number'
+                          ? Number(value)
+                          : f?.type === 'boolean'
+                            ? value === 'true'
+                            : value,
+                    }
+                  : { type, pipelineId: p?.id, stage: stage || p?.stages[0] };
+  const rule = { name, trigger, enabled, conditions: tag ? { tag } : {}, actions: [action] };
+  const fingerprint = JSON.stringify(rule);
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
     setError('');
     setNotice('');
-    const f = new FormData(e.currentTarget);
     try {
-      const action =
-        type === 'task'
-          ? { type, title: f.get('title'), delayMinutes: Number(f.get('minutes')) }
-          : {
-              type,
-              title: f.get('title'),
-              pipelineId: p?.id,
-              stage: f.get('stage'),
-              valueCents: 0,
-              currency: 'EGP',
-            };
-      await api('/automations', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: f.get('name'),
-          trigger: f.get('trigger'),
-          enabled: f.get('enabled') === 'on',
-          conditions: f.get('tag') ? { tag: f.get('tag') } : {},
-          actions: [action],
-        }),
-      });
-      setNotice(
-        t(
-          'تم حفظ القاعدة في نظام الأتمتة الحالي.',
-          'Rule saved in the existing automation system.',
-        ),
-      );
+      if (preview !== fingerprint) {
+        const result = await api<{ matched: boolean; executed: boolean }>('/automations/preview', {
+          method: 'POST',
+          body: JSON.stringify({
+            rule,
+            contact: { name: 'Synthetic preview', tags: tag ? [tag] : [] },
+          }),
+        });
+        setPreview(fingerprint);
+        setNotice(
+          result.matched
+            ? t(
+                'المعاينة الاصطناعية مطابقة. لم يُنفذ أي إجراء. راجع الملخص ثم احفظ.',
+                'Synthetic preview matched. No actions executed. Review the summary, then save.',
+              )
+            : t(
+                'لم تطابق بيانات المعاينة الشروط. لم يُنفذ إجراء.',
+                'Synthetic data did not match. No actions executed.',
+              ),
+        );
+      } else {
+        await api('/automations', { method: 'POST', body: JSON.stringify(rule) });
+        setNotice(
+          t(
+            'حُفظت القاعدة. يمكنك إدارتها ومراجعة سجلها من الأتمتة.',
+            'Rule saved. Manage it and review history in Automations.',
+          ),
+        );
+        setPreview('');
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
     }
   }
+  function template(kind: string) {
+    setPreview('');
+    setType(kind === 'stage' ? 'task' : kind === 'interest' ? 'deal' : 'notify');
+    setTrigger(
+      kind === 'stage'
+        ? 'crm.deal.stage_changed'
+        : kind === 'interest'
+          ? 'crm.bot.answer'
+          : 'crm.conversation.taken',
+    );
+    setName(
+      kind === 'stage'
+        ? t('متابعة بعد تغيير المرحلة', 'Follow up after stage change')
+        : kind === 'interest'
+          ? t('فرصة للمهتمين', 'Interested lead opportunity')
+          : t('تنبيه استلام المحادثة', 'Conversation takeover alert'),
+    );
+    setTitle(
+      kind === 'stage'
+        ? t('تابع الصفقة', 'Follow up deal')
+        : kind === 'interest'
+          ? t('فرصة جديدة', 'New opportunity')
+          : t('تم استلام المحادثة', 'Conversation taken'),
+    );
+    setTag(kind === 'interest' ? 'interested' : '');
+    setLinkDeal(kind === 'stage');
+  }
   return (
-    <details className={styles.card}>
-      <summary>{t('أتمتة فرص البيع والمتابعات', 'Automate opportunities & follow-ups')}</summary>
+    <section className={styles.card}>
+      <h2>
+        <NavIcon name="automations" />
+        {t('أتمتة المبيعات والمتابعات', 'Sales & follow-up automation')}
+      </h2>
       <p>
         {t(
-          'قواعد داخلية فقط؛ لا ترسل رسائل. راجع القاعدة في قسم الأتمتة قبل تفعيلها.',
-          'Internal actions only; no messages are sent. Review rules in Automations before enabling.',
+          'قواعد داخلية عبر محرك الأتمتة الحالي. اختبر بعميل اصطناعي قبل الحفظ.',
+          'Internal rules using the existing automation engine. Preview with a synthetic customer before saving.',
         )}
       </p>
-      <form className={styles.form} onSubmit={submit}>
+      <div className={css.row}>
+        {[
+          ['stage', 'متابعة مرحلة', 'Stage follow-up'],
+          ['interest', 'فرصة اهتمام', 'Interest opportunity'],
+          ['takeover', 'تنبيه الاستلام', 'Takeover alert'],
+        ].map(([v, ar, en]) => (
+          <button type="button" className="btn" key={v} onClick={() => template(v)}>
+            {t(ar, en)}
+          </button>
+        ))}
+      </div>
+      <form className={`${styles.form} ${css.fields}`} onSubmit={submit}>
         <label>
           {t('اسم القاعدة', 'Rule name')}
-          <input name="name" required maxLength={120} />
+          <input required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
         </label>
         <label>
           {t('عندما', 'When')}
-          <select name="trigger">
-            <option value="crm.contacts.insert">{t('يضاف عميل', 'Contact is added')}</option>
-            <option value="crm.contacts.update">
-              {t('يُحدّث ملف العميل بواسطة البوت أو الفريق', 'Contact is updated by bot or team')}
-            </option>
-            <option value="crm.crm_deals.update">
-              {t('تُحدّث فرصة بيع', 'Opportunity is updated')}
-            </option>
+          <select value={trigger} onChange={(e) => setTrigger(e.target.value)}>
+            {[
+              'crm.contacts.insert',
+              'crm.contacts.update',
+              'crm.bot.answer',
+              'crm.tag.added',
+              'crm.lifecycle.changed',
+              'crm.crm_deals.insert',
+              'crm.deal.stage_changed',
+              'crm.deal.closed',
+              'crm.task.overdue',
+              'crm.conversation.created',
+              'crm.conversation.taken',
+            ].map((v) => (
+              <option value={v} key={v}>
+                {automationLabel(v, t)}
+              </option>
+            ))}
           </select>
         </label>
         <label>
-          {t('بوجود الوسم (اختياري)', 'With tag (optional)')}
-          <input name="tag" maxLength={50} />
+          {t('بوجود وسم (اختياري)', 'With tag (optional)')}
+          <input maxLength={50} value={tag} onChange={(e) => setTag(e.target.value)} />
         </label>
         <label>
           {t('الإجراء', 'Action')}
           <select value={type} onChange={(e) => setType(e.target.value)}>
-            <option value="task">{t('إنشاء متابعة', 'Create follow-up')}</option>
-            <option value="deal">{t('إنشاء فرصة بيع', 'Create opportunity')}</option>
+            {['task', 'deal', 'assign', 'notify', 'tag', 'lifecycle', 'field', 'moveDeal'].map(
+              (v) => (
+                <option value={v} key={v}>
+                  {automationLabel(v, t)}
+                </option>
+              ),
+            )}
           </select>
         </label>
-        <label>
-          {t('العنوان', 'Title')}
-          <input name="title" required maxLength={200} />
-        </label>
-        {type === 'task' ? (
+        {['task', 'deal', 'notify'].includes(type) && (
           <label>
-            {t('بعد (دقائق)', 'After (minutes)')}
-            <input name="minutes" type="number" min={0} max={525600} defaultValue={60} required />
+            {t('العنوان', 'Title')}
+            <input
+              required
+              maxLength={200}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
           </label>
-        ) : (
+        )}
+        {type === 'task' && (
+          <>
+            <label>
+              {t('بعد (دقائق)', 'After (minutes)')}
+              <input
+                required
+                type="number"
+                min={0}
+                max={525600}
+                value={minutes}
+                onChange={(e) => setMinutes(Number(e.target.value))}
+              />
+            </label>
+            <label>
+              <span>
+                <input
+                  type="checkbox"
+                  checked={linkDeal}
+                  onChange={(e) => setLinkDeal(e.target.checked)}
+                />
+                {t('ربط بصفقة الحدث (محفز صفقة فقط)', 'Link to event deal (deal trigger only)')}
+              </span>
+            </label>
+          </>
+        )}
+        {['deal', 'moveDeal'].includes(type) && (
           <>
             <label>
               {t('خط المبيعات', 'Pipeline')}
-              <select value={p?.id || ''} onChange={(e) => setPipeline(e.target.value)}>
+              <select
+                required
+                value={p?.id || ''}
+                onChange={(e) => {
+                  setPipeline(e.target.value);
+                  setStage('');
+                }}
+              >
+                <option value="" disabled>
+                  {t('اختر خطًا', 'Select pipeline')}
+                </option>
                 {pipelines.data.map((x) => (
                   <option key={x.id} value={x.id}>
                     {x.name}
@@ -114,7 +265,11 @@ export function CrmAutomation() {
             </label>
             <label>
               {t('المرحلة', 'Stage')}
-              <select name="stage" key={p?.id} required>
+              <select
+                required
+                value={stage || p?.stages[0] || ''}
+                onChange={(e) => setStage(e.target.value)}
+              >
                 {p?.stages.map((s) => (
                   <option key={s}>{s}</option>
                 ))}
@@ -122,10 +277,70 @@ export function CrmAutomation() {
             </label>
           </>
         )}
+        {type === 'assign' && (
+          <label>
+            {t('الموظف', 'Employee')}
+            <select required value={user} onChange={(e) => setUser(e.target.value)}>
+              <option value="">{t('اختر موظفًا', 'Select employee')}</option>
+              {team.data.members.map((m) => (
+                <option value={m.user_id} key={m.user_id}>
+                  {m.full_name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {type === 'field' && (
+          <label>
+            {t('الحقل المخصص', 'Custom field')}
+            <select required value={f?.key || ''} onChange={(e) => setField(e.target.value)}>
+              {fields.data.map((f) => (
+                <option value={f.key} key={f.key}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {type === 'lifecycle' ? (
+          <label>
+            {t('الحالة الجديدة', 'New lifecycle')}
+            <select value={value || 'qualified'} onChange={(e) => setValue(e.target.value)}>
+              {[
+                ['lead', 'عميل محتمل', 'Lead'],
+                ['qualified', 'مؤهل', 'Qualified'],
+                ['customer', 'عميل', 'Customer'],
+                ['inactive', 'غير نشط', 'Inactive'],
+              ].map(([v, ar, en]) => (
+                <option key={v} value={v}>
+                  {t(ar, en)}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          ['tag', 'field'].includes(type) && (
+            <label>
+              {t('القيمة', 'Value')}
+              <input required value={value} onChange={(e) => setValue(e.target.value)} />
+              {type === 'field' && f?.type === 'boolean' && <small>true / false</small>}
+            </label>
+          )
+        )}
+        <div className={css.summary}>
+          {t('عندما: ', 'When: ')}
+          {automationLabel(trigger, t)}
+          {tag ? ' · ' + t('الوسم: ', 'Tag: ') + tag : ''} → {automationLabel(type, t)}
+          {title ? ' · ' + title : ''}
+        </div>
         <label>
           <span>
-            <input type="checkbox" name="enabled" />
-            {t('تفعيل القاعدة صراحةً', 'Explicitly enable rule')}
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={(e) => setEnabled(e.target.checked)}
+            />
+            {t('تفعيل القاعدة عند الحفظ', 'Enable when saved')}
           </span>
         </label>
         {error && (
@@ -138,10 +353,17 @@ export function CrmAutomation() {
             {notice}
           </p>
         )}
-        <Button busy={busy} type="submit" disabled={type === 'deal' && !p}>
-          {t('حفظ القاعدة', 'Save rule')}
+        <Button busy={busy} type="submit">
+          {preview === fingerprint
+            ? t('حفظ القاعدة', 'Save rule')
+            : t('معاينة واختبار اصطناعي', 'Preview & synthetic test')}
         </Button>
       </form>
-    </details>
+      <p>
+        <Link className="btn" href="/dashboard/automations">
+          {t('إدارة القواعد وAND/OR وسجل التنفيذ', 'Manage rules, AND/OR & execution history')}
+        </Link>
+      </p>
+    </section>
   );
 }

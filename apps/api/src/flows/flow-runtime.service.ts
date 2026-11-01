@@ -240,20 +240,24 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       const primaryFlowId = (conv.channel_settings as Record<string, unknown> | null)
         ?.activeBotFlowId;
       if (!e.eventName && typeof primaryFlowId === 'string') {
-        const primaryFlow = (await c.query(
-          `SELECT f.id AS flow_id, fv.id AS version_id, fv.graph
+        const primaryFlow = (
+          await c.query(
+            `SELECT f.id AS flow_id, fv.id AS version_id, fv.graph
              FROM flows f JOIN flow_versions fv ON fv.id=f.published_version_id
             WHERE f.id=$1 AND f.status='published' AND NOT f.is_component
               AND (cardinality(fv.channel_ids)=0 OR $2=ANY(fv.channel_ids))`,
-          [primaryFlowId, conv.channel_id],
-        )).rows[0] as {
-          flow_id: string; version_id: string; graph: FlowGraph;
-        } | undefined;
+            [primaryFlowId, conv.channel_id],
+          )
+        ).rows[0] as
+          | {
+              flow_id: string;
+              version_id: string;
+              graph: FlowGraph;
+            }
+          | undefined;
         // Do not silently run a different bot if the selected bot was
         // moved, deleted or unpublished while a channel still references it.
-        return primaryFlow
-          ? { conv, primaryFlow }
-          : { conv, primaryUnavailable: true };
+        return primaryFlow ? { conv, primaryFlow } : { conv, primaryUnavailable: true };
       }
 
       const cands = (
@@ -326,7 +330,9 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     };
 
     if ('primaryUnavailable' in loaded && loaded.primaryUnavailable) {
-      this.log.warn('Active channel bot is not published for this channel; refusing to route to another bot');
+      this.log.warn(
+        'Active channel bot is not published for this channel; refusing to route to another bot',
+      );
       return;
     }
     if ('primaryFlow' in loaded && loaded.primaryFlow) {
@@ -566,7 +572,18 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
 
   private makeDeps(b: Loaded, flowId?: string): EngineDeps {
     return {
-      setContactField: (key, value) => this.actions.writeSystemField(b, key, value),
+      setContactField: (key, value) =>
+        this.db.withTenant(b.tenantId, async (c) => {
+          await this.actions.writeSystemField(b, key, value);
+          await c.query(
+            "INSERT INTO domain_events(tenant_id,type,aggregate_id,dedupe_key,payload) VALUES($1,'crm.bot.answer',$2,gen_random_uuid()::text,$3::jsonb)",
+            [
+              b.tenantId,
+              b.contactId,
+              JSON.stringify({ contactId: b.contactId, resourceId: b.contactId, field: key }),
+            ],
+          );
+        }),
       dynamicCatalog: (req) => this.dataSources.content(b.tenantId, req),
       dynamicItem: (source, id, fields) => this.dataSources.item(b.tenantId, source, id, fields),
       productContent: (id, native) => {
@@ -621,12 +638,20 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       setContactAttribute: async (key, value) => {
         const json = JSON.stringify(value ?? null);
         if (json.length > 2000) throw new Error('Attribute value too large');
-        await this.db.withTenant(b.tenantId, (c) =>
-          c.query(
-            'UPDATE contacts SET attributes = attributes || jsonb_build_object($2::text, $3::jsonb) WHERE id = $1',
+        await this.db.withTenant(b.tenantId, async (c) => {
+          await c.query(
+            'UPDATE contacts SET attributes = attributes || jsonb_build_object($2::text, $3::jsonb),updated_at=now() WHERE id = $1',
             [b.contactId, key, json],
-          ),
-        );
+          );
+          await c.query(
+            "INSERT INTO domain_events(tenant_id,type,aggregate_id,dedupe_key,payload) VALUES($1,'crm.bot.answer',$2,gen_random_uuid()::text,$3::jsonb)",
+            [
+              b.tenantId,
+              b.contactId,
+              JSON.stringify({ contactId: b.contactId, resourceId: b.contactId, field: key }),
+            ],
+          );
+        });
       },
       updateTags: async ({ add, remove }) => {
         await this.db.withTenant(b.tenantId, (c) =>

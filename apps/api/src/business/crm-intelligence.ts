@@ -100,7 +100,13 @@ export async function crmAnalytics(
       `SELECT day::date::text AS day,(day::timestamp AT TIME ZONE $3) AS start_at,((day+interval '1 day')::timestamp AT TIME ZONE $3) AS end_at,(SELECT count(*)::int FROM contacts ct WHERE ct.merged_into_id IS NULL AND ct.archived_at IS NULL AND ($4::uuid IS NULL OR ct.owner_id=$4) AND ct.created_at >= (day::timestamp AT TIME ZONE $3) AND ct.created_at < ((day+interval '1 day')::timestamp AT TIME ZONE $3)) AS count FROM generate_series($1::date,$2::date,interval '1 day') day`,
     );
     const employees = await rows(
-      `SELECT m.user_id,u.full_name,(SELECT count(*)::int FROM crm_tasks t WHERE t.assigned_to=m.user_id AND t.status='open' AND t.due_at<now()) AS overdue,(SELECT count(*)::int FROM crm_tasks t WHERE t.assigned_to=m.user_id AND t.status='done' AND ${date('t.updated_at')}) AS completed,(SELECT count(*)::int FROM crm_deals d WHERE d.owner_id=m.user_id AND d.status='won' AND ${date('d.updated_at')}) AS won FROM memberships m JOIN users u ON u.id=m.user_id WHERE ($4::uuid IS NULL OR m.user_id=$4) ORDER BY u.full_name`,
+      `SELECT m.user_id,u.full_name,
+      (SELECT count(*)::int FROM contacts ct WHERE ct.owner_id=m.user_id AND ct.archived_at IS NULL AND ct.merged_into_id IS NULL) AS contacts,
+      (SELECT count(*)::int FROM contacts ct WHERE ct.owner_id=m.user_id AND ct.archived_at IS NULL AND ct.merged_into_id IS NULL AND NOT EXISTS(SELECT 1 FROM crm_tasks tf WHERE tf.contact_id=ct.id AND tf.status='open')) AS unattended,
+      (SELECT count(*)::int FROM conversations cv WHERE cv.assigned_to=m.user_id AND cv.status<>'closed' AND cv.archived_at IS NULL) AS conversations,
+      (SELECT count(*)::int FROM conversations cv WHERE cv.assigned_to=m.user_id AND cv.status<>'closed' AND cv.archived_at IS NULL AND cv.handled_by='human' AND EXISTS(SELECT 1 FROM messages lm WHERE lm.id=(SELECT id FROM messages WHERE conversation_id=cv.id AND NOT is_internal ORDER BY seq DESC LIMIT 1) AND lm.direction='in')) AS waiting,
+      (SELECT count(*)::int FROM crm_deals d WHERE d.owner_id=m.user_id AND d.status='open') AS open_deals,
+      (SELECT count(*)::int FROM crm_tasks t WHERE t.assigned_to=m.user_id AND t.status='open' AND t.due_at<now()) AS overdue,(SELECT count(*)::int FROM crm_tasks t WHERE t.assigned_to=m.user_id AND t.status='done' AND ${date('t.updated_at')}) AS completed,(SELECT count(*)::int FROM crm_deals d WHERE d.owner_id=m.user_id AND d.status='won' AND ${date('d.updated_at')}) AS won FROM memberships m JOIN users u ON u.id=m.user_id WHERE ($4::uuid IS NULL OR m.user_id=$4) ORDER BY u.full_name`,
     );
     const attention = await rows(
       `SELECT id,name,owner_id FROM contacts WHERE ${active} AND ($4::uuid IS NULL OR owner_id=$4) AND lifecycle IN ('lead','qualified') AND NOT EXISTS(SELECT 1 FROM crm_tasks t WHERE t.contact_id=contacts.id AND t.status='open') ORDER BY updated_at,id LIMIT 8`,

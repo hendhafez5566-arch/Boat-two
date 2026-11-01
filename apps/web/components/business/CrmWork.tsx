@@ -27,6 +27,7 @@ type Work = {
   due_at: string;
   priority?: 'low' | 'normal' | 'high';
   assigned_to: string | null;
+  deal_id?: string | null;
 };
 type Member = { user_id: string; full_name: string };
 export function CrmWork({
@@ -585,6 +586,11 @@ function WorkForm({
   const { t } = useLocale();
   const deals = kind === 'deals';
   const [search, setSearch] = useState('');
+  const [taskContact, setTaskContact] = useState(row?.contact_id || contactId || '');
+  const opportunities = useData<{ items: { id: string; title: string }[] }>(
+    !deals && taskContact ? '/crm/deals?contactId=' + taskContact : null,
+    { items: [] },
+  );
   const contacts = useData<{ items: { id: string; name: string; phone: string | null }[] }>(
     !row && !contactId ? '/crm/contacts?' + new URLSearchParams({ q: search, limit: '20' }) : null,
     { items: [] },
@@ -616,6 +622,7 @@ function WorkForm({
       values.dueAt = new Date(String(f.get('dueAt'))).toISOString();
       values.assignedTo = f.get('ownerId') || null;
       values.priority = f.get('priority') || 'normal';
+      if (!row) values.dealId = f.get('dealId') || null;
     }
     void onSubmit(values);
   }
@@ -629,7 +636,13 @@ function WorkForm({
           </label>
           <label>
             {t('العميل', 'Customer')}
-            <select aria-label={t('العميل', 'Customer')} name="contactId" required defaultValue="">
+            <select
+              aria-label={t('العميل', 'Customer')}
+              name="contactId"
+              required
+              defaultValue=""
+              onChange={(e) => setTaskContact(e.target.value)}
+            >
               <option value="" disabled>
                 {t('اختر عميلًا', 'Choose customer')}
               </option>
@@ -642,6 +655,19 @@ function WorkForm({
           </label>
           {contacts.error && <p role="alert">{contacts.error}</p>}
         </>
+      )}
+      {!deals && !row && taskContact && (
+        <label>
+          {t('ربط بفرصة بيع (اختياري)', 'Link opportunity (optional)')}
+          <select name="dealId" defaultValue="" key={taskContact}>
+            <option value="">{t('متابعة العميل فقط', 'Customer follow-up only')}</option>
+            {opportunities.data.items.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.title}
+              </option>
+            ))}
+          </select>
+        </label>
       )}
       <label>
         {t('العنوان', 'Title')}

@@ -7,6 +7,11 @@ import { api } from '../../lib/api';
 import { useData } from './useData';
 import { useLocale } from '../product/locale';
 type Conditions = {
+  source?: string;
+  channelId?: string;
+  departmentId?: string;
+  dealStage?: string;
+  dealStatus?: string;
   q?: string;
   tag?: string;
   lifecycle?: string;
@@ -17,6 +22,9 @@ type Conditions = {
 };
 type Action = {
   type: string;
+  userId?: string;
+  key?: string;
+  linkDeal?: boolean;
   pipelineId?: string;
   stage?: string;
   valueCents?: number;
@@ -58,11 +66,28 @@ function ConditionsForm({
   return (
     <div className="condition-group stack">
       <div className="form-grid">
-        {(['q', 'tag', 'lifecycle', 'ownerId'] as const).map((key) => (
+        {(
+          [
+            'q',
+            'tag',
+            'lifecycle',
+            'ownerId',
+            'source',
+            'channelId',
+            'departmentId',
+            'dealStage',
+            'dealStatus',
+          ] as const
+        ).map((key) => (
           <label key={key}>
             {
               {
                 q: t('بحث', 'Search'),
+                source: t('المصدر', 'Source'),
+                channelId: t('معرف القناة', 'Channel ID'),
+                departmentId: t('معرف القسم', 'Department ID'),
+                dealStage: t('مرحلة الصفقة', 'Deal stage'),
+                dealStatus: t('حالة الصفقة', 'Deal status'),
                 tag: t('وسم', 'Tag'),
                 lifecycle: t('مرحلة العميل', 'Lifecycle'),
                 ownerId: t('معرّف المسؤول', 'Owner ID'),
@@ -143,6 +168,11 @@ function Steps({
 }) {
   const { t } = useLocale();
   const pipelines = useData<{ id: string; name: string; stages: string[] }[]>('/crm/pipelines', []);
+  const members = useData<{ members: { user_id: string; full_name: string }[] }>(
+    '/crm/workspace/members',
+    { members: [] },
+  );
+  const customFields = useData<{ key: string; label: string; type: string }[]>('/crm/fields', []);
   const patch = (index: number, patch: Partial<Action>) =>
     change(value.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   return (
@@ -180,7 +210,17 @@ function Steps({
             }
           >
             {(depth >= 4
-              ? ['note', 'tag', 'task', 'lifecycle', ...(action.type === 'deal' ? ['deal'] : [])]
+              ? [
+                  'note',
+                  'tag',
+                  'task',
+                  'lifecycle',
+                  'deal',
+                  'assign',
+                  'notify',
+                  'field',
+                  'moveDeal',
+                ]
               : [
                   'note',
                   'tag',
@@ -189,7 +229,11 @@ function Steps({
                   'branch',
                   'delay',
                   'http',
-                  ...(action.type === 'deal' ? ['deal'] : []),
+                  'deal',
+                  'assign',
+                  'notify',
+                  'field',
+                  'moveDeal',
                 ]
             ).map((type) => (
               <option key={type} value={type}>
@@ -197,7 +241,7 @@ function Steps({
               </option>
             ))}
           </select>
-          {action.type === 'deal' && (
+          {['deal', 'moveDeal'].includes(action.type) && (
             <div className="form-grid">
               <label>
                 {t('العنوان', 'Title')}
@@ -268,7 +312,7 @@ function Steps({
               {pipelines.error && <p role="alert">{pipelines.error}</p>}
             </div>
           )}
-          {['note', 'tag', 'task', 'lifecycle'].includes(action.type) && (
+          {['note', 'tag', 'task', 'lifecycle', 'notify'].includes(action.type) && (
             <label className="field">
               {t('التفاصيل', 'Details')}
               <input
@@ -280,7 +324,7 @@ function Steps({
                       ? 'text'
                       : action.type === 'tag'
                         ? 'tag'
-                        : action.type === 'task'
+                        : ['task', 'notify'].includes(action.type)
                           ? 'title'
                           : 'value']: e.target.value,
                   })
@@ -299,6 +343,69 @@ function Steps({
                 onChange={(e) => patch(index, { delayMinutes: Number(e.target.value) })}
               />
             </label>
+          )}
+          {action.type === 'task' && (
+            <label>
+              <input
+                type="checkbox"
+                checked={!!action.linkDeal}
+                onChange={(e) => patch(index, { linkDeal: e.target.checked })}
+              />
+              {t('ربط بصفقة الحدث', 'Link to event deal')}
+            </label>
+          )}
+          {action.type === 'assign' && (
+            <label>
+              {t('الموظف', 'Employee')}
+              <select
+                required
+                value={action.userId || ''}
+                onChange={(e) => patch(index, { userId: e.target.value })}
+              >
+                <option value="">{t('اختر موظفًا', 'Select employee')}</option>
+                {members.data.members.map((m) => (
+                  <option value={m.user_id} key={m.user_id}>
+                    {m.full_name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {action.type === 'field' && (
+            <>
+              <label>
+                {t('الحقل', 'Field')}
+                <select
+                  value={action.key || ''}
+                  required
+                  onChange={(e) => patch(index, { key: e.target.value })}
+                >
+                  <option value="">{t('اختر حقلًا', 'Select field')}</option>
+                  {customFields.data.map((f) => (
+                    <option key={f.key} value={f.key}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                {t('القيمة', 'Value')}
+                <input
+                  required
+                  value={String(action.value ?? '')}
+                  onChange={(e) => {
+                    const f = customFields.data.find((x) => x.key === action.key);
+                    patch(index, {
+                      value: (f?.type === 'number'
+                        ? Number(e.target.value)
+                        : f?.type === 'boolean'
+                          ? e.target.value === 'true'
+                          : e.target.value) as string,
+                    });
+                  }}
+                />
+              </label>
+            </>
           )}
           {action.type === 'http' && (
             <>
@@ -567,6 +674,14 @@ export function SavedAutomationEditor({ initialRuleId = '' }: { initialRuleId?: 
                 'crm.crm_tasks.insert',
                 'crm.crm_tasks.update',
                 'automation.scheduled',
+                'crm.task.overdue',
+                'crm.conversation.created',
+                'crm.conversation.taken',
+                'crm.bot.answer',
+                'crm.tag.added',
+                'crm.lifecycle.changed',
+                'crm.deal.stage_changed',
+                'crm.deal.closed',
               ].map((value) => (
                 <option key={value} value={value}>
                   {automationLabel(value, t)}

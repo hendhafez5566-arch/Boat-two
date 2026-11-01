@@ -1,3 +1,4 @@
+import { scoringSignalsSchema } from './sales-settings';
 import { AssignmentService } from '../inbox/assignment.service';
 import {
   Body,
@@ -146,6 +147,35 @@ export class SalesController {
     return this.db.withTenant(r.user.tenantId, async (c) => ({
       employee: await this.assignment.candidate(c, b),
     }));
+  }
+  @Get('scoring-signals') @Roles('owner', 'admin') signals(@Req() r: AuthedRequest) {
+    return this.db.withTenant(r.user.tenantId, async (c) =>
+      scoringSignalsSchema.parse(
+        (await c.query('SELECT settings FROM tenants')).rows[0]?.settings?.crmScoringSignals || {},
+      ),
+    );
+  }
+  @Post('scoring-signals') @Roles('owner', 'admin') saveSignals(
+    @Req() r: AuthedRequest,
+    @Body() body: unknown,
+  ) {
+    const b = parse(
+      z.object({ rules: scoringSignalsSchema, expected: scoringSignalsSchema }).strict(),
+      body,
+    );
+    return this.db.withTenant(r.user.tenantId, async (c) => {
+      const current = scoringSignalsSchema.parse(
+        (await c.query('SELECT settings FROM tenants FOR NO KEY UPDATE')).rows[0]?.settings
+          ?.crmScoringSignals || {},
+      );
+      if (JSON.stringify(current) !== JSON.stringify(b.expected))
+        throw new ConflictException('Scoring settings changed');
+      await c.query(
+        "UPDATE tenants SET settings=jsonb_set(COALESCE(settings,'{}'::jsonb),'{crmScoringSignals}',$1::jsonb,true)",
+        [JSON.stringify(b.rules)],
+      );
+      return b.rules;
+    });
   }
   @Get('assignment-history') @Roles('owner', 'admin') history(@Req() r: AuthedRequest) {
     return this.db.withTenant(

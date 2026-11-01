@@ -1,14 +1,16 @@
 {
-  "passed": 36,
+  "passed": 57,
   "tenants": 3,
-  "database": "102 real migrations on isolated PGlite with RLS; no owner database",
+  "database": "103 real migrations on isolated PGlite with RLS; no owner database",
   "tests": [
-    "currency separation/no join inflation",
-    "score rules and configurable recalculation",
-    "date and range rejection",
-    "period cohort and date drilldown",
-    "agent scope cannot widen",
-    "admin write authorization",
-    "cross tenant identity denial"
+    "assignment concurrency, settings conflicts and availability",
+    "internal notification dedupe and per-user privacy",
+    "AND/OR execution with assignment and internal alerts",
+    "no duplicate open deal across repeated updates",
+    "stage event creates assigned deal-linked follow-up",
+    "disabled rules stop executing",
+    "synthetic preview performs no actions",
+    "scoring positive and negative evidence",
+    "cross-tenant settings and notification denial"
   ]
 }

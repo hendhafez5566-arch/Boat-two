@@ -80,6 +80,9 @@ test('smart catalog real PostgreSQL RLS, source lifecycle and business acceptanc
       sourceSchema.parse({ name: 'Tourism', kind: 'file', mapping, aiEnabled: true }),
     );
     await pg.exec(`ALTER TABLE contacts ADD COLUMN attributes jsonb NOT NULL DEFAULT '{}';
+ ALTER TABLE contacts ADD COLUMN updated_at timestamptz NOT NULL DEFAULT now();
+ CREATE TABLE domain_events(tenant_id uuid,type text,aggregate_id text,dedupe_key text,payload jsonb);
+ GRANT INSERT ON domain_events TO app_user;
  CREATE TABLE crm_notes(tenant_id uuid,contact_id uuid,body text);
  CREATE TABLE conversations(id uuid PRIMARY KEY,tenant_id uuid,channel_id uuid,handled_by text,status text,assigned_to uuid);
  CREATE TABLE messages(tenant_id uuid,conversation_id uuid,channel_id uuid,direction text,sender_type text,type text,content jsonb,status text,is_internal boolean);

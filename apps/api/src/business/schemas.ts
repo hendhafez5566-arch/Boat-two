@@ -17,6 +17,16 @@ export const filtersSchema = z.object({
   withoutFollowup: z.enum(['true', 'false']).optional(),
   hasOpenDeal: z.enum(['true', 'false']).optional(),
   source: z.string().max(200).optional(),
+  departmentId: z.string().uuid().optional(),
+  dealStage: z.string().trim().max(60).optional(),
+  dealStatus: z.enum(['open', 'won', 'lost']).optional(),
+  minDealValue: z.number().int().min(0).max(100000000000).optional(),
+  attribute: z
+    .object({
+      key: z.string().trim().min(1).max(100),
+      value: z.union([z.string().max(2000), z.number().finite(), z.boolean()]),
+    })
+    .optional(),
   createdFrom: z.string().datetime().optional(),
   createdTo: z.string().datetime().optional(),
   archived: z.enum(['active', 'archived', 'all']).default('active'),
@@ -92,6 +102,18 @@ export function conditionWhere(input: Conditions): { sql: string; params: unknow
   };
 }
 export const baseActionSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('assign'), userId: z.string().uuid() }),
+  z.object({ type: z.literal('notify'), title: z.string().trim().min(1).max(200) }),
+  z.object({
+    type: z.literal('field'),
+    key: z.string().trim().min(1).max(100),
+    value: z.union([z.string().max(2000), z.number().finite(), z.boolean(), z.null()]),
+  }),
+  z.object({
+    type: z.literal('moveDeal'),
+    pipelineId: z.string().uuid(),
+    stage: z.string().trim().min(1).max(60),
+  }),
   z.object({ type: z.literal('tag'), tag: z.string().min(1).max(50) }),
   z.object({
     type: z.literal('lifecycle'),
@@ -101,6 +123,7 @@ export const baseActionSchema = z.discriminatedUnion('type', [
     type: z.literal('task'),
     title: z.string().min(1).max(200),
     delayMinutes: z.number().int().min(0).max(525600),
+    linkDeal: z.boolean().default(false),
   }),
   z.object({
     type: z.literal('deal'),
@@ -175,6 +198,14 @@ export const ruleSchema = z.object({
     'crm.crm_tasks.insert',
     'crm.crm_tasks.update',
     'automation.scheduled',
+    'crm.task.overdue',
+    'crm.conversation.created',
+    'crm.conversation.taken',
+    'crm.bot.answer',
+    'crm.tag.added',
+    'crm.lifecycle.changed',
+    'crm.deal.stage_changed',
+    'crm.deal.closed',
   ]),
   conditions: conditionsSchema.default({}),
   actions: z.array(actionSchema).min(1).max(10),
@@ -204,6 +235,23 @@ export function contactWhere(filters: Filters) {
     base.params.push(value);
     return '$' + base.params.length;
   };
+  if (filters.attribute) {
+    const key = bind(filters.attribute.key),
+      value = bind(JSON.stringify(filters.attribute.value));
+    clauses.push(`attributes->${key}=${value}::jsonb`);
+  }
+  if (filters.departmentId)
+    clauses.push(
+      `EXISTS(SELECT 1 FROM conversations fcv WHERE fcv.contact_id=contacts.id AND fcv.department_id=${bind(filters.departmentId)}::uuid)`,
+    );
+  if (filters.dealStage || filters.dealStatus || filters.minDealValue !== undefined) {
+    const tests = ['fd.contact_id=contacts.id'];
+    if (filters.dealStage) tests.push(`fd.stage=${bind(filters.dealStage)}`);
+    if (filters.dealStatus) tests.push(`fd.status=${bind(filters.dealStatus)}`);
+    if (filters.minDealValue !== undefined)
+      tests.push(`fd.value_cents>=${bind(String(filters.minDealValue))}::bigint`);
+    clauses.push(`EXISTS(SELECT 1 FROM crm_deals fd WHERE ${tests.join(' AND ')})`);
+  }
   if (filters.source !== undefined)
     clauses.push(`COALESCE(attributes->>'source','')=${bind(filters.source)}`);
   if (filters.createdFrom) clauses.push(`created_at>=${bind(filters.createdFrom)}::timestamptz`);

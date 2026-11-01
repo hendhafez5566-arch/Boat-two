@@ -14,7 +14,7 @@ CREATE TABLE crm_notifications (
  handled_at timestamptz,
  created_at timestamptz NOT NULL DEFAULT now(),
  UNIQUE(tenant_id,user_id,dedupe_key),
- FOREIGN KEY(tenant_id,user_id) REFERENCES memberships(tenant_id,user_id),
+ FOREIGN KEY(tenant_id,user_id) REFERENCES memberships(tenant_id,user_id) ON DELETE CASCADE,
  FOREIGN KEY(tenant_id,contact_id) REFERENCES contacts(tenant_id,id)
 );
 ALTER TABLE crm_notifications ENABLE ROW LEVEL SECURITY;

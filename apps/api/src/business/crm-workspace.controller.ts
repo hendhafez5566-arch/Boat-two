@@ -1,3 +1,4 @@
+import { scoringSignalsSchema } from './sales-settings';
 import {
   analyticsQuery,
   crmAnalytics,
@@ -120,7 +121,56 @@ export class CrmWorkspaceController {
       const open = !!(
         await c.query("SELECT 1 FROM crm_deals WHERE contact_id=$1 AND status='open' LIMIT 1", [id])
       ).rowCount;
-      return evaluateScore(contact, open, rules);
+      const signals = scoringSignalsSchema.parse(
+        (await c.query('SELECT settings FROM tenants')).rows[0]?.settings?.crmScoringSignals || {},
+      );
+      const interaction = (
+        await c.query(
+          `SELECT count(*)::int AS interactions,max(m.created_at) AS last_contact FROM messages m JOIN conversations cv ON cv.id=m.conversation_id WHERE cv.contact_id=$1 AND m.direction='in' AND NOT m.is_internal AND m.created_at>=now()-make_interval(days=>$2)`,
+          [id, signals.recentDays],
+        )
+      ).rows[0];
+      const lost = !!(
+        await c.query("SELECT 1 FROM crm_deals WHERE contact_id=$1 AND status='lost' LIMIT 1", [id])
+      ).rowCount;
+      const base = evaluateScore(contact, open, rules);
+      const extra = [
+        { key: 'recent', points: interaction.last_contact ? signals.recentPoints : 0 },
+        {
+          key: 'interactions',
+          points:
+            interaction.interactions >= signals.interactionsRequired
+              ? signals.interactionPoints
+              : 0,
+        },
+        { key: 'inactive', points: !interaction.last_contact ? signals.inactivePoints : 0 },
+        {
+          key: 'botInterest',
+          points:
+            signals.interestField &&
+            String(contact.attributes?.[signals.interestField] ?? '') === signals.interestValue
+              ? signals.interestPoints
+              : 0,
+        },
+        { key: 'lost', points: lost ? signals.lostPoints : 0 },
+      ].filter((x) => x.points !== 0);
+      const reasons = [...base.reasons, ...extra];
+      const score = Math.max(
+        0,
+        Math.min(
+          100,
+          reasons.reduce((n, x) => n + x.points, 0),
+        ),
+      );
+      return {
+        ...base,
+        score,
+        reasons,
+        band: score >= signals.hotAt ? 'hot' : score >= signals.warmAt ? 'warm' : 'cold',
+        calculatedAt: new Date().toISOString(),
+        lastContact: interaction.last_contact,
+        interactionWindowDays: signals.recentDays,
+      };
     });
   }
   @Get('scoring') scoring(@Req() r: AuthedRequest) {

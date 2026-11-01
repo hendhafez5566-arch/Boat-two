@@ -8,6 +8,8 @@ import { NavIcon } from '../product/NavIcon';
 import { CrmNav } from './CrmNav';
 import { useData } from './useData';
 import { noticeLabel } from './SalesNotifications';
+import { SalesScoringSignals } from './SalesScoringSignals';
+import { TeamProductivity } from './TeamProductivity';
 import { CrmAutomation } from './CrmAutomation';
 import styles from './crm-workspace.module.css';
 import css from './sales.module.css';
@@ -33,6 +35,14 @@ export function SmartSales() {
   const members = useData<{ role: string; members: { user_id: string; full_name: string }[] }>(
     '/crm/workspace/members',
     { role: '', members: [] },
+  );
+  const channels = useData<{ id: string; name: string }[]>(
+    members.data.role && members.data.role !== 'agent' ? '/channels' : null,
+    [],
+  );
+  const departments = useData<{ id: string; name: string }[]>(
+    members.data.role && members.data.role !== 'agent' ? '/departments' : null,
+    [],
   );
   const settings = useData<Settings | null>(
     members.data.role && members.data.role !== 'agent' ? '/crm/sales/settings' : null,
@@ -101,6 +111,7 @@ export function SmartSales() {
       <main className={styles.page}>
         <CrmNav />
         <h1>{t('مساحة عملي', 'My workspace')}</h1>
+        <TeamProductivity />
         <p>
           {t(
             'ابدأ بالمهام والمحادثات والصفقات المسندة إليك.',
@@ -126,7 +137,7 @@ export function SmartSales() {
       <header className={styles.hero}>
         <div>
           <span className={styles.eyebrow}>
-            <NavIcon name="users" />
+            <NavIcon name="team" />
             {t('إدارة المبيعات', 'Sales operations')}
           </span>
           <h1>{t('الفريق المناسب، في الوقت المناسب', 'The right team, at the right time')}</h1>
@@ -153,10 +164,10 @@ export function SmartSales() {
       ) : (
         <form className={styles.card} onSubmit={save}>
           <h2>
-            <NavIcon name="users" />
+            <NavIcon name="team" />
             {t('توزيع العملاء', 'Lead assignment')}
           </h2>
-          <div className={styles.form}>
+          <div className={`${styles.form} ${css.fields}`}>
             <label>
               <span>
                 <input
@@ -222,12 +233,144 @@ export function SmartSales() {
             ))}
           </div>
           {draft.assignment.method === 'rules' && (
-            <p>
-              {t(
-                'قواعد القنوات والأقسام محفوظة في السياسة الحالية؛ استخدم واجهة API لإدارتها في هذه النسخة. لا تُطبّق قاعدة غير مطابقة.',
-                'Channel and department rules are preserved in the current policy; manage them through the API in this version. Unmatched rules never assign.',
-              )}
-            </p>
+            <div className={styles.card}>
+              <h3>
+                {t('قواعد التوزيع — تُستخدم أول قاعدة مطابقة', 'Routing rules — first match wins')}
+              </h3>
+              {draft.assignment.rules.map((rule, i) => (
+                <div key={i} className={`${styles.form} ${css.fields}`}>
+                  <label>
+                    {t('القناة', 'Channel')}
+                    <select
+                      value={rule.channelId || ''}
+                      onChange={(e) => {
+                        const next = { ...rule };
+                        if (e.target.value) next.channelId = e.target.value;
+                        else delete next.channelId;
+                        setDraft({
+                          ...draft,
+                          assignment: {
+                            ...draft.assignment,
+                            rules: draft.assignment.rules.map((r, j) => (j === i ? next : r)),
+                          },
+                        });
+                      }}
+                    >
+                      <option value="">{t('كل القنوات', 'All channels')}</option>
+                      {channels.data.map((c) => (
+                        <option value={c.id} key={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    {t('القسم', 'Department')}
+                    <select
+                      value={rule.departmentId || ''}
+                      onChange={(e) => {
+                        const next = { ...rule };
+                        if (e.target.value) next.departmentId = e.target.value;
+                        else delete next.departmentId;
+                        setDraft({
+                          ...draft,
+                          assignment: {
+                            ...draft.assignment,
+                            rules: draft.assignment.rules.map((r, j) => (j === i ? next : r)),
+                          },
+                        });
+                      }}
+                    >
+                      <option value="">{t('كل الأقسام', 'All departments')}</option>
+                      {departments.data.map((d) => (
+                        <option value={d.id} key={d.id}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    {t('الوسم (اختياري)', 'Tag (optional)')}
+                    <input
+                      maxLength={50}
+                      value={rule.tag || ''}
+                      onChange={(e) => {
+                        const next = { ...rule };
+                        if (e.target.value) next.tag = e.target.value;
+                        else delete next.tag;
+                        setDraft({
+                          ...draft,
+                          assignment: {
+                            ...draft.assignment,
+                            rules: draft.assignment.rules.map((r, j) => (j === i ? next : r)),
+                          },
+                        });
+                      }}
+                    />
+                  </label>
+                  <fieldset>
+                    <legend>{t('الموظفون المشاركون في القاعدة', 'Rule participants')}</legend>
+                    {members.data.members.map((m) => (
+                      <label key={m.user_id}>
+                        <span>
+                          <input
+                            type="checkbox"
+                            checked={rule.memberIds.includes(m.user_id)}
+                            onChange={(e) => {
+                              const next = {
+                                ...rule,
+                                memberIds: e.target.checked
+                                  ? [...rule.memberIds, m.user_id]
+                                  : rule.memberIds.filter((id) => id !== m.user_id),
+                              };
+                              setDraft({
+                                ...draft,
+                                assignment: {
+                                  ...draft.assignment,
+                                  rules: draft.assignment.rules.map((r, j) => (j === i ? next : r)),
+                                },
+                              });
+                            }}
+                          />
+                          {m.full_name}
+                        </span>
+                      </label>
+                    ))}
+                  </fieldset>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() =>
+                      setDraft({
+                        ...draft,
+                        assignment: {
+                          ...draft.assignment,
+                          rules: draft.assignment.rules.filter((_, j) => j !== i),
+                        },
+                      })
+                    }
+                  >
+                    {t('حذف القاعدة', 'Remove rule')}
+                  </button>
+                </div>
+              ))}
+              <button
+                className="btn"
+                type="button"
+                disabled={draft.assignment.rules.length >= 30}
+                onClick={() =>
+                  setDraft({
+                    ...draft,
+                    assignment: {
+                      ...draft.assignment,
+                      rules: [...draft.assignment.rules, { memberIds: [] }],
+                    },
+                  })
+                }
+              >
+                {t('إضافة قاعدة', 'Add rule')}
+              </button>
+            </div>
           )}
           <div className={css.row}>
             <button type="button" className="btn" onClick={() => void dryRun()}>
@@ -240,7 +383,7 @@ export function SmartSales() {
             <NavIcon name="bell" />
             {t('إعدادات التنبيهات الداخلية', 'Internal notification settings')}
           </h2>
-          <div className={styles.form}>
+          <div className={`${styles.form} ${css.fields}`}>
             <label>
               <span>
                 <input
@@ -320,12 +463,69 @@ export function SmartSales() {
               'In-app only. Defaults to the assigned employee, or managers for unassigned leads.',
             )}
           </p>
+          <fieldset>
+            <legend>
+              {t(
+                'المستهدفون بالتنبيهات (دون تحديد = الافتراضي)',
+                'Notification recipients (none selected = defaults)',
+              )}
+            </legend>
+            {members.data.members.map((m) => (
+              <label key={m.user_id}>
+                <span>
+                  <input
+                    type="checkbox"
+                    checked={draft.notifications.targetIds.includes(m.user_id)}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        notifications: {
+                          ...draft.notifications,
+                          targetIds: e.target.checked
+                            ? [...draft.notifications.targetIds, m.user_id]
+                            : draft.notifications.targetIds.filter((id) => id !== m.user_id),
+                        },
+                      })
+                    }
+                  />
+                  {m.full_name}
+                </span>
+              </label>
+            ))}
+          </fieldset>
+          <fieldset>
+            <legend>{t('أنواع ذات أولوية عالية', 'High-priority alert types')}</legend>
+            {draft.notifications.kinds.map((kind) => (
+              <label key={kind}>
+                <span>
+                  <input
+                    type="checkbox"
+                    checked={draft.notifications.highPriority.includes(kind)}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        notifications: {
+                          ...draft.notifications,
+                          highPriority: e.target.checked
+                            ? [...draft.notifications.highPriority, kind]
+                            : draft.notifications.highPriority.filter((x) => x !== kind),
+                        },
+                      })
+                    }
+                  />
+                  {noticeLabel(kind, t)}
+                </span>
+              </label>
+            ))}
+          </fieldset>
           <Button busy={busy} type="submit">
             {t('حفظ الإعدادات', 'Save settings')}
           </Button>
         </form>
       )}
       <CrmAutomation />
+      <SalesScoringSignals />
+      <TeamProductivity />
       <section className={styles.card}>
         <h2>{t('آخر تغييرات المسؤول', 'Recent assignment changes')}</h2>
         {history.error && <p role="alert">{history.error}</p>}
@@ -334,7 +534,7 @@ export function SmartSales() {
         )}
         {history.data.map((h) => (
           <div className={css.notice} key={h.id}>
-            <NavIcon name="users" />
+            <NavIcon name="team" />
             <div>
               <strong>{h.full_name || t('دون مسؤول', 'Unassigned')}</strong>
               <p>{new Date(h.created_at).toLocaleString()}</p>

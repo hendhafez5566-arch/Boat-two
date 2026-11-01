@@ -48,3 +48,19 @@ export const assignmentPolicySchema = z
       .default([]),
   })
   .strict();
+export const scoringSignalsSchema = z
+  .object({
+    recentDays: z.number().int().min(1).max(365).default(7),
+    recentPoints: z.number().int().min(0).max(100).default(0),
+    interactionsRequired: z.number().int().min(1).max(1000).default(3),
+    interactionPoints: z.number().int().min(0).max(100).default(0),
+    inactivePoints: z.number().int().min(-100).max(0).default(0),
+    interestField: z.string().trim().max(100).default(''),
+    interestValue: z.string().trim().max(200).default(''),
+    interestPoints: z.number().int().min(0).max(100).default(0),
+    lostPoints: z.number().int().min(-100).max(0).default(0),
+    hotAt: z.number().int().min(1).max(100).default(70),
+    warmAt: z.number().int().min(0).max(99).default(30),
+  })
+  .strict()
+  .refine((x) => x.hotAt > x.warmAt, 'Hot threshold must exceed warm threshold');

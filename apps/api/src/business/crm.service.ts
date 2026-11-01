@@ -287,6 +287,12 @@ export class CrmService {
           [id],
         )
       ).rows,
+      ownerChanges: (
+        await c.query(
+          "SELECT a.id,a.created_at,a.details,u.full_name FROM audit_logs a LEFT JOIN users u ON u.id::text=a.details->>'to' WHERE a.action='owner_changed' AND a.resource_type='contacts' AND a.resource_id=$1 ORDER BY a.created_at DESC LIMIT 100",
+          [id],
+        )
+      ).rows,
       stageChanges: (
         await c.query(
           "SELECT a.id,a.created_at,a.details,d.id AS deal_id,d.title FROM audit_logs a JOIN crm_deals d ON a.resource_id=d.id::text WHERE a.action='stage_changed' AND a.resource_type='crm_deals' AND d.contact_id=$1 ORDER BY a.created_at DESC,a.id DESC LIMIT 100",

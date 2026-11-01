@@ -169,7 +169,7 @@ export class AssignmentService {
       const legacy = await this.getSettings(tenantId);
       const settings = (await c.query('SELECT settings FROM tenants')).rows[0]?.settings || {};
       const policy = assignmentPolicySchema.parse(settings.crmAssignment || {});
-      if (!legacy.auto_assign && !policy.enabled && !force) return null;
+      if (!force && (settings.crmAssignment ? !policy.enabled : !legacy.auto_assign)) return null;
       const cv = (
         await c.query('SELECT * FROM conversations WHERE id=$1 FOR UPDATE', [conversationId])
       ).rows[0];
