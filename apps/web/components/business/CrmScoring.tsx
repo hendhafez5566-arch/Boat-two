@@ -92,8 +92,12 @@ export function CrmScoring() {
                   k === 'interestTag' ? String(form.get(k) || '') : Number(form.get(k)),
                 ]),
               );
-              await api('/crm/workspace/scoring', { method: 'POST', body: JSON.stringify(rules) });
+              await api('/crm/workspace/scoring', {
+                method: 'POST',
+                body: JSON.stringify({ rules, expected: data.data!.rules }),
+              });
               setMessage(t('حُفظت قواعد التقييم', 'Scoring rules saved'));
+              await data.reload();
             } catch (e) {
               setMessage((e as Error).message);
             } finally {

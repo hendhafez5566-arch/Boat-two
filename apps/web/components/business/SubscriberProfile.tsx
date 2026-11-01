@@ -41,6 +41,13 @@ type Profile = {
   channels: { id: string; name: string; type: string }[];
   inputs: { name: string; status: string; updated_at: string; answers: Record<string, unknown> }[];
   timeline: {
+    stageChanges: {
+      id: string;
+      deal_id: string;
+      title: string;
+      created_at: string;
+      details: { from: string; to: string };
+    }[];
     tasks: { id: string; title: string; due_at: string; status: string; updated_at: string }[];
     deals: { id: string; title: string; stage: string; status: string; updated_at: string }[];
     conversations: {
@@ -938,14 +945,24 @@ export default function SubscriberProfile({
                           : t('متابعة مفتوحة', 'Open follow-up'),
                       body: task.title,
                     })),
-                    ...profile.timeline.deals.map((d) => ({
-                      id: 'deal:' + d.id,
-                      at: d.updated_at,
-                      title: t('آخر تحديث لفرصة البيع', 'Latest opportunity update'),
-                      body: d.title + ' · ' + d.stage,
+                    ...profile.timeline.deals
+                      .filter(
+                        (d) => !profile.timeline.stageChanges?.some((s) => s.deal_id === d.id),
+                      )
+                      .map((d) => ({
+                        id: 'deal:' + d.id,
+                        at: d.updated_at,
+                        title: t('آخر تحديث لفرصة البيع', 'Latest opportunity update'),
+                        body: d.title + ' · ' + d.stage,
+                      })),
+                    ...(profile.timeline.stageChanges || []).map((s) => ({
+                      id: 'stage:' + s.id,
+                      at: s.created_at,
+                      title: t('تغيّرت مرحلة فرصة البيع', 'Opportunity stage changed'),
+                      body: s.title + ' · ' + s.details.from + ' ← ' + s.details.to,
                     })),
                     ...profile.timeline.events
-                      .filter((e) => e.type.includes('contacts'))
+                      .filter((e) => e.type.includes('contacts') && e.type.endsWith('.update'))
                       .map((e) => ({
                         id: 'event:' + e.id,
                         at: e.created_at,

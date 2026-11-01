@@ -619,6 +619,7 @@ export class CrmController {
         contactId: z.string().uuid().optional(),
         dueFrom: z.string().datetime().optional(),
         dueTo: z.string().datetime().optional(),
+        period: z.enum(['today', 'overdue', 'upcoming']).optional(),
         updatedFrom: z.string().datetime().optional(),
         updatedTo: z.string().datetime().optional(),
       }),
@@ -643,6 +644,24 @@ export class CrmController {
       }
       params.push(q.contactId ?? null);
       where += ` AND ($${params.length}::uuid IS NULL OR w.contact_id=$${params.length})`;
+      if (kind === 'tasks' && q.period) {
+        const settings = (await c.query('SELECT settings FROM tenants')).rows[0]?.settings || {};
+        let zone = typeof settings.timezone === 'string' ? settings.timezone : 'UTC';
+        try {
+          new Intl.DateTimeFormat('en', { timeZone: zone });
+        } catch {
+          zone = 'UTC';
+        }
+        params.push(zone);
+        const bind = '$' + params.length;
+        if (q.period === 'overdue') where += ' AND w.due_at<now()';
+        if (q.period === 'today')
+          where += ` AND w.due_at>=((now() AT TIME ZONE ${bind})::date::timestamp AT TIME ZONE ${bind}) AND w.due_at<(((now() AT TIME ZONE ${bind})::date+1)::timestamp AT TIME ZONE ${bind})`;
+        if (q.period === 'upcoming')
+          where += ` AND w.due_at>=(((now() AT TIME ZONE ${bind})::date+1)::timestamp AT TIME ZONE ${bind})`;
+        // Keep the bound zone typed for the overdue branch as well.
+        where += ` AND ${bind}::text IS NOT NULL`;
+      }
       if (q.updatedFrom) {
         params.push(q.updatedFrom);
         where += ` AND w.updated_at >= $${params.length}::timestamptz`;
@@ -813,6 +832,7 @@ export class CrmController {
         contactId: z.string().uuid(),
         title: z.string().min(1).max(200),
         dueAt: z.string().datetime(),
+        priority: z.enum(['low', 'normal', 'high']).default('normal'),
         assignedTo: z.string().uuid().nullable().optional(),
       }),
       body,
@@ -831,8 +851,8 @@ export class CrmController {
         throw new BadRequestException('Invalid assignee');
       return (
         await c.query(
-          'INSERT INTO crm_tasks(tenant_id,contact_id,title,due_at,assigned_to) VALUES($1,$2,$3,$4,$5) RETURNING *',
-          [r.user.tenantId, b.contactId, b.title, b.dueAt, b.assignedTo ?? null],
+          'INSERT INTO crm_tasks(tenant_id,contact_id,title,due_at,assigned_to,priority) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',
+          [r.user.tenantId, b.contactId, b.title, b.dueAt, b.assignedTo ?? null, b.priority],
         )
       ).rows[0];
     });
@@ -848,6 +868,7 @@ export class CrmController {
           status: z.enum(['open', 'done']).optional(),
           title: z.string().trim().min(1).max(200).optional(),
           dueAt: z.string().datetime().optional(),
+          priority: z.enum(['low', 'normal', 'high']).optional(),
           assignedTo: z.string().uuid().nullable().optional(),
           expectedUpdatedAt: z.string().datetime().optional(),
         })
@@ -876,7 +897,7 @@ export class CrmController {
         throw new BadRequestException('Assignee must be a workspace member');
       const row = (
         await c.query(
-          `UPDATE crm_tasks SET status=COALESCE($2,status),title=COALESCE($3,title),due_at=COALESCE($4,due_at),assigned_to=CASE WHEN $5 THEN $6::uuid ELSE assigned_to END,updated_at=now() WHERE id=$1 AND ($7::timestamptz IS NULL OR date_trunc('milliseconds',updated_at)=$7) RETURNING *`,
+          `UPDATE crm_tasks SET status=COALESCE($2,status),title=COALESCE($3,title),due_at=COALESCE($4,due_at),assigned_to=CASE WHEN $5 THEN $6::uuid ELSE assigned_to END,priority=COALESCE($8,priority),updated_at=now() WHERE id=$1 AND ($7::timestamptz IS NULL OR date_trunc('milliseconds',updated_at)=$7) RETURNING *`,
           [
             id,
             b.status ?? null,
@@ -885,6 +906,7 @@ export class CrmController {
             b.assignedTo !== undefined,
             b.assignedTo ?? null,
             b.expectedUpdatedAt ?? null,
+            b.priority ?? null,
           ],
         )
       ).rows[0];

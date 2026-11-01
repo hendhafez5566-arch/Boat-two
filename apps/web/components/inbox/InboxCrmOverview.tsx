@@ -1,5 +1,6 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { CrmScore } from '../business/CrmScoring';
 import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../lib/api';
@@ -136,6 +137,7 @@ export function InboxCrmOverview({
     setForm((current) => (current ? { ...current, [key]: value } : null));
   return (
     <section className={`${styles.card} ${styles.crmCard}`}>
+      {contact?.id && <CrmScore contactId={contact.id} version={contact.updated_at || ''} />}
       <span className={styles.crmEyebrow}>
         <NavIcon name="crm" /> CUSTOMER 360
       </span>
@@ -271,7 +273,7 @@ export function InboxCrmOverview({
             </select>
           </label>
           <label>
-            {t('درجة العميل', 'Lead Score')}
+            {t('تقييم يدوي (اختياري)', 'Manual rating (optional)')}
             <select
               value={form.score}
               disabled={busy}
@@ -336,7 +338,7 @@ export function InboxCrmOverview({
               'user',
             ],
             [
-              t('درجة العميل', 'Lead Score'),
+              t('تقييم يدوي (اختياري)', 'Manual rating (optional)'),
               scoreText(contact?.attributes?.lead_score),
               'temperature',
             ],

@@ -25,6 +25,7 @@ type Work = {
   expected_close: string | null;
   loss_reason: string | null;
   due_at: string;
+  priority?: 'low' | 'normal' | 'high';
   assigned_to: string | null;
 };
 type Member = { user_id: string; full_name: string };
@@ -48,7 +49,6 @@ export function CrmWork({
   const [status, setStatus] = useState('open');
   const [owner, setOwner] = useState('');
   const [period, setPeriod] = useState('all');
-  const [referenceTime] = useState(() => new Date());
   const [page, setPage] = useState(1);
   const [view, setView] = useState('board');
   const [dialog, setDialog] = useState<Work | 'new' | null>(createNew ? 'new' : null);
@@ -82,18 +82,7 @@ export function CrmWork({
   if (deals && selectedPipeline && !allPipelines) params.set('pipelineId', selectedPipeline.id);
   if (owner) params.set('ownerId', owner === 'me' ? team.data.currentUserId : owner);
   if (contactId) params.set('contactId', contactId);
-  if (!deals && period !== 'all') {
-    const start = new Date(referenceTime);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
-    if (period === 'overdue') params.set('dueTo', referenceTime.toISOString());
-    if (period === 'today') {
-      params.set('dueFrom', start.toISOString());
-      params.set('dueTo', end.toISOString());
-    }
-    if (period === 'upcoming') params.set('dueFrom', end.toISOString());
-  }
+  if (!deals && period !== 'all') params.set('period', period);
   const data = useData<{ items: Work[]; total: number }>(`/crm/${kind}?${params}`, {
     items: [],
     total: 0,
@@ -155,6 +144,19 @@ export function CrmWork({
         <p>
           <Link href={`/dashboard/crm?contact=${row.contact_id}`}>{row.contact_name}</Link>
         </p>
+        {!deals && (
+          <span
+            className={styles.badge}
+            data-tone={row.priority === 'high' ? 'red' : row.priority === 'low' ? 'blue' : 'orange'}
+          >
+            <NavIcon name="flag" />
+            {row.priority === 'high'
+              ? t('أولوية عالية', 'High priority')
+              : row.priority === 'low'
+                ? t('أولوية منخفضة', 'Low priority')
+                : t('أولوية عادية', 'Normal priority')}
+          </span>
+        )}
         {deals ? (
           <strong>{amount(row)}</strong>
         ) : (
@@ -613,6 +615,7 @@ function WorkForm({
     } else {
       values.dueAt = new Date(String(f.get('dueAt'))).toISOString();
       values.assignedTo = f.get('ownerId') || null;
+      values.priority = f.get('priority') || 'normal';
     }
     void onSubmit(values);
   }
@@ -729,15 +732,25 @@ function WorkForm({
           )}
         </>
       ) : (
-        <label>
-          {t('موعد المتابعة', 'Follow-up date')}
-          <input
-            type="datetime-local"
-            name="dueAt"
-            required
-            defaultValue={localDate(row?.due_at)}
-          />
-        </label>
+        <>
+          <label>
+            {t('الأولوية', 'Priority')}
+            <select name="priority" defaultValue={row?.priority || 'normal'}>
+              <option value="normal">{t('عادية', 'Normal')}</option>
+              <option value="high">{t('عالية', 'High')}</option>
+              <option value="low">{t('منخفضة', 'Low')}</option>
+            </select>
+          </label>
+          <label>
+            {t('موعد المتابعة', 'Follow-up date')}
+            <input
+              type="datetime-local"
+              name="dueAt"
+              required
+              defaultValue={localDate(row?.due_at)}
+            />
+          </label>
+        </>
       )}
       <label>
         {t('الموظف المسؤول', 'Assigned employee')}
@@ -759,9 +772,45 @@ function WorkForm({
           {error}
         </p>
       )}
+      {deals && row && <StageHistory contactId={row.contact_id} dealId={row.id} />}
       <Button type="submit" variant="primary" busy={busy} disabled={deals && !selected}>
         {t('حفظ', 'Save')}
       </Button>
     </form>
+  );
+}
+
+function StageHistory({ contactId, dealId }: { contactId: string; dealId: string }) {
+  const { t, language } = useLocale();
+  const d = useData<{
+    timeline: {
+      stageChanges: {
+        id: string;
+        deal_id: string;
+        created_at: string;
+        details: { from: string; to: string };
+      }[];
+    };
+  } | null>('/crm/contacts/' + contactId + '/profile', null);
+  const items = d.data?.timeline.stageChanges?.filter((s) => s.deal_id === dealId) || [];
+  return (
+    <details className={styles.definitions}>
+      <summary>{t('سجل تغييرات المرحلة', 'Stage change history')}</summary>
+      {d.error && <p role="alert">{d.error}</p>}
+      {items.map((s) => (
+        <p key={s.id}>
+          {s.details.from} ← {s.details.to} ·{' '}
+          {new Date(s.created_at).toLocaleString(language === 'ar' ? 'ar-EG' : 'en')}
+        </p>
+      ))}
+      {!d.loading && !items.length && (
+        <p>
+          {t(
+            'لا تغييرات مسجلة بعد؛ يبدأ السجل من هذا الإصدار.',
+            'No changes recorded yet; history begins with this release.',
+          )}
+        </p>
+      )}
+    </details>
   );
 }

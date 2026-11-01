@@ -162,6 +162,25 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
         },
       ]
     : [];
+  if (report && r)
+    metrics.push(
+      {
+        label: t('عملاء مؤهلون', 'Qualified leads'),
+        value: r.contacts.qualified,
+        icon: 'star',
+        tone: 'violet',
+        href: contactLink('qualified'),
+        hint: t('حالة حالية', 'Current status'),
+      },
+      {
+        label: t('العملاء النشطون', 'Active customers'),
+        value: r.contacts.total,
+        icon: 'crm',
+        tone: 'blue',
+        href: contactLink('all'),
+        hint: t('دون المدمج والمؤرشف', 'Excludes merged and archived'),
+      },
+    );
   function exportReport() {
     if (!r) return;
     const rows: Record<string, unknown>[] = [
@@ -311,6 +330,14 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
       )}
       {r && (
         <>
+          <Link className={styles.scope} href="/dashboard/inbox?tab=mine">
+            <NavIcon name="chat" />
+            {t(
+              'محادثات تنتظر رد الموظف ضمن نطاقك',
+              'Conversations awaiting a staff reply in your scope',
+            )}
+            : {r.conversations.needs_reply}
+          </Link>
           <div className={styles.metrics}>
             {metrics.map((m) => (
               <Link href={m.href} className={styles.stat} key={m.icon + m.label} data-tone={m.tone}>

@@ -1,7 +1,7 @@
 {
-  "passed": 24,
+  "passed": 42,
   "tenants": 3,
-  "database": "99 real migrations on isolated PGlite with RLS; no owner database",
+  "database": "101 real migrations on isolated PGlite with RLS; no owner database",
   "tests": [
     "currency separation/no join inflation",
     "score rules and configurable recalculation",
