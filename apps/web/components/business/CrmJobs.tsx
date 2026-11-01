@@ -28,6 +28,21 @@ export function CrmJobs() {
     window.addEventListener('boat:crm-jobs', reload);
     return () => window.removeEventListener('boat:crm-jobs', reload);
   }, [jobs.reload]);
+  const hasActiveJobs = jobs.data.some((job) => ['pending', 'running'].includes(job.status));
+  useEffect(() => {
+    if (!hasActiveJobs) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      await jobs.reload();
+      if (!stopped) timer = setTimeout(poll, 2000);
+    };
+    timer = setTimeout(poll, 2000);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [hasActiveJobs, jobs.reload]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(

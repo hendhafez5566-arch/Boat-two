@@ -2053,7 +2053,7 @@ button.underline {
 .bs-shell .product-content { min-width: 0; flex: 1; }
 .bs-shell .product-content > .product-topbar.bs-topbar {
   display: flex; align-items: center; gap: 12px; flex-wrap: nowrap; height: var(--topbar-h); min-height: var(--topbar-h);
-  padding: 0 32px; background: transparent; backdrop-filter: none; border-bottom: 1px solid var(--bs-line); position: sticky; top: 0; z-index: 30;
+  padding: 0 32px; background: var(--bg, #f6f8fc); backdrop-filter: none; border-bottom: 1px solid var(--bs-line); position: sticky; top: 0; z-index: 30;
 }
 .bs-spacer { flex: 1; min-width: 0; }
 .bs-iconbtn, .bs-avatar {

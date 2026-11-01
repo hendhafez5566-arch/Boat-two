@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
+import { catalogError } from '../../lib/catalog-error';
 import { useLocale } from '../product/locale';
 import { suggestCatalogMapping, type CatalogMapping as Mapping } from '../../lib/catalog-mapping';
 type Source = {
@@ -128,7 +129,7 @@ export default function DataSourcesPanel({
     try {
       await fn();
     } catch (e) {
-      setError((e as Error).message);
+      setError(catalogError((e as Error).message, language));
     } finally {
       setBusy(false);
     }

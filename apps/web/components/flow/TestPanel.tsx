@@ -6,6 +6,7 @@ import MediaPreview from './MediaPreview';
 import { ConfigDisclosure, ConfigSummary } from './ConfigDisclosure';
 import ListPreview from './ListPreview';
 import { api } from '../../lib/api';
+import { previewReplyHint } from '../../lib/preview-reply-hint';
 
 type Entry = { who: 'you' | 'bot' | 'system'; content: any };
 
@@ -209,12 +210,9 @@ export default function TestPanel({
             </span>
           </div>
         )}
-        {log.map((e, i) =>
-          e.who === 'system' ? (
-            <div key={i} className="tp-system">
-              {String(e.content)}
-            </div>
-          ) : (
+        {log
+          .filter((entry) => entry.who !== 'system')
+          .map((e, i) => (
             <div key={i} className={`tp-bubble ${e.who === 'you' ? 'is-you' : 'is-bot'}`}>
               {(e.content.product || e.content.productList) && (
                 <pre className="text-xs" dir="ltr">
@@ -277,8 +275,7 @@ export default function TestPanel({
                 />
               )}
             </div>
-          ),
-        )}
+          ))}
         {busy && (
           <div className="tp-bubble is-bot tp-typing" aria-label={t('البوت يكتب', 'Bot is typing')}>
             <i />
@@ -316,11 +313,7 @@ export default function TestPanel({
           disabled={busy || !status.startsWith('waiting') || waitKind === 'delay'}
           onChange={(e) => setText(e.target.value)}
           aria-label={t('رد العميل', 'Customer reply')}
-          placeholder={
-            status.startsWith('waiting')
-              ? t('اكتب ردّ العميل…', 'Type a customer reply…')
-              : t('ابدأ التجربة أولًا', 'Start the preview first')
-          }
+          placeholder={previewReplyHint(status, busy, language)}
         />
         <button
           className="tp-send"
@@ -387,6 +380,17 @@ export default function TestPanel({
           />{' '}
           {t('تنفيذ طلبات API فعليًا', 'Allow real HTTP requests')}
         </label>
+        {log.some((entry) => entry.who === 'system') && (
+          <ConfigDisclosure>
+            <ConfigSummary>{t('سجل المحاكاة الداخلي', 'Internal simulation log')}</ConfigSummary>
+            <pre dir="ltr" className="tp-vars">
+              {log
+                .filter((entry) => entry.who === 'system')
+                .map((entry) => String(entry.content))
+                .join('\n')}
+            </pre>
+          </ConfigDisclosure>
+        )}
         {state && (
           <>
             <button onClick={() => setShowVars(!showVars)} className="tp-link">
