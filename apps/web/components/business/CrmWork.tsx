@@ -1,11 +1,12 @@
 'use client';
-import { FormEvent, useRef, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 import { Button, Dialog } from '../product/ProductUI';
 import { useData } from './useData';
 import { CrmNav } from './CrmNav';
+import { NavIcon } from '../product/NavIcon';
 import styles from './crm-workspace.module.css';
 
 type Pipeline = { id: string; name: string; stages: string[] };
@@ -31,13 +32,17 @@ export function CrmWork({
   kind,
   contactId,
   compact = false,
+  createNew = false,
 }: {
   kind: 'deals' | 'tasks';
   contactId?: string;
   compact?: boolean;
+  createNew?: boolean;
 }) {
   const { t, language } = useLocale();
   const deals = kind === 'deals';
+  const [allPipelines, setAllPipelines] = useState(false);
+  const [routeDates, setRouteDates] = useState<Record<string, string>>({});
   const [q, setQ] = useState('');
   const [pipeline, setPipeline] = useState('');
   const [status, setStatus] = useState('open');
@@ -46,7 +51,23 @@ export function CrmWork({
   const [referenceTime] = useState(() => new Date());
   const [page, setPage] = useState(1);
   const [view, setView] = useState('board');
-  const [dialog, setDialog] = useState<Work | 'new' | null>(null);
+  const [dialog, setDialog] = useState<Work | 'new' | null>(createNew ? 'new' : null);
+  useEffect(() => {
+    if (compact) return;
+    const p = new URLSearchParams(window.location.search);
+    if (p.has('ownerId')) setOwner(p.get('ownerId') || '');
+    if (p.has('status')) setStatus(p.get('status') || '');
+    if (p.has('period')) setPeriod(p.get('period') || 'all');
+    if (p.get('create') === 'true') setDialog('new');
+    if (p.get('view') === 'table') setView('table');
+    if (p.get('allPipelines') === 'true') setAllPipelines(true);
+    const dates: Record<string, string> = {};
+    for (const k of ['updatedFrom', 'updatedTo']) {
+      const v = p.get(k);
+      if (v) dates[k] = v;
+    }
+    setRouteDates(dates);
+  }, [compact]);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
@@ -57,8 +78,8 @@ export function CrmWork({
   );
   const pipelines = useData<Pipeline[]>('/crm/pipelines', []);
   const selectedPipeline = pipelines.data.find((p) => p.id === pipeline) || pipelines.data[0];
-  const params = new URLSearchParams({ q, status, page: String(page), limit: '50' });
-  if (deals && selectedPipeline) params.set('pipelineId', selectedPipeline.id);
+  const params = new URLSearchParams({ ...routeDates, q, status, page: String(page), limit: '50' });
+  if (deals && selectedPipeline && !allPipelines) params.set('pipelineId', selectedPipeline.id);
   if (owner) params.set('ownerId', owner === 'me' ? team.data.currentUserId : owner);
   if (contactId) params.set('contactId', contactId);
   if (!deals && period !== 'all') {
@@ -117,6 +138,10 @@ export function CrmWork({
       <article
         key={row.id}
         className={styles.card}
+        data-overdue={!deals && row.status === 'open' && new Date(row.due_at) < new Date()}
+        data-stale={
+          deals && row.status === 'open' && Date.now() - Date.parse(row.updated_at) > 14 * 86400000
+        }
         draggable={deals && !busy && canEdit(row)}
         onDragStart={(e) => e.dataTransfer.setData('text/plain', row.id)}
       >
@@ -141,7 +166,23 @@ export function CrmWork({
             {new Date(row.due_at).toLocaleString(language === 'ar' ? 'ar-EG' : 'en')}
           </p>
         )}
-        <p>{memberName(deals ? row.owner_id : row.assigned_to)}</p>
+        <p>
+          <NavIcon name="user" />
+          {memberName(deals ? row.owner_id : row.assigned_to)}
+        </p>
+        <p>
+          <NavIcon name="stopwatch" />
+          {t('آخر نشاط', 'Last activity')}:{' '}
+          {new Date(row.updated_at).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en')}
+        </p>
+        {deals &&
+          row.status === 'open' &&
+          Date.now() - Date.parse(row.updated_at) > 14 * 86400000 && (
+            <span className={styles.badge} data-tone="orange">
+              <NavIcon name="userClock" />
+              {t('دون تحديث منذ14يومًا', 'No update for14days')}
+            </span>
+          )}
         {deals && row.expected_close && (
           <p>
             {t('الإغلاق المتوقع', 'Expected close')}: {row.expected_close.slice(0, 10)}
@@ -203,9 +244,47 @@ export function CrmWork({
           disabled={deals && pipelines.loading}
           onClick={() => setDialog('new')}
         >
+          <NavIcon name="plus" />
           {deals ? t('إضافة فرصة', 'Add opportunity') : t('إضافة متابعة', 'Add follow-up')}
         </Button>
       </header>
+      {!deals && (
+        <div className={styles.quickTabs}>
+          {[
+            ['today', t('اليوم', 'Today'), 'calendar'],
+            ['overdue', t('متأخرة', 'Overdue'), 'userClock'],
+            ['upcoming', t('قادمة', 'Upcoming'), 'calendar'],
+            ['done', t('مكتملة', 'Completed'), 'circleCheck'],
+            ['mine', t('مهامي', 'My tasks'), 'user'],
+          ].map(([key, label, icon]) => (
+            <button
+              key={key}
+              aria-pressed={
+                key === 'done'
+                  ? status === 'done'
+                  : key === 'mine'
+                    ? owner === 'me'
+                    : period === key && status === 'open'
+              }
+              onClick={() => {
+                setPage(1);
+                setRouteDates({});
+                if (key === 'mine') setOwner('me');
+                else if (key === 'done') {
+                  setStatus('done');
+                  setPeriod('all');
+                } else {
+                  setStatus('open');
+                  setPeriod(key);
+                }
+              }}
+            >
+              <NavIcon name={icon} />
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       <div className={styles.toolbar}>
         <input
           aria-label={t('بحث', 'Search work')}
@@ -219,12 +298,15 @@ export function CrmWork({
         {deals && (
           <select
             aria-label={t('خط المبيعات', 'Pipeline')}
-            value={selectedPipeline?.id || ''}
+            value={allPipelines ? 'all' : selectedPipeline?.id || ''}
             onChange={(e) => {
+              setAllPipelines(e.target.value === 'all');
+              if (e.target.value === 'all') setView('table');
               setPipeline(e.target.value);
               setPage(1);
             }}
           >
+            <option value="all">{t('كل خطوط المبيعات', 'All pipelines')}</option>
             {pipelines.data.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -283,7 +365,13 @@ export function CrmWork({
           </select>
         )}
         {deals && (
-          <Button onClick={() => setView(view === 'board' ? 'table' : 'board')}>
+          <Button
+            onClick={() => {
+              setAllPipelines(false);
+              setView(view === 'board' ? 'table' : 'board');
+            }}
+          >
+            <NavIcon name="reports" />
             {view === 'board' ? t('عرض جدولي', 'Table view') : t('لوحة المراحل', 'Board view')}
           </Button>
         )}
@@ -311,7 +399,7 @@ export function CrmWork({
             {t('إعداد خطوط المبيعات', 'Set up pipelines')}
           </Link>
         </div>
-      ) : deals && view === 'board' ? (
+      ) : deals && view === 'board' && !allPipelines ? (
         <>
           <p className={styles.hint}>
             {t(
@@ -339,6 +427,24 @@ export function CrmWork({
                     {data.data.items.filter((d) => d.stage === stage).length}
                   </span>
                 </h2>
+                <div className={styles.stageTotals}>
+                  {Array.from(
+                    new Set(
+                      data.data.items.filter((d) => d.stage === stage).map((d) => d.currency),
+                    ),
+                  ).map((currency) => (
+                    <span key={currency}>
+                      {new Intl.NumberFormat(language === 'ar' ? 'ar-EG' : 'en', {
+                        style: 'currency',
+                        currency,
+                      }).format(
+                        data.data.items
+                          .filter((d) => d.stage === stage && d.currency === currency)
+                          .reduce((sum, d) => sum + Number(d.value_cents), 0) / 100,
+                      )}
+                    </span>
+                  ))}
+                </div>
                 {data.data.items.filter((d) => d.stage === stage).map(card)}
               </section>
             ))}

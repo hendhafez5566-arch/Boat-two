@@ -1,4 +1,11 @@
-import { Body as RequestBody } from '@nestjs/common';
+import {
+  analyticsQuery,
+  crmAnalytics,
+  scoringSchema,
+  defaultScoring,
+  evaluateScore,
+} from './crm-intelligence';
+import { Param, ParseUUIDPipe, Body as RequestBody } from '@nestjs/common';
 import { conditionsSchema, conditionWhere, pagination } from './schemas';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { previewSpreadsheet } from '../commerce/data-sources.controller';
@@ -101,6 +108,41 @@ export class CrmWorkspaceController {
     );
   }
 
+  @Get('analytics') analytics(@Req() r: AuthedRequest, @Query() query: unknown) {
+    return crmAnalytics(this.crm.db, r.user, parse(analyticsQuery, query));
+  }
+  @Get('score/:id') async score(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    const contact = await this.crm.get(r.user.tenantId, id);
+    return this.crm.db.withTenant(r.user.tenantId, async (c) => {
+      const rules = scoringSchema
+        .catch(defaultScoring)
+        .parse((await c.query('SELECT settings FROM tenants')).rows[0]?.settings?.crmScoring);
+      const open = !!(
+        await c.query("SELECT 1 FROM crm_deals WHERE contact_id=$1 AND status='open' LIMIT 1", [id])
+      ).rowCount;
+      return evaluateScore(contact, open, rules);
+    });
+  }
+  @Get('scoring') scoring(@Req() r: AuthedRequest) {
+    return this.crm.db.withTenant(r.user.tenantId, async (c) => ({
+      rules: scoringSchema
+        .catch(defaultScoring)
+        .parse((await c.query('SELECT settings FROM tenants')).rows[0]?.settings?.crmScoring),
+    }));
+  }
+  @Post('scoring') @Roles('owner', 'admin') saveScoring(
+    @Req() r: AuthedRequest,
+    @Body() body: unknown,
+  ) {
+    const rules = parse(scoringSchema, body);
+    return this.crm.db.withTenant(r.user.tenantId, async (c) => {
+      await c.query(
+        "UPDATE tenants SET settings=jsonb_set(COALESCE(settings,'{}'::jsonb),'{crmScoring}',$1::jsonb,true)",
+        [JSON.stringify(rules)],
+      );
+      return { rules };
+    });
+  }
   @Get('report') @Roles('owner', 'admin') report(@Req() r: AuthedRequest) {
     return this.crm.db.withTenant(r.user.tenantId, async (c) => {
       const rows = async (sql: string) => (await c.query(sql)).rows;

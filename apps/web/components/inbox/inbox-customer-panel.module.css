@@ -429,3 +429,64 @@
   margin: 0;
   font-size: 12px;
 }
+
+.crmCard {
+  background: linear-gradient(140deg, #fff, #f7f5ff) !important;
+  border: 1px solid #dfd9f1 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 5px 18px #51459408;
+  padding: 18px !important;
+}
+.crmCard h3 {
+  font-size: 15px !important;
+  color: #344060 !important;
+  line-height: 1.8;
+}
+.crmEyebrow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #7a65bd;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  margin-bottom: 12px;
+}
+.crmEyebrow svg {
+  width: 17px;
+}
+.crmCard .facts {
+  background: #fff;
+  border-radius: 11px;
+  padding: 13px;
+  border: 1px solid #eeeaf6;
+}
+.crmCard .facts dt {
+  color: #62718a;
+  font-size: 12px;
+}
+.crmCard .facts dd {
+  color: #263d5a;
+  font-weight: 600;
+  font-size: 13px;
+}
+.crmHeaderActions a,
+.crmHeaderActions button {
+  border: 1px solid #ded7f0 !important;
+  background: #fff !important;
+  border-radius: 8px !important;
+  padding: 7px !important;
+  color: #6652bd !important;
+}
+.crmEditor input,
+.crmEditor select {
+  min-height: 41px;
+  border-radius: 9px !important;
+}
+.crmEditor label {
+  color: #4c5c75 !important;
+}
+.crmEditor footer button {
+  border-radius: 9px !important;
+  min-height: 40px;
+}

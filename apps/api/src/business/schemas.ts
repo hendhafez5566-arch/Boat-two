@@ -13,6 +13,12 @@ export const filtersSchema = z.object({
   lifecycle: z.enum(['lead', 'qualified', 'customer', 'inactive']).optional(),
   tag: z.string().max(50).optional(),
   ownerId: z.string().uuid().optional(),
+  unassigned: z.enum(['true', 'false']).optional(),
+  withoutFollowup: z.enum(['true', 'false']).optional(),
+  hasOpenDeal: z.enum(['true', 'false']).optional(),
+  source: z.string().max(200).optional(),
+  createdFrom: z.string().datetime().optional(),
+  createdTo: z.string().datetime().optional(),
   archived: z.enum(['active', 'archived', 'all']).default('active'),
 });
 export const contactSchema = z.object({
@@ -185,10 +191,23 @@ export function contactWhere(filters: Filters) {
     ],
   };
   const clauses: string[] = [];
+  if (filters.unassigned === 'true') clauses.push('owner_id IS NULL');
+  if (filters.withoutFollowup === 'true')
+    clauses.push(
+      "NOT EXISTS(SELECT 1 FROM crm_tasks cft WHERE cft.contact_id=contacts.id AND cft.status='open')",
+    );
+  if (filters.hasOpenDeal === 'true')
+    clauses.push(
+      "EXISTS(SELECT 1 FROM crm_deals cfd WHERE cfd.contact_id=contacts.id AND cfd.status='open')",
+    );
   const bind = (value: string) => {
     base.params.push(value);
     return '$' + base.params.length;
   };
+  if (filters.source !== undefined)
+    clauses.push(`COALESCE(attributes->>'source','')=${bind(filters.source)}`);
+  if (filters.createdFrom) clauses.push(`created_at>=${bind(filters.createdFrom)}::timestamptz`);
+  if (filters.createdTo) clauses.push(`created_at<${bind(filters.createdTo)}::timestamptz`);
   for (const [key, excluded] of [
     ['includeTags', false],
     ['excludeTags', true],

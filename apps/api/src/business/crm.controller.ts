@@ -432,11 +432,7 @@ export class CrmController {
     return this.crm.db.withTenant(
       r.user.tenantId,
       async (c) =>
-        (
-          await c.query(
-            'SELECT * FROM crm_segments ORDER BY created_at DESC LIMIT 100',
-          )
-        ).rows,
+        (await c.query('SELECT * FROM crm_segments ORDER BY created_at DESC LIMIT 100')).rows,
     );
   }
   @Post('segments') @Roles('owner', 'admin') segment(
@@ -623,6 +619,8 @@ export class CrmController {
         contactId: z.string().uuid().optional(),
         dueFrom: z.string().datetime().optional(),
         dueTo: z.string().datetime().optional(),
+        updatedFrom: z.string().datetime().optional(),
+        updatedTo: z.string().datetime().optional(),
       }),
       query,
     );
@@ -645,6 +643,14 @@ export class CrmController {
       }
       params.push(q.contactId ?? null);
       where += ` AND ($${params.length}::uuid IS NULL OR w.contact_id=$${params.length})`;
+      if (q.updatedFrom) {
+        params.push(q.updatedFrom);
+        where += ` AND w.updated_at >= $${params.length}::timestamptz`;
+      }
+      if (q.updatedTo) {
+        params.push(q.updatedTo);
+        where += ` AND w.updated_at < $${params.length}::timestamptz`;
+      }
       const from = `FROM crm_${kind} w JOIN contacts ct ON ct.id=w.contact_id ${kind === 'deals' ? 'JOIN crm_pipelines p ON p.id=w.pipeline_id' : ''} WHERE ${where}`;
       const total = (await c.query(`SELECT count(*)::int AS n ${from}`, params)).rows[0].n;
       if (exporting && total > 10000)

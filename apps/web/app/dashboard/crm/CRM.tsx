@@ -1,4 +1,5 @@
 'use client';
+import { CrmScoring } from '../../../components/business/CrmScoring';
 import { CrmAutomation } from '../../../components/business/CrmAutomation';
 import { CrmSegments } from '../../../components/business/CrmSegments';
 import { CrmImport } from '../../../components/business/CrmImport';
@@ -128,6 +129,23 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
   const [error, setError] = useState('');
   const [edit, setEdit] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [routeFilters, setRouteFilters] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search),
+      filters: Record<string, string> = {};
+    for (const key of ['ownerId', 'source', 'createdFrom', 'createdTo']) {
+      const v = q.get(key);
+      if (v !== null) filters[key] = v;
+    }
+    const preset = q.get('preset');
+    if (preset === 'leads') filters.lifecycle = 'lead';
+    if (preset === 'qualified') filters.lifecycle = 'qualified';
+    if (preset === 'unassigned') filters.unassigned = 'true';
+    if (preset === 'unattended') filters.withoutFollowup = 'true';
+    if (preset === 'openDeals') filters.hasOpenDeal = 'true';
+    setRouteFilters(filters);
+    if (q.get('create') === 'true') setShowCreate(true);
+  }, []);
   const [form, setForm] = useState(blank);
   const [selected, setSelected] = useState<Contact | null>(null);
   useEffect(() => {
@@ -149,6 +167,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
   const [sort, setSort] = useState('latest');
   const [pageSize, setPageSize] = useState(10);
   const filter = new URLSearchParams({
+    ...routeFilters,
     q,
     ...(channelId ? { channelId } : {}),
     ...(listId ? { listId } : {}),
@@ -347,6 +366,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
               setTab('contacts');
             }}
           >
+            <NavIcon name="plus" />
             {t('إضافة عميل', 'Add customer')}
           </button>
           <div className={styles.dropdown} data-subscriber-menu>
@@ -470,6 +490,14 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
       {message && (
         <p className="notice" role="status">
           {message}
+        </p>
+      )}
+      {tab === 'contacts' && Object.keys(routeFilters).length > 0 && (
+        <p className="notice" role="status">
+          {t('عرض مخصص من لوحة العمل أو التقارير', 'Filtered view from workspace or reports')}{' '}
+          <button className="btn" onClick={() => setRouteFilters({})}>
+            {t('مسح فلاتر العرض', 'Clear view filters')}
+          </button>
         </p>
       )}
       {tab === 'contacts' && (
@@ -1584,6 +1612,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
           </div>
           {canManage && (
             <>
+              <CrmScoring />
               <CrmSegments />
               <CrmAutomation />
             </>
@@ -1640,7 +1669,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
               ))}
             </section>
           </div>
-          <CustomFieldForm onSave={(body) => act('/crm/fields', body)} />
+          {canManage && <CustomFieldForm onSave={(body) => act('/crm/fields', body)} />}
           <section className="card stack">
             <h2>{t('مراجعة شروط الشريحة', 'Review segment conditions')}</h2>
             <p>

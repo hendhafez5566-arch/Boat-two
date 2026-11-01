@@ -136,6 +136,9 @@ export function InboxCrmOverview({
     setForm((current) => (current ? { ...current, [key]: value } : null));
   return (
     <section className={`${styles.card} ${styles.crmCard}`}>
+      <span className={styles.crmEyebrow}>
+        <NavIcon name="crm" /> CUSTOMER 360
+      </span>
       <h3>
         {t('نظرة عامة على CRM', 'CRM Overview')}
         <span className={styles.crmHeaderActions}>

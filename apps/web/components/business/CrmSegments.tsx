@@ -5,6 +5,7 @@ import { api } from '../../lib/api';
 import { useData } from './useData';
 import { useLocale } from '../product/locale';
 import { Button } from '../product/ProductUI';
+import { NavIcon } from '../product/NavIcon';
 import styles from './crm-workspace.module.css';
 type Condition = {
   q?: string;
@@ -13,9 +14,11 @@ type Condition = {
   allOf?: Condition[];
   anyOf?: Condition[];
   archived?: string;
+  source?: string;
 };
 export function CrmSegments() {
   const { t } = useLocale();
+  const member = useData<{ role: string }>('/crm/workspace/members', { role: '' });
   const [match, setMatch] = useState('allOf');
   const [rules, setRules] = useState<{ field: string; value: string }[]>([
     { field: 'tag', value: '' },
@@ -58,8 +61,31 @@ export function CrmSegments() {
     }
   }
   return (
-    <section className={styles.card}>
-      <h2>{t('الشرائح الذكية والعروض المحفوظة', 'Smart segments & saved views')}</h2>
+    <section className={styles.panel}>
+      <h2>
+        <NavIcon name="filter" />
+        {t('الشرائح الذكية والعروض المحفوظة', 'Smart segments & saved views')}
+      </h2>
+      <p className={styles.hint}>
+        {t(
+          'ابدأ بعرض جاهز أو اجمع شروطك الخاصة. تُحفظ القواعد، وتتحدث النتائج تلقائيًا مع بياناتك.',
+          'Start with a ready view or combine your own conditions. Saved rules stay current with your data.',
+        )}
+      </p>
+      <div className={styles.grid}>
+        {[
+          ['unassigned', t('دون مسؤول', 'Without an owner'), 'team'],
+          ['unattended', t('دون متابعة', 'Without a follow-up'), 'userClock'],
+          ['qualified', t('عملاء مؤهلون', 'Qualified leads'), 'star'],
+          ['openDeals', t('أصحاب فرص مفتوحة', 'With open opportunities'), 'handshake'],
+        ].map(([preset, label, icon]) => (
+          <Link className={styles.card} key={preset} href={'/dashboard/crm?preset=' + preset}>
+            <NavIcon name={icon} />
+            <h3>{label}</h3>
+            <span>{t('فتح العملاء المطابقين', 'Open matching customers')}</span>
+          </Link>
+        ))}
+      </div>
       <div className={styles.form}>
         <label>
           {t('طريقة المطابقة', 'Match')}
@@ -79,6 +105,7 @@ export function CrmSegments() {
                 )
               }
             >
+              <option value="source">{t('مصدر العميل', 'Customer source')}</option>
               <option value="tag">{t('وسم', 'Tag')}</option>
               <option value="q">
                 {t('بحث الاسم أو الهاتف أو البريد', 'Name, phone or email search')}
@@ -135,9 +162,12 @@ export function CrmSegments() {
           {t('اسم العرض', 'View name')}
           <input value={name} maxLength={100} onChange={(e) => setName(e.target.value)} />
         </label>
-        <Button busy={busy} disabled={!name.trim()} onClick={() => void run(true)}>
-          {t('حفظ العرض', 'Save view')}
-        </Button>
+        {['owner', 'admin'].includes(member.data.role) && (
+          <Button busy={busy} disabled={!name.trim()} onClick={() => void run(true)}>
+            <NavIcon name="check" />
+            {t('حفظ العرض', 'Save view')}
+          </Button>
+        )}
       </div>
       {(error || list.error) && (
         <p role="alert" className="notice error">
