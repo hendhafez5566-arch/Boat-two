@@ -1,5 +1,6 @@
 /* global localStorage, getComputedStyle */
 import assert from 'node:assert/strict';
+import { Buffer } from 'node:buffer';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { openSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -114,6 +115,60 @@ try {
     .evaluate((el) => getComputedStyle(el).backgroundColor);
   assert.notEqual(color, 'rgba(0, 0, 0, 0)');
   results.push('sticky header is opaque');
+  await page.getByRole('button', { name: 'Export/Import', exact: true }).click();
+  await page.getByRole('button', { name: 'Import and manage files', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  const csv =
+    'Name,Email\n' +
+    Array.from({ length: 200 }, (_, i) => 'Poll QA ' + i + ',poll-' + i + '@example.test\n').join(
+      '',
+    );
+  await dialog
+    .locator('input[type=file]')
+    .first()
+    .setInputFiles({ name: 'qa.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  await dialog.getByRole('button', { name: 'Confirm and start import', exact: true }).click();
+  await dialog
+    .locator('#crm-jobs article')
+    .filter({ hasText: /Completed/ })
+    .waitFor();
+  assert.equal((await call('/crm/jobs'))[0].succeeded, 200);
+  await page.getByRole('link', { name: /Contacts 200\/20000/ }).waitFor();
+  results.push('real 200-row import completion and header count appear without manual refresh');
+  await dialog.getByRole('button', { name: 'Close / إغلاق', exact: true }).click();
+  await page.getByRole('button', { name: 'Add customer', exact: true }).click();
+  await page.getByRole('dialog').getByLabel('Name', { exact: true }).fill('Manual count QA');
+  await page
+    .getByRole('dialog')
+    .getByLabel('Email', { exact: true })
+    .fill('manual-count@example.test');
+  await page.getByRole('dialog').getByRole('button', { name: 'Save contact', exact: true }).click();
+  await page.getByRole('link', { name: /Contacts 201\/20000/ }).waitFor();
+  assert.equal(Number((await call('/workspace')).usage.contacts), 201);
+  results.push('G07 manual contact creation refreshes header without navigation or reload');
+  await page.goto('http://127.0.0.1:8080/dashboard/commerce');
+  await page.getByRole('button', { name: 'Data sources', exact: true }).click();
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'damaged.xlsx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    buffer: Buffer.from('not an xlsx archive'),
+  });
+  await page
+    .getByRole('alert')
+    .filter({ hasText: /save a new copy/ })
+    .waitFor();
+  await page.getByRole('button', { name: 'Account menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'العربية / English', exact: true }).click();
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'damaged2.xlsx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    buffer: Buffer.from('not an xlsx archive'),
+  });
+  await page
+    .getByRole('alert')
+    .filter({ hasText: /احفظ نسخة جديدة/ })
+    .waitFor();
+  results.push('malformed workbook recovery message is localized in English and Arabic');
   mkdirSync('docs/acceptance/2026-11-01-cloud-audit/review', { recursive: true });
   await page.screenshot({
     path: 'docs/acceptance/2026-11-01-cloud-audit/review/local-review-smoke.jpg',
@@ -125,9 +180,7 @@ try {
       {
         status: 'PASS',
         results,
-        limits: [
-          'This is local Chromium, not Cloud Browser acceptance; polling and Excel feedback still require UI checks',
-        ],
+        limits: ['This is local Chromium, not Cloud Browser acceptance'],
       },
       null,
       2,

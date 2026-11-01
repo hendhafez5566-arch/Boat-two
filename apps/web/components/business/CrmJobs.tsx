@@ -28,6 +28,12 @@ export function CrmJobs() {
     window.addEventListener('boat:crm-jobs', reload);
     return () => window.removeEventListener('boat:crm-jobs', reload);
   }, [jobs.reload]);
+  const progressRevision = jobs.data
+    .map((job) => `${job.id}:${job.processed}:${job.status}`)
+    .join('|');
+  useEffect(() => {
+    if (progressRevision) window.dispatchEvent(new Event('boat:crm-changed'));
+  }, [progressRevision]);
   const hasActiveJobs = jobs.data.some((job) => ['pending', 'running'].includes(job.status));
   useEffect(() => {
     if (!hasActiveJobs) return;
@@ -85,7 +91,10 @@ export function CrmJobs() {
           {error || jobs.error}
         </p>
       )}
-      <details className="stack"><summary>{t('تصدير بتاريخ سابق وتفاصيل الاحتفاظ','Historical export and retention details')}</summary>
+      <details className="stack">
+        <summary>
+          {t('تصدير بتاريخ سابق وتفاصيل الاحتفاظ', 'Historical export and retention details')}
+        </summary>
         <label className="field">
           {t('تصدير تاريخ مسجّل (اختياري)', 'Recorded historical export (optional)')}
           <input type="datetime-local" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
@@ -152,8 +161,22 @@ export function CrmJobs() {
                       ),
                     );
                   if (contacts.length <= 500) {
-                    const result = await api<{imported:number}>('/crm/contacts/import', {method:'POST',body:JSON.stringify({contacts:contacts.map((r:any)=>({...r,email:r.email || null,phone:r.phone || null,tags:Array.isArray(r.tags)?r.tags:String(r.tags || '').split(/[;|]/).filter(Boolean)}))})});
-                    setUploadProgress({done:result.imported,total:contacts.length});
+                    const result = await api<{ imported: number }>('/crm/contacts/import', {
+                      method: 'POST',
+                      body: JSON.stringify({
+                        contacts: contacts.map((r: any) => ({
+                          ...r,
+                          email: r.email || null,
+                          phone: r.phone || null,
+                          tags: Array.isArray(r.tags)
+                            ? r.tags
+                            : String(r.tags || '')
+                                .split(/[;|]/)
+                                .filter(Boolean),
+                        })),
+                      }),
+                    });
+                    setUploadProgress({ done: result.imported, total: contacts.length });
                     window.dispatchEvent(new Event('boat:crm-imported'));
                     return;
                   }

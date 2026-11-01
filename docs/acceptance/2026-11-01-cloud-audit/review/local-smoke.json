@@ -4,9 +4,12 @@
     "gateway isolation, bootstrap through real register API and onboarding UI",
     "tools menu closes on actual canvas click",
     "simulator ends with restart hint and diagnostics are outside customer transcript",
-    "sticky header is opaque"
+    "sticky header is opaque",
+    "real 200-row import completion and header count appear without manual refresh",
+    "G07 manual contact creation refreshes header without navigation or reload",
+    "malformed workbook recovery message is localized in English and Arabic"
   ],
   "limits": [
-    "This is local Chromium, not Cloud Browser acceptance; polling and Excel feedback still require UI checks"
+    "This is local Chromium, not Cloud Browser acceptance"
   ]
 }

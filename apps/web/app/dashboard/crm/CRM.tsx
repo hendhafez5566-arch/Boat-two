@@ -263,6 +263,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     setBusy(true);
     try {
       const r = await api(path, { method, body: body ? JSON.stringify(body) : undefined });
+      if (path.startsWith('/crm/contacts')) window.dispatchEvent(new Event('boat:crm-changed'));
       setMessage(t('تم حفظ التغيير.', 'Change saved.'));
       refresh();
       return r;
