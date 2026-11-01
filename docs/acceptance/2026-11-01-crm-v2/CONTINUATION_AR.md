@@ -1,3 +1,5 @@
-# نقطة الاستكمال
+# نقطة الاستكمال النهائية
 
-الفرع feat/crm-v2-premium-20261101، PR7. الوحدتان السابقتان7c8ae8d و56d4f33 محفوظتان. أحدث التفاصيل والحدود فيREPORT_AR.md، والأدلة فيapi-results.json وbrowser-results.json وlint-comparison.json والصور.45مجموعةAPI و23رحلةChromium؛BuildWeb/API ناجحان؛صفرESLintجديد مقابل173قديم. الخطوة التالية نشرAPIثمWebيدوياً علىالخدماتالحاليةبعداكتمالRegression، وتحديثRELEASE.mdبالنتائج. لا مواردRailway جديدة ولا تعديلMeta. قيودCloudBrowserموثقة بالتقرير.
+PR7 / feat/crm-v2-premium-20261101. كود02802aaمنشوربنجاحيدوياًعلىWeb/APIالحاليتين. راجعREPORT_AR.md وRELEASE.md وROLLBACK.md.45مجموعةAPI و23رحلةChromium و209Regression ناجحة؛9مجموعاتCloud Browserللقراءةبعدالنشر؛BuildWeb/APIناجح؛ESLintصفرجديدمقابل173قديم.101ترحيلفيقاعدةاختبارRLS؛100و101طُبّقافعلياًعلىAPIPreview.
+
+المتبقي:قبولكتابةسحابيةعلىشركةمعزولة،تسجيلUIجديد،قبولجميعالأدواروالحملالإنتاجي،WhatsApp/Googleحي.لمتتغيرMetaولمترسلرسائلولمتنشأمواردRailway.البوتالنشطلميتبدل.النسخةلتجربةPreviewمحدودةوليستمعتمدةللبيعالعام.

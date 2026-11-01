@@ -1,0 +1,23 @@
+{
+  "passed_read_only_groups": 9,
+  "checks": [
+    "daily dashboard",
+    "synthetic QA customer search",
+    "Customer360 score and reason",
+    "7-day reports",
+    "English and Arabic restore",
+    "pipeline load",
+    "overdue filter",
+    "stored channel status unchanged",
+    "CRM needsReply metric 1 to Inbox list 1"
+  ],
+  "owner_writes": 0,
+  "live_customer_messages": 0,
+  "api_http_sample": {
+    "entries": 138,
+    "status_500_plus": 0
+  },
+  "code_sha": "02802aa17bb3ea869af514ba16f2a6662e93e64b",
+  "web_deployment": "27732997-a912-40dd-96be-8170c8b7b798",
+  "api_deployment": "4c9f6f19-7433-496f-8569-9bce7a7def09"
+}
