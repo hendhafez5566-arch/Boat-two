@@ -346,7 +346,7 @@ async function call(path, body, token, method = body ? 'POST' : 'GET', status) {
           checks,
           pageErrors: errs,
           limits: [
-            'embedded PostgreSQL transport; complete Nest AppModule and all 98 migrations',
+            'embedded PostgreSQL transport; complete Nest AppModule and all current migrations',
             'external delivery and background timers disabled',
             'no Google OAuth or Meta live reply tested',
           ],
