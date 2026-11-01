@@ -1,0 +1,7 @@
+﻿"section","label","count","currency","value_cents","completed","overdue","from","to","timezone"
+"sales","open","1","EGP","125000","","","2026-10-26","2026-11-01","Africa/Cairo"
+"sales","open","1","USD","50000","","","2026-10-26","2026-11-01","Africa/Cairo"
+"sources","Unknown","2","","","","","2026-10-26","2026-11-01","Africa/Cairo"
+"sources","Campaign","1","","","","","2026-10-26","2026-11-01","Africa/Cairo"
+"sources","Website","1","","","","","2026-10-26","2026-11-01","Africa/Cairo"
+"employees","V2 Store Owner","0","","","1","0","2026-10-26","2026-11-01","Africa/Cairo"

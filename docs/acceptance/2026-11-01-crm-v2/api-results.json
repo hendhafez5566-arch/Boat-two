@@ -1,0 +1,14 @@
+{
+  "passed": 45,
+  "tenants": 3,
+  "database": "101 real migrations on isolated PGlite with RLS; no owner database",
+  "tests": [
+    "currency separation/no join inflation",
+    "score rules and configurable recalculation",
+    "date and range rejection",
+    "period cohort and date drilldown",
+    "agent scope cannot widen",
+    "admin write authorization",
+    "cross tenant identity denial"
+  ]
+}

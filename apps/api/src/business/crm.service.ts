@@ -287,6 +287,12 @@ export class CrmService {
           [id],
         )
       ).rows,
+      stageChanges: (
+        await c.query(
+          "SELECT a.id,a.created_at,a.details,d.id AS deal_id,d.title FROM audit_logs a JOIN crm_deals d ON a.resource_id=d.id::text WHERE a.action='stage_changed' AND a.resource_type='crm_deals' AND d.contact_id=$1 ORDER BY a.created_at DESC,a.id DESC LIMIT 100",
+          [id],
+        )
+      ).rows,
       tasks: (
         await c.query('SELECT * FROM crm_tasks WHERE contact_id=$1 ORDER BY due_at LIMIT 100', [id])
       ).rows,

@@ -283,7 +283,9 @@ function Shell({ children }: { children: ReactNode }) {
                 }}
                 key={key}
                 title={t(ar, en)}
-                href={`/dashboard${key ? '/' + key : ''}`}
+                href={
+                  key === 'crm' ? '/dashboard/crm/overview' : `/dashboard${key ? '/' + key : ''}`
+                }
                 aria-current={isActive(key) ? 'page' : undefined}
                 className={isActive(key) ? 'active' : ''}
               >

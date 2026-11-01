@@ -1,0 +1,21 @@
+{
+  "regression": {
+    "total": 209,
+    "passed": 209,
+    "failed": 0,
+    "skipped": 0,
+    "command": "node --import tsx --test --test-concurrency=1 <all src/**/*.test.ts>",
+    "duration_ms": 37194.12938
+  },
+  "api_v2_groups": 45,
+  "chromium_journeys": 23,
+  "build_web": "pass",
+  "build_api_typescript": "pass",
+  "eslint": {
+    "baseline_errors": 173,
+    "current_errors": 173,
+    "new_errors": 0,
+    "warnings": 1
+  },
+  "database": "PGlite with101 real migrations and RLS; external production PostgreSQL health checked separately"
+}

@@ -762,3 +762,255 @@
   color: white;
   border-color: #5b3fe0;
 }
+
+/* CRM V2: shared brand, readable controls and a focused customer workspace. */
+.page {
+  background: linear-gradient(145deg, #f7f7fc, #f1f6fc);
+  border-radius: 22px;
+  padding: 24px;
+  gap: 22px;
+  color: #24334c;
+  font-size: 14px;
+  line-height: 1.65;
+}
+.heading {
+  padding: 24px !important;
+  border: 1px solid #e1dff2;
+  border-radius: 18px;
+  background: linear-gradient(115deg, #fff, #efedfd);
+  margin: 0 !important;
+}
+.heading h1 {
+  font-size: 30px !important;
+  color: #26324d;
+}
+.heading p {
+  color: #5b6a80 !important;
+}
+.headActions {
+  gap: 10px !important;
+}
+.page :global(.btn) {
+  border-radius: 10px;
+  min-height: 42px;
+  gap: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 650;
+}
+.page :global(.btn-primary) {
+  background: #6356df;
+  border-color: #6356df;
+  box-shadow: 0 4px 12px #6356df20;
+}
+.statistics > div {
+  border-radius: 16px !important;
+  box-shadow: 0 5px 20px #1f315606 !important;
+  border: 1px solid #e1e5f0 !important;
+}
+.statistics strong {
+  color: #283b59 !important;
+  font-size: 27px !important;
+}
+.filters {
+  padding: 18px;
+  background: white;
+  border: 1px solid #e0e6ef;
+  border-radius: 16px;
+  gap: 12px;
+}
+.filters input,
+.filters select {
+  border-radius: 10px;
+  min-height: 44px;
+  color: #354860;
+  background: #fbfcff;
+  font-size: 13px;
+}
+.table th {
+  background: #f1f4fa !important;
+  color: #5e6d84 !important;
+  font-size: 12px !important;
+  letter-spacing: 0 !important;
+}
+.table td {
+  padding: 18px 15px !important;
+}
+.table tbody tr:hover {
+  background: #f7f6ff;
+}
+.profile {
+  border-radius: 20px !important;
+  border: 1px solid #dddff0 !important;
+  background: #fff !important;
+  box-shadow: 0 12px 40px #24385a0a;
+  overflow: hidden;
+}
+.profileHeader {
+  background: linear-gradient(125deg, #f1edff, #f5f9ff);
+  padding: 22px !important;
+  gap: 12px !important;
+}
+.profileHeader h2 {
+  font-size: 21px !important;
+  color: #273750;
+}
+.profileHeader p {
+  color: #536780 !important;
+}
+.avatar {
+  background: #eae5fc !important;
+  color: #6651c3 !important;
+  border-radius: 14px !important;
+}
+.profileMeta {
+  background: #fbfaff;
+  padding: 14px 20px !important;
+  gap: 10px;
+}
+.profileTabs {
+  padding: 12px !important;
+  background: #fff !important;
+  gap: 7px !important;
+  border-top: 1px solid #eef0f7;
+  border-bottom: 1px solid #eef0f7;
+}
+.profileTabs button {
+  border-radius: 9px !important;
+  padding: 10px 13px !important;
+  font-size: 12px !important;
+}
+.profileTabs button[aria-pressed='true'] {
+  background: #ece7fd !important;
+  color: #634aca !important;
+}
+.profileBody {
+  padding: 20px !important;
+}
+.profileBody h3 {
+  font-size: 15px !important;
+  color: #30445d;
+}
+.profileBody dt {
+  color: #68768c !important;
+}
+.pill {
+  color: #4c409a !important;
+  background: #ede9fc !important;
+  border-radius: 8px !important;
+}
+.profileRow {
+  padding: 13px !important;
+  border-bottom: 1px solid #edf0f7;
+}
+.profileChannels {
+  padding: 10px 20px !important;
+}
+.profileChannels span {
+  background: #edf3ff !important;
+  color: #366ba8 !important;
+  border-radius: 8px !important;
+}
+.page :focus-visible {
+  outline: 3px solid #a098eb;
+  outline-offset: 3px;
+}
+.quickActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 14px 20px;
+  background: #fcfcff;
+  border-bottom: 1px solid #edf0f6;
+}
+.quickActions button,
+.quickActions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #dedfed;
+  border-radius: 9px;
+  background: #fff;
+  color: #5748b5;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+.quickActions svg {
+  width: 17px;
+}
+.quickActions button:hover,
+.quickActions a:hover {
+  background: #f1eefd;
+}
+.profileSummary {
+  padding: 14px 20px;
+  display: grid;
+  gap: 10px;
+  border-bottom: 1px solid #edf0f6;
+}
+.profileMore {
+  padding: 10px 14px;
+  border: 1px solid #e5e7f0;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #586880;
+}
+.profileMore summary {
+  cursor: pointer;
+}
+.profileMore > div {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+}
+@media (max-width: 700px) {
+  .page {
+    padding: 12px;
+    gap: 15px;
+  }
+  .heading {
+    padding: 20px !important;
+  }
+  .heading h1 {
+    font-size: 25px !important;
+  }
+  .filters {
+    padding: 13px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .filters input[type='search'] {
+    grid-column: 1/-1;
+  }
+  .profileHeader {
+    padding: 17px !important;
+  }
+  .profileBody {
+    padding: 14px !important;
+  }
+  .quickActions {
+    padding: 12px;
+  }
+  .quickActions > * {
+    flex: 1;
+    min-width: 85px;
+  }
+  .profileSummary {
+    padding: 12px;
+  }
+  .profileTabs {
+    flex-wrap: wrap !important;
+  }
+  .profileTabs button {
+    padding: 9px !important;
+  }
+  .profile {
+    max-width: 100%;
+  }
+}

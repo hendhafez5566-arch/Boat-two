@@ -7,6 +7,8 @@ import { api } from '../../lib/api';
 import { useData } from './useData';
 import { useLocale } from '../product/locale';
 import { statusLabel } from '../product/status';
+import { CrmScore } from './CrmScoring';
+import premium from './crm-workspace.module.css';
 import { CrmWork } from './CrmWork';
 import { ContactActivityExport } from './ContactActivityExport';
 import styles from './subscribers.module.css';
@@ -39,6 +41,15 @@ type Profile = {
   channels: { id: string; name: string; type: string }[];
   inputs: { name: string; status: string; updated_at: string; answers: Record<string, unknown> }[];
   timeline: {
+    stageChanges: {
+      id: string;
+      deal_id: string;
+      title: string;
+      created_at: string;
+      details: { from: string; to: string };
+    }[];
+    tasks: { id: string; title: string; due_at: string; status: string; updated_at: string }[];
+    deals: { id: string; title: string; stage: string; status: string; updated_at: string }[];
     conversations: {
       id: string;
       channel_id: string;
@@ -81,7 +92,7 @@ export default function SubscriberProfile({
   const { t, language } = useLocale();
   const data = useData<Profile | null>(`/crm/contacts/${contactId}/profile`, null);
   const members = useData<{ members: { user_id: string; full_name: string }[] }>(
-    canManage ? '/team' : null,
+    '/crm/workspace/members',
     { members: [] },
   );
   const lists = useData<{ id: string; name: string }[]>(canManage ? '/contact-lists' : null, []);
@@ -93,6 +104,7 @@ export default function SubscriberProfile({
     '/crm/fields',
     [],
   );
+  const [quickCreate, setQuickCreate] = useState('');
   const [overviewEditing, setOverviewEditing] = useState(false);
   const [tab, setTab] = useState('overview'),
     [busy, setBusy] = useState(false),
@@ -165,7 +177,7 @@ export default function SubscriberProfile({
           onClick={onClose}
           aria-label={t('إغلاق ملف المشترك', 'Close subscriber profile')}
         >
-          ×
+          <NavIcon name="close" />
         </button>
       </header>
       {data.loading && <p role="status">{t('جارٍ تحميل الملف…', 'Loading profile…')}</p>}
@@ -198,28 +210,145 @@ export default function SubscriberProfile({
               </span>
             ))}
           </div>
+          <div className={styles.quickActions}>
+            {profile.timeline.conversations[0] && (
+              <Link
+                href={
+                  '/dashboard/inbox?conversation=' +
+                  profile.timeline.conversations[0].id +
+                  '&channelId=' +
+                  profile.timeline.conversations[0].channel_id
+                }
+              >
+                <NavIcon name="chat" />
+                {t('محادثة', 'Conversation')}
+              </Link>
+            )}
+            <button
+              onClick={() => {
+                setQuickCreate('deals');
+                setTab('deals');
+              }}
+            >
+              <NavIcon name="handshake" />
+              {t('فرصة بيع', 'Opportunity')}
+            </button>
+            <button
+              onClick={() => {
+                setQuickCreate('tasks');
+                setTab('tasks');
+              }}
+            >
+              <NavIcon name="calendar" />
+              {t('متابعة', 'Follow-up')}
+            </button>
+            <button onClick={() => setTab('notes')}>
+              <NavIcon name="edit" />
+              {t('ملاحظة', 'Note')}
+            </button>
+            {canManage && (
+              <button
+                onClick={() => {
+                  setTab('overview');
+                  setOverviewEditing(true);
+                }}
+              >
+                <NavIcon name="edit" />
+                {t('تعديل', 'Edit')}
+              </button>
+            )}
+          </div>
+          <div className={styles.profileSummary}>
+            <div className={premium.actions}>
+              <span className={premium.badge}>
+                <NavIcon name="user" />
+                {members.data.members.find((m) => m.user_id === contact.owner_id)?.full_name ||
+                  t('دون مسؤول', 'Unassigned')}
+              </span>
+              <span className={premium.badge} data-tone="blue">
+                <NavIcon name="globe" />
+                {String(contact.attributes.source || t('المصدر غير محدد', 'Source not recorded'))}
+              </span>
+            </div>
+            <CrmScore contactId={contactId} version={contact.updated_at} />
+            {profile.timeline.tasks
+              .filter((task) => task.status === 'open')
+              .sort((a, b) => a.due_at.localeCompare(b.due_at))[0] && (
+              <small>
+                <NavIcon name="calendar" />
+                {t('أقرب متابعة', 'Next follow-up')}:{' '}
+                {date(
+                  profile.timeline.tasks
+                    .filter((task) => task.status === 'open')
+                    .sort((a, b) => a.due_at.localeCompare(b.due_at))[0].due_at,
+                )}
+              </small>
+            )}
+          </div>
           <nav
             className={styles.profileTabs}
             aria-label={t('أقسام ملف المشترك', 'Subscriber profile sections')}
           >
-            {tabs.map(([key, ar, en]) => (
-              <button
-                type="button"
-                key={key}
-                aria-pressed={tab === key}
-                onClick={() => {
-                  setTab(key);
-                  setError('');
-                  setNotice('');
-                }}
-              >
-                {t(ar, en)}
-              </button>
-            ))}
+            {tabs
+              .filter(([key]) =>
+                ['overview', 'deals', 'tasks', 'notes', 'activity', 'fields'].includes(key),
+              )
+              .map(([key, ar, en]) => (
+                <button
+                  type="button"
+                  key={key}
+                  aria-pressed={tab === key}
+                  onClick={() => {
+                    setQuickCreate('');
+                    setTab(key);
+                    setError('');
+                    setNotice('');
+                  }}
+                >
+                  {t(ar, en)}
+                </button>
+              ))}
           </nav>
+          <details className={styles.profileMore}>
+            <summary>{t('الشركة والوسوم والإعدادات الإضافية', 'Company, labels and more')}</summary>
+            <div>
+              {tabs
+                .filter(
+                  ([key]) =>
+                    !['overview', 'deals', 'tasks', 'notes', 'activity', 'fields'].includes(key),
+                )
+                .map(([key, ar, en]) => (
+                  <button
+                    className="btn"
+                    key={key}
+                    aria-pressed={tab === key}
+                    onClick={() => {
+                      setTab(key);
+                      setQuickCreate('');
+                    }}
+                  >
+                    {t(ar, en)}
+                  </button>
+                ))}
+            </div>
+          </details>
           <div className={styles.profileBody}>
-            {tab === 'deals' && <CrmWork kind="deals" compact contactId={contactId} />}
-            {tab === 'tasks' && <CrmWork kind="tasks" compact contactId={contactId} />}
+            {tab === 'deals' && (
+              <CrmWork
+                kind="deals"
+                compact
+                contactId={contactId}
+                createNew={quickCreate === 'deals'}
+              />
+            )}
+            {tab === 'tasks' && (
+              <CrmWork
+                kind="tasks"
+                compact
+                contactId={contactId}
+                createNew={quickCreate === 'tasks'}
+              />
+            )}
             {tab === 'company' && (
               <CompanyContacts
                 contact={contact}
@@ -787,13 +916,79 @@ export default function SubscriberProfile({
             {tab === 'activity' && (
               <>
                 <ContactActivityExport key={contactId} contactId={contactId} />
-                {profile.timeline.events.map((event) => (
-                  <div className={styles.profileRow} key={event.id}>
-                    <time>{date(event.created_at)}</time>
-                    <span>{event.type}</span>
-                    <small>{statusLabel(event.status, t)}</small>
-                  </div>
-                ))}
+                <div className={premium.timeline}>
+                  {[
+                    {
+                      id: 'created:' + contact.id,
+                      at: contact.created_at,
+                      title: t('أُنشئ ملف العميل', 'Customer profile created'),
+                      body: contact.name,
+                    },
+                    ...profile.timeline.notes.map((n) => ({
+                      id: 'note:' + n.id,
+                      at: n.created_at,
+                      title: t('ملاحظة داخلية', 'Internal note'),
+                      body: n.body,
+                    })),
+                    ...profile.timeline.conversations.map((c) => ({
+                      id: 'conversation:' + c.id,
+                      at: c.last_message_at,
+                      title: t('آخر تواصل في المحادثة', 'Latest conversation activity'),
+                      body: c.channel_name,
+                    })),
+                    ...profile.timeline.tasks.map((task) => ({
+                      id: 'task:' + task.id,
+                      at: task.updated_at,
+                      title:
+                        task.status === 'done'
+                          ? t('متابعة مكتملة', 'Follow-up completed')
+                          : t('متابعة مفتوحة', 'Open follow-up'),
+                      body: task.title,
+                    })),
+                    ...profile.timeline.deals
+                      .filter(
+                        (d) => !profile.timeline.stageChanges?.some((s) => s.deal_id === d.id),
+                      )
+                      .map((d) => ({
+                        id: 'deal:' + d.id,
+                        at: d.updated_at,
+                        title: t('آخر تحديث لفرصة البيع', 'Latest opportunity update'),
+                        body: d.title + ' · ' + d.stage,
+                      })),
+                    ...(profile.timeline.stageChanges || []).map((s) => ({
+                      id: 'stage:' + s.id,
+                      at: s.created_at,
+                      title: t('تغيّرت مرحلة فرصة البيع', 'Opportunity stage changed'),
+                      body: s.title + ' · ' + s.details.from + ' ← ' + s.details.to,
+                    })),
+                    ...profile.timeline.events
+                      .filter((e) => e.type.includes('contacts') && e.type.endsWith('.update'))
+                      .map((e) => ({
+                        id: 'event:' + e.id,
+                        at: e.created_at,
+                        title: t('تحديث بيانات العميل', 'Customer data updated'),
+                        body: t(
+                          'حُفظ تحديث في ملف العميل',
+                          'An update was recorded in this profile',
+                        ),
+                      })),
+                  ]
+                    .filter((e) => e.at)
+                    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+                    .map((e) => (
+                      <article key={e.id}>
+                        <time>{date(e.at)}</time>
+                        <strong>{e.title}</strong>
+                        <span>{e.body}</span>
+                      </article>
+                    ))}
+                </div>
+                <p className={premium.hint}>
+                  {t(
+                    'تظهر آخر حالة محفوظة لكل محادثة وصفقة ومتابعة، مع أحداث تحديث الملف المسجلة.',
+                    'Shows latest saved activity per conversation, opportunity and follow-up, plus recorded profile updates.',
+                  )}
+                </p>
               </>
             )}
           </div>

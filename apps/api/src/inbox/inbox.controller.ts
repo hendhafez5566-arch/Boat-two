@@ -37,6 +37,7 @@ const listQuery = z.object({
   assignee: z.union([z.enum(['me', 'unassigned']), z.string().uuid()]).optional(),
   handledBy: z.enum(['bot', 'human']).optional(),
   unread: z.enum(['true', 'false']).optional(),
+  needsReply: z.enum(['true', 'false']).optional(),
   q: z.string().max(100).optional(),
   tag: z.string().max(50).optional(),
   sequenceId: z.string().uuid().optional(),
@@ -165,6 +166,7 @@ export class InboxController {
            AND ($13::uuid IS NULL OR EXISTS(SELECT 1 FROM sequence_enrollments se WHERE se.contact_id=ct.id AND se.sequence_id=$13))
            AND ($14::timestamptz IS NULL OR ${sortTime}>=$14)
            AND ($15::timestamptz IS NULL OR ${sortTime}<=$15)
+           AND (NOT $16::boolean OR (cv.handled_by='human' AND (SELECT m.direction FROM messages m WHERE m.conversation_id=cv.id AND NOT m.is_internal ORDER BY m.seq DESC LIMIT 1)='in'))
          ORDER BY ${sortTime} DESC,cv.id DESC LIMIT $4`,
         [
           q.status ?? null,
@@ -182,6 +184,7 @@ export class InboxController {
           q.sequenceId ?? null,
           q.from ?? null,
           q.to ?? null,
+          q.needsReply === 'true',
         ],
       );
       return {

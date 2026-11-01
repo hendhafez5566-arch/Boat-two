@@ -61,6 +61,7 @@ const preview = (c: any) =>
 
 export default function Inbox() {
   const { t, language } = useLocale();
+  const [needsReply, setNeedsReply] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [showContext, setShowContext] = useState(false);
   const [followupOpen, setFollowupOpen] = useState(false);
@@ -69,7 +70,9 @@ export default function Inbox() {
   const [actionsOpen, setActionsOpen] = useState(true);
   const [tab, setTab] = useState<Tab>('active');
   useEffect(() => {
-    const key = new URLSearchParams(window.location.search).get('tab');
+    const routeParams = new URLSearchParams(window.location.search);
+    setNeedsReply(routeParams.get('needsReply') === 'true');
+    const key = routeParams.get('tab');
     if (key && key in TAB_QUERY) setTab(key as Tab);
   }, []);
   const [q, setQ] = useState('');
@@ -135,6 +138,7 @@ export default function Inbox() {
   const [notifPerm, setNotifPerm] = useState<string>('granted');
 
   const queryParams = new URLSearchParams(TAB_QUERY[tab]);
+  if (needsReply) queryParams.set('needsReply', 'true');
   if (q.trim()) queryParams.set('q', q.trim());
   if (channelId) queryParams.set('channelId', channelId);
   for (const key of ['tag', 'sequenceId', 'assignee', 'handledBy', 'orderBy'] as const)
@@ -634,6 +638,12 @@ export default function Inbox() {
           <aside
             className={`${selId ? 'hidden md:flex' : 'flex'} inbox-list w-full flex-col border-l bg-white md:w-80`}
           >
+            {needsReply && (
+              <button className="btn" onClick={() => setNeedsReply(false)}>
+                <NavIcon name="filter" />
+                {t('تنتظر ردًا · مسح الفلتر', 'Awaiting reply · clear filter')}
+              </button>
+            )}
             <form
               className={styles.searchBar}
               onSubmit={(e) => {
