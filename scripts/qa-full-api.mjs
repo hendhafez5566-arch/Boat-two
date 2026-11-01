@@ -108,6 +108,7 @@ Object.assign(process.env, {
   }
   if (process.env.BOAT_CLOUD_REVIEW === 'true') {
     const { CrmJobs } = local('./dist/business/crm-jobs');
+    const { EventsService } = local('./dist/events/events.service');
     let running = false;
     setInterval(async () => {
       if (running) return;
@@ -118,8 +119,10 @@ Object.assign(process.env, {
         );
         for (const job of jobs.rows)
           await app.get(CrmJobs).process({ tenantId: job.tenant_id, jobId: job.id });
+        // Drain the real persisted event outbox; external/provider delivery stays disabled.
+        await app.get(EventsService).tick();
       } catch (e) {
-        console.error('Review import worker', e.message);
+        console.error('Review internal worker', e.message);
       } finally {
         running = false;
       }

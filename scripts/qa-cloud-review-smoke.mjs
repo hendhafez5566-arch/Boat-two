@@ -177,6 +177,15 @@ try {
     .filter({ hasText: /احفظ نسخة جديدة/ })
     .waitFor();
   results.push('malformed workbook recovery message is localized in English and Arabic');
+  await call('/flows/' + flow.id + '/publish', {});
+  const publishedChannel = (await call('/channels')).find((c) => c.id === channel.id);
+  const visitor = await browser.newPage();
+  await visitor.goto('http://127.0.0.1:8080/widget-demo.html?key=' + publishedChannel.external_id);
+  await visitor.getByRole('button', { name: 'تحدث معنا', exact: true }).click();
+  await visitor.getByRole('textbox', { name: 'اكتب رسالة', exact: true }).fill('QA local visitor');
+  await visitor.getByRole('button', { name: 'إرسال', exact: true }).click();
+  await visitor.getByText('QA staff handoff', { exact: true }).waitFor({ timeout: 20000 });
+  results.push('real widget visitor inbound drains persisted events and receives bot handoff');
   mkdirSync('docs/acceptance/2026-11-01-cloud-audit/review', { recursive: true });
   await page.screenshot({
     path: 'docs/acceptance/2026-11-01-cloud-audit/review/local-review-smoke.jpg',
