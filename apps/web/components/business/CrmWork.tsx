@@ -44,6 +44,11 @@ export function CrmWork({
   const { t, language } = useLocale();
   const deals = kind === 'deals';
   const [allPipelines, setAllPipelines] = useState(false);
+  const [attentionOnly, setAttentionOnly] = useState(false);
+  const pipelinePolicy = useData<{ staleDays: number; closingDays: number }>(
+    deals ? '/crm/workspace/pipeline-policy' : null,
+    { staleDays: 14, closingDays: 3 },
+  );
   const [routeDates, setRouteDates] = useState<Record<string, string>>({});
   const [q, setQ] = useState('');
   const [pipeline, setPipeline] = useState('');
@@ -57,6 +62,7 @@ export function CrmWork({
     if (compact) return;
     const p = new URLSearchParams(window.location.search);
     if (p.has('ownerId')) setOwner(p.get('ownerId') || '');
+    if (p.get('needsAttention') === 'true') setAttentionOnly(true);
     if (p.has('status')) setStatus(p.get('status') || '');
     if (p.has('period')) setPeriod(p.get('period') || 'all');
     if (p.get('create') === 'true') setDialog('new');
@@ -81,6 +87,7 @@ export function CrmWork({
   const selectedPipeline = pipelines.data.find((p) => p.id === pipeline) || pipelines.data[0];
   const params = new URLSearchParams({ ...routeDates, q, status, page: String(page), limit: '50' });
   if (deals && selectedPipeline && !allPipelines) params.set('pipelineId', selectedPipeline.id);
+  if (deals && attentionOnly) params.set('needsAttention', 'true');
   if (owner) params.set('ownerId', owner === 'me' ? team.data.currentUserId : owner);
   if (contactId) params.set('contactId', contactId);
   if (!deals && period !== 'all') params.set('period', period);
@@ -130,7 +137,9 @@ export function CrmWork({
         className={styles.card}
         data-overdue={!deals && row.status === 'open' && new Date(row.due_at) < new Date()}
         data-stale={
-          deals && row.status === 'open' && Date.now() - Date.parse(row.updated_at) > 14 * 86400000
+          deals &&
+          row.status === 'open' &&
+          Date.now() - Date.parse(row.updated_at) > pipelinePolicy.data.staleDays * 86400000
         }
         draggable={deals && !busy && canEdit(row)}
         onDragStart={(e) => e.dataTransfer.setData('text/plain', row.id)}
@@ -180,10 +189,12 @@ export function CrmWork({
         </p>
         {deals &&
           row.status === 'open' &&
-          Date.now() - Date.parse(row.updated_at) > 14 * 86400000 && (
+          Date.now() - Date.parse(row.updated_at) > pipelinePolicy.data.staleDays * 86400000 && (
             <span className={styles.badge} data-tone="orange">
               <NavIcon name="userClock" />
-              {t('دون تحديث منذ14يومًا', 'No update for14days')}
+              {t('دون تحديث منذ ', 'No update for ') +
+                pipelinePolicy.data.staleDays +
+                t(' يومًا', ' days')}
             </span>
           )}
         {deals && row.expected_close && (
@@ -286,6 +297,29 @@ export function CrmWork({
               {label}
             </button>
           ))}
+        </div>
+      )}
+      {deals && (
+        <div className={styles.toolbar}>
+          <button
+            className={'btn ' + (attentionOnly ? 'btn-primary' : '')}
+            aria-pressed={attentionOnly}
+            onClick={() => {
+              setAttentionOnly(!attentionOnly);
+              setPage(1);
+            }}
+          >
+            <NavIcon name="stopwatch" />
+            {t('صفقات تحتاج تدخلًا', 'Deals needing attention')}
+          </button>
+          <span>
+            {t('ركود: ', 'Inactivity: ') +
+              pipelinePolicy.data.staleDays +
+              t(' يوم، إغلاق خلال: ', ' days; closing within: ') +
+              pipelinePolicy.data.closingDays +
+              t(' أيام', ' days')}
+          </span>
+          {pipelinePolicy.error && <span role="alert">{pipelinePolicy.error}</span>}
         </div>
       )}
       <div className={styles.toolbar}>

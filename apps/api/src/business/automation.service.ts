@@ -1,3 +1,5 @@
+import { crmContactScore } from './crm-intelligence';
+import { PoolClient } from 'pg';
 import { crmDate } from './crm-overview';
 import { NotificationsService } from './notifications.service';
 import { integrationHeaders } from './integration-auth';
@@ -12,7 +14,13 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { PlansService } from '../plans/plans.service';
 import { DatabaseService } from '../database/database.service';
 import { DomainEvent } from '../events/events.service';
-import { actionSchema, conditionWhere, ruleSchema } from './schemas';
+import {
+  actionSchema,
+  conditionWhere,
+  conditionsNeedScore,
+  Conditions,
+  ruleSchema,
+} from './schemas';
 class ActionFailure extends Error {
   constructor(
     readonly actionPath: string,
@@ -61,13 +69,7 @@ export class AutomationService {
         )
           continue;
         const rule = ruleSchema.parse(row);
-        const w = conditionWhere(rule.conditions);
-        const match = (
-          await c.query(`SELECT id FROM contacts WHERE ${w.sql} AND id=$${w.params.length + 1}`, [
-            ...w.params,
-            contactId,
-          ])
-        ).rowCount;
+        const match = await this.matches(c, contactId, rule.conditions, event.id);
         try {
           if (match)
             await this.actions(
@@ -108,6 +110,40 @@ export class AutomationService {
         );
       }
     });
+  }
+  private async matches(
+    c: PoolClient,
+    contactId: string,
+    conditions: Conditions,
+    eventId?: string,
+  ) {
+    const contact = conditionsNeedScore(conditions)
+      ? (await c.query('SELECT * FROM contacts WHERE id=$1', [contactId])).rows[0]
+      : null;
+    if (conditionsNeedScore(conditions) && !contact) return false;
+    const score = contact ? await crmContactScore(c, contact) : undefined;
+    const usesDeal = (x: Conditions): boolean =>
+      !!x.dealStage ||
+      !!x.dealStatus ||
+      x.minDealValue !== undefined ||
+      x.allOf.some(usesDeal) ||
+      x.anyOf.some(usesDeal);
+    const resource =
+      eventId && usesDeal(conditions)
+        ? (
+            await c.query(
+              "SELECT payload->>'resourceId' AS id FROM domain_events WHERE id=$1::uuid AND (type LIKE 'crm.crm_deals.%' OR type LIKE 'crm.deal.%')",
+              [eventId],
+            )
+          ).rows[0]?.id
+        : undefined;
+    const w = conditionWhere(conditions, score, resource);
+    return !!(
+      await c.query(`SELECT id FROM contacts WHERE ${w.sql} AND id=$${w.params.length + 1}`, [
+        ...w.params,
+        contactId,
+      ])
+    ).rowCount;
   }
   private recordFailure(
     tenant: string,
@@ -294,13 +330,7 @@ export class AutomationService {
               ]);
               break;
             case 'branch': {
-              const where = conditionWhere(action.conditions);
-              const match = (
-                await c.query(
-                  `SELECT 1 FROM contacts WHERE ${where.sql} AND id=$${where.params.length + 1}`,
-                  [...where.params, contactId],
-                )
-              ).rowCount;
+              const match = await this.matches(c, contactId, action.conditions, key.split(':')[0]);
               await this.actions(
                 tenant,
                 contactId,

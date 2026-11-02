@@ -1,5 +1,5 @@
 {
-  "passed": 69,
+  "passed": 90,
   "tenants": 3,
   "database": "103 real migrations on isolated PGlite with RLS; no owner database",
   "tests": [
@@ -14,6 +14,8 @@
     "cross-tenant settings and notification denial",
     "typed custom-field writes preserve zero and false",
     "event-scoped stage move and loop suppression",
-    "transient action failure rolls back; replay creates one note and task"
+    "transient action failure rolls back; replay creates one note and task",
+    "shared current score in nested AND/OR, skipped rules, post-action branch and synthetic preview",
+    "automation-only score conditions rejected by generic contact search"
   ]
 }

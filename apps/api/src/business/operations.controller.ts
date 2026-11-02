@@ -1,3 +1,4 @@
+import { crmContactScore } from './crm-intelligence';
 import {
   BadRequestException,
   ConflictException,
@@ -20,7 +21,13 @@ import { DatabaseService } from '../database/database.service';
 import { PlansService } from '../plans/plans.service';
 import { EventsService } from '../events/events.service';
 import { OutboundService } from '../messaging/outbound.service';
-import { pagination, ruleSchema, conditionWhere, contactSchema } from './schemas';
+import {
+  pagination,
+  ruleSchema,
+  conditionWhere,
+  conditionsNeedScore,
+  contactSchema,
+} from './schemas';
 import { randomUUID } from 'node:crypto';
 @Controller()
 @Roles('owner', 'admin')
@@ -33,7 +40,6 @@ export class OperationsController {
   ) {}
   @Post('automations/preview') preview(@Req() r: AuthedRequest, @Body() body: unknown) {
     const b = parse(z.object({ rule: ruleSchema, contact: contactSchema }), body);
-    const w = conditionWhere(b.rule.conditions);
     return this.db.withTenant(r.user.tenantId, async (c) => {
       // The random synthetic identity cannot join any live contact relationships.
       const synthetic = {
@@ -46,6 +52,10 @@ export class OperationsController {
         owner_id: b.contact.ownerId || null,
         attributes: b.contact.attributes,
       };
+      const score = conditionsNeedScore(b.rule.conditions)
+        ? await crmContactScore(c, synthetic)
+        : undefined;
+      const w = conditionWhere(b.rule.conditions, score);
       const match = await c.query(
         `SELECT id FROM jsonb_to_record($${w.params.length + 1}::jsonb) AS contacts(id uuid,name text,email text,phone text,lifecycle text,tags text[],owner_id uuid,attributes jsonb,archived_at timestamptz,merged_into_id uuid,created_at timestamptz) WHERE ${w.sql}`,
         [...w.params, JSON.stringify(synthetic)],

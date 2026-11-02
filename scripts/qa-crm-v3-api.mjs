@@ -355,6 +355,165 @@ try {
       );
     }
     count++;
+    const scoreNow = await request('/crm/workspace/score/' + own.id, token);
+    const scoreRule = await request('/automations', token, {
+      name: 'Score AND OR',
+      trigger: 'automation.scheduled',
+      enabled: true,
+      conditions: {
+        allOf: [{ scoreBand: scoreNow.band }, { minScore: scoreNow.score }],
+        anyOf: [
+          { attribute: { key: 'budget', value: 0 } },
+          { attribute: { key: 'consented', value: false } },
+        ],
+      },
+      actions: [{ type: 'note', text: 'Score matched ' + business }],
+    });
+    await request('/automations/' + scoreRule.id + '/schedule', token, {
+      contactId: own.id,
+      at: new Date().toISOString(),
+    });
+    let notes = [];
+    for (let i = 0; i < 60; i++) {
+      notes = (await request('/crm/contacts/' + own.id + '/profile', token)).timeline.notes;
+      if (notes.some((n) => n.body === 'Score matched ' + business)) break;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    assert.ok(notes.some((n) => n.body === 'Score matched ' + business));
+    count++;
+    const noScoreRule = await request('/automations', token, {
+      name: 'Nonmatching score',
+      trigger: 'automation.scheduled',
+      enabled: true,
+      conditions: { scoreBand: scoreNow.band === 'hot' ? 'cold' : 'hot' },
+      actions: [{ type: 'note', text: 'Must not match score' }],
+    });
+    await request('/automations/' + noScoreRule.id + '/schedule', token, {
+      contactId: own.id,
+      at: new Date().toISOString(),
+    });
+    let run;
+    for (let i = 0; i < 60; i++) {
+      run = (await request('/automations/history', token)).find(
+        (x) => x.rule_id === noScoreRule.id,
+      );
+      if (run) break;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    assert.equal(run.status, 'skipped');
+    count++;
+    const branchRule = await request('/automations', token, {
+      name: 'Fresh branch score',
+      trigger: 'automation.scheduled',
+      enabled: true,
+      conditions: {},
+      actions: [
+        { type: 'lifecycle', value: 'inactive' },
+        {
+          type: 'branch',
+          conditions: { scoreBand: 'warm' },
+          then: [{ type: 'note', text: 'Fresh score after change' }],
+          otherwise: [{ type: 'note', text: 'Wrong stale branch score' }],
+        },
+      ],
+    });
+    await request('/automations/' + branchRule.id + '/schedule', token, {
+      contactId: own.id,
+      at: new Date().toISOString(),
+    });
+    for (let i = 0; i < 60; i++) {
+      notes = (await request('/crm/contacts/' + own.id + '/profile', token)).timeline.notes;
+      if (notes.some((n) => n.body === 'Fresh score after change')) break;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    assert.ok(notes.some((n) => n.body === 'Fresh score after change'));
+    assert.ok(!notes.some((n) => n.body === 'Wrong stale branch score'));
+    count++;
+    const syntheticPreview = {
+      rule: {
+        name: 'Synthetic score',
+        trigger: 'crm.contacts.insert',
+        conditions: { scoreBand: 'warm', minScore: 65 },
+        actions: [{ type: 'note', text: 'Never executed preview' }],
+      },
+      contact: {
+        name: 'Synthetic score contact',
+        lifecycle: 'qualified',
+        tags: ['interested'],
+        attributes: { interest: 'product' },
+      },
+    };
+    assert.equal((await request('/automations/preview', token, syntheticPreview)).matched, true);
+    assert.equal(
+      (
+        await request('/automations/preview', token, {
+          ...syntheticPreview,
+          rule: { ...syntheticPreview.rule, conditions: { scoreBand: 'hot' } },
+        })
+      ).matched,
+      false,
+    );
+    count++;
+    await request(
+      '/crm/workspace/search',
+      token,
+      { conditions: { scoreBand: 'hot' } },
+      'POST',
+      400,
+    );
+    count++;
+    await request('/crm/deals', token, {
+      contactId: own.id,
+      pipelineId: pipeline.id,
+      title: 'Other qualified opportunity',
+      stage: 'Qualified',
+      valueCents: 50000,
+      currency: 'USD',
+    });
+    const eventDeal = (await request('/crm/deals?id=' + deal.id, token)).items[0];
+    await request(
+      '/crm/deals/' + eventDeal.id,
+      token,
+      { stage: 'New', expectedUpdatedAt: eventDeal.updated_at },
+      'PATCH',
+    );
+    for (let i = 0; i < 60; i++) {
+      const current = (await request('/crm/deals?id=' + deal.id, token)).items[0];
+      if (current.stage === 'Proposal') break;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+    assert.equal(
+      (await request('/crm/tasks?contactId=' + own.id, token)).items.filter(
+        (x) => x.title === 'Stage follow-up' && x.deal_id === deal.id,
+      ).length,
+      1,
+    );
+    count++;
+    assert.equal(
+      (await request('/crm/deals?needsAttention=true&contactId=' + own.id, token)).items.length,
+      0,
+    );
+    const attentionDeal = (await request('/crm/deals?contactId=' + own.id, token)).items[0];
+    await request(
+      '/crm/deals/' + attentionDeal.id,
+      token,
+      {
+        expectedClose: new Date().toISOString().slice(0, 10),
+        expectedUpdatedAt: attentionDeal.updated_at,
+      },
+      'PATCH',
+    );
+    assert.equal(
+      (await request('/crm/deals?status=&needsAttention=true&contactId=' + own.id, token)).items
+        .length,
+      1,
+    );
+    assert.equal(
+      (await request('/crm/workspace/pipeline-policy', staff[0].accessToken)).staleDays,
+      14,
+    );
+    count++;
     const workspace = await request('/auth/me', token);
     const receipts = await request('/__qa/v3/receipts', null, {
       tenantId: workspace.workspaces[0].tenant_id,
@@ -388,6 +547,8 @@ try {
           'typed custom-field writes preserve zero and false',
           'event-scoped stage move and loop suppression',
           'transient action failure rolls back; replay creates one note and task',
+          'shared current score in nested AND/OR, skipped rules, post-action branch and synthetic preview',
+          'automation-only score conditions rejected by generic contact search',
         ],
       },
       null,

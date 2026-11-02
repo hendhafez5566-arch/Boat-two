@@ -287,6 +287,69 @@ try {
       sector +
         ': assignment settings dry-run and save survive reload; internal notifications render',
     );
+    const automation = page
+      .locator('section')
+      .filter({
+        has: page.getByRole('heading', { name: 'أتمتة المبيعات والمتابعات', exact: true }),
+      })
+      .last();
+    await automation.getByLabel('اسم القاعدة', { exact: true }).fill('UI scoring ' + sector);
+    await automation.getByLabel('العنوان', { exact: true }).fill('Synthetic UI follow-up');
+    await automation.getByText('شروط الاهتمام والصفقة وبيانات العميل', { exact: true }).click();
+    await automation.getByLabel('درجة الاهتمام', { exact: true }).selectOption('cold');
+    await automation.getByLabel('مفتاح حقل العميل أو إجابة البوت', { exact: true }).fill('budget');
+    await automation.getByLabel('نوع قيمة الشرط', { exact: true }).selectOption('number');
+    await automation.getByLabel('يساوي', { exact: true }).fill('0');
+    await automation.getByRole('button', { name: 'معاينة واختبار اصطناعي', exact: true }).click();
+    await automation
+      .getByText('المعاينة الاصطناعية مطابقة. لم يُنفذ أي إجراء. راجع الملخص ثم احفظ.', {
+        exact: true,
+      })
+      .waitFor();
+    await automation.getByRole('button', { name: 'حفظ القاعدة', exact: true }).click();
+    await automation
+      .getByText('حُفظت القاعدة. يمكنك إدارتها ومراجعة سجلها من الأتمتة.', { exact: true })
+      .waitFor();
+    let uiRule = (await req('/automations', token)).find((r) => r.name === 'UI scoring ' + sector);
+    assert.equal(uiRule.conditions.scoreBand, 'cold');
+    assert.equal(uiRule.conditions.attribute.value, 0);
+    assert.equal(uiRule.enabled, false);
+    checks.push(
+      sector +
+        ': beginner wizard previews and saves scored typed-field conditions without activation',
+    );
+    await go('/dashboard/automations');
+    await page.getByRole('button', { name: 'تحرير المسارات والتكاملات', exact: true }).click();
+    await page.getByLabel('افتح قاعدة محفوظة', { exact: true }).selectOption(uiRule.id);
+    const editor = page
+      .locator('section')
+      .filter({
+        has: page.getByRole('heading', { name: 'تحرير المسارات المحفوظة والتكاملات', exact: true }),
+      })
+      .last();
+    await editor.getByLabel('أقل عدد نقاط (0–100)', { exact: true }).fill('0');
+    await editor.getByRole('button', { name: 'إضافة مجموعة OR', exact: true }).click();
+    const nested = editor.locator('details.condition-clause').last();
+    await nested.locator('summary').click();
+    await nested.getByLabel('حقل العميل أو إجابة البوت', { exact: true }).fill('consented');
+    await nested.getByLabel('نوع قيمة الشرط', { exact: true }).selectOption('boolean');
+    await nested.getByLabel('يساوي', { exact: true }).selectOption('false');
+    await editor.getByRole('button', { name: 'حفظ المسار', exact: true }).click();
+    await editor.getByText('تم حفظ التغيير.', { exact: true }).waitFor();
+    uiRule = (await req('/automations', token)).find((r) => r.id === uiRule.id);
+    assert.equal(uiRule.conditions.minScore, 0);
+    assert.equal(uiRule.conditions.attribute.value, 0);
+    assert.equal(uiRule.conditions.anyOf[0].attribute.value, false);
+    checks.push(sector + ': advanced editor preserves score and zero/false in nested AND/OR');
+    if (index === 0) {
+      for (const width of [390, 768, 1440]) {
+        await page.setViewportSize({ width, height: 1024 });
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+        await shot('scored-conditions-' + width + '-ar');
+      }
+      await page.setViewportSize({ width: 1440, height: 1100 });
+    }
+    await go('/dashboard/crm/sales');
     const bell = page.getByRole('button', { name: 'مركز التنبيهات', exact: true });
     await bell.click();
     await page.getByRole('heading', { name: 'مركز التنبيهات', exact: true }).waitFor();
@@ -392,6 +455,13 @@ try {
     );
     assert.equal(saved.stage, 'مؤهلة');
     checks.push(sector + ': Kanban drag and accessible stage change persist');
+    await page.getByRole('button', { name: 'صفقات تحتاج تدخلًا', exact: true }).click();
+    await page.waitForLoadState('networkidle');
+    assert.equal(await page.getByRole('button', { name: deal.title, exact: true }).count(), 0);
+    if (index === 0) await shot('pipeline-needs-attention-ar');
+    await page.getByRole('button', { name: 'صفقات تحتاج تدخلًا', exact: true }).click();
+    await page.getByRole('button', { name: deal.title, exact: true }).waitFor();
+    checks.push(sector + ': attention filter uses company policy and restores normal pipeline');
     await go('/dashboard/crm/tasks?period=overdue');
     await page.getByRole('button', { name: task.title, exact: true }).waitFor();
     await page.getByRole('button', { name: 'إكمال المتابعة', exact: true }).click();

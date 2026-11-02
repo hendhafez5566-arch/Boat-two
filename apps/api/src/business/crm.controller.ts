@@ -1,3 +1,4 @@
+import { notificationSettingsSchema } from './sales-settings';
 import {
   BadRequestException,
   Body,
@@ -618,6 +619,7 @@ export class CrmController {
         pipelineId: z.string().uuid().optional(),
         contactId: z.string().uuid().optional(),
         id: z.string().uuid().optional(),
+        needsAttention: z.enum(['true', 'false']).optional(),
         dueFrom: z.string().datetime().optional(),
         dueTo: z.string().datetime().optional(),
         period: z.enum(['today', 'overdue', 'upcoming']).optional(),
@@ -648,6 +650,13 @@ export class CrmController {
       if (q.id) {
         params.push(q.id);
         where += ` AND w.id=$${params.length}::uuid`;
+      }
+      if (kind === 'deals' && q.needsAttention === 'true') {
+        const policy = notificationSettingsSchema.parse(
+          (await c.query('SELECT settings FROM tenants')).rows[0]?.settings?.crmNotifications || {},
+        );
+        params.push(policy.staleDays, policy.closingDays);
+        where += ` AND w.status='open' AND (w.updated_at<now()-make_interval(days=>$${params.length - 1}) OR w.expected_close<=now()+make_interval(days=>$${params.length}))`;
       }
       if (kind === 'tasks' && q.period) {
         const settings = (await c.query('SELECT settings FROM tenants')).rows[0]?.settings || {};

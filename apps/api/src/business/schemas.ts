@@ -48,6 +48,8 @@ export const pagination = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
 });
 export type Conditions = z.infer<typeof filtersSchema> & {
+  scoreBand?: 'hot' | 'warm' | 'cold';
+  minScore?: number;
   allOf: Conditions[];
   anyOf: Conditions[];
 };
@@ -74,17 +76,55 @@ function boundedTree(keys: string[], maxDepth = 4, maxNodes = 80) {
   });
 }
 const conditionTree: z.ZodType<Conditions, z.ZodTypeDef, unknown> = z.lazy(() =>
-  filtersSchema.extend({
-    allOf: z.array(conditionTree).max(10).default([]),
-    anyOf: z.array(conditionTree).max(10).default([]),
-  }),
+  filtersSchema
+    .extend({
+      allOf: z.array(conditionTree).max(10).default([]),
+      anyOf: z.array(conditionTree).max(10).default([]),
+    })
+    .strict(),
 );
 export const conditionsSchema = boundedTree(['allOf', 'anyOf']).pipe(conditionTree);
-export function conditionWhere(input: Conditions): { sql: string; params: unknown[] } {
-  const base = contactWhere(input),
+const automationConditionTree: z.ZodType<Conditions, z.ZodTypeDef, unknown> = z.lazy(() =>
+  filtersSchema
+    .extend({
+      scoreBand: z.enum(['hot', 'warm', 'cold']).optional(),
+      minScore: z.number().int().min(0).max(100).optional(),
+      allOf: z.array(automationConditionTree).max(10).default([]),
+      anyOf: z.array(automationConditionTree).max(10).default([]),
+    })
+    .strict(),
+);
+export const automationConditionsSchema = boundedTree(['allOf', 'anyOf']).pipe(
+  automationConditionTree,
+);
+export function conditionsNeedScore(input: Conditions): boolean {
+  return (
+    input.scoreBand !== undefined ||
+    input.minScore !== undefined ||
+    input.allOf.some(conditionsNeedScore) ||
+    input.anyOf.some(conditionsNeedScore)
+  );
+}
+export function conditionWhere(
+  input: Conditions,
+  score?: { score: number; band: string },
+  dealId?: string,
+): { sql: string; params: unknown[] } {
+  const base = contactWhere(input, dealId),
     params: unknown[] = [...base.params];
+  if (input.scoreBand !== undefined || input.minScore !== undefined) {
+    if (!score) throw new Error('Score conditions require a current contact score');
+    if (input.scoreBand !== undefined) {
+      params.push(score.band, input.scoreBand);
+      base.sql += ` AND $${params.length - 1}::text=$${params.length}::text`;
+    }
+    if (input.minScore !== undefined) {
+      params.push(score.score, input.minScore);
+      base.sql += ` AND $${params.length - 1}::int >= $${params.length}::int`;
+    }
+  }
   const clause = (filter: Conditions) => {
-    const next = conditionWhere(filter),
+    const next = conditionWhere(filter, score, dealId),
       offset = params.length;
     params.push(...next.params);
     return '(' + next.sql.replace(/\$(\d+)/g, (_, n) => '$' + (Number(n) + offset)) + ')';
@@ -153,7 +193,7 @@ const actionTree: z.ZodType<AutomationAction, z.ZodTypeDef, unknown> = z.lazy(()
     baseActionSchema,
     z.object({
       type: z.literal('branch'),
-      conditions: conditionsSchema,
+      conditions: automationConditionsSchema,
       then: z.array(actionTree).min(1).max(10),
       otherwise: z.array(actionTree).max(10).default([]),
     }),
@@ -207,11 +247,11 @@ export const ruleSchema = z.object({
     'crm.deal.stage_changed',
     'crm.deal.closed',
   ]),
-  conditions: conditionsSchema.default({}),
+  conditions: automationConditionsSchema.default({}),
   actions: z.array(actionSchema).min(1).max(10),
 });
 export type Filters = z.infer<typeof filtersSchema>;
-export function contactWhere(filters: Filters) {
+export function contactWhere(filters: Filters, dealId?: string) {
   const base = {
     sql: `merged_into_id IS NULL AND ${filters.archived === 'all' ? 'true' : filters.archived === 'archived' ? 'archived_at IS NOT NULL' : 'archived_at IS NULL'} AND ($1::text IS NULL OR name ILIKE $1 ESCAPE '\\' OR email ILIKE $1 ESCAPE '\\' OR phone ILIKE $1 ESCAPE '\\') AND ($2::text IS NULL OR lifecycle=$2) AND ($3::text IS NULL OR $3=ANY(tags)) AND ($4::uuid IS NULL OR owner_id=$4)`,
     params: [
@@ -246,6 +286,7 @@ export function contactWhere(filters: Filters) {
     );
   if (filters.dealStage || filters.dealStatus || filters.minDealValue !== undefined) {
     const tests = ['fd.contact_id=contacts.id'];
+    if (dealId) tests.push(`fd.id=${bind(dealId)}::uuid`);
     if (filters.dealStage) tests.push(`fd.stage=${bind(filters.dealStage)}`);
     if (filters.dealStatus) tests.push(`fd.status=${bind(filters.dealStatus)}`);
     if (filters.minDealValue !== undefined)

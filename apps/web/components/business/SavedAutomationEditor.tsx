@@ -2,11 +2,15 @@
 import { automationLabel } from './automation-labels';
 import { statusLabel } from '../product/status';
 import { WorkflowCanvas } from './WorkflowCanvas';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useId } from 'react';
 import { api } from '../../lib/api';
 import { useData } from './useData';
 import { useLocale } from '../product/locale';
 type Conditions = {
+  scoreBand?: string;
+  minScore?: number;
+  minDealValue?: number;
+  attribute?: { key: string; value: string | number | boolean };
   source?: string;
   channelId?: string;
   departmentId?: string;
@@ -57,12 +61,20 @@ function ConditionsForm({
   value,
   change,
   depth = 0,
+  fieldOptions,
 }: {
+  fieldOptions?: { key: string; label: string; type: string }[];
   value: Conditions;
   change: (value: Conditions) => void;
   depth?: number;
 }) {
   const { t } = useLocale();
+  const loadedFields = useData<{ key: string; label: string; type: string }[]>(
+    fieldOptions ? null : '/crm/fields',
+    [],
+  );
+  const fields = fieldOptions || loadedFields.data;
+  const fieldListId = useId();
   return (
     <div className="condition-group stack">
       <div className="form-grid">
@@ -105,6 +117,145 @@ function ConditionsForm({
           </label>
         ))}
       </div>
+      <div className="form-grid">
+        <label>
+          {t('درجة الاهتمام', 'Interest band')}
+          <select
+            aria-label={t('درجة الاهتمام', 'Interest band')}
+            value={value.scoreBand || ''}
+            onChange={(e) => {
+              const next = { ...value };
+              if (e.target.value) next.scoreBand = e.target.value;
+              else delete next.scoreBand;
+              change(next);
+            }}
+          >
+            <option value="">{t('أي تقييم', 'Any band')}</option>
+            <option value="hot">{t('مرتفع', 'Hot')}</option>
+            <option value="warm">{t('متوسط', 'Warm')}</option>
+            <option value="cold">{t('منخفض', 'Cold')}</option>
+          </select>
+        </label>
+        <label>
+          {t('أقل عدد نقاط (0–100)', 'Minimum score (0–100)')}
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={value.minScore ?? ''}
+            onChange={(e) => {
+              const next = { ...value };
+              if (e.target.value !== '') next.minScore = Number(e.target.value);
+              else delete next.minScore;
+              change(next);
+            }}
+          />
+        </label>
+        <label>
+          {t('أقل قيمة صفقة بالقرش/السنت', 'Minimum deal value in minor units')}
+          <input
+            type="number"
+            min={0}
+            max={100000000000}
+            value={value.minDealValue ?? ''}
+            onChange={(e) => {
+              const next = { ...value };
+              if (e.target.value !== '') next.minDealValue = Number(e.target.value);
+              else delete next.minDealValue;
+              change(next);
+            }}
+          />
+        </label>
+        <label>
+          {t('حقل العميل أو إجابة البوت', 'Customer field or bot answer')}
+          <input
+            aria-label={t('حقل العميل أو إجابة البوت', 'Customer field or bot answer')}
+            list={fieldListId}
+            maxLength={100}
+            value={value.attribute?.key || ''}
+            onChange={(e) => {
+              const next = { ...value };
+              if (!e.target.value) delete next.attribute;
+              else {
+                const f = fields.find((f) => f.key === e.target.value);
+                next.attribute = {
+                  key: e.target.value,
+                  value: f?.type === 'number' ? 0 : f?.type === 'boolean' ? false : '',
+                };
+              }
+              change(next);
+            }}
+          />
+          <datalist id={fieldListId}>
+            {fields.map((f) => (
+              <option key={f.key} value={f.key}>
+                {f.label}
+              </option>
+            ))}
+          </datalist>
+        </label>
+        {value.attribute && (
+          <>
+            <label>
+              {t('نوع قيمة الشرط', 'Condition value type')}
+              <select
+                aria-label={t('نوع قيمة الشرط', 'Condition value type')}
+                value={typeof value.attribute.value}
+                onChange={(e) =>
+                  change({
+                    ...value,
+                    attribute: {
+                      key: value.attribute!.key,
+                      value:
+                        e.target.value === 'number' ? 0 : e.target.value === 'boolean' ? false : '',
+                    },
+                  })
+                }
+              >
+                <option value="string">{t('نص', 'Text')}</option>
+                <option value="number">{t('رقم', 'Number')}</option>
+                <option value="boolean">{t('نعم/لا', 'Boolean')}</option>
+              </select>
+            </label>
+            <label>
+              {t('يساوي', 'Equals')}
+              {typeof value.attribute.value === 'boolean' ? (
+                <select
+                  aria-label={t('يساوي', 'Equals')}
+                  value={String(value.attribute.value)}
+                  onChange={(e) =>
+                    change({
+                      ...value,
+                      attribute: { key: value.attribute!.key, value: e.target.value === 'true' },
+                    })
+                  }
+                >
+                  <option value="true">{t('نعم', 'True')}</option>
+                  <option value="false">{t('لا', 'False')}</option>
+                </select>
+              ) : (
+                <input
+                  type={typeof value.attribute.value === 'number' ? 'number' : 'text'}
+                  maxLength={2000}
+                  value={value.attribute.value}
+                  onChange={(e) =>
+                    change({
+                      ...value,
+                      attribute: {
+                        key: value.attribute!.key,
+                        value:
+                          typeof value.attribute!.value === 'number'
+                            ? Number(e.target.value)
+                            : e.target.value,
+                      },
+                    })
+                  }
+                />
+              )}
+            </label>
+          </>
+        )}
+      </div>
       {(['allOf', 'anyOf'] as const).map((group) => (
         <fieldset key={group}>
           <legend>
@@ -120,6 +271,7 @@ function ConditionsForm({
               <ConditionsForm
                 value={clause}
                 depth={depth + 1}
+                fieldOptions={fields}
                 change={(next) =>
                   change({
                     ...value,

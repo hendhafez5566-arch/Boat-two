@@ -34,6 +34,11 @@ export function CrmAutomation() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
+  const [conditionBand, setConditionBand] = useState(''),
+    [conditionKey, setConditionKey] = useState(''),
+    [conditionValue, setConditionValue] = useState(''),
+    [conditionKind, setConditionKind] = useState('string'),
+    [minimumDeal, setMinimumDeal] = useState('');
   const p = pipelines.data.find((x) => x.id === pipeline) || pipelines.data[0];
   const f = fields.data.find((x) => x.key === field) || fields.data[0];
   const action =
@@ -68,7 +73,30 @@ export function CrmAutomation() {
                             : value,
                     }
                   : { type, pipelineId: p?.id, stage: stage || p?.stages[0] };
-  const rule = { name, trigger, enabled, conditions: tag ? { tag } : {}, actions: [action] };
+  const rule = {
+    name,
+    trigger,
+    enabled,
+    conditions: {
+      ...(tag ? { tag } : {}),
+      ...(conditionBand ? { scoreBand: conditionBand } : {}),
+      ...(minimumDeal !== '' ? { minDealValue: Number(minimumDeal) } : {}),
+      ...(conditionKey
+        ? {
+            attribute: {
+              key: conditionKey,
+              value:
+                conditionKind === 'number'
+                  ? Number(conditionValue)
+                  : conditionKind === 'boolean'
+                    ? conditionValue === 'true'
+                    : conditionValue,
+            },
+          }
+        : {}),
+    },
+    actions: [action],
+  };
   const fingerprint = JSON.stringify(rule);
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -81,7 +109,20 @@ export function CrmAutomation() {
           method: 'POST',
           body: JSON.stringify({
             rule,
-            contact: { name: 'Synthetic preview', tags: tag ? [tag] : [] },
+            contact: {
+              name: 'Synthetic preview',
+              tags: tag ? [tag] : [],
+              attributes: conditionKey
+                ? {
+                    [conditionKey]:
+                      conditionKind === 'number'
+                        ? Number(conditionValue)
+                        : conditionKind === 'boolean'
+                          ? conditionValue === 'true'
+                          : conditionValue,
+                  }
+                : {},
+            },
           }),
         });
         setPreview(fingerprint);
@@ -114,6 +155,9 @@ export function CrmAutomation() {
   }
   function template(kind: string) {
     setPreview('');
+    setConditionBand('');
+    setConditionKey('');
+    setMinimumDeal('');
     setType(kind === 'stage' ? 'task' : kind === 'interest' ? 'deal' : 'notify');
     setTrigger(
       kind === 'stage'
@@ -193,6 +237,88 @@ export function CrmAutomation() {
           {t('بوجود وسم (اختياري)', 'With tag (optional)')}
           <input maxLength={50} value={tag} onChange={(e) => setTag(e.target.value)} />
         </label>
+        <details>
+          <summary>
+            {t('شروط الاهتمام والصفقة وبيانات العميل', 'Interest, deal & customer conditions')}
+          </summary>
+          <div className={styles.form}>
+            <label>
+              {t('درجة الاهتمام', 'Interest band')}
+              <select
+                aria-label={t('درجة الاهتمام', 'Interest band')}
+                value={conditionBand}
+                onChange={(e) => setConditionBand(e.target.value)}
+              >
+                <option value="">{t('أي تقييم', 'Any band')}</option>
+                <option value="hot">{t('مرتفع', 'Hot')}</option>
+                <option value="warm">{t('متوسط', 'Warm')}</option>
+                <option value="cold">{t('منخفض', 'Cold')}</option>
+              </select>
+            </label>
+            <label>
+              {t('أقل قيمة صفقة بالقرش/السنت', 'Minimum deal value in minor units')}
+              <input
+                type="number"
+                min={0}
+                max={100000000000}
+                value={minimumDeal}
+                onChange={(e) => setMinimumDeal(e.target.value)}
+              />
+            </label>
+            <label>
+              {t('مفتاح حقل العميل أو إجابة البوت', 'Customer field or bot answer key')}
+              <input
+                maxLength={100}
+                value={conditionKey}
+                onChange={(e) => setConditionKey(e.target.value)}
+              />
+            </label>
+            {conditionKey && (
+              <>
+                <label>
+                  {t('نوع قيمة الشرط', 'Condition value type')}
+                  <select
+                    aria-label={t('نوع قيمة الشرط', 'Condition value type')}
+                    value={conditionKind}
+                    onChange={(e) => {
+                      setConditionKind(e.target.value);
+                      setConditionValue(
+                        e.target.value === 'boolean'
+                          ? 'false'
+                          : e.target.value === 'number'
+                            ? '0'
+                            : '',
+                      );
+                    }}
+                  >
+                    <option value="string">{t('نص', 'Text')}</option>
+                    <option value="number">{t('رقم', 'Number')}</option>
+                    <option value="boolean">{t('نعم/لا', 'Boolean')}</option>
+                  </select>
+                </label>
+                <label>
+                  {t('يساوي', 'Equals')}
+                  {conditionKind === 'boolean' ? (
+                    <select
+                      value={conditionValue}
+                      onChange={(e) => setConditionValue(e.target.value)}
+                    >
+                      <option value="true">{t('نعم', 'True')}</option>
+                      <option value="false">{t('لا', 'False')}</option>
+                    </select>
+                  ) : (
+                    <input
+                      maxLength={2000}
+                      type={conditionKind === 'number' ? 'number' : 'text'}
+                      value={conditionValue}
+                      onChange={(e) => setConditionValue(e.target.value)}
+                    />
+                  )}
+                </label>
+              </>
+            )}
+          </div>
+        </details>
         <label>
           {t('الإجراء', 'Action')}
           <select value={type} onChange={(e) => setType(e.target.value)}>
@@ -330,7 +456,10 @@ export function CrmAutomation() {
         <div className={css.summary}>
           {t('عندما: ', 'When: ')}
           {automationLabel(trigger, t)}
-          {tag ? ' · ' + t('الوسم: ', 'Tag: ') + tag : ''} → {automationLabel(type, t)}
+          {tag ? ' · ' + t('الوسم: ', 'Tag: ') + tag : ''}
+          {conditionBand ? ' · ' + t('الاهتمام: ', 'Interest: ') + conditionBand : ''}
+          {conditionKey ? ' · ' + conditionKey + ' = ' + conditionValue : ''} →{' '}
+          {automationLabel(type, t)}
           {title ? ' · ' + title : ''}
         </div>
         <label>
