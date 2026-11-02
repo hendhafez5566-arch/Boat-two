@@ -327,8 +327,31 @@ if (!process.env.QA_BASELINE) {
     a,
   );
 }
+if (process.env.QA_RESUME) {
+  await pg.query("UPDATE conversations SET status='closed' WHERE tenant_id=$1", [tenant]);
+  await policy({enabled:true,method:'least_loaded',memberIds:[a],rules:[],maxOpenPerAgent:1});
+  await pg.query('UPDATE memberships SET available=false WHERE tenant_id=$1', [tenant]);
+  const waitingHuman=await make(null),waitingBot=await make(null),manualUnassigned=await make(null);
+  await pg.query("UPDATE conversations SET handled_by='human' WHERE id=$1",[waitingHuman.cv]);
+  await service.autoAssignIfEnabled(tenant,waitingHuman.cv);
+  await service.autoAssignIfEnabled(tenant,waitingBot.cv);
+  check('away employees do not drain the waiting queue',await service.retryWaiting(tenant),0);
+  await pg.query('UPDATE memberships SET available=true WHERE user_id=$1',[a]);
+  check('returning employee resumes waiting queue up to capacity',await service.retryWaiting(tenant),1);
+  const resumed=(await pg.query('SELECT assigned_to,handled_by FROM conversations WHERE id=$1',[waitingHuman.cv])).rows[0];
+  check('oldest human handoff receives employee',resumed.assigned_to,a);
+  check('queue retry never resumes the bot during handoff',resumed.handled_by,'human');
+  check('capacity prevents a second automatic assignment',await service.retryWaiting(tenant),0);
+  check('unmarked manual conversation stays unassigned',(await pg.query('SELECT assigned_to FROM conversations WHERE id=$1',[manualUnassigned.cv])).rows[0].assigned_to,null);
+  check('another tenant cannot drain this queue',await service.retryWaiting(other),0);
+  await policy({enabled:false,method:'least_loaded',memberIds:[a],rules:[],maxOpenPerAgent:1});
+  await pg.query("UPDATE conversations SET status='closed' WHERE id=$1",[waitingHuman.cv]);
+  check('disabled policy cannot drain queue',await service.retryWaiting(tenant),0);
+  await policy({enabled:true,method:'least_loaded',memberIds:[a],rules:[],maxOpenPerAgent:1});
+  check('eligible queued conversation fills released capacity',await service.retryWaiting(tenant),1);
+}
 const path =
-  'docs/acceptance/2026-11-02-assignment/' +
+  (process.env.QA_RESUME ? 'docs/acceptance/2026-11-02-assignment-followup/' : 'docs/acceptance/2026-11-02-assignment/') +
   (process.env.QA_BASELINE ? 'before' : 'after') +
   '.json';
 writeFileSync(

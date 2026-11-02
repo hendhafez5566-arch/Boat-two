@@ -603,13 +603,16 @@ export class InboxController {
   @Patch('team/me/availability')
   async availability(@Req() req: AuthedRequest, @Body() body: unknown) {
     const { available } = parse(availabilitySchema, body);
-    await this.db.withTenant(req.user.tenantId, (c) =>
-      c.query('UPDATE memberships SET available = $2 WHERE user_id = $1', [
+    return this.db.withTenant(req.user.tenantId, async (c) => {
+      // Keep lock ordering consistent with assignment selection across replicas.
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+      await c.query('UPDATE memberships SET available = $2 WHERE user_id = $1', [
         req.user.userId,
         available,
-      ]),
-    );
-    return { available };
+      ]);
+      const reassigned = available ? await this.assignment.retryWaiting(req.user.tenantId) : 0;
+      return { available, reassigned };
+    });
   }
 
   @Get('inbox/settings')

@@ -129,8 +129,34 @@ try {
   checks.push('foreign channel department and employee context denied');
   assert.equal((await req('/crm/sales/assignment-queue', token)).total, 0);
   checks.push('empty manager queue is truthful');
+  if (process.env.QA_RESUME_HTTP) {
+    let current=await req('/crm/sales/settings',token);
+    await req('/crm/sales/settings',token,{...current,assignment:{enabled:true,method:'round_robin',memberIds:[members[0].id],rules:[],maxOpenPerAgent:1},expected:current});
+    await req('/team/me/availability',members[0].accessToken,{available:false},'PATCH');
+    const visitors=await Promise.all(Array.from({length:3},()=>req('/widget/'+channel.external_id+'/session',null,{})));
+    for (const v of visitors) {
+      const response=await fetch('http://127.0.0.1:4000/widget/'+channel.external_id+'/messages?visitorId='+v.visitorId,{method:'POST',headers:{'Content-Type':'application/json','x-visitor-token':v.token},body:JSON.stringify({clientMsgId:uuid(),text:'Synthetic waiting QA'})});
+      assert.equal(response.status,201);
+    }
+    const rows=(await req('/conversations?limit=100',token)).items;
+    for(const cv of rows) await req('/conversations/'+cv.id+'/auto-assign',token,{},'POST',400);
+    const waiting=await req('/crm/sales/assignment-queue',token);
+    assert.equal(waiting.total,3);
+    const oldest=waiting.items[0];
+    await req('/conversations/'+oldest.id,token,{handledBy:'human'},'PATCH');
+    const resumed=await req('/team/me/availability',members[0].accessToken,{available:true},'PATCH');
+    assert.equal(resumed.available,true);assert.equal(resumed.reassigned,1);
+    assert.equal((await req('/crm/sales/assignment-queue',token)).total,2);
+    checks.push('HTTP availability return automatically assigns oldest queued conversation up to capacity');
+    const detail=await req('/conversations/'+oldest.id,token);
+    assert.equal(detail.handled_by,'human');assert.equal(detail.assigned_to,members[0].id);
+    checks.push('HTTP automatic resume preserves human handoff');
+    assert.equal((await req('/team/me/availability',members[0].accessToken,{available:true},'PATCH')).reassigned,0);
+    assert.equal((await req('/crm/sales/assignment-queue',token)).total,2);
+    checks.push('repeated availability return cannot exceed capacity or replace existing assignment');
+  }
   writeFileSync(
-    'docs/acceptance/2026-11-02-assignment/http.json',
+    process.env.QA_RESUME_HTTP ? 'docs/acceptance/2026-11-02-assignment-followup/http.json' : 'docs/acceptance/2026-11-02-assignment/http.json',
     JSON.stringify(
       {
         checks,

@@ -239,10 +239,30 @@ export class AssignmentService {
     for (const cv of ids) await this.autoAssignIfEnabled(event.tenantId, cv.id);
   }
   /** Selection and write share a tenant lock, also across worker replicas. */
+  async retryWaiting(tenantId: string) {
+    return this.db.withTenant(tenantId, async (c) => {
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+      // Only revisit conversations the assignment engine has already queued.
+      // Never replace an existing assignment or resume a bot during a human handoff.
+      const waiting = await c.query(
+        `SELECT cv.id FROM conversations cv
+         WHERE cv.assigned_to IS NULL AND cv.status<>'closed' AND cv.archived_at IS NULL
+         AND EXISTS (SELECT 1 FROM messages m WHERE m.conversation_id=cv.id
+           AND m.is_internal AND m.content->>'event'='assignment_waiting')
+         ORDER BY cv.created_at,cv.id LIMIT 100`,
+      );
+      let reassigned = 0;
+      for (const cv of waiting.rows)
+        if (await this.autoAssignIfEnabled(tenantId, cv.id, false, true)) reassigned++;
+      return reassigned;
+    });
+  }
+
   async autoAssignIfEnabled(
     tenantId: string,
     conversationId: string,
     force = false,
+    onlyUnassigned = false,
   ): Promise<string | null> {
     return this.db.withTenant(tenantId, async (c) => {
       await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
@@ -258,6 +278,7 @@ export class AssignmentService {
         !cv ||
         cv.status === 'closed' ||
         cv.archived_at ||
+        (onlyUnassigned && cv.assigned_to) ||
         (cv.assigned_to && !force && cv.handled_by === 'human')
       )
         return null;
