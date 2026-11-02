@@ -1,0 +1,12 @@
+{
+  "checks": [
+    "disabled saved policy cannot pretend to select staff",
+    "real HTTP dry-run passes channel department tags and bot answer without writing settings",
+    "changed service cannot match visa rule",
+    "agent cannot test manager policy read manager queue or force assignment",
+    "foreign channel department and employee context denied",
+    "empty manager queue is truthful"
+  ],
+  "passed": 6,
+  "database": "isolated PostgreSQL/PGlite full schema RLS and real Nest HTTP guards"
+}

@@ -1,0 +1,29 @@
+{
+  "engine": "PostgreSQL/PGlite, all migrations, app_user RLS; not native server",
+  "results": [
+    {
+      "name": "returning owner outside matching rule is rejected",
+      "pass": false,
+      "actual": "b054df53-8d75-4178-bc1b-f4a179cefbcc",
+      "expected": "dd3b1b84-c55d-4a4f-a5a5-62e2a5b451c5"
+    },
+    {
+      "name": "returning owner at capacity must wait",
+      "pass": false,
+      "actual": "dd3b1b84-c55d-4a4f-a5a5-62e2a5b451c5",
+      "expected": null
+    },
+    {
+      "name": "no-candidate reason persists on the conversation",
+      "pass": false,
+      "actual": false,
+      "expected": true
+    },
+    {
+      "name": "foreign tenant cannot select our staff",
+      "pass": true,
+      "actual": null,
+      "expected": null
+    }
+  ]
+}

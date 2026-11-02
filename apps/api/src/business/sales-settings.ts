@@ -33,6 +33,7 @@ export const assignmentPolicySchema = z
     enabled: z.boolean().default(false),
     method: z.enum(['round_robin', 'least_loaded', 'rules']).default('round_robin'),
     memberIds: z.array(z.string().uuid()).max(100).default([]),
+    maxOpenPerAgent: z.number().int().min(1).max(500).optional(),
     rules: z
       .array(
         z
@@ -40,9 +41,19 @@ export const assignmentPolicySchema = z
             channelId: z.string().uuid().optional(),
             departmentId: z.string().uuid().optional(),
             tag: z.string().trim().min(1).max(50).optional(),
+            fieldKey: z
+              .string()
+              .trim()
+              .regex(/^[a-zA-Z_][a-zA-Z0-9_]{0,99}$/)
+              .optional(),
+            fieldValue: z.string().trim().min(1).max(200).optional(),
             memberIds: z.array(z.string().uuid()).min(1).max(100),
           })
-          .strict(),
+          .strict()
+          .refine(
+            (x) => !!x.fieldKey === !!x.fieldValue,
+            'Service field and value are required together',
+          ),
       )
       .max(30)
       .default([]),

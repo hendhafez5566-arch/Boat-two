@@ -1,0 +1,54 @@
+{
+  "transport": "public Webchat HTTP API; live Railway PostgreSQL via application, no direct SQL connection",
+  "concurrency": 4,
+  "results": [
+    {
+      "pass": true,
+      "name": "عميل انتظار تأشيرات QA 1",
+      "service": "visa",
+      "visitorId": "assignment_qa_e8b9c2bc0bae45028f",
+      "messages": 6,
+      "botReplies": [
+        "أهلًا بك. اسمك إيه؟ (اختبار توزيع)",
+        "اكتب visa أو flight أو umrah لاختيار تخصص الخدمة.",
+        "تم تسجيل طلب الاختبار. سيتابع معك الموظف المؤهل عند توفره."
+      ]
+    },
+    {
+      "pass": true,
+      "name": "عميل انتظار طيران QA 4",
+      "service": "flight",
+      "visitorId": "assignment_qa_2cfeb17dbaac4f8eaa",
+      "messages": 6,
+      "botReplies": [
+        "أهلًا بك. اسمك إيه؟ (اختبار توزيع)",
+        "اكتب visa أو flight أو umrah لاختيار تخصص الخدمة.",
+        "تم تسجيل طلب الاختبار. سيتابع معك الموظف المؤهل عند توفره."
+      ]
+    },
+    {
+      "pass": true,
+      "name": "عميل انتظار تأشيرات QA 2",
+      "service": "visa",
+      "visitorId": "assignment_qa_f061e99f7b42484282",
+      "messages": 6,
+      "botReplies": [
+        "أهلًا بك. اسمك إيه؟ (اختبار توزيع)",
+        "اكتب visa أو flight أو umrah لاختيار تخصص الخدمة.",
+        "تم تسجيل طلب الاختبار. سيتابع معك الموظف المؤهل عند توفره."
+      ]
+    },
+    {
+      "pass": true,
+      "name": "عميل انتظار طيران QA 3",
+      "service": "flight",
+      "visitorId": "assignment_qa_b016f53af53941428b",
+      "messages": 6,
+      "botReplies": [
+        "أهلًا بك. اسمك إيه؟ (اختبار توزيع)",
+        "اكتب visa أو flight أو umrah لاختيار تخصص الخدمة.",
+        "تم تسجيل طلب الاختبار. سيتابع معك الموظف المؤهل عند توفره."
+      ]
+    }
+  ]
+}

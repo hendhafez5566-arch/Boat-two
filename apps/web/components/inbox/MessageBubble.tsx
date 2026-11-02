@@ -42,8 +42,16 @@ function ProviderMedia({
 
 const TICKS: Record<string, string> = { queued: '⏳', sent: '✓', delivered: '✓✓', read: '✓✓' };
 
-export function eventText(c: any, name: (id?: string) => string): string {
+export function eventText(c: any, name: (id?: string) => string, language = 'ar'): string {
   switch (c?.event) {
+    case 'assignment_waiting':
+      return c.reason === 'awaiting_service'
+        ? language === 'ar'
+          ? 'بانتظار تحديد نوع الخدمة من العميل'
+          : 'Waiting for the customer to choose a service'
+        : language === 'ar'
+          ? 'بانتظار موظف مؤهل؛ راجع قائمة التوزيع'
+          : 'Waiting for an eligible employee; check the assignment queue';
     case 'assigned':
       return c.auto
         ? `عُيّنت تلقائياً إلى ${name(c.userId)}`
@@ -88,7 +96,7 @@ export default function MessageBubble({
   if (senderType === 'system') {
     return (
       <div className="msg-system">
-        {eventText(c, name)} · {time}
+        {eventText(c, name, language)} · {time}
       </div>
     );
   }

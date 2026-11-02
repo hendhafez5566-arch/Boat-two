@@ -1,0 +1,569 @@
+[
+  {
+    "file": "apps/web/components/inbox/InboxFieldDialog.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/inbox/MessageBubble.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 0,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/inbox/InboxFilters.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 6,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/inbox/InboxCrmOverview.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 5,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/inbox/InboxSequences.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/inbox/InboxCustomerPanel.tsx",
+    "details": 4,
+    "summary": 4,
+    "select": 3,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/product/InvitationMailPanel.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/product/ChannelSettings.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 2,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/product/TimezonePicker.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/product/MetaConnect.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 0,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/product/ChannelScope.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/flow/NativeFlowNodeEditor.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 2,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/flow/BotPolicyEditor.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 2,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/flow/ButtonActionsEditor.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 4,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/flow/MessageEditor.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/flow/DynamicCatalogSettings.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 3,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/flow/TestPanel.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/flow/Inspector.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 10,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/DomainTransfers.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/AgentRouting.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 3,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/AudienceFilterSelect.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 0,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/TemplateDraftForm.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 3,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/CampaignComposer.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 3,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/CrmScoring.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 0,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/ContactActivityExport.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 0,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/CrmImport.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 2,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/CrmRetention.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 0,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/SavedAutomationEditor.tsx",
+    "details": 3,
+    "summary": 3,
+    "select": 10,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/ContactLifecycle.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/CrmWork.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 12,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/GenerationBudgetPanel.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 0,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/SubscriberProfile.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 5,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/CrmJobs.tsx",
+    "details": 2,
+    "summary": 2,
+    "select": 0,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/RichCampaignContent.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 2,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/AiToolAudit.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/SmartSales.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 6,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/CrmSegments.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 3,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/DeliveryAccounts.tsx",
+    "details": 2,
+    "summary": 2,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/CrmIntelligence.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/AutomationCanvas.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 5,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/SalesScoringSignals.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 0,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/ConditionModal.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 8,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/CampaignDraftEditor.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/DeliveryPolicies.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/CrmAutomation.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 7,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/business/KnowledgeJobs.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/workspace/DataSourcesPanel.tsx",
+    "details": 3,
+    "summary": 3,
+    "select": 8,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/workspace/SequenceCenter.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 3,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/workspace/SequencesPanel.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 4,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/workspace/SocialWorkspace.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 4,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/workspace/KnowledgePanel.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/workspace/SessionsPanel.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/workspace/CompanySettings.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/workspace/WhatsAppFlowsPanel.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 2,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/workspace/CommercePanel.tsx",
+    "details": 2,
+    "summary": 2,
+    "select": 3,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/workspace/AutomationsPanel.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 5,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/workspace/AgentsPanel.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 2,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/workspace/IntegrationsPanel.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/workspace/AuditPanel.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 0,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/workspace/SequenceBulkAssign.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 3,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/components/workspace/SystemActionsPanel.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/app/dashboard/page.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/app/platform/AuditTrail.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 0,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/app/platform/page.tsx",
+    "details": 2,
+    "summary": 2,
+    "select": 2,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/app/platform/PriceCatalog.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/app/dashboard/team/page.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 2,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/app/dashboard/crm/CRM.tsx",
+    "details": 4,
+    "summary": 4,
+    "select": 25,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/app/dashboard/billing/page.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/app/dashboard/flows/page.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 2,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/app/dashboard/account/page.tsx",
+    "details": 2,
+    "summary": 2,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/app/dashboard/ai/page.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 2,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/app/dashboard/departments/page.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 0,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/app/dashboard/campaigns/page.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 6,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/app/dashboard/delivery/page.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/app/dashboard/channels/page.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/app/dashboard/reports/page.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/app/dashboard/branding/page.tsx",
+    "details": 1,
+    "summary": 1,
+    "select": 0,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/app/dashboard/inbox/settings/page.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 1,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/app/dashboard/crm/lists/page.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 2,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/app/dashboard/crm/work/page.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 6,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  },
+  {
+    "file": "apps/web/app/dashboard/flows/[id]/page.tsx",
+    "details": 0,
+    "summary": 0,
+    "select": 4,
+    "visualStatus": "Source inventory only; live page/state verification pending"
+  }
+]

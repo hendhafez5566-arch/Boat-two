@@ -140,12 +140,55 @@ export class SalesController {
           channelId: z.string().uuid().optional(),
           departmentId: z.string().uuid().optional(),
           tags: z.array(z.string().max(50)).max(30).optional(),
+          attributes: z
+            .record(
+              z.string().max(100),
+              z.union([z.string().max(200), z.number().finite(), z.boolean()]),
+            )
+            .refine((x) => Object.keys(x).length <= 30)
+            .optional(),
+          previousOwner: z.string().uuid().optional(),
         })
         .strict(),
       body,
     );
+    return this.db.withTenant(r.user.tenantId, async (c) => {
+      const policy = assignmentPolicySchema.parse(
+        (await c.query('SELECT settings FROM tenants')).rows[0]?.settings?.crmAssignment || {},
+      );
+      if (!policy.enabled)
+        return { employee: null, reason: 'policy_disabled', ruleIndex: null, candidates: [] };
+      for (const [id, table] of [
+        [b.channelId, 'channels'],
+        [b.departmentId, 'departments'],
+        [b.previousOwner, 'memberships'],
+      ] as const) {
+        if (
+          id &&
+          !(
+            await c.query(
+              `SELECT 1 FROM ${table} WHERE ${table === 'memberships' ? 'user_id' : 'id'}=$1`,
+              [id],
+            )
+          ).rowCount
+        )
+          throw new NotFoundException('Test context outside workspace');
+      }
+      return this.assignment.evaluate(c, b);
+    });
+  }
+  @Get('assignment-queue') @Roles('owner', 'admin') queue(@Req() r: AuthedRequest) {
     return this.db.withTenant(r.user.tenantId, async (c) => ({
-      employee: await this.assignment.candidate(c, b),
+      total: (
+        await c.query(
+          "SELECT count(*)::int n FROM conversations cv JOIN contacts ct ON ct.id=cv.contact_id WHERE cv.assigned_to IS NULL AND cv.status<>'closed' AND cv.archived_at IS NULL AND ct.archived_at IS NULL AND ct.merged_into_id IS NULL",
+        )
+      ).rows[0].n,
+      items: (
+        await c.query(`SELECT cv.id,cv.channel_id,cv.created_at,ct.name,
+        (SELECT content->>'reason' FROM messages WHERE conversation_id=cv.id AND is_internal AND content->>'event'='assignment_waiting' ORDER BY seq DESC LIMIT 1) AS reason
+        FROM conversations cv JOIN contacts ct ON ct.id=cv.contact_id WHERE cv.assigned_to IS NULL AND cv.status<>'closed' AND cv.archived_at IS NULL AND ct.archived_at IS NULL AND ct.merged_into_id IS NULL ORDER BY cv.created_at LIMIT 100`)
+      ).rows,
     }));
   }
   @Get('scoring-signals') @Roles('owner', 'admin') signals(@Req() r: AuthedRequest) {

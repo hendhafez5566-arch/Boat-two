@@ -1,0 +1,340 @@
+{
+  "scope": "New synthetic tenant only; real Preview API/native hosted PostgreSQL. No direct SQL or independent new database.",
+  "context": {
+    "tenantId": "5288fddc-981b-4ecc-8956-115844d2ffd8",
+    "channelId": "99e32c54-c325-422e-9066-8f23b2b65241"
+  },
+  "concurrency": 6,
+  "checks": [
+    {
+      "name": "six concurrent visitors create six conversations",
+      "pass": true,
+      "actual": 6,
+      "expected": 6
+    },
+    {
+      "name": "away staff leave all six conversations queued",
+      "pass": true,
+      "actual": 6,
+      "expected": 6
+    },
+    {
+      "name": "returning employee automatically resumes one queued conversation",
+      "pass": false,
+      "actual": 6,
+      "expected": 5
+    },
+    {
+      "name": "concurrent selection cannot exceed one eligible employee capacity",
+      "pass": true,
+      "actual": 1,
+      "expected": 1
+    },
+    {
+      "name": "away employee receives no conversation",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
+      "name": "second returning employee automatically fills own capacity",
+      "pass": false,
+      "actual": 5,
+      "expected": 4
+    },
+    {
+      "name": "active bot question stops during human takeover",
+      "pass": true,
+      "actual": 1,
+      "expected": 1
+    },
+    {
+      "name": "human ownership persists after inbound answer",
+      "pass": true,
+      "actual": "human",
+      "expected": "human"
+    }
+  ],
+  "requests": [
+    {
+      "route": "/auth/register",
+      "status": 201,
+      "ms": 6743
+    },
+    {
+      "route": "/team/invitations",
+      "status": 201,
+      "ms": 6124
+    },
+    {
+      "route": "/auth/accept-invitation",
+      "status": 201,
+      "ms": 6207
+    },
+    {
+      "route": "/crm/workspace/members",
+      "status": 200,
+      "ms": 6379
+    },
+    {
+      "route": "/team/me/availability",
+      "status": 200,
+      "ms": 4602
+    },
+    {
+      "route": "/team/invitations",
+      "status": 201,
+      "ms": 5933
+    },
+    {
+      "route": "/auth/accept-invitation",
+      "status": 201,
+      "ms": 6476
+    },
+    {
+      "route": "/crm/workspace/members",
+      "status": 200,
+      "ms": 6395
+    },
+    {
+      "route": "/team/me/availability",
+      "status": 200,
+      "ms": 6077
+    },
+    {
+      "route": "/channels",
+      "status": 201,
+      "ms": 6064
+    },
+    {
+      "route": "/crm/sales/settings",
+      "status": 200,
+      "ms": 5937
+    },
+    {
+      "route": "/crm/sales/settings",
+      "status": 201,
+      "ms": 10359
+    },
+    {
+      "route": "/flows/import",
+      "status": 201,
+      "ms": 6123
+    },
+    {
+      "route": "/flows/38dbac45-d360-4a59-b30d-91c0bffd2653",
+      "status": 200,
+      "ms": 5969
+    },
+    {
+      "route": "/flows/38dbac45-d360-4a59-b30d-91c0bffd2653/publish",
+      "status": 201,
+      "ms": 6038
+    },
+    {
+      "route": "/widget/b5474ce329213be0651b8e15/session",
+      "status": 201,
+      "ms": 6713
+    },
+    {
+      "route": "/widget/b5474ce329213be0651b8e15/session",
+      "status": 201,
+      "ms": 6005
+    },
+    {
+      "route": "/widget/b5474ce329213be0651b8e15/session",
+      "status": 201,
+      "ms": 6114
+    },
+    {
+      "route": "/widget/b5474ce329213be0651b8e15/session",
+      "status": 201,
+      "ms": 6023
+    },
+    {
+      "route": "/widget/b5474ce329213be0651b8e15/session",
+      "status": 201,
+      "ms": 6064
+    },
+    {
+      "route": "/widget/b5474ce329213be0651b8e15/session",
+      "status": 201,
+      "ms": 5920
+    },
+    {
+      "route": "/widget/b5474ce329213be0651b8e15/messages",
+      "status": 201,
+      "ms": 6124
+    },
+    {
+      "route": "/widget/b5474ce329213be0651b8e15/messages",
+      "status": 201,
+      "ms": 6154
+    },
+    {
+      "route": "/widget/b5474ce329213be0651b8e15/messages",
+      "status": 201,
+      "ms": 6186
+    },
+    {
+      "route": "/widget/b5474ce329213be0651b8e15/messages",
+      "status": 201,
+      "ms": 6203
+    },
+    {
+      "route": "/widget/b5474ce329213be0651b8e15/messages",
+      "status": 201,
+      "ms": 6231
+    },
+    {
+      "route": "/widget/b5474ce329213be0651b8e15/messages",
+      "status": 201,
+      "ms": 6247
+    },
+    {
+      "route": "/conversations",
+      "status": 200,
+      "ms": 6045
+    },
+    {
+      "route": "/conversations/ca81820c-6c06-4ff9-a7e5-2c73ac39cc6e/auto-assign",
+      "status": 400,
+      "ms": 6049
+    },
+    {
+      "route": "/conversations/635c43f7-cde6-492d-b64d-cd4bd68e1890/auto-assign",
+      "status": 400,
+      "ms": 6053
+    },
+    {
+      "route": "/conversations/04d03c1e-993a-4f19-b0c6-62fa8005e572/auto-assign",
+      "status": 400,
+      "ms": 6074
+    },
+    {
+      "route": "/conversations/5ac6fb28-4b87-4706-a2e7-2be3869cbff1/auto-assign",
+      "status": 400,
+      "ms": 6094
+    },
+    {
+      "route": "/conversations/c10e8b25-3db0-4996-8e16-a6187eeb4681/auto-assign",
+      "status": 400,
+      "ms": 6109
+    },
+    {
+      "route": "/conversations/7275bd65-953c-4f1b-b23c-8aadd7f7be1f/auto-assign",
+      "status": 400,
+      "ms": 6117
+    },
+    {
+      "route": "/crm/sales/assignment-queue",
+      "status": 200,
+      "ms": 6008
+    },
+    {
+      "route": "/team/me/availability",
+      "status": 200,
+      "ms": 6086
+    },
+    {
+      "route": "/crm/sales/assignment-queue",
+      "status": 200,
+      "ms": 5964
+    },
+    {
+      "route": "/conversations/c10e8b25-3db0-4996-8e16-a6187eeb4681/auto-assign",
+      "status": 201,
+      "ms": 6128
+    },
+    {
+      "route": "/conversations/5ac6fb28-4b87-4706-a2e7-2be3869cbff1/auto-assign",
+      "status": 400,
+      "ms": 6177
+    },
+    {
+      "route": "/conversations/ca81820c-6c06-4ff9-a7e5-2c73ac39cc6e/auto-assign",
+      "status": 400,
+      "ms": 6210
+    },
+    {
+      "route": "/conversations/635c43f7-cde6-492d-b64d-cd4bd68e1890/auto-assign",
+      "status": 400,
+      "ms": 6236
+    },
+    {
+      "route": "/conversations/7275bd65-953c-4f1b-b23c-8aadd7f7be1f/auto-assign",
+      "status": 400,
+      "ms": 6246
+    },
+    {
+      "route": "/conversations/04d03c1e-993a-4f19-b0c6-62fa8005e572/auto-assign",
+      "status": 400,
+      "ms": 6287
+    },
+    {
+      "route": "/conversations",
+      "status": 200,
+      "ms": 6281
+    },
+    {
+      "route": "/team/me/availability",
+      "status": 200,
+      "ms": 6009
+    },
+    {
+      "route": "/crm/sales/assignment-queue",
+      "status": 200,
+      "ms": 6038
+    },
+    {
+      "route": "/widget/b5474ce329213be0651b8e15/messages",
+      "status": 200,
+      "ms": 6139
+    },
+    {
+      "route": "/conversations/c10e8b25-3db0-4996-8e16-a6187eeb4681/messages",
+      "status": 200,
+      "ms": 7692
+    },
+    {
+      "route": "/conversations/635c43f7-cde6-492d-b64d-cd4bd68e1890/messages",
+      "status": 200,
+      "ms": 6219
+    },
+    {
+      "route": "/conversations/04d03c1e-993a-4f19-b0c6-62fa8005e572/messages",
+      "status": 200,
+      "ms": 6004
+    },
+    {
+      "route": "/conversations/ca81820c-6c06-4ff9-a7e5-2c73ac39cc6e/messages",
+      "status": 200,
+      "ms": 6057
+    },
+    {
+      "route": "/conversations/5ac6fb28-4b87-4706-a2e7-2be3869cbff1/messages",
+      "status": 200,
+      "ms": 11445
+    },
+    {
+      "route": "/conversations/5ac6fb28-4b87-4706-a2e7-2be3869cbff1/takeover",
+      "status": 201,
+      "ms": 6120
+    },
+    {
+      "route": "/widget/b5474ce329213be0651b8e15/messages",
+      "status": 201,
+      "ms": 6130
+    },
+    {
+      "route": "/widget/b5474ce329213be0651b8e15/messages",
+      "status": 200,
+      "ms": 6114
+    },
+    {
+      "route": "/conversations/5ac6fb28-4b87-4706-a2e7-2be3869cbff1",
+      "status": 200,
+      "ms": 6115
+    }
+  ]
+}
