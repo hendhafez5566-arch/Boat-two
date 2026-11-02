@@ -1,0 +1,191 @@
+{
+  "scope": "Same isolated synthetic tenant; Preview real native PostgreSQL via HTTP, no direct SQL connection",
+  "concurrency": 6,
+  "checks": [
+    {
+      "name": "isolated queue restored with both staff away",
+      "pass": true,
+      "actual": 6,
+      "expected": 6
+    },
+    {
+      "name": "availability endpoint reports one resumed assignment",
+      "pass": true,
+      "actual": 1,
+      "expected": 1
+    },
+    {
+      "name": "first employee resumes queue automatically",
+      "pass": true,
+      "actual": 5,
+      "expected": 5
+    },
+    {
+      "name": "second employee resumes queue automatically",
+      "pass": true,
+      "actual": 1,
+      "expected": 1
+    },
+    {
+      "name": "two employees leave exactly four queued",
+      "pass": true,
+      "actual": 4,
+      "expected": 4
+    },
+    {
+      "name": "concurrent availability updates do not over-assign",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
+      "name": "employee 1 stays at capacity one",
+      "pass": true,
+      "actual": 1,
+      "expected": 1
+    },
+    {
+      "name": "employee 2 stays at capacity one",
+      "pass": true,
+      "actual": 1,
+      "expected": 1
+    }
+  ],
+  "requests": [
+    {
+      "route": "/workspace",
+      "status": 200,
+      "ms": 5052
+    },
+    {
+      "route": "/team/me/availability",
+      "status": 200,
+      "ms": 6095
+    },
+    {
+      "route": "/team/me/availability",
+      "status": 200,
+      "ms": 6472
+    },
+    {
+      "route": "/conversations/c10e8b25-3db0-4996-8e16-a6187eeb4681",
+      "status": 200,
+      "ms": 6002
+    },
+    {
+      "route": "/conversations/c10e8b25-3db0-4996-8e16-a6187eeb4681/auto-assign",
+      "status": 400,
+      "ms": 6519
+    },
+    {
+      "route": "/conversations/635c43f7-cde6-492d-b64d-cd4bd68e1890",
+      "status": 200,
+      "ms": 6063
+    },
+    {
+      "route": "/conversations/635c43f7-cde6-492d-b64d-cd4bd68e1890/auto-assign",
+      "status": 400,
+      "ms": 6086
+    },
+    {
+      "route": "/conversations/04d03c1e-993a-4f19-b0c6-62fa8005e572",
+      "status": 200,
+      "ms": 6477
+    },
+    {
+      "route": "/conversations/04d03c1e-993a-4f19-b0c6-62fa8005e572/auto-assign",
+      "status": 400,
+      "ms": 6099
+    },
+    {
+      "route": "/conversations/ca81820c-6c06-4ff9-a7e5-2c73ac39cc6e",
+      "status": 200,
+      "ms": 6116
+    },
+    {
+      "route": "/conversations/ca81820c-6c06-4ff9-a7e5-2c73ac39cc6e/auto-assign",
+      "status": 400,
+      "ms": 6313
+    },
+    {
+      "route": "/conversations/5ac6fb28-4b87-4706-a2e7-2be3869cbff1",
+      "status": 200,
+      "ms": 6088
+    },
+    {
+      "route": "/conversations/5ac6fb28-4b87-4706-a2e7-2be3869cbff1/auto-assign",
+      "status": 400,
+      "ms": 5978
+    },
+    {
+      "route": "/conversations/7275bd65-953c-4f1b-b23c-8aadd7f7be1f",
+      "status": 200,
+      "ms": 6402
+    },
+    {
+      "route": "/conversations/7275bd65-953c-4f1b-b23c-8aadd7f7be1f/auto-assign",
+      "status": 400,
+      "ms": 6005
+    },
+    {
+      "route": "/crm/sales/assignment-queue",
+      "status": 200,
+      "ms": 6399
+    },
+    {
+      "route": "/team/me/availability",
+      "status": 200,
+      "ms": 3748
+    },
+    {
+      "route": "/crm/sales/assignment-queue",
+      "status": 200,
+      "ms": 3375
+    },
+    {
+      "route": "/team/me/availability",
+      "status": 200,
+      "ms": 6074
+    },
+    {
+      "route": "/crm/sales/assignment-queue",
+      "status": 200,
+      "ms": 6610
+    },
+    {
+      "route": "/team/me/availability",
+      "status": 200,
+      "ms": 6060
+    },
+    {
+      "route": "/team/me/availability",
+      "status": 200,
+      "ms": 6097
+    },
+    {
+      "route": "/team/me/availability",
+      "status": 200,
+      "ms": 6160
+    },
+    {
+      "route": "/team/me/availability",
+      "status": 200,
+      "ms": 6207
+    },
+    {
+      "route": "/team/me/availability",
+      "status": 200,
+      "ms": 6269
+    },
+    {
+      "route": "/team/me/availability",
+      "status": 200,
+      "ms": 6305
+    },
+    {
+      "route": "/conversations",
+      "status": 200,
+      "ms": 6139
+    }
+  ]
+}
