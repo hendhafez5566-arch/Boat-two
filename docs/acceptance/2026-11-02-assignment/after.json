@@ -1,0 +1,113 @@
+{
+  "engine": "PostgreSQL/PGlite, all migrations, app_user RLS; not native server",
+  "results": [
+    {
+      "name": "returning owner outside matching rule is rejected",
+      "pass": true,
+      "actual": "5c0e72d1-4449-44c6-afd8-3738da6477ec",
+      "expected": "5c0e72d1-4449-44c6-afd8-3738da6477ec"
+    },
+    {
+      "name": "returning owner at capacity must wait",
+      "pass": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "no-candidate reason persists on the conversation",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "foreign tenant cannot select our staff",
+      "pass": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "service field chooses visa specialist",
+      "pass": true,
+      "actual": "5c0e72d1-4449-44c6-afd8-3738da6477ec",
+      "expected": "5c0e72d1-4449-44c6-afd8-3738da6477ec"
+    },
+    {
+      "name": "dry-run leaves rotation cursor unchanged",
+      "pass": true,
+      "actual": "5c0e72d1-4449-44c6-afd8-3738da6477ec",
+      "expected": "5c0e72d1-4449-44c6-afd8-3738da6477ec"
+    },
+    {
+      "name": "unavailable specialist excluded",
+      "pass": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "waiting alerts reach manager once",
+      "pass": true,
+      "actual": 1,
+      "expected": 1
+    },
+    {
+      "name": "retry assigns eligible specialist",
+      "pass": true,
+      "actual": "5c0e72d1-4449-44c6-afd8-3738da6477ec",
+      "expected": "5c0e72d1-4449-44c6-afd8-3738da6477ec"
+    },
+    {
+      "name": "assignment resolves waiting notification",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "eligible returning owner retained",
+      "pass": true,
+      "actual": "5c0e72d1-4449-44c6-afd8-3738da6477ec",
+      "expected": "5c0e72d1-4449-44c6-afd8-3738da6477ec"
+    },
+    {
+      "name": "changed service reroutes bot-owned conversation",
+      "pass": true,
+      "actual": "a01f331a-9ccb-4467-8a65-22596874686d",
+      "expected": "a01f331a-9ccb-4467-8a65-22596874686d"
+    },
+    {
+      "name": "bot-answer events never steal human-owned conversation",
+      "pass": true,
+      "actual": "a01f331a-9ccb-4467-8a65-22596874686d",
+      "expected": "a01f331a-9ccb-4467-8a65-22596874686d"
+    },
+    {
+      "name": "channel department and tag all match",
+      "pass": true,
+      "actual": "5c0e72d1-4449-44c6-afd8-3738da6477ec",
+      "expected": "5c0e72d1-4449-44c6-afd8-3738da6477ec"
+    },
+    {
+      "name": "missing tag does not match",
+      "pass": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "six concurrent arrivals balance round robin",
+      "pass": true,
+      "actual": 3,
+      "expected": 3
+    },
+    {
+      "name": "one durable assignment per concurrent conversation",
+      "pass": true,
+      "actual": 6,
+      "expected": 6
+    },
+    {
+      "name": "least loaded uses open conversations",
+      "pass": true,
+      "actual": "5c0e72d1-4449-44c6-afd8-3738da6477ec",
+      "expected": "5c0e72d1-4449-44c6-afd8-3738da6477ec"
+    }
+  ]
+}

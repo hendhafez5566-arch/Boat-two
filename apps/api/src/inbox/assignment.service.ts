@@ -4,7 +4,7 @@ import { DatabaseService } from '../database/database.service';
 import { pickLeastLoaded } from './assignment';
 import { OnEvent } from '@nestjs/event-emitter';
 import { DomainEvent } from '../events/events.service';
-import { assignmentPolicySchema } from '../business/sales-settings';
+import { assignmentPolicySchema, notificationSettingsSchema } from '../business/sales-settings';
 import { PoolClient } from 'pg';
 
 @Injectable()
@@ -76,45 +76,91 @@ export class AssignmentService {
     });
   }
 
-  async candidate(
+  async evaluate(
     c: PoolClient,
-    context: { channelId?: string; departmentId?: string; tags?: string[] } = {},
+    context: {
+      channelId?: string;
+      departmentId?: string;
+      tags?: string[];
+      attributes?: Record<string, unknown>;
+      previousOwner?: string | null;
+      conversationId?: string;
+    } = {},
   ) {
     const settings = (await c.query('SELECT settings FROM tenants')).rows[0]?.settings || {};
     const policy = assignmentPolicySchema.parse(settings.crmAssignment || {});
     const legacy = (await c.query('SELECT max_open_per_agent FROM inbox_settings')).rows[0];
+    const max = policy.maxOpenPerAgent ?? legacy?.max_open_per_agent ?? 15;
     let ids = policy.memberIds;
+    let ruleIndex: number | null = null;
     if (policy.enabled && policy.method === 'rules') {
-      const rule = policy.rules.find(
+      ruleIndex = policy.rules.findIndex(
         (x) =>
           (!x.channelId || x.channelId === context.channelId) &&
           (!x.departmentId || x.departmentId === context.departmentId) &&
-          (!x.tag || context.tags?.includes(x.tag)),
+          (!x.tag || context.tags?.includes(x.tag)) &&
+          (!x.fieldKey || String(context.attributes?.[x.fieldKey] ?? '').trim() === x.fieldValue),
       );
-      if (!rule) return null;
-      ids = rule.memberIds;
+      if (ruleIndex < 0)
+        return { employee: null, reason: 'no_matching_rule', ruleIndex: null, candidates: [] };
+      ids = policy.rules[ruleIndex].memberIds;
     }
-    if (policy.enabled && !ids.length) return null;
-    const members = (
+    if (policy.enabled && !ids.length)
+      return { employee: null, reason: 'no_participants', ruleIndex, candidates: [] };
+    const rows = (
       await c.query(
-        `SELECT m.user_id,
-      (SELECT count(*)::int FROM conversations cv WHERE cv.assigned_to=m.user_id AND cv.status<>'closed') AS open,
-      (SELECT count(*)::int FROM contacts ct WHERE ct.owner_id=m.user_id AND ct.archived_at IS NULL AND ct.merged_into_id IS NULL) AS leads
-      FROM memberships m WHERE m.available AND (cardinality($1::uuid[])=0 OR m.user_id=ANY($1::uuid[]))
-      AND ($2::uuid IS NULL OR EXISTS(SELECT 1 FROM department_members dm WHERE dm.department_id=$2 AND dm.user_id=m.user_id)) ORDER BY m.user_id`,
-        [ids, context.departmentId || null],
+        `SELECT m.user_id,m.available,
+       (SELECT count(*)::int FROM conversations cv WHERE cv.assigned_to=m.user_id AND cv.status<>'closed' AND cv.archived_at IS NULL AND ($3::uuid IS NULL OR cv.id<>$3)) AS open,
+       (SELECT count(*)::int FROM contacts ct WHERE ct.owner_id=m.user_id AND ct.archived_at IS NULL AND ct.merged_into_id IS NULL) AS leads,
+       ($2::uuid IS NULL OR EXISTS(SELECT 1 FROM department_members dm JOIN departments d ON d.id=dm.department_id WHERE dm.department_id=$2 AND dm.user_id=m.user_id AND d.archived_at IS NULL)) AS department_ok
+       FROM memberships m WHERE cardinality($1::uuid[])=0 OR m.user_id=ANY($1::uuid[]) ORDER BY m.user_id`,
+        [ids, context.departmentId || null, context.conversationId || null],
       )
-    ).rows.filter((x) => x.open < (legacy?.max_open_per_agent || 15));
-    if (!members.length) return null;
+    ).rows;
+    const candidates = rows.map((x) => ({
+      userId: x.user_id as string,
+      open: Number(x.open),
+      leads: Number(x.leads),
+      eligible: !!x.available && !!x.department_ok && x.open < max,
+      reason: !x.available
+        ? 'unavailable'
+        : !x.department_ok
+          ? 'department_mismatch'
+          : x.open >= max
+            ? 'at_capacity'
+            : 'eligible',
+    }));
+    const members = candidates.filter((x) => x.eligible);
+    if (!members.length)
+      return { employee: null, reason: 'no_eligible_employee', ruleIndex, candidates };
+    if (context.previousOwner && members.some((x) => x.userId === context.previousOwner))
+      return {
+        employee: context.previousOwner,
+        reason: 'retained_eligible_owner',
+        ruleIndex,
+        candidates,
+      };
     if (policy.enabled && policy.method === 'round_robin') {
-      const last = settings.crmAssignmentLast;
-      return members[(members.findIndex((x) => x.user_id === last) + 1) % members.length]
-        .user_id as string;
+      const employee =
+        members[
+          (members.findIndex((x) => x.userId === settings.crmAssignmentLast) + 1) % members.length
+        ].userId;
+      return { employee, reason: 'round_robin', ruleIndex, candidates };
     }
-    return pickLeastLoaded(
-      members.map((x) => ({ userId: x.user_id, open: x.open + (policy.enabled ? x.leads : 0) })),
+    const employee = pickLeastLoaded(
+      members.map((x) => ({ userId: x.userId, open: x.open })),
       Number.MAX_SAFE_INTEGER,
     );
+    return {
+      employee,
+      reason:
+        policy.method === 'rules' && policy.enabled ? 'matching_rule_least_loaded' : 'least_loaded',
+      ruleIndex,
+      candidates,
+    };
+  }
+  async candidate(c: PoolClient, context: Parameters<AssignmentService['evaluate']>[1] = {}) {
+    return (await this.evaluate(c, context)).employee;
   }
   async pickAgent(tenantId: string): Promise<string | null> {
     return this.db.withTenant(tenantId, (c) => this.candidate(c));
@@ -134,7 +180,7 @@ export class AssignmentService {
       if (!assignmentPolicySchema.parse(settings.crmAssignment || {}).enabled) return;
       const contact = (
         await c.query(
-          'SELECT id,tags,owner_id FROM contacts WHERE id=$1 AND archived_at IS NULL AND merged_into_id IS NULL FOR UPDATE',
+          'SELECT id,tags,attributes,owner_id FROM contacts WHERE id=$1 AND archived_at IS NULL AND merged_into_id IS NULL FOR UPDATE',
           [event.payload.contactId],
         )
       ).rows[0];
@@ -147,6 +193,7 @@ export class AssignmentService {
       ).rows[0];
       const agent = await this.candidate(c, {
         tags: contact.tags,
+        attributes: contact.attributes,
         channelId: cv?.channel_id,
         departmentId: cv?.department_id,
       });
@@ -157,6 +204,25 @@ export class AssignmentService {
       );
       await this.remember(c, agent);
     });
+  }
+  @OnEvent('domain.event', { suppressErrors: false })
+  async routeAnswer(event: DomainEvent) {
+    if (
+      !['crm.bot.answer', 'crm.tag.added'].includes(event.type) ||
+      typeof event.payload.contactId !== 'string'
+    )
+      return;
+    const ids = await this.db.withTenant(
+      event.tenantId,
+      async (c) =>
+        (
+          await c.query(
+            "SELECT id FROM conversations WHERE contact_id=$1 AND status<>'closed' AND archived_at IS NULL AND handled_by='bot' ORDER BY created_at,id",
+            [event.payload.contactId],
+          )
+        ).rows,
+    );
+    for (const cv of ids) await this.autoAssignIfEnabled(event.tenantId, cv.id);
   }
   /** Selection and write share a tenant lock, also across worker replicas. */
   async autoAssignIfEnabled(
@@ -169,41 +235,98 @@ export class AssignmentService {
       const legacy = await this.getSettings(tenantId);
       const settings = (await c.query('SELECT settings FROM tenants')).rows[0]?.settings || {};
       const policy = assignmentPolicySchema.parse(settings.crmAssignment || {});
+      if (settings.crmAssignment && !policy.enabled) return null;
       if (!force && (settings.crmAssignment ? !policy.enabled : !legacy.auto_assign)) return null;
       const cv = (
         await c.query('SELECT * FROM conversations WHERE id=$1 FOR UPDATE', [conversationId])
       ).rows[0];
-      if (!cv || cv.status === 'closed' || (cv.assigned_to && !force)) return null;
+      if (
+        !cv ||
+        cv.status === 'closed' ||
+        cv.archived_at ||
+        (cv.assigned_to && !force && cv.handled_by === 'human')
+      )
+        return null;
       const contact = (
-        await c.query('SELECT owner_id,tags FROM contacts WHERE id=$1', [cv.contact_id])
+        await c.query(
+          'SELECT owner_id,tags,attributes FROM contacts WHERE id=$1 AND archived_at IS NULL AND merged_into_id IS NULL',
+          [cv.contact_id],
+        )
       ).rows[0];
-      // Keep the contact and conversation with the same eligible employee.
-      const eligibleOwner =
-        contact?.owner_id &&
-        (
+      if (!contact) return null;
+      const decision = await this.evaluate(c, {
+        channelId: cv.channel_id,
+        departmentId: cv.department_id,
+        tags: contact.tags,
+        attributes: contact.attributes,
+        previousOwner: force ? null : cv.assigned_to || contact.owner_id,
+        conversationId,
+      });
+      const agent = decision.employee;
+      if (!agent) {
+        // A failed manual retry must not discard an existing human assignment.
+        if (force && cv.assigned_to && cv.handled_by === 'human') return null;
+        await c.query('UPDATE conversations SET assigned_to=NULL WHERE id=$1', [conversationId]);
+        if (policy.enabled)
           await c.query(
-            `SELECT 1 FROM memberships m WHERE m.user_id=$1 AND m.available AND ($2::uuid IS NULL OR EXISTS(SELECT 1 FROM department_members dm WHERE dm.department_id=$2 AND dm.user_id=m.user_id))`,
-            [contact.owner_id, cv.department_id],
+            'UPDATE contacts SET owner_id=NULL,updated_at=now() WHERE id=$1 AND owner_id IS NOT NULL',
+            [cv.contact_id],
+          );
+        const last = (
+          await c.query(
+            "SELECT content->>'reason' AS reason FROM messages WHERE conversation_id=$1 AND is_internal AND content->>'event'='assignment_waiting' ORDER BY seq DESC LIMIT 1",
+            [conversationId],
           )
-        ).rowCount;
-      const agent =
-        (!force && eligibleOwner ? contact.owner_id : null) ||
-        (await this.candidate(c, {
-          channelId: cv.channel_id,
-          departmentId: cv.department_id,
-          tags: contact?.tags,
-        }));
-      if (!agent) return null;
+        ).rows[0];
+        if (last?.reason !== decision.reason)
+          await c.query(
+            `INSERT INTO messages(tenant_id,conversation_id,channel_id,direction,sender_type,type,content,status,is_internal) VALUES($1,$2,$3,'out','system','event',$4::jsonb,'sent',true)`,
+            [
+              tenantId,
+              conversationId,
+              cv.channel_id,
+              JSON.stringify({ event: 'assignment_waiting', reason: decision.reason }),
+            ],
+          );
+        const notices = notificationSettingsSchema.parse(settings.crmNotifications || {});
+        if (notices.enabled && notices.kinds.includes('unassigned'))
+          await c.query(
+            `INSERT INTO crm_notifications(tenant_id,user_id,kind,resource_type,resource_id,contact_id,title,priority,dedupe_key)
+           SELECT $1,user_id,'unassigned','conversation',$2,$3,'محادثة تنتظر موظفًا مؤهلًا / Waiting for eligible employee','high',$4 FROM memberships WHERE role IN ('owner','admin') AND (cardinality($5::uuid[])=0 OR user_id=ANY($5::uuid[])) ON CONFLICT DO NOTHING`,
+            [
+              tenantId,
+              conversationId,
+              cv.contact_id,
+              'assignment_waiting:' + conversationId + ':' + decision.reason,
+              notices.targetIds,
+            ],
+          );
+        return null;
+      }
+      if (agent === cv.assigned_to && !force) return agent;
       await c.query('UPDATE conversations SET assigned_to=$2 WHERE id=$1', [conversationId, agent]);
       if (policy.enabled)
         await c.query(
-          'UPDATE contacts SET owner_id=$2,updated_at=now() WHERE id=$1 AND owner_id IS NULL',
+          'UPDATE contacts SET owner_id=$2,updated_at=now() WHERE id=$1 AND owner_id IS DISTINCT FROM $2',
           [cv.contact_id, agent],
         );
       await this.remember(c, agent);
       await c.query(
         `INSERT INTO messages(tenant_id,conversation_id,channel_id,direction,sender_type,type,content,status,is_internal) SELECT tenant_id,id,channel_id,'out','system','event',$2::jsonb,'sent',true FROM conversations WHERE id=$1`,
-        [conversationId, JSON.stringify({ event: 'assigned', userId: agent, auto: true })],
+        [
+          conversationId,
+          JSON.stringify({
+            event: 'assigned',
+            userId: agent,
+            auto: true,
+            reason: decision.reason,
+            ruleIndex: decision.ruleIndex,
+          }),
+        ],
+      );
+      await c.query(
+        "UPDATE crm_notifications SET handled_at=COALESCE(handled_at,now()) WHERE resource_id=$1 AND dedupe_key LIKE 'assignment_waiting:%'",
+        [conversationId],
       );
       this.events.emit('conversation.updated', { tenantId, conversationId, reason: 'assigned' });
       return agent;

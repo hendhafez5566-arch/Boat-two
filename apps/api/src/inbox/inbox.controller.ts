@@ -528,6 +528,7 @@ export class InboxController {
   }
 
   @Post('conversations/:id/auto-assign')
+  @Roles('owner', 'admin')
   async autoAssign(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     const agent = await this.assignment.autoAssignIfEnabled(req.user.tenantId, id, true);
     if (!agent)

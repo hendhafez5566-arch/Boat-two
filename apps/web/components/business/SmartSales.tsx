@@ -17,7 +17,15 @@ type Policy = {
   enabled: boolean;
   method: 'round_robin' | 'least_loaded' | 'rules';
   memberIds: string[];
-  rules: { channelId?: string; departmentId?: string; tag?: string; memberIds: string[] }[];
+  maxOpenPerAgent?: number;
+  rules: {
+    channelId?: string;
+    departmentId?: string;
+    tag?: string;
+    fieldKey?: string;
+    fieldValue?: string;
+    memberIds: string[];
+  }[];
 };
 type Notifications = {
   enabled: boolean;
@@ -54,6 +62,52 @@ export function SmartSales() {
     members.data.role && members.data.role !== 'agent' ? '/crm/sales/assignment-history' : null,
     [],
   );
+  const queue = useData<{
+    total: number;
+    items: {
+      id: string;
+      channel_id: string;
+      name: string;
+      reason: string | null;
+      created_at: string;
+    }[];
+  }>(members.data.role && members.data.role !== 'agent' ? '/crm/sales/assignment-queue' : null, {
+    total: 0,
+    items: [],
+  });
+  const [scenario, setScenario] = useState({
+    channelId: '',
+    departmentId: '',
+    tags: '',
+    fieldKey: '',
+    fieldValue: '',
+    previousOwner: '',
+  });
+  const reasonLabel = (reason: string) =>
+    (
+      ({
+        policy_disabled: t('التوزيع التلقائي متوقف', 'Automatic assignment is disabled'),
+        no_matching_rule: t('لا توجد قاعدة تخصص مطابقة', 'No matching specialty rule'),
+        no_participants: t('لا يوجد موظفون مشاركون', 'No participants selected'),
+        no_eligible_employee: t(
+          'الموظفون غير متاحين أو خارج القسم أو عند السعة القصوى',
+          'Staff are unavailable, outside the department or at capacity',
+        ),
+        retained_eligible_owner: t(
+          'احتفاظ بالموظف السابق بعد فحص التخصص والتوفر والسعة',
+          'Previous owner retained after specialty, availability and capacity checks',
+        ),
+        round_robin: t(
+          'اختيار بالتناوب بين الموظفين المؤهلين',
+          'Round robin among eligible employees',
+        ),
+        least_loaded: t('أقل عدد من المحادثات المفتوحة', 'Fewest open conversations'),
+        matching_rule_least_loaded: t(
+          'قاعدة تخصص مطابقة ثم أقل محادثات مفتوحة',
+          'Matching specialty rule, then fewest open conversations',
+        ),
+      }) as Record<string, string>
+    )[reason] || reason;
   const [draft, setDraft] = useState<Settings | null>(null),
     [expected, setExpected] = useState<Settings | null>(null),
     [error, setError] = useState(''),
@@ -66,6 +120,9 @@ export function SmartSales() {
       setExpected(settings.data);
     }
   }, [settings.data]);
+  useEffect(() => {
+    setTest('');
+  }, [scenario, draft]);
   async function save(e: FormEvent) {
     e.preventDefault();
     if (!draft) return;
@@ -88,22 +145,40 @@ export function SmartSales() {
   }
   async function dryRun() {
     setError('');
+    setTest('');
+    setBusy(true);
     try {
-      const result = await api<{ employee: string | null }>('/crm/sales/assignment-test', {
+      const result = await api<{
+        employee: string | null;
+        reason: string;
+        ruleIndex: number | null;
+      }>('/crm/sales/assignment-test', {
         method: 'POST',
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          ...(scenario.channelId ? { channelId: scenario.channelId } : {}),
+          ...(scenario.departmentId ? { departmentId: scenario.departmentId } : {}),
+          tags: scenario.tags
+            .split(',')
+            .map((x) => x.trim())
+            .filter(Boolean),
+          ...(scenario.fieldKey
+            ? { attributes: { [scenario.fieldKey]: scenario.fieldValue } }
+            : {}),
+          ...(scenario.previousOwner ? { previousOwner: scenario.previousOwner } : {}),
+        }),
       });
       setTest(
-        result.employee
-          ? members.data.members.find((m) => m.user_id === result.employee)?.full_name ||
-              result.employee
-          : t(
-              'لا يوجد موظف مؤهل أو لا توجد قاعدة مطابقة.',
-              'No eligible employee or matching rule.',
-            ),
+        (result.employee
+          ? (members.data.members.find((m) => m.user_id === result.employee)?.full_name ||
+              result.employee) + ' — '
+          : '') +
+          reasonLabel(result.reason) +
+          (result.ruleIndex !== null ? t(' · القاعدة ', ' · Rule ') + (result.ruleIndex + 1) : ''),
       );
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setBusy(false);
     }
   }
   if (members.data.role === 'agent')
@@ -147,6 +222,17 @@ export function SmartSales() {
               'Manage lead assignment, notifications and automation in one workspace.',
             )}
           </p>
+          <div className={css.row}>
+            <Link className="btn" href="/dashboard/team">
+              {t('الفريق والتوفر', 'Team and availability')}
+            </Link>
+            <Link className="btn" href="/dashboard/departments">
+              {t('الأقسام والتخصصات', 'Departments and specialties')}
+            </Link>
+            <Link className="btn" href="/dashboard/crm/notifications">
+              {t('تنبيهات المدير', 'Manager notifications')}
+            </Link>
+          </div>
         </div>
       </header>
       {(settings.error || members.error || error) && (
@@ -167,6 +253,28 @@ export function SmartSales() {
             <NavIcon name="team" />
             {t('توزيع العملاء', 'Lead assignment')}
           </h2>
+          <label>
+            {t(
+              'الحد الأقصى للمحادثات المفتوحة لكل موظف',
+              'Maximum open conversations per employee',
+            )}
+            <input
+              type="number"
+              min={1}
+              max={500}
+              value={draft.assignment.maxOpenPerAgent ?? ''}
+              placeholder={t('فارغ = حد صندوق الوارد', 'Blank = Inbox capacity limit')}
+              onChange={(e) =>
+                setDraft({
+                  ...draft,
+                  assignment: {
+                    ...draft.assignment,
+                    maxOpenPerAgent: e.target.value ? Number(e.target.value) : undefined,
+                  },
+                })
+              }
+            />
+          </label>
           <div className={`${styles.form} ${css.fields}`}>
             <label>
               <span>
@@ -337,6 +445,52 @@ export function SmartSales() {
                       </label>
                     ))}
                   </fieldset>
+                  <label>
+                    {t('حقل نوع الخدمة من البوت (اختياري)', 'Bot service field (optional)')}
+                    <input
+                      maxLength={100}
+                      placeholder="travel_service"
+                      value={rule.fieldKey || ''}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          assignment: {
+                            ...draft.assignment,
+                            rules: draft.assignment.rules.map((r, j) =>
+                              j === i
+                                ? {
+                                    ...r,
+                                    fieldKey: e.target.value || undefined,
+                                    fieldValue: e.target.value ? r.fieldValue || '' : undefined,
+                                  }
+                                : r,
+                            ),
+                          },
+                        })
+                      }
+                    />
+                  </label>
+                  {rule.fieldKey && (
+                    <label>
+                      {t('قيمة الخدمة المطلوبة', 'Required service value')}
+                      <input
+                        required
+                        maxLength={200}
+                        value={rule.fieldValue || ''}
+                        onChange={(e) =>
+                          setDraft({
+                            ...draft,
+                            assignment: {
+                              ...draft.assignment,
+                              rules: draft.assignment.rules.map((r, j) =>
+                                j === i ? { ...r, fieldValue: e.target.value } : r,
+                              ),
+                            },
+                          })
+                        }
+                      />
+                    </label>
+                  )}
                   <button
                     type="button"
                     className="btn"
@@ -372,12 +526,84 @@ export function SmartSales() {
               </button>
             </div>
           )}
-          <div className={css.row}>
-            <button type="button" className="btn" onClick={() => void dryRun()}>
+          <fieldset className={styles.card} disabled={busy}>
+            <legend>{t('سيناريو اختبار دون إسناد', 'Test scenario without assignment')}</legend>
+            <p className="muted">
+              {t(
+                'يختبر السياسة المحفوظة فقط. احفظ التعديلات أولًا. لا يغيّر الموظف أو دور التناوب أو بيانات العميل.',
+                'Tests the saved policy only. Save edits first. Does not change assignments, the rotation cursor or customer records.',
+              )}
+            </p>
+            <div className={`${styles.form} ${css.fields}`}>
+              <label>
+                {t('قناة الاختبار', 'Test channel')}
+                <select
+                  value={scenario.channelId}
+                  onChange={(e) => setScenario({ ...scenario, channelId: e.target.value })}
+                >
+                  <option value="">{t('دون قناة', 'No channel')}</option>
+                  {channels.data.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                {t('قسم الاختبار', 'Test department')}
+                <select
+                  value={scenario.departmentId}
+                  onChange={(e) => setScenario({ ...scenario, departmentId: e.target.value })}
+                >
+                  <option value="">{t('دون قسم', 'No department')}</option>
+                  {departments.data.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                {t('وسوم الاختبار مفصولة بفاصلة', 'Test tags, comma separated')}
+                <input
+                  value={scenario.tags}
+                  onChange={(e) => setScenario({ ...scenario, tags: e.target.value })}
+                />
+              </label>
+              <label>
+                {t('حقل الخدمة للاختبار', 'Test service field')}
+                <input
+                  value={scenario.fieldKey}
+                  onChange={(e) => setScenario({ ...scenario, fieldKey: e.target.value })}
+                />
+              </label>
+              <label>
+                {t('قيمة الخدمة للاختبار', 'Test service value')}
+                <input
+                  value={scenario.fieldValue}
+                  onChange={(e) => setScenario({ ...scenario, fieldValue: e.target.value })}
+                />
+              </label>
+              <label>
+                {t('الموظف السابق للاختبار', 'Test previous owner')}
+                <select
+                  value={scenario.previousOwner}
+                  onChange={(e) => setScenario({ ...scenario, previousOwner: e.target.value })}
+                >
+                  <option value="">{t('عميل جديد', 'New customer')}</option>
+                  {members.data.members.map((m) => (
+                    <option key={m.user_id} value={m.user_id}>
+                      {m.full_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <button type="button" className="btn" disabled={busy} onClick={() => void dryRun()}>
               {t('اختبار السياسة المحفوظة دون إسناد', 'Test saved policy without assignment')}
             </button>
-            {test && <output>{test}</output>}
-          </div>
+            {test && <output role="status">{test}</output>}
+          </fieldset>
           <hr />
           <details>
             <summary>
@@ -529,6 +755,64 @@ export function SmartSales() {
       )}
       <CrmAutomation />
       <SalesScoringSignals />
+      <section className={styles.card}>
+        <h2>
+          {t('محادثات تنتظر التوزيع', 'Conversations waiting for assignment')} · {queue.data.total}
+        </h2>
+        <button className="btn" onClick={() => void queue.reload()}>
+          {t('تحديث الانتظار', 'Refresh queue')}
+        </button>
+        {queue.error && <p role="alert">{queue.error}</p>}
+        {!queue.loading && !queue.error && queue.data.total === 0 && (
+          <p>{t('لا توجد محادثات غير معيّنة.', 'No unassigned conversations.')}</p>
+        )}
+        {queue.data.items.map((cv) => (
+          <article key={cv.id}>
+            <strong>{cv.name || t('زائر', 'Visitor')}</strong>
+            <p>
+              {cv.reason
+                ? reasonLabel(cv.reason)
+                : t('لم يُنفذ توزيع تلقائي بعد', 'Automatic assignment has not run yet')}
+            </p>
+            <time dateTime={cv.created_at}>{new Date(cv.created_at).toLocaleString()}</time>
+            <div className={css.row}>
+              <Link
+                className="btn"
+                href={`/dashboard/inbox?conversation=${cv.id}&channelId=${cv.channel_id}`}
+              >
+                {t('فتح المحادثة وتعيين موظف', 'Open conversation and assign employee')}
+              </Link>
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  setError('');
+                  try {
+                    await api(`/conversations/${cv.id}/auto-assign`, { method: 'POST' });
+                    await queue.reload();
+                    setNotice(t('تم تعيين موظف مؤهل.', 'Eligible employee assigned.'));
+                  } catch (e) {
+                    setError((e as Error).message);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                {t('إعادة محاولة التوزيع', 'Retry assignment')}
+              </button>
+            </div>
+          </article>
+        ))}
+        {queue.data.total > 100 && (
+          <p>
+            {t(
+              'تُعرض أقدم 100 محادثة. افتح الوارد لمراجعة بقية القائمة.',
+              'Showing the oldest 100 conversations. Open Inbox for the remaining queue.',
+            )}
+          </p>
+        )}
+      </section>
       <TeamProductivity />
       <section className={styles.card}>
         <h2>{t('آخر تغييرات المسؤول', 'Recent assignment changes')}</h2>
