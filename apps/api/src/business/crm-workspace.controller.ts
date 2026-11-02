@@ -1,9 +1,10 @@
+import { notificationSettingsSchema } from './sales-settings';
 import {
   analyticsQuery,
   crmAnalytics,
   scoringSchema,
   defaultScoring,
-  evaluateScore,
+  crmContactScore,
 } from './crm-intelligence';
 import { ConflictException, Param, ParseUUIDPipe, Body as RequestBody } from '@nestjs/common';
 import { conditionsSchema, conditionWhere, pagination } from './schemas';
@@ -108,19 +109,21 @@ export class CrmWorkspaceController {
     );
   }
 
+  @Get('pipeline-policy') pipelinePolicy(@Req() r: AuthedRequest) {
+    return this.crm.db.withTenant(r.user.tenantId, async (c) => {
+      const p = notificationSettingsSchema.parse(
+        (await c.query('SELECT settings FROM tenants')).rows[0]?.settings?.crmNotifications || {},
+      );
+      return { staleDays: p.staleDays, closingDays: p.closingDays };
+    });
+  }
   @Get('analytics') analytics(@Req() r: AuthedRequest, @Query() query: unknown) {
     return crmAnalytics(this.crm.db, r.user, parse(analyticsQuery, query));
   }
   @Get('score/:id') async score(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     const contact = await this.crm.get(r.user.tenantId, id);
     return this.crm.db.withTenant(r.user.tenantId, async (c) => {
-      const rules = scoringSchema
-        .catch(defaultScoring)
-        .parse((await c.query('SELECT settings FROM tenants')).rows[0]?.settings?.crmScoring);
-      const open = !!(
-        await c.query("SELECT 1 FROM crm_deals WHERE contact_id=$1 AND status='open' LIMIT 1", [id])
-      ).rowCount;
-      return evaluateScore(contact, open, rules);
+      return crmContactScore(c, contact);
     });
   }
   @Get('scoring') scoring(@Req() r: AuthedRequest) {

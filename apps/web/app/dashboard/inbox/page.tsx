@@ -72,6 +72,8 @@ export default function Inbox() {
   useEffect(() => {
     const routeParams = new URLSearchParams(window.location.search);
     setNeedsReply(routeParams.get('needsReply') === 'true');
+    if (routeParams.get('assignee'))
+      setFilters((f) => ({ ...f, assignee: routeParams.get('assignee') || '' }));
     const key = routeParams.get('tab');
     if (key && key in TAB_QUERY) setTab(key as Tab);
   }, []);

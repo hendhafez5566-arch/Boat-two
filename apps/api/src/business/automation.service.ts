@@ -1,3 +1,7 @@
+import { crmContactScore } from './crm-intelligence';
+import { PoolClient } from 'pg';
+import { crmDate } from './crm-overview';
+import { NotificationsService } from './notifications.service';
 import { integrationHeaders } from './integration-auth';
 import { CryptoService } from '../messaging/crypto.service';
 import { safeHttpRequest } from '../flows/http-safe';
@@ -10,7 +14,13 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { PlansService } from '../plans/plans.service';
 import { DatabaseService } from '../database/database.service';
 import { DomainEvent } from '../events/events.service';
-import { actionSchema, conditionWhere, ruleSchema } from './schemas';
+import {
+  actionSchema,
+  conditionWhere,
+  conditionsNeedScore,
+  Conditions,
+  ruleSchema,
+} from './schemas';
 class ActionFailure extends Error {
   constructor(
     readonly actionPath: string,
@@ -28,11 +38,14 @@ export class AutomationService {
     private events: EventsService,
     private effects: ExternalEffects,
     private crypto: CryptoService,
+    private notifications?: NotificationsService,
   ) {}
   @OnEvent('domain.event', { suppressErrors: false }) async handle(event: DomainEvent) {
     const contactId = event.payload.contactId;
     if (typeof contactId !== 'string') return;
     await this.db.withTenant(event.tenantId, async (c) => {
+      // Same lock order as contact merge, delayed actions and assignment.
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
       const root =
         (await c.query("SELECT NULLIF(current_setting('app.root_event_id',true),'') AS id")).rows[0]
           .id || event.id;
@@ -56,13 +69,7 @@ export class AutomationService {
         )
           continue;
         const rule = ruleSchema.parse(row);
-        const w = conditionWhere(rule.conditions);
-        const match = (
-          await c.query(`SELECT id FROM contacts WHERE ${w.sql} AND id=$${w.params.length + 1}`, [
-            ...w.params,
-            contactId,
-          ])
-        ).rowCount;
+        const match = await this.matches(c, contactId, rule.conditions, event.id);
         try {
           if (match)
             await this.actions(
@@ -104,6 +111,40 @@ export class AutomationService {
       }
     });
   }
+  private async matches(
+    c: PoolClient,
+    contactId: string,
+    conditions: Conditions,
+    eventId?: string,
+  ) {
+    const contact = conditionsNeedScore(conditions)
+      ? (await c.query('SELECT * FROM contacts WHERE id=$1', [contactId])).rows[0]
+      : null;
+    if (conditionsNeedScore(conditions) && !contact) return false;
+    const score = contact ? await crmContactScore(c, contact) : undefined;
+    const usesDeal = (x: Conditions): boolean =>
+      !!x.dealStage ||
+      !!x.dealStatus ||
+      x.minDealValue !== undefined ||
+      x.allOf.some(usesDeal) ||
+      x.anyOf.some(usesDeal);
+    const resource =
+      eventId && usesDeal(conditions)
+        ? (
+            await c.query(
+              "SELECT payload->>'resourceId' AS id FROM domain_events WHERE id=$1::uuid AND (type LIKE 'crm.crm_deals.%' OR type LIKE 'crm.deal.%')",
+              [eventId],
+            )
+          ).rows[0]?.id
+        : undefined;
+    const w = conditionWhere(conditions, score, resource);
+    return !!(
+      await c.query(`SELECT id FROM contacts WHERE ${w.sql} AND id=$${w.params.length + 1}`, [
+        ...w.params,
+        contactId,
+      ])
+    ).rowCount;
+  }
   private recordFailure(
     tenant: string,
     rule: string,
@@ -142,7 +183,91 @@ export class AutomationService {
     await this.db.withTenant(tenant, async (c) => {
       for (const [index, action] of actions.entries()) {
         try {
+          const receipt = await c.query(
+            'INSERT INTO automation_action_receipts(tenant_id,execution_key) VALUES($1,$2) ON CONFLICT DO NOTHING RETURNING execution_key',
+            [tenant, `${key}:${path}:${index}`],
+          );
+          if (!receipt.rowCount) continue;
           switch (action.type) {
+            case 'assign': {
+              if (
+                !(
+                  await c.query('SELECT 1 FROM memberships WHERE user_id=$1 AND available', [
+                    action.userId,
+                  ])
+                ).rowCount
+              )
+                throw new Error('Select an available workspace employee');
+              await c.query(
+                'UPDATE contacts SET owner_id=$2,updated_at=now() WHERE id=$1 AND owner_id IS DISTINCT FROM $2',
+                [contactId, action.userId],
+              );
+              break;
+            }
+            case 'notify': {
+              const ct = (await c.query('SELECT owner_id FROM contacts WHERE id=$1', [contactId]))
+                .rows[0];
+              if (this.notifications)
+                await this.notifications.add(c, tenant, {
+                  kind: 'automation',
+                  type: 'contact',
+                  id: contactId,
+                  contactId,
+                  title: action.title,
+                  key: `automation:${key}:${path}:${index}`,
+                  userId: ct?.owner_id,
+                });
+              else throw new Error('Internal notification service unavailable');
+              break;
+            }
+            case 'field': {
+              const field = (
+                await c.query('SELECT type FROM crm_fields WHERE key=$1', [action.key])
+              ).rows[0];
+              if (!field) throw new Error('Choose an existing custom field');
+              if (
+                action.value !== null &&
+                (field.type === 'number'
+                  ? typeof action.value !== 'number'
+                  : field.type === 'boolean'
+                    ? typeof action.value !== 'boolean'
+                    : typeof action.value !== 'string')
+              )
+                throw new Error('Custom field value has the wrong type');
+              if (
+                field.type === 'date' &&
+                action.value !== null &&
+                !crmDate.safeParse(action.value).success
+              )
+                throw new Error('Use an ISO date');
+              await c.query(
+                "UPDATE contacts SET attributes=jsonb_set(COALESCE(attributes,'{}'::jsonb),ARRAY[$2::text],$3::jsonb,true),updated_at=now() WHERE id=$1 AND attributes->$2 IS DISTINCT FROM $3::jsonb",
+                [contactId, action.key, JSON.stringify(action.value)],
+              );
+              break;
+            }
+            case 'moveDeal': {
+              const p = (
+                await c.query('SELECT stages FROM crm_pipelines WHERE id=$1 FOR SHARE', [
+                  action.pipelineId,
+                ])
+              ).rows[0];
+              if (!p?.stages.includes(action.stage))
+                throw new Error('Choose an existing pipeline stage');
+              // An event never moves unrelated opportunities belonging to the same customer.
+              const dealId = (
+                await c.query(
+                  "SELECT payload->>'resourceId' AS id FROM domain_events WHERE id=$1::uuid AND type LIKE 'crm.%deal%'",
+                  [key.split(':')[0]],
+                )
+              ).rows[0]?.id;
+              if (!dealId) throw new Error('Move deal requires a deal event');
+              await c.query(
+                "UPDATE crm_deals SET stage=$4,updated_at=now() WHERE id=$1 AND contact_id=$2 AND pipeline_id=$3 AND status='open' AND stage<>$4",
+                [dealId, contactId, action.pipelineId, action.stage],
+              );
+              break;
+            }
             case 'tag':
               await c.query(
                 'UPDATE contacts SET tags=array_append(tags,$2),updated_at=now() WHERE id=$1 AND NOT $2=ANY(tags)',
@@ -155,12 +280,25 @@ export class AutomationService {
                 [contactId, action.value],
               );
               break;
-            case 'task':
+            case 'task': {
+              const owner = (
+                await c.query('SELECT owner_id FROM contacts WHERE id=$1', [contactId])
+              ).rows[0]?.owner_id;
+              const resource = (
+                await c.query(
+                  "SELECT payload->>'resourceId' AS id FROM domain_events WHERE id=$1::uuid AND type LIKE 'crm.%deal%'",
+                  [key.split(':')[0]],
+                )
+              ).rows[0]?.id;
+              const dealId = action.linkDeal ? resource : null;
+              if (action.linkDeal && !dealId)
+                throw new Error('Linking a follow-up requires a deal event');
               await c.query(
-                'INSERT INTO crm_tasks(tenant_id,contact_id,title,due_at) VALUES($1,$2,$3,now()+make_interval(mins=>$4))',
-                [tenant, contactId, action.title, action.delayMinutes],
+                'INSERT INTO crm_tasks(tenant_id,contact_id,title,due_at,assigned_to,deal_id) VALUES($1,$2,$3,now()+make_interval(mins=>$4),$5,$6)',
+                [tenant, contactId, action.title, action.delayMinutes, owner, dealId],
               );
               break;
+            }
             case 'deal': {
               const pipeline = (
                 await c.query('SELECT stages FROM crm_pipelines WHERE id=$1 FOR SHARE', [
@@ -170,7 +308,7 @@ export class AutomationService {
               if (!pipeline?.stages.includes(action.stage))
                 throw new Error('Choose an existing pipeline stage');
               await c.query(
-                'INSERT INTO crm_deals(tenant_id,contact_id,pipeline_id,title,stage,value_cents,currency) VALUES($1,$2,$3,$4,$5,$6,$7)',
+                "INSERT INTO crm_deals(tenant_id,contact_id,pipeline_id,title,stage,value_cents,currency,automation_rule_id) SELECT $1,$2,$3,$4,$5,$6,$7,$8 WHERE NOT EXISTS(SELECT 1 FROM crm_deals WHERE contact_id=$2 AND pipeline_id=$3 AND automation_rule_id=$8 AND status='open')",
                 [
                   tenant,
                   contactId,
@@ -179,6 +317,7 @@ export class AutomationService {
                   action.stage,
                   action.valueCents,
                   action.currency,
+                  ruleId ?? null,
                 ],
               );
               break;
@@ -191,13 +330,7 @@ export class AutomationService {
               ]);
               break;
             case 'branch': {
-              const where = conditionWhere(action.conditions);
-              const match = (
-                await c.query(
-                  `SELECT 1 FROM contacts WHERE ${where.sql} AND id=$${where.params.length + 1}`,
-                  [...where.params, contactId],
-                )
-              ).rowCount;
+              const match = await this.matches(c, contactId, action.conditions, key.split(':')[0]);
               await this.actions(
                 tenant,
                 contactId,

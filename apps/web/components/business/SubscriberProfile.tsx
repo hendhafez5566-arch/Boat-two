@@ -41,6 +41,7 @@ type Profile = {
   channels: { id: string; name: string; type: string }[];
   inputs: { name: string; status: string; updated_at: string; answers: Record<string, unknown> }[];
   timeline: {
+    ownerChanges?: { id: string; created_at: string; full_name: string | null }[];
     stageChanges: {
       id: string;
       deal_id: string;
@@ -954,6 +955,25 @@ export default function SubscriberProfile({
                         at: d.updated_at,
                         title: t('آخر تحديث لفرصة البيع', 'Latest opportunity update'),
                         body: d.title + ' · ' + d.stage,
+                      })),
+                    ...(profile.timeline.ownerChanges || []).map((s) => ({
+                      id: 'owner:' + s.id,
+                      at: s.created_at,
+                      title: t('تغيّر الموظف المسؤول', 'Owner changed'),
+                      body: s.full_name || t('دون مسؤول', 'Unassigned'),
+                    })),
+                    ...profile.timeline.events
+                      .filter(
+                        (e) => e.type === 'crm.bot.answer' || e.type === 'crm.conversation.taken',
+                      )
+                      .map((e) => ({
+                        id: 'sales:' + e.id,
+                        at: e.created_at,
+                        title:
+                          e.type === 'crm.bot.answer'
+                            ? t('حفظ البوت بيانات العميل', 'Bot saved customer data')
+                            : t('استلم الموظف المحادثة', 'Employee took conversation'),
+                        body: t('حُفظ الحدث داخل الشركة', 'Event recorded in workspace'),
                       })),
                     ...(profile.timeline.stageChanges || []).map((s) => ({
                       id: 'stage:' + s.id,

@@ -1,6 +1,18 @@
 export function automationLabel(value: string, t: (ar: string, en: string) => string) {
   const labels: Record<string, [string, string]> = {
     note: ['ملاحظة', 'Note'],
+    assign: ['تعيين موظف', 'Assign employee'],
+    notify: ['تنبيه داخلي', 'Internal notification'],
+    field: ['تحديث حقل مخصص', 'Update custom field'],
+    moveDeal: ['نقل مرحلة الصفقة', 'Move deal stage'],
+    'crm.task.overdue': ['تأخر متابعة', 'Overdue follow-up'],
+    'crm.conversation.created': ['محادثة جديدة', 'New conversation'],
+    'crm.conversation.taken': ['استلام موظف المحادثة', 'Conversation taken'],
+    'crm.bot.answer': ['حفظ بيانات من البوت', 'Bot data saved'],
+    'crm.tag.added': ['إضافة وسم', 'Tag added'],
+    'crm.lifecycle.changed': ['تغيير حالة العميل', 'Lifecycle changed'],
+    'crm.deal.stage_changed': ['تغيير مرحلة الصفقة', 'Deal stage changed'],
+    'crm.deal.closed': ['إغلاق صفقة', 'Deal closed'],
     tag: ['إضافة وسم', 'Add tag'],
     task: ['مهمة متابعة', 'Follow-up task'],
     deal: ['إنشاء فرصة بيع', 'Create opportunity'],

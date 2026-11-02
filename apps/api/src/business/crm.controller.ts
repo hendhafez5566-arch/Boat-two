@@ -1,3 +1,4 @@
+import { notificationSettingsSchema } from './sales-settings';
 import {
   BadRequestException,
   Body,
@@ -617,6 +618,8 @@ export class CrmController {
         ownerId: z.string().uuid().optional(),
         pipelineId: z.string().uuid().optional(),
         contactId: z.string().uuid().optional(),
+        id: z.string().uuid().optional(),
+        needsAttention: z.enum(['true', 'false']).optional(),
         dueFrom: z.string().datetime().optional(),
         dueTo: z.string().datetime().optional(),
         period: z.enum(['today', 'overdue', 'upcoming']).optional(),
@@ -630,8 +633,8 @@ export class CrmController {
     return this.crm.db.withTenant(r.user.tenantId, async (c) => {
       const params: unknown[] = [
         q.q ? '%' + q.q.replace(/[\\%_]/g, '\\$&') + '%' : null,
-        q.status ?? null,
-        q.ownerId ?? null,
+        q.status || null,
+        r.user.role === 'agent' ? r.user.userId : (q.ownerId ?? null),
       ];
       let where = `($1::text IS NULL OR w.title ILIKE $1 OR ct.name ILIKE $1 OR ct.email ILIKE $1) AND ($2::text IS NULL OR w.status=$2) AND ($3::uuid IS NULL OR w.${kind === 'deals' ? 'owner_id' : 'assigned_to'}=$3)`;
       if (kind === 'deals') {
@@ -644,6 +647,17 @@ export class CrmController {
       }
       params.push(q.contactId ?? null);
       where += ` AND ($${params.length}::uuid IS NULL OR w.contact_id=$${params.length})`;
+      if (q.id) {
+        params.push(q.id);
+        where += ` AND w.id=$${params.length}::uuid`;
+      }
+      if (kind === 'deals' && q.needsAttention === 'true') {
+        const policy = notificationSettingsSchema.parse(
+          (await c.query('SELECT settings FROM tenants')).rows[0]?.settings?.crmNotifications || {},
+        );
+        params.push(policy.staleDays, policy.closingDays);
+        where += ` AND w.status='open' AND (w.updated_at<now()-make_interval(days=>$${params.length - 1}) OR w.expected_close<=now()+make_interval(days=>$${params.length}))`;
+      }
       if (kind === 'tasks' && q.period) {
         const settings = (await c.query('SELECT settings FROM tenants')).rows[0]?.settings || {};
         let zone = typeof settings.timezone === 'string' ? settings.timezone : 'UTC';
@@ -830,6 +844,7 @@ export class CrmController {
     const b = parse(
       z.object({
         contactId: z.string().uuid(),
+        dealId: z.string().uuid().nullable().optional(),
         title: z.string().min(1).max(200),
         dueAt: z.string().datetime(),
         priority: z.enum(['low', 'normal', 'high']).default('normal'),
@@ -849,10 +864,28 @@ export class CrmController {
         !(await c.query('SELECT 1 FROM memberships WHERE user_id=$1', [b.assignedTo])).rowCount
       )
         throw new BadRequestException('Invalid assignee');
+      if (
+        b.dealId &&
+        !(
+          await c.query('SELECT 1 FROM crm_deals WHERE id=$1 AND contact_id=$2', [
+            b.dealId,
+            b.contactId,
+          ])
+        ).rowCount
+      )
+        throw new BadRequestException('Deal must belong to this customer');
       return (
         await c.query(
-          'INSERT INTO crm_tasks(tenant_id,contact_id,title,due_at,assigned_to,priority) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',
-          [r.user.tenantId, b.contactId, b.title, b.dueAt, b.assignedTo ?? null, b.priority],
+          'INSERT INTO crm_tasks(tenant_id,contact_id,title,due_at,assigned_to,priority,deal_id) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+          [
+            r.user.tenantId,
+            b.contactId,
+            b.title,
+            b.dueAt,
+            b.assignedTo ?? null,
+            b.priority,
+            b.dealId ?? null,
+          ],
         )
       ).rows[0];
     });

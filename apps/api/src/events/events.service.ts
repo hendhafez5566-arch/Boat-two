@@ -15,6 +15,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
   private timer?: NodeJS.Timeout;
   private running = false;
   private nextBillingSchedule = 0;
+  private nextCrmSchedule = 0;
   private log = new Logger(EventsService.name);
   constructor(
     private db: DatabaseService,
@@ -56,6 +57,10 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       ) {
         await this.db.query('SELECT billing_schedule_due(30)');
         this.nextBillingSchedule = Date.now() + 60_000;
+      }
+      if (Date.now() >= this.nextCrmSchedule) {
+        await this.db.query('SELECT crm_v3_schedule_due(100)');
+        this.nextCrmSchedule = Date.now() + 60_000;
       }
       await this.db.query('SELECT crm_history_drain(1000)');
       await this.db.query('SELECT materialize_realtime(1000)');

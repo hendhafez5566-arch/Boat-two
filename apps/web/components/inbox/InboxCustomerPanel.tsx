@@ -151,6 +151,12 @@ export function InboxCustomerPanel({
     >
       <header className={styles.heading}>
         <h2>{t('إجراءات المحادثة', 'Chat Actions')}</h2>
+        <Link
+          href="/dashboard/crm/notifications"
+          aria-label={t('تنبيهات CRM', 'CRM notifications')}
+        >
+          <NavIcon name="bell" />
+        </Link>
         <Link href={`/dashboard/crm?contact=${detail.contact_id}`}>
           <NavIcon name="user" />
           {t('مدير المشترك', 'Manager')}

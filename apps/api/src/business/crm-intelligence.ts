@@ -1,3 +1,5 @@
+import { PoolClient } from 'pg';
+import { scoringSignalsSchema } from './sales-settings';
 import { BadRequestException } from '@nestjs/common';
 import { z } from 'zod';
 import { crmDate } from './crm-overview';
@@ -100,7 +102,13 @@ export async function crmAnalytics(
       `SELECT day::date::text AS day,(day::timestamp AT TIME ZONE $3) AS start_at,((day+interval '1 day')::timestamp AT TIME ZONE $3) AS end_at,(SELECT count(*)::int FROM contacts ct WHERE ct.merged_into_id IS NULL AND ct.archived_at IS NULL AND ($4::uuid IS NULL OR ct.owner_id=$4) AND ct.created_at >= (day::timestamp AT TIME ZONE $3) AND ct.created_at < ((day+interval '1 day')::timestamp AT TIME ZONE $3)) AS count FROM generate_series($1::date,$2::date,interval '1 day') day`,
     );
     const employees = await rows(
-      `SELECT m.user_id,u.full_name,(SELECT count(*)::int FROM crm_tasks t WHERE t.assigned_to=m.user_id AND t.status='open' AND t.due_at<now()) AS overdue,(SELECT count(*)::int FROM crm_tasks t WHERE t.assigned_to=m.user_id AND t.status='done' AND ${date('t.updated_at')}) AS completed,(SELECT count(*)::int FROM crm_deals d WHERE d.owner_id=m.user_id AND d.status='won' AND ${date('d.updated_at')}) AS won FROM memberships m JOIN users u ON u.id=m.user_id WHERE ($4::uuid IS NULL OR m.user_id=$4) ORDER BY u.full_name`,
+      `SELECT m.user_id,u.full_name,
+      (SELECT count(*)::int FROM contacts ct WHERE ct.owner_id=m.user_id AND ct.archived_at IS NULL AND ct.merged_into_id IS NULL) AS contacts,
+      (SELECT count(*)::int FROM contacts ct WHERE ct.owner_id=m.user_id AND ct.archived_at IS NULL AND ct.merged_into_id IS NULL AND NOT EXISTS(SELECT 1 FROM crm_tasks tf WHERE tf.contact_id=ct.id AND tf.status='open')) AS unattended,
+      (SELECT count(*)::int FROM conversations cv WHERE cv.assigned_to=m.user_id AND cv.status<>'closed' AND cv.archived_at IS NULL) AS conversations,
+      (SELECT count(*)::int FROM conversations cv WHERE cv.assigned_to=m.user_id AND cv.status<>'closed' AND cv.archived_at IS NULL AND cv.handled_by='human' AND EXISTS(SELECT 1 FROM messages lm WHERE lm.id=(SELECT id FROM messages WHERE conversation_id=cv.id AND NOT is_internal ORDER BY seq DESC LIMIT 1) AND lm.direction='in')) AS waiting,
+      (SELECT count(*)::int FROM crm_deals d WHERE d.owner_id=m.user_id AND d.status='open') AS open_deals,
+      (SELECT count(*)::int FROM crm_tasks t WHERE t.assigned_to=m.user_id AND t.status='open' AND t.due_at<now()) AS overdue,(SELECT count(*)::int FROM crm_tasks t WHERE t.assigned_to=m.user_id AND t.status='done' AND ${date('t.updated_at')}) AS completed,(SELECT count(*)::int FROM crm_deals d WHERE d.owner_id=m.user_id AND d.status='won' AND ${date('d.updated_at')}) AS won FROM memberships m JOIN users u ON u.id=m.user_id WHERE ($4::uuid IS NULL OR m.user_id=$4) ORDER BY u.full_name`,
     );
     const attention = await rows(
       `SELECT id,name,owner_id FROM contacts WHERE ${active} AND ($4::uuid IS NULL OR owner_id=$4) AND lifecycle IN ('lead','qualified') AND NOT EXISTS(SELECT 1 FROM crm_tasks t WHERE t.contact_id=contacts.id AND t.status='open') ORDER BY updated_at,id LIMIT 8`,
@@ -162,5 +170,73 @@ export function evaluateScore(
     ),
     reasons,
     rules,
+  };
+}
+
+export async function crmContactScore(
+  c: PoolClient,
+  contact: {
+    id: string;
+    lifecycle: string;
+    email?: string | null;
+    phone?: string | null;
+    tags: string[];
+    attributes?: Record<string, unknown>;
+  },
+) {
+  const id = contact.id;
+  const rules = scoringSchema
+    .catch(defaultScoring)
+    .parse((await c.query('SELECT settings FROM tenants')).rows[0]?.settings?.crmScoring);
+  const open = !!(
+    await c.query("SELECT 1 FROM crm_deals WHERE contact_id=$1 AND status='open' LIMIT 1", [id])
+  ).rowCount;
+  const signals = scoringSignalsSchema.parse(
+    (await c.query('SELECT settings FROM tenants')).rows[0]?.settings?.crmScoringSignals || {},
+  );
+  const interaction = (
+    await c.query(
+      `SELECT count(*)::int AS interactions,max(m.created_at) AS last_contact FROM messages m JOIN conversations cv ON cv.id=m.conversation_id WHERE cv.contact_id=$1 AND m.direction='in' AND NOT m.is_internal AND m.created_at>=now()-make_interval(days=>$2)`,
+      [id, signals.recentDays],
+    )
+  ).rows[0];
+  const lost = !!(
+    await c.query("SELECT 1 FROM crm_deals WHERE contact_id=$1 AND status='lost' LIMIT 1", [id])
+  ).rowCount;
+  const base = evaluateScore(contact, open, rules);
+  const extra = [
+    { key: 'recent', points: interaction.last_contact ? signals.recentPoints : 0 },
+    {
+      key: 'interactions',
+      points:
+        interaction.interactions >= signals.interactionsRequired ? signals.interactionPoints : 0,
+    },
+    { key: 'inactive', points: !interaction.last_contact ? signals.inactivePoints : 0 },
+    {
+      key: 'botInterest',
+      points:
+        signals.interestField &&
+        String(contact.attributes?.[signals.interestField] ?? '') === signals.interestValue
+          ? signals.interestPoints
+          : 0,
+    },
+    { key: 'lost', points: lost ? signals.lostPoints : 0 },
+  ].filter((x) => x.points !== 0);
+  const reasons = [...base.reasons, ...extra];
+  const score = Math.max(
+    0,
+    Math.min(
+      100,
+      reasons.reduce((n, x) => n + x.points, 0),
+    ),
+  );
+  return {
+    ...base,
+    score,
+    reasons,
+    band: score >= signals.hotAt ? 'hot' : score >= signals.warmAt ? 'warm' : 'cold',
+    calculatedAt: new Date().toISOString(),
+    lastContact: interaction.last_contact,
+    interactionWindowDays: signals.recentDays,
   };
 }

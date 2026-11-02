@@ -17,6 +17,16 @@ export const filtersSchema = z.object({
   withoutFollowup: z.enum(['true', 'false']).optional(),
   hasOpenDeal: z.enum(['true', 'false']).optional(),
   source: z.string().max(200).optional(),
+  departmentId: z.string().uuid().optional(),
+  dealStage: z.string().trim().max(60).optional(),
+  dealStatus: z.enum(['open', 'won', 'lost']).optional(),
+  minDealValue: z.number().int().min(0).max(100000000000).optional(),
+  attribute: z
+    .object({
+      key: z.string().trim().min(1).max(100),
+      value: z.union([z.string().max(2000), z.number().finite(), z.boolean()]),
+    })
+    .optional(),
   createdFrom: z.string().datetime().optional(),
   createdTo: z.string().datetime().optional(),
   archived: z.enum(['active', 'archived', 'all']).default('active'),
@@ -38,6 +48,8 @@ export const pagination = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
 });
 export type Conditions = z.infer<typeof filtersSchema> & {
+  scoreBand?: 'hot' | 'warm' | 'cold';
+  minScore?: number;
   allOf: Conditions[];
   anyOf: Conditions[];
 };
@@ -64,17 +76,55 @@ function boundedTree(keys: string[], maxDepth = 4, maxNodes = 80) {
   });
 }
 const conditionTree: z.ZodType<Conditions, z.ZodTypeDef, unknown> = z.lazy(() =>
-  filtersSchema.extend({
-    allOf: z.array(conditionTree).max(10).default([]),
-    anyOf: z.array(conditionTree).max(10).default([]),
-  }),
+  filtersSchema
+    .extend({
+      allOf: z.array(conditionTree).max(10).default([]),
+      anyOf: z.array(conditionTree).max(10).default([]),
+    })
+    .strict(),
 );
 export const conditionsSchema = boundedTree(['allOf', 'anyOf']).pipe(conditionTree);
-export function conditionWhere(input: Conditions): { sql: string; params: unknown[] } {
-  const base = contactWhere(input),
+const automationConditionTree: z.ZodType<Conditions, z.ZodTypeDef, unknown> = z.lazy(() =>
+  filtersSchema
+    .extend({
+      scoreBand: z.enum(['hot', 'warm', 'cold']).optional(),
+      minScore: z.number().int().min(0).max(100).optional(),
+      allOf: z.array(automationConditionTree).max(10).default([]),
+      anyOf: z.array(automationConditionTree).max(10).default([]),
+    })
+    .strict(),
+);
+export const automationConditionsSchema = boundedTree(['allOf', 'anyOf']).pipe(
+  automationConditionTree,
+);
+export function conditionsNeedScore(input: Conditions): boolean {
+  return (
+    input.scoreBand !== undefined ||
+    input.minScore !== undefined ||
+    input.allOf.some(conditionsNeedScore) ||
+    input.anyOf.some(conditionsNeedScore)
+  );
+}
+export function conditionWhere(
+  input: Conditions,
+  score?: { score: number; band: string },
+  dealId?: string,
+): { sql: string; params: unknown[] } {
+  const base = contactWhere(input, dealId),
     params: unknown[] = [...base.params];
+  if (input.scoreBand !== undefined || input.minScore !== undefined) {
+    if (!score) throw new Error('Score conditions require a current contact score');
+    if (input.scoreBand !== undefined) {
+      params.push(score.band, input.scoreBand);
+      base.sql += ` AND $${params.length - 1}::text=$${params.length}::text`;
+    }
+    if (input.minScore !== undefined) {
+      params.push(score.score, input.minScore);
+      base.sql += ` AND $${params.length - 1}::int >= $${params.length}::int`;
+    }
+  }
   const clause = (filter: Conditions) => {
-    const next = conditionWhere(filter),
+    const next = conditionWhere(filter, score, dealId),
       offset = params.length;
     params.push(...next.params);
     return '(' + next.sql.replace(/\$(\d+)/g, (_, n) => '$' + (Number(n) + offset)) + ')';
@@ -92,6 +142,18 @@ export function conditionWhere(input: Conditions): { sql: string; params: unknow
   };
 }
 export const baseActionSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('assign'), userId: z.string().uuid() }),
+  z.object({ type: z.literal('notify'), title: z.string().trim().min(1).max(200) }),
+  z.object({
+    type: z.literal('field'),
+    key: z.string().trim().min(1).max(100),
+    value: z.union([z.string().max(2000), z.number().finite(), z.boolean(), z.null()]),
+  }),
+  z.object({
+    type: z.literal('moveDeal'),
+    pipelineId: z.string().uuid(),
+    stage: z.string().trim().min(1).max(60),
+  }),
   z.object({ type: z.literal('tag'), tag: z.string().min(1).max(50) }),
   z.object({
     type: z.literal('lifecycle'),
@@ -101,6 +163,7 @@ export const baseActionSchema = z.discriminatedUnion('type', [
     type: z.literal('task'),
     title: z.string().min(1).max(200),
     delayMinutes: z.number().int().min(0).max(525600),
+    linkDeal: z.boolean().default(false),
   }),
   z.object({
     type: z.literal('deal'),
@@ -130,7 +193,7 @@ const actionTree: z.ZodType<AutomationAction, z.ZodTypeDef, unknown> = z.lazy(()
     baseActionSchema,
     z.object({
       type: z.literal('branch'),
-      conditions: conditionsSchema,
+      conditions: automationConditionsSchema,
       then: z.array(actionTree).min(1).max(10),
       otherwise: z.array(actionTree).max(10).default([]),
     }),
@@ -175,12 +238,20 @@ export const ruleSchema = z.object({
     'crm.crm_tasks.insert',
     'crm.crm_tasks.update',
     'automation.scheduled',
+    'crm.task.overdue',
+    'crm.conversation.created',
+    'crm.conversation.taken',
+    'crm.bot.answer',
+    'crm.tag.added',
+    'crm.lifecycle.changed',
+    'crm.deal.stage_changed',
+    'crm.deal.closed',
   ]),
-  conditions: conditionsSchema.default({}),
+  conditions: automationConditionsSchema.default({}),
   actions: z.array(actionSchema).min(1).max(10),
 });
 export type Filters = z.infer<typeof filtersSchema>;
-export function contactWhere(filters: Filters) {
+export function contactWhere(filters: Filters, dealId?: string) {
   const base = {
     sql: `merged_into_id IS NULL AND ${filters.archived === 'all' ? 'true' : filters.archived === 'archived' ? 'archived_at IS NOT NULL' : 'archived_at IS NULL'} AND ($1::text IS NULL OR name ILIKE $1 ESCAPE '\\' OR email ILIKE $1 ESCAPE '\\' OR phone ILIKE $1 ESCAPE '\\') AND ($2::text IS NULL OR lifecycle=$2) AND ($3::text IS NULL OR $3=ANY(tags)) AND ($4::uuid IS NULL OR owner_id=$4)`,
     params: [
@@ -204,6 +275,24 @@ export function contactWhere(filters: Filters) {
     base.params.push(value);
     return '$' + base.params.length;
   };
+  if (filters.attribute) {
+    const key = bind(filters.attribute.key),
+      value = bind(JSON.stringify(filters.attribute.value));
+    clauses.push(`attributes->${key}=${value}::jsonb`);
+  }
+  if (filters.departmentId)
+    clauses.push(
+      `EXISTS(SELECT 1 FROM conversations fcv WHERE fcv.contact_id=contacts.id AND fcv.department_id=${bind(filters.departmentId)}::uuid)`,
+    );
+  if (filters.dealStage || filters.dealStatus || filters.minDealValue !== undefined) {
+    const tests = ['fd.contact_id=contacts.id'];
+    if (dealId) tests.push(`fd.id=${bind(dealId)}::uuid`);
+    if (filters.dealStage) tests.push(`fd.stage=${bind(filters.dealStage)}`);
+    if (filters.dealStatus) tests.push(`fd.status=${bind(filters.dealStatus)}`);
+    if (filters.minDealValue !== undefined)
+      tests.push(`fd.value_cents>=${bind(String(filters.minDealValue))}::bigint`);
+    clauses.push(`EXISTS(SELECT 1 FROM crm_deals fd WHERE ${tests.join(' AND ')})`);
+  }
   if (filters.source !== undefined)
     clauses.push(`COALESCE(attributes->>'source','')=${bind(filters.source)}`);
   if (filters.createdFrom) clauses.push(`created_at>=${bind(filters.createdFrom)}::timestamptz`);

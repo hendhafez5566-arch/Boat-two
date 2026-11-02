@@ -27,6 +27,7 @@ type Work = {
   due_at: string;
   priority?: 'low' | 'normal' | 'high';
   assigned_to: string | null;
+  deal_id?: string | null;
 };
 type Member = { user_id: string; full_name: string };
 export function CrmWork({
@@ -43,6 +44,11 @@ export function CrmWork({
   const { t, language } = useLocale();
   const deals = kind === 'deals';
   const [allPipelines, setAllPipelines] = useState(false);
+  const [attentionOnly, setAttentionOnly] = useState(false);
+  const pipelinePolicy = useData<{ staleDays: number; closingDays: number }>(
+    deals ? '/crm/workspace/pipeline-policy' : null,
+    { staleDays: 14, closingDays: 3 },
+  );
   const [routeDates, setRouteDates] = useState<Record<string, string>>({});
   const [q, setQ] = useState('');
   const [pipeline, setPipeline] = useState('');
@@ -56,13 +62,14 @@ export function CrmWork({
     if (compact) return;
     const p = new URLSearchParams(window.location.search);
     if (p.has('ownerId')) setOwner(p.get('ownerId') || '');
+    if (p.get('needsAttention') === 'true') setAttentionOnly(true);
     if (p.has('status')) setStatus(p.get('status') || '');
     if (p.has('period')) setPeriod(p.get('period') || 'all');
     if (p.get('create') === 'true') setDialog('new');
     if (p.get('view') === 'table') setView('table');
     if (p.get('allPipelines') === 'true') setAllPipelines(true);
     const dates: Record<string, string> = {};
-    for (const k of ['updatedFrom', 'updatedTo']) {
+    for (const k of ['updatedFrom', 'updatedTo', 'contactId', 'id']) {
       const v = p.get(k);
       if (v) dates[k] = v;
     }
@@ -80,6 +87,7 @@ export function CrmWork({
   const selectedPipeline = pipelines.data.find((p) => p.id === pipeline) || pipelines.data[0];
   const params = new URLSearchParams({ ...routeDates, q, status, page: String(page), limit: '50' });
   if (deals && selectedPipeline && !allPipelines) params.set('pipelineId', selectedPipeline.id);
+  if (deals && attentionOnly) params.set('needsAttention', 'true');
   if (owner) params.set('ownerId', owner === 'me' ? team.data.currentUserId : owner);
   if (contactId) params.set('contactId', contactId);
   if (!deals && period !== 'all') params.set('period', period);
@@ -129,7 +137,9 @@ export function CrmWork({
         className={styles.card}
         data-overdue={!deals && row.status === 'open' && new Date(row.due_at) < new Date()}
         data-stale={
-          deals && row.status === 'open' && Date.now() - Date.parse(row.updated_at) > 14 * 86400000
+          deals &&
+          row.status === 'open' &&
+          Date.now() - Date.parse(row.updated_at) > pipelinePolicy.data.staleDays * 86400000
         }
         draggable={deals && !busy && canEdit(row)}
         onDragStart={(e) => e.dataTransfer.setData('text/plain', row.id)}
@@ -179,10 +189,12 @@ export function CrmWork({
         </p>
         {deals &&
           row.status === 'open' &&
-          Date.now() - Date.parse(row.updated_at) > 14 * 86400000 && (
+          Date.now() - Date.parse(row.updated_at) > pipelinePolicy.data.staleDays * 86400000 && (
             <span className={styles.badge} data-tone="orange">
               <NavIcon name="userClock" />
-              {t('دون تحديث منذ14يومًا', 'No update for14days')}
+              {t('دون تحديث منذ ', 'No update for ') +
+                pipelinePolicy.data.staleDays +
+                t(' يومًا', ' days')}
             </span>
           )}
         {deals && row.expected_close && (
@@ -285,6 +297,29 @@ export function CrmWork({
               {label}
             </button>
           ))}
+        </div>
+      )}
+      {deals && (
+        <div className={styles.toolbar}>
+          <button
+            className={'btn ' + (attentionOnly ? 'btn-primary' : '')}
+            aria-pressed={attentionOnly}
+            onClick={() => {
+              setAttentionOnly(!attentionOnly);
+              setPage(1);
+            }}
+          >
+            <NavIcon name="stopwatch" />
+            {t('صفقات تحتاج تدخلًا', 'Deals needing attention')}
+          </button>
+          <span>
+            {t('ركود: ', 'Inactivity: ') +
+              pipelinePolicy.data.staleDays +
+              t(' يوم، إغلاق خلال: ', ' days; closing within: ') +
+              pipelinePolicy.data.closingDays +
+              t(' أيام', ' days')}
+          </span>
+          {pipelinePolicy.error && <span role="alert">{pipelinePolicy.error}</span>}
         </div>
       )}
       <div className={styles.toolbar}>
@@ -585,6 +620,11 @@ function WorkForm({
   const { t } = useLocale();
   const deals = kind === 'deals';
   const [search, setSearch] = useState('');
+  const [taskContact, setTaskContact] = useState(row?.contact_id || contactId || '');
+  const opportunities = useData<{ items: { id: string; title: string }[] }>(
+    !deals && taskContact ? '/crm/deals?contactId=' + taskContact : null,
+    { items: [] },
+  );
   const contacts = useData<{ items: { id: string; name: string; phone: string | null }[] }>(
     !row && !contactId ? '/crm/contacts?' + new URLSearchParams({ q: search, limit: '20' }) : null,
     { items: [] },
@@ -616,6 +656,7 @@ function WorkForm({
       values.dueAt = new Date(String(f.get('dueAt'))).toISOString();
       values.assignedTo = f.get('ownerId') || null;
       values.priority = f.get('priority') || 'normal';
+      if (!row) values.dealId = f.get('dealId') || null;
     }
     void onSubmit(values);
   }
@@ -629,7 +670,13 @@ function WorkForm({
           </label>
           <label>
             {t('العميل', 'Customer')}
-            <select aria-label={t('العميل', 'Customer')} name="contactId" required defaultValue="">
+            <select
+              aria-label={t('العميل', 'Customer')}
+              name="contactId"
+              required
+              defaultValue=""
+              onChange={(e) => setTaskContact(e.target.value)}
+            >
               <option value="" disabled>
                 {t('اختر عميلًا', 'Choose customer')}
               </option>
@@ -642,6 +689,19 @@ function WorkForm({
           </label>
           {contacts.error && <p role="alert">{contacts.error}</p>}
         </>
+      )}
+      {!deals && !row && taskContact && (
+        <label>
+          {t('ربط بفرصة بيع (اختياري)', 'Link opportunity (optional)')}
+          <select name="dealId" defaultValue="" key={taskContact}>
+            <option value="">{t('متابعة العميل فقط', 'Customer follow-up only')}</option>
+            {opportunities.data.items.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.title}
+              </option>
+            ))}
+          </select>
+        </label>
       )}
       <label>
         {t('العنوان', 'Title')}

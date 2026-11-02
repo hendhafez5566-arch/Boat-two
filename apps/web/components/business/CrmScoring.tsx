@@ -15,22 +15,38 @@ type Rules = {
 };
 export function CrmScore({ contactId, version }: { contactId: string; version: string }) {
   const { t } = useLocale();
-  const d = useData<{ score: number; reasons: { key: string; points: number }[] } | null>(
-    '/crm/workspace/score/' + contactId + '?version=' + encodeURIComponent(version),
-    null,
-  );
+  const d = useData<{
+    score: number;
+    band: string;
+    calculatedAt: string;
+    reasons: { key: string; points: number }[];
+  } | null>('/crm/workspace/score/' + contactId + '?version=' + encodeURIComponent(version), null);
   const labels: Record<string, string> = {
     qualified: t('عميل مؤهل', 'Qualified lead'),
     email: t('بريد مسجل', 'Email recorded'),
     phone: t('هاتف مسجل', 'Phone recorded'),
     openDeal: t('فرصة مفتوحة', 'Open opportunity'),
     tag: t('وسم الاهتمام', 'Interest tag'),
+    recent: t('تواصل حديث', 'Recent contact'),
+    interactions: t('تفاعلات خلال الفترة', 'Interactions in window'),
+    inactive: t('لا تواصل خلال الفترة', 'No recent contact'),
+    botInterest: t('إجابة اهتمام مسجلة', 'Recorded interest answer'),
+    lost: t('صفقة خاسرة', 'Lost deal'),
   };
   return (
     <div className={styles.insight}>
       <NavIcon name="temperature" />
       <span>{t('درجة الاهتمام بالقواعد', 'Rule-based interest score')}</span>
       <strong>{d.loading ? '…' : d.data ? d.data.score + '/100' : '—'}</strong>
+      {d.data && (
+        <span>
+          {d.data.band === 'hot'
+            ? t('اهتمام مرتفع', 'Hot')
+            : d.data.band === 'warm'
+              ? t('اهتمام متوسط', 'Warm')
+              : t('اهتمام منخفض', 'Cold')}
+        </span>
+      )}
       {d.error && <span role="alert">{t('تعذر تحميل التقييم', 'Could not load score')}</span>}
       <details>
         <summary>{t('لماذا هذا التقييم؟', 'Why this score?')}</summary>
@@ -42,9 +58,16 @@ export function CrmScore({ contactId, version }: { contactId: string; version: s
         </p>
         {d.data?.reasons.map((r) => (
           <p key={r.key}>
-            {labels[r.key]}: +{r.points}
+            {labels[r.key] || r.key}: {r.points > 0 ? '+' : ''}
+            {r.points}
           </p>
         ))}
+        {d.data?.calculatedAt && (
+          <small>
+            {t('حُسب الآن: ', 'Calculated: ')}
+            {new Date(d.data.calculatedAt).toLocaleString()}
+          </small>
+        )}
         {d.data && !d.data.reasons.length && (
           <p>{t('لا توجد قواعد منطبقة بعد.', 'No matching rules yet.')}</p>
         )}
