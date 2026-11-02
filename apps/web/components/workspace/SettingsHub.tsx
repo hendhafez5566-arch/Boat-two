@@ -5,6 +5,7 @@ import { NavIcon } from '../product/NavIcon';
 import Sessions from './SessionsPanel';
 import Audit from './AuditPanel';
 import Integrations from './IntegrationsPanel';
+import CompanySettings from './CompanySettings';
 import { AccountWorkspaceContext } from '../product/AccountWorkspaceContext';
 import styles from './settings-hub.module.css';
 export default function SettingsHub() {
@@ -25,7 +26,9 @@ export default function SettingsHub() {
           'thirdparty-api-tab',
         ].includes(value || '')
           ? 'integrations'
-          : 'security',
+          : value === 'company'
+            ? 'company'
+            : 'security',
       );
     };
     read();
@@ -51,6 +54,11 @@ export default function SettingsHub() {
           role="tablist"
           aria-label={t('أقسام الإعدادات', 'Settings sections')}
         >
+          <button role="tab" aria-selected={tab === 'company'} onClick={() => select('company')}>
+            <NavIcon name="settings" />
+            {t('الشركة', 'Company')}
+            <small>{t('بيانات مساحة العمل', 'Workspace details')}</small>
+          </button>
           <button role="tab" aria-selected={tab === 'security'} onClick={() => select('security')}>
             <NavIcon name="shield" />
             {t('الأمان', 'Security')}
@@ -70,21 +78,29 @@ export default function SettingsHub() {
           className={styles.content}
           role="tabpanel"
           aria-label={
-            tab === 'integrations' ? t('تكاملات API', 'API Integration') : t('الأمان', 'Security')
+            tab === 'company'
+              ? t('الشركة', 'Company')
+              : tab === 'integrations'
+                ? t('تكاملات API', 'API Integration')
+                : t('الأمان', 'Security')
           }
         >
           <header>
             <h2>
-              {tab === 'integrations'
-                ? t('تكاملات API', 'API Integration')
-                : t('الأمان', 'Security')}
+              {tab === 'company'
+                ? t('بيانات الشركة', 'Company details')
+                : tab === 'integrations'
+                  ? t('تكاملات API', 'API Integration')
+                  : t('الأمان', 'Security')}
             </h2>
             <p>
               {tab === 'integrations' ? t('التكاملات', 'Integration') : t('الإعدادات', 'Settings')}
             </p>
           </header>
           <AccountWorkspaceContext.Provider value={true}>
-            {tab === 'integrations' ? (
+            {tab === 'company' ? (
+              <CompanySettings />
+            ) : tab === 'integrations' ? (
               <Integrations />
             ) : (
               <div className={styles.security}>

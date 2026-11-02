@@ -19,10 +19,7 @@ export default function Onboarding() {
   const [channels, setChannels] = useState<{ status: string }[]>([]);
   const hasActiveChannel = channels.some((channel) => channel.status === 'active');
   useEffect(() => {
-    Promise.all([
-      api<NonNullable<typeof w>>('/workspace'),
-      api<{ status: string }[]>('/channels'),
-    ])
+    Promise.all([api<NonNullable<typeof w>>('/workspace'), api<{ status: string }[]>('/channels')])
       .then(([workspace, channelList]) => {
         setW(workspace);
         setChannels(channelList);
@@ -39,18 +36,31 @@ export default function Onboarding() {
       setBusy(false);
     }
   }
-  type Step = { key: string; ar: string; en: string; hint: string; href: string; icon: string; done: boolean; kind: 'core' | 'try' | 'optional' };
+  type Step = {
+    key: string;
+    ar: string;
+    en: string;
+    hint: string;
+    href: string;
+    icon: string;
+    done: boolean;
+    kind: 'core' | 'try' | 'optional';
+  };
   const steps: Step[] = [
     {
-      key: 'company', kind: 'core', icon: 'settings',
+      key: 'company',
+      kind: 'core',
+      icon: 'settings',
       ar: 'عرّف شركتك',
       en: 'Set up your company',
       hint: t('الاسم ومجال العمل والمنطقة الزمنية', 'Name, industry and timezone'),
-      href: '/dashboard/settings',
+      href: '/dashboard/settings?tab=company',
       done: !!w?.tenant.settings.industry,
     },
     {
-      key: 'channel', kind: 'core', icon: 'channels',
+      key: 'channel',
+      kind: 'core',
+      icon: 'channels',
       ar: 'اربط قناة محادثة',
       en: 'Connect a messaging channel',
       hint: t(
@@ -61,7 +71,9 @@ export default function Onboarding() {
       done: hasActiveChannel,
     },
     {
-      key: 'bot', kind: 'core', icon: 'flows',
+      key: 'bot',
+      kind: 'core',
+      icon: 'flows',
       ar: 'أنشئ أول بوت من قالب',
       en: 'Create your first bot from a template',
       hint: t(
@@ -72,7 +84,9 @@ export default function Onboarding() {
       done: !!w?.usage.flows,
     },
     {
-      key: 'try', kind: 'try', icon: 'play',
+      key: 'try',
+      kind: 'try',
+      icon: 'play',
       ar: 'جرّب البوت قبل النشر',
       en: 'Test your bot before publishing',
       hint: t(
@@ -83,7 +97,9 @@ export default function Onboarding() {
       done: false,
     },
     {
-      key: 'team', kind: 'optional', icon: 'team',
+      key: 'team',
+      kind: 'optional',
+      icon: 'team',
       ar: 'ادعُ فريقك',
       en: 'Invite your team',
       hint: t(
@@ -113,8 +129,17 @@ export default function Onboarding() {
           </p>
           {w?.tenant.name && <span className="badge">{w.tenant.name}</span>}
         </div>
-        <div className="ob-progress" role="progressbar" aria-valuemin={0} aria-valuemax={core.length} aria-valuenow={doneCount} aria-label={t('تقدم الإعداد', 'Setup progress')}>
-          <span className="ob-ring" style={{ '--p': pct } as CSSProperties}><b>{pct}%</b></span>
+        <div
+          className="ob-progress"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={core.length}
+          aria-valuenow={doneCount}
+          aria-label={t('تقدم الإعداد', 'Setup progress')}
+        >
+          <span className="ob-ring" style={{ '--p': pct } as CSSProperties}>
+            <b>{pct}%</b>
+          </span>
           <span className="ob-progress-text">
             <strong>{t(`${doneCount} من ${core.length}`, `${doneCount} of ${core.length}`)}</strong>
             <small>{t('خطوات أساسية مكتملة', 'essential steps done')}</small>
@@ -132,26 +157,48 @@ export default function Onboarding() {
             <small>{t('خطوتك التالية', 'Your next step')}</small>
             <strong>{t(next.ar, next.en)}</strong>
           </div>
-          <Link className="btn btn-primary btn-lg" href={next.href}>{t('ابدأ الآن', 'Start now')} ↗</Link>
+          <Link className="btn btn-primary btn-lg" href={next.href}>
+            {t('ابدأ الآن', 'Start now')} ↗
+          </Link>
         </section>
       )}
       <ol className="ob-steps">
         {steps.map((s, i) => {
           const current = i === nextIndex;
           return (
-            <li key={s.key} className={`ob-step ${s.done ? 'is-done' : ''} ${current ? 'is-current' : ''} ${s.kind !== 'core' ? 'is-soft' : ''}`}>
-              <span className="ob-step-icon">{s.done ? <NavIcon name="check" /> : <NavIcon name={s.icon} />}</span>
+            <li
+              key={s.key}
+              className={`ob-step ${s.done ? 'is-done' : ''} ${current ? 'is-current' : ''} ${s.kind !== 'core' ? 'is-soft' : ''}`}
+            >
+              <span className="ob-step-icon">
+                {s.done ? <NavIcon name="check" /> : <NavIcon name={s.icon} />}
+              </span>
               <div className="ob-step-body">
                 <div className="ob-step-title">
-                  <strong>{i + 1}. {t(s.ar, s.en)}</strong>
-                  {s.kind === 'optional' && <span className="badge">{t('اختياري', 'Optional')}</span>}
+                  <strong>
+                    {i + 1}. {t(s.ar, s.en)}
+                  </strong>
+                  {s.kind === 'optional' && (
+                    <span className="badge">{t('اختياري', 'Optional')}</span>
+                  )}
                   {s.kind === 'try' && <span className="badge">{t('يدوي', 'Manual')}</span>}
-                  {s.kind === 'core' && <span className={`status-pill ${s.done ? 'is-live' : 'is-draft'}`}>{s.done ? t('مكتملة', 'Done') : t('ناقصة', 'To do')}</span>}
+                  {s.kind === 'core' && (
+                    <span className={`status-pill ${s.done ? 'is-live' : 'is-draft'}`}>
+                      {s.done ? t('مكتملة', 'Done') : t('ناقصة', 'To do')}
+                    </span>
+                  )}
                 </div>
                 <small>{s.hint}</small>
               </div>
-              <Link className={`btn ${!s.done && s.kind === 'core' ? 'btn-primary' : ''}`} href={s.href}>
-                {s.done ? t('إدارة', 'Manage') : s.kind === 'try' ? t('افتح المصمم', 'Open builder') : t('ابدأ', 'Start')}
+              <Link
+                className={`btn ${!s.done && s.kind === 'core' ? 'btn-primary' : ''}`}
+                href={s.href}
+              >
+                {s.done
+                  ? t('إدارة', 'Manage')
+                  : s.kind === 'try'
+                    ? t('افتح المصمم', 'Open builder')
+                    : t('ابدأ', 'Start')}
               </Link>
             </li>
           );
@@ -159,11 +206,7 @@ export default function Onboarding() {
       </ol>
       <section className="ob-finish">
         <div className="form-actions">
-          <button
-            className="btn btn-primary"
-            disabled={busy || !hasActiveChannel}
-            onClick={finish}
-          >
+          <button className="btn btn-primary" disabled={busy || !hasActiveChannel} onClick={finish}>
             {t('إنهاء الإعداد والانتقال للوحة', 'Finish setup & open dashboard')}
           </button>
           <Link className="btn" href="/dashboard">

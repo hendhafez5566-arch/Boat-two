@@ -10,6 +10,8 @@ import { useLocale } from '../../../components/product/locale';
 import { statusLabel } from '../../../components/product/status';
 import { Dialog } from '../../../components/product/ProductUI';
 import { api, getSession } from '../../../lib/api';
+import { channelHref } from '../../../lib/channel-context';
+import styles from './channels.module.css';
 
 type BotReadiness = {
   active: boolean;
@@ -315,9 +317,66 @@ export default function Channels() {
             )}
           </p>
         </div>
+        <button
+          className="btn btn-primary"
+          onClick={() => {
+            setSelected('web');
+            setType('web');
+            setConnectOpen(true);
+          }}
+        >
+          {t('تجربة أول محادثة على الموقع', 'Try your first website conversation')}
+        </button>
       </div>
 
-      <section className="card stack" aria-label={t('حالة الحسابات', 'Account status')}>
+      <section
+        className={`card ${styles.journey}`}
+        aria-label={t('خطوات تشغيل القناة', 'Channel launch steps')}
+      >
+        <div>
+          <h2>{t('من الربط إلى أول عميل', 'From connection to your first customer')}</h2>
+          <p className="muted">
+            {t(
+              'ابدأ بقناة اختبار على الموقع، أو اربط حساب شركتك. كل خطوة لها حالة مستقلة.',
+              'Start with a website test channel, or connect your business account. Each step has its own status.',
+            )}
+          </p>
+        </div>
+        <ol className={styles.steps}>
+          <li>
+            <strong>{t('١. اربط القناة', '1. Connect a channel')}</strong>
+            <span>
+              {t(
+                'اختر المنصة وأكمل التفويض أو تثبيت الويدجت.',
+                'Choose a platform and complete authorization or widget installation.',
+              )}
+            </span>
+          </li>
+          <li>
+            <strong>{t('٢. جهّز البوت', '2. Prepare your bot')}</strong>
+            <span>
+              {t(
+                'أنشئ التدفق واختبره ثم انشره على القناة المختارة.',
+                'Create and test a flow, then publish it on the selected channel.',
+              )}
+            </span>
+          </li>
+          <li>
+            <strong>{t('٣. جرّب المحادثة', '3. Test a conversation')}</strong>
+            <span>
+              {t(
+                'اختبر على قناتك التجريبية وتابع النتيجة في الوارد.',
+                'Test on your test channel and follow the result in the inbox.',
+              )}
+            </span>
+          </li>
+        </ol>
+      </section>
+
+      <section
+        className={`card stack ${styles.filters}`}
+        aria-label={t('حالة الحسابات', 'Account status')}
+      >
         <h2>{t('الحسابات المتصلة', 'Connected Accounts')}</h2>
         <label className="field">
           {t('المنصة', 'Platform')}
@@ -384,7 +443,7 @@ export default function Channels() {
 
       <ul className="mb-8 flex flex-col gap-3">
         {visible.map((c) => (
-          <li key={c.id} className="card">
+          <li key={c.id} className={`card ${styles.account}`}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <strong className="connected-account-name">
                 <span className="connected-account-logo" data-channel={c.type}>
@@ -411,6 +470,35 @@ export default function Channels() {
                 {t('حذف', 'Delete')}
               </button>
             </div>
+            <div className={styles.identity}>
+              <span>
+                {t('معرّف الحساب', 'Account identifier')}: <bdi>{c.external_id}</bdi>
+              </span>
+              <span>
+                {t('تشغيل القناة', 'Local channel')}: {statusLabel(c.status, t)}
+              </span>
+              <span>
+                {t('دليل الاتصال', 'Connection evidence')}:{' '}
+                {stateLabels[stateOf(c)] || t('غير معروف', 'Unknown')}
+              </span>
+            </div>
+            <nav
+              className={`form-actions ${styles.actions}`}
+              aria-label={t('الخطوة التالية لقناة', 'Next steps for') + ' ' + c.name}
+            >
+              <Link className="btn btn-primary" href={channelHref('/dashboard/flows', c.id)}>
+                {t('إعداد البوت والنشر', 'Set up and publish bot')}
+              </Link>
+              <Link className="btn" href={channelHref('/dashboard/inbox', c.id)}>
+                {t('محادثات هذه القناة', 'This channel’s inbox')}
+              </Link>
+            </nav>
+            <p className="muted">
+              {t(
+                'الاتصال بالمزود لا يثبت نشر البوت أو وصول رسالة. راجع حالة التدفق في مدير البوت واختبر على قناة مخصصة للاختبار.',
+                'Provider connectivity does not prove bot publication or message delivery. Check the flow status in Bot Manager and test on a dedicated test channel.',
+              )}
+            </p>
             {c.connectionHealth?.checkedAt && (
               <p>
                 {t('آخر فحص', 'Last check')}:{' '}
@@ -883,9 +971,26 @@ export default function Channels() {
         ))}
         {!loading && !visible.length && (
           <li className="empty">
-            {t(
-              'لا توجد قنوات بعد. أضف ويدجت لتجربة أول محادثة.',
-              'No channels yet. Add a website widget for your first conversation.',
+            {items.length
+              ? t(
+                  'لا توجد قنوات تطابق البحث أو التصفية.',
+                  'No channels match your search or filters.',
+                )
+              : t(
+                  'لا توجد قنوات بعد. أضف ويدجت لتجربة أول محادثة.',
+                  'No channels yet. Add a website widget for your first conversation.',
+                )}
+            {items.length > 0 && (
+              <button
+                className="btn"
+                onClick={() => {
+                  setSearch('');
+                  setPlatform('all');
+                  setFilter('all');
+                }}
+              >
+                {t('مسح البحث والتصفية', 'Clear search and filters')}
+              </button>
             )}
           </li>
         )}
