@@ -153,6 +153,24 @@ if (!process.env.QA_BASELINE) {
     ],
   });
   const context = { attributes: { service: 'visa' }, channelId: ch };
+  check(
+    'missing service is qualification pending',
+    (await db.withTenant(tenant, (c) => service.evaluate(c, { channelId: ch }))).reason,
+    'awaiting_service',
+  );
+  const pending = await make(null);
+  await pg.query("UPDATE contacts SET attributes='{}' WHERE id=$1", [pending.ct]);
+  await service.autoAssignIfEnabled(tenant, pending.cv);
+  check(
+    'pending qualification does not alert manager',
+    (
+      await pg.query('SELECT count(*)::int n FROM crm_notifications WHERE resource_id=$1', [
+        pending.cv,
+      ])
+    ).rows[0].n,
+    0,
+  );
+
   const beforeCursor = (
     await pg.query("SELECT settings->>'crmAssignmentLast' last FROM tenants WHERE id=$1", [tenant])
   ).rows[0].last;

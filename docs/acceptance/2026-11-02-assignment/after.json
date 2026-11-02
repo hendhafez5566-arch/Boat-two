@@ -4,8 +4,8 @@
     {
       "name": "returning owner outside matching rule is rejected",
       "pass": true,
-      "actual": "5c0e72d1-4449-44c6-afd8-3738da6477ec",
-      "expected": "5c0e72d1-4449-44c6-afd8-3738da6477ec"
+      "actual": "e5337e5c-ccb0-416c-8a15-1b3d60608c08",
+      "expected": "e5337e5c-ccb0-416c-8a15-1b3d60608c08"
     },
     {
       "name": "returning owner at capacity must wait",
@@ -26,16 +26,28 @@
       "expected": null
     },
     {
+      "name": "missing service is qualification pending",
+      "pass": true,
+      "actual": "awaiting_service",
+      "expected": "awaiting_service"
+    },
+    {
+      "name": "pending qualification does not alert manager",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
       "name": "service field chooses visa specialist",
       "pass": true,
-      "actual": "5c0e72d1-4449-44c6-afd8-3738da6477ec",
-      "expected": "5c0e72d1-4449-44c6-afd8-3738da6477ec"
+      "actual": "e5337e5c-ccb0-416c-8a15-1b3d60608c08",
+      "expected": "e5337e5c-ccb0-416c-8a15-1b3d60608c08"
     },
     {
       "name": "dry-run leaves rotation cursor unchanged",
       "pass": true,
-      "actual": "5c0e72d1-4449-44c6-afd8-3738da6477ec",
-      "expected": "5c0e72d1-4449-44c6-afd8-3738da6477ec"
+      "actual": "e5337e5c-ccb0-416c-8a15-1b3d60608c08",
+      "expected": "e5337e5c-ccb0-416c-8a15-1b3d60608c08"
     },
     {
       "name": "unavailable specialist excluded",
@@ -52,8 +64,8 @@
     {
       "name": "retry assigns eligible specialist",
       "pass": true,
-      "actual": "5c0e72d1-4449-44c6-afd8-3738da6477ec",
-      "expected": "5c0e72d1-4449-44c6-afd8-3738da6477ec"
+      "actual": "e5337e5c-ccb0-416c-8a15-1b3d60608c08",
+      "expected": "e5337e5c-ccb0-416c-8a15-1b3d60608c08"
     },
     {
       "name": "assignment resolves waiting notification",
@@ -64,26 +76,26 @@
     {
       "name": "eligible returning owner retained",
       "pass": true,
-      "actual": "5c0e72d1-4449-44c6-afd8-3738da6477ec",
-      "expected": "5c0e72d1-4449-44c6-afd8-3738da6477ec"
+      "actual": "e5337e5c-ccb0-416c-8a15-1b3d60608c08",
+      "expected": "e5337e5c-ccb0-416c-8a15-1b3d60608c08"
     },
     {
       "name": "changed service reroutes bot-owned conversation",
       "pass": true,
-      "actual": "a01f331a-9ccb-4467-8a65-22596874686d",
-      "expected": "a01f331a-9ccb-4467-8a65-22596874686d"
+      "actual": "a65d34cc-d511-4a2c-bcc1-24bd272582a1",
+      "expected": "a65d34cc-d511-4a2c-bcc1-24bd272582a1"
     },
     {
       "name": "bot-answer events never steal human-owned conversation",
       "pass": true,
-      "actual": "a01f331a-9ccb-4467-8a65-22596874686d",
-      "expected": "a01f331a-9ccb-4467-8a65-22596874686d"
+      "actual": "a65d34cc-d511-4a2c-bcc1-24bd272582a1",
+      "expected": "a65d34cc-d511-4a2c-bcc1-24bd272582a1"
     },
     {
       "name": "channel department and tag all match",
       "pass": true,
-      "actual": "5c0e72d1-4449-44c6-afd8-3738da6477ec",
-      "expected": "5c0e72d1-4449-44c6-afd8-3738da6477ec"
+      "actual": "e5337e5c-ccb0-416c-8a15-1b3d60608c08",
+      "expected": "e5337e5c-ccb0-416c-8a15-1b3d60608c08"
     },
     {
       "name": "missing tag does not match",
@@ -106,8 +118,8 @@
     {
       "name": "least loaded uses open conversations",
       "pass": true,
-      "actual": "5c0e72d1-4449-44c6-afd8-3738da6477ec",
-      "expected": "5c0e72d1-4449-44c6-afd8-3738da6477ec"
+      "actual": "e5337e5c-ccb0-416c-8a15-1b3d60608c08",
+      "expected": "e5337e5c-ccb0-416c-8a15-1b3d60608c08"
     }
   ]
 }

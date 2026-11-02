@@ -1,0 +1,73 @@
+{
+  "format": "boat-two-flow",
+  "version": 1,
+  "name": "توزيع السفر QA — اختبار فقط",
+  "triggers": [
+    {
+      "type": "first_message"
+    }
+  ],
+  "graph": {
+    "startNodeId": "ask",
+    "nodes": [
+      {
+        "id": "ask",
+        "type": "question",
+        "data": {
+          "text": "أهلًا بك. اسمك إيه؟ (اختبار توزيع)",
+          "answerType": "text",
+          "saveAs": "name",
+          "saveToSystem": "name"
+        },
+        "edges": {
+          "ok": "service"
+        },
+        "position": {
+          "x": 300,
+          "y": 50
+        }
+      },
+      {
+        "id": "service",
+        "type": "question",
+        "data": {
+          "text": "اكتب visa أو flight أو umrah لاختيار تخصص الخدمة.",
+          "answerType": "text",
+          "saveAs": "travel_service",
+          "saveToContact": true
+        },
+        "edges": {
+          "ok": "reply"
+        },
+        "position": {
+          "x": 300,
+          "y": 400
+        }
+      },
+      {
+        "id": "reply",
+        "type": "message",
+        "data": {
+          "text": "تم تسجيل طلب الاختبار. سيتابع معك الموظف المؤهل عند توفره."
+        },
+        "edges": {
+          "next": "end"
+        },
+        "position": {
+          "x": 300,
+          "y": 750
+        }
+      },
+      {
+        "id": "end",
+        "type": "end",
+        "data": {},
+        "edges": {},
+        "position": {
+          "x": 300,
+          "y": 1050
+        }
+      }
+    ]
+  }
+}

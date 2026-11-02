@@ -101,8 +101,22 @@ export class AssignmentService {
           (!x.tag || context.tags?.includes(x.tag)) &&
           (!x.fieldKey || String(context.attributes?.[x.fieldKey] ?? '').trim() === x.fieldValue),
       );
-      if (ruleIndex < 0)
-        return { employee: null, reason: 'no_matching_rule', ruleIndex: null, candidates: [] };
+      if (ruleIndex < 0) {
+        const pending = policy.rules.some(
+          (x) =>
+            x.fieldKey &&
+            context.attributes?.[x.fieldKey] === undefined &&
+            (!x.channelId || x.channelId === context.channelId) &&
+            (!x.departmentId || x.departmentId === context.departmentId) &&
+            (!x.tag || context.tags?.includes(x.tag)),
+        );
+        return {
+          employee: null,
+          reason: pending ? 'awaiting_service' : 'no_matching_rule',
+          ruleIndex: null,
+          candidates: [],
+        };
+      }
       ids = policy.rules[ruleIndex].memberIds;
     }
     if (policy.enabled && !ids.length)
@@ -289,7 +303,11 @@ export class AssignmentService {
             ],
           );
         const notices = notificationSettingsSchema.parse(settings.crmNotifications || {});
-        if (notices.enabled && notices.kinds.includes('unassigned'))
+        if (
+          decision.reason !== 'awaiting_service' &&
+          notices.enabled &&
+          notices.kinds.includes('unassigned')
+        )
           await c.query(
             `INSERT INTO crm_notifications(tenant_id,user_id,kind,resource_type,resource_id,contact_id,title,priority,dedupe_key)
            SELECT $1,user_id,'unassigned','conversation',$2,$3,'محادثة تنتظر موظفًا مؤهلًا / Waiting for eligible employee','high',$4 FROM memberships WHERE role IN ('owner','admin') AND (cardinality($5::uuid[])=0 OR user_id=ANY($5::uuid[])) ON CONFLICT DO NOTHING`,

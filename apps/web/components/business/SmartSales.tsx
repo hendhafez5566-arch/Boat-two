@@ -87,6 +87,10 @@ export function SmartSales() {
     (
       ({
         policy_disabled: t('التوزيع التلقائي متوقف', 'Automatic assignment is disabled'),
+        awaiting_service: t(
+          'بانتظار تحديد نوع الخدمة من العميل',
+          'Waiting for the customer to choose a service',
+        ),
         no_matching_rule: t('لا توجد قاعدة تخصص مطابقة', 'No matching specialty rule'),
         no_participants: t('لا يوجد موظفون مشاركون', 'No participants selected'),
         no_eligible_employee: t(
