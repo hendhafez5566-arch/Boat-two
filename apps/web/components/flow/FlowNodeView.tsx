@@ -163,7 +163,7 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
           <strong>{nodeLabel(data.type, language)}</strong>
           {data.isStart && <span className="flow-start-badge">{t('بداية', 'Start')}</span>}
         </div>
-        {SENDERS.includes(data.type) && (
+        {analytics && SENDERS.includes(data.type) && (
           <div
             className="fn-stats"
             aria-label={t('إحصائيات الخطوة', 'Step statistics')}

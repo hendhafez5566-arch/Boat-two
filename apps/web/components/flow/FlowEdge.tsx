@@ -9,7 +9,7 @@ import {
 } from 'reactflow';
 import { useLocale } from '../product/locale';
 
-/** Connection removal stays visible without selecting the path first. */
+/** Connections expose their controls on selection, hover or keyboard focus. */
 export default function FlowEdge(props: EdgeProps) {
   const {
     id,
@@ -94,6 +94,7 @@ export default function FlowEdge(props: EdgeProps) {
         <button
           type="button"
           className="edge-delete nodrag nopan"
+          data-active={selected || focus === 'hot'}
           style={{
             transform: `translate(-50%, -50%) translate(${labelX + (selected ? 30 : 0)}px, ${labelY}px)`,
           }}

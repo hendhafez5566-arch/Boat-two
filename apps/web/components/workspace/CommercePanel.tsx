@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+
 import DataSourcesPanel from './DataSourcesPanel';
 import ChannelScope from '../product/ChannelScope';
 import { useChannelContext } from '../product/useChannelContext';
@@ -206,9 +208,9 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
               <input type="url" name="link" defaultValue={editing?.link_url ?? ''} />
             </label>
             <details>
-              <summary>
+              <DisclosureSummary>
                 {t('معرفات كتالوج WhatsApp المعتمد', 'Approved WhatsApp catalog IDs')}
-              </summary>
+              </DisclosureSummary>
               <label className="field">
                 Catalog ID
                 <input name="catalog" defaultValue={editing?.catalog_id ?? ''} />
@@ -320,7 +322,9 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
               <input name="calendar" defaultValue="primary" />
             </label>
             <details>
-              <summary>{t('جدول أسبوعي اختياري JSON', 'Optional weekly schedule JSON')}</summary>
+              <DisclosureSummary>
+                {t('جدول أسبوعي اختياري JSON', 'Optional weekly schedule JSON')}
+              </DisclosureSummary>
               <textarea
                 name="schedule"
                 rows={4}

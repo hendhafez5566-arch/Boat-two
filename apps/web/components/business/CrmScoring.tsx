@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+
 import { useState } from 'react';
 import { api } from '../../lib/api';
 import { useData } from './useData';
@@ -49,7 +51,7 @@ export function CrmScore({ contactId, version }: { contactId: string; version: s
       )}
       {d.error && <span role="alert">{t('تعذر تحميل التقييم', 'Could not load score')}</span>}
       <details>
-        <summary>{t('لماذا هذا التقييم؟', 'Why this score?')}</summary>
+        <DisclosureSummary>{t('لماذا هذا التقييم؟', 'Why this score?')}</DisclosureSummary>
         <p>
           {t(
             'مجموع نقاط قواعد شركتك، بحد أقصى100. ليس توقعًا لاحتمال البيع.',

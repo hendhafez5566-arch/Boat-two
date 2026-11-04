@@ -1,0 +1,81 @@
+/* Measured against the signed-in reference on 2026-11-04. */
+.bs-shell .page-workspace {
+  max-width: none;
+}
+.bs-shell .product-sidebar nav a.active,
+.bs-shell .nav-more-btn.active {
+  background: #f5f2ff;
+  font-weight: 600;
+}
+.bs-shell .product-topbar.bs-topbar {
+  background: linear-gradient(100deg, #fafdff, #edf7fc);
+}
+
+/* The flow palette owns navigation in the editor: avoid two adjacent icon rails. */
+.product-shell.flow-shell {
+  display: block;
+}
+.flow-shell .product-sidebar {
+  display: none;
+}
+.flow-shell .product-content {
+  width: 100%;
+}
+
+/* Keep native select keyboard/search behavior; draw exactly one neutral chevron. */
+.product-shell select:not([multiple]):not([size]),
+.product-shell select[size='1'] {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' viewBox='0 0 20 20'%3E%3Cpath d='m6 8 4 4 4-4' stroke='%23728095' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-inline-end: 36px;
+  cursor: pointer;
+}
+[dir='rtl'] .product-shell select:not([multiple]):not([size]),
+[dir='rtl'] .product-shell select[size='1'] {
+  background-position: left 12px center;
+}
+.product-shell select:disabled {
+  cursor: not-allowed;
+}
+
+/* Default canvas stays quiet; actions remain discoverable by mouse, keyboard and touch. */
+.flow-shell .flow-node-delete,
+.flow-shell .edge-delete {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.flow-shell .premium-flow-node:hover > .flow-node-delete,
+.flow-shell .premium-flow-node:focus-within > .flow-node-delete,
+.flow-shell .premium-flow-node.is-selected > .flow-node-delete,
+.flow-shell .edge-delete:hover,
+.flow-shell .edge-delete:focus-visible,
+.flow-shell .edge-delete[data-active='true'] {
+  opacity: 1;
+}
+@media (hover: none) {
+  .flow-shell .flow-node-delete,
+  .flow-shell .edge-delete {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flow-shell .flow-node-delete,
+  .flow-shell .edge-delete {
+    transition: none;
+  }
+}
+@media (forced-colors: active) {
+  .product-shell select:not([multiple]):not([size]),
+  .product-shell select[size='1'] {
+    appearance: auto;
+    background-image: none;
+    padding-inline-end: 12px;
+  }
+}
+
+/* Secondary copy must remain readable at the reference's compact type sizes. */
+.bs-shell { --faint: #647180; }
+.bs-shell .bs-meter-text small { color: #647180; font-size: 12px; }

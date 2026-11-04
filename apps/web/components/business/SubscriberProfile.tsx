@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+
 import { FormEvent, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Dialog } from '../product/ProductUI';
@@ -311,7 +313,9 @@ export default function SubscriberProfile({
               ))}
           </nav>
           <details className={styles.profileMore}>
-            <summary>{t('الشركة والوسوم والإعدادات الإضافية', 'Company, labels and more')}</summary>
+            <DisclosureSummary>
+              {t('الشركة والوسوم والإعدادات الإضافية', 'Company, labels and more')}
+            </DisclosureSummary>
             <div>
               {tabs
                 .filter(

@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+
 import { useState } from 'react';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
@@ -40,9 +42,9 @@ export function CrmRetention() {
   }
   return (
     <details className="card stack">
-      <summary>
+      <DisclosureSummary>
         {t('الاحتفاظ بسجل CRM وملفات المهام', 'CRM history & job payload retention')}
-      </summary>
+      </DisclosureSummary>
       <p>
         {t(
           'تنظيف يدوي بعد المراجعة. يحتفظ بالسجل السابق اللازم لكل عميل لإعادة بناء التاريخ بعد الحد، ويزيل الملفات القديمة للمهام المكتملة والملغاة فقط. لا يحذف العملاء أو الموافقات أو المهام النشطة.',

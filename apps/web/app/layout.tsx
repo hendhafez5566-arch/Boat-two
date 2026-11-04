@@ -2,6 +2,7 @@ import './globals.css';
 import './design-system.css';
 import './builder-responsive.css';
 import './sequence-builder.css';
+import './reference-refinements.css';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { BrandProvider, PublicBrand } from '../components/product/BrandContext';

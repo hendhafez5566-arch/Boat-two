@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../../components/product/DisclosureSummary';
+
 import { useEffect, useState } from 'react';
 import { useLocale } from '../../components/product/locale';
 type Row = {
@@ -142,7 +144,7 @@ export default function AuditTrail({
                 </td>
                 <td>
                   <details>
-                    <summary>{t('عرض التفاصيل', 'View details')}</summary>
+                    <DisclosureSummary>{t('عرض التفاصيل', 'View details')}</DisclosureSummary>
                     <pre>{JSON.stringify(row.details, null, 2)}</pre>
                   </details>
                 </td>

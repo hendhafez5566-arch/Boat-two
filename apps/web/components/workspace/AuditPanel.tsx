@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+
 import { activityAction, resourceLabel } from '../../lib/business-events';
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
@@ -61,7 +63,7 @@ export default function Audit() {
                 <td>
                   {resourceLabel(x.resource_type, t)}
                   <details>
-                    <summary>{t('تفاصيل تقنية', 'Technical details')}</summary>
+                    <DisclosureSummary>{t('تفاصيل تقنية', 'Technical details')}</DisclosureSummary>
                     <code dir="ltr">
                       {x.action} · {x.resource_type} · {x.resource_id}
                     </code>

@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from './DisclosureSummary';
+
 import { useState, type FormEvent } from 'react';
 import { api } from '../../lib/api';
 import { embeddedSignupSession } from '../../lib/meta-signup';
@@ -189,7 +191,7 @@ export default function MetaConnect({ onSaved, selectedKind }: { onSaved: () => 
         </section>
       )}
       {(!config.data.configured || !(config.data.connectEnabled ?? config.data.externalEnabled)) && (
-        <div className="notice"><strong>{t('بانتظار تجهيز الربط','Connection setup pending')}</strong><p>{t('تواصل مع مسؤول المنصة لتجهيز الربط الرسمي. يمكنك استخدام قناة الموقع الآن دون حساب خارجي.','Contact the platform administrator to prepare the official connection. Website chat is available without an external account.')}</p><details><summary>{t('تفاصيل للمسؤول','Administrator details')}</summary>{t(
+        <div className="notice"><strong>{t('بانتظار تجهيز الربط','Connection setup pending')}</strong><p>{t('تواصل مع مسؤول المنصة لتجهيز الربط الرسمي. يمكنك استخدام قناة الموقع الآن دون حساب خارجي.','Contact the platform administrator to prepare the official connection. Website chat is available without an external account.')}</p><details><DisclosureSummary>{t('تفاصيل للمسؤول','Administrator details')}</DisclosureSummary>{t(
             'يلزم إعداد تطبيق Meta ومعرّف Embedded Signup وRedirect URI والصلاحيات المعتمدة بواسطة المشغّل.',
             'The operator must configure the Meta app, Embedded Signup configuration, redirect URI and approved permissions.',
           )}

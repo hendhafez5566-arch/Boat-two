@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+
 import { useState } from 'react';
 import { api } from '../../lib/api';
 import { useData } from './useData';
@@ -100,9 +102,9 @@ export function KnowledgeJobs() {
       )}
       {data.data.reservations.map((reservation) => (
         <details key={reservation.effect_key}>
-          <summary>
+          <DisclosureSummary>
             {reservation.status} · {reservation.amount} · {reservation.effect_key}
-          </summary>
+          </DisclosureSummary>
           <p>
             {t(
               'لا يُعاد إرسال طلب غامض. التسوية المحاسبية تتطلب دليلاً من المزود.',

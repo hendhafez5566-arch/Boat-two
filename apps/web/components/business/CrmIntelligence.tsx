@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { CrmNav } from './CrmNav';
@@ -573,7 +575,9 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
             </>
           )}
           <details className={styles.definitions}>
-            <summary>{t('كيف تُحسب هذه الأرقام؟', 'How are these metrics calculated?')}</summary>
+            <DisclosureSummary>
+              {t('كيف تُحسب هذه الأرقام؟', 'How are these metrics calculated?')}
+            </DisclosureSummary>
             <p>
               {t(
                 'العملاء الجدد حسب تاريخ الإنشاء. الصفقات حسب آخر تحديث وحالتها الحالية، وليست دفتر إيرادات تاريخيًا. المتابعات المكتملة حسب آخر تحديث؛ المتأخرة والمطلوب اليوم حالة حالية. العملات منفصلة ولا تُجمع.',

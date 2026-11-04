@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+
 import { automationLabel } from './automation-labels';
 import { statusLabel } from '../product/status';
 import { WorkflowCanvas } from './WorkflowCanvas';
@@ -114,9 +116,9 @@ function ConditionsForm({
           </legend>
           {(value[group] ?? []).map((clause, index) => (
             <details key={index} className="condition-clause">
-              <summary>
+              <DisclosureSummary>
                 {t('مجموعة', 'Group')} {index + 1} · {group === 'allOf' ? 'AND' : 'OR'}
-              </summary>
+              </DisclosureSummary>
               <ConditionsForm
                 value={clause}
                 depth={depth + 1}
@@ -779,7 +781,9 @@ export function SavedAutomationEditor({ initialRuleId = '' }: { initialRuleId?: 
         </form>
       )}
       <details>
-        <summary>{t('إدارة أسرار التكاملات', 'Manage integration secrets')}</summary>
+        <DisclosureSummary>
+          {t('إدارة أسرار التكاملات', 'Manage integration secrets')}
+        </DisclosureSummary>
         <form
           className="stack p-3"
           onSubmit={(e) => {
@@ -912,7 +916,7 @@ export function SavedAutomationEditor({ initialRuleId = '' }: { initialRuleId?: 
           </strong>
           <p>{failure.error}</p>
           <details>
-            <summary>{t('سياق التنفيذ', 'Execution context')}</summary>
+            <DisclosureSummary>{t('سياق التنفيذ', 'Execution context')}</DisclosureSummary>
             <dl className="stack mt-3">
               <div>
                 <dt>{t('إصدار القاعدة عند الفشل', 'Failed rule revision')}</dt>

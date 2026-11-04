@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../lib/api';
@@ -821,7 +823,7 @@ function StageHistory({ contactId, dealId }: { contactId: string; dealId: string
   const items = d.data?.timeline.stageChanges?.filter((s) => s.deal_id === dealId) || [];
   return (
     <details className={styles.definitions}>
-      <summary>{t('سجل تغييرات المرحلة', 'Stage change history')}</summary>
+      <DisclosureSummary>{t('سجل تغييرات المرحلة', 'Stage change history')}</DisclosureSummary>
       {d.error && <p role="alert">{d.error}</p>}
       {items.map((s) => (
         <p key={s.id}>

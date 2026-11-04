@@ -1924,7 +1924,7 @@ function Editor({ id }: { id: string }) {
                           </small>
                         </div>
                       </Panel>
-                      <Background color="#cdd5e2" gap={22} size={1.4} />
+                      <Background color="#dce4ec" gap={24} size={0.6} />
                       {showMap && !previewOpen && (
                         <MiniMap
                           pannable

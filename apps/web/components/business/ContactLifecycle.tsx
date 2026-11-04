@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../lib/api';
@@ -79,7 +81,7 @@ export function ContactLifecycle({
         ))}
       </div>
       <details>
-        <summary>{t('اختيار بالمعرّف', 'Select by ID')}</summary>
+        <DisclosureSummary>{t('اختيار بالمعرّف', 'Select by ID')}</DisclosureSummary>
         <input
           aria-label={t('معرّف الأساسي', 'Target ID')}
           value={target}

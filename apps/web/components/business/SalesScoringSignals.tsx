@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+
 import { useState } from 'react';
 import { api } from '../../lib/api';
 import { useData } from './useData';
@@ -39,12 +41,12 @@ export function SalesScoringSignals() {
   };
   return (
     <details className={styles.card}>
-      <summary>
+      <DisclosureSummary>
         <h2>
           <NavIcon name="temperature" />
           {t('إشارات التقييم الذكي', 'Smart scoring signals')}
         </h2>
-      </summary>
+      </DisclosureSummary>
       <p>
         {t(
           'تُضاف إلى نقاط V2. القيم الافتراضية صفر للحفاظ على التقييم المعتمد. التفاعلات هي رسائل العميل غير الداخلية خلال الفترة.',

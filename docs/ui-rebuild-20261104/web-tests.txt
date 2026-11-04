@@ -1,0 +1,23 @@
+✔ a completed handoff gives a restart action, never the initial start instruction (1.190893ms)
+✔ malformed Excel feedback explains recovery in the selected language (0.241624ms)
+✔ billing amounts respect currency minor units and reject invalid input (22.413898ms)
+✔ invoice documents reject script URLs, embedded credentials and lookalike hosts (0.369607ms)
+✔ subscription dates use explicit language, named months and saved account timezone (6.705539ms)
+✔ channel context survives feature navigation while unrestricted legacy bots remain visible (1.416434ms)
+✔ cards derive, re-source edges and keep the saved graph identical (2.377872ms)
+✔ rtl default offset goes left; list-only and plain messages get no cards (0.406132ms)
+✔ list rows become cards too and keep their option edges and layout (0.299771ms)
+✔ field edits preserve zero and false instead of erasing them (1.039456ms)
+✔ clearing a field is explicit null for the partial profile update (0.240622ms)
+✔ rejects invalid dates numbers and boolean strings before persisting (0.852984ms)
+✔ Embedded Signup accepts FINISH before the SDK authorization callback (2.328627ms)
+✔ Embedded Signup waits for FINISH after the authorization callback (0.461616ms)
+✔ untrusted origins, malformed payloads and incomplete selections cannot attach accounts (20.943572ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 325.256826

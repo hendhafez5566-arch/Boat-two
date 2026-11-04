@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../../../components/product/DisclosureSummary';
+
 import { reportColumn, reportValue } from '../../../lib/report-format';
 import { statusLabel } from '../../../components/product/status';
 import {localDay,shiftDay,reportRange} from '../../../lib/time-range';
@@ -160,7 +162,7 @@ export default function Reports() {
                       {rows.map((row, i) => (
                         <tr key={i}>
                           {headers.map((h) => (
-                            <td key={h}>{h === 'id' ? <details><summary>{t('عرض المرجع','Show reference')}</summary><code>{row[h]}</code></details> : ['status','lifecycle'].includes(h) ? statusLabel(String(row[h] || ''),t) : reportValue(h,row[h],row,language,t)}</td>
+                            <td key={h}>{h === 'id' ? <details><DisclosureSummary>{t('عرض المرجع','Show reference')}</DisclosureSummary><code>{row[h]}</code></details> : ['status','lifecycle'].includes(h) ? statusLabel(String(row[h] || ''),t) : reportValue(h,row[h],row,language,t)}</td>
                           ))}
                         </tr>
                       ))}

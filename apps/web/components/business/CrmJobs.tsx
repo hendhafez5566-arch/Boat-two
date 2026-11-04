@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+
 import { statusLabel } from '../product/status';
 import { CrmRetention } from './CrmRetention';
 import { useEffect, useState } from 'react';
@@ -92,9 +94,9 @@ export function CrmJobs() {
         </p>
       )}
       <details className="stack">
-        <summary>
+        <DisclosureSummary>
           {t('تصدير بتاريخ سابق وتفاصيل الاحتفاظ', 'Historical export and retention details')}
-        </summary>
+        </DisclosureSummary>
         <label className="field">
           {t('تصدير تاريخ مسجّل (اختياري)', 'Recorded historical export (optional)')}
           <input type="datetime-local" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
@@ -354,7 +356,9 @@ export function CrmJobs() {
           )}
           {job.errors.length > 0 && (
             <details>
-              <summary>{t('أخطاء الصفوف (أول 100)', 'Row errors (first 100)')}</summary>
+              <DisclosureSummary>
+                {t('أخطاء الصفوف (أول 100)', 'Row errors (first 100)')}
+              </DisclosureSummary>
               {job.errors.map((e) => (
                 <p key={e.row}>
                   {e.row}: {e.error}
