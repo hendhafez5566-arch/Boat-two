@@ -10,7 +10,7 @@ import * as fs from 'node:fs';
   };
   try {
     start(process.execPath, ['scripts/qa-full-api.mjs'], 'api');
-    start('pnpm', ['--filter', 'web', 'start'], 'web');
+    start('corepack', ['pnpm', '--filter', 'web', 'start'], 'web');
     for (const url of ['http://127.0.0.1:4000/health', 'http://127.0.0.1:3000/login']) {
       let ready = false;
       for (let i = 0; i < 100; i++) {
@@ -27,10 +27,14 @@ import * as fs from 'node:fs';
       }
       if (!ready) throw Error('Fixture did not become ready: ' + url);
     }
-    const child = spawn(process.execPath, [process.env.BOAT_QA_BROWSER_SCRIPT || 'scripts/qa-full-browser.mjs'], {
-      stdio: 'inherit',
-      env: process.env,
-    });
+    const child = spawn(
+      process.execPath,
+      [process.env.BOAT_QA_BROWSER_SCRIPT || 'scripts/qa-full-browser.mjs'],
+      {
+        stdio: 'inherit',
+        env: process.env,
+      },
+    );
     await new Promise((resolve, reject) =>
       child.on('exit', (code) => (code === 0 ? resolve() : reject(Error('Browser exit ' + code)))),
     );

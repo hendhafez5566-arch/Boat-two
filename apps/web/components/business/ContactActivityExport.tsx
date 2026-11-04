@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+
 import { useState } from 'react';
 import { useLocale } from '../product/locale';
 import { api } from '../../lib/api';
@@ -11,7 +13,9 @@ export function ContactActivityExport({ contactId }: { contactId: string }) {
     [error, setError] = useState('');
   return (
     <details className="card">
-      <summary>{t('تصدير سجل العميل والموافقات', 'Export customer activity and consent')}</summary>
+      <DisclosureSummary>
+        {t('تصدير سجل العميل والموافقات', 'Export customer activity and consent')}
+      </DisclosureSummary>
       <form
         className="stack mt-3"
         onSubmit={async (e) => {

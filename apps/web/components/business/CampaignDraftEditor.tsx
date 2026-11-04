@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+
 import {
   TemplateParameters,
   TemplatePreview,
@@ -45,7 +47,7 @@ export function CampaignDraftEditor({
   );
   return (
     <details open={expanded || undefined}>
-      <summary className="btn">{t('تعديل المسودة', 'Edit draft')}</summary>
+      <DisclosureSummary className="btn">{t('تعديل المسودة', 'Edit draft')}</DisclosureSummary>
       <form
         className="stack p-3"
         onSubmit={(event) => {

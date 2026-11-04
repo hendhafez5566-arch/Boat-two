@@ -94,6 +94,11 @@
   text-decoration: none;
   color: inherit;
 }
+.quick a > span:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
 .quick strong {
   display: block;
   font-size: 14px;
@@ -136,6 +141,7 @@
   color: #e5b232;
 }
 .arrow {
+  flex: none;
   margin-inline-start: auto;
   color: #cdd1d8;
   font-size: 24px;

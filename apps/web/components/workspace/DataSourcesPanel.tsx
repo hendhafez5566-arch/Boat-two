@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { catalogError } from '../../lib/catalog-error';
@@ -637,7 +639,9 @@ export default function DataSourcesPanel({
             })}
           {sample.length > 0 && (
             <details>
-              <summary>{t('معاينة البيانات الأصلية', 'Preview original rows')}</summary>
+              <DisclosureSummary>
+                {t('معاينة البيانات الأصلية', 'Preview original rows')}
+              </DisclosureSummary>
               <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
                 <table>
                   <thead>
@@ -663,7 +667,9 @@ export default function DataSourcesPanel({
         </>
       )}
       <details>
-        <summary>{t('إعدادات متقدمة للمساعد', 'Advanced assistant settings')}</summary>
+        <DisclosureSummary>
+          {t('إعدادات متقدمة للمساعد', 'Advanced assistant settings')}
+        </DisclosureSummary>
         <label>
           <input type="checkbox" checked={ai} onChange={(e) => setAi(e.target.checked)} />
           {t(
@@ -856,7 +862,7 @@ export default function DataSourcesPanel({
           )}
           {runs.length > 0 && (
             <details>
-              <summary>{t('سجل المزامنة', 'Sync history')}</summary>
+              <DisclosureSummary>{t('سجل المزامنة', 'Sync history')}</DisclosureSummary>
               {runs.map((r, i) => (
                 <p key={i}>
                   {new Date(r.created_at).toLocaleString(language)} —{' '}

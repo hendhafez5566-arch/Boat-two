@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from './DisclosureSummary';
+
 import { useEffect, useState } from 'react';
 import { useData } from '../business/useData';
 import { api } from '../../lib/api';
@@ -129,9 +131,9 @@ export function InvitationMailPanel({ refreshKey }: { refreshKey: string }) {
                   <td>
                     {j.status === 'ambiguous' && workspace.data.role === 'owner' && (
                       <details>
-                        <summary>
+                        <DisclosureSummary>
                           {t('مراجعة الدليل دون إعادة إرسال', 'Review evidence without resending')}
-                        </summary>
+                        </DisclosureSummary>
                         <form
                           className="stack"
                           onSubmit={async (e) => {

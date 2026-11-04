@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from 'react';
 import { useLocale } from '../product/locale';
@@ -166,7 +168,7 @@ export default function MessageBubble({
           )}
           {c.flowReply && (
             <details>
-              <summary>بيانات نموذج WhatsApp</summary>
+              <DisclosureSummary>بيانات نموذج WhatsApp</DisclosureSummary>
               <pre dir="ltr">{JSON.stringify(c.flowReply, null, 2)}</pre>
             </details>
           )}

@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+
 import { statusLabel } from '../product/status';
 import { useState } from 'react';
 import { api } from '../../lib/api';
@@ -209,7 +211,9 @@ export function GenerationBudgetPanel() {
                 <td>
                   {owner && ['started', 'uncertain', 'reserved'].includes(r.status) && (
                     <details>
-                      <summary>{t('مراجعة حجز متوقف', 'Review interrupted reservation')}</summary>
+                      <DisclosureSummary>
+                        {t('مراجعة حجز متوقف', 'Review interrupted reservation')}
+                      </DisclosureSummary>
                       <form
                         className="stack"
                         onSubmit={(e) => {

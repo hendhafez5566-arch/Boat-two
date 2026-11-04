@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
 import SequenceCenter from './SequenceCenter';
 import ChannelScope from '../product/ChannelScope';
 import { useChannelContext } from '../product/useChannelContext';
@@ -624,7 +625,9 @@ function SequenceWorkspace({
                     </div>
                     {cur.id && st && st.sent + st.delivered + st.subscribers + st.errors > 0 && (
                       <details>
-                        <summary>{t('إحصاءات الرسالة', 'Message statistics')}</summary>
+                        <DisclosureSummary>
+                          {t('إحصاءات الرسالة', 'Message statistics')}
+                        </DisclosureSummary>
                         <div className="sq-stats">
                           <div>
                             ✈ {t('أُرسلت', 'Sent')}

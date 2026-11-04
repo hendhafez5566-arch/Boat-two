@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../../components/product/DisclosureSummary';
+
 import { useState } from 'react';
 import BillingReviews from './BillingReviews';
 import OperationalReports from './OperationalReports';
@@ -186,7 +188,9 @@ function Console() {
       {message && <p className="notice">{message}</p>}
       {!token && !enrollment && (
         <details className="card">
-          <summary>{t('فقدت تطبيق المصادقة؟', 'Lost your authenticator?')}</summary>
+          <DisclosureSummary>
+            {t('فقدت تطبيق المصادقة؟', 'Lost your authenticator?')}
+          </DisclosureSummary>
           <form
             className="stack"
             onSubmit={(e) => {
@@ -644,9 +648,9 @@ function Console() {
           <h2>{t('الباقات والحدود', 'Plans and limits')}</h2>
           {data?.plans.map((plan) => (
             <details className="card" key={plan.code}>
-              <summary>
+              <DisclosureSummary>
                 {plan.name} · {plan.code}
-              </summary>
+              </DisclosureSummary>
               <form
                 className="stack"
                 onSubmit={(e) => {

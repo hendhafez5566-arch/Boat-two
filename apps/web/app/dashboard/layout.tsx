@@ -93,6 +93,8 @@ function Shell({ children }: { children: ReactNode }) {
   const [aiEnabled, setAiEnabled] = useState(false);
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const compactWorkspace = path === '/dashboard/flows' || path.startsWith('/dashboard/crm');
+  const [workspaceExpanded, setWorkspaceExpanded] = useState(false);
   useEffect(() => {
     try {
       setCollapsed(localStorage.getItem('boat.navigation.collapsed') === 'true');
@@ -101,15 +103,17 @@ function Shell({ children }: { children: ReactNode }) {
     }
   }, []);
   const toggleSidebar = () =>
-    setCollapsed((value) => {
-      const next = !value;
-      try {
-        localStorage.setItem('boat.navigation.collapsed', String(next));
-      } catch {
-        /* Device preferences are optional. */
-      }
-      return next;
-    });
+    compactWorkspace
+      ? setWorkspaceExpanded((value) => !value)
+      : setCollapsed((value) => {
+          const next = !value;
+          try {
+            localStorage.setItem('boat.navigation.collapsed', String(next));
+          } catch {
+            /* Device preferences are optional. */
+          }
+          return next;
+        });
   const [moreOpen, setMoreOpen] = useState<boolean | null>(null);
   const [acctOpen, setAcctOpen] = useState(false);
   const [q, setQ] = useState('');
@@ -128,6 +132,7 @@ function Shell({ children }: { children: ReactNode }) {
     setQ('');
     setMoreOpen(null);
     setOpen(false);
+    setWorkspaceExpanded(false);
   }, [path]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
@@ -221,7 +226,8 @@ function Shell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('boat:toggle-navigation', show);
   }, []);
   const isFlowEditor = /^\/dashboard\/flows\/(?!new$)[^/]+$/.test(path);
-  const focused = path.startsWith('/dashboard/inbox') || /^\/dashboard\/flows\/[^/]+$/.test(path);
+  const compactNavigation = compactWorkspace ? !workspaceExpanded : collapsed;
+  const focused = isInbox || /^\/dashboard\/flows\/[^/]+$/.test(path);
   const allowedKey = (key: string) => role !== 'agent' || !restrictedForAgents.includes(key);
   const isActive = (key: string) =>
     key ? path.startsWith('/dashboard/' + key) : path === '/dashboard';
@@ -243,7 +249,7 @@ function Shell({ children }: { children: ReactNode }) {
   ].filter(([k]) => allowedKey(k));
   return (
     <div
-      className={`product-shell bs-shell ${isInbox ? 'inbox-shell' : ''} ${(collapsed && !isInbox) || isFlowEditor ? 'nav-collapsed' : 'nav-expanded'}`}
+      className={`product-shell bs-shell ${isInbox ? 'inbox-shell' : ''} ${isFlowEditor ? 'flow-shell' : ''} ${(compactNavigation && !isInbox) || isFlowEditor ? 'nav-collapsed' : 'nav-expanded'}`}
       style={brand ? ({ '--primary': brand.primary_color } as CSSProperties) : undefined}
     >
       {open && <div className="bs-scrim" onClick={() => setOpen(false)} />}
@@ -318,7 +324,7 @@ function Shell({ children }: { children: ReactNode }) {
                       aria-controls="nav-more-panel"
                       title={t('لوحة التحكم', 'Control panel')}
                       onClick={() => {
-                        if (collapsed && !isFlowEditor) toggleSidebar();
+                        if (compactNavigation && !isFlowEditor) toggleSidebar();
                         setMoreOpen(!expandedMore);
                       }}
                     >
@@ -346,7 +352,7 @@ function Shell({ children }: { children: ReactNode }) {
           <header className="product-topbar bs-topbar">
             <button
               className="bs-iconbtn bs-burger"
-              aria-expanded={open || !collapsed}
+              aria-expanded={open || !compactNavigation}
               aria-controls="workspace-navigation"
               aria-label={t('القائمة', 'Navigation')}
               onClick={() => {
@@ -427,7 +433,16 @@ function Shell({ children }: { children: ReactNode }) {
                 )}
               </button>
               {acctOpen && (
-                <div className="bs-menu" role="menu">
+                <div
+                  className="bs-menu"
+                  role="menu"
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') {
+                      setAcctOpen(false);
+                      acctRef.current?.querySelector<HTMLButtonElement>('.bs-avatar')?.focus();
+                    }
+                  }}
+                >
                   <div className="bs-menu-head">
                     <strong>{name}</strong>
                     <small>{role ? statusLabel(role, t) : t('مساحة العمل', 'Workspace')}</small>

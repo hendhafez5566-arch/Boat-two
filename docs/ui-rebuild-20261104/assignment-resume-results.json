@@ -1,0 +1,179 @@
+{
+  "engine": "PostgreSQL/PGlite, all migrations, app_user RLS; not native server",
+  "results": [
+    {
+      "name": "returning owner outside matching rule is rejected",
+      "pass": true,
+      "actual": "233d000b-cb6a-437b-abaa-859cdbc9007d",
+      "expected": "233d000b-cb6a-437b-abaa-859cdbc9007d"
+    },
+    {
+      "name": "returning owner at capacity must wait",
+      "pass": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "no-candidate reason persists on the conversation",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "foreign tenant cannot select our staff",
+      "pass": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "missing service is qualification pending",
+      "pass": true,
+      "actual": "awaiting_service",
+      "expected": "awaiting_service"
+    },
+    {
+      "name": "pending qualification does not alert manager",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
+      "name": "service field chooses visa specialist",
+      "pass": true,
+      "actual": "233d000b-cb6a-437b-abaa-859cdbc9007d",
+      "expected": "233d000b-cb6a-437b-abaa-859cdbc9007d"
+    },
+    {
+      "name": "dry-run leaves rotation cursor unchanged",
+      "pass": true,
+      "actual": "233d000b-cb6a-437b-abaa-859cdbc9007d",
+      "expected": "233d000b-cb6a-437b-abaa-859cdbc9007d"
+    },
+    {
+      "name": "unavailable specialist excluded",
+      "pass": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "waiting alerts reach manager once",
+      "pass": true,
+      "actual": 1,
+      "expected": 1
+    },
+    {
+      "name": "retry assigns eligible specialist",
+      "pass": true,
+      "actual": "233d000b-cb6a-437b-abaa-859cdbc9007d",
+      "expected": "233d000b-cb6a-437b-abaa-859cdbc9007d"
+    },
+    {
+      "name": "assignment resolves waiting notification",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "eligible returning owner retained",
+      "pass": true,
+      "actual": "233d000b-cb6a-437b-abaa-859cdbc9007d",
+      "expected": "233d000b-cb6a-437b-abaa-859cdbc9007d"
+    },
+    {
+      "name": "changed service reroutes bot-owned conversation",
+      "pass": true,
+      "actual": "53f0315c-49ad-4afa-9e1a-01f03220cfa8",
+      "expected": "53f0315c-49ad-4afa-9e1a-01f03220cfa8"
+    },
+    {
+      "name": "bot-answer events never steal human-owned conversation",
+      "pass": true,
+      "actual": "53f0315c-49ad-4afa-9e1a-01f03220cfa8",
+      "expected": "53f0315c-49ad-4afa-9e1a-01f03220cfa8"
+    },
+    {
+      "name": "channel department and tag all match",
+      "pass": true,
+      "actual": "233d000b-cb6a-437b-abaa-859cdbc9007d",
+      "expected": "233d000b-cb6a-437b-abaa-859cdbc9007d"
+    },
+    {
+      "name": "missing tag does not match",
+      "pass": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "six concurrent arrivals balance round robin",
+      "pass": true,
+      "actual": 3,
+      "expected": 3
+    },
+    {
+      "name": "one durable assignment per concurrent conversation",
+      "pass": true,
+      "actual": 6,
+      "expected": 6
+    },
+    {
+      "name": "least loaded uses open conversations",
+      "pass": true,
+      "actual": "233d000b-cb6a-437b-abaa-859cdbc9007d",
+      "expected": "233d000b-cb6a-437b-abaa-859cdbc9007d"
+    },
+    {
+      "name": "away employees do not drain the waiting queue",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
+      "name": "returning employee resumes waiting queue up to capacity",
+      "pass": true,
+      "actual": 1,
+      "expected": 1
+    },
+    {
+      "name": "oldest human handoff receives employee",
+      "pass": true,
+      "actual": "233d000b-cb6a-437b-abaa-859cdbc9007d",
+      "expected": "233d000b-cb6a-437b-abaa-859cdbc9007d"
+    },
+    {
+      "name": "queue retry never resumes the bot during handoff",
+      "pass": true,
+      "actual": "human",
+      "expected": "human"
+    },
+    {
+      "name": "capacity prevents a second automatic assignment",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
+      "name": "unmarked manual conversation stays unassigned",
+      "pass": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "another tenant cannot drain this queue",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
+      "name": "disabled policy cannot drain queue",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
+      "name": "eligible queued conversation fills released capacity",
+      "pass": true,
+      "actual": 1,
+      "expected": 1
+    }
+  ]
+}

@@ -2,13 +2,13 @@
   --crm-ink: #17243b;
   --crm-muted: #56677f;
   --crm-brand: #6356df;
-  max-width: 1640px;
+  max-width: none;
   margin: auto;
-  padding: 28px;
+  padding: 0;
   color: var(--crm-ink);
   min-width: 0;
-  background: linear-gradient(160deg, #f6f7fc, #f1f6fc);
-  border-radius: 24px;
+  background: transparent;
+  border-radius: 0;
   display: grid;
   gap: 22px;
 }
@@ -75,15 +75,15 @@
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 30px;
-  background: linear-gradient(120deg, #fff 45%, #e9e7fd);
-  border: 1px solid #e0dff2;
-  border-radius: 20px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
 }
 .hero h1 {
-  font-size: clamp(25px, 2.7vw, 36px);
+  font-size: 22px;
   line-height: 1.45;
-  margin: 12px 0;
+  margin: 0 0 6px;
   color: #222e49;
 }
 .hero p,
@@ -649,19 +649,19 @@
 }
 @media (max-width: 640px) {
   .page {
-    padding: 14px;
+    padding: 0;
     gap: 16px;
-    border-radius: 15px;
+    border-radius: 0;
   }
   .hero {
-    padding: 20px;
+    padding: 0;
     display: block;
   }
   .hero .actions {
     margin-top: 18px;
   }
   .hero h1 {
-    font-size: 25px;
+    font-size: 22px;
   }
   .nav {
     flex-wrap: nowrap;

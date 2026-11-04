@@ -619,7 +619,7 @@
   place-items: center;
   border-radius: 50%;
   background: #e9eef5;
-  color: #778497;
+  color: #536278;
   font-size: 16px;
 }
 .subscriberList .subscriberName {
@@ -636,7 +636,7 @@
 }
 .identity small {
   display: block;
-  color: #939ba8;
+  color: #647180;
   font-size: 10px;
   margin-top: 4px;
   overflow-wrap: anywhere;
@@ -651,7 +651,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: #8995a6;
+  color: #647180;
   font-size: 10px !important;
   cursor: pointer;
 }
@@ -672,7 +672,7 @@
   margin-inline-end: 4px;
 }
 .statePills [data-tone='green'] {
-  color: #26a86c;
+  color: #14754b;
   background: #edfbf4;
 }
 .statePills [data-tone='blue'] {
@@ -680,12 +680,12 @@
   background: #f0f5ff;
 }
 .statePills [data-tone='muted'] {
-  color: #788391;
+  color: #596776;
   background: #f4f6f8;
 }
 .statePills small {
   font-size: 10px;
-  color: #909aa7;
+  color: #647180;
 }
 .rowActions {
   display: flex;
@@ -765,23 +765,23 @@
 
 /* CRM V2: shared brand, readable controls and a focused customer workspace. */
 .page {
-  background: linear-gradient(145deg, #f7f7fc, #f1f6fc);
-  border-radius: 22px;
-  padding: 24px;
-  gap: 22px;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  gap: 20px;
   color: #24334c;
   font-size: 14px;
   line-height: 1.65;
 }
 .heading {
-  padding: 24px !important;
-  border: 1px solid #e1dff2;
-  border-radius: 18px;
-  background: linear-gradient(115deg, #fff, #efedfd);
+  padding: 0 !important;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   margin: 0 !important;
 }
 .heading h1 {
-  font-size: 30px !important;
+  font-size: 22px !important;
   color: #26324d;
 }
 .heading p {
@@ -811,19 +811,19 @@
 }
 .statistics strong {
   color: #283b59 !important;
-  font-size: 27px !important;
+  font-size: 20px !important;
 }
 .filters {
-  padding: 18px;
-  background: white;
-  border: 1px solid #e0e6ef;
-  border-radius: 16px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   gap: 12px;
 }
 .filters input,
 .filters select {
   border-radius: 10px;
-  min-height: 44px;
+  min-height: 50px;
   color: #354860;
   background: #fbfcff;
   font-size: 13px;
@@ -844,11 +844,11 @@
   border-radius: 20px !important;
   border: 1px solid #dddff0 !important;
   background: #fff !important;
-  box-shadow: 0 12px 40px #24385a0a;
+  box-shadow: 0 4px 12px #24385a08;
   overflow: hidden;
 }
 .profileHeader {
-  background: linear-gradient(125deg, #f1edff, #f5f9ff);
+  background: #fff;
   padding: 22px !important;
   gap: 12px !important;
 }
@@ -972,17 +972,17 @@
 }
 @media (max-width: 700px) {
   .page {
-    padding: 12px;
+    padding: 0;
     gap: 15px;
   }
   .heading {
-    padding: 20px !important;
+    padding: 0 !important;
   }
   .heading h1 {
-    font-size: 25px !important;
+    font-size: 22px !important;
   }
   .filters {
-    padding: 13px;
+    padding: 0;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .filters input[type='search'] {

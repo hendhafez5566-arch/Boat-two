@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../../../components/product/DisclosureSummary';
+
 import { useEffect, useState } from 'react';
 import ChannelLogo from '../../../components/product/ChannelLogo';
 import { NavIcon } from '../../../components/product/NavIcon';
@@ -519,9 +521,9 @@ export default function Channels() {
             )}
             {c.type === 'whatsapp' && (
               <details className="channel-advanced">
-                <summary>
+                <DisclosureSummary>
                   {t('إعدادات متقدمة وتشخيص Meta', 'Advanced settings and Meta diagnostics')}
-                </summary>
+                </DisclosureSummary>
                 <button type="button" className="btn" disabled={busy} onClick={() => inspectBot(c)}>
                   {t('تشخيص ردود البوت', 'Diagnose bot replies')}
                 </button>

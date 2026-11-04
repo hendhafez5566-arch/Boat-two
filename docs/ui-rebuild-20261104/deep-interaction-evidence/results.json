@@ -1,0 +1,99 @@
+{
+  "engine": "Local production Next + complete Nest app + PGlite/RLS; synthetic data only",
+  "results": [],
+  "interaction": [
+    {
+      "locale": "en",
+      "check": "Disclosure touch toggle",
+      "pass": true
+    },
+    {
+      "locale": "en",
+      "check": "Native disclosure Enter/Space and single chevron",
+      "pass": true
+    },
+    {
+      "locale": "en",
+      "check": "Single flow dock and analytics toggle",
+      "pass": true
+    },
+    {
+      "locale": "en",
+      "check": "Node editor, Escape, drag, save, connections, zoom and publish in isolated Webchat",
+      "pass": true
+    },
+    {
+      "locale": "en",
+      "check": "Manager rail expands from 90 to 260",
+      "pass": true
+    },
+    {
+      "locale": "ar",
+      "check": "Disclosure touch toggle",
+      "pass": true
+    },
+    {
+      "locale": "ar",
+      "check": "Native disclosure Enter/Space and single chevron",
+      "pass": true
+    },
+    {
+      "locale": "ar",
+      "check": "Single flow dock and analytics toggle",
+      "pass": true
+    },
+    {
+      "locale": "ar",
+      "check": "Node editor, Escape, drag, save, connections, zoom and publish in isolated Webchat",
+      "pass": true
+    },
+    {
+      "locale": "ar",
+      "check": "Manager rail expands from 90 to 260",
+      "pass": true
+    }
+  ],
+  "a11y": [
+    {
+      "locale": "en",
+      "route": "flows",
+      "violations": []
+    },
+    {
+      "locale": "en",
+      "route": "crm",
+      "violations": []
+    },
+    {
+      "locale": "en",
+      "route": "inbox/settings",
+      "violations": []
+    },
+    {
+      "locale": "en",
+      "route": "settings",
+      "violations": []
+    },
+    {
+      "locale": "ar",
+      "route": "flows",
+      "violations": []
+    },
+    {
+      "locale": "ar",
+      "route": "crm",
+      "violations": []
+    },
+    {
+      "locale": "ar",
+      "route": "inbox/settings",
+      "violations": []
+    },
+    {
+      "locale": "ar",
+      "route": "settings",
+      "violations": []
+    }
+  ],
+  "errors": []
+}

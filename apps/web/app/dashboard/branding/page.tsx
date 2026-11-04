@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../../../components/product/DisclosureSummary';
+
 import MediaPreview from '../../../components/flow/MediaPreview';
 import { statusLabel } from '../../../components/product/status';
 import { DomainTransfers } from '../../../components/business/DomainTransfers';
@@ -132,7 +134,7 @@ export default function Branding() {
         </form>
       )}
       <details className="card stack">
-        <summary>{t('إعدادات النطاقات المتقدمة','Advanced domain settings')}</summary>
+        <DisclosureSummary>{t('إعدادات النطاقات المتقدمة','Advanced domain settings')}</DisclosureSummary>
         <p>{t('تخصيص الهوية لا يتطلب نطاقًا مخصصًا. استخدم هذا القسم لربط نطاق تملكه والتحقق منه وطلب استضافته.','Brand customization does not require a custom domain. Use this section to verify and host a domain you own.')}</p>
       <section className="stack">
         <h2>{t('التحقق من ملكية النطاق', 'Domain ownership verification')}</h2>

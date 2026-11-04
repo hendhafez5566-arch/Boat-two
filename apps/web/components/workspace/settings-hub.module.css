@@ -52,7 +52,7 @@
 .subnav small {
   grid-column: 1 / -1;
   font-size: 11px;
-  color: #939aa5;
+  color: #5d6877;
 }
 .navigation button[aria-selected='true'],
 .subnav button[aria-selected='true'] {
@@ -85,7 +85,7 @@
 }
 .content > header p {
   margin: 5px 0;
-  color: #848b93;
+  color: #637080;
   font-size: 12px;
 }
 .security {
@@ -129,7 +129,7 @@
 }
 .table th {
   background: #f8fafc;
-  color: #6d7785;
+  color: #5e6b7c;
   font-weight: 500;
   padding: 16px;
   text-align: start;
@@ -150,7 +150,7 @@
 .current {
   display: block;
   width: fit-content;
-  background: #0bcd96;
+  background: #087c58;
   color: #fff;
   padding: 2px 8px;
   border-radius: 3px;
@@ -176,7 +176,7 @@
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  color: #78828d;
+  color: #637080;
   font-size: 12px;
 }
 .footer select {
@@ -208,9 +208,12 @@
   }
   .navigation {
     display: flex;
+    overflow-x: auto;
+    min-width: 0;
   }
   .navigation button {
-    flex: 1;
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
   .content,
   .panel {

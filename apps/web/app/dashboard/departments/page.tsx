@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../../../components/product/DisclosureSummary';
+
 import { useState } from 'react';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
@@ -96,7 +98,7 @@ export default function Departments() {
                 .join(' · ') || t('لا يوجد أعضاء بعد', 'No members yet')}
             </p>
             <details>
-              <summary>{t('تعديل القسم', 'Edit department')}</summary>
+              <DisclosureSummary>{t('تعديل القسم', 'Edit department')}</DisclosureSummary>
               <form
                 key={d.updated_at}
                 className="stack mt-3"

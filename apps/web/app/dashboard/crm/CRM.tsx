@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../../../components/product/DisclosureSummary';
+
 import { CrmScoring } from '../../../components/business/CrmScoring';
 import { CrmAutomation } from '../../../components/business/CrmAutomation';
 import { CrmSegments } from '../../../components/business/CrmSegments';
@@ -695,7 +697,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
               </label>
             </div>
             <details className="col-picker">
-              <summary className="btn">{t('الأعمدة', 'Columns')}</summary>
+              <DisclosureSummary className="btn">{t('الأعمدة', 'Columns')}</DisclosureSummary>
               <div className="col-picker-menu">
                 {COLUMNS.map((column) => (
                   <label key={column}>
@@ -1201,9 +1203,9 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                 })}
               </div>
               <details className="mt-4">
-                <summary className="muted">
+                <DisclosureSummary className="muted">
                   {t('بيانات إضافية متقدمة', 'Advanced additional attributes')}
-                </summary>
+                </DisclosureSummary>
                 <label className="field mt-4">
                   {t('حقول العميل المخصصة (JSON)', 'Custom attributes (JSON)')}
                   <textarea
@@ -1366,7 +1368,9 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
             </p>
             {pipelines.data.map((pipeline) => (
               <details key={pipeline.id} className="rounded-xl border p-4">
-                <summary className="cursor-pointer font-semibold">{pipeline.name}</summary>
+                <DisclosureSummary className="cursor-pointer font-semibold">
+                  {pipeline.name}
+                </DisclosureSummary>
                 <form
                   className="stack mt-4"
                   onSubmit={async (event) => {
@@ -1926,7 +1930,9 @@ function CustomFieldForm({
               : t('قيمة نصية', 'Text value')}
       </p>
       <details>
-        <summary>{t('متقدم: مفتاح التكامل', 'Advanced: integration key')}</summary>
+        <DisclosureSummary>
+          {t('متقدم: مفتاح التكامل', 'Advanced: integration key')}
+        </DisclosureSummary>
         <input
           aria-label={t('مفتاح الحقل', 'Field key')}
           dir="ltr"

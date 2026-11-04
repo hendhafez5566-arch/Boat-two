@@ -1,0 +1,2840 @@
+{
+  "engine": "Local production Next + complete Nest app + PGlite/RLS; synthetic data only",
+  "results": [
+    {
+      "route": "",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "channels",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/overview",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/pipeline",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/tasks",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/sales",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox/settings",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "team",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "departments",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "campaigns",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "reports",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "automations",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "settings",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "billing",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "onboarding",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "commerce",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "sequences",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "knowledge",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "account",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows/a1281284-6e09-43f8-a15c-0e8e78233ec9",
+      "locale": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "channels",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/overview",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/pipeline",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/tasks",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/sales",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox/settings",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "team",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "departments",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "campaigns",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "reports",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "automations",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "settings",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "billing",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "onboarding",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "commerce",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "sequences",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "knowledge",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "account",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows/a1281284-6e09-43f8-a15c-0e8e78233ec9",
+      "locale": "en",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "channels",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/overview",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/pipeline",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/tasks",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/sales",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox/settings",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "team",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "departments",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "campaigns",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "reports",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "automations",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "settings",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "billing",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "onboarding",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "commerce",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "sequences",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "knowledge",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "account",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows/a1281284-6e09-43f8-a15c-0e8e78233ec9",
+      "locale": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "channels",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/overview",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/pipeline",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/tasks",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/sales",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox/settings",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "team",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "departments",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "campaigns",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "reports",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "automations",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "settings",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "billing",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "onboarding",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "commerce",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "sequences",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "knowledge",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "account",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows/a1281284-6e09-43f8-a15c-0e8e78233ec9",
+      "locale": "en",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "channels",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/overview",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/pipeline",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/tasks",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/sales",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox/settings",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "team",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "departments",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "campaigns",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "reports",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "automations",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "settings",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "billing",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "onboarding",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "commerce",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "sequences",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "knowledge",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "account",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows/a1281284-6e09-43f8-a15c-0e8e78233ec9",
+      "locale": "en",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "channels",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/overview",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/pipeline",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/tasks",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/sales",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox/settings",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "team",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "departments",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "campaigns",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "reports",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "automations",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "settings",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "billing",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "onboarding",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "commerce",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "sequences",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "knowledge",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "account",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows/a1281284-6e09-43f8-a15c-0e8e78233ec9",
+      "locale": "en",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "ltr",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "channels",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/overview",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/pipeline",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/tasks",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/sales",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox/settings",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "team",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "departments",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "campaigns",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "reports",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "automations",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "settings",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "billing",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "onboarding",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "commerce",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "sequences",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "knowledge",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "account",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows/a1281284-6e09-43f8-a15c-0e8e78233ec9",
+      "locale": "ar",
+      "width": 320,
+      "scrollWidth": 320,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "channels",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/overview",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/pipeline",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/tasks",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/sales",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox/settings",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "team",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "departments",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "campaigns",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "reports",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "automations",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "settings",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "billing",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "onboarding",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "commerce",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "sequences",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "knowledge",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "account",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows/a1281284-6e09-43f8-a15c-0e8e78233ec9",
+      "locale": "ar",
+      "width": 360,
+      "scrollWidth": 360,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "channels",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/overview",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/pipeline",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/tasks",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/sales",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox/settings",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "team",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "departments",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "campaigns",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "reports",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "automations",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "settings",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "billing",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "onboarding",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "commerce",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "sequences",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "knowledge",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "account",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows/a1281284-6e09-43f8-a15c-0e8e78233ec9",
+      "locale": "ar",
+      "width": 390,
+      "scrollWidth": 390,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "channels",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/overview",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/pipeline",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/tasks",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/sales",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox/settings",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "team",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "departments",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "campaigns",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "reports",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "automations",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "settings",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "billing",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "onboarding",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "commerce",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "sequences",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "knowledge",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "account",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows/a1281284-6e09-43f8-a15c-0e8e78233ec9",
+      "locale": "ar",
+      "width": 768,
+      "scrollWidth": 768,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "channels",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/overview",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/pipeline",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/tasks",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/sales",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox/settings",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "team",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "departments",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "campaigns",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "reports",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "automations",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "settings",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "billing",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "onboarding",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "commerce",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "sequences",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "knowledge",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "account",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows/a1281284-6e09-43f8-a15c-0e8e78233ec9",
+      "locale": "ar",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "channels",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/overview",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/pipeline",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/tasks",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "crm/sales",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "inbox/settings",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "team",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "departments",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "campaigns",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "reports",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "automations",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "settings",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "billing",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "onboarding",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "commerce",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "sequences",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "knowledge",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "account",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    },
+    {
+      "route": "flows/a1281284-6e09-43f8-a15c-0e8e78233ec9",
+      "locale": "ar",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "dir": "rtl",
+      "overflow": [],
+      "rawSummaries": 0,
+      "pass": true
+    }
+  ],
+  "interaction": [
+    {
+      "locale": "en",
+      "check": "Native disclosure Enter/Space and single chevron",
+      "pass": true
+    },
+    {
+      "locale": "en",
+      "check": "Single flow dock and analytics toggle",
+      "pass": true
+    },
+    {
+      "locale": "en",
+      "check": "Manager rail expands from 90 to 260",
+      "pass": true
+    },
+    {
+      "locale": "ar",
+      "check": "Native disclosure Enter/Space and single chevron",
+      "pass": true
+    },
+    {
+      "locale": "ar",
+      "check": "Single flow dock and analytics toggle",
+      "pass": true
+    },
+    {
+      "locale": "ar",
+      "check": "Manager rail expands from 90 to 260",
+      "pass": true
+    }
+  ],
+  "a11y": [
+    {
+      "locale": "en",
+      "route": "flows",
+      "violations": []
+    },
+    {
+      "locale": "en",
+      "route": "crm",
+      "violations": []
+    },
+    {
+      "locale": "en",
+      "route": "inbox/settings",
+      "violations": []
+    },
+    {
+      "locale": "en",
+      "route": "settings",
+      "violations": []
+    },
+    {
+      "locale": "ar",
+      "route": "flows",
+      "violations": []
+    },
+    {
+      "locale": "ar",
+      "route": "crm",
+      "violations": []
+    },
+    {
+      "locale": "ar",
+      "route": "inbox/settings",
+      "violations": []
+    },
+    {
+      "locale": "ar",
+      "route": "settings",
+      "violations": []
+    }
+  ],
+  "errors": []
+}

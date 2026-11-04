@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../lib/api';
@@ -610,12 +612,12 @@ export function SmartSales() {
           </fieldset>
           <hr />
           <details>
-            <summary>
+            <DisclosureSummary>
               <h2>
                 <NavIcon name="bell" />
                 {t('إعدادات التنبيهات الداخلية', 'Internal notification settings')}
               </h2>
-            </summary>
+            </DisclosureSummary>
             <div className={`${styles.form} ${css.fields}`}>
               <label>
                 <span>

@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+
 import { useState } from 'react';
 import { api } from '../../lib/api';
 import { useData } from './useData';
@@ -110,7 +112,7 @@ export function DeliveryAccounts({ changed }: { changed: () => void }) {
       </p>
       {(error || accounts.error) && <p className="notice error">{error || accounts.error}</p>}
       <details>
-        <summary>{t('مجموعة جديدة', 'New account group')}</summary>
+        <DisclosureSummary>{t('مجموعة جديدة', 'New account group')}</DisclosureSummary>
         <form
           className="form-grid p-3"
           onSubmit={(e) => {
@@ -123,10 +125,10 @@ export function DeliveryAccounts({ changed }: { changed: () => void }) {
       </details>
       {accounts.data.map((account) => (
         <details key={account.id}>
-          <summary>
+          <DisclosureSummary>
             {account.name} · {account.daily_used}/
             {account.daily_limit === -1 ? '∞' : account.daily_limit} · {account.usage_date}
-          </summary>
+          </DisclosureSummary>
           <form
             className="form-grid p-3"
             onSubmit={(e) => {

@@ -1,4 +1,6 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+
 import { useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
@@ -275,10 +277,10 @@ export default function WhatsAppFlowsPanel({ channelId }: { channelId: string })
                       {row.error && <small role="status">{row.error}</small>}
                       {row.validation_errors.length > 0 && (
                         <details>
-                          <summary>
+                          <DisclosureSummary>
                             {t('أخطاء التحقق', 'Validation Errors')} ({row.validation_errors.length}
                             )
-                          </summary>
+                          </DisclosureSummary>
                           <pre className={styles.errors}>
                             {JSON.stringify(row.validation_errors, null, 2)}
                           </pre>
