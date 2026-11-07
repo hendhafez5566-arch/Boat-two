@@ -866,6 +866,35 @@ function Editor({ id }: { id: string }) {
           el.isContentEditable)
       )
         return;
+      if (
+        !e.ctrlKey &&
+        !e.metaKey &&
+        ['Delete', 'Backspace'].includes(e.key) &&
+        !inspectorOpen &&
+        !previewOpen &&
+        !confirmPublish &&
+        !showVersions &&
+        !moreOpen
+      ) {
+        const chosen = new Set(nodes.filter((node) => node.selected).map((node) => node.id));
+        if (!chosen.size && selRef.current && nodes.some((node) => node.id === selRef.current))
+          chosen.add(selRef.current);
+        if (chosen.size) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          const remaining = nodes.filter((node) => !chosen.has(node.id));
+          setNodes(remaining);
+          setEdges((links) =>
+            links.filter((link) => !chosen.has(link.source) && !chosen.has(link.target)),
+          );
+          if (chosen.has(startId)) setStartId(remaining[0]?.id ?? '');
+          setSelected(null);
+          selRef.current = null;
+          setDirty(true);
+          notify(t('حُذفت الخطوة وتوصيلاتها.', 'Step and its links deleted.'), true);
+          return;
+        }
+      }
       if (!(e.ctrlKey || e.metaKey)) return;
       const k = e.key.toLowerCase();
       if (k === 'c') {

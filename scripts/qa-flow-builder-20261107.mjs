@@ -31,7 +31,13 @@ async function check(name, fn) {
     console.log('PASS', name);
   } catch (e) {
     results.push({ name, status: 'FAIL', error: e.message });
-    console.error('FAIL', name, e.message);
+    console.error('FAIL', name, e.stack || e.message);
+    await page
+      .screenshot({
+        path: out + '/failure-' + name.replace(/[^a-z0-9]+/gi, '-').slice(0, 70) + '.png',
+      })
+      .catch(() => {});
+    await page.keyboard.press('Escape').catch(() => {});
   }
 }
 const session = await api('/auth/register', {
@@ -194,25 +200,146 @@ try {
     await page.waitForLoadState('networkidle');
     assert.equal(await page.locator('.react-flow__node-flowNode').count(), 2);
   });
-  await check('Publish persists real version; edit and republish create another', async () => {
+  await check('Create through manager opens persisted editor with channel context', async () => {
+    await page.goto(`http://localhost:3000/dashboard/flows?channelId=${channel.id}`);
+    await page.getByRole('button', { name: '+ Create', exact: true }).click();
+    const d = page.getByRole('dialog');
+    await d.locator('input[name="name"]').fill('UI-created isolated flow');
+    await d.getByRole('button', { name: 'Open Builder', exact: true }).click();
+    await page.waitForURL(/dashboard\/flows\/[^?]+\?channelId=/);
+    await page.waitForLoadState('networkidle');
+    assert.ok(
+      (await api('/flows', null, token)).some((f) => f.name === 'UI-created isolated flow'),
+    );
+    assert.equal(new URL(page.url()).searchParams.get('channelId'), channel.id);
+    await page.goto(url);
+    await page.waitForLoadState('networkidle');
+  });
+  await page.goto(url);
+  await page.waitForLoadState('networkidle');
+  let addedId;
+  await check('Add Text, configure, connect and move through real editor', async () => {
+    await page.getByRole('button', { name: 'Add Text', exact: true }).click();
+    const d = page.getByRole('dialog');
+    await d.getByRole('textbox', { name: 'Reply Message', exact: true }).fill('UI added text node');
+    await d.getByRole('button', { name: 'Save Changes', exact: true }).click();
+    await d.waitFor({ state: 'hidden' });
+    await menu();
+    await page.getByRole('button', { name: 'Fit all steps', exact: true }).click();
+    await closeMenu();
+    addedId = await page
+      .locator('.react-flow__node-flowNode')
+      .filter({ hasText: 'UI added text node' })
+      .getAttribute('data-id');
+    await page.waitForTimeout(450);
+    const connect = async (from, to) => {
+      const a = await page
+        .locator(`.react-flow__node[data-id="${from}"] .react-flow__handle.source`)
+        .first()
+        .boundingBox();
+      const b = await page
+        .locator(`.react-flow__node[data-id="${to}"] .react-flow__handle.target`)
+        .first()
+        .boundingBox();
+      await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 15 });
+      await page.mouse.up();
+      await page.waitForTimeout(100);
+    };
+    await connect('start', addedId);
+    await connect(addedId, 'end');
+    const card = page.locator(`.react-flow__node[data-id="${addedId}"]`);
+    await page.waitForTimeout(100);
+    const r = await card.locator('.flow-node-heading').boundingBox();
+    await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(r.x + r.width / 2 + 64, r.y + r.height / 2 + 32, { steps: 12 });
+    await page.mouse.up();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.waitForLoadState('networkidle');
+    const f = await api('/flows/' + flow.id, null, token);
+    assert.equal(f.draft_graph.nodes.find((n) => n.id === 'start').edges.next, addedId);
+    assert.equal(f.draft_graph.nodes.find((n) => n.id === addedId).edges.next, 'end');
+    const saved = JSON.stringify(f.draft_graph);
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    assert.equal(JSON.stringify((await api('/flows/' + flow.id, null, token)).draft_graph), saved);
+    await page.screenshot({ path: out + '/after-en-connected.png' });
+  });
+  await check('Node duplicate/delete, undo and redo preserve original graph', async () => {
+    const count = await page.locator('.react-flow__node-flowNode').count();
+    await page.locator(`.react-flow__node[data-id="${addedId}"]`).click();
+    await page.keyboard.press('Control+d');
+    await page.waitForFunction(
+      (n) => document.querySelectorAll('.react-flow__node-flowNode').length === n,
+      count + 1,
+    );
+    await page.keyboard.press('Control+z');
+    await page.waitForFunction(
+      (n) => document.querySelectorAll('.react-flow__node-flowNode').length === n,
+      count,
+    );
+    await page.keyboard.press('Control+y');
+    await page.waitForFunction(
+      (n) => document.querySelectorAll('.react-flow__node-flowNode').length === n,
+      count + 1,
+    );
+    await page
+      .locator('.react-flow__node-flowNode')
+      .filter({ hasText: 'UI added text node' })
+      .last()
+      .click();
+    await page.keyboard.press('Delete');
+    await page.waitForFunction(
+      (n) => document.querySelectorAll('.react-flow__node-flowNode').length === n,
+      count,
+    );
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.waitForLoadState('networkidle');
+  });
+  await check('Publish through UI, edit, republish and verify actual version', async () => {
+    await menu();
+    await page.getByRole('button', { name: 'Publish bot', exact: true }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Confirm publish', exact: true })
+      .click();
+    await page.getByRole('dialog').waitFor({ state: 'hidden' });
+    await page.waitForLoadState('networkidle');
     let f = await api('/flows/' + flow.id, null, token);
-    await api('/flows/' + flow.id + '/publish', { expectedUpdatedAt: f.updated_at }, token);
-    f = await api('/flows/' + flow.id, null, token);
+    for (let n = 0; n < 40 && f.status !== 'published'; n++) {
+      await new Promise((r) => setTimeout(r, 100));
+      f = await api('/flows/' + flow.id, null, token);
+    }
     assert.equal(f.status, 'published');
     const first = f.published_version;
-    const g = structuredClone(f.draft_graph);
-    g.nodes[0].data.text = 'Republished isolated message';
-    f = await api(
-      '/flows/' + flow.id,
-      { graph: g, expectedUpdatedAt: f.updated_at },
-      token,
-      'PATCH',
-    );
-    await api('/flows/' + flow.id + '/publish', { expectedUpdatedAt: f.updated_at }, token);
+    await page.locator('.react-flow__node[data-id=start]').dblclick();
+    await page
+      .getByRole('textbox', { name: 'Reply Message', exact: true })
+      .fill('Republished isolated message');
+    await page.getByRole('button', { name: 'Save Changes', exact: true }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.waitForLoadState('networkidle');
+    await menu();
+    await page.getByRole('button', { name: 'Publish update', exact: true }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Confirm publish', exact: true })
+      .click();
+    await page.waitForLoadState('networkidle');
     f = await api('/flows/' + flow.id, null, token);
-    assert.notEqual(f.published_version, first);
-    const test = await api('/flows/' + flow.id + '/test', {}, token);
-    assert.ok(JSON.stringify(test).includes('Republished isolated message'));
+    for (let n = 0; n < 30 && !(f.published_version > first); n++) {
+      await new Promise((r) => setTimeout(r, 100));
+      f = await api('/flows/' + flow.id, null, token);
+    }
+    assert.ok(f.published_version > first);
+    assert.ok(
+      JSON.stringify(await api('/flows/' + flow.id + '/test', {}, token)).includes(
+        'Republished isolated message',
+      ),
+    );
+    await page.screenshot({ path: out + '/after-en-published.png' });
   });
   await check('Tenant isolation rejects another workspace reading graph', async () => {
     const other = await api('/auth/register', {
@@ -222,6 +349,161 @@ try {
       workspaceName: 'Other isolated tenant',
     });
     await api('/flows/' + flow.id, null, other.accessToken, 'GET', 404);
+  });
+  await check('Right-click grouped menu search adds a real block', async () => {
+    await page.goto(url);
+    await page.waitForLoadState('networkidle');
+    await page.mouse.click(600, 750, { button: 'right' });
+    const menu = page.getByRole('menu').first();
+    await menu.waitFor();
+    await menu.getByRole('textbox', { name: 'Search steps', exact: true }).fill('Image');
+    await page.screenshot({ path: out + '/after-en-context-menu.png' });
+    await menu.getByRole('menuitem', { name: 'Image', exact: true }).click();
+    await page.getByRole('dialog').waitFor();
+    await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
+    page.once('dialog', (d) => d.accept());
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+  });
+  await check(
+    'Every supported block opens its configuration, then discard retains saved graph',
+    async () => {
+      const saved = JSON.stringify((await api('/flows/' + flow.id, null, token)).draft_graph);
+      await page.getByRole('button', { name: 'Expand flow blocks', exact: true }).click();
+      await page.getByRole('button', { name: 'Additional Boat Two blocks', exact: false }).click();
+      const names = await page
+        .locator('aside[aria-label="Flow blocks"] button[draggable=true]')
+        .evaluateAll((es) => es.map((e) => e.getAttribute('aria-label')));
+      await page.getByRole('button', { name: 'Collapse flow blocks', exact: true }).click();
+      for (const name of names) {
+        await page.getByRole('button', { name: 'Expand flow blocks', exact: true }).click();
+        await page.getByRole('button', { name, exact: true }).click();
+        await page.getByRole('dialog').waitFor();
+        await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
+      }
+      page.once('dialog', (d) => d.accept());
+      await page.reload();
+      await page.waitForLoadState('networkidle');
+      assert.equal(
+        JSON.stringify((await api('/flows/' + flow.id, null, token)).draft_graph),
+        saved,
+      );
+      results.push({
+        name: 'Supported block configuration count',
+        status: 'PASS',
+        count: names.length,
+      });
+    },
+  );
+  for (const role of ['admin', 'agent'])
+    await check(role + ' mutation authorization on existing graph', async () => {
+      const inv = await api(
+        '/team/invitations',
+        { email: `${role}-${randomUUID()}@example.test`, role, sendEmail: false },
+        token,
+      );
+      const member = await api('/auth/accept-invitation', {
+        token: new URL(inv.inviteUrl).searchParams.get('token'),
+        password: `Local-${randomUUID()}`,
+        fullName: 'QA ' + role,
+      });
+      const f = await api('/flows/' + flow.id, null, member.accessToken);
+      await api(
+        '/flows/' + flow.id,
+        { name: f.name, expectedUpdatedAt: f.updated_at },
+        member.accessToken,
+        'PATCH',
+        role === 'admin' ? 200 : 403,
+      );
+      await api(
+        '/flows/' + flow.id + '/publish',
+        {},
+        member.accessToken,
+        'POST',
+        role === 'admin' ? 200 : 403,
+      );
+    });
+  await check('Published Webchat collects CRM identity and hands off with context', async () => {
+    let f = await api('/flows/' + flow.id, null, token);
+    const runtimeGraph = {
+      startNodeId: 'ask',
+      nodes: [
+        {
+          id: 'ask',
+          type: 'question',
+          position: { x: 100, y: 200 },
+          data: {
+            text: 'What is your test name?',
+            answerType: 'text',
+            saveAs: 'name',
+            saveToSystem: 'name',
+          },
+          edges: { ok: 'reply' },
+        },
+        {
+          id: 'reply',
+          type: 'message',
+          position: { x: 500, y: 200 },
+          data: { text: 'Context received {{name}}' },
+          edges: { next: 'staff' },
+        },
+        {
+          id: 'staff',
+          type: 'handoff',
+          position: { x: 900, y: 200 },
+          data: { message: 'A teammate will follow up' },
+          edges: {},
+        },
+      ],
+    };
+    f = await api(
+      '/flows/' + flow.id,
+      { graph: runtimeGraph, expectedUpdatedAt: f.updated_at },
+      token,
+      'PATCH',
+    );
+    await api('/flows/' + flow.id + '/publish', { expectedUpdatedAt: f.updated_at }, token);
+    const visitor = await api('/widget/' + channel.external_id + '/session', {});
+    const send = async (text) => {
+      const r = await fetch(
+        'http://localhost:4000/widget/' +
+          channel.external_id +
+          '/messages?visitorId=' +
+          visitor.visitorId,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-visitor-token': visitor.token },
+          body: JSON.stringify({ text, clientMsgId: randomUUID() }),
+        },
+      );
+      assert.ok(r.ok, await r.text());
+    };
+    await send('Local QA hello');
+    for (let i = 0; i < 80; i++) {
+      const r = await fetch(
+        'http://localhost:4000/widget/' +
+          channel.external_id +
+          '/messages?visitorId=' +
+          visitor.visitorId,
+        { headers: { 'x-visitor-token': visitor.token } },
+      );
+      if (JSON.stringify(await r.json()).includes('What is your test name?')) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    await send('Synthetic Flow Visitor');
+    let convo;
+    for (let i = 0; i < 80; i++) {
+      const rows = await api('/conversations', null, token);
+      convo = (rows.items ?? rows)[0];
+      if (convo?.handled_by === 'human') break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    const detail = await api('/conversations/' + convo.id, null, token);
+    assert.equal(detail.handled_by, 'human');
+    const profile = await api('/crm/contacts/' + convo.contact_id + '/profile', null, token);
+    assert.equal(profile.contact.name, 'Synthetic Flow Visitor');
+    const messages = await api('/conversations/' + convo.id + '/messages', null, token);
+    assert.ok(JSON.stringify(messages).includes('Synthetic Flow Visitor'));
   });
 } finally {
   writeFileSync(

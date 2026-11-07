@@ -1,0 +1,117 @@
+{
+  "results": [
+    {
+      "name": "Reference included in initial viewport; measured card and toolbar",
+      "status": "PASS"
+    },
+    {
+      "name": "Canvas and palette en 320",
+      "status": "PASS"
+    },
+    {
+      "name": "Canvas and palette en 390",
+      "status": "PASS"
+    },
+    {
+      "name": "Canvas and palette en 768",
+      "status": "PASS"
+    },
+    {
+      "name": "Canvas and palette en 1366",
+      "status": "PASS"
+    },
+    {
+      "name": "Canvas and palette en 1920",
+      "status": "PASS"
+    },
+    {
+      "name": "Canvas and palette ar 320",
+      "status": "PASS"
+    },
+    {
+      "name": "Canvas and palette ar 390",
+      "status": "PASS"
+    },
+    {
+      "name": "Canvas and palette ar 768",
+      "status": "PASS"
+    },
+    {
+      "name": "Canvas and palette ar 1366",
+      "status": "PASS"
+    },
+    {
+      "name": "Canvas and palette ar 1920",
+      "status": "PASS"
+    },
+    {
+      "name": "Name edit and explicit draft save persist; autosave defaults off",
+      "status": "PASS"
+    },
+    {
+      "name": "Double-click node opens real configuration and cancel closes",
+      "status": "PASS"
+    },
+    {
+      "name": "Additional blocks remain available on demand",
+      "status": "PASS"
+    },
+    {
+      "name": "Preview calls real simulator",
+      "status": "PASS"
+    },
+    {
+      "name": "Graph coordinates and connections survive reopen",
+      "status": "PASS"
+    },
+    {
+      "name": "Create through manager opens persisted editor with channel context",
+      "status": "PASS"
+    },
+    {
+      "name": "Add Text, configure, connect and move through real editor",
+      "status": "PASS"
+    },
+    {
+      "name": "Node duplicate/delete, undo and redo preserve original graph",
+      "status": "FAIL",
+      "error": "page.waitForFunction: Timeout 8000ms exceeded."
+    },
+    {
+      "name": "Publish through UI, edit, republish and verify actual version",
+      "status": "PASS"
+    },
+    {
+      "name": "Tenant isolation rejects another workspace reading graph",
+      "status": "PASS"
+    },
+    {
+      "name": "Right-click grouped menu search adds a real block",
+      "status": "PASS"
+    },
+    {
+      "name": "Supported block configuration count",
+      "status": "PASS",
+      "count": 31
+    },
+    {
+      "name": "Every supported block opens its configuration, then discard retains saved graph",
+      "status": "PASS"
+    },
+    {
+      "name": "admin mutation authorization on existing graph",
+      "status": "PASS"
+    },
+    {
+      "name": "agent mutation authorization on existing graph",
+      "status": "PASS"
+    },
+    {
+      "name": "Published Webchat collects CRM identity and hands off with context",
+      "status": "PASS"
+    }
+  ],
+  "errors": [],
+  "passed": 26,
+  "failed": 1
+}
