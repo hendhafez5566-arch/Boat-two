@@ -787,7 +787,7 @@ function Editor({ id }: { id: string }) {
     setPreviewOpen(false);
     setInspectorOpen(true);
     setTab('node');
-    rf.fitView({ nodes: [{ id: nid }], padding: 1.2, maxZoom: 1.1, duration: 300 });
+    rf.fitView({ nodes: [{ id: nid }], padding: 1.2, maxZoom: 1, duration: 300 });
   };
 
   const openReview = () => {

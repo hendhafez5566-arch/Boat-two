@@ -96,3 +96,6 @@ Complete reference interactions, archive safe screenshots/measurements; compare 
 ### Measured selected-card finish
 - Existing node-metrics.json fixes selected border rgb(13,139,241), and card shadow rgba(139,141,141,.15)0px4px8px. Previous source still used#1993ce and0px3px7px#243b4b12. Applied exact recorded values to reference/card selectors only. No geometry or runtime modifications.
 - Fresh production build and live computed-style confirmation are required before accepting this finish.
+
+### Node-focus zoom correction
+- New and fit-all viewports already cap automatic zoom at1, but focusNode used1.1. Opening the existing QA step enlarged its264px card to290.4px versus reference264px. Capped only automatic node focus at1; manual zoom range remains unchanged. Fresh source checks and live width confirmation pending.
