@@ -1120,3 +1120,126 @@
     max-width: calc(100vw - 40px);
   }
 }
+/* Corrected after side-by-side review at laptop width. */
+.accounts > header {
+  margin-bottom: 25px;
+}
+.sections {
+  min-height: 63px;
+}
+.subsections button {
+  line-height: 18px;
+  min-height: 36px;
+  padding-block: 8px;
+}
+.content {
+  margin-top: 6px;
+}
+.flowName {
+  display: inline;
+}
+.manager .table .status {
+  margin-block: 0;
+  margin-inline-start: 8px;
+}
+.pagination label {
+  flex-direction: row;
+  margin: 0;
+}
+.pagination select {
+  width: 50px;
+  padding-inline-start: 10px;
+  padding-inline-end: 20px;
+  background-position: right 6px center;
+}
+.manager[dir='rtl'] .pagination select {
+  background-position: left 6px center;
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.manager .pagination select:not([multiple]):not([size]) {
+  width: 54px;
+  padding: 5px 20px 5px 10px;
+  background-position: right 6px center;
+}
+.manager[dir='rtl'] .pagination select:not([multiple]):not([size]) {
+  padding: 5px 10px 5px 20px;
+  background-position: left 6px center;
+}
+@media (max-width: 700px) {
+  .table {
+    min-width: 0;
+  }
+  .table thead {
+    display: none;
+  }
+  .table tbody {
+    display: grid;
+  }
+  .table tr {
+    display: grid;
+    padding: 10px 12px;
+    border-bottom: 1px solid #edf0f5;
+  }
+  .table tr:last-child {
+    border-bottom: 0;
+  }
+  .table td,
+  .table td:nth-child(2),
+  .table td:nth-child(3),
+  .table td:last-child {
+    display: grid;
+    grid-template-columns: minmax(76px, 30%) minmax(0, 1fr);
+    gap: 10px;
+    min-width: 0;
+    width: auto;
+    max-width: none;
+    position: static;
+    box-shadow: none;
+    border: 0;
+    padding: 8px 0;
+    align-items: start;
+  }
+  .table td::before {
+    content: attr(data-label);
+    font-size: 10px;
+    color: #657180;
+  }
+  .table td:has(.flowName) {
+    display: block;
+  }
+  .table td:has(.flowName)::before {
+    display: block;
+    margin-bottom: 6px;
+  }
+  .table td:last-child {
+    grid-template-columns: 1fr;
+  }
+  .table td.empty {
+    display: block;
+  }
+  .table td.empty::before {
+    display: none;
+  }
+  .uniqueId {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+  .actions {
+    flex-wrap: wrap;
+  }
+  .actions :global(.btn) {
+    min-width: 36px;
+    min-height: 36px;
+  }
+}

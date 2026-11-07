@@ -1,4 +1,5 @@
 'use client';
+import ManagerTools from './ManagerTools';
 import { statusLabel } from '../../../components/product/status';
 
 import Link from 'next/link';
@@ -45,6 +46,8 @@ export default function BotManager() {
   const { t, language } = useLocale();
   const channels = useData<Channel[]>('/channels', []);
   const flows = useData<Flow[]>('/flows', []);
+  const workspace = useData<{ role: string }>('/workspace', { role: '' });
+  const canManage = ['owner', 'admin'].includes(workspace.data.role);
   const [channelId, setChannelId] = useChannelContext();
   const [section, setSection] = useState('bot_reply');
   useEffect(() => {
@@ -87,8 +90,8 @@ export default function BotManager() {
   const [creating, setCreating] = useState(false);
   const [moving, setMoving] = useState<Flow | null>(null);
   const [deleting, setDeleting] = useState<Flow | null>(null);
-  const [optionsOpen, setOptionsOpen] = useState(false);
-  const importInput = useRef<HTMLInputElement>(null);
+  const [copying, setCopying] = useState<Flow | null>(null);
+  const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const lock = useRef(false);
@@ -129,32 +132,17 @@ export default function BotManager() {
   const rows = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   useEffect(() => {
     setPage(1);
-    setOptionsOpen(false);
   }, [search, folder, channelId, pageSize, section, sort]);
-  useEffect(() => {
-    if (!optionsOpen) return;
-    const close = (e: PointerEvent) => {
-      if (!(e.target as Element).closest('[data-flow-actions]')) setOptionsOpen(false);
-    };
-    const escape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOptionsOpen(false);
-    };
-    document.addEventListener('pointerdown', close);
-    document.addEventListener('keydown', escape);
-    return () => {
-      document.removeEventListener('pointerdown', close);
-      document.removeEventListener('keydown', escape);
-    };
-  }, [optionsOpen]);
 
   async function act(run: () => Promise<void>) {
     if (lock.current) return;
     lock.current = true;
     setBusy(true);
     setError('');
-    setOptionsOpen(false);
+    setNotice('');
     try {
       await run();
+      setNotice(t('تم حفظ التغييرات.', 'Changes saved.'));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -203,7 +191,13 @@ export default function BotManager() {
       throw new Error(t('الملف ليس JSON صالحًا.', 'Invalid JSON file.'));
     }
     const flow = await api<Flow>('/flows/import', { method: 'POST', body: JSON.stringify(body) });
-    window.location.assign(`/dashboard/flows/${flow.id}`);
+    if (channelId) {
+      await api(`/flows/${flow.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ channelIds: [channelId], expectedUpdatedAt: flow.updated_at }),
+      });
+    }
+    window.location.assign(channelHref(`/dashboard/flows/${flow.id}`, channelId));
   }
   return (
     <main className={styles.manager} dir={language === 'ar' ? 'rtl' : 'ltr'}>
@@ -292,45 +286,31 @@ export default function BotManager() {
               {selected ? (
                 <>
                   <span dir="ltr">{selected.external_id || '—'}</span> ·{' '}
-                  <span>{statusLabel(selected.status, t)}</span>
+                  <span className={styles.accountStatus} data-active={selected.status === 'active'}>
+                    {statusLabel(selected.status, t)}
+                  </span>
                 </>
               ) : (
                 t('إدارة الأتمتة والتدفقات', 'Manage automations and flows')
               )}
             </p>
           </div>
-          <button type="button" className="btn" onClick={() => selectSection('settings')}>
+          <button
+            type="button"
+            className="btn"
+            disabled={!canManage}
+            onClick={() => selectSection('settings')}
+          >
             <NavIcon name="settings" />
             {t('إعدادات البوت', 'Bot Settings')}
           </button>
-          <div className={styles.managerOptions} data-flow-actions>
-            <button
-              type="button"
-              className="btn"
-              aria-expanded={optionsOpen}
-              onClick={() => setOptionsOpen(!optionsOpen)}
-            >
-              {t('خيارات', 'Options')} <NavIcon name="chevron" />
-            </button>
-            {optionsOpen && (
-              <div className={styles.optionsMenu}>
-                <button type="button" disabled={busy} onClick={() => importInput.current?.click()}>
-                  {t('استيراد تدفق', 'Flow Import')}
-                </button>
-              </div>
-            )}
-            <input
-              ref={importInput}
-              hidden
-              type="file"
-              accept="application/json,.json"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = '';
-                if (file) void act(() => importFlow(file));
-              }}
-            />
-          </div>
+          <ManagerTools
+            flows={flows.data}
+            channelId={channelId}
+            reload={flows.reload}
+            importFile={importFlow}
+            disabled={busy || !selected || !canManage}
+          />
         </header>
         <nav className={styles.sections} aria-label={t('أقسام الحساب', 'Account sections')}>
           {ACCOUNT_GROUPS.map((group) => (
@@ -359,15 +339,23 @@ export default function BotManager() {
             ))}
           </nav>
         )}
+        {!workspace.loading && !canManage && (
+          <p className={styles.feedback} role="status">
+            {t(
+              'عرض للقراءة فقط. إدارة البوت متاحة للمالك والمسؤول.',
+              'Read-only view. Bot management is available to owners and admins.',
+            )}
+          </p>
+        )}
         <AccountWorkspaceContext.Provider value={true}>
           {!isFlowList && (
-            <div className={styles.panelSurface}>
+            <fieldset disabled={!canManage} className={styles.panelSurface}>
               <AccountPanel
                 key={`${section}:${channelId}`}
                 section={section}
                 channelId={channelId}
               />
-            </div>
+            </fieldset>
           )}
           {isFlowList && (
             <>
@@ -402,18 +390,26 @@ export default function BotManager() {
                       onClick={() => void flows.reload()}
                       aria-label={t('تحديث التدفقات', 'Refresh flows')}
                     >
-                      <NavIcon name="redo" />
+                      <NavIcon name="refresh" />
                     </button>
                     <button
                       type="button"
                       className="btn btn-primary"
-                      disabled={!selected || busy}
-                      onClick={() => setCreating(true)}
+                      disabled={!selected || busy || !canManage}
+                      onClick={() => {
+                        setError('');
+                        setCreating(true);
+                      }}
                     >
                       + {t('إنشاء', 'Create')}
                     </button>
                   </div>
                 </header>
+                {notice && (
+                  <p role="status" className={styles.feedback}>
+                    {notice}
+                  </p>
+                )}
                 {(error || flows.error || channels.error) && (
                   <p role="alert" className="notice error">
                     {error || flows.error || channels.error}
@@ -469,7 +465,7 @@ export default function BotManager() {
                             }
                           >
                             <button onClick={() => sortBy('id')}>
-                              {t('المعرّف الفريد', 'Unique ID')} <span aria-hidden="true">↕</span>
+                              {t('المعرّف الفريد', 'Unique ID')} <NavIcon name="sort" />
                             </button>
                           </th>
                         )}
@@ -487,7 +483,7 @@ export default function BotManager() {
                             {section === 'entry_points'
                               ? t('اسم التدفق', 'Flow Name')
                               : t('الاسم المرجعي', 'Reference Name')}{' '}
-                            <span aria-hidden="true">↕</span>
+                            <NavIcon name="sort" />
                           </button>
                         </th>
                         {section === 'bot_reply' && (
@@ -502,42 +498,33 @@ export default function BotManager() {
                             }
                           >
                             <button onClick={() => sortBy('updated_at')}>
-                              {t('آخر تعديل', 'Updated At')} <span aria-hidden="true">↕</span>
+                              {t('آخر تعديل', 'Updated At')} <NavIcon name="sort" />
                             </button>
                           </th>
                         )}
-                        <th scope="col">{t('الحالة', 'Status')}</th>
                         <th scope="col">{t('الإجراءات', 'Actions')}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {rows.map((f, index) => (
                         <tr key={f.id}>
-                          <td>{(currentPage - 1) * pageSize + index + 1}</td>
+                          <td data-label="#">{(currentPage - 1) * pageSize + index + 1}</td>
                           {section === 'bot_reply' && (
-                            <td title={f.id}>
+                            <td title={f.id} data-label={t('المعرّف الفريد', 'Unique ID')}>
                               <span className={styles.uniqueId}>{f.id}</span>
                             </td>
                           )}
-                          <td>
+                          <td data-label={t('الاسم المرجعي', 'Reference Name')}>
                             <Link
                               className={styles.flowName}
                               href={channelHref(`/dashboard/flows/${f.id}`, channelId)}
                             >
                               {f.name}
                             </Link>
-                          </td>
-                          {section === 'bot_reply' && (
-                            <td>
-                              <time dateTime={f.updated_at}>
-                                {new Date(f.updated_at).toLocaleDateString(
-                                  language === 'ar' ? 'ar-EG' : 'en-GB',
-                                )}
-                              </time>
-                            </td>
-                          )}
-                          <td>
-                            <span className="badge" role="status">
+                            <span
+                              className={styles.status}
+                              data-live={selected?.settings?.activeBotFlowId === f.id}
+                            >
                               {f.status === 'draft'
                                 ? t('مسودة', 'Draft')
                                 : selected?.settings?.activeBotFlowId === f.id
@@ -547,12 +534,21 @@ export default function BotManager() {
                                   : t('منشور', 'Published')}
                             </span>
                           </td>
-                          <td>
+                          {section === 'bot_reply' && (
+                            <td data-label={t('آخر تعديل', 'Updated At')}>
+                              <time dateTime={f.updated_at}>
+                                {new Date(f.updated_at).toLocaleDateString(
+                                  language === 'ar' ? 'ar-EG' : 'en-GB',
+                                )}
+                              </time>
+                            </td>
+                          )}
+                          <td data-label={t('الإجراءات', 'Actions')}>
                             <div className={styles.actions}>
                               <button
                                 type="button"
                                 className="btn"
-                                disabled={busy}
+                                disabled={busy || !canManage}
                                 title={t('نسخ التدفق', 'Duplicate')}
                                 aria-label={`${t('نسخ التدفق', 'Duplicate')}: ${f.name}`}
                                 onClick={() =>
@@ -568,7 +564,20 @@ export default function BotManager() {
                               <button
                                 type="button"
                                 className="btn"
-                                disabled={busy}
+                                disabled={busy || !canManage}
+                                title={t('نسخ إلى بوت آخر', 'Copy to other Bot')}
+                                aria-label={`${t('نسخ إلى بوت آخر', 'Copy to other Bot')}: ${f.name}`}
+                                onClick={() => {
+                                  setError('');
+                                  setCopying(f);
+                                }}
+                              >
+                                <NavIcon name="share" />
+                              </button>
+                              <button
+                                type="button"
+                                className="btn"
+                                disabled={busy || !canManage}
                                 onClick={() => void act(() => exportFlow(f))}
                                 aria-label={`${t('تصدير', 'Export')}: ${f.name}`}
                                 title={t('تصدير', 'Export')}
@@ -586,19 +595,26 @@ export default function BotManager() {
                               <button
                                 type="button"
                                 className="btn"
-                                disabled={busy}
+                                disabled={busy || !canManage}
                                 title={t('حذف', 'Delete')}
                                 aria-label={`${t('حذف', 'Delete')}: ${f.name}`}
-                                onClick={() => setDeleting(f)}
+                                onClick={() => {
+                                  setError('');
+                                  setDeleting(f);
+                                }}
                               >
                                 <NavIcon name="trash" />
                               </button>
                               <button
                                 type="button"
                                 className="btn"
+                                disabled={busy || !canManage}
                                 title={t('نقل إلى مجلد', 'Move to Folder')}
                                 aria-label={`${t('نقل إلى مجلد', 'Move to Folder')}: ${f.name}`}
-                                onClick={() => setMoving(f)}
+                                onClick={() => {
+                                  setError('');
+                                  setMoving(f);
+                                }}
                               >
                                 <NavIcon name="folder" />
                               </button>
@@ -608,7 +624,7 @@ export default function BotManager() {
                       ))}
                       {!rows.length && (
                         <tr>
-                          <td colSpan={section === 'entry_points' ? 4 : 6} className={styles.empty}>
+                          <td colSpan={section === 'entry_points' ? 3 : 5} className={styles.empty}>
                             {flows.loading
                               ? t('جارٍ تحميل التدفقات…', 'Loading flows…')
                               : flows.error
@@ -628,8 +644,12 @@ export default function BotManager() {
                 </div>
                 <footer className={styles.pagination}>
                   <label>
-                    {t('الصفوف', 'Rows')}{' '}
-                    <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
+                    <span className={styles.srOnly}>{t('الصفوف', 'Rows')}</span>
+                    <select
+                      aria-label={t('الصفوف', 'Rows')}
+                      value={pageSize}
+                      onChange={(e) => setPageSize(Number(e.target.value))}
+                    >
                       {[10, 25, 50, 100].map((n) => (
                         <option key={n}>{n}</option>
                       ))}
@@ -649,7 +669,8 @@ export default function BotManager() {
                       {t('السابق', 'Previous')}
                     </button>
                     <span aria-live="polite">
-                      {currentPage} / {pages}
+                      {currentPage}
+                      <span className={styles.srOnly}> / {pages}</span>
                     </span>
                     <button
                       type="button"
@@ -667,6 +688,82 @@ export default function BotManager() {
         </AccountWorkspaceContext.Provider>
       </div>
       <Dialog
+        className={styles.managerDialog}
+        open={!!copying}
+        onClose={() => {
+          if (!busy) setCopying(null);
+        }}
+        title={t('اختيار البوت', 'Bot Selections')}
+      >
+        {copying && (
+          <form
+            className={styles.form}
+            onSubmit={(e) => {
+              e.preventDefault();
+              const target = String(new FormData(e.currentTarget).get('channelId') || '');
+              if (!target) return;
+              void act(async () => {
+                const copy = await api<Flow>(`/flows/${copying.id}/duplicate`, { method: 'POST' });
+                try {
+                  await api(`/flows/${copy.id}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                      channelIds: [target],
+                      expectedUpdatedAt: copy.updated_at,
+                    }),
+                  });
+                } catch (e) {
+                  setCopying(null);
+                  await flows.reload();
+                  throw new Error(
+                    `${t('تم إنشاء مسودة النسخة، لكن تعذر ربطها بالبوت. يمكنك تعديل قنواتها من المصمم.', 'A draft copy was created, but could not be assigned to the bot. Edit its channels in the builder.')} ${(e as Error).message}`,
+                  );
+                }
+                setCopying(null);
+                await flows.reload();
+              });
+            }}
+          >
+            <p>
+              {t(
+                'إنشاء نسخة مسودة في البوت المحدد دون تغيير التدفق الأصلي أو نشره.',
+                'Create a draft copy in the selected bot without changing or publishing the original.',
+              )}
+            </p>
+            {error && <p role="alert">{error}</p>}
+            <label>
+              {t('قائمة البوتات', 'Bot List')}
+              <select name="channelId" required defaultValue="">
+                <option value="" disabled>
+                  {t('اختر بوتًا', 'Select a bot')}
+                </option>
+                {channels.data
+                  .filter((c) => c.id !== channelId)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <div className={styles.dialogFooter}>
+              <button
+                type="button"
+                className="btn"
+                disabled={busy || !canManage}
+                onClick={() => setCopying(null)}
+              >
+                {t('إغلاق', 'Close')}
+              </button>
+              <button className="btn btn-primary" disabled={busy || channels.data.length < 2}>
+                {busy ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ', 'Save')}
+              </button>
+            </div>
+          </form>
+        )}
+      </Dialog>
+      <Dialog
+        className={styles.managerDialog}
         open={creating}
         onClose={() => {
           if (!busy) setCreating(false);
@@ -699,13 +796,22 @@ export default function BotManager() {
             />
           </label>
           <div className={styles.formActions}>
-            <button className="btn btn-primary" disabled={busy || !selected}>
+            <button
+              type="button"
+              className="btn"
+              disabled={busy || !canManage}
+              onClick={() => setCreating(false)}
+            >
+              {t('إلغاء', 'Cancel')}
+            </button>
+            <button className="btn btn-primary" disabled={busy || !selected || !canManage}>
               {busy ? t('جارٍ الإنشاء…', 'Creating…') : t('فتح المصمم', 'Open Builder')}
             </button>
           </div>
         </form>
       </Dialog>
       <Dialog
+        className={styles.managerDialog}
         open={!!moving}
         onClose={() => {
           if (!busy) setMoving(null);
@@ -735,15 +841,26 @@ export default function BotManager() {
             {error && <p role="alert">{error}</p>}
             <label>
               {t('اسم المجلد — فارغ للإزالة', 'Folder name — leave empty to remove')}
-              <input name="folder" defaultValue={moving.folder_name ?? ''} maxLength={80} />
+              <input
+                name="folder"
+                list="manager-folders"
+                defaultValue={moving.folder_name ?? ''}
+                maxLength={80}
+              />
+              <datalist id="manager-folders">
+                {folders.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
             </label>
-            <button className="btn btn-primary" disabled={busy}>
+            <button className="btn btn-primary" disabled={busy || !canManage}>
               {t('حفظ', 'Save')}
             </button>
           </form>
         )}
       </Dialog>
       <Dialog
+        className={styles.managerDialog}
         open={!!deleting}
         onClose={() => {
           if (!busy) setDeleting(null);
@@ -753,14 +870,18 @@ export default function BotManager() {
         {deleting && (
           <div className={styles.form}>
             <p>
-              {t('هل تريد حذف هذا التدفق؟', 'Delete this flow?')} <strong>{deleting.name}</strong>
+              {t(
+                'سيُحذف هذا التدفق نهائيًا. لا يمكن التراجع عن الحذف.',
+                'This flow will be permanently deleted. This cannot be undone.',
+              )}{' '}
+              <strong>{deleting.name}</strong>
             </p>
             {error && <p role="alert">{error}</p>}
             <div className={styles.formActions}>
               <button
                 type="button"
                 className="btn"
-                disabled={busy}
+                disabled={busy || !canManage}
                 onClick={() => setDeleting(null)}
               >
                 {t('إلغاء', 'Cancel')}
@@ -768,7 +889,7 @@ export default function BotManager() {
               <button
                 type="button"
                 className="btn btn-danger"
-                disabled={busy}
+                disabled={busy || !canManage}
                 onClick={() =>
                   void act(async () => {
                     await api(`/flows/${deleting.id}`, { method: 'DELETE' });
