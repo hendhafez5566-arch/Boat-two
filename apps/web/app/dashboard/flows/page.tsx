@@ -313,9 +313,13 @@ export default function BotManager() {
               type="button"
               className="btn btn-primary"
               disabled={!canManage || !selected}
-              onClick={() => (document.getElementById('bot-manager-settings-form') as HTMLFormElement | null)?.requestSubmit()}
+              onClick={() =>
+                (
+                  document.getElementById('bot-manager-settings-form') as HTMLFormElement | null
+                )?.requestSubmit()
+              }
             >
-              {t('نشر التغييرات', 'Publish Changes')}
+              {t('حفظ مسودة الإعدادات', 'Save settings draft')}
             </button>
           )}
           <ManagerTools
