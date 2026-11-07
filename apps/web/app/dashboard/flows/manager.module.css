@@ -1490,4 +1490,89 @@
 }
 .panelSurface { margin: 6px 0 0; }
 .panelSurface .contentHeader h2 { font-size: 17px; font-weight: 400; }
+
+.settingsCard {
+  margin: -24px;
+  min-width: 0;
+  background: #fff;
+  border: 1px solid #edf0f3;
+  border-radius: 16px;
+  overflow: hidden;
+  color: #48515d;
+  font-size: 12px;
+}
+.settingsTabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 2px;
+  padding: 16px 16px 8px;
+  border-bottom: 1px solid #edf0f3;
+  background: #fbfcfe;
+}
+.settingsTabs button {
+  min-height: 34px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 8px;
+  color: #4f46e5;
+  background: transparent;
+  font: 500 13px/18px 'Plus Jakarta Sans Variable', Arial, sans-serif;
+  white-space: nowrap;
+}
+.settingsTabs button[aria-selected='true'] { background: #eef2ff; }
+.settingsTabs button:focus-visible,
+.settingField input:focus-visible,
+.settingField select:focus-visible,
+.settingField textarea:focus-visible,
+.scheduleTable input:focus-visible { outline: 2px solid #4f46e5; outline-offset: 2px; }
+.settingsBody { padding: 25px 24px 28px; }
+.settingsNarrow { width: min(381.5px, 100%); }
+.settingsWide { width: min(797px, 100%); }
+.settingsTitle { margin: 0; font-size: 14px; line-height: 20px; font-weight: 500; color: #48515d; }
+.settingsDescription { margin: 2px 0 22px; color: #929aa5; font-style: italic; font-size: 12px; line-height: 19px; }
+.settingField { display: grid; gap: 8px; margin: 0 0 18px; min-width: 0; color: #929aa5; font-size: 10px; line-height: 14px; font-weight: 500; letter-spacing: .02em; }
+.settingField input,
+.settingField select,
+.settingField textarea,
+.scheduleTable input { width: 100%; min-width: 0; min-height: 52px; padding: 8px 12px; border: 1px solid #e8ebef; border-radius: 7px; color: #0f172a; background: #fff; font: 400 12px/18px 'Plus Jakarta Sans Variable', Arial, sans-serif; letter-spacing: 0; }
+.settingField textarea { min-height: 105px; resize: vertical; }
+.settingField select:disabled { background: #f2f4f4; color: #697386; }
+.settingField small,.settingToggle small { color: #7b8491; font-size: 10px; line-height: 15px; font-weight: 400; letter-spacing: 0; }
+.settingToggle { display: flex; justify-content: space-between; align-items: center; gap: 16px; min-height: 52px; padding: 8px 14px; margin-bottom: 18px; border: 1px solid #e8ebef; border-radius: 7px; color: #656d78; font-size: 12px; line-height: 18px; letter-spacing: .01em; }
+.settingToggleText { display: grid; gap: 2px; }
+.settingToggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.settingToggle i { width: 32px; height: 18px; border-radius: 10px; background: #e5e7eb; position: relative; flex: 0 0 32px; }
+.settingToggle i::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #0002; transition: transform .14s ease; }
+.settingToggle input:checked + i { background: #1bad51; }
+.settingToggle input:checked + i::after { transform: translateX(14px); }
+.settingToggle input:focus-visible + i { outline: 2px solid #4f46e5; outline-offset: 2px; }
+.settingToggle input:disabled + i { opacity: .76; }
+.settingBlocked { cursor: not-allowed; }
+.frequency { display: flex; align-items: center; gap: 16px; margin: 2px 0 0; padding: 10px; border: 1px solid #e8ebef; border-radius: 7px; color: #77808d; }
+.frequency legend { font-size: 10px; color: #9aa2ad; padding: 0 2px; }
+.frequency label { display: flex; align-items: center; gap: 6px; }
+.settingsTwoCol { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; align-items: start; }
+.settingsSection { margin-top: 30px; }
+.scheduleScroll { overflow-x: auto; border: 1px solid #edf0f3; border-radius: 8px; margin: 6px 0 20px; }
+.scheduleTable { width: 100%; border-collapse: collapse; min-width: 510px; }
+.scheduleTable thead { color: #5f6368; font-size: 10px; text-align: left; }
+.scheduleTable th { padding: 10px 16px; font-weight: 500; }
+.scheduleTable tbody tr { border-top: 1px solid #edf0f3; }
+.scheduleTable tbody th { width: 30%; padding: 13px 18px; color: #48515d; font-weight: 400; font-size: 13px; }
+.scheduleTable td { padding: 10px 12px; }
+.scheduleTable input { min-height: 38px; background: #f2f4f4; }
+.specialBot { margin-top: 26px; padding-top: 18px; border-top: 1px solid #edf0f3; }
+.settingsActions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; }
+.settingsNotice,.settingsError { margin: 0 24px 12px; padding: 10px 12px; border-radius: 8px; }
+.settingsNotice { color: #167247; background: #effbf4; }
+.settingsError { color: #a82727; background: #fff1f1; }
+@media (max-width: 720px) {
+  .settingsCard { margin: -16px; }
+  .settingsBody { padding: 18px 16px 22px; }
+  .settingsTabs { padding: 10px; gap: 2px; }
+  .settingsTabs button { padding-inline: 10px; }
+  .settingsTwoCol { grid-template-columns: minmax(0,1fr); }
+  .settingsActions { flex-wrap: wrap; }
+}
 .actionCardText em { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
