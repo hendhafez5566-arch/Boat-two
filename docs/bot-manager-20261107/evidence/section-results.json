@@ -1,0 +1,134 @@
+{
+  "checks": [
+    {
+      "name": "en 1920 action_buttons responsive",
+      "pass": true
+    },
+    {
+      "name": "en 1920 message_templates responsive",
+      "pass": true
+    },
+    {
+      "name": "en 1366 action_buttons responsive",
+      "pass": true
+    },
+    {
+      "name": "en 1366 message_templates responsive",
+      "pass": true
+    },
+    {
+      "name": "en 768 action_buttons responsive",
+      "pass": true
+    },
+    {
+      "name": "en 768 message_templates responsive",
+      "pass": true
+    },
+    {
+      "name": "en 390 action_buttons responsive",
+      "pass": true
+    },
+    {
+      "name": "en 390 message_templates responsive",
+      "pass": true
+    },
+    {
+      "name": "en 360 action_buttons responsive",
+      "pass": true
+    },
+    {
+      "name": "en 360 message_templates responsive",
+      "pass": true
+    },
+    {
+      "name": "en 320 action_buttons responsive",
+      "pass": true
+    },
+    {
+      "name": "en 320 message_templates responsive",
+      "pass": true
+    },
+    {
+      "name": "en action card opens a real draft and returns to manager",
+      "pass": true
+    },
+    {
+      "name": "en advanced settings preserve all seven configuration forms",
+      "pass": true
+    },
+    {
+      "name": "en template preview and stored variables",
+      "pass": true
+    },
+    {
+      "name": "en template create and edit persist without Meta calls",
+      "pass": true
+    },
+    {
+      "name": "ar 1920 action_buttons responsive",
+      "pass": true
+    },
+    {
+      "name": "ar 1920 message_templates responsive",
+      "pass": true
+    },
+    {
+      "name": "ar 1366 action_buttons responsive",
+      "pass": true
+    },
+    {
+      "name": "ar 1366 message_templates responsive",
+      "pass": true
+    },
+    {
+      "name": "ar 768 action_buttons responsive",
+      "pass": true
+    },
+    {
+      "name": "ar 768 message_templates responsive",
+      "pass": true
+    },
+    {
+      "name": "ar 390 action_buttons responsive",
+      "pass": true
+    },
+    {
+      "name": "ar 390 message_templates responsive",
+      "pass": true
+    },
+    {
+      "name": "ar 360 action_buttons responsive",
+      "pass": true
+    },
+    {
+      "name": "ar 360 message_templates responsive",
+      "pass": true
+    },
+    {
+      "name": "ar 320 action_buttons responsive",
+      "pass": true
+    },
+    {
+      "name": "ar 320 message_templates responsive",
+      "pass": true
+    },
+    {
+      "name": "ar action card opens a real draft and returns to manager",
+      "pass": true
+    },
+    {
+      "name": "ar advanced settings preserve all seven configuration forms",
+      "pass": true
+    },
+    {
+      "name": "ar template preview and stored variables",
+      "pass": true
+    },
+    {
+      "name": "ar template create and edit persist without Meta calls",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "scope": "Only isolated local channels; no external provider sync, submit or delivery"
+}

@@ -1,0 +1,44 @@
+{
+  "deploymentId": "943206b0-a21b-4fa1-a997-bf3624b8f5a5",
+  "status": "SUCCESS",
+  "build": [
+    {
+      "timestamp": "2026-11-07T12:26:04.756272037Z",
+      "message": " ✓ Compiled successfully\n"
+    },
+    {
+      "timestamp": "2026-11-07T12:26:04.757091636Z",
+      "message": "   Linting and checking validity of types ...\n"
+    },
+    {
+      "timestamp": "2026-11-07T12:26:18.091300568Z",
+      "message": " ✓ Generating static pages (50/50)\n"
+    },
+    {
+      "timestamp": "2026-11-07T12:26:46.732085585Z",
+      "message": "====================\nStarting Healthcheck\n====================\n"
+    },
+    {
+      "timestamp": "2026-11-07T12:26:46.732087586Z",
+      "message": "Path: /login"
+    },
+    {
+      "timestamp": "2026-11-07T12:26:47.106039428Z",
+      "message": "[1/1] Healthcheck succeeded!"
+    }
+  ],
+  "runtime": [
+    {
+      "timestamp": "2026-11-07T12:26:45.355453986Z",
+      "message": "  ▲ Next.js 14.2.35"
+    },
+    {
+      "timestamp": "2026-11-07T12:26:45.427210219Z",
+      "message": " ✓ Ready in 174ms"
+    },
+    {
+      "timestamp": "2026-11-07T12:26:47.947532571Z",
+      "message": "Starting Container"
+    }
+  ]
+}

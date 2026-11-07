@@ -690,3 +690,804 @@
   background: #fce8f0;
   color: #c13584;
 }
+
+/* Bot Manager only. Measurements: live reference, 7 Nov 2026, 1363 × 936. */
+.manager {
+  color: #3c4043;
+  font-size: 13px;
+}
+.workspace {
+  gap: 14px;
+}
+.accounts {
+  border-color: #edf0f3;
+  box-shadow: 0 2px 6px #25313b05;
+}
+.account {
+  padding: 10px 8px;
+  gap: 8px;
+  border-radius: 8px;
+}
+.account .avatar {
+  width: 30px;
+  height: 30px;
+}
+.account .avatar svg {
+  width: 20px;
+  height: 20px;
+}
+.account > span:last-child {
+  gap: 2px;
+}
+.account strong {
+  font-size: 12px;
+  line-height: 18px;
+}
+.account small {
+  font-size: 10px;
+  line-height: 14px;
+}
+.channelFilters {
+  margin: 16px -4px 12px;
+  gap: 2px;
+  padding: 4px;
+}
+.channelFilters button {
+  padding: 2px 4px;
+  min-height: 26px;
+}
+.workspaceHeader {
+  min-height: 47px;
+}
+.workspaceHeader > div:not(.managerOptions) {
+  min-width: 0;
+}
+.workspaceHeader :global(.btn),
+.headerActions :global(.btn) {
+  border-radius: 8px;
+  min-height: 40px;
+  padding: 9px 16px;
+  box-shadow: none;
+  border-color: #e8edf2;
+  font-size: 13px;
+  font-weight: 600;
+}
+.workspaceHeader > button svg {
+  width: 15px;
+  height: 15px;
+}
+.workspaceHeader p {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.accountStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 12px;
+  background: #f2f4f7;
+  color: #526075;
+  font-size: 10px;
+  line-height: 16px;
+}
+.accountStatus[data-active='true'] {
+  background: #effbf4;
+  color: #238352;
+}
+.accountStatus::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.sections {
+  border-radius: 6px;
+  padding-inline: 16px;
+}
+.sections button {
+  padding: 17px 18px 13px;
+  font-size: 14px;
+  gap: 8px;
+  font-weight: 500;
+}
+.sections button[aria-pressed='true'] {
+  font-weight: 600;
+}
+.subsections {
+  gap: 10px;
+}
+.subsections button {
+  padding: 8px 16px;
+  min-height: 36px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.contentHeader {
+  margin-bottom: 20px;
+}
+.contentHeader h2 {
+  font-size: 17px;
+  line-height: 21px;
+}
+.contentHeader p {
+  font-size: 11px;
+  line-height: 18px;
+  margin-top: 6px;
+}
+.filters {
+  margin-bottom: 16px;
+  gap: 8px;
+}
+.filters > .search svg {
+  display: none;
+}
+.table th {
+  padding: 12px 20px;
+  font-size: 10px;
+  font-weight: 500;
+}
+.table td {
+  padding: 12px 20px;
+  font-size: 12px;
+}
+.table td:nth-child(2) {
+  width: 110px;
+}
+.table td:nth-child(3) {
+  min-width: 220px;
+}
+.table th button {
+  gap: 12px;
+}
+.table th svg {
+  width: 11px;
+  height: 11px;
+  color: #98a1ac;
+}
+.uniqueId {
+  max-width: 85px;
+  direction: ltr;
+}
+.manager .table .status {
+  padding: 0;
+  min-height: 0;
+  margin-top: 3px;
+  border-radius: 0;
+  font-size: 10px;
+  line-height: 15px;
+  background: transparent;
+  color: #586679;
+}
+.manager .table .status[data-live='true'] {
+  color: #238352;
+}
+.actions {
+  gap: 8px;
+}
+.actions :global(.btn) {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 6px;
+  box-shadow: 0 1px 3px #25313b08;
+  color: #5a6570;
+}
+.pagination {
+  margin-top: 0;
+  padding: 14px;
+  background: #fafbfd;
+  border: 1px solid #edf0f5;
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+}
+.pagination > div > span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  height: 34px;
+  color: white;
+  background: var(--primary);
+  border-radius: 8px;
+}
+.pagination :global(.btn) {
+  border-radius: 8px;
+  box-shadow: none;
+}
+.manager select,
+.managerDialog select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23657180' stroke-width='1.4'%3E%3Cpath d='m3 4 3 3 3-3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-inline-end: 34px;
+}
+.manager[dir='rtl'] select,
+.managerDialog:dir(rtl) select {
+  background-position: left 12px center;
+}
+.manager button:focus-visible,
+.manager a:focus-visible,
+.managerDialog button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.optionsMenu {
+  width: 244px;
+  padding: 8px 0;
+  border-radius: 8px;
+}
+.optionsMenu button {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 16px;
+  font-size: 12px;
+  border-radius: 0;
+}
+.optionsMenu button:focus-visible {
+  outline-offset: -3px;
+  background: #f4f1ff;
+}
+.optionsMenu svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.managerDialog:global(.product-dialog) {
+  width: min(600px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  padding: 0;
+  border: 1px solid #e6ebf1;
+  border-radius: 12px;
+  color: #3c4043;
+}
+.managerDialog > header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #edf0f5;
+}
+.managerDialog > header h2 {
+  font-size: 17px;
+  font-weight: 500;
+}
+.managerDialog :global(.dialog-body) {
+  padding: 24px;
+}
+.managerDialog :global(.dialog-close) {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  font-size: 24px;
+}
+.managerDialog .form p {
+  font-size: 12px;
+}
+.managerDialog .form > label {
+  font-size: 12px;
+  font-weight: 500;
+}
+.managerDialog .form h3 {
+  font-size: 14px;
+  margin: 0;
+}
+.managerDialog :global(.btn) {
+  border-radius: 7px;
+  box-shadow: none;
+  min-height: 40px;
+  font-size: 13px;
+}
+.dialogFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid #edf0f5;
+}
+.variableList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+  max-height: 320px;
+  overflow: auto;
+}
+.variableList li {
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid #edf0f5;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.flowPicker {
+  border: 1px solid #e6ebf1;
+  border-radius: 8px;
+  max-height: 240px;
+  overflow: auto;
+  padding: 12px;
+}
+.flowPicker label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.flowPicker input {
+  flex: none;
+}
+.folderRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.folderRow label {
+  flex: 1;
+  min-width: 120px;
+  display: grid;
+  gap: 6px;
+}
+.folderRow input {
+  width: 100%;
+}
+.toolFeedback {
+  position: absolute;
+  inset-inline-end: 0;
+  top: calc(100% + 8px);
+  width: 240px;
+  padding: 10px 14px;
+  background: #effbf4;
+  color: #187347;
+  border: 1px solid #caebd8;
+  border-radius: 8px;
+  z-index: 10;
+}
+.feedback {
+  margin: 0 0 16px !important;
+  font-size: 12px;
+  color: #187347;
+}
+@media (pointer: coarse) {
+  .actions :global(.btn) {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .optionsMenu button {
+    min-height: 44px;
+  }
+}
+@media (max-width: 850px) {
+  .workspaceHeader > div:not(.managerOptions) {
+    flex: 1;
+  }
+  .workspaceHeader > button {
+    margin-inline-start: 0;
+  }
+  .sections {
+    padding-inline: 0;
+  }
+}
+@media (max-width: 480px) {
+  .accounts {
+    padding: 12px;
+  }
+  .accounts h1 {
+    font-size: 14px;
+  }
+  .workspaceHeader > div:not(.managerOptions) {
+    flex-basis: calc(100% - 60px);
+  }
+  .workspaceHeader > button {
+    margin-inline-start: auto;
+  }
+  .content,
+  .panelSurface {
+    padding: 14px;
+    border-radius: 12px;
+  }
+  .contentHeader {
+    gap: 12px;
+  }
+  .contentHeader > div:first-child {
+    flex-basis: 100%;
+  }
+  .headerActions {
+    margin-inline-start: auto;
+  }
+  .subsections {
+    gap: 6px;
+  }
+  .subsections button {
+    padding: 8px 10px;
+  }
+  .managerDialog > header,
+  .managerDialog :global(.dialog-body) {
+    padding: 16px;
+  }
+  .pagination {
+    padding: 10px;
+    gap: 8px;
+  }
+  .optionsMenu {
+    max-width: calc(100vw - 40px);
+  }
+}
+/* Corrected after side-by-side review at laptop width. */
+.accounts > header {
+  margin-bottom: 25px;
+}
+.sections {
+  min-height: 63px;
+}
+.subsections button {
+  line-height: 18px;
+  min-height: 36px;
+  padding-block: 8px;
+}
+.content {
+  margin-top: 6px;
+}
+.flowName {
+  display: inline;
+}
+.manager .table .status {
+  margin-block: 0;
+  margin-inline-start: 8px;
+}
+.pagination label {
+  flex-direction: row;
+  margin: 0;
+}
+.pagination select {
+  width: 50px;
+  padding-inline-start: 10px;
+  padding-inline-end: 20px;
+  background-position: right 6px center;
+}
+.manager[dir='rtl'] .pagination select {
+  background-position: left 6px center;
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.manager .pagination select:not([multiple]):not([size]) {
+  width: 54px;
+  padding: 5px 20px 5px 10px;
+  background-position: right 6px center;
+}
+.manager[dir='rtl'] .pagination select:not([multiple]):not([size]) {
+  padding: 5px 10px 5px 20px;
+  background-position: left 6px center;
+}
+@media (max-width: 700px) {
+  .table {
+    min-width: 0;
+  }
+  .table thead {
+    display: none;
+  }
+  .table tbody {
+    display: grid;
+  }
+  .table tr {
+    display: grid;
+    padding: 10px 12px;
+    border-bottom: 1px solid #edf0f5;
+  }
+  .table tr:last-child {
+    border-bottom: 0;
+  }
+  .table td,
+  .table td:nth-child(2),
+  .table td:nth-child(3),
+  .table td:last-child {
+    display: grid;
+    grid-template-columns: minmax(76px, 30%) minmax(0, 1fr);
+    gap: 10px;
+    min-width: 0;
+    width: auto;
+    max-width: none;
+    position: static;
+    box-shadow: none;
+    border: 0;
+    padding: 8px 0;
+    align-items: start;
+  }
+  .table td::before {
+    content: attr(data-label);
+    font-size: 10px;
+    color: #657180;
+  }
+  .table td:has(.flowName) {
+    display: block;
+  }
+  .table td:has(.flowName)::before {
+    display: block;
+    margin-bottom: 6px;
+  }
+  .table td:last-child {
+    grid-template-columns: 1fr;
+  }
+  .table td.empty {
+    display: block;
+  }
+  .table td.empty::before {
+    display: none;
+  }
+  .uniqueId {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+  .actions {
+    flex-wrap: wrap;
+  }
+  .actions :global(.btn) {
+    min-width: 36px;
+    min-height: 36px;
+  }
+}
+
+/* The seven action cards reproduce the measured reference workspace, without changing shared panels. */
+.quickActions {
+  min-width: 0;
+}
+.quickActions .contentHeader :global(.btn) {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.quickActions .contentHeader svg {
+  width: 15px;
+  height: 15px;
+}
+.actionCards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.actionCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 121px;
+  min-width: 0;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #eef1f5;
+  border-radius: 14px;
+  background: #fff;
+  text-align: start;
+  color: #202634;
+  box-shadow: 0 2px 4px #25313b04;
+  font: inherit;
+  cursor: pointer;
+  position: relative;
+}
+.actionCard:hover {
+  border-color: #ccebd9;
+  background: #fcfffd;
+}
+.actionCard:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.actionCardIcon {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 9px;
+  background: #e1fbed;
+  color: #26a65c;
+  display: grid;
+  place-items: center;
+}
+.actionCardIcon svg {
+  width: 21px;
+  height: 21px;
+}
+.actionCardText {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border-inline-start: 1px solid #edf0f3;
+  padding-inline-start: 12px;
+  padding-inline-end: 5px;
+}
+.actionCardText strong {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 19px;
+  overflow-wrap: anywhere;
+}
+.actionCardText small {
+  font-size: 12px;
+  color: #697583;
+  line-height: 17px;
+}
+.actionCardText em {
+  font-size: 10px;
+  font-style: normal;
+  color: #357849;
+}
+.actionCardArrow {
+  position: absolute;
+  inset-inline-end: 10px;
+  top: 15px;
+  color: #41a365;
+}
+.actionCardArrow svg {
+  width: 13px;
+  height: 13px;
+  transform: rotate(-90deg);
+}
+.manager[dir='rtl'] .actionCardArrow svg {
+  transform: rotate(90deg);
+}
+.actionHint {
+  font-size: 11px;
+  color: #657180;
+  line-height: 18px;
+  margin-top: 16px !important;
+}
+@media (min-width: 851px) and (max-width: 1200px) {
+  .actionCards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 850px) {
+  .actionCards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .actionCards {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .actionCard {
+    min-height: 105px;
+  }
+}
+.templateManager {
+  min-width: 0;
+}
+.templateTabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid #edf0f5;
+  margin-bottom: 20px;
+}
+.templateTabs button {
+  background: none;
+  color: #637080;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 11px 16px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.templateTabs button[aria-selected='true'] {
+  color: var(--primary);
+  border-color: var(--primary);
+  font-weight: 600;
+}
+.templateSearch {
+  display: flex;
+  position: relative;
+  width: min(380px, 100%);
+  margin-bottom: 16px;
+}
+.templateSearch input {
+  width: 100%;
+  padding-inline-end: 38px;
+  min-height: 44px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.templateSearch > svg {
+  position: absolute;
+  inset-inline-end: 13px;
+  top: 14px;
+  width: 16px;
+  height: 16px;
+  color: #758193;
+  pointer-events: none;
+}
+.templateTable {
+  min-width: 880px;
+}
+.templateTable td:nth-child(3) {
+  min-width: 160px;
+}
+.templateTable td:last-child,
+.templateTable th:last-child {
+  position: static;
+  box-shadow: none;
+}
+.templateStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #5a6675;
+  white-space: nowrap;
+}
+.templateStatus::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #8795a8;
+}
+.templateStatus[data-status='APPROVED'] {
+  color: #238352;
+}
+.templateStatus[data-status='APPROVED']::before {
+  background: #29b474;
+}
+.templateStatus[data-status='REJECTED'] {
+  color: #b53f43;
+}
+.templateStatus[data-status='REJECTED']::before {
+  background: #cc575b;
+}
+.templateDialog:global(.product-dialog) {
+  width: min(800px, calc(100vw - 32px));
+}
+.templateDialog :global(.card) {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+.templateBody {
+  white-space: pre-wrap;
+  padding: 20px;
+  border-radius: 10px;
+  background: #f3f8f5;
+}
+.previewButton {
+  display: block;
+  text-align: center;
+  padding: 10px;
+  border: 1px solid #e4e9f0;
+  border-radius: 7px;
+  font-size: 12px;
+  color: var(--primary);
+}
+@media (max-width: 850px) {
+  .templateManager .contentHeader {
+    flex-wrap: wrap;
+  }
+  .templateManager .headerActions {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 700px) {
+  .templateTable {
+    min-width: 0;
+  }
+}
+.panelSurface { margin: 6px 0 0; }
+.panelSurface .contentHeader h2 { font-size: 17px; font-weight: 400; }
+.actionCardText em { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }

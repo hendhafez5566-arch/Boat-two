@@ -1,0 +1,220 @@
+[
+  {
+    "locale": "en",
+    "route": "",
+    "identical": true,
+    "size": [
+      1366,
+      936
+    ],
+    "changedPixels": 0,
+    "bbox": null
+  },
+  {
+    "locale": "en",
+    "route": "inbox",
+    "identical": true,
+    "size": [
+      1366,
+      936
+    ],
+    "changedPixels": 0,
+    "bbox": null
+  },
+  {
+    "locale": "en",
+    "route": "crm",
+    "identical": false,
+    "size": [
+      1366,
+      936
+    ],
+    "changedPixels": 994,
+    "bbox": [
+      829,
+      240,
+      1334,
+      255
+    ]
+  },
+  {
+    "locale": "en",
+    "route": "crm/sales",
+    "identical": true,
+    "size": [
+      1366,
+      936
+    ],
+    "changedPixels": 0,
+    "bbox": null
+  },
+  {
+    "locale": "en",
+    "route": "channels",
+    "identical": true,
+    "size": [
+      1366,
+      936
+    ],
+    "changedPixels": 0,
+    "bbox": null
+  },
+  {
+    "locale": "en",
+    "route": "automations",
+    "identical": true,
+    "size": [
+      1366,
+      936
+    ],
+    "changedPixels": 0,
+    "bbox": null
+  },
+  {
+    "locale": "en",
+    "route": "team",
+    "identical": true,
+    "size": [
+      1366,
+      936
+    ],
+    "changedPixels": 0,
+    "bbox": null
+  },
+  {
+    "locale": "en",
+    "route": "settings",
+    "identical": true,
+    "size": [
+      1366,
+      936
+    ],
+    "changedPixels": 0,
+    "bbox": null
+  },
+  {
+    "locale": "en",
+    "route": "billing",
+    "identical": true,
+    "size": [
+      1366,
+      936
+    ],
+    "changedPixels": 0,
+    "bbox": null
+  },
+  {
+    "locale": "ar",
+    "route": "",
+    "identical": true,
+    "size": [
+      1366,
+      936
+    ],
+    "changedPixels": 0,
+    "bbox": null
+  },
+  {
+    "locale": "ar",
+    "route": "inbox",
+    "identical": false,
+    "size": [
+      1366,
+      936
+    ],
+    "changedPixels": 428,
+    "bbox": [
+      1319,
+      255,
+      1340,
+      718
+    ]
+  },
+  {
+    "locale": "ar",
+    "route": "crm",
+    "identical": false,
+    "size": [
+      1366,
+      936
+    ],
+    "changedPixels": 978,
+    "bbox": [
+      31,
+      240,
+      510,
+      255
+    ]
+  },
+  {
+    "locale": "ar",
+    "route": "crm/sales",
+    "identical": true,
+    "size": [
+      1366,
+      936
+    ],
+    "changedPixels": 0,
+    "bbox": null
+  },
+  {
+    "locale": "ar",
+    "route": "channels",
+    "identical": true,
+    "size": [
+      1366,
+      936
+    ],
+    "changedPixels": 0,
+    "bbox": null
+  },
+  {
+    "locale": "ar",
+    "route": "automations",
+    "identical": true,
+    "size": [
+      1366,
+      936
+    ],
+    "changedPixels": 0,
+    "bbox": null
+  },
+  {
+    "locale": "ar",
+    "route": "team",
+    "identical": true,
+    "size": [
+      1366,
+      936
+    ],
+    "changedPixels": 0,
+    "bbox": null
+  },
+  {
+    "locale": "ar",
+    "route": "settings",
+    "identical": false,
+    "size": [
+      1366,
+      936
+    ],
+    "changedPixels": 15,
+    "bbox": [
+      514,
+      599,
+      526,
+      691
+    ]
+  },
+  {
+    "locale": "ar",
+    "route": "billing",
+    "identical": true,
+    "size": [
+      1366,
+      936
+    ],
+    "changedPixels": 0,
+    "bbox": null
+  }
+]
