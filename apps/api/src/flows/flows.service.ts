@@ -28,6 +28,75 @@ import { safeHttpRequest } from './http-safe';
 const LIST_COLS =
   'id, name, description, status, priority, triggers, channel_ids, published_version_id, created_at, updated_at, folder_name';
 
+type InputFlowField = { key: string; label: string; kind: string; saveToSystem?: string };
+type InputFlowSession = {
+  id: string;
+  status: string;
+  state: { vars?: Record<string, unknown> } | null;
+  created_at: Date | string;
+  updated_at: Date | string;
+  contact_id: string;
+  contact_name: string | null;
+  graph: FlowGraph;
+};
+
+function inputFlowFields(graph: FlowGraph): InputFlowField[] {
+  const fields = new Map<string, InputFlowField>();
+  for (const node of graph.nodes ?? []) {
+    if (node.type !== 'user_input') continue;
+    for (const question of (node.data.questions ?? []) as Array<Record<string, unknown>>) {
+      const key = String(question.saveAs ?? '').trim();
+      if (!key || fields.has(key)) continue;
+      fields.set(key, {
+        key,
+        label: String(question.text ?? '').trim() || key,
+        kind: String(question.kind ?? 'text'),
+        ...(typeof question.saveToSystem === 'string'
+          ? { saveToSystem: question.saveToSystem }
+          : {}),
+      });
+    }
+  }
+  return [...fields.values()];
+}
+
+function hasUserInputNode(graph: FlowGraph): boolean {
+  return (graph.nodes ?? []).some((node) => node.type === 'user_input');
+}
+
+export function buildInputFlowReport(
+  flow: { id: string; name: string; status: string; draft_graph: FlowGraph },
+  sessions: InputFlowSession[],
+) {
+  const fieldMap = new Map(inputFlowFields(flow.draft_graph).map((field) => [field.key, field]));
+  for (const session of sessions) {
+    for (const field of inputFlowFields(session.graph)) {
+      if (!fieldMap.has(field.key)) fieldMap.set(field.key, field);
+    }
+  }
+  const fields = [...fieldMap.values()];
+  return {
+    flow: { id: flow.id, name: flow.name, status: flow.status },
+    fields,
+    records: sessions.map((session) => {
+      const vars = session.state?.vars ?? {};
+      return {
+        id: session.id,
+        status: session.status,
+        createdAt: session.created_at,
+        updatedAt: session.updated_at,
+        contactId: session.contact_id,
+        contactName: session.contact_name,
+        answers: Object.fromEntries(
+          inputFlowFields(session.graph)
+            .filter((field) => Object.prototype.hasOwnProperty.call(vars, field.key))
+            .map((field) => [field.key, vars[field.key]]),
+        ),
+      };
+    }),
+  };
+}
+
 @Injectable()
 export class FlowsService {
   constructor(
@@ -48,6 +117,38 @@ export class FlowsService {
          ORDER BY f.updated_at DESC`,
       );
       return r.rows;
+    });
+  }
+
+  inputReport(tenantId: string, id: string) {
+    return this.db.withTenant(tenantId, async (c) => {
+      const flow = (
+        await c.query<{ id: string; name: string; status: string; draft_graph: FlowGraph }>(
+          'SELECT id,name,status,draft_graph FROM flows WHERE id=$1',
+          [id],
+        )
+      ).rows[0];
+      if (!flow) throw new NotFoundException('Flow not found');
+      if (!hasUserInputNode(flow.draft_graph))
+        throw new NotFoundException('User Input Flow not found');
+      const sessions = (
+        await c.query<InputFlowSession>(
+          `SELECT fs.id,fs.status,fs.state,fs.created_at,fs.updated_at,fs.contact_id,
+                  ct.name AS contact_name,fv.graph
+             FROM flow_sessions fs
+             JOIN flow_versions fv ON fv.id=fs.version_id AND fv.flow_id=fs.flow_id
+             JOIN contacts ct ON ct.id=fs.contact_id
+            WHERE fs.flow_id=$1
+            ORDER BY fs.updated_at DESC,fs.id DESC
+            LIMIT 5001`,
+          [id],
+        )
+      ).rows;
+      const truncated = sessions.length > 5000;
+      return {
+        ...buildInputFlowReport(flow, sessions.slice(0, 5000)),
+        truncated,
+      };
     });
   }
 
@@ -160,7 +261,12 @@ export class FlowsService {
           input.name,
           input.description ?? null,
           JSON.stringify(
-            template?.graph ?? initialFlowGraph(input.language, input.initialNodeType),
+            template?.graph ??
+              initialFlowGraph(
+                input.language,
+                input.initialNodeType,
+                input.initialNodeType === 'user_input' ? input.name : undefined,
+              ),
           ),
           JSON.stringify([{ type: 'first_message' }]),
           userId,

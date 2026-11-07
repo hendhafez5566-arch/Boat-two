@@ -44,6 +44,15 @@ type Flow = {
   node_types?: string[];
   triggers: { type: string; keywords?: string[] }[];
 };
+type InputFlowReport = {
+  fields: { key: string; label: string }[];
+  records: {
+    status: string;
+    updatedAt: string;
+    contactName: string | null;
+    answers: Record<string, unknown>;
+  }[];
+};
 const channelTypes = ['whatsapp', 'telegram', 'facebook', 'instagram', 'web'];
 
 export default function BotManager() {
@@ -117,7 +126,7 @@ export default function BotManager() {
     .filter(
       (f) =>
         (section === 'entry_points'
-          ? f.node_types?.some((type) => ['user_input', 'question'].includes(type))
+          ? f.node_types?.includes('user_input')
           : true) &&
         matchesFlowChannel(f.channel_ids, channelId) &&
         (folder === '*' || (f.folder_name ?? '') === folder) &&
@@ -184,6 +193,51 @@ export default function BotManager() {
     link.download = `boat-flow-${flow.id}.json`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  async function exportInputFlow(flow: Flow) {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const report = await api<InputFlowReport>(`/flows/${flow.id}/input-report`);
+      const columns = [
+        t('العميل', 'Contact'),
+        t('الحالة', 'Status'),
+        t('آخر تحديث', 'Updated'),
+        ...report.fields.map((field) => field.label),
+      ];
+      const csvValue = (value: unknown) => {
+        const text = value === null || value === undefined ? '' : String(value);
+        return `"${text.replaceAll('"', '""')}"`;
+      };
+      const csv = [
+        columns,
+        ...report.records.map((record) => [
+          record.contactName ?? '',
+          record.status,
+          record.updatedAt,
+          ...report.fields.map((field) => record.answers[field.key]),
+        ]),
+      ]
+        .map((row) => row.map(csvValue).join(','))
+        .join('\r\n');
+      const url = URL.createObjectURL(
+        new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }),
+      );
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `boat-input-flow-${flow.id}.csv`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setNotice(t('تم تنزيل تقرير الإجابات.', 'Response report downloaded.'));
+    } catch (e) {
+      setError(managerError(e, t));
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
   }
   async function importFlow(file: File) {
     if (file.size > 1024 * 1024)
@@ -409,15 +463,17 @@ export default function BotManager() {
                     </p>
                   </div>
                   <div className={styles.headerActions}>
-                    <button
-                      type="button"
-                      className="btn"
-                      disabled={busy || flows.loading}
-                      onClick={() => void flows.reload()}
-                      aria-label={t('تحديث التدفقات', 'Refresh flows')}
-                    >
-                      <NavIcon name="refresh" />
-                    </button>
+                    {section === 'bot_reply' && (
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={busy || flows.loading}
+                        onClick={() => void flows.reload()}
+                        aria-label={t('تحديث التدفقات', 'Refresh flows')}
+                      >
+                        <NavIcon name="refresh" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="btn btn-primary"
@@ -547,18 +603,20 @@ export default function BotManager() {
                             >
                               {f.name}
                             </Link>
-                            <span
-                              className={styles.status}
-                              data-live={selected?.settings?.activeBotFlowId === f.id}
-                            >
-                              {f.status === 'draft'
-                                ? t('مسودة', 'Draft')
-                                : selected?.settings?.activeBotFlowId === f.id
-                                  ? selected.status === 'active'
-                                    ? t('نشط على القناة', 'Active on channel')
-                                    : t('متوقف على القناة', 'Channel paused')
-                                  : t('منشور', 'Published')}
-                            </span>
+                            {section === 'bot_reply' && (
+                              <span
+                                className={styles.status}
+                                data-live={selected?.settings?.activeBotFlowId === f.id}
+                              >
+                                {f.status === 'draft'
+                                  ? t('مسودة', 'Draft')
+                                  : selected?.settings?.activeBotFlowId === f.id
+                                    ? selected.status === 'active'
+                                      ? t('نشط على القناة', 'Active on channel')
+                                      : t('متوقف على القناة', 'Channel paused')
+                                    : t('منشور', 'Published')}
+                              </span>
+                            )}
                           </td>
                           {section === 'bot_reply' && (
                             <td data-label={t('آخر تعديل', 'Updated At')}>
@@ -571,6 +629,43 @@ export default function BotManager() {
                           )}
                           <td data-label={t('الإجراءات', 'Actions')}>
                             <div className={styles.actions}>
+                              {section === 'entry_points' ? (
+                                <>
+                                  <Link
+                                    className="btn"
+                                    href={channelHref(
+                                      `/dashboard/flows/${f.id}/input-report?section=entry_points`,
+                                      channelId,
+                                    )}
+                                    aria-label={`${t('التقرير', 'Report')}: ${f.name}`}
+                                    title={t('التقرير', 'Report')}
+                                  >
+                                    <NavIcon name="eye" />
+                                  </Link>
+                                  <button
+                                    type="button"
+                                    className="btn"
+                                    disabled={busy || !canManage}
+                                    onClick={() => void exportInputFlow(f)}
+                                    aria-label={`${t('تصدير بيانات التدفق', 'Export Flow Data')}: ${f.name}`}
+                                    title={t('تصدير بيانات التدفق', 'Export Flow Data')}
+                                  >
+                                    <NavIcon name="export" />
+                                  </button>
+                                  <Link
+                                    className="btn"
+                                    href={channelHref(
+                                      `/dashboard/flows/${f.id}?section=entry_points`,
+                                      channelId,
+                                    )}
+                                    aria-label={`${t('تعديل', 'Edit')}: ${f.name}`}
+                                    title={t('تعديل', 'Edit')}
+                                  >
+                                    <NavIcon name="edit" />
+                                  </Link>
+                                </>
+                              ) : (
+                                <>
                               <button
                                 type="button"
                                 className="btn"
@@ -644,6 +739,8 @@ export default function BotManager() {
                               >
                                 <NavIcon name="folder" />
                               </button>
+                                </>
+                              )}
                             </div>
                           </td>
                         </tr>

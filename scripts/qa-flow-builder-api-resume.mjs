@@ -93,6 +93,7 @@ await check('Other tenant cannot read or mutate the graph', async () => {
   await api('/flows/' + flow.id, null, other.accessToken, 'GET', 404);
   await api('/flows/' + flow.id, { name: 'forbidden' }, other.accessToken, 'PATCH', 404);
 });
+const roleTokens = {};
 for (const role of ['admin', 'agent'])
   await check(role + ' mutation authorization on existing graph', async () => {
     const inv = await api(
@@ -105,6 +106,7 @@ for (const role of ['admin', 'agent'])
       password: `Local-${randomUUID()}`,
       fullName: 'QA ' + role,
     });
+    roleTokens[role] = member.accessToken;
     const f = await api('/flows/' + flow.id, null, member.accessToken);
     await api(
       '/flows/' + flow.id,
@@ -204,9 +206,145 @@ await check('Published Webchat collects CRM identity and hands off with context'
   assert.ok(JSON.stringify(messages).includes('Synthetic Flow Visitor'));
 });
 
-mkdirSync('docs/flow-builder-20261107/resumed', { recursive: true });
+let inputFlow;
+await check('User Input Flow creates with a campaign name and reports no responses without inventing rows', async () => {
+  inputFlow = await api(
+    '/flows',
+    {
+      name: 'Isolated User Input Intake',
+      initialNodeType: 'user_input',
+      language: 'en',
+      channelIds: [channel.id],
+    },
+    token,
+  );
+  const createdFlow = await api('/flows/' + inputFlow.id, null, token);
+  assert.equal(createdFlow.draft_graph.nodes[0].data.name, 'Isolated User Input Intake');
+  const report = await api('/flows/' + inputFlow.id + '/input-report', null, token);
+  assert.deepEqual(report.records, []);
+  assert.equal(report.fields[0].key, 'customer_name');
+});
+
+await check('Webchat User Input Flow validates answers, stores CRM fields, and appears in its report', async () => {
+  const graph = {
+    startNodeId: 'intake',
+    nodes: [
+      {
+        id: 'intake',
+        type: 'user_input',
+        position: { x: 100, y: 200 },
+        data: {
+          name: 'Isolated User Input Intake',
+          questions: [
+            {
+              id: 'test_name',
+              text: 'What is your test name?',
+              kind: 'text',
+              saveAs: 'test_name',
+            },
+            {
+              id: 'test_email',
+              text: 'What is your test email?',
+              kind: 'email',
+              saveAs: 'email',
+              saveToSystem: 'email',
+              errorText: 'Enter a valid test email.',
+              retries: 2,
+            },
+          ],
+          doneText: 'Thanks {{test_name}}',
+        },
+        edges: { next: 'handoff' },
+      },
+      {
+        id: 'handoff',
+        type: 'handoff',
+        position: { x: 500, y: 200 },
+        data: { message: 'A teammate will follow up.' },
+        edges: {},
+      },
+    ],
+  };
+  inputFlow = await api(
+    '/flows/' + inputFlow.id,
+    { graph, expectedUpdatedAt: inputFlow.updated_at },
+    token,
+    'PATCH',
+  );
+  await api('/flows/' + inputFlow.id + '/publish', { expectedUpdatedAt: inputFlow.updated_at }, token);
+  const visitor = await api('/widget/' + channel.external_id + '/session', {});
+  const send = async (text) => {
+    const response = await fetch(
+      'http://localhost:4000/widget/' + channel.external_id + '/messages?visitorId=' + visitor.visitorId,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-visitor-token': visitor.token },
+        body: JSON.stringify({ text, clientMsgId: randomUUID() }),
+      },
+    );
+    assert.ok(response.ok, await response.text());
+  };
+  const messages = async () => {
+    const response = await fetch(
+      'http://localhost:4000/widget/' + channel.external_id + '/messages?visitorId=' + visitor.visitorId,
+      { headers: { 'x-visitor-token': visitor.token } },
+    );
+    assert.ok(response.ok);
+    return response.json();
+  };
+  await send('Start isolated input');
+  for (let i = 0; i < 80 && !JSON.stringify(await messages()).includes('What is your test name?'); i++)
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.ok(JSON.stringify(await messages()).includes('What is your test name?'));
+  await send('Synthetic Input Contact');
+  for (let i = 0; i < 80 && !JSON.stringify(await messages()).includes('What is your test email?'); i++)
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.ok(JSON.stringify(await messages()).includes('What is your test email?'));
+  await send('not-an-email');
+  for (let i = 0; i < 80 && !JSON.stringify(await messages()).includes('Enter a valid test email.'); i++)
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.ok(JSON.stringify(await messages()).includes('Enter a valid test email.'));
+  await send('synthetic-input@example.test');
+
+  let finalMessages = '';
+  for (let i = 0; i < 80; i++) {
+    finalMessages = JSON.stringify(await messages());
+    if (finalMessages.includes('Thanks Synthetic Input Contact')) break;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.ok(finalMessages.includes('Thanks Synthetic Input Contact'));
+  const report = await api('/flows/' + inputFlow.id + '/input-report', null, token);
+  assert.equal(report.records.length, 1);
+  const contactId = report.records[0].contactId;
+  const profile = await api('/crm/contacts/' + contactId + '/profile', null, token);
+  assert.equal(profile.contact.name, 'Visitor');
+  assert.equal(profile.contact.email, 'synthetic-input@example.test');
+  assert.equal(profile.contact.attributes.test_name, 'Synthetic Input Contact');
+  assert.equal(report.records[0].contactId, profile.contact.id);
+  assert.deepEqual(report.records[0].answers, {
+    test_name: 'Synthetic Input Contact',
+    email: 'synthetic-input@example.test',
+  });
+  const timeline = await api('/crm/contacts/' + profile.contact.id + '/timeline', null, token);
+  assert.equal(timeline.conversations[0].handled_by, 'human');
+});
+
+await check('User Input report is tenant-isolated and blocked for agents but available to admins', async () => {
+  const other = await api('/auth/register', {
+    email: randomUUID() + '@example.test',
+    password: 'Local-' + randomUUID(),
+    fullName: 'Other Input QA',
+    workspaceName: 'Other Input QA',
+  });
+  await api('/flows/' + inputFlow.id + '/input-report', null, other.accessToken, 'GET', 404);
+  await api('/flows/' + inputFlow.id + '/input-report', null, roleTokens.agent, 'GET', 403);
+  const adminReport = await api('/flows/' + inputFlow.id + '/input-report', null, roleTokens.admin);
+  assert.equal(adminReport.records.length, 1);
+});
+
+mkdirSync('docs/user-input-flow-20261107', { recursive: true });
 writeFileSync(
-  'docs/flow-builder-20261107/resumed/api-journey.json',
+  'docs/user-input-flow-20261107/api-journey.json',
   JSON.stringify(
     {
       results,
