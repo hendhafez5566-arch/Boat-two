@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { activeBotSettings, duringBusinessHours } from './bot-runtime-settings';
-import { ChannelsService } from './channels.service';
+import { BotManagerSettings, ChannelsService } from './channels.service';
 
 test('drafts never activate runtime behavior; absent active settings preserve legacy behavior', () => {
   assert.deepEqual(activeBotSettings({ botManager: { general: { noMatchReply: false } } }), {});
@@ -24,12 +24,19 @@ test('business intervals honor timezone, start inclusive/end exclusive, off-days
   assert.equal(duringBusinessHours(c, new Date('2026-11-09T23:00:00Z')), false);
 });
 test('activation rejects stale drafts, unknown zero expiry, missing flows and invalid timezone without writing', async () => {
-  let settings: any = {
+  let settings: { botManager: BotManagerSettings } = {
     botManager: { general: { noMatchReply: false, getStartedEnabled: false } },
   };
   let writes = 0;
   const db = {
-    withTenant: async (tenant: string, fn: any) => {
+    withTenant: async (
+      tenant: string,
+      fn: (client: {
+        query: (
+          sql: string,
+        ) => Promise<{ rows: { settings: { botManager: BotManagerSettings } }[] }>;
+      }) => Promise<unknown>,
+    ) => {
       assert.equal(tenant, 'test-company');
       return fn({
         query: async (sql: string) => {
@@ -75,4 +82,57 @@ test('activation rejects stale drafts, unknown zero expiry, missing flows and in
   assert.equal(result.active.sharedInbox?.inputFlowSessionExpiryMinutes, 15);
   assert.equal(result.activated, true);
   assert.equal(writes, 1);
+});
+
+test('runtime input waits use activated minutes, retain legacy 24-hour default, and never expire delays', async () => {
+  const { FlowRuntimeService } = await import('../flows/flow-runtime.service');
+  const writes: { sql: string; values: unknown[] }[] = [];
+  const db = {
+    withTenant: async (
+      _tenant: string,
+      fn: (c: { query: (sql: string, values: unknown[]) => Promise<void> }) => Promise<void>,
+    ) =>
+      fn({
+        query: async (sql, values) => {
+          writes.push({ sql, values });
+        },
+      }),
+  };
+  const runtime = new FlowRuntimeService(
+    db as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+  );
+  const base = {
+    tenantId: 'tenant',
+    channelId: 'channel',
+    conversationId: 'conversation',
+    contactId: 'contact',
+    ctx: {
+      contact: { id: 'contact', attributes: {}, tags: [] },
+      channel: { id: 'channel', type: 'web' },
+    },
+  };
+  const result = { status: 'waiting', waitKind: 'input', state: {} };
+  const save = runtime as unknown as { saveSession: (b: unknown, p: unknown) => Promise<void> };
+  await save.saveSession(
+    { ...base, inputExpiryMinutes: 15 },
+    { flowId: 'flow', versionId: 'version', result },
+  );
+  assert.equal(writes[0].values[9], 15);
+  assert.match(writes[0].sql, /minutes/);
+  await save.saveSession(base, { flowId: 'flow', versionId: 'version', result });
+  assert.equal(writes[1].values[9], 1440);
+  await save.saveSession(
+    { ...base, inputExpiryMinutes: 15 },
+    { flowId: 'flow', versionId: 'version', result: { ...result, waitKind: 'delay' } },
+  );
+  assert.equal(writes[2].values[9], null);
 });

@@ -503,7 +503,10 @@ export class ChannelsService {
         .rows[0];
       if (!row) throw new NotFoundException('Channel not found');
       const current = row.settings ?? {};
-      const botManager = { ...(current.botManager ?? {}), ...input };
+      const botManager = { ...(current.botManager ?? {}) };
+      for (const [group, values] of Object.entries(input)) {
+        botManager[group] = { ...(botManager[group] ?? {}), ...values };
+      }
       const updated = (
         await c.query(
           "UPDATE channels SET settings=jsonb_set($2::jsonb,'{botManager}',$3::jsonb,true) WHERE id=$1 RETURNING settings",
