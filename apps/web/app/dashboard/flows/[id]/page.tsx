@@ -287,17 +287,8 @@ function Editor({ id }: { id: string }) {
       const g = toFlow(f.draft_graph);
       setUpdatedAt(f.updated_at);
       setLoaded(true);
-      const spots = new Set(
-        g.nodes.map((n) => `${Math.round(n.position.x / 40)},${Math.round(n.position.y / 40)}`),
-      );
-      if (
-        g.nodes.length > 1 &&
-        (spots.size < g.nodes.length || hasLayoutOverlap(g.nodes, language === 'ar'))
-      ) {
-        const pos = computeLayout(g.nodes, g.edges, f.draft_graph.startNodeId, language === 'ar');
-        g.nodes = g.nodes.map((n) => ({ ...n, position: pos[n.id] ?? n.position }));
-        setDirty(true);
-      }
+      // Opening a saved graph must preserve author positions, including overlaps.
+      // Rearrangement is an explicit toolbar action and may mark the graph dirty.
       setNodes(g.nodes);
       setEdges(g.edges);
       setStartId(f.draft_graph.startNodeId);

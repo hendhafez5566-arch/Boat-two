@@ -99,3 +99,9 @@ Complete reference interactions, archive safe screenshots/measurements; compare 
 
 ### Node-focus zoom correction
 - New and fit-all viewports already cap automatic zoom at1, but focusNode used1.1. Opening the existing QA step enlarged its264px card to290.4px versus reference264px. Capped only automatic node focus at1; manual zoom range remains unchanged. Fresh source checks and live width confirmation pending.
+
+### Preserve authored positions on opening
+- Live QA More showed Unsaved before any author edit; source investigation found the loader automatically ran computeLayout for overlaps/nearby coordinates and marked dirty. Removed that loader-only rewrite. Explicit Rearrange and add-node collision handling remain.
+- Added round-trip coverage for negative/fractional overlapping authored positions in RTL/LTR, including unchanged saved data/edges. Fresh tests/build and live Saved-state check required before release.
+
+- Position batch validation:4/4 graph conversion/derived-card round-trip tests passed; web TypeScript, scoped ESLint and production build passed. A missing type-only import in the new test fixture was corrected before push/deploy. API/runtime unchanged.
