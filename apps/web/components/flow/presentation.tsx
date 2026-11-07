@@ -261,3 +261,31 @@ export function editorLabel(value: string, language: string) {
     value.replace(/^شرط (\d+)$/, 'Condition $1').replace(/^فرع (\d+)$/, 'Branch $1')
   );
 }
+
+/** Independent SVGs keep analytics symbols consistent across Arabic/English fonts. */
+export function NodeStatIcon({ kind }: { kind: 'sent' | 'delivered' | 'subscribers' | 'errors' }) {
+  const paths = {
+    sent: 'M22 2 9 15M22 2l-7 20-6-7-7-6L22 2Z',
+    delivered: 'm7 12 3 3 7-7M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+    subscribers:
+      'M16 9a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM5 20a7 7 0 0 1 14 0M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z',
+    errors:
+      'M8 9h8v8a4 4 0 0 1-8 0V9ZM9 9V7a3 3 0 0 1 6 0v2M4 11h4m8 0h4M4 16h4m8 0h4M7 4l2 2m8-2-2 2M5 21l4-3m10 3-4-3',
+  };
+  return (
+    <svg
+      data-stat={kind}
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={paths[kind]} />
+    </svg>
+  );
+}

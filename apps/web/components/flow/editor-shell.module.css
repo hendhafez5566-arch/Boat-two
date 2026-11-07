@@ -1159,3 +1159,27 @@
 .editor :global(.fn-card .flow-node-port) {
   font-weight: 400;
 }
+
+.editor :global(.fn-stat-label) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-style: normal;
+  white-space: nowrap;
+}
+.editor :global(.fn-stat-label svg) {
+  flex: none;
+}
+.editor :global(.fn-stat-label [data-stat='sent']) {
+  color: #4c9fb8;
+}
+.editor :global(.fn-stat-label [data-stat='delivered']) {
+  color: #50a37b;
+}
+.editor :global(.fn-stat-label [data-stat='subscribers']) {
+  color: #398fc0;
+}
+.editor :global(.fn-stat-label [data-stat='errors']) {
+  color: #df6472;
+}

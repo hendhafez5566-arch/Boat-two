@@ -13,7 +13,7 @@ import {
 import { Handle, NodeProps, Position, useUpdateNodeInternals } from 'reactflow';
 import { handlesFor, NODE_META, optionsOf, RFData, summary } from '../../lib/flow-types';
 import { useLocale } from '../product/locale';
-import { NodeIcon, nodeLabel, editorLabel } from './presentation';
+import { NodeIcon, NodeStatIcon, nodeLabel, editorLabel } from './presentation';
 /** الخطوات التي ترسل رسائل للعميل فتظهر لها إحصائيات الإرسال */
 const SENDERS = [
   'product',
@@ -164,19 +164,31 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
             }
           >
             <span title={t('أُرسلت', 'Sent')}>
-              ✈ {t('أُرسلت', 'Sent')}
+              <i className="fn-stat-label">
+                <NodeStatIcon kind="sent" />
+                {t('أُرسلت', 'Sent')}
+              </i>
               <b>{available ? (stats?.sent ?? 0) : '—'}</b>
             </span>
             <span title={t('وصلت', 'Delivered')}>
-              ✓ {t('وصلت', 'Delivered')}
+              <i className="fn-stat-label">
+                <NodeStatIcon kind="delivered" />
+                {t('وصلت', 'Delivered')}
+              </i>
               <b>{available ? (stats?.delivered ?? 0) : '—'}</b>
             </span>
             <span title={t('عملاء', 'Subscribers')}>
-              ◉ {t('عملاء', 'Subscribers')}
+              <i className="fn-stat-label">
+                <NodeStatIcon kind="subscribers" />
+                {t('عملاء', 'Subscribers')}
+              </i>
               <b>{available ? (stats?.subscribers ?? 0) : '—'}</b>
             </span>
             <span className={stats?.errors ? 'is-err' : ''} title={t('أخطاء', 'Errors')}>
-              ⚠ {t('أخطاء', 'Errors')}
+              <i className="fn-stat-label">
+                <NodeStatIcon kind="errors" />
+                {t('أخطاء', 'Errors')}
+              </i>
               <b>{available ? (stats?.errors ?? 0) : '—'}</b>
             </span>
           </div>

@@ -71,3 +71,11 @@ Complete reference interactions, archive safe screenshots/measurements; compare 
 - Final visual rerun on36aa374:50 pairs;20/20 protected pages pixel-identical;10/10 responsive drawer bounds passed. API216/216 passed.
 - Scoped lint identified two unused imports left by removed chrome; removed only those imports. Rebuilding and rerunning scoped lint/typecheck; no runtime behavior changed after the passing UI suite.
 - RELEASE BLOCKED: full reference parity remains incomplete (see inventory). Live Preview create independently BLOCKED by PLAN_LIMIT. No Railway deploy, main merge, resource/configuration/secret changes. Both existing Web/API still pinned559fa8c with Sleep enabled.
+
+## Resumed checkpoint — 2026-11-07 (PR #14)
+- Verified GitHub HEAD10f1df82 before checkout; all six requested checkpoint files read. Existing work retained.
+- Baseline rebuild: Web/API build, web TypeScript and scoped ESLint passed; recursive API suite216/216 passed. An initial one-directory shell glob ran154 tests; the explicit recursive run is the authoritative result.
+- Live BotSailor new unsaved canvas and Image configuration inspected again; no global Save. Existing Boat QA draft opened read-only after secure login.
+- First scoped visual batch: replace font-dependent analytics glyphs with independent SVG symbols; use the existing node-type SVG in the configuration header. Data, routing, analytics counts, and campaign/default panel fallback remain intact.
+- This checkpoint is pushed before the fresh UI acceptance rerun. No parity claim or deployment for this batch. Node dimensions, missing node concepts and Random Character semantics remain unresolved.
+- Railway current Web deployment6dcc4257-e623-4821-ad87-9f7aeb3bf5df and API1b75418b-378d-4a3c-b1fa-16c40baf5795 observed; original log's undeployed Web assertion is historical. No resource, variable, Sleep or source mutations in this continuation.
