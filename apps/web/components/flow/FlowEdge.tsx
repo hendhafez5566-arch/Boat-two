@@ -26,7 +26,7 @@ export default function FlowEdge(props: EdgeProps) {
     selected,
   } = props;
   const { deleteElements } = useReactFlow();
-  // Highlight links touching the selected step; dim the rest while something is selected.
+  // Reveal connection tools for the selected step without changing reference link colors.
   const focus = useStore((s) => {
     let any = false;
     let touches = false;
@@ -50,19 +50,7 @@ export default function FlowEdge(props: EdgeProps) {
   });
   return (
     <>
-      <BaseEdge
-        id={id}
-        path={path}
-        markerEnd={markerEnd}
-        style={
-          focus === 'hot'
-            ? { ...style, stroke: 'var(--primary)', strokeWidth: 2 }
-            : focus === 'dim'
-              ? { ...style, opacity: 0.3 }
-              : style
-        }
-        interactionWidth={22}
-      />
+      <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} interactionWidth={22} />
       {selected && (
         <EdgeLabelRenderer>
           <button

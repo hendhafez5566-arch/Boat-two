@@ -85,3 +85,10 @@ Complete reference interactions, archive safe screenshots/measurements; compare 
 - New Web production build, TypeScript and scoped ESLint passed. Independent SSR contract test renders all31 supported node icons and4 analytics icons, checks actual SVG paths, no font text or focus targets. Recursive API216/216 still passes.
 - Original33 UI checks are historical, not rerun: automatic approval rejected local Chromium package setup due the earlier Cloud Browser instruction. Cloud Browser is signed into both sites; existing QA draft is inspected without Save/Publish.
 - Proposed release is Web-only icon presentation; no API/schema/runtime changes. Current before screenshot retained privately at1363×936; post-release inspection must verify exact same graph/counts and property-panel close/cancel. No full BotSailor parity claim.
+
+### Connector selection batch
+- Live reference: connected temporary Start→Image; target settings opened automatically. With Image selected, DOM-measured connection stroke rgb(119,130,146),2px. Global reference Save not invoked.
+- Boat source changed connected edges to primary purple and dimmed unrelated edges on node selection. Removed these visual overrides; hover/selection disconnect tools, hit target, Bezier geometry and actual graph editing stay intact.
+- Fresh SSR selection regression covers adjacent/unrelated selected nodes; fresh build/typecheck/lint and live post-deploy check pending at this checkpoint.
+- First resumed batch deployed Web1798fe65-9e1b-43dc-9b81-563cc432a610 at source01852f2. Cloud confirmed4 SVG analytics icons, same four counts0/0/0/0, same286×63.8 displayed stats bounds at1363×936; configuration opens normally.
+- Isolated HTTP journey6/6 passed. Initial5/6 result retained: the first runner omitted the actual internal outbox worker. Rerun enabled the existing test-only worker; no production logic changed for that harness issue.

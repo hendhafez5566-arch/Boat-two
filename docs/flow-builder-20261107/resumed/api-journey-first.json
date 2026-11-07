@@ -1,0 +1,32 @@
+{
+  "results": [
+    {
+      "name": "Create, configure, connect, save and reopen preserve graph positions",
+      "status": "PASS"
+    },
+    {
+      "name": "Actual simulator, publish, edit and republish create real versions",
+      "status": "PASS"
+    },
+    {
+      "name": "Other tenant cannot read or mutate the graph",
+      "status": "PASS"
+    },
+    {
+      "name": "admin mutation authorization on existing graph",
+      "status": "PASS"
+    },
+    {
+      "name": "agent mutation authorization on existing graph",
+      "status": "PASS"
+    },
+    {
+      "name": "Published Webchat collects CRM identity and hands off with context",
+      "status": "FAIL",
+      "error": "Expected values to be strictly equal:\n\n'bot' !== 'human'\n"
+    }
+  ],
+  "passed": 5,
+  "failed": 1,
+  "scope": "isolated HTTP; not UI acceptance"
+}
