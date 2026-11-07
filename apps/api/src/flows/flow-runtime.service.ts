@@ -1,3 +1,4 @@
+import { activeBotSettings, duringBusinessHours } from '../messaging/bot-runtime-settings';
 import { DataSourcesService } from '../commerce/data-sources.service';
 import { readSystemActions, inboundSystemAction } from './system-actions';
 import { SequencesService } from '../sequences/sequences.service';
@@ -32,6 +33,7 @@ const REPLY_WAIT_HOURS = 24;
 
 interface Loaded {
   replyWaitHours?: number;
+  inputExpiryMinutes?: number | null;
   eventId?: string;
   tenantId: string;
   conversationId: string;
@@ -152,7 +154,10 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     const loaded = await this.db.withTenant(e.tenantId, async (c) => {
       const conv = await this.loadConversation(c, e.conversationId);
       if (!conv || conv.blocked || conv.status === 'closed') return null;
+      const active = activeBotSettings(conv.channel_settings);
       const config = readSystemActions(conv.channel_settings);
+      if (active.general?.noMatchReply === false) delete config.actions.no_match;
+      if (active.general?.getStartedEnabled === false) delete config.actions.get_started;
       const systemFlows: Partial<
         Record<
           import('./system-actions').SystemActionKey,
@@ -210,6 +215,11 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         return { conv, systemFlow, actionKey };
       }
       if (conv.handled_by !== 'bot') return null;
+      if (
+        active.businessHour?.disableBotDuringHours &&
+        duringBusinessHours(active.businessHour, new Date())
+      )
+        return { conv, businessHoursBlocked: true };
 
       let session = (
         await c.query(
@@ -321,6 +331,8 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       },
     };
     const base: Loaded = {
+      inputExpiryMinutes: activeBotSettings(loaded.conv.channel_settings).sharedInbox
+        ?.inputFlowSessionExpiryMinutes,
       eventId: e.messageId,
       tenantId: e.tenantId,
       conversationId: e.conversationId,
@@ -328,6 +340,11 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       channelId: loaded.conv.channel_id,
       ctx,
     };
+
+    if ('businessHoursBlocked' in loaded && loaded.businessHoursBlocked) {
+      if (!e.eventName) await this.autoReply(base, text);
+      return;
+    }
 
     if ('primaryUnavailable' in loaded && loaded.primaryUnavailable) {
       this.log.warn(
@@ -402,7 +419,11 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
           (!candidate.channel_ids.length || candidate.channel_ids.includes(base.channelId)) &&
           candidate.graph.policy?.noMatchText,
       );
-      if (fallback?.graph.policy?.noMatchText && !e.eventName) {
+      if (
+        fallback?.graph.policy?.noMatchText &&
+        !e.eventName &&
+        activeBotSettings(loaded.conv.channel_settings).general?.noMatchReply !== false
+      ) {
         await this.makeDeps(base).send({ text: fallback.graph.policy.noMatchText });
         return;
       }
@@ -527,6 +548,12 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         );
         return null;
       }
+      const active = activeBotSettings(conv.channel_settings);
+      if (
+        active.businessHour?.disableBotDuringHours &&
+        duringBusinessHours(active.businessHour, new Date())
+      )
+        return null;
       const g = (
         await c.query('SELECT graph FROM flow_versions WHERE id = $1', [session.version_id])
       ).rows[0];
@@ -550,6 +577,8 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       tenantId,
       eventId: `delay:${sessionId}:${loaded.session.state.totalSteps}`,
       replyWaitHours: loaded.graph.policy?.sessionHours,
+      inputExpiryMinutes: activeBotSettings(loaded.conv.channel_settings).sharedInbox
+        ?.inputFlowSessionExpiryMinutes,
       conversationId: loaded.session.conversation_id,
       contactId: loaded.conv.contact_id,
       channelId: loaded.conv.channel_id,
@@ -716,13 +745,15 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
     const waitKind = result.status === 'waiting' ? (result.waitKind ?? null) : null;
     const waitUntil = waitKind === 'delay' ? (result.waitUntil ?? null) : null;
     const expiresIn =
-      waitKind && waitKind !== 'delay' ? (b.replyWaitHours ?? REPLY_WAIT_HOURS) : null;
+      waitKind && waitKind !== 'delay'
+        ? (b.inputExpiryMinutes ?? (b.replyWaitHours ?? REPLY_WAIT_HOURS) * 60)
+        : null;
 
     await this.db.withTenant(b.tenantId, async (c) => {
       if (p.existingId) {
         await c.query(
           `UPDATE flow_sessions SET status = $2, state = $3, wait_kind = $4, wait_until = $5,
-             expires_at = CASE WHEN $6::int IS NULL THEN NULL ELSE now() + ($6::int || ' hours')::interval END,
+             expires_at = CASE WHEN $6::int IS NULL THEN NULL ELSE now() + ($6::int || ' minutes')::interval END,
              lease_until = NULL, error = $7, updated_at = now()
            WHERE id = $1`,
           [
@@ -739,7 +770,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         await c.query(
           `INSERT INTO flow_sessions (tenant_id, flow_id, version_id, conversation_id, contact_id, status, state, wait_kind, wait_until, expires_at, error)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
-                   CASE WHEN $10::int IS NULL THEN NULL ELSE now() + ($10::int || ' hours')::interval END, $11)`,
+                   CASE WHEN $10::int IS NULL THEN NULL ELSE now() + ($10::int || ' minutes')::interval END, $11)`,
           [
             b.tenantId,
             p.flowId,
