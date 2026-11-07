@@ -326,7 +326,9 @@ function Editor({ id }: { id: string }) {
             ),
           );
         });
-    })().catch((e) => setMsg(e.message));
+    })().catch(() =>
+      setMsg(t('تعذّر تحميل التدفق. أعد المحاولة.', 'Could not load the flow. Please retry.')),
+    );
   }, [id, setNodes, setEdges]);
 
   // Stable handler: an inline onSelectionChange makes React Flow re-fire it on every
@@ -1361,6 +1363,7 @@ function Editor({ id }: { id: string }) {
     <div
       ref={builderRef}
       data-focus={focused}
+      aria-busy={!loaded || busy}
       className={`premium-builder ${styles.editor}`}
       dir={language === 'ar' ? 'rtl' : 'ltr'}
     >
@@ -1596,9 +1599,19 @@ function Editor({ id }: { id: string }) {
           return savedContent.current === latest.current;
         }}
       />
+      {!loaded && !msg && (
+        <p className={styles.loading} role="status">
+          {t('جارٍ تحميل التدفق…', 'Loading flow…')}
+        </p>
+      )}
       {msg && (
-        <p className={styles.feedback} role="status">
+        <p className={styles.feedback} role={!loaded ? 'alert' : 'status'}>
           {msg}
+          {!loaded && (
+            <button type="button" onClick={() => window.location.reload()}>
+              {t('إعادة المحاولة', 'Retry')}
+            </button>
+          )}
           <button type="button" aria-label={t('إغلاق', 'Close')} onClick={() => setMsg('')}>
             ×
           </button>

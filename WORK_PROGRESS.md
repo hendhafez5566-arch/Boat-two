@@ -54,3 +54,9 @@ Complete reference interactions, archive safe screenshots/measurements; compare 
 - Visual capture:50 before/after pairs (30 builder state pairs across five widths × two languages;20 protected-route pairs). Protected routes20/20 pixel-identical at1366×936. Ten responsive drawer checks passed, no browser page errors. This does not establish BotSailor pixel parity.
 - Reference viewport is1363×936; requested alternate reference viewports have not been established. Some reference settings/actions remain gaps, including random-character generation versus numeric range, reference notification action, row/section nodes and sequence campaign composition.
 - Last product files: editor page and flow-layout.ts. Source checkpoints pushed to PR14; fresh build/retest pending. No Railway changes or new resources.
+
+## Loading/error and touch acceptance checkpoint
+- Added explicit localized Loading flow state, error Retry, and disabled Save until a real graph loads. No fake success or placeholder graph introduced.
+- Full UI journey now uses the same manager-created flow through add/configure/connect/save/reopen/preview/publish/edit/republish. Fresh run pending on current source.
+- Live Preview creation retried only on the named QA Webchat account and was BLOCKED by PLAN_LIMIT. No record was created; no billing/plan changes attempted.
+- Last changed: editor page, editor-shell.module.css, QA script. Previous checkpoints are remote; current source must rebuild/retest before deployment.

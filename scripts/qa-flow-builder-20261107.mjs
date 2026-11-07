@@ -536,6 +536,45 @@ try {
     const messages = await api('/conversations/' + convo.id + '/messages', null, token);
     assert.ok(JSON.stringify(messages).includes('Synthetic Flow Visitor'));
   });
+  await check('Real load failure shows retry and recovers without enabling fake save', async () => {
+    await page.route('**/flows/' + flow.id, (route) =>
+      route.request().method() === 'GET' ? route.abort() : route.continue(),
+    );
+    await page.reload();
+    await page.getByRole('alert').filter({ hasText: 'Could not load the flow' }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Save', exact: true }).isEnabled(), false);
+    await page.screenshot({ path: out + '/after-en-load-error.png' });
+    await page.unroute('**/flows/' + flow.id);
+    await page.getByRole('button', { name: 'Retry', exact: true }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).waitFor({ state: 'visible' });
+    await page.waitForLoadState('networkidle');
+    assert.ok(await page.getByRole('button', { name: 'Save', exact: true }).isEnabled());
+  });
+  await check('Arabic touch palette and configuration footer remain usable', async () => {
+    const touch = await browser.newContext({
+      hasTouch: true,
+      isMobile: true,
+      viewport: { width: 390, height: 844 },
+    });
+    await touch.addInitScript((s) => {
+      localStorage.setItem('session', JSON.stringify(s));
+      localStorage.setItem('boat-language', 'ar');
+    }, session);
+    const tp = await touch.newPage();
+    await tp.goto(url);
+    await tp.waitForLoadState('networkidle');
+    await tp.getByRole('button', { name: 'إضافة رسالة', exact: true }).tap();
+    const dialog = tp.getByRole('dialog');
+    await dialog.waitFor();
+    const box = await dialog
+      .getByRole('button', { name: 'حفظ التغييرات', exact: true })
+      .boundingBox();
+    assert.ok(box.y >= 0 && box.y + box.height <= 844);
+    await tp.screenshot({ path: out + '/after-ar-touch-properties.png' });
+    await dialog.getByRole('button', { name: 'إغلاق', exact: true }).tap();
+    await dialog.waitFor({ state: 'hidden' });
+    await touch.close();
+  });
 } finally {
   writeFileSync(
     out + '/results.json',

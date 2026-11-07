@@ -45,7 +45,7 @@ All opened on temporary unsaved nodes; Close tested. Save Changes and provider s
 | FB-026 | Notify Contact / Notify Contact | 640 × 530.4375 | Notify Contact; Recipient *; Team member; Custom number; Select Team Member; Select template *;  Save Changes;  Close | [screenshot](docs/flow-builder-20261107/reference/notify-contact-drawer.jpg) | Open/close observed; mapping/visual acceptance pending |
 | FB-027 | Random Number Generator / Configure Random Number Generator | 576 × 707.21875 | Configure Random Number Generator; Character set *; Value length *; Length of random value; Custom field *;  Add new; Select;  Save Changes;  Close | Screenshot not available; DOM observation retained | Open/close observed; mapping/visual acceptance pending |
 | FB-028 | Start Bot Flow / Configure Reference | unmeasured × unmeasured | Configure Reference; Basic Setup; Trigger Keywords ; Exact keyword match Match exact keywords; String match Match similar keywords; Title * ;  Automation Actions Optional Manage labels, sequences and team assignment. ; Automation Actions Optional;  Data & Integrations Optional Store data in custom fields or send to external tools. ; Data & Integrations Optional; + Add new field; Forward Data to Webhook;  Save Changes;  Close | [screenshot](docs/flow-builder-20261107/reference/reference-drawer.jpg) | Open/close observed; mapping/visual acceptance pending |
-| FB-029 | Image / Configure Random Number Generator | unmeasured × unmeasured | Configure Random Number Generator; Character set *; Value length *; Length of random value; Custom field *;  Add new;  Save Changes;  Close | [screenshot](docs/flow-builder-20261107/reference/image-drawer.jpg) | Open/close observed; mapping/visual acceptance pending |
+| FB-029 | Image / Configure Random Number Generator | unmeasured × unmeasured | Configure Random Number Generator; Character set *; Value length *; Length of random value; Custom field *;  Add new;  Save Changes;  Close | [screenshot](docs/flow-builder-20261107/reference/image-verified-drawer.jpg) | Open/close observed; mapping/visual acceptance pending |
 
 ## Further live interaction observations
 - FB-030: Text configuration Save Changes updates only the temporary canvas. Text content used: generic unsaved inspection text. Global Save never clicked.
@@ -64,3 +64,13 @@ All opened on temporary unsaved nodes; Close tested. Save Changes and provider s
 | Edit/set-start buttons on every node | Edit via double-click; start via reference socket | Existing actions retained in editor state, startNodeId contract unchanged | Connection persistence test pending |
 
 More is a necessary Boat-specific exception because its draft and published-version model needs explicit publishing, unlike the single visible reference Save. No fake Save=Publish behavior was introduced.
+
+## Evidence correction and acceptance limits
+- One late Image capture actually displayed Random Number Generator because nodes overlapped. It has been relabeled; a fresh isolated Image drawer was reopened and verified. Canonical configuration JSON retains only heading-verified updates.
+- New Sequence Campaign insertion generated three Send Message After nodes; FB-024 describes the child message dialog. Root campaign composition is not yet verified.
+- Reference random generator is a character-set/length/custom-field tool; Boat numeric min/max is functionally different. No false-equivalence mapping.
+- Notify Contact, Row and Section remain missing distinct editor concepts. Product/Product Section were discovered in the context menu; nested provider commerce behavior is not accepted.
+- Full screenshots at320/390/768/1366/1920 in the reference browser are not available: captured reference viewport1363×936. Boat before/after uses exact requested widths and same local graph. Those pairs prove the Boat change, not exact cross-product parity.
+- Live Preview create test on QA Webchat is BLOCKED by PLAN_LIMIT. No bypass/plan edits or real WhatsApp execution.
+- A saved audit-only reference row's updated date changed during inspection; its saved graph was read back and showed the original travel fixture, without temporary inspection text/nodes. Cause of timestamp change is unknown; no unchanged-timestamp claim is made.
+- Browser-produced image upload to GitHub has not succeeded; their verified local copies will be included in the evidence deliverable. Text measurements and test evidence are in PR14.
