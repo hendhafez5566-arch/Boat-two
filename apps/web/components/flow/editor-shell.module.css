@@ -1026,3 +1026,110 @@
 .editor :global(.flow-node-port.is-open::before) {
   display: none;
 }
+
+.more > .toolButton {
+  position: relative;
+  z-index: 28;
+}
+.contextScrim {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background: transparent;
+}
+.contextMenu {
+  position: absolute;
+  z-index: 41;
+  width: 220px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 24px #0f172a24;
+  padding: 8px 0;
+  color: #334155;
+}
+.contextMenu > input {
+  width: calc(100% - 24px);
+  height: 34px;
+  margin: 8px 12px;
+  border: 1px solid #d7dfe5;
+  border-radius: 18px;
+  background: #f8fafc;
+  font: inherit;
+  font-size: 12px;
+  padding: 7px 12px;
+}
+.contextMenu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  text-align: start;
+  border: 0;
+  border-top: 1px solid #edf0f2;
+  background: #fff;
+  color: #334155;
+}
+.contextMenu button:hover,
+.contextMenu button:focus-visible {
+  background: #f1f5f9;
+}
+.contextMenu button svg {
+  width: 16px;
+  height: 16px;
+}
+.contextGroup {
+  position: relative;
+}
+.contextGroup > button {
+  justify-content: space-between;
+}
+.contextSubmenu {
+  position: absolute;
+  inset-inline-start: 100%;
+  top: 0;
+  min-width: 220px;
+  max-height: 65dvh;
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 8px 24px #0f172a24;
+}
+.contextExtras {
+  max-height: 50dvh;
+  overflow: auto;
+  border-top: 1px solid #edf0f2;
+}
+.contextExtras summary {
+  padding: 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+@media (max-width: 700px) {
+  .contextMenu {
+    width: 220px;
+    max-width: calc(100vw - 84px);
+  }
+  .contextSubmenu {
+    position: static;
+    min-width: 0;
+    max-height: 35dvh;
+    box-shadow: none;
+    border-radius: 0;
+  }
+}
+
+.contextMenu[data-flip='true'] .contextSubmenu {
+  inset-inline-start: auto;
+  inset-inline-end: 100%;
+}
+.contextMenu[data-searching='true'] {
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+}

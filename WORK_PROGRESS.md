@@ -40,3 +40,10 @@ Complete reference interactions, archive safe screenshots/measurements; compare 
 - Template/condition drawers640px, label drawer520px, others576px; text input200px and footer follows content like the measured reference.
 - Removed header close icon in this variant; footer Close and Escape retained. Clone icon is independent SVG; node tools only show on hover/selection/focus.
 - API suite rerun with isolated required config:216 pass/0 fail/0 skip. Current UI retest pending; no Railway mutation.
+
+## Milestone D — contextual interactions checkpoint
+- Added measured220px right-click menu, four grouped block menus, search and existing product/catalog entries. Additional supported Boat blocks retained under a collapsed section. Unsupported reference Row/Section/Notify Contact are not replaced with fake actions.
+- Fixed real More-toggle defect: menu scrim covered the toggle; trigger now remains operable above its scrim.
+- Second UI run: initial reference visible and ten AR/EN width cases passed; preview, persistence, real publish/republish and tenant isolation passed. Three remaining failures: menu-toggle defect above, and property close test selector caused a subsequent blocked action; corrections pending retest.
+- Reference undo/redo verified on temporary clone deletion (22→23→22 nodes); pan/wheel and Back tested. Existing saved audit-only graph read back and contained original travel test content, no new inspection nodes/text. Its updated date changed during the session; cause not established, so unchanged timestamp is not asserted. Global reference Save was never invoked.
+- Last changed: editor page / editor-shell.module.css / QA script. Typecheck passed before edge-clamping CSS; fresh build/UI checks pending. No deploy.

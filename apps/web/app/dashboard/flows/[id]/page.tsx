@@ -91,6 +91,7 @@ function Editor({ id }: { id: string }) {
   }, [nodesInitialized, rf]);
   const { t, language } = useLocale();
   const [nodeSearch, setNodeSearch] = useState('');
+  const [contextGroup, setContextGroup] = useState<string | null>(null);
   const [findNode, setFindNode] = useState('');
   const [findOpen, setFindOpen] = useState(false);
   const [accountContext, setAccountContext] = useState('');
@@ -137,8 +138,8 @@ function Editor({ id }: { id: string }) {
   const [dropMenu, setDropMenu] = useState<{
     x: number;
     y: number;
-    source: string;
-    handle: string | null;
+    source?: string;
+    handle?: string | null;
     edgeId?: string;
   } | null>(null);
   const [toast, setToast] = useState<{ text: string; undo: boolean } | null>(null);
@@ -1251,39 +1252,58 @@ function Editor({ id }: { id: string }) {
     const excerpt = String(node.data.data?.text || node.data.note || '').slice(0, 55);
     return `${nodeLabel(node.data.type, language)} ${index + 1}${excerpt ? ` — ${excerpt}` : ''}`;
   };
-  const stepItems = (onPick: (type: NodeType) => void) =>
-    NODE_GROUPS.map((group) => {
-      const types = group.types.filter((type) =>
-        nodeLabel(type, language).toLowerCase().includes(nodeSearch.toLowerCase()),
-      );
-      return types.length ? (
-        <section key={group.id} role="group" aria-label={t(group.ar, group.en)}>
-          <h3 className="px-3 py-2 text-xs font-semibold">{t(group.ar, group.en)}</h3>
-          {types.map((type) => (
+  const stepItems = (onPick: (type: NodeType) => void) => {
+    const item = (type: NodeType) => (
+      <button type="button" role="menuitem" key={type} onClick={() => onPick(type)}>
+        <span style={{ color: NODE_META[type].color }}>
+          <NodeIcon type={type} />
+        </span>
+        {nodeLabel(type, language)}
+      </button>
+    );
+    const matches = (type: NodeType) =>
+      nodeLabel(type, language).toLocaleLowerCase().includes(nodeSearch.trim().toLocaleLowerCase());
+    if (nodeSearch.trim())
+      return NODE_GROUPS.flatMap((group) => group.types)
+        .filter(matches)
+        .map(item);
+    return (
+      <>
+        {NODE_GROUPS.filter((group) =>
+          ['messages', 'data', 'interactive', 'control'].includes(group.id),
+        ).map((group) => (
+          <section
+            key={group.id}
+            className={styles.contextGroup}
+            onMouseEnter={() => setContextGroup(group.id)}
+          >
             <button
               type="button"
               role="menuitem"
-              key={type}
-              className="add-step-item"
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData('application/boat-node', type);
-                e.dataTransfer.effectAllowed = 'move';
-              }}
-              onClick={() => onPick(type)}
+              aria-haspopup="menu"
+              aria-expanded={contextGroup === group.id}
+              onClick={() => setContextGroup(contextGroup === group.id ? null : group.id)}
             >
-              <span className="add-step-icon" style={{ background: NODE_META[type].color }}>
-                <NodeIcon type={type} />
-              </span>
-              <span>
-                {nodeLabel(type, language)}
-                <small className="smart-step-hint">{t(...STEP_GUIDANCE[type])}</small>
-              </span>
+              {t(group.ar, group.en)}
+              <span aria-hidden="true">›</span>
             </button>
-          ))}
-        </section>
-      ) : null;
-    });
+            {contextGroup === group.id && (
+              <div role="menu" aria-label={t(group.ar, group.en)} className={styles.contextSubmenu}>
+                {group.types.map(item)}
+              </div>
+            )}
+          </section>
+        ))}
+        {(['product', 'catalog'] as NodeType[]).map(item)}
+        <details className={styles.contextExtras}>
+          <summary>{t('أدوات Boat Two الإضافية', 'Additional Boat Two blocks')}</summary>
+          {NODE_GROUPS.filter((group) => ['advanced', 'integrations'].includes(group.id))
+            .flatMap((group) => group.types)
+            .map(item)}
+        </details>
+      </>
+    );
+  };
   const setTriggers = (triggers: Trigger[]) => {
     setMeta((m) => ({ ...m, triggers }));
     setDirty(true);
@@ -1733,9 +1753,15 @@ function Editor({ id }: { id: string }) {
         >
           {dropMenu && (
             <>
-              <div className="drop-menu-scrim" onClick={() => setDropMenu(null)} />
+              <div className={styles.contextScrim} onClick={() => setDropMenu(null)} />
               <div
-                className="add-step-menu drop-menu"
+                className={styles.contextMenu}
+                data-searching={!!nodeSearch.trim()}
+                data-flip={
+                  language === 'ar'
+                    ? dropMenu.x < 280
+                    : dropMenu.x > (builderRef.current?.clientWidth ?? 1000) - 500
+                }
                 role="menu"
                 style={{ left: dropMenu.x, top: dropMenu.y }}
                 onKeyDown={(e) => {
@@ -1759,7 +1785,7 @@ function Editor({ id }: { id: string }) {
                   addNode(
                     type,
                     { x: m.x + r.left, y: m.y + r.top },
-                    { source: m.source, handle: m.handle },
+                    m.source ? { source: m.source, handle: m.handle ?? null } : undefined,
                     oldEdge ? { target: oldEdge.target } : undefined,
                   );
                 })}
@@ -1839,6 +1865,16 @@ function Editor({ id }: { id: string }) {
                           ),
                         );
                         if (c.some((x) => x.type === 'remove')) setDirty(true);
+                      }}
+                      onPaneContextMenu={(event) => {
+                        event.preventDefault();
+                        const box = event.currentTarget.getBoundingClientRect();
+                        setNodeSearch('');
+                        setContextGroup(null);
+                        setDropMenu({
+                          x: Math.max(8, Math.min(event.clientX - box.left, box.width - 236)),
+                          y: Math.max(8, Math.min(event.clientY - box.top, box.height - 400)),
+                        });
                       }}
                       onMove={(_, viewport) => setZoomPercent(Math.round(viewport.zoom * 100))}
                       onConnect={onConnect}
