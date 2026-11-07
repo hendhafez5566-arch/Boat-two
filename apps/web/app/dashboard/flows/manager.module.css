@@ -1243,3 +1243,251 @@
     min-height: 36px;
   }
 }
+
+/* The seven action cards reproduce the measured reference workspace, without changing shared panels. */
+.quickActions {
+  min-width: 0;
+}
+.quickActions .contentHeader :global(.btn) {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.quickActions .contentHeader svg {
+  width: 15px;
+  height: 15px;
+}
+.actionCards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.actionCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 121px;
+  min-width: 0;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #eef1f5;
+  border-radius: 14px;
+  background: #fff;
+  text-align: start;
+  color: #202634;
+  box-shadow: 0 2px 4px #25313b04;
+  font: inherit;
+  cursor: pointer;
+  position: relative;
+}
+.actionCard:hover {
+  border-color: #ccebd9;
+  background: #fcfffd;
+}
+.actionCard:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.actionCardIcon {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 9px;
+  background: #e1fbed;
+  color: #26a65c;
+  display: grid;
+  place-items: center;
+}
+.actionCardIcon svg {
+  width: 21px;
+  height: 21px;
+}
+.actionCardText {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border-inline-start: 1px solid #edf0f3;
+  padding-inline-start: 12px;
+  padding-inline-end: 5px;
+}
+.actionCardText strong {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 19px;
+  overflow-wrap: anywhere;
+}
+.actionCardText small {
+  font-size: 12px;
+  color: #697583;
+  line-height: 17px;
+}
+.actionCardText em {
+  font-size: 10px;
+  font-style: normal;
+  color: #357849;
+}
+.actionCardArrow {
+  position: absolute;
+  inset-inline-end: 10px;
+  top: 15px;
+  color: #41a365;
+}
+.actionCardArrow svg {
+  width: 13px;
+  height: 13px;
+  transform: rotate(-90deg);
+}
+.manager[dir='rtl'] .actionCardArrow svg {
+  transform: rotate(90deg);
+}
+.actionHint {
+  font-size: 11px;
+  color: #657180;
+  line-height: 18px;
+  margin-top: 16px !important;
+}
+@media (min-width: 851px) and (max-width: 1200px) {
+  .actionCards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 850px) {
+  .actionCards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .actionCards {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .actionCard {
+    min-height: 105px;
+  }
+}
+.templateManager {
+  min-width: 0;
+}
+.templateTabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid #edf0f5;
+  margin-bottom: 20px;
+}
+.templateTabs button {
+  background: none;
+  color: #637080;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 11px 16px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.templateTabs button[aria-selected='true'] {
+  color: var(--primary);
+  border-color: var(--primary);
+  font-weight: 600;
+}
+.templateSearch {
+  display: flex;
+  position: relative;
+  width: min(380px, 100%);
+  margin-bottom: 16px;
+}
+.templateSearch input {
+  width: 100%;
+  padding-inline-end: 38px;
+  min-height: 44px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.templateSearch > svg {
+  position: absolute;
+  inset-inline-end: 13px;
+  top: 14px;
+  width: 16px;
+  height: 16px;
+  color: #758193;
+  pointer-events: none;
+}
+.templateTable {
+  min-width: 880px;
+}
+.templateTable td:nth-child(3) {
+  min-width: 160px;
+}
+.templateTable td:last-child,
+.templateTable th:last-child {
+  position: static;
+  box-shadow: none;
+}
+.templateStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #5a6675;
+  white-space: nowrap;
+}
+.templateStatus::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #8795a8;
+}
+.templateStatus[data-status='APPROVED'] {
+  color: #238352;
+}
+.templateStatus[data-status='APPROVED']::before {
+  background: #29b474;
+}
+.templateStatus[data-status='REJECTED'] {
+  color: #b53f43;
+}
+.templateStatus[data-status='REJECTED']::before {
+  background: #cc575b;
+}
+.templateDialog:global(.product-dialog) {
+  width: min(800px, calc(100vw - 32px));
+}
+.templateDialog :global(.card) {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+.templateBody {
+  white-space: pre-wrap;
+  padding: 20px;
+  border-radius: 10px;
+  background: #f3f8f5;
+}
+.previewButton {
+  display: block;
+  text-align: center;
+  padding: 10px;
+  border: 1px solid #e4e9f0;
+  border-radius: 7px;
+  font-size: 12px;
+  color: var(--primary);
+}
+@media (max-width: 850px) {
+  .templateManager .contentHeader {
+    flex-wrap: wrap;
+  }
+  .templateManager .headerActions {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 700px) {
+  .templateTable {
+    min-width: 0;
+  }
+}
+.panelSurface { margin: 6px 0 0; }
+.panelSurface .contentHeader h2 { font-size: 17px; font-weight: 400; }
+.actionCardText em { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }

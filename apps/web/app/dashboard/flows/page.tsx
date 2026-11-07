@@ -1,5 +1,7 @@
 'use client';
 import ManagerTools from './ManagerTools';
+import ManagerQuickActions from './ManagerQuickActions';
+import ManagerTemplates from './ManagerTemplates';
 import { managerError } from './manager-feedback';
 import { statusLabel } from '../../../components/product/status';
 
@@ -351,11 +353,17 @@ export default function BotManager() {
         <AccountWorkspaceContext.Provider value={true}>
           {!isFlowList && (
             <fieldset disabled={!canManage} className={styles.panelSurface}>
-              <AccountPanel
-                key={`${section}:${channelId}`}
-                section={section}
-                channelId={channelId}
-              />
+              {section === 'message_templates' && selected?.type === 'whatsapp' ? (
+                <ManagerTemplates key={channelId} channelId={channelId} />
+              ) : section === 'action_buttons' ? (
+                <ManagerQuickActions key={channelId} channelId={channelId} />
+              ) : (
+                <AccountPanel
+                  key={`${section}:${channelId}`}
+                  section={section}
+                  channelId={channelId}
+                />
+              )}
             </fieldset>
           )}
           {isFlowList && (
