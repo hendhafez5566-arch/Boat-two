@@ -1,0 +1,77 @@
+{
+  "checks": [
+    {
+      "name": "Options arrow navigation, Home End Escape and focus return",
+      "pass": true
+    },
+    {
+      "name": "Create flow UI opens builder and saved record survives reload",
+      "pass": true
+    },
+    {
+      "name": "Duplicate creates a real persisted draft",
+      "pass": true
+    },
+    {
+      "name": "Export downloads actual graph",
+      "pass": true
+    },
+    {
+      "name": "Import invalid JSON reports an error without success",
+      "pass": true
+    },
+    {
+      "name": "Import keeps selected channel and opens persisted draft",
+      "pass": true
+    },
+    {
+      "name": "Move folder save, reload, then unfiled save",
+      "pass": true
+    },
+    {
+      "name": "Reset draft actions calls server and keeps draft",
+      "pass": true
+    },
+    {
+      "name": "Delete cancel retains record; confirm removes synthetic copy",
+      "pass": true
+    },
+    {
+      "name": "Revision conflict rejects stale update",
+      "pass": true
+    },
+    {
+      "name": "Loading state visible during delayed data response",
+      "pass": true
+    },
+    {
+      "name": "Network failure reports real error and refresh recovers",
+      "pass": true
+    },
+    {
+      "name": "Failed cross-bot assignment retains one draft and prevents accidental retry",
+      "pass": true
+    },
+    {
+      "name": "Plan limit error explains recovery without changing billing",
+      "pass": true
+    },
+    {
+      "name": "Arabic plan limit error is localized",
+      "pass": true
+    },
+    {
+      "name": "admin UI and mutation permission",
+      "pass": true
+    },
+    {
+      "name": "agent UI and mutation permission",
+      "pass": true
+    },
+    {
+      "name": "Touch options and modal open close",
+      "pass": true
+    }
+  ],
+  "errors": []
+}

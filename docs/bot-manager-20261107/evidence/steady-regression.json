@@ -1,0 +1,105 @@
+{
+  "method": "Same fixture and viewport, fonts ready, cursor outside controls, transitions and caret suppressed only in tests",
+  "comparisons": [
+    {
+      "locale": "en",
+      "route": "",
+      "identical": true
+    },
+    {
+      "locale": "en",
+      "route": "inbox",
+      "identical": true
+    },
+    {
+      "locale": "en",
+      "route": "crm",
+      "identical": false
+    },
+    {
+      "locale": "en",
+      "route": "crm/sales",
+      "identical": true
+    },
+    {
+      "locale": "en",
+      "route": "channels",
+      "identical": true
+    },
+    {
+      "locale": "en",
+      "route": "automations",
+      "identical": true
+    },
+    {
+      "locale": "en",
+      "route": "team",
+      "identical": true
+    },
+    {
+      "locale": "en",
+      "route": "settings",
+      "identical": true
+    },
+    {
+      "locale": "en",
+      "route": "billing",
+      "identical": true
+    },
+    {
+      "locale": "en",
+      "route": "flows/6c25cfdc-816f-44a3-a6e6-3a456e598e14",
+      "identical": true
+    },
+    {
+      "locale": "ar",
+      "route": "",
+      "identical": true
+    },
+    {
+      "locale": "ar",
+      "route": "inbox",
+      "identical": true
+    },
+    {
+      "locale": "ar",
+      "route": "crm",
+      "identical": true
+    },
+    {
+      "locale": "ar",
+      "route": "crm/sales",
+      "identical": true
+    },
+    {
+      "locale": "ar",
+      "route": "channels",
+      "identical": true
+    },
+    {
+      "locale": "ar",
+      "route": "automations",
+      "identical": true
+    },
+    {
+      "locale": "ar",
+      "route": "team",
+      "identical": true
+    },
+    {
+      "locale": "ar",
+      "route": "settings",
+      "identical": true
+    },
+    {
+      "locale": "ar",
+      "route": "billing",
+      "identical": true
+    },
+    {
+      "locale": "ar",
+      "route": "flows/6c25cfdc-816f-44a3-a6e6-3a456e598e14",
+      "identical": true
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+{
+  "project": "boat-two-ui-preview",
+  "environment": "preview",
+  "repository": "hendhafez5566-arch/Boat-two",
+  "pr": "https://github.com/hendhafez5566-arch/Boat-two/pull/12",
+  "pr_state": "draft; do not merge main",
+  "branch": "feat/bot-manager-fidelity-20261107",
+  "web_commit_sha": "bf7e3333bc3a503da8ebda5a883d233ba5003108",
+  "tested_source_tree_sha": "adf59bb5eb8303ce2ca5fbc4ee468629d4ab2907",
+  "web_deployment_id": "943206b0-a21b-4fa1-a997-bf3624b8f5a5",
+  "web_deployment_status": "SUCCESS",
+  "healthcheck": {
+    "path": "/login",
+    "result": "Healthcheck succeeded",
+    "timestamp_utc": "2026-11-07T12:26:47.106039428Z"
+  },
+  "services": {
+    "boat-preview-web": "Online",
+    "boat-preview-api": "Online",
+    "pgvector": "Online",
+    "Redis": "Online"
+  },
+  "pending_changes": 0,
+  "deployment_issues": 0,
+  "sleep_application_preserved": true,
+  "api_commit_sha_unchanged": "572344fcab868a0542ff92ae125638e81cc573dd",
+  "api_deployment_id_unchanged": "fc9ae334-337a-41ac-b0df-a598beb4c866",
+  "rollback_original_web": {
+    "deployment_id": "5314a2d6-cb4e-483f-be86-519aa794486a",
+    "metadata_commit": "c76683a7f274104f7353bc1f8bc2ce1d568e2ca9"
+  },
+  "rollback_before_section_extension": {
+    "deployment_id": "a988bbb2-44f4-4c54-b7a8-f1c75146f861",
+    "commit_sha": "51709ebbf6bdc7a3b607e2261e2552402f3fb308"
+  },
+  "tests": {
+    "api_pass": 210,
+    "manager_layout_navigation_pass": 86,
+    "actions_permissions_recovery_pass": 18,
+    "quick_actions_templates_pass": 32,
+    "ui_total_pass": 136,
+    "stable_visual_latest_identical": 19,
+    "stable_visual_total": 20,
+    "remaining_visual_difference": "8x4px select-chevron rasterization in English CRM; reviewed, no layout/source change"
+  },
+  "live_cloud_verification": {
+    "six_options_and_cross_bot_copy_visible": true,
+    "variables_loaded_real_saved_field": true,
+    "quick_action_cards": 7,
+    "advanced_config_selectors": 7,
+    "advanced_save_enabled_after_load": true,
+    "advanced_config_saved_in_owner_account": false,
+    "templates_table_empty_state_loaded": true,
+    "create_template_dialog_open_close": true,
+    "header_text_and_image_fields_opened_without_save": true,
+    "template_variables_empty_state": true,
+    "meta_sync_or_submit_executed": false,
+    "create_flow_attempt": "server rejected PLAN_LIMIT on QA Webchat; localized Arabic recovery text verified after deployment",
+    "new_flow_persistence_in_live_owner_account": "NOT VERIFIED: plan quota prevents creation",
+    "successful_new_live_records_created": 0,
+    "review_url": "https://boat-preview-web-preview.up.railway.app/dashboard/flows?channelId=3f0c0b3a-3545-4666-baf5-042f51a97259&section=action_buttons"
+  },
+  "full_exact_fidelity_accepted": false,
+  "remaining": [
+    "Sequences UI",
+    "AI/Agents UI and channel data model",
+    "Chat Widget campaigns",
+    "Appointment/Commerce views",
+    "Advanced bot settings mapping",
+    "Webhook Workflow backend",
+    "Advanced template variants and independent named variables",
+    "Full reference action and state coverage",
+    "Live creation persistence blocked by PLAN_LIMIT"
+  ],
+  "no_changes_to": [
+    "Production",
+    "main merge",
+    "API source/deployment",
+    "PostgreSQL",
+    "Redis",
+    "secret variables",
+    "WhatsApp/Meta connections and webhooks"
+  ]
+}

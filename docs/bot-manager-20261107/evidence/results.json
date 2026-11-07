@@ -1,0 +1,442 @@
+{
+  "engine": "Next production, full Nest API, PGlite/RLS, isolated synthetic tenant",
+  "checks": [
+    {
+      "name": "en 1920 manager layout",
+      "pass": true
+    },
+    {
+      "name": "en 1920 options",
+      "pass": true
+    },
+    {
+      "name": "en 1920 create dialog",
+      "pass": true
+    },
+    {
+      "name": "en 1366 manager layout",
+      "pass": true
+    },
+    {
+      "name": "en 1366 options",
+      "pass": true
+    },
+    {
+      "name": "en 1366 create dialog",
+      "pass": true
+    },
+    {
+      "name": "en 768 manager layout",
+      "pass": true
+    },
+    {
+      "name": "en 768 options",
+      "pass": true
+    },
+    {
+      "name": "en 768 create dialog",
+      "pass": true
+    },
+    {
+      "name": "en 390 manager layout",
+      "pass": true
+    },
+    {
+      "name": "en 390 options",
+      "pass": true
+    },
+    {
+      "name": "en 390 create dialog",
+      "pass": true
+    },
+    {
+      "name": "en 360 manager layout",
+      "pass": true
+    },
+    {
+      "name": "en 360 options",
+      "pass": true
+    },
+    {
+      "name": "en 360 create dialog",
+      "pass": true
+    },
+    {
+      "name": "en 320 manager layout",
+      "pass": true
+    },
+    {
+      "name": "en 320 options",
+      "pass": true
+    },
+    {
+      "name": "en 320 create dialog",
+      "pass": true
+    },
+    {
+      "name": "en variables open close",
+      "pass": true
+    },
+    {
+      "name": "en errors real API",
+      "pass": true
+    },
+    {
+      "name": "en folder create persisted",
+      "pass": true
+    },
+    {
+      "name": "en folder rename persisted",
+      "pass": true
+    },
+    {
+      "name": "en copy to other bot persists",
+      "pass": true
+    },
+    {
+      "name": "en search empty state",
+      "pass": true
+    },
+    {
+      "name": "en section bot_reply",
+      "pass": true
+    },
+    {
+      "name": "en section entry_points",
+      "pass": true
+    },
+    {
+      "name": "en section action_buttons",
+      "pass": true
+    },
+    {
+      "name": "en section webhook_workflows",
+      "pass": true
+    },
+    {
+      "name": "en section ai_agent_configuration",
+      "pass": true
+    },
+    {
+      "name": "en section ai_agents",
+      "pass": true
+    },
+    {
+      "name": "en section chat_widget",
+      "pass": true
+    },
+    {
+      "name": "en section product_catalog",
+      "pass": true
+    },
+    {
+      "name": "en section settings",
+      "pass": true
+    },
+    {
+      "name": "en builder return context",
+      "pass": true
+    },
+    {
+      "name": "en regression dashboard",
+      "pass": true
+    },
+    {
+      "name": "en regression inbox",
+      "pass": true
+    },
+    {
+      "name": "en regression crm",
+      "pass": true
+    },
+    {
+      "name": "en regression crm/sales",
+      "pass": true
+    },
+    {
+      "name": "en regression channels",
+      "pass": true
+    },
+    {
+      "name": "en regression automations",
+      "pass": true
+    },
+    {
+      "name": "en regression team",
+      "pass": true
+    },
+    {
+      "name": "en regression settings",
+      "pass": true
+    },
+    {
+      "name": "en regression billing",
+      "pass": true
+    },
+    {
+      "name": "ar 1920 manager layout",
+      "pass": true
+    },
+    {
+      "name": "ar 1920 options",
+      "pass": true
+    },
+    {
+      "name": "ar 1920 create dialog",
+      "pass": true
+    },
+    {
+      "name": "ar 1366 manager layout",
+      "pass": true
+    },
+    {
+      "name": "ar 1366 options",
+      "pass": true
+    },
+    {
+      "name": "ar 1366 create dialog",
+      "pass": true
+    },
+    {
+      "name": "ar 768 manager layout",
+      "pass": true
+    },
+    {
+      "name": "ar 768 options",
+      "pass": true
+    },
+    {
+      "name": "ar 768 create dialog",
+      "pass": true
+    },
+    {
+      "name": "ar 390 manager layout",
+      "pass": true
+    },
+    {
+      "name": "ar 390 options",
+      "pass": true
+    },
+    {
+      "name": "ar 390 create dialog",
+      "pass": true
+    },
+    {
+      "name": "ar 360 manager layout",
+      "pass": true
+    },
+    {
+      "name": "ar 360 options",
+      "pass": true
+    },
+    {
+      "name": "ar 360 create dialog",
+      "pass": true
+    },
+    {
+      "name": "ar 320 manager layout",
+      "pass": true
+    },
+    {
+      "name": "ar 320 options",
+      "pass": true
+    },
+    {
+      "name": "ar 320 create dialog",
+      "pass": true
+    },
+    {
+      "name": "ar variables open close",
+      "pass": true
+    },
+    {
+      "name": "ar errors real API",
+      "pass": true
+    },
+    {
+      "name": "ar folder create persisted",
+      "pass": true
+    },
+    {
+      "name": "ar folder rename persisted",
+      "pass": true
+    },
+    {
+      "name": "ar copy to other bot persists",
+      "pass": true
+    },
+    {
+      "name": "ar search empty state",
+      "pass": true
+    },
+    {
+      "name": "ar section bot_reply",
+      "pass": true
+    },
+    {
+      "name": "ar section entry_points",
+      "pass": true
+    },
+    {
+      "name": "ar section action_buttons",
+      "pass": true
+    },
+    {
+      "name": "ar section webhook_workflows",
+      "pass": true
+    },
+    {
+      "name": "ar section ai_agent_configuration",
+      "pass": true
+    },
+    {
+      "name": "ar section ai_agents",
+      "pass": true
+    },
+    {
+      "name": "ar section chat_widget",
+      "pass": true
+    },
+    {
+      "name": "ar section product_catalog",
+      "pass": true
+    },
+    {
+      "name": "ar section settings",
+      "pass": true
+    },
+    {
+      "name": "ar builder return context",
+      "pass": true
+    },
+    {
+      "name": "ar regression dashboard",
+      "pass": true
+    },
+    {
+      "name": "ar regression inbox",
+      "pass": true
+    },
+    {
+      "name": "ar regression crm",
+      "pass": true
+    },
+    {
+      "name": "ar regression crm/sales",
+      "pass": true
+    },
+    {
+      "name": "ar regression channels",
+      "pass": true
+    },
+    {
+      "name": "ar regression automations",
+      "pass": true
+    },
+    {
+      "name": "ar regression team",
+      "pass": true
+    },
+    {
+      "name": "ar regression settings",
+      "pass": true
+    },
+    {
+      "name": "ar regression billing",
+      "pass": true
+    }
+  ],
+  "visual": [
+    {
+      "locale": "en",
+      "route": "",
+      "identical": true
+    },
+    {
+      "locale": "en",
+      "route": "inbox",
+      "identical": true
+    },
+    {
+      "locale": "en",
+      "route": "crm",
+      "identical": false
+    },
+    {
+      "locale": "en",
+      "route": "crm/sales",
+      "identical": true
+    },
+    {
+      "locale": "en",
+      "route": "channels",
+      "identical": true
+    },
+    {
+      "locale": "en",
+      "route": "automations",
+      "identical": true
+    },
+    {
+      "locale": "en",
+      "route": "team",
+      "identical": true
+    },
+    {
+      "locale": "en",
+      "route": "settings",
+      "identical": true
+    },
+    {
+      "locale": "en",
+      "route": "billing",
+      "identical": true
+    },
+    {
+      "locale": "ar",
+      "route": "",
+      "identical": true
+    },
+    {
+      "locale": "ar",
+      "route": "inbox",
+      "identical": false
+    },
+    {
+      "locale": "ar",
+      "route": "crm",
+      "identical": false
+    },
+    {
+      "locale": "ar",
+      "route": "crm/sales",
+      "identical": true
+    },
+    {
+      "locale": "ar",
+      "route": "channels",
+      "identical": true
+    },
+    {
+      "locale": "ar",
+      "route": "automations",
+      "identical": true
+    },
+    {
+      "locale": "ar",
+      "route": "team",
+      "identical": true
+    },
+    {
+      "locale": "ar",
+      "route": "settings",
+      "identical": false
+    },
+    {
+      "locale": "ar",
+      "route": "billing",
+      "identical": true
+    }
+  ],
+  "errors": []
+}
