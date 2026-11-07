@@ -19,3 +19,12 @@ Complete reference interactions, archive safe screenshots/measurements; compare 
 - Autosave now defaults OFF to match explicit Save workflow and prevent incidental changes; opt-in remains available.
 - TypeScript `tsc --noEmit` passed; build/UI interaction checks pending. No deploy authorized by this checkpoint.
 - Live Boat Two login verified, existing QA draft opened read-only. No live flow edited or saved.
+
+## Milestone C — WIP node/connection checkpoint
+- Scoped 264px node cards, 48px headers, footer ports and 15px sockets; independent SVG block icons. Start decoration now fits initial viewport after measurement.
+- Message statistics use actual API statistics (unavailable stays —); blank cards show an independent configuration gesture icon, while validation errors remain available.
+- Connections use 2px Bezier curves; sockets move to opposing footer sides and mirror in RTL. Reference-output reconnection updates the actual startNodeId, never saves a decorative node/edge.
+- Clone/Delete retained on node contextual toolbar; editing via double-click and original editor forms retained.
+- TypeScript check passed again. Production web/API build passed on the preceding shell checkpoint. Current node changes await fresh build and UI/runtime acceptance; no deploy.
+- Reference context menu additionally exposes Product, Product Section, Row, Section. Nested reference actions remain incomplete; no full parity claim.
+- Code and sanitized text observations are pushed. Screenshot binary upload has not succeeded; images retained locally pending durable attachment.

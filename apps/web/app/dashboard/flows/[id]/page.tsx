@@ -19,6 +19,7 @@ import ReactFlow, {
   useEdgesState,
   useNodesState,
   useReactFlow,
+  useNodesInitialized,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useLocale } from '../../../../components/product/locale';
@@ -81,6 +82,13 @@ type Issue = { nodeId?: string; message: string };
 
 function Editor({ id }: { id: string }) {
   const rf = useReactFlow();
+  const nodesInitialized = useNodesInitialized();
+  const initialViewportReady = useRef(false);
+  useEffect(() => {
+    if (!nodesInitialized || initialViewportReady.current) return;
+    initialViewportReady.current = true;
+    void rf.fitView({ padding: 0.25, maxZoom: 1 });
+  }, [nodesInitialized, rf]);
   const { t, language } = useLocale();
   const [nodeSearch, setNodeSearch] = useState('');
   const [findNode, setFindNode] = useState('');
@@ -442,7 +450,7 @@ function Editor({ id }: { id: string }) {
             draggable: false,
             deletable: false,
             selectable: false,
-            connectable: false,
+            connectable: true,
             data: {
               summary:
                 meta.triggers
@@ -533,18 +541,25 @@ function Editor({ id }: { id: string }) {
   const isValidConnection = useCallback(
     (c: Connection) => {
       if (!c.source || !c.target) return false;
+      if (c.source === reference?.id)
+        return c.sourceHandle === 'start' && nodes.some((node) => node.id === c.target);
       const real = toReal(c.source, c.sourceHandle);
       if (real.source === c.target) return false;
       const from = nodes.find((n) => n.id === real.source);
       if (!from || !nodes.some((n) => n.id === c.target)) return false;
       return handlesFor(from.data.type, from.data.data).some((h) => h.id === real.handle);
     },
-    [nodes, toReal],
+    [nodes, toReal, reference?.id],
   );
 
   const onConnect = useCallback(
     (raw: Connection) => {
       if (!isValidConnection(raw)) return;
+      if (raw.source === reference?.id && raw.target) {
+        setStartId(raw.target);
+        setDirty(true);
+        return;
+      }
       const r = toReal(raw.source, raw.sourceHandle);
       const c: Connection = { ...raw, source: r.source, sourceHandle: r.handle };
       const previous = edges.find(
@@ -567,7 +582,7 @@ function Editor({ id }: { id: string }) {
         );
       setDirty(true);
     },
-    [setEdges, edges, isValidConnection, toReal],
+    [setEdges, edges, isValidConnection, toReal, reference?.id],
   );
 
   const onEdgeUpdate = useCallback(
@@ -630,7 +645,9 @@ function Editor({ id }: { id: string }) {
         data: { type, data: NODE_META[type].defaults(), isStart: false },
       },
     ]);
-    if (from) {
+    if (from?.source === reference?.id) {
+      setStartId(nid);
+    } else if (from) {
       // Same replacement rule as onConnect: one outgoing edge per source handle.
       setEdges((es) =>
         addEdge(
@@ -1886,11 +1903,10 @@ function Editor({ id }: { id: string }) {
                       onEdgeUpdate={onEdgeUpdate}
                       connectionRadius={24}
                       zoomOnDoubleClick={false}
-                      connectionLineType={ConnectionLineType.SmoothStep}
+                      connectionLineType={ConnectionLineType.Bezier}
                       connectionLineStyle={{
                         stroke: 'var(--primary)',
-                        strokeWidth: 3,
-                        strokeDasharray: '6 4',
+                        strokeWidth: 2,
                       }}
                       elevateEdgesOnSelect
                       onEdgesDelete={() => notify(t('قُطع التوصيل.', 'Link removed.'), true)}
@@ -1906,10 +1922,10 @@ function Editor({ id }: { id: string }) {
                       }
                       defaultEdgeOptions={{
                         type: 'smoothstep',
-                        style: { stroke: '#64748b', strokeWidth: 2.5 },
+                        style: { stroke: '#778292', strokeWidth: 2 },
                         markerEnd: {
                           type: MarkerType.ArrowClosed,
-                          color: '#64748b',
+                          color: '#778292',
                           width: 18,
                           height: 18,
                         },

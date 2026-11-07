@@ -82,10 +82,17 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
       className={`premium-flow-node fn-card fn-${data.type} ${split ? 'fn-split' : ''} ${data.isStart ? 'is-start' : ''} ${selected ? 'is-selected' : ''} ${data.issue ? 'has-issue' : ''} ${incomplete ? 'is-incomplete' : ''} ${data.preview ? 'is-preview-' + data.preview : ''}`}
       style={{ '--node-color': meta.color } as CSSProperties}
       aria-label={nodeLabel(data.type, language)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' && event.target === event.currentTarget) {
+          event.stopPropagation();
+          data.actions?.open?.(id);
+        }
+      }}
     >
       <Handle
         type="target"
-        position={Position.Top}
+        position={language === 'ar' ? Position.Right : Position.Left}
+        style={{ top: 'auto', bottom: 14 }}
         title={t('نقطة الدخول: أسقط التوصيل هنا', 'Entry point: drop a link here')}
       />
       {data.actions && (
@@ -94,31 +101,6 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
           role="toolbar"
           aria-label={t('إجراءات الخطوة', 'Step actions')}
         >
-          {data.actions.open && (
-            <button
-              type="button"
-              className="nodrag"
-              title={t('تعديل الخطوة', 'Edit step')}
-              aria-label={t('تعديل الخطوة', 'Edit step')}
-              onClick={(event) => {
-                event.stopPropagation();
-                data.actions?.open?.(id);
-              }}
-            >
-              ✎
-            </button>
-          )}
-          {!data.isStart && (
-            <button
-              type="button"
-              className="nodrag"
-              title={t('تعيين كبداية', 'Set as start')}
-              aria-label={t('تعيين كبداية', 'Set as start')}
-              onClick={() => data.actions?.setStart(id)}
-            >
-              ▶
-            </button>
-          )}
           <button
             type="button"
             className="nodrag"
@@ -128,32 +110,30 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
           >
             ⧉
           </button>
-        </div>
-      )}
-      {data.actions && (
-        <button
-          type="button"
-          className="flow-node-delete nodrag nopan"
-          title={t('حذف الخطوة', 'Delete step')}
-          aria-label={t('حذف الخطوة', 'Delete step')}
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-            data.actions?.remove(id);
-          }}
-        >
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            aria-hidden="true"
+          <button
+            type="button"
+            className="nodrag nopan"
+            title={t('حذف الخطوة', 'Delete step')}
+            aria-label={t('حذف الخطوة', 'Delete step')}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              data.actions?.remove(id);
+            }}
           >
-            <path d="m6 6 12 12M18 6 6 18" />
-          </svg>
-        </button>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" />
+            </svg>
+          </button>
+        </div>
       )}
       <div className="fn-main">
         <div className="flow-node-heading">
@@ -161,9 +141,8 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
             <NodeIcon type={data.type} />
           </span>
           <strong>{nodeLabel(data.type, language)}</strong>
-          {data.isStart && <span className="flow-start-badge">{t('بداية', 'Start')}</span>}
         </div>
-        {analytics && SENDERS.includes(data.type) && (
+        {SENDERS.includes(data.type) && (
           <div
             className="fn-stats"
             aria-label={t('إحصائيات الخطوة', 'Step statistics')}
@@ -268,8 +247,27 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
         {data.type !== 'user_input' && data.type !== 'sequence' && (
           <div className="flow-node-summary fn-body">
             {incomplete ? (
-              <span className="flow-node-empty">
-                ⚠ {t('خطوة غير مكتملة، اضغط لإكمالها', 'Incomplete step, select to finish it')}
+              <span
+                className="flow-node-empty"
+                title={t('انقر مرتين للإعداد', 'Double click to configure')}
+              >
+                <svg
+                  width="30"
+                  height="32"
+                  viewBox="0 0 32 36"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  aria-hidden="true"
+                >
+                  <path d="M12 18V5a2.5 2.5 0 0 1 5 0v11-5a2.5 2.5 0 0 1 5 0v6-3a2.5 2.5 0 0 1 5 0v8c0 7-3 11-9 11-4 0-6-2-9-6l-5-7c-2-3 1-5 3-3l5 4" />
+                </svg>
+                <span className="sr-only">
+                  {t(
+                    'خطوة غير مكتملة، انقر مرتين لإكمالها',
+                    'Incomplete step, double click to configure',
+                  )}
+                </span>
               </span>
             ) : (
               text
@@ -293,18 +291,19 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
       {(image ||
         data.data?.imageUrl ||
         ['image', 'video', 'audio', 'file'].includes(data.type) ||
-        data.data?.media) && (
-        <MediaPreview
-          media={
-            data.data?.media || {
-              kind: data.type === 'cta_url' ? 'image' : data.type,
-              url: image || data.data?.imageUrl || data.data?.url,
-              caption: data.data?.caption,
-              filename: data.data?.filename,
+        data.data?.media) &&
+        !incomplete && (
+          <MediaPreview
+            media={
+              data.data?.media || {
+                kind: data.type === 'cta_url' ? 'image' : data.type,
+                url: image || data.data?.imageUrl || data.data?.url,
+                caption: data.data?.caption,
+                filename: data.data?.filename,
+              }
             }
-          }
-        />
-      )}
+          />
+        )}
       {(data.type === 'interactive' || (data.type === 'message' && cards)) &&
         data.actions?.choices && (
           <div
@@ -348,17 +347,17 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
         >
           {h.id.startsWith('option:') && <span className="fn-btn-kind">▣ {t('زر', 'Button')}</span>}
           <span className="fn-btn-title">{editorLabel(h.label, language)}</span>
-          {/* One output → bottom-centre so the flow reads top-to-bottom in both RTL and LTR. */}
+          {/* Reference ports follow the footer edge, mirrored for RTL. */}
           {shown.length === 1 ? (
             <Handle
               type="source"
-              position={Position.Bottom}
+              position={language === 'ar' ? Position.Left : Position.Right}
               id={h.id}
               title={t(
                 'نقطة الخروج: اسحب منها إلى الخطوة التالية',
                 'Exit point: drag to the next step',
               )}
-              style={{ left: '50%', bottom: -6, top: 'auto' }}
+              style={{ [language === 'ar' ? 'left' : 'right']: -7.5, top: '50%' }}
             />
           ) : (
             <Handle

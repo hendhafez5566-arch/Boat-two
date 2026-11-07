@@ -46,3 +46,21 @@ All opened on temporary unsaved nodes; Close tested. Save Changes and provider s
 | FB-027 | Random Number Generator / Configure Random Number Generator | 576 × 707.21875 | Configure Random Number Generator; Character set *; Value length *; Length of random value; Custom field *;  Add new; Select;  Save Changes;  Close | Screenshot not available; DOM observation retained | Open/close observed; mapping/visual acceptance pending |
 | FB-028 | Start Bot Flow / Configure Reference | unmeasured × unmeasured | Configure Reference; Basic Setup; Trigger Keywords ; Exact keyword match Match exact keywords; String match Match similar keywords; Title * ;  Automation Actions Optional Manage labels, sequences and team assignment. ; Automation Actions Optional;  Data & Integrations Optional Store data in custom fields or send to external tools. ; Data & Integrations Optional; + Add new field; Forward Data to Webhook;  Save Changes;  Close | [screenshot](docs/flow-builder-20261107/reference/reference-drawer.jpg) | Open/close observed; mapping/visual acceptance pending |
 | FB-029 | Image / Configure Random Number Generator | unmeasured × unmeasured | Configure Random Number Generator; Character set *; Value length *; Length of random value; Custom field *;  Add new;  Save Changes;  Close | [screenshot](docs/flow-builder-20261107/reference/image-drawer.jpg) | Open/close observed; mapping/visual acceptance pending |
+
+## Further live interaction observations
+- FB-030: Text configuration Save Changes updates only the temporary canvas. Text content used: generic unsaved inspection text. Global Save never clicked.
+- FB-031: Connecting Start→Text creates a grey curved connection and automatically opens Text configuration. Stroke #778292, 2px.
+- FB-032: Clone creates an unsaved duplicate; Delete removes that duplicate immediately. Both tested; no saved owner flow touched. Node toolbar measured80×42px.
+- FB-033: Canvas right-click opens Search blocks and four categorized submenus, plus Product, Product Section, Row, Section. Product subtype dialogs not yet inspected.
+- FB-034: Delivery Options expands typing toggle and Hours/Minutes/Seconds sliders. Text editor maxlength4096; toggles observed, no provider send.
+
+## EXTRA_ELEMENTS_REMOVAL — implementation checkpoint
+| Extra | Action | Dependencies retained | Verification |
+|---|---|---|---|
+| Always-visible name/save status | Moved to More | Name editing and live save state | Typecheck only; UI pending |
+| Preview/settings/Publish buttons | Moved to More | Actual simulator and explicit publish/version separation | Functional acceptance pending |
+| Bottom zoom/hint and dotted grid | Removed default chrome, zoom kept in More | Pan/wheel/zoom commands | Interaction test pending |
+| Additional block groups | Hidden by default; expandable in palette | All existing node types and saved data | Add/save checks pending |
+| Edit/set-start buttons on every node | Edit via double-click; start via reference socket | Existing actions retained in editor state, startNodeId contract unchanged | Connection persistence test pending |
+
+More is a necessary Boat-specific exception because its draft and published-version model needs explicit publishing, unlike the single visible reference Save. No fake Save=Publish behavior was introduced.

@@ -1,13 +1,16 @@
 import { NavIcon } from '../product/NavIcon';
 import { NodeType, NODE_META } from '../../lib/flow-types';
 export const NODE_EN: Record<NodeType, string> = {
-  product:'Product',catalog:'Catalog / product sections',appointment:'Book appointment',whatsapp_flow:'WhatsApp Flow',
-  message: 'Send message',
+  product: 'Product',
+  catalog: 'Catalog / product sections',
+  appointment: 'Book appointment',
+  whatsapp_flow: 'WhatsApp Flow',
+  message: 'Text',
   interactive: 'Interactive Message',
   location: 'Location',
-  cta_url: 'Link button',
-  template: 'WhatsApp template',
-  sequence: 'Add to sequence',
+  cta_url: 'CTA URL Button',
+  template: 'Template Message',
+  sequence: 'New Sequence Campaign',
   user_input: 'User Input Flow',
   image: 'Image',
   audio: 'Audio',
@@ -23,7 +26,7 @@ export const NODE_EN: Record<NodeType, string> = {
   business_hours: 'Business hours',
   split: 'Random split',
   random_number: 'Random Number Generator',
-  ai_reply: 'AI assistant',
+  ai_reply: 'AI Reply',
   handoff: 'Human handoff',
   tag: 'Label Assign',
   note: 'Internal note',
@@ -34,7 +37,10 @@ export function nodeLabel(type: NodeType, language: string) {
   return language === 'en' ? NODE_EN[type] : NODE_META[type].label;
 }
 export const nodeIcon: Record<NodeType, string> = {
-  product:'crm',catalog:'crm',appointment:'sessions',whatsapp_flow:'inbox',
+  product: 'crm',
+  catalog: 'crm',
+  appointment: 'sessions',
+  whatsapp_flow: 'inbox',
   message: 'inbox',
   interactive: 'inbox',
   location: 'globe',
@@ -63,8 +69,47 @@ export const nodeIcon: Record<NodeType, string> = {
   end: 'check',
   subflow: 'flows',
 };
+// Independent SVG primitives; no third-party icon/font assets copied.
+const blockPaths: Partial<Record<NodeType, string>> = {
+  message: 'M5 4h14M5 8h14M5 12h14M5 16h14M5 20h10',
+  image: 'M3 4h18v16H3V4ZM3 16l5-5 4 4 4-5 5 6M9 8h.01',
+  audio: 'M9 5a3 3 0 0 1 6 0v8a3 3 0 0 1-6 0V5ZM5 11v2a7 7 0 0 0 14 0v-2M12 20v3M8 23h8',
+  video: 'M3 5h18v14H3V5ZM10 8l6 4-6 4V8Z',
+  file: 'm8 12 7-7a4 4 0 0 1 6 6L10 22a6 6 0 0 1-8-8L13 3M5 17 16 6',
+  location: 'M3 5l6-3 6 3 6-3v17l-6 3-6-3-6 3V5ZM9 2v17M15 5v17',
+  ai_reply: 'M5 6h14v14H5V6ZM12 6V2M10 2h4M8 11h1M15 11h1M8 16h8M2 10v7M22 10v7',
+  user_input: 'M4 3h16v18H4V3ZM8 7h8M8 12h8M8 17h5',
+  whatsapp_flow: 'M3 4h18v16H3V4ZM7 8h4v4H7V8ZM14 8h3M7 16h10',
+  appointment: 'M3 5h18v17H3V5ZM7 2v6M17 2v6M3 10h18M8 15l3 3 6-6',
+  interactive: 'M3 4h18v14h-8l-5 4v-4H3V4ZM7 8h10M7 12h6',
+  template:
+    'M12 3a9 9 0 1 0 0 18h2a2 2 0 0 0 0-4h-1a2 2 0 0 1 0-4h5a3 3 0 0 0 3-3c0-4-4-7-9-7ZM7 9h.01M12 6h.01M6 14h.01',
+  cta_url:
+    'M8 13V4a2 2 0 0 1 4 0v8-3a2 2 0 0 1 4 0v4-1a2 2 0 0 1 4 0v5c0 5-3 7-7 7l-8-8c-2-2 0-4 2-2l1 1',
+  condition: 'M4 4l15 8-15 8M4 22h16',
+  sequence: 'M12 2S5 10 5 15a7 7 0 0 0 14 0c0-5-7-13-7-13Z',
+  tag: 'M3 3h9l10 10-9 9L3 12V3ZM7 7h.01',
+  random_number: 'M9 2 5 22M19 2l-4 20M3 8h20M1 16h20',
+};
 export function NodeIcon({ type }: { type: NodeType }) {
-  return <NavIcon name={nodeIcon[type]} />;
+  const path = blockPaths[type];
+  return path ? (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={path} />
+    </svg>
+  ) : (
+    <NavIcon name={nodeIcon[type]} />
+  );
 }
 const labels: Record<string, string> = {
   الأحد: 'Sunday',
@@ -182,7 +227,8 @@ const labels: Record<string, string> = {
   'رسالة التحويل': 'Handoff message',
   'إضافة وسوم': 'Add tags',
   'إزالة وسوم': 'Remove tags',
-  'افصل بين الوسوم بفاصلة. يمكن استخدام المتغيّرات.': 'Separate tags with commas. Variables allowed.',
+  'افصل بين الوسوم بفاصلة. يمكن استخدام المتغيّرات.':
+    'Separate tags with commas. Variables allowed.',
   'نص الملاحظة': 'Note text',
   'تُحفظ في ملف العميل ولا تظهر له.': 'Saved on the contact record, never shown to them.',
   المفتاح: 'Key',
@@ -201,10 +247,12 @@ const labels: Record<string, string> = {
     'The sheet must be shared as "Anyone with the link". The first row holds column headers.',
   'عمود البحث': 'Lookup column',
   'قيمة البحث': 'Lookup value',
-  'لو تركت عمود البحث فاضي بيرجع أول صف.': 'Leave the lookup column empty to use the first data row.',
+  'لو تركت عمود البحث فاضي بيرجع أول صف.':
+    'Leave the lookup column empty to use the first data row.',
   'حفظ أعمدة في متغيّرات': 'Save columns to variables',
   'اسم العمود ← اسم المتغيّر': 'Column name → variable name',
-  'رقم صحيح عشوائي يشمل الحدّين، ويُحفظ لاستخدامه في الشروط والرسائل.': 'A random whole number including both limits, saved for conditions and messages.',
+  'رقم صحيح عشوائي يشمل الحدّين، ويُحفظ لاستخدامه في الشروط والرسائل.':
+    'A random whole number including both limits, saved for conditions and messages.',
 };
 export function editorLabel(value: string, language: string) {
   if (language !== 'en') return value;

@@ -787,3 +787,217 @@
     width: 264px;
   }
 }
+
+/* FB-005/008/010: node card, sockets and contextual actions. */
+.reference {
+  width: 264px;
+  min-height: 163px;
+  border: 2px solid #dee3e66b;
+  font-size: 14px;
+  color: #064663;
+}
+.reference header {
+  height: 48px;
+  padding: 10px 15px;
+  gap: 3px;
+}
+.reference header svg {
+  width: 14px;
+  height: 14px;
+}
+.reference header strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.reference > button {
+  min-height: 63px;
+  padding: 0 15px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.referenceSummary {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.reference footer {
+  height: 48px;
+  padding: 10px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.editor :global(.premium-flow-node.fn-card) {
+  width: 264px;
+  min-height: 163px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 2px solid #dee3e66b;
+  border-radius: 12px;
+  box-shadow: 0 3px 7px #243b4b12;
+  color: #064663;
+  font-family: inherit;
+}
+.editor :global(.premium-flow-node.fn-card.is-selected) {
+  border: 2px solid #1993ce;
+  box-shadow: 0 3px 7px #243b4b12;
+}
+.editor :global(.premium-flow-node.fn-card.is-start),
+.editor :global(.premium-flow-node.fn-card.is-incomplete) {
+  background: #fff;
+  border-style: solid;
+}
+.editor :global(.fn-card .fn-main) {
+  flex: 1;
+  min-height: 111px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.editor :global(.fn-card .flow-node-heading) {
+  height: 48px;
+  padding: 10px 15px;
+  gap: 3px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+.editor :global(.fn-card .flow-node-icon) {
+  width: 14px;
+  height: 18px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  color: #064663;
+}
+.editor :global(.fn-card .flow-node-icon svg) {
+  width: 14px;
+  height: 14px;
+}
+.editor :global(.fn-card .flow-node-heading strong) {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 28px;
+  color: #064663;
+}
+.editor :global(.fn-card .fn-body) {
+  margin: 0 15px 10px;
+  padding: 8px 10px;
+  min-height: 50px;
+  border-radius: 8px;
+  background: #f1f6fb;
+  font-size: 11px;
+  line-height: 18px;
+  color: #253b4b;
+}
+.editor :global(.fn-card.is-incomplete .fn-body) {
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.editor :global(.fn-card .flow-node-empty) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #272e34;
+}
+.editor :global(.fn-card .fn-stats) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 58px;
+  padding: 5px 15px;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  gap: 3px;
+}
+.editor :global(.fn-card .fn-stats span) {
+  font-size: 9px;
+  line-height: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 0;
+  color: #74838e;
+}
+.editor :global(.fn-card .fn-stats b) {
+  font-size: 12px;
+  font-weight: 400;
+  color: #6c757d;
+}
+.editor :global(.fn-card .flow-node-port) {
+  position: relative;
+  min-height: 46px;
+  margin: 0;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  border-radius: 0 !important;
+  border: 0;
+  border-top: 1px dashed #9ba7b0;
+  background: #f1f3f4;
+  font-size: 10px;
+  line-height: 15px;
+  color: #064663;
+}
+.editor :global(.fn-card .flow-node-port:last-child) {
+  margin-bottom: 0;
+  border-radius: 0 0 10px 10px !important;
+}
+.editor :global(.fn-card .flow-node-port.is-single) {
+  padding-bottom: 10px;
+}
+.editor :global(.fn-card .react-flow__handle) {
+  width: 15px;
+  height: 15px;
+  background: #fff;
+  border: 2px solid #778292;
+  box-shadow: none;
+}
+.editor :global(.fn-card .react-flow__handle-left) {
+  left: -8px;
+}
+.editor :global(.fn-card .react-flow__handle-right) {
+  right: -8px;
+}
+.editor :global(.flow-node-tools) {
+  top: -52px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 42px;
+  padding: 4px;
+  gap: 0;
+  display: flex;
+  justify-content: space-between;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px #0f172a1a;
+}
+.editor :global(.flow-node-tools button) {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+.editor :global(.flow-node-tools button:last-child) {
+  color: #dc3545;
+}
