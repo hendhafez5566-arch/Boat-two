@@ -28,3 +28,9 @@ Complete reference interactions, archive safe screenshots/measurements; compare 
 - TypeScript check passed again. Production web/API build passed on the preceding shell checkpoint. Current node changes await fresh build and UI/runtime acceptance; no deploy.
 - Reference context menu additionally exposes Product, Product Section, Row, Section. Nested reference actions remain incomplete; no full parity claim.
 - Code and sanitized text observations are pushed. Screenshot binary upload has not succeeded; images retained locally pending durable attachment.
+
+## First UI run — failures retained, fixes in progress
+- First run: 9 failed checks. Product defect: decorative reference dimensions were discarded, leaving it hidden. Fixed by supplying its measured264×163 dimensions explicitly; retest required.
+- Test harness defects: locale initializer overwrote Arabic on reload; preview close accessible name and published_version field assertions corrected. These were not claimed as product fixes.
+- First API suite:210 passed,2 test modules could not initialize without required environment variables. Rerun with isolated dummy configuration pending.
+- Initial failing JSON retained; no deployment. Next: rebuild/retest, then full node interaction and protected-flow acceptance.

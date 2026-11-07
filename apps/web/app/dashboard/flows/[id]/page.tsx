@@ -446,6 +446,9 @@ function Editor({ id }: { id: string }) {
           {
             id: reference.id,
             type: 'reference',
+            width: 264,
+            height: 163,
+            style: { width: 264, height: 163 },
             position: reference.position,
             draggable: false,
             deletable: false,
