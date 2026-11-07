@@ -1,3 +1,4 @@
+@import '@fontsource-variable/plus-jakarta-sans';
 .editor {
   position: relative;
   height: 100%;
@@ -578,4 +579,211 @@
   color: var(--primary);
 }
 
-@media (max-width: 640px) { .publishButton { padding: 8px 10px; font-size: 12px; min-height: 36px; } }
+@media (max-width: 640px) {
+  .publishButton {
+    padding: 8px 10px;
+    font-size: 12px;
+    min-height: 36px;
+  }
+}
+
+/* FB-002/004: live reference dimensions. Scoped to this editor only. */
+.editor {
+  font-family: 'Plus Jakarta Sans Variable', Arial, sans-serif;
+}
+.surface {
+  padding-inline-start: 56px;
+}
+.toolbar {
+  top: 22px;
+  inset-inline-end: 30px;
+  padding: 8px 12px;
+  gap: 8px;
+  flex-wrap: nowrap;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 12px 40px #0f172a1f,
+    inset 0 1px #ffffffa6,
+    0 1px 3px #0f172a0f;
+}
+.toolButton {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.toolButton svg {
+  width: 16px;
+  height: 16px;
+}
+.channelBadge {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  max-width: 230px;
+  padding: 0 14px;
+  border: 1px solid #e2e8f0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.saveButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 88px;
+  height: 40px;
+  padding: 0 18px;
+  border-color: #10b981;
+  background: #d1fae5;
+  color: #065f46;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+.menuMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.menuMeta .title {
+  width: 100%;
+  max-width: none;
+  border-color: #e2e8f0;
+  font-weight: 500;
+}
+.menuMeta .saveState {
+  align-self: flex-start;
+}
+.toolsMenu .toolButton {
+  width: 100%;
+  justify-content: flex-start;
+}
+.toolsMenu .toolButton svg {
+  flex-shrink: 0;
+}
+.toolsMenu .publishButton {
+  background: var(--primary);
+  color: #fff;
+  justify-content: center;
+}
+.menuZoom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.menuZoom button {
+  padding: 6px;
+  min-width: 30px;
+  justify-content: center;
+}
+.menuZoom output {
+  font-size: 11px;
+}
+.palette {
+  width: 56px;
+  background: #f1f5f9cc;
+  border: 0;
+}
+.palette[data-expanded='true'] {
+  width: 264px;
+}
+.paletteHeader {
+  min-height: 76px;
+  padding: 12px;
+  border-bottom: 0;
+}
+.paletteToggle {
+  width: 30px;
+  height: 32px;
+  border: 0;
+  border-radius: 7px;
+  background: #172e91;
+  color: #fff;
+}
+.paletteScroll {
+  padding: 44px 4px 12px;
+}
+.paletteGroup {
+  gap: 7px;
+  margin-bottom: 74px;
+}
+.block {
+  min-height: 44px;
+  height: 44px;
+  padding: 8px;
+}
+.blockIcon svg {
+  width: 23px;
+  height: 23px;
+}
+.palette[data-expanded='true'] .paletteScroll {
+  padding: 10px 12px;
+}
+.palette[data-expanded='true'] .paletteGroup {
+  gap: 0;
+  margin-bottom: 20px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  background: #fff;
+}
+.palette[data-expanded='true'] .block {
+  padding: 8px 0;
+  height: 39px;
+  min-height: 39px;
+  border-radius: 0;
+  font-size: 13px;
+}
+.palette[data-expanded='true'] .block + .block {
+  border-top: 1px solid #f0f1f3;
+}
+.palette[data-expanded='true'] .blockIcon svg {
+  width: 16px;
+  height: 16px;
+}
+.additionalToggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  font-size: 12px;
+}
+@media (max-width: 700px) {
+  .toolbar {
+    top: 12px;
+    inset-inline-end: 10px;
+    padding: 6px;
+    gap: 6px;
+    max-width: calc(100% - 76px);
+  }
+  .toolbar .channelBadge {
+    display: none;
+  }
+  .toolbar .toolButton {
+    width: 34px;
+    min-width: 34px;
+    height: 36px;
+  }
+  .toolbar .saveButton {
+    min-width: 74px;
+    height: 36px;
+    padding: 0 12px;
+  }
+  .palette[data-expanded='true'] {
+    width: min(264px, calc(100% - 50px));
+  }
+  .reference {
+    width: 264px;
+  }
+}

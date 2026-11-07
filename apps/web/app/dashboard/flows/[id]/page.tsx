@@ -7,7 +7,6 @@ import type { BotPolicy } from '../../../../lib/flow-types';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactFlow, {
   addEdge,
-  Background,
   Connection,
   ConnectionLineType,
   MiniMap,
@@ -259,7 +258,7 @@ function Editor({ id }: { id: string }) {
       clearInterval(timer);
     };
   }, [id]);
-  const [autoSave, setAutoSave] = useState(true);
+  const [autoSave, setAutoSave] = useState(false);
   const [versions, setVersions] = useState<{ id: string; version: number; created_at: string }[]>(
     [],
   );
@@ -1286,16 +1285,6 @@ function Editor({ id }: { id: string }) {
         >
           <NavIcon name="undo" />
         </a>
-        <input
-          className={styles.title}
-          disabled={!loaded}
-          aria-label={t('اسم التدفق', 'Flow name')}
-          value={meta.name}
-          onChange={(event) => {
-            setMeta({ ...meta, name: event.target.value });
-            setDirty(true);
-          }}
-        />
         {staleChannelIds.length > 0 && (
           <button
             type="button"
@@ -1309,28 +1298,6 @@ function Editor({ id }: { id: string }) {
             {t('القناة القديمة غير موجودة — تصحيح الربط', 'Missing channel — fix link')}
           </button>
         )}
-        {meta.channelIds.length === 1 && (
-          <span className={styles.channelBadge}>
-            {channels.find((channel) => channel.id === meta.channelIds[0])?.name ??
-              t('حساب مرتبط', 'Linked account')}
-          </span>
-        )}
-        <span
-          className={styles.saveState}
-          data-state={saveState === 'error' ? 'error' : dirty ? 'dirty' : 'saved'}
-          role="status"
-          aria-live="polite"
-        >
-          {!loaded
-            ? t('جارٍ التحميل…', 'Loading…')
-            : saveState === 'saving'
-              ? t('جارٍ الحفظ…', 'Saving…')
-              : saveState === 'error'
-                ? t('فشل الحفظ', 'Save failed')
-                : dirty
-                  ? t('غير محفوظ', 'Unsaved')
-                  : t('محفوظ', 'Saved')}
-        </span>
         <button
           type="button"
           className={styles.toolButton}
@@ -1340,48 +1307,30 @@ function Editor({ id }: { id: string }) {
         >
           <NavIcon name="flows" />
         </button>
-        <button
-          type="button"
-          className={styles.toolButton}
-          aria-pressed={previewOpen}
-          onClick={() => {
-            if (previewOpen) closeReview();
-            else openReview();
-          }}
-          title={t('تجربة البوت', 'Preview')}
-          aria-label={t('تجربة البوت', 'Preview')}
-        >
-          <NavIcon name="play" />
-        </button>
-        <button
-          type="button"
-          className={styles.toolButton}
-          onClick={openSettings}
-          title={t('إعداد البداية والقنوات', 'Reference and channels')}
-          aria-label={t('إعداد البداية والقنوات', 'Reference and channels')}
-        >
-          <NavIcon name="settings" />
-        </button>
+        {meta.channelIds.length === 1 && (
+          <span className={styles.channelBadge}>
+            {channels.find((channel) => channel.id === meta.channelIds[0])?.name ??
+              t('حساب مرتبط', 'Linked account')}
+          </span>
+        )}
         <button
           type="button"
           className={styles.saveButton}
           disabled={!loaded || busy}
           onClick={() => save().catch(() => {})}
         >
-          {t('حفظ', 'Save')}
-        </button>
-        <button
-          type="button"
-          className={styles.publishButton}
-          disabled={!loaded || busy}
-          onClick={() => {
-            setPublishOutcome(null);
-            setConfirmPublish(true);
-          }}
-        >
-          {meta.status === 'published'
-            ? t('نشر التحديث', 'Publish update')
-            : t('نشر البوت', 'Publish bot')}
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden="true"
+          >
+            <path d="M4 3h13l3 3v15H4V3ZM8 3v6h8V3M8 21v-8h9v8" />
+          </svg>{' '}
+          {saveState === 'saving' ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ', 'Save')}
         </button>
         <div className={styles.more} ref={moreRef}>
           <button
@@ -1402,6 +1351,90 @@ function Editor({ id }: { id: string }) {
                 onClick={() => setMoreOpen(false)}
               />
               <div className={styles.toolsMenu} onClick={() => setMoreOpen(false)}>
+                <div className={styles.menuMeta} onClick={(event) => event.stopPropagation()}>
+                  <input
+                    className={styles.title}
+                    disabled={!loaded}
+                    aria-label={t('اسم التدفق', 'Flow name')}
+                    value={meta.name}
+                    onChange={(event) => {
+                      setMeta({ ...meta, name: event.target.value });
+                      setDirty(true);
+                    }}
+                  />
+                  <span
+                    className={styles.saveState}
+                    data-state={saveState === 'error' ? 'error' : dirty ? 'dirty' : 'saved'}
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {!loaded
+                      ? t('جارٍ التحميل…', 'Loading…')
+                      : saveState === 'saving'
+                        ? t('جارٍ الحفظ…', 'Saving…')
+                        : saveState === 'error'
+                          ? t('فشل الحفظ', 'Save failed')
+                          : dirty
+                            ? t('غير محفوظ', 'Unsaved')
+                            : t('محفوظ', 'Saved')}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className={styles.toolButton}
+                  aria-pressed={previewOpen}
+                  onClick={() => {
+                    if (previewOpen) closeReview();
+                    else openReview();
+                  }}
+                  title={t('تجربة البوت', 'Preview')}
+                  aria-label={t('تجربة البوت', 'Preview')}
+                >
+                  <NavIcon name="play" /> <span>{t('تجربة البوت', 'Preview')}</span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.toolButton}
+                  onClick={openSettings}
+                  title={t('إعداد البداية والقنوات', 'Reference and channels')}
+                  aria-label={t('إعداد البداية والقنوات', 'Reference and channels')}
+                >
+                  <NavIcon name="settings" />{' '}
+                  <span>{t('إعداد البداية والقنوات', 'Reference and channels')}</span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.publishButton}
+                  disabled={!loaded || busy}
+                  onClick={() => {
+                    setPublishOutcome(null);
+                    setConfirmPublish(true);
+                  }}
+                >
+                  {meta.status === 'published'
+                    ? t('نشر التحديث', 'Publish update')
+                    : t('نشر البوت', 'Publish bot')}
+                </button>
+                <div className={styles.menuZoom} onClick={(event) => event.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={() => rf.zoomOut({ duration: 200 })}
+                    aria-label={t('تصغير', 'Zoom out')}
+                  >
+                    −
+                  </button>
+                  <output>{zoomPercent}%</output>
+                  <button
+                    type="button"
+                    onClick={() => rf.zoomIn({ duration: 200 })}
+                    aria-label={t('تكبير', 'Zoom in')}
+                  >
+                    +
+                  </button>
+                  <button type="button" onClick={fitAllSteps}>
+                    {t('إظهار كل الخطوات', 'Fit all steps')}
+                  </button>
+                </div>
                 <button
                   type="button"
                   disabled={busy || cursor.current <= 0}
@@ -1890,41 +1923,6 @@ function Editor({ id }: { id: string }) {
                       fitView
                       fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
                     >
-                      <Panel position="bottom-center">
-                        <div
-                          className="canvas-zoombar"
-                          role="group"
-                          aria-label={t('التحكم في العرض', 'View controls')}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => rf.zoomOut({ duration: 200 })}
-                            aria-label={t('تصغير', 'Zoom out')}
-                          >
-                            −
-                          </button>
-                          <span dir="ltr" aria-live="off">
-                            {zoomPercent}%
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => rf.zoomIn({ duration: 200 })}
-                            aria-label={t('تكبير', 'Zoom in')}
-                          >
-                            +
-                          </button>
-                          <button type="button" className="canvas-fit" onClick={fitAllSteps}>
-                            {t('إظهار كل الخطوات', 'Fit all steps')}
-                          </button>
-                          <small className="canvas-hint">
-                            {t(
-                              'اسحب الخلفية للتحريك • العجلة للتكبير',
-                              'Drag to pan • scroll to zoom',
-                            )}
-                          </small>
-                        </div>
-                      </Panel>
-                      <Background color="#dce4ec" gap={24} size={0.6} />
                       {showMap && !previewOpen && (
                         <MiniMap
                           pannable

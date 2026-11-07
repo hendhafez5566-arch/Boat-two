@@ -15,6 +15,7 @@ export default function BlockPalette({
 }) {
   const { t, language } = useLocale();
   const [expanded, setExpanded] = useState(false);
+  const [extraOpen, setExtraOpen] = useState(false);
   const [query, setQuery] = useState('');
   const matches = (type: NodeType) =>
     nodeLabel(type, language).toLowerCase().includes(query.trim().toLowerCase());
@@ -62,6 +63,8 @@ export default function BlockPalette({
       )}
       <div className={styles.paletteScroll}>
         {NODE_GROUPS.map((group) => {
+          const additional = ['advanced', 'commerce', 'integrations'].includes(group.id);
+          if (additional && !extraOpen && !query.trim()) return null;
           const types = group.types.filter(matches);
           return types.length ? (
             <section key={group.id} className={styles.paletteGroup}>
@@ -94,6 +97,17 @@ export default function BlockPalette({
             </section>
           ) : null;
         })}
+        {expanded && !query.trim() && (
+          <button
+            type="button"
+            className={styles.additionalToggle}
+            aria-expanded={extraOpen}
+            onClick={() => setExtraOpen(!extraOpen)}
+          >
+            {t('أدوات Boat Two الإضافية', 'Additional Boat Two blocks')}{' '}
+            <span aria-hidden="true">{extraOpen ? '−' : '+'}</span>
+          </button>
+        )}
         {expanded && !NODE_GROUPS.some((group) => group.types.some(matches)) && (
           <p role="status" className={styles.paletteEmpty}>
             {t('لا توجد عقدة مطابقة.', 'No matching blocks.')}

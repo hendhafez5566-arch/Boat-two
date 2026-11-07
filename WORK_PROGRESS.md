@@ -12,3 +12,10 @@ Branch: feat/flow-builder-fidelity-20261107. Base is the verified deployed sourc
 
 ## Next
 Complete reference interactions, archive safe screenshots/measurements; compare current Boat Two. Implement scoped shell then nodes and interactions in small pushed batches. Run isolated create/save/reopen/preview/publish/runtime + tenant/roles and regression before any deployment. PLAN_LIMIT must stay enforced; live create may remain BLOCKED.
+
+## Milestone B — shell implementation checkpoint
+- Last changed: editor page, BlockPalette, editor-shell.module.css. Toolbar now prioritizes Back/Rearrange/channel/Save with measured 40px controls. Name/status/Preview/Publish/settings and zoom remain functional under More; essential Boat-specific publishing is an explicitly retained exception.
+- Removed default dot grid and bottom zoom/hint chrome; extra block groups are collapsed behind Additional Boat Two blocks. No node types or saved graph data removed.
+- Autosave now defaults OFF to match explicit Save workflow and prevent incidental changes; opt-in remains available.
+- TypeScript `tsc --noEmit` passed; build/UI interaction checks pending. No deploy authorized by this checkpoint.
+- Live Boat Two login verified, existing QA draft opened read-only. No live flow edited or saved.
