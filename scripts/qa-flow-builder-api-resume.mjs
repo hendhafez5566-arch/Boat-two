@@ -251,6 +251,19 @@ await check('Webchat User Input Flow validates answers, stores CRM fields, and a
               errorText: 'Enter a valid test email.',
               retries: 2,
             },
+            {
+              id: 'test_service',
+              text: 'Which service do you need?',
+              kind: 'choice',
+              saveAs: 'service',
+              buttonText: 'Select a service',
+              options: [
+                { id: 'service_visa', title: 'Visa' },
+                { id: 'service_flight', title: 'Flight' },
+                { id: 'service_hotel', title: 'Hotel' },
+                { id: 'service_other', title: 'Other' },
+              ],
+            },
           ],
           doneText: 'Thanks {{test_name}}',
         },
@@ -273,13 +286,13 @@ await check('Webchat User Input Flow validates answers, stores CRM fields, and a
   );
   await api('/flows/' + inputFlow.id + '/publish', { expectedUpdatedAt: inputFlow.updated_at }, token);
   const visitor = await api('/widget/' + channel.external_id + '/session', {});
-  const send = async (text) => {
+  const send = async (text, reply) => {
     const response = await fetch(
       'http://localhost:4000/widget/' + channel.external_id + '/messages?visitorId=' + visitor.visitorId,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-visitor-token': visitor.token },
-        body: JSON.stringify({ text, clientMsgId: randomUUID() }),
+        body: JSON.stringify({ text, ...(reply ? { reply } : {}), clientMsgId: randomUUID() }),
       },
     );
     assert.ok(response.ok, await response.text());
@@ -305,6 +318,18 @@ await check('Webchat User Input Flow validates answers, stores CRM fields, and a
     await new Promise((resolve) => setTimeout(resolve, 100));
   assert.ok(JSON.stringify(await messages()).includes('Enter a valid test email.'));
   await send('synthetic-input@example.test');
+  let choiceMessage;
+  for (let i = 0; i < 80; i++) {
+    const currentMessages = await messages();
+    choiceMessage = currentMessages.messages?.find((message) =>
+      JSON.stringify(message.content).includes('Which service do you need?'),
+    );
+    if (choiceMessage) break;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.ok(choiceMessage, 'the multiple-choice prompt should follow the validated email');
+  assert.equal(choiceMessage.content?.list?.buttonText, 'Select a service');
+  await send('Visa', { id: 'service_visa', title: 'Visa' });
 
   let finalMessages = '';
   for (let i = 0; i < 80; i++) {
@@ -324,6 +349,7 @@ await check('Webchat User Input Flow validates answers, stores CRM fields, and a
   assert.deepEqual(report.records[0].answers, {
     test_name: 'Synthetic Input Contact',
     email: 'synthetic-input@example.test',
+    service: 'Visa',
   });
   const timeline = await api('/crm/contacts/' + profile.contact.id + '/timeline', null, token);
   assert.equal(timeline.conversations[0].handled_by, 'human');

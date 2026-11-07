@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { FlowGraph } from './engine';
+import { graphSchema } from './flow-schemas';
 import { buildInputFlowReport } from './flows.service';
 
 function graph(questions: Record<string, unknown>[]): FlowGraph {
@@ -43,7 +44,10 @@ test('input-flow reports expose only configured answers and merge field labels a
     ],
   );
 
-  assert.deepEqual(report.fields.map((field) => field.key), ['name', 'service', 'email']);
+  assert.deepEqual(
+    report.fields.map((field) => field.key),
+    ['name', 'service', 'email'],
+  );
   assert.equal(report.fields[0].label, 'Customer name');
   assert.equal(report.fields[2].label, 'Email address');
   assert.deepEqual(report.records[0].answers, { name: 'Test Person' });
@@ -78,4 +82,25 @@ test('input-flow reports stay valid when questions have no CRM destination confi
   );
   assert.equal(report.fields.length, 0);
   assert.deepEqual(report.records, []);
+});
+
+test('multiple-choice list button text is optional and limited to 20 characters', () => {
+  const candidate = graph([
+    {
+      id: 'q1',
+      text: 'Which service?',
+      kind: 'choice',
+      saveAs: 'service',
+      buttonText: 'Select a service',
+      options: [
+        { id: 'a', title: 'First' },
+        { id: 'b', title: 'Second' },
+        { id: 'c', title: 'Third' },
+        { id: 'd', title: 'Fourth' },
+      ],
+    },
+  ]);
+  assert.equal(graphSchema.safeParse(candidate).success, true);
+  candidate.nodes[0].data.questions[0].buttonText = 'A button label that is too long';
+  assert.equal(graphSchema.safeParse(candidate).success, false);
 });

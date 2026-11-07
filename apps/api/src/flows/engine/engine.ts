@@ -363,7 +363,7 @@ export class FlowEngine {
         ...(o.length > 3
           ? {
               list: {
-                buttonText: 'اختر',
+                buttonText: q.buttonText || 'اختر',
                 sections: [{ rows: o.map((x) => ({ id: x.id, title: x.title })) }],
               },
             }
