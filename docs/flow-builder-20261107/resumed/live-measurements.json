@@ -1,0 +1,40 @@
+{
+  "cards": [
+    {
+      "border": "rgb(13, 139, 241)",
+      "screenWidth": 264,
+      "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+      "width": "264px"
+    },
+    {
+      "border": "rgba(222, 227, 230, 0.42)",
+      "screenWidth": 264,
+      "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+      "width": "264px"
+    }
+  ],
+  "direction": "rtl",
+  "edges": [
+    {
+      "opacity": "1",
+      "stroke": "rgb(119, 130, 146)",
+      "width": "2px"
+    },
+    {
+      "opacity": "1",
+      "stroke": "rgb(119, 130, 146)",
+      "width": "2px"
+    }
+  ],
+  "statIconCount": 4,
+  "stats": [
+    "0",
+    "0",
+    "0",
+    "0"
+  ],
+  "viewport": {
+    "height": 936,
+    "width": 1363
+  }
+}

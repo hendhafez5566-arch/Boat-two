@@ -74,3 +74,9 @@ More is a necessary Boat-specific exception because its draft and published-vers
 - Live Preview create test on QA Webchat is BLOCKED by PLAN_LIMIT. No bypass/plan edits or real WhatsApp execution.
 - A saved audit-only reference row's updated date changed during inspection; its saved graph was read back and showed the original travel fixture, without temporary inspection text/nodes. Cause of timestamp change is unknown; no unchanged-timestamp claim is made.
 - Browser-produced image upload to GitHub has not succeeded; their verified local copies will be included in the evidence deliverable. Text measurements and test evidence are in PR14.
+
+## Resumed live observations — 2026-11-07
+- New unsaved reference canvas only: temporary Image and Random nodes added; Start→Image connection created. No global Save and no saved-owner-flow editing in this continuation.
+- With Image selected/configuration open, the actual connection remains rgb(119,130,146),2px. This supports removing Boat's selected-node purple/dim overrides.
+- Random Number Generator has four independent checkboxes: numbers (initially checked), upper case, lower case, special characters. Length initial5, HTML min5/step1, no HTML max. Custom field picker and Add new exist. Exact special-character pool and generation/delivery semantics remain unverified; do not infer them from numeric min/max.
+- Sanitized, heading-verified current Image and Random panel screenshots are in docs/flow-builder-20261107/resumed/images/. Each is a578×936 crop of the1363×936 viewport, not a new claim about the dialog's measured height. Account toolbar/phone are excluded.

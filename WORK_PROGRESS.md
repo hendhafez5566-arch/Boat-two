@@ -105,3 +105,13 @@ Complete reference interactions, archive safe screenshots/measurements; compare 
 - Added round-trip coverage for negative/fractional overlapping authored positions in RTL/LTR, including unchanged saved data/edges. Fresh tests/build and live Saved-state check required before release.
 
 - Position batch validation:4/4 graph conversion/derived-card round-trip tests passed; web TypeScript, scoped ESLint and production build passed. A missing type-only import in the new test fixture was corrected before push/deploy. API/runtime unchanged.
+
+## Latest resumed release and acceptance checkpoint
+- Product source fbfa99835e99d4800f95c714cdb7f29b267940f9 deployed to existing boat-preview-web only:5aad01a2-9359-4812-89e2-7bb45b2573da SUCCESS. API stays1b75418b-378d-4a3c-b1fa-16c40baf5795. No new Railway resources, variables, domains, volumes, Sleep changes or main merge.
+- Live Cloud Browser: Arabic/English at1363×936; selected card264px screen width; border rgb(13,139,241); shadow rgba(139,141,141,.15)0px4px8px; both connections rgb(119,130,146),2px,opacity1; four stats retain0/0/0/0. Header uses type icon; open/Close work.
+- Reopening the same QA draft now shows Saved without Save; before the loader fix it showed Unsaved due automatic repositioning. No existing live graph saved/published during this continuation.
+- Evidence: resumed/RESULTS_AR.md,216 API tests,31+4 SVG renders,2 selection renders,4 graph conversion cases,6/6 real isolated HTTP journeys, before/after screenshots and actual DOM measurements. Initial HTTP5/6 harness failure is retained with its worker correction.
+- Previous33 UI suite,50 local pairs and20/20 protected comparisons remain historical. Full rerun across320/390/768/1366/1920 is BLOCKED here: local Chromium setup was rejected by automatic approval under the earlier Cloud Browser instruction; Cloud exposes the fixed1363 viewport used for this run. No workaround/download was used after rejection.
+- PR14 remains Draft. Distinct Notify Contact/Row/Section, character-generator semantics, full sequence composition/provider commerce and complete window-by-window parity are still gaps. No full completion/parity claim.
+
+- Final English rerun also used released fbfa9983:264px cards, reference selected border, grey connections and576px left drawer at1363×936. Arabic RTL uses576px right drawer. Restored Arabic preference after the test. Screenshots and DOM measures are retained in resumed/.

@@ -1,0 +1,31 @@
+{
+  "cards": [
+    {
+      "border": "rgb(13, 139, 241)",
+      "screenWidth": 264
+    },
+    {
+      "border": "rgba(222, 227, 230, 0.42)",
+      "screenWidth": 264
+    }
+  ],
+  "dialogRect": {
+    "bottom": 936,
+    "height": 936,
+    "left": 0,
+    "right": 576,
+    "top": 0,
+    "width": 576,
+    "x": 0,
+    "y": 0
+  },
+  "direction": "ltr",
+  "edges": [
+    "rgb(119, 130, 146)",
+    "rgb(119, 130, 146)"
+  ],
+  "viewport": {
+    "height": 936,
+    "width": 1363
+  }
+}
