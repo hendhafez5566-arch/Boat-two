@@ -276,6 +276,57 @@ try {
     assert.equal(JSON.stringify((await api('/flows/' + flow.id, null, token)).draft_graph), saved);
     await page.screenshot({ path: out + '/after-en-connected.png' });
   });
+  await check(
+    'Reference socket changes actual start and never persists decorative nodes',
+    async () => {
+      const drag = async (target) => {
+        await menu();
+        await page.getByRole('button', { name: 'Fit all steps', exact: true }).click();
+        await closeMenu();
+        await page.waitForTimeout(450);
+        const a = await page
+          .locator('.react-flow__node-reference .react-flow__handle.source')
+          .boundingBox();
+        const b = await page
+          .locator(`.react-flow__node[data-id="${target}"] .react-flow__handle.target`)
+          .first()
+          .boundingBox();
+        await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 15 });
+        await page.mouse.up();
+        await page.getByRole('button', { name: 'Save', exact: true }).click();
+        await page.waitForLoadState('networkidle');
+      };
+      await drag(addedId);
+      let f = await api('/flows/' + flow.id, null, token);
+      assert.equal(f.draft_graph.startNodeId, addedId);
+      assert.ok(!JSON.stringify(f.draft_graph).includes('__boat_flow_reference'));
+      await drag('start');
+      f = await api('/flows/' + flow.id, null, token);
+      assert.equal(f.draft_graph.startNodeId, 'start');
+    },
+  );
+  await check(
+    'Disconnect selected connection and undo restore without deleting nodes',
+    async () => {
+      const count = await page.locator('.react-flow__node-flowNode').count();
+      const edge = page.getByRole('button', { name: `Edge from start to ${addedId}`, exact: true });
+      await edge.focus();
+      await edge.press('Enter');
+      await page.keyboard.press('Delete');
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await page.waitForLoadState('networkidle');
+      let f = await api('/flows/' + flow.id, null, token);
+      assert.equal(f.draft_graph.nodes.length, count);
+      assert.equal(f.draft_graph.nodes.find((n) => n.id === 'start').edges.next, undefined);
+      await page.keyboard.press('Control+z');
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await page.waitForLoadState('networkidle');
+      f = await api('/flows/' + flow.id, null, token);
+      assert.equal(f.draft_graph.nodes.find((n) => n.id === 'start').edges.next, addedId);
+    },
+  );
   await check('Node duplicate/delete, undo and redo preserve original graph', async () => {
     const count = await page.locator('.react-flow__node-flowNode').count();
     await page.locator(`.react-flow__node[data-id="${addedId}"]`).click();
@@ -384,7 +435,16 @@ try {
   await check('Right-click grouped menu search adds a real block', async () => {
     await page.goto(url);
     await page.waitForLoadState('networkidle');
-    await page.mouse.click(600, 750, { button: 'right' });
+    const point = await page.evaluate(() => {
+      for (const y of [850, 750, 120, 400])
+        for (const x of [100, 500, 1100, 800]) {
+          const e = document.elementFromPoint(x, y);
+          if (e?.classList.contains('react-flow__pane')) return { x, y };
+        }
+      return null;
+    });
+    assert.ok(point, 'Find an actual blank canvas point');
+    await page.mouse.click(point.x, point.y, { button: 'right' });
     const menu = page.getByRole('menu').first();
     await menu.waitFor();
     await menu.getByRole('textbox', { name: 'Search steps', exact: true }).fill('Image');

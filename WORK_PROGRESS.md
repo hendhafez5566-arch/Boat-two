@@ -60,3 +60,8 @@ Complete reference interactions, archive safe screenshots/measurements; compare 
 - Full UI journey now uses the same manager-created flow through add/configure/connect/save/reopen/preview/publish/edit/republish. Fresh run pending on current source.
 - Live Preview creation retried only on the named QA Webchat account and was BLOCKED by PLAN_LIMIT. No record was created; no billing/plan changes attempted.
 - Last changed: editor page, editor-shell.module.css, QA script. Previous checkpoints are remote; current source must rebuild/retest before deployment.
+
+## Latest completed acceptance run
+- Current product source36aa37418e7638109889ac356acda9119813d81d built successfully. Run r8:31 checks PASS,0 FAIL,0 browser errors, including all31 supported block configuration dialogs counted within that suite.
+- Same UI-created flow completed create→add/configure/connect→save→reopen→server preview→publish→edit→republish. Keyboard deletion after undo/redo and Enter/Escape now passed. Arabic touch drawer and real load error/retry passed.
+- Two focused start-socket/edge-disconnect tests added next; not yet claimed passed. Source remains undeployed. Latest code and results must stay in PR14.
