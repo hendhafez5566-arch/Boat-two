@@ -44,7 +44,7 @@
           "radius": "12px",
           "border": "2px solid rgb(25, 147, 206)",
           "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
-          "screenWidth": 151.8135986328125
+          "screenWidth": 151.8181915283203
         },
         {
           "type": "End conversation",
@@ -52,7 +52,7 @@
           "radius": "12px",
           "border": "2px solid rgba(222, 227, 230, 0.42)",
           "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
-          "screenWidth": 151.81362915039062
+          "screenWidth": 151.81817626953125
         }
       ]
     },
@@ -156,7 +156,7 @@
           "radius": "12px",
           "border": "2px solid rgb(25, 147, 206)",
           "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
-          "screenWidth": 117.16148376464844
+          "screenWidth": 118.67721557617188
         },
         {
           "type": "نهاية",
@@ -164,7 +164,7 @@
           "radius": "12px",
           "border": "2px solid rgba(222, 227, 230, 0.42)",
           "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
-          "screenWidth": 117.16148376464844
+          "screenWidth": 118.67723083496094
         }
       ]
     },
@@ -184,7 +184,7 @@
           "radius": "12px",
           "border": "2px solid rgb(25, 147, 206)",
           "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
-          "screenWidth": 150.38839721679688
+          "screenWidth": 151.29119873046875
         },
         {
           "type": "نهاية",
@@ -192,7 +192,7 @@
           "radius": "12px",
           "border": "2px solid rgba(222, 227, 230, 0.42)",
           "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
-          "screenWidth": 150.38836669921875
+          "screenWidth": 151.29119873046875
         }
       ]
     },

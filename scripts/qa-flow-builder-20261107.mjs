@@ -107,7 +107,11 @@ try {
     assert.equal(await page.locator('.react-flow__background').count(), 0);
     assert.equal(await page.locator('.canvas-zoombar').count(), 0);
     assert.equal(await page.getByRole('button', { name: 'Publish bot', exact: true }).count(), 0);
-    await page.screenshot({ path: out + '/after-en-1366-canvas.png' });
+    await page.screenshot({
+      timeout: 30000,
+      animations: 'disabled',
+      path: out + '/after-en-1366-canvas.png',
+    });
   });
   for (const locale of ['en', 'ar']) {
     await page.evaluate((l) => localStorage.setItem('boat-language', l), locale);
@@ -130,7 +134,11 @@ try {
         const palette = page.locator('aside[aria-label]');
         await palette.getByRole('searchbox').fill(locale === 'ar' ? 'صورة' : 'Image');
         assert.equal(await palette.locator('button[draggable=true]').count(), 1);
-        await page.screenshot({ path: `${out}/after-${locale}-${width}-palette.png` });
+        await page.screenshot({
+          timeout: 30000,
+          animations: 'disabled',
+          path: `${out}/after-${locale}-${width}-palette.png`,
+        });
         await page
           .getByRole('button', {
             name: locale === 'ar' ? 'تصغير أدوات العقد' : 'Collapse flow blocks',
@@ -166,7 +174,11 @@ try {
   await check('Double-click node opens real configuration and cancel closes', async () => {
     await page.locator('.react-flow__node[data-id=start]').dblclick();
     await page.getByRole('dialog').waitFor();
-    await page.screenshot({ path: out + '/after-en-1366-properties.png' });
+    await page.screenshot({
+      timeout: 30000,
+      animations: 'disabled',
+      path: out + '/after-en-1366-properties.png',
+    });
     await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
     await page.getByRole('dialog').waitFor({ state: 'hidden' });
   });
@@ -185,7 +197,11 @@ try {
     await page.getByRole('button', { name: 'Start preview', exact: true }).click();
     assert.ok((await previewResponse).ok());
     await page.getByText('Hello from isolated Flow Builder', { exact: true }).last().waitFor();
-    await page.screenshot({ path: out + '/after-en-preview.png' });
+    await page.screenshot({
+      timeout: 30000,
+      animations: 'disabled',
+      path: out + '/after-en-preview.png',
+    });
     await page
       .getByRole('dialog')
       .getByRole('button', { name: 'Close / إغلاق', exact: true })
@@ -274,7 +290,11 @@ try {
     await page.reload();
     await page.waitForLoadState('networkidle');
     assert.equal(JSON.stringify((await api('/flows/' + flow.id, null, token)).draft_graph), saved);
-    await page.screenshot({ path: out + '/after-en-connected.png' });
+    await page.screenshot({
+      timeout: 30000,
+      animations: 'disabled',
+      path: out + '/after-en-connected.png',
+    });
   });
   await check(
     'Reference socket changes actual start and never persists decorative nodes',
@@ -421,7 +441,11 @@ try {
         'Republished isolated message',
       ),
     );
-    await page.screenshot({ path: out + '/after-en-published.png' });
+    await page.screenshot({
+      timeout: 30000,
+      animations: 'disabled',
+      path: out + '/after-en-published.png',
+    });
   });
   await check('Tenant isolation rejects another workspace reading graph', async () => {
     const other = await api('/auth/register', {
@@ -448,7 +472,11 @@ try {
     const menu = page.getByRole('menu').first();
     await menu.waitFor();
     await menu.getByRole('textbox', { name: 'Search steps', exact: true }).fill('Image');
-    await page.screenshot({ path: out + '/after-en-context-menu.png' });
+    await page.screenshot({
+      timeout: 30000,
+      animations: 'disabled',
+      path: out + '/after-en-context-menu.png',
+    });
     await menu.getByRole('menuitem', { name: 'Image', exact: true }).click();
     await page.getByRole('dialog').waitFor();
     await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
@@ -603,7 +631,11 @@ try {
     await page.reload();
     await page.getByRole('alert').filter({ hasText: 'Could not load the flow' }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Save', exact: true }).isEnabled(), false);
-    await page.screenshot({ path: out + '/after-en-load-error.png' });
+    await page.screenshot({
+      timeout: 30000,
+      animations: 'disabled',
+      path: out + '/after-en-load-error.png',
+    });
     await page.unroute('**/flows/' + flow.id);
     await page.getByRole('button', { name: 'Retry', exact: true }).click();
     await page.getByRole('button', { name: 'Save', exact: true }).waitFor({ state: 'visible' });
@@ -630,7 +662,11 @@ try {
       .getByRole('button', { name: 'حفظ التغييرات', exact: true })
       .boundingBox();
     assert.ok(box.y >= 0 && box.y + box.height <= 844);
-    await tp.screenshot({ path: out + '/after-ar-touch-properties.png' });
+    await tp.screenshot({
+      timeout: 30000,
+      animations: 'disabled',
+      path: out + '/after-ar-touch-properties.png',
+    });
     await dialog.getByRole('button', { name: 'إغلاق', exact: true }).tap();
     await dialog.waitFor({ state: 'hidden' });
     await touch.close();

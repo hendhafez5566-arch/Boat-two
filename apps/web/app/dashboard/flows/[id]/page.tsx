@@ -10,7 +10,6 @@ import ReactFlow, {
   Connection,
   ConnectionLineType,
   MiniMap,
-  Panel,
   MarkerType,
   Node,
   NodeChange,
@@ -46,7 +45,6 @@ import FlowButtonNode from '../../../../components/flow/FlowButtonNode';
 import { validationMessage } from '../../../../lib/validation-message';
 import UnsavedChangesGuard from '../../../../components/flow/UnsavedChangesGuard';
 import { convertChoices } from '../../../../lib/smart-editor';
-import { STEP_GUIDANCE } from '../../../../lib/step-guidance';
 import ConfigurationPanel from '../../../../components/flow/ConfigurationPanel';
 import Inspector from '../../../../components/flow/Inspector';
 import type { ConditionVariable } from '../../../../components/business/ConditionModal';

@@ -65,3 +65,9 @@ Complete reference interactions, archive safe screenshots/measurements; compare 
 - Current product source36aa37418e7638109889ac356acda9119813d81d built successfully. Run r8:31 checks PASS,0 FAIL,0 browser errors, including all31 supported block configuration dialogs counted within that suite.
 - Same UI-created flow completed create→add/configure/connect→save→reopen→server preview→publish→edit→republish. Keyboard deletion after undo/redo and Enter/Escape now passed. Arabic touch drawer and real load error/retry passed.
 - Two focused start-socket/edge-disconnect tests added next; not yet claimed passed. Source remains undeployed. Latest code and results must stay in PR14.
+
+## Final functional checkpoint
+- Acceptance r10 completed:33 PASS/0 FAIL/0 page errors. Includes31 supported node configuration dialogs and same-flow UI creation-to-republish, root reconnection, edge delete/undo, keyboard and touch, roles/tenant isolation, live local outbox→CRM→human handoff.
+- Final visual rerun on36aa374:50 pairs;20/20 protected pages pixel-identical;10/10 responsive drawer bounds passed. API216/216 passed.
+- Scoped lint identified two unused imports left by removed chrome; removed only those imports. Rebuilding and rerunning scoped lint/typecheck; no runtime behavior changed after the passing UI suite.
+- RELEASE BLOCKED: full reference parity remains incomplete (see inventory). Live Preview create independently BLOCKED by PLAN_LIMIT. No Railway deploy, main merge, resource/configuration/secret changes. Both existing Web/API still pinned559fa8c with Sleep enabled.
