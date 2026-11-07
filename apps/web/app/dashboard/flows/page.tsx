@@ -1,5 +1,6 @@
 'use client';
 import ManagerTools from './ManagerTools';
+import { managerError } from './manager-feedback';
 import { statusLabel } from '../../../components/product/status';
 
 import Link from 'next/link';
@@ -144,7 +145,7 @@ export default function BotManager() {
       await run();
       setNotice(t('تم حفظ التغييرات.', 'Changes saved.'));
     } catch (e) {
-      setError((e as Error).message);
+      setError(managerError(e, t));
     } finally {
       lock.current = false;
       setBusy(false);

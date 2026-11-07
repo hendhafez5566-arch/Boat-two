@@ -6,6 +6,7 @@ import { useLocale } from '../../../components/product/locale';
 import { Dialog } from '../../../components/product/ProductUI';
 import { NavIcon } from '../../../components/product/NavIcon';
 import styles from './manager.module.css';
+import { managerError } from './manager-feedback';
 
 export type ManagerFlow = {
   id: string;
@@ -96,7 +97,7 @@ export default function ManagerTools({
       if (close) setTool(null);
       setSuccess(t('تم حفظ التغييرات.', 'Changes saved.'));
     } catch (e) {
-      setError((e as Error).message);
+      setError(managerError(e, t));
     } finally {
       await reload();
       lock.current = false;
