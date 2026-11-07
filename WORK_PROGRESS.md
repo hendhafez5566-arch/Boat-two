@@ -79,3 +79,9 @@ Complete reference interactions, archive safe screenshots/measurements; compare 
 - First scoped visual batch: replace font-dependent analytics glyphs with independent SVG symbols; use the existing node-type SVG in the configuration header. Data, routing, analytics counts, and campaign/default panel fallback remain intact.
 - This checkpoint is pushed before the fresh UI acceptance rerun. No parity claim or deployment for this batch. Node dimensions, missing node concepts and Random Character semantics remain unresolved.
 - Railway current Web deployment6dcc4257-e623-4821-ad87-9f7aeb3bf5df and API1b75418b-378d-4a3c-b1fa-16c40baf5795 observed; original log's undeployed Web assertion is historical. No resource, variable, Sleep or source mutations in this continuation.
+
+### First resumed batch validation
+- Remote source e04731bd confirmed on PR14 (draft). Shell git push had no GitHub credential; the same file batch was pushed using the authenticated GitHub connector, without changing branch/base.
+- New Web production build, TypeScript and scoped ESLint passed. Independent SSR contract test renders all31 supported node icons and4 analytics icons, checks actual SVG paths, no font text or focus targets. Recursive API216/216 still passes.
+- Original33 UI checks are historical, not rerun: automatic approval rejected local Chromium package setup due the earlier Cloud Browser instruction. Cloud Browser is signed into both sites; existing QA draft is inspected without Save/Publish.
+- Proposed release is Web-only icon presentation; no API/schema/runtime changes. Current before screenshot retained privately at1363×936; post-release inspection must verify exact same graph/counts and property-panel close/cancel. No full BotSailor parity claim.
