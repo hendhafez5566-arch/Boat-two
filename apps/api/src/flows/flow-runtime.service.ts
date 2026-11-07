@@ -219,7 +219,7 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         active.businessHour?.disableBotDuringHours &&
         duringBusinessHours(active.businessHour, new Date())
       )
-        return null;
+        return { conv, businessHoursBlocked: true };
 
       let session = (
         await c.query(
@@ -341,6 +341,11 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
       ctx,
     };
 
+    if ('businessHoursBlocked' in loaded && loaded.businessHoursBlocked) {
+      if (!e.eventName) await this.autoReply(base, text);
+      return;
+    }
+
     if ('primaryUnavailable' in loaded && loaded.primaryUnavailable) {
       this.log.warn(
         'Active channel bot is not published for this channel; refusing to route to another bot',
@@ -414,7 +419,11 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
           (!candidate.channel_ids.length || candidate.channel_ids.includes(base.channelId)) &&
           candidate.graph.policy?.noMatchText,
       );
-      if (fallback?.graph.policy?.noMatchText && !e.eventName) {
+      if (
+        fallback?.graph.policy?.noMatchText &&
+        !e.eventName &&
+        activeBotSettings(loaded.conv.channel_settings).general?.noMatchReply !== false
+      ) {
         await this.makeDeps(base).send({ text: fallback.graph.policy.noMatchText });
         return;
       }
@@ -539,6 +548,12 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
         );
         return null;
       }
+      const active = activeBotSettings(conv.channel_settings);
+      if (
+        active.businessHour?.disableBotDuringHours &&
+        duringBusinessHours(active.businessHour, new Date())
+      )
+        return null;
       const g = (
         await c.query('SELECT graph FROM flow_versions WHERE id = $1', [session.version_id])
       ).rows[0];
