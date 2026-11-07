@@ -4,6 +4,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { isDeepStrictEqual } from 'node:util';
+import { ActiveBotSettings } from './bot-runtime-settings';
+import { readSystemActions } from '../flows/system-actions';
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { env } from '../config/env';
@@ -11,7 +14,10 @@ import { DatabaseService } from '../database/database.service';
 import { PlansService } from '../plans/plans.service';
 import { CryptoService } from './crypto.service';
 import { connectionHealth, ConnectionHealth } from './connection-health';
-import { inspectMetaMessagingPermission, MessagingAuthorization } from './meta-messaging-inspection';
+import {
+  inspectMetaMessagingPermission,
+  MessagingAuthorization,
+} from './meta-messaging-inspection';
 import { inspectWhatsAppSubscription } from './whatsapp-subscription';
 import { GRAPH, ProviderError } from './adapters/adapter';
 import { telegramCall } from './adapters/telegram.adapter';
@@ -41,7 +47,11 @@ export const widgetSettingsSchema = z.object({
 });
 
 export const createChannelSchema = z.discriminatedUnion('type', [
-  z.object({type:z.literal('telegram'),name:z.string().min(1).max(80),credentials:z.object({botToken:z.string().regex(/^\d{5,20}:[A-Za-z0-9_-]{20,100}$/)})}),
+  z.object({
+    type: z.literal('telegram'),
+    name: z.string().min(1).max(80),
+    credentials: z.object({ botToken: z.string().regex(/^\d{5,20}:[A-Za-z0-9_-]{20,100}$/) }),
+  }),
   z.object({
     type: z.literal('web'),
     name: z.string().min(1).max(80),
@@ -72,38 +82,85 @@ export type CreateChannelInput = z.infer<typeof createChannelSchema>;
 export const updateChannelSchema = z.object({
   name: z.string().min(1).max(80).optional(),
   status: z.enum(['active', 'disabled']).optional(),
-  settings: widgetSettingsSchema.partial().extend({telegramAllowGroups:z.boolean().optional()}).optional(),
+  settings: widgetSettingsSchema
+    .partial()
+    .extend({ telegramAllowGroups: z.boolean().optional() })
+    .optional(),
 });
 
 /** Bot Manager configuration stays namespaced so older channel/widget settings remain intact. */
 export const botManagerSettingsSchema = z.object({
-  general: z.object({
-    chatHumanEmail: z.string().email().or(z.literal('')).optional(),
-    noMatchReply: z.boolean().optional(),
-    botRepliesWhileAgentOnMobile: z.boolean().optional(),
-    getStartedEnabled: z.boolean().optional(),
-    getStartedFrequency: z.enum(['every_time', 'once_a_day']).optional(),
-  }).optional(),
-  webhook: z.object({
-    incomingMessage: z.boolean().optional(), outgoingMessage: z.boolean().optional(),
-    messageStatus: z.boolean().optional(), conversationStatus: z.boolean().optional(),
-    newSubscriber: z.boolean().optional(), crmStage: z.boolean().optional(), followup: z.boolean().optional(),
-  }).optional(),
-  businessHour: z.object({
-    timezone: z.string().max(100).optional(), offDays: z.array(z.string().max(12)).max(7).optional(),
-    schedule: z.array(z.object({ day: z.string().max(12), start: z.string().max(5), end: z.string().max(5) })).max(7).optional(),
-    disableBotDuringHours: z.boolean().optional(), disableAiDuringHours: z.boolean().optional(),
-    specialBotEnabled: z.boolean().optional(), specialBotFlowId: z.string().uuid().nullable().optional(),
-  }).optional(),
-  sharedInbox: z.object({
-    signatureEnabled: z.boolean().optional(), inputFlowSessionExpiryMinutes: z.number().int().min(0).max(525600).nullable().optional(),
-    humanSessionExpiryMinutes: z.number().int().min(0).max(525600).nullable().optional(), failedDeliveryLabelId: z.string().uuid().nullable().optional(),
-  }).optional(),
-  autoResponder: z.object({ mailchimpListId: z.string().max(200).nullable().optional(), brevoListId: z.string().max(200).nullable().optional(),
-    activeCampaignListId: z.string().max(200).nullable().optional(), mauticListId: z.string().max(200).nullable().optional() }).optional(),
-  google: z.object({ sheetsListId: z.string().max(200).nullable().optional(), contactsAccountId: z.string().max(200).nullable().optional() }).optional(),
-  email: z.object({ apiId: z.string().max(200).nullable().optional(), subject: z.string().max(500).optional(), content: z.string().max(10000).optional() }).optional(),
-  sms: z.object({ apiId: z.string().max(200).nullable().optional(), content: z.string().max(10000).optional() }).optional(),
+  general: z
+    .object({
+      chatHumanEmail: z.string().email().or(z.literal('')).optional(),
+      noMatchReply: z.boolean().optional(),
+      botRepliesWhileAgentOnMobile: z.boolean().optional(),
+      getStartedEnabled: z.boolean().optional(),
+      getStartedFrequency: z.enum(['every_time', 'once_a_day']).optional(),
+    })
+    .optional(),
+  webhook: z
+    .object({
+      incomingMessage: z.boolean().optional(),
+      outgoingMessage: z.boolean().optional(),
+      messageStatus: z.boolean().optional(),
+      conversationStatus: z.boolean().optional(),
+      newSubscriber: z.boolean().optional(),
+      crmStage: z.boolean().optional(),
+      followup: z.boolean().optional(),
+    })
+    .optional(),
+  businessHour: z
+    .object({
+      timezone: z.string().max(100).optional(),
+      offDays: z.array(z.string().max(12)).max(7).optional(),
+      schedule: z
+        .array(
+          z.object({ day: z.string().max(12), start: z.string().max(5), end: z.string().max(5) }),
+        )
+        .max(7)
+        .optional(),
+      disableBotDuringHours: z.boolean().optional(),
+      disableAiDuringHours: z.boolean().optional(),
+      specialBotEnabled: z.boolean().optional(),
+      specialBotFlowId: z.string().uuid().nullable().optional(),
+    })
+    .optional(),
+  sharedInbox: z
+    .object({
+      signatureEnabled: z.boolean().optional(),
+      inputFlowSessionExpiryMinutes: z.number().int().min(0).max(525600).nullable().optional(),
+      humanSessionExpiryMinutes: z.number().int().min(0).max(525600).nullable().optional(),
+      failedDeliveryLabelId: z.string().uuid().nullable().optional(),
+    })
+    .optional(),
+  autoResponder: z
+    .object({
+      mailchimpListId: z.string().max(200).nullable().optional(),
+      brevoListId: z.string().max(200).nullable().optional(),
+      activeCampaignListId: z.string().max(200).nullable().optional(),
+      mauticListId: z.string().max(200).nullable().optional(),
+    })
+    .optional(),
+  google: z
+    .object({
+      sheetsListId: z.string().max(200).nullable().optional(),
+      contactsAccountId: z.string().max(200).nullable().optional(),
+    })
+    .optional(),
+  email: z
+    .object({
+      apiId: z.string().max(200).nullable().optional(),
+      subject: z.string().max(500).optional(),
+      content: z.string().max(10000).optional(),
+    })
+    .optional(),
+  sms: z
+    .object({
+      apiId: z.string().max(200).nullable().optional(),
+      content: z.string().max(10000).optional(),
+    })
+    .optional(),
 });
 export type BotManagerSettings = z.infer<typeof botManagerSettingsSchema>;
 
@@ -117,7 +174,14 @@ export class ChannelsService {
     private readonly crypto: CryptoService,
   ) {}
 
-  private view<T extends { type: string; external_id: string; status: string; settings?: Record<string, unknown> }>(row: T) {
+  private view<
+    T extends {
+      type: string;
+      external_id: string;
+      status: string;
+      settings?: Record<string, unknown>;
+    },
+  >(row: T) {
     const health = connectionHealth(row);
     return row.type === 'web'
       ? {
@@ -130,8 +194,10 @@ export class ChannelsService {
 
   /** Read-only provider request. Never subscribes, disconnects or sends a message. */
   async verify(tenantId: string, id: string) {
-    const row = await this.db.withTenant(tenantId, async (c) =>
-      (await c.query('SELECT * FROM channels WHERE id=$1', [id])).rows[0]);
+    const row = await this.db.withTenant(
+      tenantId,
+      async (c) => (await c.query('SELECT * FROM channels WHERE id=$1', [id])).rows[0],
+    );
     if (!row) throw new NotFoundException('Channel not found');
     if (row.type === 'web' || row.status !== 'active') return connectionHealth(row);
     // Provider verification is a read-only request. Keep it available while
@@ -144,128 +210,196 @@ export class ChannelsService {
     let authorization: (MessagingAuthorization & { checkedAt: string }) | undefined;
     try {
       if (row.type === 'whatsapp') {
-        authorization = { ...await inspectMetaMessagingPermission(token ?? ''), checkedAt };
+        authorization = { ...(await inspectMetaMessagingPermission(token ?? '')), checkedAt };
         if (authorization.status !== 'granted') {
-          health = { state: authorization.status === 'invalid_token' ? 'expired' : 'needs_action', checkedAt,
-            reason: authorization.status === 'invalid_token' ? 'authorization_expired' : 'messaging_permission_required' };
+          health = {
+            state: authorization.status === 'invalid_token' ? 'expired' : 'needs_action',
+            checkedAt,
+            reason:
+              authorization.status === 'invalid_token'
+                ? 'authorization_expired'
+                : 'messaging_permission_required',
+          };
         }
       }
       if (authorization && authorization.status !== 'granted') {
         // Do not mark a phone-readable token as able to send messages.
-      } else
-      if (row.type === 'telegram') {
-        const account=await telegramCall(credentials.botToken,'getMe');
-        health={state:String(account.id)===row.external_id?'connected':'needs_action',checkedAt,reason:String(account.id)===row.external_id?'provider_verified':'provider_rejected'};
-      } else {
-      const response = await fetch(`${GRAPH}/${encodeURIComponent(row.external_id)}?fields=id`, {
-        headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10000),
-      });
-      const result = await response.json() as { id?: string; error?: { code?: number } };
-      if (!response.ok || result.id !== row.external_id) {
+      } else if (row.type === 'telegram') {
+        const account = await telegramCall(credentials.botToken, 'getMe');
         health = {
-          state: result.error?.code === 190 ? 'expired' : 'needs_action',
+          state: String(account.id) === row.external_id ? 'connected' : 'needs_action',
           checkedAt,
-          reason: result.error?.code === 190 ? 'authorization_expired' : 'provider_rejected',
+          reason:
+            String(account.id) === row.external_id ? 'provider_verified' : 'provider_rejected',
         };
-      } else if (row.type === 'whatsapp') {
-        // Phone-ID access alone does not establish webhook delivery: the app
-        // must separately be subscribed to the selected WhatsApp Business Account.
-        // This checks the subscription without changing Meta's configuration.
-        if (!credentials.wabaId || !env.META_APP_ID) {
-          health = { state: 'needs_action', checkedAt, reason: 'waba_subscription_unverified' };
-        } else {
-          const sub = await fetch(
-            `${GRAPH}/${encodeURIComponent(credentials.wabaId)}/subscribed_apps`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-              signal: AbortSignal.timeout(10000),
-            },
-          );
-          const data = await sub.json() as {
-            data?: unknown[];
-            error?: { code?: number };
-          };
-          if (!sub.ok) {
-            health = {
-              state: data.error?.code === 190 ? 'expired' : 'needs_action',
-              checkedAt,
-              reason: data.error?.code === 190
-                ? 'authorization_expired' : 'waba_subscription_check_failed',
-            };
-          } else {
-            const subscription = inspectWhatsAppSubscription(
-              data,
-              env.META_APP_ID,
-              `${env.PUBLIC_API_URL.replace(/\/$/, '')}/webhooks/whatsapp`,
-            );
-            health = {
-              state: subscription === 'subscribed' ? 'connected' : 'needs_action',
-              checkedAt,
-              reason: subscription === 'subscribed'
-                ? 'provider_verified'
-                : subscription === 'missing'
-                  ? 'waba_not_subscribed'
-                  : subscription === 'overridden'
-                    ? 'waba_webhook_override'
-                    : 'waba_subscription_unverified',
-            };
-          }
-        }
       } else {
-        health = { state: 'connected', checkedAt, reason: 'provider_verified' };
+        const response = await fetch(`${GRAPH}/${encodeURIComponent(row.external_id)}?fields=id`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(10000),
+        });
+        const result = (await response.json()) as { id?: string; error?: { code?: number } };
+        if (!response.ok || result.id !== row.external_id) {
+          health = {
+            state: result.error?.code === 190 ? 'expired' : 'needs_action',
+            checkedAt,
+            reason: result.error?.code === 190 ? 'authorization_expired' : 'provider_rejected',
+          };
+        } else if (row.type === 'whatsapp') {
+          // Phone-ID access alone does not establish webhook delivery: the app
+          // must separately be subscribed to the selected WhatsApp Business Account.
+          // This checks the subscription without changing Meta's configuration.
+          if (!credentials.wabaId || !env.META_APP_ID) {
+            health = { state: 'needs_action', checkedAt, reason: 'waba_subscription_unverified' };
+          } else {
+            const sub = await fetch(
+              `${GRAPH}/${encodeURIComponent(credentials.wabaId)}/subscribed_apps`,
+              {
+                headers: { Authorization: `Bearer ${token}` },
+                signal: AbortSignal.timeout(10000),
+              },
+            );
+            const data = (await sub.json()) as {
+              data?: unknown[];
+              error?: { code?: number };
+            };
+            if (!sub.ok) {
+              health = {
+                state: data.error?.code === 190 ? 'expired' : 'needs_action',
+                checkedAt,
+                reason:
+                  data.error?.code === 190
+                    ? 'authorization_expired'
+                    : 'waba_subscription_check_failed',
+              };
+            } else {
+              const subscription = inspectWhatsAppSubscription(
+                data,
+                env.META_APP_ID,
+                `${env.PUBLIC_API_URL.replace(/\/$/, '')}/webhooks/whatsapp`,
+              );
+              health = {
+                state: subscription === 'subscribed' ? 'connected' : 'needs_action',
+                checkedAt,
+                reason:
+                  subscription === 'subscribed'
+                    ? 'provider_verified'
+                    : subscription === 'missing'
+                      ? 'waba_not_subscribed'
+                      : subscription === 'overridden'
+                        ? 'waba_webhook_override'
+                        : 'waba_subscription_unverified',
+              };
+            }
+          }
+        } else {
+          health = { state: 'connected', checkedAt, reason: 'provider_verified' };
+        }
       }
-      }
-    } catch(e) {
-      health = e instanceof ProviderError && e.status === 401
-        ? {state:'expired',checkedAt,reason:'authorization_expired'}
-        : { state: 'needs_action', checkedAt, reason: e instanceof ProviderError && e.status < 500 ? 'provider_rejected' : 'provider_unreachable' };
+    } catch (e) {
+      health =
+        e instanceof ProviderError && e.status === 401
+          ? { state: 'expired', checkedAt, reason: 'authorization_expired' }
+          : {
+              state: 'needs_action',
+              checkedAt,
+              reason:
+                e instanceof ProviderError && e.status < 500
+                  ? 'provider_rejected'
+                  : 'provider_unreachable',
+            };
     }
-    const saved = await this.db.withTenant(tenantId, (c) => c.query(
-      `UPDATE channels SET settings=jsonb_set(settings,'{connectionHealth}',$2::jsonb) || $4::jsonb WHERE id=$1 AND status='active' AND credentials_enc IS NOT DISTINCT FROM $3`,
-      [id, JSON.stringify(health!), row.credentials_enc, JSON.stringify(authorization ? { metaAuthorization: authorization } : {})],
-    ));
-    if (!saved.rowCount) return {state:'needs_action',checkedAt:null,reason:'verification_required'};
-    return connectionHealth({ ...row, settings: { ...row.settings, connectionHealth: health!, ...(authorization ? { metaAuthorization: authorization } : {}) } });
+    const saved = await this.db.withTenant(tenantId, (c) =>
+      c.query(
+        `UPDATE channels SET settings=jsonb_set(settings,'{connectionHealth}',$2::jsonb) || $4::jsonb WHERE id=$1 AND status='active' AND credentials_enc IS NOT DISTINCT FROM $3`,
+        [
+          id,
+          JSON.stringify(health!),
+          row.credentials_enc,
+          JSON.stringify(authorization ? { metaAuthorization: authorization } : {}),
+        ],
+      ),
+    );
+    if (!saved.rowCount)
+      return { state: 'needs_action', checkedAt: null, reason: 'verification_required' };
+    return connectionHealth({
+      ...row,
+      settings: {
+        ...row.settings,
+        connectionHealth: health!,
+        ...(authorization ? { metaAuthorization: authorization } : {}),
+      },
+    });
   }
 
   /** Only called after the owner completes Embedded Signup for these assets.
    * Never registers a phone or overrides an existing callback destination. */
   async completeWhatsAppSubscription(tenantId: string, id: string): Promise<boolean> {
-    if (env.META_CONNECT_ENABLED !== 'true' && env.EXTERNAL_DELIVERY_ENABLED !== 'true') return false;
-    const row = await this.db.withTenant(tenantId, async (c) =>
-      (await c.query("SELECT * FROM channels WHERE id=$1 AND type='whatsapp' AND status='active'", [id])).rows[0]);
+    if (env.META_CONNECT_ENABLED !== 'true' && env.EXTERNAL_DELIVERY_ENABLED !== 'true')
+      return false;
+    const row = await this.db.withTenant(
+      tenantId,
+      async (c) =>
+        (
+          await c.query(
+            "SELECT * FROM channels WHERE id=$1 AND type='whatsapp' AND status='active'",
+            [id],
+          )
+        ).rows[0],
+    );
     if (!row) throw new NotFoundException('WhatsApp channel not found');
     const credentials = this.credentials(row);
     if (!credentials.wabaId || !env.META_APP_ID) return false;
     try {
       const url = `${GRAPH}/${encodeURIComponent(credentials.wabaId)}/subscribed_apps`;
-      const options = { headers: { Authorization: `Bearer ${credentials.accessToken}` }, signal: AbortSignal.timeout(10000) };
+      const options = {
+        headers: { Authorization: `Bearer ${credentials.accessToken}` },
+        signal: AbortSignal.timeout(10000),
+      };
       const response = await fetch(url, options);
       if (!response.ok) return false;
-      const subscription = inspectWhatsAppSubscription(await response.json(), env.META_APP_ID,
-        `${env.PUBLIC_API_URL.replace(/\/$/, '')}/webhooks/whatsapp`);
+      const subscription = inspectWhatsAppSubscription(
+        await response.json(),
+        env.META_APP_ID,
+        `${env.PUBLIC_API_URL.replace(/\/$/, '')}/webhooks/whatsapp`,
+      );
       if (subscription === 'subscribed') return true;
       if (subscription !== 'missing') return false;
-      const attached = await fetch(url, { ...options, method: 'POST', signal: AbortSignal.timeout(10000) });
-      const result = await attached.json() as { success?: boolean };
+      const attached = await fetch(url, {
+        ...options,
+        method: 'POST',
+        signal: AbortSignal.timeout(10000),
+      });
+      const result = (await attached.json()) as { success?: boolean };
       return attached.ok && result.success === true;
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   }
 
   /** Sanitized status only. A concurrent credential rotation invalidates this check. */
   async inspectAuthorization(tenantId: string, id: string) {
-    const row = await this.db.withTenant(tenantId, async (c) =>
-      (await c.query("SELECT * FROM channels WHERE id=$1 AND type='whatsapp'", [id])).rows[0]);
+    const row = await this.db.withTenant(
+      tenantId,
+      async (c) =>
+        (await c.query("SELECT * FROM channels WHERE id=$1 AND type='whatsapp'", [id])).rows[0],
+    );
     if (!row) throw new NotFoundException('WhatsApp channel not found');
     const auth = await inspectMetaMessagingPermission(this.credentials(row).accessToken ?? '');
     const checkedAt = new Date().toISOString();
-    const saved = await this.db.withTenant(tenantId, (c) => c.query(
-      `UPDATE channels SET settings=jsonb_set(settings,'{metaAuthorization}',$2::jsonb)
+    const saved = await this.db.withTenant(tenantId, (c) =>
+      c.query(
+        `UPDATE channels SET settings=jsonb_set(settings,'{metaAuthorization}',$2::jsonb)
        WHERE id=$1 AND credentials_enc IS NOT DISTINCT FROM $3 RETURNING settings`,
-      [id, JSON.stringify({ ...auth, checkedAt }), row.credentials_enc],
-    ));
-    if (!saved.rowCount) throw new ConflictException('Credentials changed during verification; check again');
-    return { token: auth, checkedAt, connectionHealth: connectionHealth({ ...row, settings: saved.rows[0].settings }) };
+        [id, JSON.stringify({ ...auth, checkedAt }), row.credentials_enc],
+      ),
+    );
+    if (!saved.rowCount)
+      throw new ConflictException('Credentials changed during verification; check again');
+    return {
+      token: auth,
+      checkedAt,
+      connectionHealth: connectionHealth({ ...row, settings: saved.rows[0].settings }),
+    };
   }
 
   /** من الـ webhook أو الويدجت: بدون سياق شركة */
@@ -297,8 +431,11 @@ export class ChannelsService {
 
     switch (input.type) {
       case 'telegram':
-        externalId=input.credentials.botToken.split(':')[0];
-        credentialsEnc=this.crypto.encrypt({...input.credentials,webhookSecret:randomBytes(32).toString('hex')});
+        externalId = input.credentials.botToken.split(':')[0];
+        credentialsEnc = this.crypto.encrypt({
+          ...input.credentials,
+          webhookSecret: randomBytes(32).toString('hex'),
+        });
         break;
       case 'web':
         externalId = randomBytes(12).toString('hex');
@@ -362,22 +499,116 @@ export class ChannelsService {
 
   updateBotSettings(tenantId: string, id: string, input: BotManagerSettings) {
     return this.db.withTenant(tenantId, async (c) => {
-      const row = (await c.query('SELECT settings FROM channels WHERE id=$1 FOR UPDATE', [id])).rows[0];
+      const row = (await c.query('SELECT settings FROM channels WHERE id=$1 FOR UPDATE', [id]))
+        .rows[0];
       if (!row) throw new NotFoundException('Channel not found');
       const current = row.settings ?? {};
       const botManager = { ...(current.botManager ?? {}), ...input };
-      const updated = (await c.query(
-        'UPDATE channels SET settings=jsonb_set($2::jsonb,\'{botManager}\',$3::jsonb,true) WHERE id=$1 RETURNING settings',
-        [id, JSON.stringify(current), JSON.stringify(botManager)],
-      )).rows[0];
+      const updated = (
+        await c.query(
+          "UPDATE channels SET settings=jsonb_set($2::jsonb,'{botManager}',$3::jsonb,true) WHERE id=$1 RETURNING settings",
+          [id, JSON.stringify(current), JSON.stringify(botManager)],
+        )
+      ).rows[0];
       return updated.settings.botManager;
+    });
+  }
+
+  activateBotSettings(tenantId: string, id: string, expected: BotManagerSettings) {
+    return this.db.withTenant(tenantId, async (c) => {
+      const row = (await c.query('SELECT settings FROM channels WHERE id=$1 FOR UPDATE', [id]))
+        .rows[0];
+      if (!row) throw new NotFoundException('Channel not found');
+      const current = row.settings ?? {};
+      if (!isDeepStrictEqual(botManagerSettingsSchema.parse(current.botManager ?? {}), expected))
+        throw new ConflictException('Settings changed. Reload before activating.');
+      if (expected.sharedInbox?.inputFlowSessionExpiryMinutes === 0)
+        throw new BadRequestException('Expiry must be positive; zero semantics are not verified');
+      const actions = readSystemActions(current).actions;
+      for (const [key, enabled] of [
+        ['no_match', expected.general?.noMatchReply],
+        ['get_started', expected.general?.getStartedEnabled],
+      ] as const) {
+        if (enabled) {
+          if (!actions[key]?.enabled || !actions[key]?.flowId)
+            throw new BadRequestException(`Configure and enable ${key} system action first`);
+          const flow = (
+            await c.query(
+              "SELECT 1 FROM flows f JOIN flow_versions v ON v.id=f.published_version_id WHERE f.id=$1 AND f.status='published' AND (cardinality(v.channel_ids)=0 OR $2=ANY(v.channel_ids))",
+              [actions[key]!.flowId, id],
+            )
+          ).rows[0];
+          if (!flow)
+            throw new BadRequestException(
+              'System action must use a published flow for this channel',
+            );
+        }
+      }
+      const active: ActiveBotSettings = {
+        general: {
+          noMatchReply: expected.general?.noMatchReply,
+          getStartedEnabled: expected.general?.getStartedEnabled,
+        },
+        sharedInbox: {
+          inputFlowSessionExpiryMinutes: expected.sharedInbox?.inputFlowSessionExpiryMinutes,
+        },
+      };
+      const hours = expected.businessHour;
+      if (hours?.disableBotDuringHours) {
+        if (!hours.timezone) throw new BadRequestException('Choose a timezone');
+        try {
+          new Intl.DateTimeFormat('en', { timeZone: hours.timezone }).format();
+        } catch {
+          throw new BadRequestException('Invalid timezone');
+        }
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        if (
+          hours.schedule?.length !== 7 ||
+          new Set(hours.schedule.map((r) => r.day)).size !== 7 ||
+          hours.schedule.some(
+            (r) =>
+              !days.includes(r.day) ||
+              !(
+                (r.start === '' && r.end === '') ||
+                (/^([01]\d|2[0-3]):[0-5]\d$/.test(r.start) &&
+                  /^([01]\d|2[0-3]):[0-5]\d$/.test(r.end) &&
+                  r.start !== r.end)
+              ),
+          ) ||
+          hours.offDays?.some((d) => !days.includes(d))
+        )
+          throw new BadRequestException('Provide seven unique days and valid non-empty intervals');
+        active.businessHour = {
+          timezone: hours.timezone,
+          offDays: hours.offDays ?? [],
+          schedule: hours.schedule,
+          disableBotDuringHours: true,
+        };
+      }
+      await c.query(
+        "UPDATE channels SET settings=jsonb_set(settings,'{botManagerActive}',$2::jsonb,true) WHERE id=$1",
+        [id, JSON.stringify(active)],
+      );
+      return {
+        active,
+        activated: true,
+        scope: [
+          'general.noMatchReply',
+          'general.getStartedEnabled',
+          'businessHour.disableBotDuringHours',
+          'sharedInbox.inputFlowSessionExpiryMinutes',
+        ],
+      };
     });
   }
 
   async reconnect(tenantId: string, id: string, accessToken: string, wabaId?: string) {
     return this.db.withTenant(tenantId, async (c) => {
       const row = (
-        await c.query('SELECT type,external_id,credentials_enc FROM channels WHERE id=$1 FOR UPDATE', [id])
+        await c.query(
+          'SELECT type,external_id,credentials_enc FROM channels WHERE id=$1 FOR UPDATE',
+          [id],
+        )
       ).rows[0];
       if (!row) throw new NotFoundException('Channel not found');
       if (row.type === 'web')
@@ -385,28 +616,58 @@ export class ChannelsService {
       const credentials = this.credentials(row as ChannelRow);
       let authorization: (MessagingAuthorization & { checkedAt: string }) | undefined;
       if (row.type === 'whatsapp') {
-        authorization = { ...await inspectMetaMessagingPermission(accessToken), checkedAt: new Date().toISOString() };
+        authorization = {
+          ...(await inspectMetaMessagingPermission(accessToken)),
+          checkedAt: new Date().toISOString(),
+        };
         if (authorization.status !== 'granted')
-          throw new BadRequestException('Meta token is invalid, expired, belongs to another app, or lacks messaging permission');
+          throw new BadRequestException(
+            'Meta token is invalid, expired, belongs to another app, or lacks messaging permission',
+          );
         const accountId = wabaId ?? credentials.wabaId;
-        if (!accountId) throw new BadRequestException('WABA ID required to verify the same phone number');
+        if (!accountId)
+          throw new BadRequestException('WABA ID required to verify the same phone number');
         if (credentials.wabaId && accountId !== credentials.wabaId)
           throw new BadRequestException('Token refresh cannot change the connected WABA');
-        const response = await fetch(`${GRAPH}/${encodeURIComponent(accountId)}/phone_numbers?fields=id&limit=100`, {
-          headers: { Authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(10000),
-        });
-        const data = await response.json() as { data?: { id?: string }[] };
-        if (!response.ok || !Array.isArray(data.data) || !data.data.some((p) => p.id === row.external_id))
-          throw new BadRequestException('Meta token must have access to this exact phone number and WABA');
+        const response = await fetch(
+          `${GRAPH}/${encodeURIComponent(accountId)}/phone_numbers?fields=id&limit=100`,
+          {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            signal: AbortSignal.timeout(10000),
+          },
+        );
+        const data = (await response.json()) as { data?: { id?: string }[] };
+        if (
+          !response.ok ||
+          !Array.isArray(data.data) ||
+          !data.data.some((p) => p.id === row.external_id)
+        )
+          throw new BadRequestException(
+            'Meta token must have access to this exact phone number and WABA',
+          );
       }
-      if(row.type==='telegram'&&(!/^\d{5,20}:[A-Za-z0-9_-]{20,100}$/.test(accessToken)||accessToken.split(':')[0]!==row.external_id))throw new BadRequestException('Token must belong to the same Telegram bot');
-      credentials[row.type === 'telegram'?'botToken':row.type === 'whatsapp' ? 'accessToken' : 'pageAccessToken'] = accessToken;
+      if (
+        row.type === 'telegram' &&
+        (!/^\d{5,20}:[A-Za-z0-9_-]{20,100}$/.test(accessToken) ||
+          accessToken.split(':')[0] !== row.external_id)
+      )
+        throw new BadRequestException('Token must belong to the same Telegram bot');
+      credentials[
+        row.type === 'telegram'
+          ? 'botToken'
+          : row.type === 'whatsapp'
+            ? 'accessToken'
+            : 'pageAccessToken'
+      ] = accessToken;
       if (row.type === 'whatsapp' && wabaId) credentials.wabaId = wabaId;
-      await c.query("UPDATE channels SET credentials_enc=$2,status='active',settings=(settings-'connectionHealth'-'metaAuthorization') || $3::jsonb WHERE id=$1", [
-        id,
-        this.crypto.encrypt(credentials),
-        JSON.stringify(authorization ? { metaAuthorization: authorization } : {}),
-      ]);
+      await c.query(
+        "UPDATE channels SET credentials_enc=$2,status='active',settings=(settings-'connectionHealth'-'metaAuthorization') || $3::jsonb WHERE id=$1",
+        [
+          id,
+          this.crypto.encrypt(credentials),
+          JSON.stringify(authorization ? { metaAuthorization: authorization } : {}),
+        ],
+      );
       return { saved: true, verified: false };
     });
   }
@@ -422,16 +683,33 @@ export class ChannelsService {
     });
   }
 
-  async setupTelegram(tenantId:string,id:string) {
-    if(env.EXTERNAL_DELIVERY_ENABLED!=='true')throw new BadRequestException('External access is disabled');
-    if(!env.PUBLIC_API_URL.startsWith('https://'))throw new BadRequestException('Telegram requires a public HTTPS webhook URL');
-    const row=await this.db.withTenant(tenantId,async c=>(await c.query("SELECT * FROM channels WHERE id=$1 AND type='telegram' AND status='active'",[id])).rows[0]);
-    if(!row)throw new NotFoundException('Active Telegram channel not found');
-    const credentials=this.credentials(row);
-    const account=await telegramCall(credentials.botToken,'getMe');
-    if(String(account.id)!==row.external_id)throw new BadRequestException('Telegram bot identity mismatch');
-    await telegramCall(credentials.botToken,'setWebhook',{url:`${env.PUBLIC_API_URL.replace(/\/$/,'')}/webhooks/telegram/${row.external_id}`,secret_token:credentials.webhookSecret,allowed_updates:['message','callback_query'],drop_pending_updates:false});
-    return{configured:true,verifiedBot:true,liveInboundTested:false};
+  async setupTelegram(tenantId: string, id: string) {
+    if (env.EXTERNAL_DELIVERY_ENABLED !== 'true')
+      throw new BadRequestException('External access is disabled');
+    if (!env.PUBLIC_API_URL.startsWith('https://'))
+      throw new BadRequestException('Telegram requires a public HTTPS webhook URL');
+    const row = await this.db.withTenant(
+      tenantId,
+      async (c) =>
+        (
+          await c.query(
+            "SELECT * FROM channels WHERE id=$1 AND type='telegram' AND status='active'",
+            [id],
+          )
+        ).rows[0],
+    );
+    if (!row) throw new NotFoundException('Active Telegram channel not found');
+    const credentials = this.credentials(row);
+    const account = await telegramCall(credentials.botToken, 'getMe');
+    if (String(account.id) !== row.external_id)
+      throw new BadRequestException('Telegram bot identity mismatch');
+    await telegramCall(credentials.botToken, 'setWebhook', {
+      url: `${env.PUBLIC_API_URL.replace(/\/$/, '')}/webhooks/telegram/${row.external_id}`,
+      secret_token: credentials.webhookSecret,
+      allowed_updates: ['message', 'callback_query'],
+      drop_pending_updates: false,
+    });
+    return { configured: true, verifiedBot: true, liveInboundTested: false };
   }
 
   remove(tenantId: string, id: string) {

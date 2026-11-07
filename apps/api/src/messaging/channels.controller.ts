@@ -16,7 +16,12 @@ import { DatabaseService } from '../database/database.service';
 import { Roles } from '../auth/decorators';
 import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
-import { ChannelsService, createChannelSchema, updateChannelSchema, botManagerSettingsSchema } from './channels.service';
+import {
+  ChannelsService,
+  createChannelSchema,
+  updateChannelSchema,
+  botManagerSettingsSchema,
+} from './channels.service';
 import { classifyOutboundFailure } from './meta-messaging-inspection';
 import { selectPreviewRestartFlow } from './preview-bot-delivery';
 
@@ -52,8 +57,30 @@ export class ChannelsController {
 
   @Roles('owner', 'admin')
   @Patch(':id/bot-settings')
-  updateBotSettings(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
-    return this.channels.updateBotSettings(req.user.tenantId, id, parse(botManagerSettingsSchema, body));
+  updateBotSettings(
+    @Req() req: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.channels.updateBotSettings(
+      req.user.tenantId,
+      id,
+      parse(botManagerSettingsSchema, body),
+    );
+  }
+
+  @Roles('owner', 'admin')
+  @Post(':id/bot-settings/activate')
+  activateBotSettings(
+    @Req() req: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.channels.activateBotSettings(
+      req.user.tenantId,
+      id,
+      parse(botManagerSettingsSchema, body),
+    );
   }
 
   /** Read-only diagnostic for bot replies; only counts and statuses, no customer data. */
@@ -61,39 +88,52 @@ export class ChannelsController {
   @Get(':id/bot-readiness')
   botReadiness(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.db.withTenant(req.user.tenantId, async (c) => {
-      const channel = (await c.query(
-        'SELECT id,type,status,settings FROM channels WHERE id=$1', [id],
-      )).rows[0];
+      const channel = (
+        await c.query('SELECT id,type,status,settings FROM channels WHERE id=$1', [id])
+      ).rows[0];
       if (!channel) throw new NotFoundException('Channel not found');
-      const flows = (await c.query(
-        `SELECT f.id,f.name,v.triggers,v.channel_ids,f.draft_graph,v.graph AS published_graph FROM flows f
+      const flows = (
+        await c.query(
+          `SELECT f.id,f.name,v.triggers,v.channel_ids,f.draft_graph,v.graph AS published_graph FROM flows f
          JOIN flow_versions v ON v.id=f.published_version_id
          WHERE f.status='published' AND NOT f.is_component
          AND (cardinality(v.channel_ids)=0 OR $1=ANY(v.channel_ids))`,
-        [id],
-      )).rows as {
-        id: string; name: string; triggers: { type: string; keywords?: string[] }[];
+          [id],
+        )
+      ).rows as {
+        id: string;
+        name: string;
+        triggers: { type: string; keywords?: string[] }[];
         channel_ids: string[];
         draft_graph: { nodes?: { type: string }[] } | null;
         published_graph: { nodes?: { type: string }[] } | null;
       }[];
-      const messages = (await c.query(
-        `SELECT m.sender_type,m.status,j.status AS job_status
+      const messages = (
+        await c.query(
+          `SELECT m.sender_type,m.status,j.status AS job_status
          FROM messages m LEFT JOIN outbound_jobs j ON j.message_id=m.id
          WHERE m.channel_id=$1 AND m.direction='out' AND m.created_at>now()-interval '6 hours'
-         ORDER BY m.created_at DESC LIMIT 100`, [id],
-      )).rows as { sender_type: string; status: string; job_status: string | null }[];
-      const handlers = (await c.query(
-        "SELECT handled_by,count(*)::int AS n FROM conversations WHERE channel_id=$1 AND status<>'closed' GROUP BY handled_by",
-        [id],
-      )).rows as { handled_by: string; n: number }[];
+         ORDER BY m.created_at DESC LIMIT 100`,
+          [id],
+        )
+      ).rows as { sender_type: string; status: string; job_status: string | null }[];
+      const handlers = (
+        await c.query(
+          "SELECT handled_by,count(*)::int AS n FROM conversations WHERE channel_id=$1 AND status<>'closed' GROUP BY handled_by",
+          [id],
+        )
+      ).rows as { handled_by: string; n: number }[];
       // Read only: report the exact preview conversation's bot ownership and
       // pending session, without any customer number, message body or token.
-      const previewId = process.env.BOAT_PREVIEW_ONLY === 'true' &&
+      const previewId =
+        process.env.BOAT_PREVIEW_ONLY === 'true' &&
         process.env.WHATSAPP_PREVIEW_BOT_CHANNEL_ID === id
-        ? process.env.WHATSAPP_PREVIEW_BOT_CONVERSATION_ID : undefined;
-      const preview = previewId ? (await c.query(
-        `SELECT cv.handled_by,cv.status,cv.last_inbound_at,
+          ? process.env.WHATSAPP_PREVIEW_BOT_CONVERSATION_ID
+          : undefined;
+      const preview = previewId
+        ? (
+            await c.query(
+              `SELECT cv.handled_by,cv.status,cv.last_inbound_at,
                 fs.flow_id AS session_flow_id,fs.status AS session_status,
                 fs.wait_kind,fs.created_at AS session_created_at,
                 (SELECT count(*)::int FROM domain_events de
@@ -104,27 +144,46 @@ export class ChannelsController {
              SELECT flow_id,status,wait_kind,created_at FROM flow_sessions
               WHERE conversation_id=cv.id ORDER BY created_at DESC LIMIT 1
            ) fs ON true
-          WHERE cv.id=$1 AND cv.channel_id=$2`,[previewId,id],
-      )).rows[0] : undefined;
-      const selectedFlowId = typeof channel.settings?.activeBotFlowId === 'string'
-        ? channel.settings.activeBotFlowId as string : null;
+          WHERE cv.id=$1 AND cv.channel_id=$2`,
+              [previewId, id],
+            )
+          ).rows[0]
+        : undefined;
+      const selectedFlowId =
+        typeof channel.settings?.activeBotFlowId === 'string'
+          ? (channel.settings.activeBotFlowId as string)
+          : null;
       const eligibleFlows = flows.map((flow) => ({ ...flow, flow_id: flow.id }));
       const previewCandidate = preview
         ? selectedFlowId
-          ? eligibleFlows.find((f) => f.id === selectedFlowId) ?? null
-          : selectPreviewRestartFlow(eligibleFlows, id, (preview.session_flow_id as string | null) ?? null)
+          ? (eligibleFlows.find((f) => f.id === selectedFlowId) ?? null)
+          : selectPreviewRestartFlow(
+              eligibleFlows,
+              id,
+              (preview.session_flow_id as string | null) ?? null,
+            )
         : null;
-      const lastBot = previewId ? (await c.query(
-        `SELECT m.created_at,m.status,j.status AS job_status,
+      const lastBot = previewId
+        ? ((
+            await c.query(
+              `SELECT m.created_at,m.status,j.status AS job_status,
                 COALESCE(m.error,j.error,'') AS failure
            FROM messages m
            LEFT JOIN outbound_jobs j ON j.message_id=m.id
           WHERE m.channel_id=$1 AND m.conversation_id=$2 AND m.sender_type='bot'
             AND m.direction='out'
-          ORDER BY m.created_at DESC LIMIT 1`, [id,previewId],
-      )).rows[0] as {
-        created_at: Date; status: string; job_status: string | null; failure: string;
-      } | undefined : undefined;
+          ORDER BY m.created_at DESC LIMIT 1`,
+              [id, previewId],
+            )
+          ).rows[0] as
+            | {
+                created_at: Date;
+                status: string;
+                job_status: string | null;
+                failure: string;
+              }
+            | undefined)
+        : undefined;
       return {
         active: channel.status === 'active',
         publishedFlowCount: flows.length,
@@ -132,41 +191,55 @@ export class ChannelsController {
           name: f.name,
           draftSteps: f.draft_graph?.nodes?.length ?? 0,
           publishedSteps: f.published_graph?.nodes?.length ?? 0,
-          publishedReplies: f.published_graph?.nodes?.filter((n) =>
-            ['message', 'question', 'user_input', 'interactive', 'whatsapp_flow'].includes(n.type),
-          ).length ?? 0,
+          publishedReplies:
+            f.published_graph?.nodes?.filter((n) =>
+              ['message', 'question', 'user_input', 'interactive', 'whatsapp_flow'].includes(
+                n.type,
+              ),
+            ).length ?? 0,
           types: f.triggers.map((t) => t.type),
-          matchesTestKeyword: f.triggers.some((t) =>
-            t.type === 'any_message' ||
-            (t.type === 'keyword' && t.keywords?.some((k) => k.includes('BOAT-TEST')))),
+          matchesTestKeyword: f.triggers.some(
+            (t) =>
+              t.type === 'any_message' ||
+              (t.type === 'keyword' && t.keywords?.some((k) => k.includes('BOAT-TEST'))),
+          ),
         })),
         activeConversationsBot: handlers.find((h) => h.handled_by === 'bot')?.n ?? 0,
-        activeConversationsHuman: handlers.filter((h) => h.handled_by !== 'bot').reduce((n, h) => n + h.n, 0),
+        activeConversationsHuman: handlers
+          .filter((h) => h.handled_by !== 'bot')
+          .reduce((n, h) => n + h.n, 0),
         recentBotReplies: messages.filter((m) => m.sender_type === 'bot').length,
-        recentSent: messages.filter((m) => m.sender_type === 'bot' && ['sent', 'delivered', 'read'].includes(m.status)).length,
+        recentSent: messages.filter(
+          (m) => m.sender_type === 'bot' && ['sent', 'delivered', 'read'].includes(m.status),
+        ).length,
         recentBlocked: messages.filter((m) => m.job_status === 'blocked').length,
         recentFailed: messages.filter((m) => m.job_status === 'failed').length,
-        previewBotEnabled: process.env.BOAT_PREVIEW_ONLY === 'true' &&
+        previewBotEnabled:
+          process.env.BOAT_PREVIEW_ONLY === 'true' &&
           process.env.WHATSAPP_PREVIEW_BOT_ENABLED === 'true' &&
           process.env.WHATSAPP_PREVIEW_BOT_CHANNEL_ID === id,
-        previewConversation: preview ? {
-          handledBy: preview.handled_by as string,
-          status: preview.status as string,
-          lastInboundAt: preview.last_inbound_at as Date | null,
-          sessionStatus: preview.session_status as string | null,
-          sessionWaitKind: preview.wait_kind as string | null,
-          sessionCreatedAt: preview.session_created_at as Date | null,
-          pendingInboundEvents: Number(preview.pending_inbound_events ?? 0),
-          restartFlowName: previewCandidate?.name ?? null,
-          selectedFlowId,
-          restartEligible: !!previewCandidate,
-          lastBotReply: lastBot ? {
-            createdAt: lastBot.created_at,
-            status: lastBot.status,
-            jobStatus: lastBot.job_status,
-            ...classifyOutboundFailure(lastBot.failure),
-          } : null,
-        } : null,
+        previewConversation: preview
+          ? {
+              handledBy: preview.handled_by as string,
+              status: preview.status as string,
+              lastInboundAt: preview.last_inbound_at as Date | null,
+              sessionStatus: preview.session_status as string | null,
+              sessionWaitKind: preview.wait_kind as string | null,
+              sessionCreatedAt: preview.session_created_at as Date | null,
+              pendingInboundEvents: Number(preview.pending_inbound_events ?? 0),
+              restartFlowName: previewCandidate?.name ?? null,
+              selectedFlowId,
+              restartEligible: !!previewCandidate,
+              lastBotReply: lastBot
+                ? {
+                    createdAt: lastBot.created_at,
+                    status: lastBot.status,
+                    jobStatus: lastBot.job_status,
+                    ...classifyOutboundFailure(lastBot.failure),
+                  }
+                : null,
+            }
+          : null,
       };
     });
   }
@@ -182,56 +255,74 @@ export class ChannelsController {
     @Body() body: unknown,
   ) {
     parse(z.object({ confirm: z.literal(true) }), body);
-    if (process.env.BOAT_PREVIEW_ONLY !== 'true' ||
-        process.env.WHATSAPP_PREVIEW_BOT_ENABLED !== 'true' ||
-        process.env.WHATSAPP_PREVIEW_BOT_CHANNEL_ID !== id ||
-        !process.env.WHATSAPP_PREVIEW_BOT_CONVERSATION_ID)
+    if (
+      process.env.BOAT_PREVIEW_ONLY !== 'true' ||
+      process.env.WHATSAPP_PREVIEW_BOT_ENABLED !== 'true' ||
+      process.env.WHATSAPP_PREVIEW_BOT_CHANNEL_ID !== id ||
+      !process.env.WHATSAPP_PREVIEW_BOT_CONVERSATION_ID
+    )
       throw new NotFoundException('Preview restart not enabled for this channel');
     const conversationId = process.env.WHATSAPP_PREVIEW_BOT_CONVERSATION_ID;
     return this.db.withTenant(req.user.tenantId, async (c) => {
-      const channel = (await c.query(
-        "SELECT id,settings FROM channels WHERE id=$1 AND type='whatsapp' AND status='active'",
-        [id],
-      )).rows[0];
-      const cv = (await c.query(
-        "SELECT id,status FROM conversations WHERE id=$1 AND channel_id=$2 FOR UPDATE",
-        [conversationId,id],
-      )).rows[0];
+      const channel = (
+        await c.query(
+          "SELECT id,settings FROM channels WHERE id=$1 AND type='whatsapp' AND status='active'",
+          [id],
+        )
+      ).rows[0];
+      const cv = (
+        await c.query(
+          'SELECT id,status FROM conversations WHERE id=$1 AND channel_id=$2 FOR UPDATE',
+          [conversationId, id],
+        )
+      ).rows[0];
       if (!channel || !cv || cv.status === 'closed')
         throw new NotFoundException('Active preview conversation not found');
-      const published = (await c.query(
-        `SELECT f.id AS flow_id,f.name,v.triggers,v.channel_ids FROM flows f
+      const published = (
+        await c.query(
+          `SELECT f.id AS flow_id,f.name,v.triggers,v.channel_ids FROM flows f
          JOIN flow_versions v ON v.id=f.published_version_id
          WHERE f.status='published' AND NOT f.is_component
            AND (cardinality(v.channel_ids)=0 OR $1=ANY(v.channel_ids))`,
-        [id],
-      )).rows as {
-        flow_id: string; name: string;
-        triggers: { type: string }[]; channel_ids: string[];
+          [id],
+        )
+      ).rows as {
+        flow_id: string;
+        name: string;
+        triggers: { type: string }[];
+        channel_ids: string[];
       }[];
-      const previous = (await c.query(
-        "SELECT flow_id FROM flow_sessions WHERE conversation_id=$1 ORDER BY created_at DESC LIMIT 1",
-        [conversationId],
-      )).rows[0] as { flow_id: string } | undefined;
-      const selected = typeof channel?.settings?.activeBotFlowId === 'string'
-        ? channel.settings.activeBotFlowId as string : null;
+      const previous = (
+        await c.query(
+          'SELECT flow_id FROM flow_sessions WHERE conversation_id=$1 ORDER BY created_at DESC LIMIT 1',
+          [conversationId],
+        )
+      ).rows[0] as { flow_id: string } | undefined;
+      const selected =
+        typeof channel?.settings?.activeBotFlowId === 'string'
+          ? (channel.settings.activeBotFlowId as string)
+          : null;
       const chosen = selected
-        ? published.find((f) => f.flow_id === selected) ?? null
+        ? (published.find((f) => f.flow_id === selected) ?? null)
         : selectPreviewRestartFlow(published, id, previous?.flow_id);
       if (!chosen)
         throw new ConflictException({
           code: 'PREVIEW_BOT_AMBIGUOUS',
-          message: 'Cannot choose a single published preview bot. Publish one welcome bot or run a bot in this test conversation first.',
+          message:
+            'Cannot choose a single published preview bot. Publish one welcome bot or run a bot in this test conversation first.',
         });
       const expired = await c.query(
         "UPDATE flow_sessions SET status='expired',updated_at=now() WHERE conversation_id=$1 AND status='waiting'",
         [conversationId],
       );
-      await c.query(
-        "UPDATE conversations SET handled_by='bot',assigned_to=NULL WHERE id=$1",
-        [conversationId],
-      );
-      return { restoredToBot: true, flowName: chosen.name, previousWaitingSessions: expired.rowCount ?? 0 };
+      await c.query("UPDATE conversations SET handled_by='bot',assigned_to=NULL WHERE id=$1", [
+        conversationId,
+      ]);
+      return {
+        restoredToBot: true,
+        flowName: chosen.name,
+        previousWaitingSessions: expired.rowCount ?? 0,
+      };
     });
   }
 
@@ -240,17 +331,15 @@ export class ChannelsController {
    */
   @Roles('owner', 'admin')
   @Get(':id/whatsapp-auth-diagnostics')
-  async whatsappAuthDiagnostics(
-    @Req() req: AuthedRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  async whatsappAuthDiagnostics(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     const result = await this.db.withTenant(req.user.tenantId, async (c) => {
-      const channel = (await c.query(
-        "SELECT * FROM channels WHERE id=$1 AND type='whatsapp'", [id],
-      )).rows[0];
+      const channel = (
+        await c.query("SELECT * FROM channels WHERE id=$1 AND type='whatsapp'", [id])
+      ).rows[0];
       if (!channel) throw new NotFoundException('WhatsApp channel not found');
-      const recent = (await c.query(
-        `SELECT m.created_at, m.status, m.error AS message_error,
+      const recent = (
+        await c.query(
+          `SELECT m.created_at, m.status, m.error AS message_error,
                 j.status AS job_status, j.error AS job_error
            FROM messages m
            LEFT JOIN LATERAL (
@@ -260,8 +349,10 @@ export class ChannelsController {
           WHERE m.channel_id=$1 AND m.direction='out'
             AND m.created_at>now()-interval '6 hours'
             AND (m.status='failed' OR j.status IN ('failed','blocked','ambiguous'))
-          ORDER BY m.created_at DESC LIMIT 10`, [id],
-      )).rows as {
+          ORDER BY m.created_at DESC LIMIT 10`,
+          [id],
+        )
+      ).rows as {
         created_at: Date;
         status: string;
         message_error: string | null;
@@ -288,11 +379,15 @@ export class ChannelsController {
     return this.channels.verify(req.user.tenantId, id);
   }
 
-  @Roles('owner','admin')
+  @Roles('owner', 'admin')
   @Post(':id/telegram-webhook')
-  telegramWebhook(@Req() req:AuthedRequest,@Param('id',ParseUUIDPipe) id:string,@Body() body:unknown) {
-    parse(z.object({confirm:z.literal(true)}),body);
-    return this.channels.setupTelegram(req.user.tenantId,id);
+  telegramWebhook(
+    @Req() req: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    parse(z.object({ confirm: z.literal(true) }), body);
+    return this.channels.setupTelegram(req.user.tenantId, id);
   }
 
   @Roles('owner', 'admin')

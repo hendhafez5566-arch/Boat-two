@@ -324,6 +324,31 @@ export default function ManagerSettings({
       setBusy(false);
     }
   }
+  async function activateSupported() {
+    if (!channelId || dirty || loading || busy || !canManage) return;
+    const version = request.current;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      await api(`/channels/${channelId}/bot-settings/activate`, {
+        method: 'POST',
+        body: JSON.stringify(saved),
+      });
+      if (version !== request.current) return;
+      setNotice(
+        t(
+          'فُعّلت الخيارات المدعومة فقط: رد عدم التطابق، تشغيل رسالة البداية، إيقاف البوت أثناء ساعات العمل، ومهلة جلسة الإدخال. باقي الحقول مسودة.',
+          'Only supported options activated: no-match, get-started enablement, bot suppression during business hours, and input session expiry. Other fields remain drafts.',
+        ),
+      );
+    } catch (e) {
+      if (version === request.current)
+        setError(e instanceof Error ? e.message : t('تعذر التفعيل', 'Activation failed'));
+    } finally {
+      setBusy(false);
+    }
+  }
   function cancel() {
     setDraft(saved);
     setError('');
@@ -373,8 +398,8 @@ export default function ManagerSettings({
       </nav>
       <p className={styles.settingsNotice} role="note">
         {t(
-          'هذه إعدادات مسودة؛ الربط بمحرك التشغيل غير مكتمل. الحفظ لا ينشر البوت ولا يفعّل هذه الخيارات.',
-          'These are draft settings; runtime integration is incomplete. Saving does not publish the bot or activate these options.',
+          'الحفظ يحتفظ بالمسودة. التفعيل يطبق أربعة خيارات مدعومة فقط؛ التكاملات الأخرى غير مكتملة.',
+          'Saving retains a draft. Activation applies only four supported options; other integrations remain incomplete.',
         )}
       </p>
       <fieldset
@@ -394,7 +419,7 @@ export default function ManagerSettings({
               'NO MATCH REPLY · Enabled',
               draft.general.noMatchReply,
               (v) => put('general', 'noMatchReply', v),
-              true,
+              false,
             )}
             {toggle(
               'BOT REPLIES WHILE AGENT ON MOBILE APP · Enabled',
@@ -406,7 +431,7 @@ export default function ManagerSettings({
               'GET STARTED MESSAGE · Enabled',
               draft.general.getStartedEnabled,
               (v) => put('general', 'getStartedEnabled', v),
-              true,
+              false,
             )}
             <fieldset
               className={styles.frequency}
@@ -541,7 +566,7 @@ export default function ManagerSettings({
                 'Disable bot reply during business hours',
                 draft.businessHour.disableBotDuringHours,
                 (v) => put('businessHour', 'disableBotDuringHours', v),
-                true,
+                false,
               )}
               {toggle(
                 'Disable AI assistant during business hours',
@@ -702,6 +727,16 @@ export default function ManagerSettings({
           </div>
         )}
       </fieldset>
+      <div className={styles.settingsActions}>
+        <button
+          type="button"
+          className="btn"
+          disabled={!canManage || !channelId || dirty || loading || busy}
+          onClick={() => void activateSupported()}
+        >
+          {t('تفعيل الخيارات المدعومة المحفوظة', 'Activate saved supported options')}
+        </button>
+      </div>
       {dirty && (
         <div className={styles.settingsActions}>
           <button type="button" className="btn" disabled={busy} onClick={cancel}>
