@@ -87,7 +87,7 @@ await context.addInitScript((s) => {
 const page = await context.newPage();
 page.setDefaultTimeout(8000);
 page.on('pageerror', (e) => errors.push(e.message));
-const url = `http://localhost:3000/dashboard/flows/${flow.id}?channelId=${channel.id}`;
+let url = `http://localhost:3000/dashboard/flows/${flow.id}?channelId=${channel.id}`;
 const more = () => page.getByRole('button', { name: 'More tools', exact: true });
 async function menu() {
   if ((await more().getAttribute('aria-expanded')) !== 'true') await more().click();
@@ -179,7 +179,11 @@ try {
   await check('Preview calls real simulator', async () => {
     await menu();
     await page.getByRole('button', { name: 'Preview', exact: true }).click();
+    const previewResponse = page.waitForResponse(
+      (r) => r.url().endsWith('/flows/' + flow.id + '/test') && r.request().method() === 'POST',
+    );
     await page.getByRole('button', { name: 'Start preview', exact: true }).click();
+    assert.ok((await previewResponse).ok());
     await page.getByText('Hello from isolated Flow Builder', { exact: true }).last().waitFor();
     await page.screenshot({ path: out + '/after-en-preview.png' });
     await page
@@ -212,6 +216,11 @@ try {
       (await api('/flows', null, token)).some((f) => f.name === 'UI-created isolated flow'),
     );
     assert.equal(new URL(page.url()).searchParams.get('channelId'), channel.id);
+    const created = (await api('/flows', null, token)).find(
+      (row) => row.name === 'UI-created isolated flow',
+    );
+    flow = await api('/flows/' + created.id, null, token);
+    url = page.url();
     await page.goto(url);
     await page.waitForLoadState('networkidle');
   });
@@ -297,6 +306,28 @@ try {
     );
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await page.waitForLoadState('networkidle');
+  });
+  await check('UI-created connected draft previews through actual server', async () => {
+    await menu();
+    await page.getByRole('button', { name: 'Preview', exact: true }).click();
+    const response = page.waitForResponse(
+      (r) => r.url().endsWith('/flows/' + flow.id + '/test') && r.request().method() === 'POST',
+    );
+    await page.getByRole('button', { name: 'Start preview', exact: true }).click();
+    const r = await response;
+    assert.ok(r.ok());
+    assert.ok(JSON.stringify(await r.json()).includes('UI added text node'));
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Close / إغلاق', exact: true })
+      .click();
+  });
+  await check('Keyboard Enter opens configuration and Escape closes it', async () => {
+    await page.locator('.react-flow__node[data-id=start]').focus();
+    await page.keyboard.press('Enter');
+    await page.getByRole('dialog').waitFor();
+    await page.keyboard.press('Escape');
+    await page.getByRole('dialog').waitFor({ state: 'hidden' });
   });
   await check('Publish through UI, edit, republish and verify actual version', async () => {
     await menu();

@@ -1,0 +1,206 @@
+{
+  "exact": 20,
+  "total": 20,
+  "rows": [
+    {
+      "kind": "protected",
+      "route": "",
+      "locale": "en",
+      "width": 1366,
+      "before": "protected-before-en-dashboard.png",
+      "after": "protected-after-en-dashboard.png",
+      "exact": true,
+      "differenceBounds": null
+    },
+    {
+      "kind": "protected",
+      "route": "inbox",
+      "locale": "en",
+      "width": 1366,
+      "before": "protected-before-en-inbox.png",
+      "after": "protected-after-en-inbox.png",
+      "exact": true,
+      "differenceBounds": null
+    },
+    {
+      "kind": "protected",
+      "route": "crm/overview",
+      "locale": "en",
+      "width": 1366,
+      "before": "protected-before-en-crm-overview.png",
+      "after": "protected-after-en-crm-overview.png",
+      "exact": true,
+      "differenceBounds": null
+    },
+    {
+      "kind": "protected",
+      "route": "crm/sales",
+      "locale": "en",
+      "width": 1366,
+      "before": "protected-before-en-crm-sales.png",
+      "after": "protected-after-en-crm-sales.png",
+      "exact": true,
+      "differenceBounds": null
+    },
+    {
+      "kind": "protected",
+      "route": "channels",
+      "locale": "en",
+      "width": 1366,
+      "before": "protected-before-en-channels.png",
+      "after": "protected-after-en-channels.png",
+      "exact": true,
+      "differenceBounds": null
+    },
+    {
+      "kind": "protected",
+      "route": "automations",
+      "locale": "en",
+      "width": 1366,
+      "before": "protected-before-en-automations.png",
+      "after": "protected-after-en-automations.png",
+      "exact": true,
+      "differenceBounds": null
+    },
+    {
+      "kind": "protected",
+      "route": "team",
+      "locale": "en",
+      "width": 1366,
+      "before": "protected-before-en-team.png",
+      "after": "protected-after-en-team.png",
+      "exact": true,
+      "differenceBounds": null
+    },
+    {
+      "kind": "protected",
+      "route": "settings",
+      "locale": "en",
+      "width": 1366,
+      "before": "protected-before-en-settings.png",
+      "after": "protected-after-en-settings.png",
+      "exact": true,
+      "differenceBounds": null
+    },
+    {
+      "kind": "protected",
+      "route": "billing",
+      "locale": "en",
+      "width": 1366,
+      "before": "protected-before-en-billing.png",
+      "after": "protected-after-en-billing.png",
+      "exact": true,
+      "differenceBounds": null
+    },
+    {
+      "kind": "protected",
+      "route": "campaigns",
+      "locale": "en",
+      "width": 1366,
+      "before": "protected-before-en-campaigns.png",
+      "after": "protected-after-en-campaigns.png",
+      "exact": true,
+      "differenceBounds": null
+    },
+    {
+      "kind": "protected",
+      "route": "",
+      "locale": "ar",
+      "width": 1366,
+      "before": "protected-before-ar-dashboard.png",
+      "after": "protected-after-ar-dashboard.png",
+      "exact": true,
+      "differenceBounds": null
+    },
+    {
+      "kind": "protected",
+      "route": "inbox",
+      "locale": "ar",
+      "width": 1366,
+      "before": "protected-before-ar-inbox.png",
+      "after": "protected-after-ar-inbox.png",
+      "exact": true,
+      "differenceBounds": null
+    },
+    {
+      "kind": "protected",
+      "route": "crm/overview",
+      "locale": "ar",
+      "width": 1366,
+      "before": "protected-before-ar-crm-overview.png",
+      "after": "protected-after-ar-crm-overview.png",
+      "exact": true,
+      "differenceBounds": null
+    },
+    {
+      "kind": "protected",
+      "route": "crm/sales",
+      "locale": "ar",
+      "width": 1366,
+      "before": "protected-before-ar-crm-sales.png",
+      "after": "protected-after-ar-crm-sales.png",
+      "exact": true,
+      "differenceBounds": null
+    },
+    {
+      "kind": "protected",
+      "route": "channels",
+      "locale": "ar",
+      "width": 1366,
+      "before": "protected-before-ar-channels.png",
+      "after": "protected-after-ar-channels.png",
+      "exact": true,
+      "differenceBounds": null
+    },
+    {
+      "kind": "protected",
+      "route": "automations",
+      "locale": "ar",
+      "width": 1366,
+      "before": "protected-before-ar-automations.png",
+      "after": "protected-after-ar-automations.png",
+      "exact": true,
+      "differenceBounds": null
+    },
+    {
+      "kind": "protected",
+      "route": "team",
+      "locale": "ar",
+      "width": 1366,
+      "before": "protected-before-ar-team.png",
+      "after": "protected-after-ar-team.png",
+      "exact": true,
+      "differenceBounds": null
+    },
+    {
+      "kind": "protected",
+      "route": "settings",
+      "locale": "ar",
+      "width": 1366,
+      "before": "protected-before-ar-settings.png",
+      "after": "protected-after-ar-settings.png",
+      "exact": true,
+      "differenceBounds": null
+    },
+    {
+      "kind": "protected",
+      "route": "billing",
+      "locale": "ar",
+      "width": 1366,
+      "before": "protected-before-ar-billing.png",
+      "after": "protected-after-ar-billing.png",
+      "exact": true,
+      "differenceBounds": null
+    },
+    {
+      "kind": "protected",
+      "route": "campaigns",
+      "locale": "ar",
+      "width": 1366,
+      "before": "protected-before-ar-campaigns.png",
+      "after": "protected-after-ar-campaigns.png",
+      "exact": true,
+      "differenceBounds": null
+    }
+  ]
+}

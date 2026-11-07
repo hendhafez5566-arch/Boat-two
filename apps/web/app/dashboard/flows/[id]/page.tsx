@@ -867,6 +867,25 @@ function Editor({ id }: { id: string }) {
       )
         return;
       if (
+        e.key === 'Enter' &&
+        el?.classList.contains('react-flow__node') &&
+        !inspectorOpen &&
+        !previewOpen
+      ) {
+        const nodeId = el.getAttribute('data-id');
+        if (nodeId === reference?.id) {
+          e.preventDefault();
+          openSettings();
+          return;
+        }
+        const realId = nodeId ? (btnIndexRef.current[nodeId]?.parentId ?? nodeId) : null;
+        if (realId && nodes.some((node) => node.id === realId)) {
+          e.preventDefault();
+          focusNode(realId);
+          return;
+        }
+      }
+      if (
         !e.ctrlKey &&
         !e.metaKey &&
         ['Delete', 'Backspace'].includes(e.key) &&
