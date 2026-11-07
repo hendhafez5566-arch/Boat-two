@@ -75,6 +75,38 @@ export const updateChannelSchema = z.object({
   settings: widgetSettingsSchema.partial().extend({telegramAllowGroups:z.boolean().optional()}).optional(),
 });
 
+/** Bot Manager configuration stays namespaced so older channel/widget settings remain intact. */
+export const botManagerSettingsSchema = z.object({
+  general: z.object({
+    chatHumanEmail: z.string().email().or(z.literal('')).optional(),
+    noMatchReply: z.boolean().optional(),
+    botRepliesWhileAgentOnMobile: z.boolean().optional(),
+    getStartedEnabled: z.boolean().optional(),
+    getStartedFrequency: z.enum(['every_time', 'once_a_day']).optional(),
+  }).optional(),
+  webhook: z.object({
+    incomingMessage: z.boolean().optional(), outgoingMessage: z.boolean().optional(),
+    messageStatus: z.boolean().optional(), conversationStatus: z.boolean().optional(),
+    newSubscriber: z.boolean().optional(), crmStage: z.boolean().optional(), followup: z.boolean().optional(),
+  }).optional(),
+  businessHour: z.object({
+    timezone: z.string().max(100).optional(), offDays: z.array(z.string().max(12)).max(7).optional(),
+    schedule: z.array(z.object({ day: z.string().max(12), start: z.string().max(5), end: z.string().max(5) })).max(7).optional(),
+    disableBotDuringHours: z.boolean().optional(), disableAiDuringHours: z.boolean().optional(),
+    specialBotEnabled: z.boolean().optional(), specialBotFlowId: z.string().uuid().nullable().optional(),
+  }).optional(),
+  sharedInbox: z.object({
+    signatureEnabled: z.boolean().optional(), inputFlowSessionExpiryMinutes: z.number().int().min(0).max(525600).nullable().optional(),
+    humanSessionExpiryMinutes: z.number().int().min(0).max(525600).nullable().optional(), failedDeliveryLabelId: z.string().uuid().nullable().optional(),
+  }).optional(),
+  autoResponder: z.object({ mailchimpListId: z.string().max(200).nullable().optional(), brevoListId: z.string().max(200).nullable().optional(),
+    activeCampaignListId: z.string().max(200).nullable().optional(), mauticListId: z.string().max(200).nullable().optional() }).optional(),
+  google: z.object({ sheetsListId: z.string().max(200).nullable().optional(), contactsAccountId: z.string().max(200).nullable().optional() }).optional(),
+  email: z.object({ apiId: z.string().max(200).nullable().optional(), subject: z.string().max(500).optional(), content: z.string().max(10000).optional() }).optional(),
+  sms: z.object({ apiId: z.string().max(200).nullable().optional(), content: z.string().max(10000).optional() }).optional(),
+});
+export type BotManagerSettings = z.infer<typeof botManagerSettingsSchema>;
+
 const PUBLIC_COLS = 'id, type, name, external_id, settings, status, created_at';
 
 @Injectable()
@@ -317,6 +349,28 @@ export class ChannelsService {
         [id, input.name ?? null, input.status ?? null, JSON.stringify(settings)],
       );
       return this.view(r.rows[0]);
+    });
+  }
+
+  getBotSettings(tenantId: string, id: string) {
+    return this.db.withTenant(tenantId, async (c) => {
+      const row = (await c.query('SELECT settings FROM channels WHERE id=$1', [id])).rows[0];
+      if (!row) throw new NotFoundException('Channel not found');
+      return row.settings?.botManager ?? {};
+    });
+  }
+
+  updateBotSettings(tenantId: string, id: string, input: BotManagerSettings) {
+    return this.db.withTenant(tenantId, async (c) => {
+      const row = (await c.query('SELECT settings FROM channels WHERE id=$1 FOR UPDATE', [id])).rows[0];
+      if (!row) throw new NotFoundException('Channel not found');
+      const current = row.settings ?? {};
+      const botManager = { ...(current.botManager ?? {}), ...input };
+      const updated = (await c.query(
+        'UPDATE channels SET settings=jsonb_set($2::jsonb,\'{botManager}\',$3::jsonb,true) WHERE id=$1 RETURNING settings',
+        [id, JSON.stringify(current), JSON.stringify(botManager)],
+      )).rows[0];
+      return updated.settings.botManager;
     });
   }
 

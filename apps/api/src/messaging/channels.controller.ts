@@ -16,7 +16,7 @@ import { DatabaseService } from '../database/database.service';
 import { Roles } from '../auth/decorators';
 import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
-import { ChannelsService, createChannelSchema, updateChannelSchema } from './channels.service';
+import { ChannelsService, createChannelSchema, updateChannelSchema, botManagerSettingsSchema } from './channels.service';
 import { classifyOutboundFailure } from './meta-messaging-inspection';
 import { selectPreviewRestartFlow } from './preview-bot-delivery';
 
@@ -42,6 +42,18 @@ export class ChannelsController {
   @Patch(':id')
   update(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
     return this.channels.update(req.user.tenantId, id, parse(updateChannelSchema, body));
+  }
+
+  @Roles('owner', 'admin')
+  @Get(':id/bot-settings')
+  botSettings(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.channels.getBotSettings(req.user.tenantId, id);
+  }
+
+  @Roles('owner', 'admin')
+  @Patch(':id/bot-settings')
+  updateBotSettings(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    return this.channels.updateBotSettings(req.user.tenantId, id, parse(botManagerSettingsSchema, body));
   }
 
   /** Read-only diagnostic for bot replies; only counts and statuses, no customer data. */

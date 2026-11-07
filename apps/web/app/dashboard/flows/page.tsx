@@ -2,6 +2,7 @@
 import ManagerTools from './ManagerTools';
 import ManagerQuickActions from './ManagerQuickActions';
 import ManagerTemplates from './ManagerTemplates';
+import ManagerSettings from './ManagerSettings';
 import { managerError } from './manager-feedback';
 import { statusLabel } from '../../../components/product/status';
 
@@ -307,6 +308,16 @@ export default function BotManager() {
             <NavIcon name="settings" />
             {t('إعدادات البوت', 'Bot Settings')}
           </button>
+          {section === 'settings' && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!canManage || !selected}
+              onClick={() => (document.getElementById('bot-manager-settings-form') as HTMLFormElement | null)?.requestSubmit()}
+            >
+              {t('نشر التغييرات', 'Publish Changes')}
+            </button>
+          )}
           <ManagerTools
             flows={flows.data}
             channelId={channelId}
@@ -353,7 +364,9 @@ export default function BotManager() {
         <AccountWorkspaceContext.Provider value={true}>
           {!isFlowList && (
             <fieldset disabled={!canManage} className={styles.panelSurface}>
-              {section === 'message_templates' && selected?.type === 'whatsapp' ? (
+              {section === 'settings' ? (
+                <ManagerSettings key={channelId} channelId={channelId} canManage={canManage} />
+              ) : section === 'message_templates' && selected?.type === 'whatsapp' ? (
                 <ManagerTemplates key={channelId} channelId={channelId} />
               ) : section === 'action_buttons' ? (
                 <ManagerQuickActions key={channelId} channelId={channelId} />
