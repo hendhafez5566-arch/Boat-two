@@ -196,12 +196,14 @@ export default function ManagerSettings({
   const [draft, setDraft] = useState<Settings>(defaults);
   const [saved, setSaved] = useState<Settings>(defaults);
   const [loading, setLoading] = useState(false);
+  const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(saved), [draft, saved]);
   const load = useCallback(async () => {
     const version = ++request.current;
+    setReady(false);
     setDraft(defaults);
     setSaved(defaults);
     setNotice('');
@@ -233,6 +235,7 @@ export default function ManagerSettings({
         email: { ...defaults.email, ...data.email },
         sms: { ...defaults.sms, ...data.sms },
       } as Settings;
+      setReady(true);
       setDraft(next);
       setSaved(next);
     } catch (e) {
@@ -295,7 +298,7 @@ export default function ManagerSettings({
     </label>
   );
   async function save() {
-    if (!channelId || busy || loading || !canManage) return;
+    if (!channelId || busy || loading || !canManage || !ready) return;
     const version = request.current;
     setBusy(true);
     setError('');
@@ -325,7 +328,7 @@ export default function ManagerSettings({
     }
   }
   async function activateSupported() {
-    if (!channelId || dirty || loading || busy || !canManage) return;
+    if (!channelId || dirty || loading || busy || !canManage || !ready) return;
     const version = request.current;
     setBusy(true);
     setError('');
@@ -403,7 +406,7 @@ export default function ManagerSettings({
         )}
       </p>
       <fieldset
-        disabled={!canManage || loading || busy || !channelId}
+        disabled={!canManage || loading || busy || !channelId || !ready}
         className={styles.settingsBody}
       >
         {active === 'general' && (
@@ -731,7 +734,7 @@ export default function ManagerSettings({
         <button
           type="button"
           className="btn"
-          disabled={!canManage || !channelId || dirty || loading || busy}
+          disabled={!canManage || !channelId || dirty || loading || busy || !ready}
           onClick={() => void activateSupported()}
         >
           {t('تفعيل الخيارات المدعومة المحفوظة', 'Activate saved supported options')}
