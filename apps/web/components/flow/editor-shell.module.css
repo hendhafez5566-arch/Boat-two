@@ -356,7 +356,7 @@
   background: #fff;
   border: 1px solid #e5eaf0;
   border-radius: 12px;
-  box-shadow: 0 3px 7px #243b4b12;
+  box-shadow: 0 4px 8px rgba(139, 141, 141, 0.15);
   overflow: hidden;
   font-size: 13px;
 }
@@ -840,13 +840,13 @@
   background: #fff;
   border: 2px solid #dee3e66b;
   border-radius: 12px;
-  box-shadow: 0 3px 7px #243b4b12;
+  box-shadow: 0 4px 8px rgba(139, 141, 141, 0.15);
   color: #064663;
   font-family: inherit;
 }
 .editor :global(.premium-flow-node.fn-card.is-selected) {
-  border: 2px solid #1993ce;
-  box-shadow: 0 3px 7px #243b4b12;
+  border: 2px solid #0d8bf1;
+  box-shadow: 0 4px 8px rgba(139, 141, 141, 0.15);
 }
 .editor :global(.premium-flow-node.fn-card.is-start),
 .editor :global(.premium-flow-node.fn-card.is-incomplete) {

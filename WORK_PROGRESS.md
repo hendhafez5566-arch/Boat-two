@@ -92,3 +92,7 @@ Complete reference interactions, archive safe screenshots/measurements; compare 
 - Fresh SSR selection regression covers adjacent/unrelated selected nodes; fresh build/typecheck/lint and live post-deploy check pending at this checkpoint.
 - First resumed batch deployed Web1798fe65-9e1b-43dc-9b81-563cc432a610 at source01852f2. Cloud confirmed4 SVG analytics icons, same four counts0/0/0/0, same286×63.8 displayed stats bounds at1363×936; configuration opens normally.
 - Isolated HTTP journey6/6 passed. Initial5/6 result retained: the first runner omitted the actual internal outbox worker. Rerun enabled the existing test-only worker; no production logic changed for that harness issue.
+
+### Measured selected-card finish
+- Existing node-metrics.json fixes selected border rgb(13,139,241), and card shadow rgba(139,141,141,.15)0px4px8px. Previous source still used#1993ce and0px3px7px#243b4b12. Applied exact recorded values to reference/card selectors only. No geometry or runtime modifications.
+- Fresh production build and live computed-style confirmation are required before accepting this finish.
