@@ -161,7 +161,7 @@ try {
     await page.locator('.react-flow__node[data-id=start]').dblclick();
     await page.getByRole('dialog').waitFor();
     await page.screenshot({ path: out + '/after-en-1366-properties.png' });
-    await page.getByRole('button', { name: 'Close configuration panel', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: '× Close', exact: false }).click();
     await page.getByRole('dialog').waitFor({ state: 'hidden' });
   });
   await check('Additional blocks remain available on demand', async () => {

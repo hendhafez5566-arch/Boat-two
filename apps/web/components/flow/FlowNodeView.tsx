@@ -95,6 +95,7 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
         style={{ top: 'auto', bottom: 14 }}
         title={t('نقطة الدخول: أسقط التوصيل هنا', 'Entry point: drop a link here')}
       />
+      <span className="flow-node-input-label">{t('رسالة', 'Message')}</span>
       {data.actions && (
         <div
           className="flow-node-tools"
@@ -108,7 +109,17 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
             aria-label={t('تكرار الخطوة', 'Duplicate step')}
             onClick={() => data.actions?.duplicate(id)}
           >
-            ⧉
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              aria-hidden="true"
+            >
+              <path d="M9 3h12v14H9V3ZM5 7H3v14h13v-2" />
+            </svg>
           </button>
           <button
             type="button"
@@ -346,7 +357,11 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
           className={`flow-node-port ${h.id.startsWith('option:') ? 'is-pill' : ''} ${shown.length === 1 ? 'is-single' : ''} ${data.linked && !data.linked.includes(h.id) ? 'is-open' : ''}`}
         >
           {h.id.startsWith('option:') && <span className="fn-btn-kind">▣ {t('زر', 'Button')}</span>}
-          <span className="fn-btn-title">{editorLabel(h.label, language)}</span>
+          <span className="fn-btn-title">
+            {h.id === 'next'
+              ? t('الرسالة التالية', 'Compose Next Message')
+              : editorLabel(h.label, language)}
+          </span>
           {/* Reference ports follow the footer edge, mirrored for RTL. */}
           {shown.length === 1 ? (
             <Handle

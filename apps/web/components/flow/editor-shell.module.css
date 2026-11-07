@@ -1001,3 +1001,28 @@
 .editor :global(.flow-node-tools button:last-child) {
   color: #dc3545;
 }
+
+.editor :global(.fn-card .fn-body) {
+  margin-bottom: 15px;
+}
+.editor :global(.flow-node-tools) {
+  display: none;
+}
+.editor :global(.fn-card:hover .flow-node-tools),
+.editor :global(.fn-card:focus-within .flow-node-tools),
+.editor :global(.fn-card.is-selected .flow-node-tools) {
+  display: flex;
+}
+.editor :global(.flow-node-input-label) {
+  position: absolute;
+  bottom: 15px;
+  inset-inline-start: 14px;
+  font-size: 10px;
+  line-height: 15px;
+  color: #064663;
+  z-index: 1;
+  pointer-events: none;
+}
+.editor :global(.flow-node-port.is-open::before) {
+  display: none;
+}

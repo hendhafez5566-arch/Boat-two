@@ -34,3 +34,9 @@ Complete reference interactions, archive safe screenshots/measurements; compare 
 - Test harness defects: locale initializer overwrote Arabic on reload; preview close accessible name and published_version field assertions corrected. These were not claimed as product fixes.
 - First API suite:210 passed,2 test modules could not initialize without required environment variables. Rerun with isolated dummy configuration pending.
 - Initial failing JSON retained; no deployment. Next: rebuild/retest, then full node interaction and protected-flow acceptance.
+
+## Property panel checkpoint
+- Flow Builder opts into reference-sized drawer variant; campaign uses of the shared component keep the existing default.
+- Template/condition drawers640px, label drawer520px, others576px; text input200px and footer follows content like the measured reference.
+- Removed header close icon in this variant; footer Close and Escape retained. Clone icon is independent SVG; node tools only show on hover/selection/focus.
+- API suite rerun with isolated required config:216 pass/0 fail/0 skip. Current UI retest pending; no Railway mutation.

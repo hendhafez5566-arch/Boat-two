@@ -2006,6 +2006,7 @@ function Editor({ id }: { id: string }) {
         </Dialog>
 
         <ConfigurationPanel
+          referenceType={tab === 'settings' ? 'reference' : sel?.data.type}
           open={inspectorOpen && !previewOpen && (tab === 'settings' || !!sel)}
           onClose={() => {
             setInspectorDraft(null);
@@ -2044,7 +2045,9 @@ function Editor({ id }: { id: string }) {
                   ? sel.data.data.list
                     ? t('إعداد القائمة', 'Configure List Message')
                     : t('إعداد الأزرار', 'Configure Buttons')
-                  : `${t('إعداد', 'Configure')} ${nodeLabel(sel.data.type === 'message' && optionsOf(sel.data.data).length ? 'interactive' : sel.data.type, language)}`
+                  : sel.data.type === 'message' && !optionsOf(sel.data.data).length
+                    ? t('إعداد الرسالة النصية', 'Configure Text Message')
+                    : `${t('إعداد', 'Configure')} ${nodeLabel(sel.data.type === 'message' && optionsOf(sel.data.data).length ? 'interactive' : sel.data.type, language)}`
               : t('إعداد بداية التدفق', 'Configure Reference')
           }
         >

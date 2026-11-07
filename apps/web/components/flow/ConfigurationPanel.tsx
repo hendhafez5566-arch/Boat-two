@@ -11,12 +11,14 @@ export default function ConfigurationPanel({
   title,
   description,
   children,
+  referenceType,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   description?: string;
   children: ReactNode;
+  referenceType?: string;
 }) {
   const { language, t } = useLocale();
   const heading = useId();
@@ -50,7 +52,8 @@ export default function ConfigurationPanel({
       aria-modal="false"
       aria-labelledby={heading}
       dir={language === 'ar' ? 'rtl' : 'ltr'}
-      className={styles.panel}
+      className={`${styles.panel} ${referenceType ? styles.referencePanel : ''}`}
+      data-reference-type={referenceType}
     >
       <div className={styles.scroll}>
         <header className={styles.header}>
