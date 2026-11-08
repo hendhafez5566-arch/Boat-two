@@ -438,7 +438,8 @@ export default function ManagerSettings({
             )}
             <fieldset
               className={styles.frequency}
-              disabled={!canManage || !draft.general.getStartedEnabled}
+              disabled
+              aria-describedby="get-started-frequency-unavailable"
             >
               <legend>{labelText('GET STARTED MESSAGE FREQUENCY LIMIT')}</legend>
               <label>
@@ -460,6 +461,12 @@ export default function ManagerSettings({
                 {labelText('Once a day')}
               </label>
             </fieldset>
+            <p id="get-started-frequency-unavailable" className={styles.settingsDescription} role="note">
+              {t(
+                'تكرار رسالة البداية غير متاح في محرك التشغيل الحالي. تُحفظ القيمة السابقة دون تطبيقها عند التفعيل.',
+                'Get-started frequency is not supported by the current runtime. The existing value is preserved but is not applied on activation.',
+              )}
+            </p>
           </div>
         )}
         {active === 'webhook' && (
@@ -529,7 +536,7 @@ export default function ManagerSettings({
                       <th scope="row">{labelText(r.day)}</th>
                       <td>
                         <input
-                          aria-label={`${r.day} ${labelText('START')}`}
+                          aria-label={`${labelText(r.day)} ${labelText('START')}`}
                           type="time"
                           value={r.start}
                           onChange={(e) =>
@@ -545,7 +552,7 @@ export default function ManagerSettings({
                       </td>
                       <td>
                         <input
-                          aria-label={`${r.day} ${labelText('END')}`}
+                          aria-label={`${labelText(r.day)} ${labelText('END')}`}
                           type="time"
                           value={r.end}
                           onChange={(e) =>
