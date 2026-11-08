@@ -1,0 +1,35 @@
+{
+  "environment": "isolated full Nest/PGlite; synthetic WhatsApp channel; no provider calls",
+  "results": [
+    {
+      "name": "Create and reopen preserve supported mixed template fields and provider examples",
+      "status": "PASS"
+    },
+    {
+      "name": "Edit persists revision and stale edits are rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "Invalid variables, media samples and unsupported OTP are rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "Other tenant cannot read or mutate this channel",
+      "status": "PASS"
+    },
+    {
+      "name": "admin server permissions for create and edit",
+      "status": "PASS"
+    },
+    {
+      "name": "agent server permissions for create and edit",
+      "status": "PASS"
+    },
+    {
+      "name": "Provider submission stays gated and never reports false approval",
+      "status": "PASS"
+    }
+  ],
+  "providerAcceptance": "BLOCKED: no real provider submission attempted",
+  "browserVisualAcceptance": "NOT RUN on modified source"
+}

@@ -102,6 +102,10 @@ Object.assign(process.env, {
   app.useBodyParser('json', { limit: '1mb' });
   app.use((req, res, next) => requestContext.run(req, next));
   app.enableCors();
+  if (process.env.BOAT_TEMPLATE_QA === 'true') {
+    const { installTemplateFixtures } = await import('./qa-template-fixtures.mjs');
+    installTemplateFixtures(app, local);
+  }
   if (process.env.BOAT_CRM_QA === 'true') {
     const { installCrmFixtures } = await import('./qa-crm-fixtures.mjs');
     installCrmFixtures(app, local);

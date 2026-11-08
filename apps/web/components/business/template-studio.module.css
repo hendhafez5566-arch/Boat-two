@@ -1,0 +1,191 @@
+.form {
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, calc(58.333333% - 10px)) minmax(0, 1fr);
+  gap: 24px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+.defaultLayout {
+  display: contents;
+}
+.main {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.card,
+.preview {
+  min-width: 0;
+  border: 1px solid #eceff5;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  padding: 18px 18px 16px;
+  color: #3c4043;
+  font-size: 13px;
+}
+.main > .card:first-child {
+  min-height: 176px;
+}
+.card h3,
+.preview h3 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.2;
+  font-weight: 400;
+  color: #1f1f1f;
+}
+.description {
+  margin: 2px 0 16px;
+  color: #64748b;
+  font-size: 11.6px;
+  line-height: 1.4;
+}
+.card :global(.form-grid) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.card label {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 10px;
+  line-height: 13px;
+  color: #5f6368;
+}
+.card input:not([type='radio']),
+.card select,
+.card textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #3c4043;
+  font-size: 12px;
+  padding: 8px 12px;
+}
+.card input:not([type='radio']),
+.card select {
+  min-height: 52px;
+}
+.card textarea {
+  min-height: 160px;
+  resize: vertical;
+}
+.card input:focus-visible,
+.card select:focus-visible,
+.card textarea:focus-visible,
+.choices label:focus-within {
+  outline: 2px solid var(--primary, #6154de);
+  outline-offset: 2px;
+}
+.card > label + label {
+  margin-top: 14px;
+}
+.card > fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-inline-size: 0;
+}
+.card > fieldset > legend {
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.preview {
+  align-self: start;
+  position: sticky;
+  top: 16px;
+  padding: 16px 16px 14px;
+}
+.preview > section {
+  border: 0;
+  background: linear-gradient(135deg, #e1f3ec, #e6eef5);
+  box-shadow: none;
+  min-width: 0;
+  padding: 14px;
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+.preview > section > h3 {
+  font-size: 12px;
+}
+.preview > section > p {
+  white-space: pre-wrap;
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px;
+  min-height: 60px;
+}
+.actions > div {
+  justify-content: flex-start;
+}
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.choices label {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  position: relative;
+  min-width: 64px;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.choices label:has(input:checked) {
+  border-color: var(--primary, #6154de);
+  color: var(--primary, #6154de);
+  background: #f3f1ff;
+}
+.choices input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.headerChoices label {
+  min-height: 70px;
+}
+.unavailable {
+  margin: 12px 0 0;
+  color: #626b78;
+  font-size: 12px;
+}
+@media (max-width: 991px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .preview {
+    position: static;
+  }
+}
+@media (max-width: 479px) {
+  .card {
+    padding: 16px;
+  }
+  .card :global(.form-grid) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .choices {
+    gap: 6px;
+  }
+}
