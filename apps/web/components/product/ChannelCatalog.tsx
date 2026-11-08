@@ -1,6 +1,7 @@
 'use client';
 import { useLocale } from './locale';
 import ChannelLogo from './ChannelLogo';
+import styles from './channel-catalog.module.css';
 
 const channels = [
   {
@@ -55,11 +56,46 @@ const channels = [
 export default function ChannelCatalog({
   selected,
   onSelect,
+  mode = 'default',
 }: {
+  mode?: 'default' | 'connections';
   selected: string;
   onSelect: (id: string) => void;
 }) {
   const { t } = useLocale();
+  if (mode === 'connections')
+    return (
+      <section
+        className={styles.catalog}
+        aria-label={t('مكتبة القنوات والتكاملات', 'Channel and integration library')}
+      >
+        {channels.map((c) => (
+          <article key={c.id} className={styles.card}>
+            <header>
+              <span aria-hidden="true">
+                <ChannelLogo id={c.id} />
+              </span>
+              <div>
+                <h3 dir="ltr">{c.name}</h3>
+                <p>{t(c.ar, c.en)}</p>
+              </div>
+            </header>
+            <footer>
+              {c.id === 'google' ? (
+                <a className="btn" href="/dashboard/integrations">
+                  {t('ربط Google', 'Connect Google')}
+                </a>
+              ) : (
+                <button type="button" className="btn" onClick={() => onSelect(c.id)}>
+                  {t('ربط ', 'Connect ')}
+                  {c.name}
+                </button>
+              )}
+            </footer>
+          </article>
+        ))}
+      </section>
+    );
   return (
     <section
       aria-label={t('مكتبة القنوات والتكاملات', 'Channel and integration library')}

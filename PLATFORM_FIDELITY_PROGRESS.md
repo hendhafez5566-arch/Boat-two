@@ -29,7 +29,7 @@ DONE لتدفق إدخال المستخدم تعني إغلاق نطاقه وف�
 | Shared Inbox / CRM | NOT STARTED | تدقيق المطابقة فقط، الاحتفاظ بالوظائف والبيانات الحالية؛ Regression قبل أي نشر |
 | Smart Assignment / Human Handoff | DONE | الاحتفاظ بالمنطق العامل وفق المالك؛ اختبارات تراجع مطلوبة عند تغييرات التشغيل |
 | Team / Users / Permissions | NOT STARTED | تدقيق الواجهة وحفظ الأدوار على الخادم |
-| Channels | NOT STARTED | تدقيق فقط؛ لا تعديل ربط Meta أو الأسرار أو رسائل حقيقية |
+| Channels | IN PROGRESS | تدقيق فقط؛ لا تعديل ربط Meta أو الأسرار أو رسائل حقيقية |
 | Dashboard / Analytics / Reports | NOT STARTED | تدقيق البيانات والتصفية والواجهات بلغتين |
 | Onboarding / Account Settings | NOT STARTED | تدقيق النماذج والحفظ والعزل |
 | Subscription / Plan UI | NOT STARTED | تدقيق الواجهة فقط؛ لا تجاوز PLAN_LIMIT أو تعديل Billing |
@@ -75,3 +75,11 @@ DONE لتدفق إدخال المستخدم تعني إغلاق نطاقه وف�
 - القبول المرئي والتفاعلي للنسخة المعدلة والمقاسات الخمسة والتقديم الحقيقي للمزود غير معتمدين. WP/Carousel/Variables/Custom Fields وتفاصيل القوائم والرموز ما زالت فجوات؛ القسم IN PROGRESS.
 - تقرير وأدلة: docs/platform-fidelity-20261108/MESSAGE_TEMPLATES_AR.md وtemplate-reference-metrics.json وtemplate-studio-http.json وtemplate-studio-render.txt.
 - لا نشر أو موارد أو تغييرات Railway جديدة. إبقاء PR14 مسودة. الخطوة التالية: قبول النموذج المعدل ثم إغلاق فجوات متغيرات القوالب بالمرجع.
+
+## قنوات الاتصال — دفعة الجدول والربط
+
+- استكمال2cdcb945؛ فحص Connect Account المرجعي حيًا وقياس الإحصاءات والفلاتر والجدول وبطاقات الربط على1363×936، دون فحص مزود أو تعديل حساب حقيقي.
+- عرض الحسابات كجدول مع إحصاءات وفلاتر؛ تفاصيل التشغيل الحالية تحت Manage؛ الدليل الكبير قابل للفتح؛ كتالوج الربط بنمط scoped يحافظ على استعماله الافتراضي. مؤشرات الاتصال من API الحقيقي بما فيه authorization_expiring، دون مساواة active باتصال حقيقي. MM/Google table/Last Sync وDisconnect تبقى فجوات موثقة، ولا نجاح وهمي.
+-6/6 HTTP لإدارة القنوات و9/9 HTTP regression للتدفقات وWebchat/CRM/Handoff وعزل الشركات والأدوار PASS. فحص الحالات والفلاتر وكتالوجي المنصات PASS، TypeScript/ESLint وبناء Web PASS. لا يدعي ذلك قبول المتصفح أو المطابقة البكسلية للكود الجديد.
+- الأدلة CHANNELS_AR.md وchannels-reference-metrics.json وchannels-http.json وchannels-regression-http.json وchannels-overview-tests.txt وchannels-build.txt داخل docs/platform-fidelity-20261108/.
+- النشر في هذا checkpoint لم يبدأ؛ سيتم توثيق نتيجة الاعتماد والنشر بمعرفاته بعد حدوثهما. إصدار Web الجديد يحتاج توافق API/migration104 المحفوظين من الدفعات السابقة. لا main أو موارد جديدة.

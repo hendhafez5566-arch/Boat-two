@@ -1,0 +1,31 @@
+{
+  "environment": "local Nest/PGlite with external delivery disabled; synthetic accounts only",
+  "results": [
+    {
+      "name": "Create website channel and reopen preserves real settings without claiming connectivity",
+      "status": "PASS"
+    },
+    {
+      "name": "Update and reopen preserve widget fields and truthful paused state",
+      "status": "PASS"
+    },
+    {
+      "name": "Invalid settings and synthetic Telegram token are rejected before any provider call",
+      "status": "PASS"
+    },
+    {
+      "name": "Channel metadata stays isolated across companies",
+      "status": "PASS"
+    },
+    {
+      "name": "admin channel mutation authorization",
+      "status": "PASS"
+    },
+    {
+      "name": "agent channel mutation authorization",
+      "status": "PASS"
+    }
+  ],
+  "providerConnection": "BLOCKED: no real credential, webhook or provider mutation attempted",
+  "browserAcceptance": "Not a browser interaction test"
+}
