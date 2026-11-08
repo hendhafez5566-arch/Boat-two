@@ -341,8 +341,8 @@ export default function ManagerSettings({
       if (version !== request.current) return;
       setNotice(
         t(
-          'فُعّلت الخيارات المدعومة فقط: رد عدم التطابق، تشغيل رسالة البداية، إيقاف البوت أثناء ساعات العمل، ومهلة جلسة الإدخال. باقي الحقول مسودة.',
-          'Only supported options activated: no-match, get-started enablement, bot suppression during business hours, and input session expiry. Other fields remain drafts.',
+          'فُعّلت الخيارات المدعومة فقط: رد عدم التطابق، تشغيل رسالة البداية، إيقاف البوت أثناء ساعات العمل، ومهلة جلسة الإدخال وتوقيع الموظف. باقي الحقول مسودة.',
+          'Only supported options activated: no-match, get-started enablement, bot suppression during business hours, input session expiry, and agent signature. Other fields remain drafts.',
         ),
       );
     } catch (e) {
@@ -401,8 +401,8 @@ export default function ManagerSettings({
       </nav>
       <p className={styles.settingsNotice} role="note">
         {t(
-          'الحفظ يحتفظ بالمسودة. التفعيل يطبق أربعة خيارات مدعومة فقط؛ التكاملات الأخرى غير مكتملة.',
-          'Saving retains a draft. Activation applies only four supported options; other integrations remain incomplete.',
+          'الحفظ يحتفظ بالمسودة. التفعيل يطبق الخيارات المدعومة فقط؛ التكاملات الأخرى غير مكتملة.',
+          'Saving retains a draft. Activation applies only supported options; other integrations remain incomplete.',
         )}
       </p>
       <fieldset
@@ -606,8 +606,14 @@ export default function ManagerSettings({
               'ENABLE SIGNATURE MESSAGE · Enabled',
               draft.sharedInbox.signatureEnabled,
               (v) => put('sharedInbox', 'signatureEnabled', v),
-              true,
+              false,
             )}
+            <p className={styles.settingsDescription}>
+              {t(
+                'بعد التفعيل، يستخدم هذا الحساب قالب توقيع الموظف المحدد في إعدادات صندوق الوارد المشترك. لا يغيّر إعدادات الحسابات الأخرى.',
+                'After activation, this account uses the agent signature template configured in Shared Inbox settings. Other accounts keep their settings.',
+              )}
+            </p>
             <div className={styles.settingsSection}>
               {subhead('Session Expiry Time', 'Session Expiry Time Configuration')}
               {field(

@@ -7,7 +7,7 @@ export type ActiveBotSettings = {
     schedule: { day: string; start: string; end: string }[];
     disableBotDuringHours: boolean;
   };
-  sharedInbox?: { inputFlowSessionExpiryMinutes?: number | null };
+  sharedInbox?: { inputFlowSessionExpiryMinutes?: number | null; signatureEnabled?: boolean };
 };
 export function activeBotSettings(settings: unknown): ActiveBotSettings {
   return (settings as { botManagerActive?: ActiveBotSettings } | null)?.botManagerActive ?? {};

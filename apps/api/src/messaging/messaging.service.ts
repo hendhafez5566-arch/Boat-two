@@ -1,3 +1,4 @@
+import { activeBotSettings } from './bot-runtime-settings';
 import { validateTemplateParameters } from './template-contract';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventsService } from '../events/events.service';
@@ -253,13 +254,21 @@ export class MessagingService {
         async (c) =>
           (
             await c.query(
-              'SELECT s.signature_enabled,s.signature_template,u.full_name FROM inbox_settings s JOIN memberships m ON m.tenant_id=s.tenant_id JOIN users u ON u.id=m.user_id WHERE m.user_id=$1',
-              [p.senderUserId],
+              `SELECT s.signature_enabled,s.signature_template,u.full_name,ch.settings AS channel_settings
+               FROM conversations cv JOIN channels ch ON ch.id=cv.channel_id
+               JOIN memberships m ON m.tenant_id=cv.tenant_id
+               JOIN users u ON u.id=m.user_id
+               LEFT JOIN inbox_settings s ON s.tenant_id=cv.tenant_id
+               WHERE m.user_id=$1 AND cv.id=$2`,
+              [p.senderUserId, p.conversationId],
             )
           ).rows[0],
       );
-      if (signature?.signature_enabled) {
-        const suffix = signature.signature_template.replaceAll(
+      const signatureEnabled =
+        activeBotSettings(signature?.channel_settings).sharedInbox?.signatureEnabled ??
+        signature?.signature_enabled;
+      if (signatureEnabled) {
+        const suffix = (signature.signature_template ?? '— {{agent.name}}').replaceAll(
           '{{agent.name}}',
           signature.full_name || 'Agent',
         );

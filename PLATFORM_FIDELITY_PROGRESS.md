@@ -43,3 +43,16 @@ DONE لتدفق إدخال المستخدم تعني إغلاق نطاقه وف�
 - النشر: لا نشر لهذه الدفعة. Web السابق ناجح `097613d0-a898-4f92-8590-cbb3eb56ee6c`؛ API السابق فشل `56c37b89-9d7f-4244-a997-5033d19ac8ce` بسبب تنزيل mise HTTP 503/504. لا تكرر البناء قبل تحقق جديد.
 - الخطوة التالية: إكمال قبول إعدادات General وBusiness Hour وShared Inbox في حساب Webchat المعزول، ثم باقي الإعدادات؛ بعد ذلك Message Templates.
 - آخر commit لهذه الدفعة: يُعرّف بواسطة GitHub commit الذي أضاف هذا الملف مع تعديل المكوّن؛ يمنع إدراج SHA تخميني ذاتي.
+
+## دفعة توقيع الموظف للقناة — تنفيذ محلي محفوظ
+
+- BotSailor: فُتح Shared Inbox حيًا، ورُصد مفتاح التوقيع وحقلا انتهاء الجلسة ووسم فشل التسليم. لم يضغط Publish Changes ولم تُحفظ إعدادات المرجع.
+- Boat Two: رُبط signatureEnabled بمحرك إرسال الموظف الفعلي كتجاوز اختياري خاص بالقناة في botManagerActive. تستخدم القناة قالب التوقيع الحالي في Inbox، أو القالب الافتراضي الموجود عند غيابه. المسودة لا تؤثر، والقنوات القديمة تستمر بسياسة مساحة العمل. لا تعديل لإعداد Inbox العام أو CRM أو مخطط قاعدة البيانات.
+- 7/7 اختبارات HTTP حقيقية على Nest/PGlite: حفظ/استرجاع، تفعيل/تعطيل، منع تفعيل نسخة قديمة، استمرار الإعداد النشط أثناء تعديل المسودة، رسائل Inbox المحفوظة، الحفاظ على عميل CRM وحالة الموظف، قناة ثانية، عزل شركتين، Owner/Admin/Agent.
+- 225/225 اختبارات API من المصدر PASS، وWeb production build وAPI build وWeb TypeScript وESLint المحدد PASS. هذا ليس إثبات مطابقة بصرية.
+- حالات فشل البنية الاختبارية المحفوظة: تشغيل dist من مجلد خاطئ فقد fixtures (174/182)، ثم tsx CLI رفض IPC محلي؛ أعيد التشغيل من apps/api بواسطة node --import tsx ونجحت الاختبارات كلها. فشل أول HTTP لأن onboarding سبق إنشاء القناة، وصُحح ترتيب fixture دون إضعاف assertions.
+- الأدلة: docs/platform-fidelity-20261108/channel-signature-http.json وapi-source-tests.txt وapi-unit.txt (الفشل السابق محفوظ)، scripts/qa-channel-signature.mjs، channel-signature.test.ts.
+- BM-064: IN PROGRESS؛ التوقيع مرتبط بالتشغيل، لكن human session expiry وfailed delivery label ما زالا فجوتين. لا PASS للبند كاملًا.
+- قبول المتصفح للتعديل الجديد، صور قبل/بعد، RTL/LTR والمقاسات الخمسة: BLOCKED حتى تتاح معاينة النسخة المعدلة عبر المتصفح المصرح؛ لم تُنشأ موارد/روابط إضافية ولم تُنشر دفعة غير معتمدة.
+- Message Templates: فحص حي إضافي لقائمة Create أظهر Mixed/WP/Carousel Media/Carousel Product؛ Mixed يفتح نموذجًا داخل القسم يتضمن Basic Information، Locale، Category، Header، Message، Footer، Buttons، Live Preview، Save Draft وSave/Submit. تنفيذ Boat الحالي يفتح Dialog ويختلف في ترتيب الحقول؛ لا تطابق معلن. لا استدعاء Meta أو مزامنة أو حفظ في المرجع.
+- النشر لهذه الدفعة: لم يحدث. PR14 يبقى Draft. الخطوة التالية: قبول مرئي للدفعة، ثم ربط بقية Shared Inbox من خلال عقود Inbox القائمة؛ لا محرك موازٍ.

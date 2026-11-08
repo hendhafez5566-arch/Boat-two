@@ -75,11 +75,12 @@ test('activation rejects stale drafts, unknown zero expiry, missing flows and in
   settings = {
     botManager: {
       general: { noMatchReply: false, getStartedEnabled: false },
-      sharedInbox: { inputFlowSessionExpiryMinutes: 15 },
+      sharedInbox: { inputFlowSessionExpiryMinutes: 15, signatureEnabled: true },
     },
   };
   const result = await service.activateBotSettings('test-company', 'channel', settings.botManager);
   assert.equal(result.active.sharedInbox?.inputFlowSessionExpiryMinutes, 15);
+  assert.equal(result.active.sharedInbox?.signatureEnabled, true);
   assert.equal(result.activated, true);
   assert.equal(writes, 1);
 });

@@ -553,6 +553,7 @@ export class ChannelsService {
           getStartedEnabled: expected.general?.getStartedEnabled,
         },
         sharedInbox: {
+          signatureEnabled: expected.sharedInbox?.signatureEnabled,
           inputFlowSessionExpiryMinutes: expected.sharedInbox?.inputFlowSessionExpiryMinutes,
         },
       };
@@ -600,6 +601,7 @@ export class ChannelsService {
           'general.getStartedEnabled',
           'businessHour.disableBotDuringHours',
           'sharedInbox.inputFlowSessionExpiryMinutes',
+          'sharedInbox.signatureEnabled',
         ],
       };
     });
