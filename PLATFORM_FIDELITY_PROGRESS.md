@@ -83,3 +83,10 @@ DONE لتدفق إدخال المستخدم تعني إغلاق نطاقه وف�
 -6/6 HTTP لإدارة القنوات و9/9 HTTP regression للتدفقات وWebchat/CRM/Handoff وعزل الشركات والأدوار PASS. فحص الحالات والفلاتر وكتالوجي المنصات PASS، TypeScript/ESLint وبناء Web PASS. لا يدعي ذلك قبول المتصفح أو المطابقة البكسلية للكود الجديد.
 - الأدلة CHANNELS_AR.md وchannels-reference-metrics.json وchannels-http.json وchannels-regression-http.json وchannels-overview-tests.txt وchannels-build.txt داخل docs/platform-fidelity-20261108/.
 - النشر في هذا checkpoint لم يبدأ؛ سيتم توثيق نتيجة الاعتماد والنشر بمعرفاته بعد حدوثهما. إصدار Web الجديد يحتاج توافق API/migration104 المحفوظين من الدفعات السابقة. لا main أو موارد جديدة.
+
+### نتيجة محاولة نشر قنوات الاتصال
+- المنتج محفوظ ومتحقق على GitHub:1f249b6b263ab93f1f8680749d6fcd0f47600390.
+- جُهّز مصدر API الحالي فقط على هذا commit. مرحلة pre-deploy الموجودة تطبق migrations ومنها104، دون تعديل أمر البناء أو المتغيرات أو Sleep.
+- أداة accept-deploy أعادت INVALID_ARGUMENT، ثم عند الاكتفاء بـenvironmentId أعادت صراحة: Cancelled — the user did not approve this action. No changes were made. لم يبدأ deployment جديد. لا تجاوز لهذه الموافقة عبر CLI أو مورد آخر.
+- بقي patch ae600b07-b326-42c8-9aaf-d5e0efdca76d مرحليًا لخدمة API فقط: تغيير commitSha منd511 إلى1f249b6b؛ باقي حقول المصدر مطابقة. Web ما زال علىd511 ولم يُجهز أو يُنشر رأس الفرع له. API الملتزم أيضًا لم يتغير بعد.
+- الحالة الحالية: code/tests محفوظة، release BLOCKED عند اعتماد عملية Railway. القبول البصري/التفاعلي للنسخة المعدلة ما زال BLOCKED، لا مطابقة كاملة معلنة.
