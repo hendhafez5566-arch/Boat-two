@@ -59,6 +59,11 @@ test('activation rejects stale drafts, unknown zero expiry, missing flows and in
     () => service.activateBotSettings('test-company', 'channel', settings.botManager),
     /positive/,
   );
+  settings = { botManager: { sharedInbox: { humanSessionExpiryMinutes: 0 } } };
+  await assert.rejects(
+    () => service.activateBotSettings('test-company', 'channel', settings.botManager),
+    /positive/,
+  );
   settings = { botManager: { general: { getStartedEnabled: true } } };
   await assert.rejects(
     () => service.activateBotSettings('test-company', 'channel', settings.botManager),
@@ -75,12 +80,13 @@ test('activation rejects stale drafts, unknown zero expiry, missing flows and in
   settings = {
     botManager: {
       general: { noMatchReply: false, getStartedEnabled: false },
-      sharedInbox: { inputFlowSessionExpiryMinutes: 15, signatureEnabled: true },
+      sharedInbox: { inputFlowSessionExpiryMinutes: 15, signatureEnabled: true, humanSessionExpiryMinutes: 30 },
     },
   };
   const result = await service.activateBotSettings('test-company', 'channel', settings.botManager);
   assert.equal(result.active.sharedInbox?.inputFlowSessionExpiryMinutes, 15);
   assert.equal(result.active.sharedInbox?.signatureEnabled, true);
+  assert.equal(result.active.sharedInbox?.humanSessionExpiryMinutes, 30);
   assert.equal(result.activated, true);
   assert.equal(writes, 1);
 });

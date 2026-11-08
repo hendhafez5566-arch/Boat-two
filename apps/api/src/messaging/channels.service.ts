@@ -525,7 +525,8 @@ export class ChannelsService {
       const current = row.settings ?? {};
       if (!isDeepStrictEqual(botManagerSettingsSchema.parse(current.botManager ?? {}), expected))
         throw new ConflictException('Settings changed. Reload before activating.');
-      if (expected.sharedInbox?.inputFlowSessionExpiryMinutes === 0)
+      if (expected.sharedInbox?.inputFlowSessionExpiryMinutes === 0 ||
+          expected.sharedInbox?.humanSessionExpiryMinutes === 0)
         throw new BadRequestException('Expiry must be positive; zero semantics are not verified');
       const actions = readSystemActions(current).actions;
       for (const [key, enabled] of [
@@ -554,6 +555,7 @@ export class ChannelsService {
         },
         sharedInbox: {
           signatureEnabled: expected.sharedInbox?.signatureEnabled,
+          humanSessionExpiryMinutes: expected.sharedInbox?.humanSessionExpiryMinutes,
           inputFlowSessionExpiryMinutes: expected.sharedInbox?.inputFlowSessionExpiryMinutes,
         },
       };
@@ -602,6 +604,7 @@ export class ChannelsService {
           'businessHour.disableBotDuringHours',
           'sharedInbox.inputFlowSessionExpiryMinutes',
           'sharedInbox.signatureEnabled',
+          'sharedInbox.humanSessionExpiryMinutes',
         ],
       };
     });

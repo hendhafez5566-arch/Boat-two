@@ -42,7 +42,7 @@ assert.ok(ca && cb);
 const settingsPath = '/channels/' + a.id + '/bot-settings';
 let saved;
 await check('Saving a signature draft and reopening does not activate outgoing signatures', async () => {
-  saved = await api(settingsPath, token, { general: { noMatchReply: false, getStartedEnabled: false }, sharedInbox: { signatureEnabled: true } }, 'PATCH');
+  saved = await api(settingsPath, token, { general: { noMatchReply: false, getStartedEnabled: false }, sharedInbox: { signatureEnabled: true, humanSessionExpiryMinutes: 30 } }, 'PATCH');
   assert.deepEqual(await api(settingsPath, token), saved);
   await api('/conversations/' + ca.id + '/messages', token, { text: 'Before activation' });
   const messages = await api('/conversations/' + ca.id + '/messages', token);
@@ -52,6 +52,7 @@ await check('Saving a signature draft and reopening does not activate outgoing s
 await check('Activation applies the signature through actual Inbox persistence and preserves CRM/handoff', async () => {
   const activation = await api(settingsPath + '/activate', token, saved);
   assert.ok(activation.scope.includes('sharedInbox.signatureEnabled'));
+  assert.equal(activation.active.sharedInbox.humanSessionExpiryMinutes,30);
   await api('/conversations/' + ca.id + '/messages', token, { text: 'Activated reply' });
   const messages = await api('/conversations/' + ca.id + '/messages', token);
   assert.ok(JSON.stringify(messages).includes('Activated reply\\nSigned Signature QA Owner'));
@@ -78,7 +79,7 @@ await check('Stale activation fails; draft edits do not replace the active signa
 await check('Cross-tenant settings and activation are denied', async () => {
   const other = await owner();
   await api(settingsPath, other.accessToken, null, 'GET', 404);
-  await api(settingsPath, other.accessToken, { sharedInbox: { signatureEnabled: true } }, 'PATCH', 404);
+  await api(settingsPath, other.accessToken, { sharedInbox: { signatureEnabled: true, humanSessionExpiryMinutes: 30 } }, 'PATCH', 404);
   await api(settingsPath + '/activate', other.accessToken, saved, 'POST', 404);
 });
 for (const role of ['admin', 'agent']) await check(role + ' server authorization for settings/save/activate', async () => {

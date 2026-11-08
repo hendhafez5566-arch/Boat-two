@@ -341,8 +341,8 @@ export default function ManagerSettings({
       if (version !== request.current) return;
       setNotice(
         t(
-          'فُعّلت الخيارات المدعومة فقط: رد عدم التطابق، تشغيل رسالة البداية، إيقاف البوت أثناء ساعات العمل، ومهلة جلسة الإدخال وتوقيع الموظف. باقي الحقول مسودة.',
-          'Only supported options activated: no-match, get-started enablement, bot suppression during business hours, input session expiry, and agent signature. Other fields remain drafts.',
+          'فُعّلت الخيارات المدعومة فقط: رد عدم التطابق، تشغيل رسالة البداية، إيقاف البوت أثناء ساعات العمل، ومهلتي جلسة الإدخال والموظف وتوقيع الموظف. باقي الحقول مسودة.',
+          'Only supported options activated: no-match, get-started enablement, bot suppression during business hours, input/human session expiry, and agent signature. Other fields remain drafts.',
         ),
       );
     } catch (e) {
