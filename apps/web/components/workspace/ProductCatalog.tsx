@@ -337,7 +337,11 @@ export default function ProductCatalog() {
             )}
             <label className="field">
               {t('قسم المنتج', 'Product category')}
-              <select name="category" defaultValue={editing?.category_id ?? ''}>
+              <select
+                aria-label={t('قسم المنتج', 'Product category')}
+                name="category"
+                defaultValue={editing?.category_id ?? ''}
+              >
                 <option value="">{t('دون قسم', 'Uncategorized')}</option>
                 {categories.data.map((c) => (
                   <option key={c.id} value={c.id}>

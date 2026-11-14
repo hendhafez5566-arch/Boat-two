@@ -37,6 +37,7 @@ const browser = await chromium.launch({
   args: ['--no-sandbox'],
 });
 const results = [];
+let activePage;
 try {
   for (const language of ['en', 'ar'])
     for (const width of [390, 1366]) {
@@ -49,6 +50,7 @@ try {
         { session, language },
       );
       const page = await context.newPage();
+      activePage = page;
       await page.route('**/*', (r) =>
         ['localhost', '127.0.0.1'].includes(new URL(r.request().url()).hostname)
           ? r.continue()
@@ -147,6 +149,12 @@ try {
   });
   assert.deepEqual(await api('/commerce/products', other.accessToken), []);
   assert.deepEqual(await api('/commerce/categories', other.accessToken), []);
+} catch (e) {
+  if (activePage) {
+    await activePage.screenshot({ path: out + '/failure.png', fullPage: true }).catch(() => {});
+    writeFileSync(out + '/failure-dom.txt', await activePage.content().catch(() => ''));
+  }
+  throw e;
 } finally {
   await browser.close();
   writeFileSync(out + '/results.json', JSON.stringify(results, null, 2));
