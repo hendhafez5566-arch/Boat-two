@@ -195,3 +195,5 @@ Product source1f249b6b pushed/verified. API-before-Web deploy staged on the same
 ### Connect Account continuation
 
 Inspected the signed-in BotSailor overview and Facebook, Instagram, Google, and Webchat entry pages in the cloud browser. Added separate social setup and benefits panels, Google account search and scope details, and persistent Webchat settings editing alongside its separate creation and widget-list sections. Live provider authorization and acceptance of this branch on Railway remain pending. Next action is to verify this exact commit with CI and inspect the build on the existing preview before acceptance.
+
+GitHub Actions run 43595935535 timed out selecting Webchat Position. Commit 8f9bc80 adds explicit select names and covers editing a persisted widget. Run 43597026420 advanced through the earlier English browser cases and then caught overview overflow at 768 px. The overview now applies its tablet layout at 768 px. Next action: open the Channel connection acceptance workflow for this HEAD, inspect any failing browser log, then deploy only a passing SHA to the existing Railway preview and repeat the browser acceptance there.
