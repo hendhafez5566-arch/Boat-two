@@ -1,4 +1,6 @@
 'use client';
+import ProductPicker from './ProductPicker';
+import type { CatalogProduct } from '../workspace/ProductCatalog';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import DynamicCatalogSettings from './DynamicCatalogSettings';
 import configStyles from './automation-config.module.css';
@@ -398,15 +400,21 @@ export default function Inspector({
         )
         .catch(() => {});
   }, [type]);
-  const [products, setProducts] = useState<{ id: string; name: string; archived: boolean }[]>([]);
+  const [products, setProducts] = useState<CatalogProduct[]>([]);
+  const [productError, setProductError] = useState('');
+  const [productsLoading, setProductsLoading] = useState(false);
   const [appointmentServices, setAppointmentServices] = useState<
     { id: string; name: string; enabled: boolean }[]
   >([]);
   useEffect(() => {
-    if (['product', 'catalog'].includes(type))
+    if (['product', 'catalog'].includes(type)) {
+      setProductsLoading(true);
+      setProductError('');
       api<typeof products>('/commerce/products')
         .then(setProducts)
-        .catch(() => {});
+        .catch((e) => setProductError((e as Error).message))
+        .finally(() => setProductsLoading(false));
+    }
     if (type === 'appointment')
       api<typeof appointmentServices>('/commerce/services')
         .then(setAppointmentServices)
@@ -498,31 +506,22 @@ export default function Inspector({
           {type === 'catalog' && <DynamicCatalogSettings data={data} set={set} />}
           {!data.sourceId && (
             <>
-              <label>
-                {t('اختر المنتج أو صفوف القسم', 'Choose product or section rows')}
-                <select
-                  multiple={type === 'catalog'}
-                  value={type === 'catalog' ? (data.productIds ?? []) : (data.productId ?? '')}
-                  onChange={(e) =>
-                    set(
-                      type === 'catalog'
-                        ? { productIds: Array.from(e.target.selectedOptions).map((o) => o.value) }
-                        : { productId: e.target.value },
-                    )
-                  }
-                >
-                  <option value="" disabled>
-                    {t('اختر', 'Choose')}
-                  </option>
-                  {products
-                    .filter((p) => !p.archived)
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                </select>
-              </label>
+              <ProductPicker
+                products={products}
+                loading={productsLoading}
+                error={productError}
+                multiple={type === 'catalog'}
+                selected={
+                  type === 'catalog'
+                    ? (data.productIds ?? [])
+                    : data.productId
+                      ? [data.productId]
+                      : []
+                }
+                onChange={(ids) =>
+                  set(type === 'catalog' ? { productIds: ids } : { productId: ids[0] ?? '' })
+                }
+              />
               {type === 'catalog' && (
                 <>
                   <label>
