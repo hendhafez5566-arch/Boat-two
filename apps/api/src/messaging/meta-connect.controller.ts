@@ -46,8 +46,33 @@ export class MetaConnectController {
         env.META_CONNECT_ENABLED === 'true' || env.EXTERNAL_DELIVERY_ENABLED === 'true',
       appId: env.META_APP_ID || null,
       embeddedConfigId: env.META_EMBEDDED_CONFIG_ID || null,
+      catalogConfigured: !!env.META_EMBEDDED_CATALOG_CONFIG_ID,
+      webhookUrl: `${env.PUBLIC_API_URL.replace(/\/$/, '')}/webhooks/whatsapp`,
       redirectUri: `${env.PUBLIC_API_URL}/channels/meta/callback`,
     };
+  }
+  @Roles('owner', 'admin')
+  @Get('whatsapp/accounts')
+  async whatsappAccounts(@Req() r: AuthedRequest) {
+    const publicRows = (await this.channels.list(r.user.tenantId)).filter(
+      (c) => c.type === 'whatsapp',
+    );
+    return this.db.withTenant(r.user.tenantId, async (c) => {
+      const rows = (await c.query("SELECT id,credentials_enc FROM channels WHERE type='whatsapp'"))
+        .rows;
+      const businesses = new Map(
+        rows.map((row) => [
+          row.id,
+          row.credentials_enc
+            ? this.crypto.decrypt<{ wabaId?: string }>(row.credentials_enc).wabaId || null
+            : null,
+        ]),
+      );
+      return publicRows.map((row) => ({
+        ...row,
+        businessAccountId: businesses.get(row.id) || null,
+      }));
+    });
   }
   private ready() {
     if (
@@ -63,8 +88,17 @@ export class MetaConnectController {
   @Post('start')
   async start(@Req() r: AuthedRequest, @Body() body: unknown) {
     this.ready();
-    const { kind } = parse(z.object({ kind: z.enum(['facebook', 'instagram', 'whatsapp']) }), body);
-    if (kind === 'whatsapp' && !env.META_EMBEDDED_CONFIG_ID)
+    const { kind, withCatalog } = parse(
+      z.object({
+        kind: z.enum(['facebook', 'instagram', 'whatsapp']),
+        withCatalog: z.boolean().default(false),
+      }),
+      body,
+    );
+    const embeddedConfigId = withCatalog
+      ? env.META_EMBEDDED_CATALOG_CONFIG_ID
+      : env.META_EMBEDDED_CONFIG_ID;
+    if (kind === 'whatsapp' && !embeddedConfigId)
       throw new ServiceUnavailableException('WhatsApp Embedded Signup configuration ID required');
     const state = randomBytes(32).toString('hex');
     await this.db.withTenant(r.user.tenantId, (c) =>
@@ -83,7 +117,11 @@ export class MetaConnectController {
           ? 'pages_show_list,pages_manage_metadata,instagram_basic,instagram_manage_messages'
           : 'pages_show_list,pages_manage_metadata,pages_messaging',
     });
-    return { state, authorizeUrl: `https://www.facebook.com/v21.0/dialog/oauth?${params}` };
+    return {
+      state,
+      authorizeUrl: `https://www.facebook.com/v21.0/dialog/oauth?${params}`,
+      ...(kind === 'whatsapp' ? { embeddedConfigId } : {}),
+    };
   }
   private async exchange(
     state: string,
@@ -230,6 +268,101 @@ export class MetaConnectController {
       });
     });
   }
+  @Roles('owner', 'admin')
+  @Post('manual/complete')
+  async manual(@Req() r: AuthedRequest, @Body() body: unknown) {
+    this.ready();
+    const input = parse(
+      z.object({
+        wabaId: z.string().regex(/^\d+$/),
+        accessToken: z.string().min(10).max(4000),
+      }),
+      body,
+    );
+    const auth = await inspectMetaMessagingPermission(input.accessToken);
+    if (auth.status !== 'granted' || !auth.managementGranted)
+      throw new BadRequestException(
+        'Meta must grant WhatsApp messaging and management permissions',
+      );
+    const phones: { id: string; verified_name?: string }[] = [];
+    let after: string | undefined;
+    for (let page = 0; page < 10; page++) {
+      const params = new URLSearchParams({
+        fields: 'id,verified_name',
+        limit: '100',
+        ...(after ? { after } : {}),
+      });
+      const response = await fetch(`${GRAPH}/${input.wabaId}/phone_numbers?${params}`, {
+        headers: { Authorization: `Bearer ${input.accessToken}` },
+        signal: AbortSignal.timeout(15000),
+      });
+      const result = (await response.json()) as {
+        data?: { id: string; verified_name?: string }[];
+        paging?: { cursors?: { after?: string }; next?: string };
+      };
+      if (
+        !response.ok ||
+        !Array.isArray(result.data) ||
+        result.data.some((p) => !/^\d+$/.test(p.id))
+      )
+        throw new BadRequestException('Unable to verify WhatsApp Business Account phone numbers');
+      phones.push(...result.data);
+      if (!result.paging?.next) break;
+      after = result.paging.cursors?.after;
+      if (!after || page === 9)
+        throw new BadRequestException(
+          'Business account phone list is incomplete; contact the administrator',
+        );
+    }
+    const unique = [...new Map(phones.map((p) => [p.id, p])).values()];
+    if (!unique.length)
+      throw new BadRequestException('No phone numbers found in this business account');
+    const identities: {
+      phone: (typeof unique)[number];
+      existing: Awaited<ReturnType<ChannelsService['lookup']>>;
+    }[] = [];
+    for (const phone of unique) {
+      const existing = await this.channels.lookup('whatsapp', phone.id);
+      if (existing && existing.tenant_id !== r.user.tenantId)
+        throw new ConflictException('This account is already connected');
+      identities.push({ phone, existing });
+    }
+    // One transaction for all local writes; uniqueness guards a concurrent attach.
+    const ids = await this.db.withTenant(r.user.tenantId, async () => {
+      const saved: string[] = [];
+      for (const { phone, existing } of identities) {
+        if (existing) {
+          await this.channels.reconnect(
+            r.user.tenantId,
+            existing.id,
+            input.accessToken,
+            input.wabaId,
+          );
+          saved.push(existing.id);
+        } else {
+          const created = await this.channels.create(r.user.tenantId, {
+            type: 'whatsapp',
+            name: (phone.verified_name || 'WhatsApp Business').slice(0, 80),
+            credentials: {
+              phoneNumberId: phone.id,
+              wabaId: input.wabaId,
+              accessToken: input.accessToken,
+            },
+          });
+          saved.push(created.id);
+        }
+      }
+      return saved;
+    });
+    const accounts = [];
+    for (const id of ids) {
+      const webhookReady = await this.channels.completeWhatsAppSubscription(r.user.tenantId, id);
+      const health = await this.channels.verify(r.user.tenantId, id);
+      accounts.push({ id, webhookReady: webhookReady && health.state === 'connected' });
+    }
+    return { accounts };
+  }
+
   @Roles('owner', 'admin') @Post('embedded/complete') async embedded(
     @Req() r: AuthedRequest,
     @Body() body: unknown,
@@ -249,7 +382,9 @@ export class MetaConnectController {
       throw new BadRequestException('Connection owner mismatch');
     const auth = await inspectMetaMessagingPermission(token);
     if (auth.tokenType !== 'SYSTEM_USER')
-      throw new BadRequestException('Meta login configuration must issue a System User access token');
+      throw new BadRequestException(
+        'Meta login configuration must issue a System User access token',
+      );
     if (auth.status !== 'granted' || !auth.managementGranted)
       throw new BadRequestException(
         'Meta must grant WhatsApp messaging and management permissions',
