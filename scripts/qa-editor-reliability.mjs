@@ -50,7 +50,8 @@ try {
     const context = await browser.newContext({ viewport: { width, height: 936 } });
     await context.addInitScript(
       ({ session, language }) => {
-        localStorage.setItem('session', JSON.stringify(session));
+        if (!localStorage.getItem('session'))
+          localStorage.setItem('session', JSON.stringify(session));
         localStorage.setItem('boat-language', language);
       },
       { session, language },
@@ -183,6 +184,7 @@ try {
     ]);
     assert.ok(expired);
     const renewed = await page.evaluate(() => JSON.parse(localStorage.getItem('session')));
+    Object.assign(session, renewed);
     const saved = await api('/flows/' + f.id, renewed.accessToken);
     assert.equal(saved.draft_graph.nodes[0].data.text, pending);
     await page.waitForFunction(
