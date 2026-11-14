@@ -1188,3 +1188,32 @@
   background-color: #fff;
   color: #064663;
 }
+
+.editor :global(.builder-canvas.is-connecting .premium-flow-node .react-flow__handle.target) {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  animation: none;
+  transform: none;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+}
+.editor
+  :global(
+    .builder-canvas.is-connecting .premium-flow-node .react-flow__handle.target.connectingto.valid
+  ) {
+  background: transparent;
+  border: 2px solid #1eaf76;
+  box-shadow: 0 0 0 2px #1eaf7620;
+}
+.editor
+  :global(
+    .builder-canvas.is-connecting
+      .premium-flow-node
+      .react-flow__handle.target.connectingto:not(.valid)
+  ) {
+  background: transparent;
+  border: 2px solid #d35664;
+}

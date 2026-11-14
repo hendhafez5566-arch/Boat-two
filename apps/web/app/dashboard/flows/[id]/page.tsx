@@ -1,4 +1,12 @@
 'use client';
+import EditorErrorBoundary from '../../../../components/flow/EditorErrorBoundary';
+import { flowIssues } from '../../../../lib/flow-issues';
+import {
+  readFlowRecovery,
+  writeFlowRecovery,
+  downloadFlowRecovery,
+  type FlowRecovery,
+} from '../../../../lib/flow-recovery';
 import { ConfigDisclosure, ConfigSummary } from '../../../../components/flow/ConfigDisclosure';
 import { FlowStatsAvailabilityContext } from '../../../../components/flow/stats-context';
 import BotPolicyEditor from '../../../../components/flow/BotPolicyEditor';
@@ -197,6 +205,8 @@ function Editor({ id }: { id: string }) {
     text: string;
   } | null>(null);
   const [updatedAt, setUpdatedAt] = useState('');
+  const [recovery, setRecovery] = useState<FlowRecovery | null>(null);
+  const [recoveryWarning, setRecoveryWarning] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [nodeStats, setNodeStats] = useState<Record<string, NodeStats>>({});
   const [buttonStats, setButtonStats] = useState<Record<string, ButtonStats>>({});
@@ -287,6 +297,16 @@ function Editor({ id }: { id: string }) {
     (async () => {
       const f = await api<any>(`/flows/${id}`);
       const g = toFlow(f.draft_graph);
+      const localDraft = readFlowRecovery(id);
+      const remoteContent = JSON.stringify({
+        graph: f.draft_graph,
+        name: f.name,
+        priority: f.priority,
+        triggers: f.triggers,
+        channelIds: f.channel_ids ?? [],
+      });
+      if (localDraft && (localDraft.content !== remoteContent || localDraft.inspectorDraft))
+        setRecovery(localDraft);
       setUpdatedAt(f.updated_at);
       setLoaded(true);
       // Opening a saved graph must preserve author positions, including overlaps.
@@ -1029,6 +1049,58 @@ function Editor({ id }: { id: string }) {
     channelIds: meta.channelIds,
   });
   latest.current = content;
+  const recoveryRef = useRef<FlowRecovery | null>(null);
+  useEffect(() => {
+    if (!loaded || recovery) return;
+    const record: FlowRecovery | null =
+      dirty || inspectorDraft
+        ? {
+            version: 1,
+            content,
+            baseUpdatedAt: updatedAt,
+            savedAt: new Date().toISOString(),
+            inspectorDraft,
+          }
+        : null;
+    recoveryRef.current = record;
+    const flush = () => setRecoveryWarning(!writeFlowRecovery(id, recoveryRef.current));
+    const timer = setTimeout(flush, 250);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('pagehide', flush);
+      writeFlowRecovery(id, recoveryRef.current);
+    };
+  }, [id, loaded, recovery, content, dirty, inspectorDraft, updatedAt]);
+  function restoreLocalDraft() {
+    if (!recovery) return;
+    const snapshot = JSON.parse(recovery.content),
+      flow = toFlow(snapshot.graph);
+    setNodes(flow.nodes.map((n) => ({ ...n, selected: n.id === recovery.inspectorDraft?.id })));
+    setEdges(flow.edges);
+    setStartId(snapshot.graph.startNodeId);
+    setMeta((m) => ({
+      ...m,
+      name: snapshot.name,
+      priority: snapshot.priority,
+      triggers: snapshot.triggers,
+      channelIds: snapshot.channelIds,
+      policy: snapshot.graph.policy,
+    }));
+    // Keep the original revision: restoring never silently overwrites newer server changes.
+    setUpdatedAt(recovery.baseUpdatedAt);
+    const pending = recovery.inspectorDraft;
+    if (pending && flow.nodes.some((n) => n.id === pending.id)) {
+      setSelected(pending.id);
+      selRef.current = pending.id;
+      setInspectorDraft(pending);
+      setInspectorOpen(true);
+      setTab('node');
+    }
+    setDirty(true);
+    setRecovery(null);
+  }
+
   useEffect(() => {
     if (validationSnapshot.current && validationSnapshot.current !== content) {
       validationRequest.current++;
@@ -1136,8 +1208,8 @@ function Editor({ id }: { id: string }) {
       });
       if (request !== validationRequest.current || latest.current !== submitted) return;
       setValidationState('current');
-      setIssues(r.errors);
-      setWarnings(r.warnings);
+      setIssues(flowIssues(r.errors));
+      setWarnings(flowIssues(r.warnings));
       setMsg(
         `${r.errors.length} ${t('أخطاء', 'errors')}، ${r.warnings.length} ${t('تحذيرات', 'warnings')}` +
           (!r.errors.length && r.warnings.length
@@ -1177,7 +1249,7 @@ function Editor({ id }: { id: string }) {
       setUpdatedAt(r.updated_at);
       setMeta((m) => ({ ...m, status: 'published', version: r.version }));
       setIssues([]);
-      setWarnings(latest.current === submitted ? (r.warnings ?? []) : []);
+      setWarnings(latest.current === submitted ? flowIssues(r.warnings) : []);
       setValidationState(latest.current === submitted ? 'current' : 'stale');
       setMsg(`${t('تم النشر', 'Published')} v${r.version}`);
       setPublishOutcome({
@@ -1197,8 +1269,13 @@ function Editor({ id }: { id: string }) {
     } catch (e: any) {
       if (latest.current === submitted && e.details?.errors) {
         setValidationState('current');
-        setIssues(e.details.errors);
-        setWarnings(e.details.warnings ?? []);
+        setIssues(
+          flowIssues(
+            e.details.issues ?? e.details.errors,
+            nodes.map((n) => n.id),
+          ),
+        );
+        setWarnings(flowIssues(e.details.warnings));
         setMsg(t('لا يمكن النشر: صحّح الأخطاء', 'Fix validation errors before publishing'));
         setPublishOutcome({
           kind: 'error',
@@ -1584,12 +1661,59 @@ function Editor({ id }: { id: string }) {
         </div>
       </header>
       <UnsavedChangesGuard
-        dirty={dirty}
+        dirty={dirty || !!inspectorDraft}
         save={async () => {
+          if (inspectorDraft) return false;
           await save();
           return savedContent.current === latest.current;
         }}
       />
+      {recovery && (
+        <section className="notice" role="status">
+          <strong>{t('توجد مسودة محلية غير محفوظة', 'Unsaved local draft found')}</strong>
+          <p>
+            {t(
+              'استعدها لمتابعة عملك. لو تغيرت نسخة الخادم، سيظل فحص تعارض الحفظ فعالًا.',
+              'Restore to continue your work. Server revision conflicts remain protected.',
+            )}
+          </p>
+          <div className="form-actions">
+            <button className="btn" onClick={restoreLocalDraft}>
+              {t('استعادة المسودة', 'Restore draft')}
+            </button>
+            <button className="btn" onClick={() => downloadFlowRecovery(recovery, id)}>
+              {t('تنزيل نسخة', 'Download copy')}
+            </button>
+            <button
+              className="btn"
+              onClick={() => {
+                writeFlowRecovery(id, null);
+                setRecovery(null);
+              }}
+            >
+              {t('استخدام نسخة الخادم', 'Use server version')}
+            </button>
+          </div>
+        </section>
+      )}
+      {recoveryWarning && (
+        <p className="notice error" role="alert">
+          {t(
+            'تعذّر حفظ نسخة الاسترجاع في هذا المتصفح. احفظ على الخادم أو نزّل نسخة قبل مغادرة الصفحة.',
+            'Browser recovery storage is unavailable. Save to the server or download a copy before leaving.',
+          )}
+        </p>
+      )}
+      {recoveryWarning && recoveryRef.current && (
+        <button
+          className="btn"
+          onClick={() => {
+            if (recoveryRef.current) downloadFlowRecovery(recoveryRef.current, id);
+          }}
+        >
+          {t('تنزيل نسخة الاسترجاع', 'Download recovery copy')}
+        </button>
+      )}
       {!loaded && !msg && (
         <p className={styles.loading} role="status">
           {t('جارٍ تحميل التدفق…', 'Loading flow…')}
@@ -2560,8 +2684,10 @@ function Editor({ id }: { id: string }) {
 
 export default function Page({ params }: { params: { id: string } }) {
   return (
-    <ReactFlowProvider>
-      <Editor id={params.id} />
-    </ReactFlowProvider>
+    <EditorErrorBoundary flowId={params.id}>
+      <ReactFlowProvider>
+        <Editor id={params.id} />
+      </ReactFlowProvider>
+    </EditorErrorBoundary>
   );
 }
