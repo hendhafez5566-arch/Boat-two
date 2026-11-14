@@ -19,12 +19,14 @@ export default function DynamicCatalogSettings({
   set: (v: Record<string, unknown>) => void;
 }) {
   const { t } = useLocale();
+  const [sourcesLoading, setSourcesLoading] = useState(true);
   const [manageOpen, setManageOpen] = useState(false);
   const [sourceState, setSourceState] = useState({ dirty: false, busy: false });
   const [sources, setSources] = useState<Source[]>([]),
     [categories, setCategories] = useState<{ name: string; count: number }[]>([]),
     [error, setError] = useState('');
   async function refreshSources() {
+    setSourcesLoading(true);
     setError('');
     try {
       const next = await api<Source[]>('/commerce/sources');
@@ -33,6 +35,8 @@ export default function DynamicCatalogSettings({
     } catch (e) {
       setError((e as Error).message);
       return false;
+    } finally {
+      setSourcesLoading(false);
     }
   }
   useEffect(() => {
@@ -69,7 +73,7 @@ export default function DynamicCatalogSettings({
           }
         >
           <option value="manual">{t('منتجات محددة', 'Selected products')}</option>
-          <option value="dynamic" disabled={!sources.length}>
+          <option value="dynamic" disabled={sourcesLoading || !sources.length}>
             {t('قسم ديناميكي من مصدر بيانات', 'Dynamic data source category')}
           </option>
         </select>
@@ -122,6 +126,8 @@ export default function DynamicCatalogSettings({
             <select
               aria-label={t('مصدر البيانات', 'Data source')}
               value={data.sourceId}
+              disabled={sourcesLoading}
+              aria-busy={sourcesLoading}
               onChange={(e) =>
                 set({
                   sourceId: e.target.value,
@@ -132,6 +138,13 @@ export default function DynamicCatalogSettings({
                 })
               }
             >
+              {!sources.some((s) => s.id === data.sourceId) && (
+                <option value={data.sourceId} disabled>
+                  {sourcesLoading
+                    ? t('جارٍ تحميل المصادر…', 'Loading sources…')
+                    : t('المصدر غير متاح', 'Source unavailable')}
+                </option>
+              )}
               {sources.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}

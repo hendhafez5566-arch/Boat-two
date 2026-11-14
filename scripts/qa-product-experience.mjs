@@ -298,9 +298,15 @@ try {
         ),
         page.getByRole('button', { name: t('حفظ', 'Save'), exact: true }).click(),
       ]);
+      const savedDynamic = await api('/flows/' + f.id, token);
+      assert.equal(savedDynamic.draft_graph.nodes[0].data.sourceId, imported.id);
       await page.reload();
       await page.locator('.react-flow__node[data-id="catalog"]').dblclick();
       await page.getByLabel(t('مصدر البيانات', 'Data source'), { exact: true }).waitFor();
+      await page
+        .getByLabel(t('مصدر البيانات', 'Data source'), { exact: true })
+        .getByRole('option', { name: importName, exact: true })
+        .waitFor({ state: 'attached' });
       assert.equal(
         await page.getByLabel(t('مصدر البيانات', 'Data source'), { exact: true }).inputValue(),
         imported.id,
