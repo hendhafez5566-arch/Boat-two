@@ -37,11 +37,14 @@ try {
         fullName: 'Connection QA',
         workspaceName: 'Isolated Connection QA',
       });
+      // Phone identities are provider-global, even when fixture tenants differ.
+      // Give each viewport case two distinct synthetic phone IDs under one WABA.
+      const phoneFixture = `9${language === 'en' ? '10' : '20'}${String(width).padStart(4, '0')}`;
       await api('/channels', owner.accessToken, {
         type: 'whatsapp',
         name: 'Synthetic business',
         credentials: {
-          phoneNumberId: '900000123',
+          phoneNumberId: phoneFixture + '001',
           wabaId: '900000500',
           accessToken: 'synthetic-not-a-provider-token',
         },
@@ -50,7 +53,7 @@ try {
         type: 'whatsapp',
         name: 'Synthetic second number',
         credentials: {
-          phoneNumberId: '900000124',
+          phoneNumberId: phoneFixture + '002',
           wabaId: '900000500',
           accessToken: 'synthetic-not-a-provider-token',
         },
