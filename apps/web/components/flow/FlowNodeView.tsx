@@ -285,12 +285,7 @@ function FlowNodeView({ id, data, selected }: NodeProps<RFData>) {
                 >
                   <path d="M12 18V5a2.5 2.5 0 0 1 5 0v11-5a2.5 2.5 0 0 1 5 0v6-3a2.5 2.5 0 0 1 5 0v8c0 7-3 11-9 11-4 0-6-2-9-6l-5-7c-2-3 1-5 3-3l5 4" />
                 </svg>
-                <span className="sr-only">
-                  {t(
-                    'خطوة غير مكتملة، انقر مرتين لإكمالها',
-                    'Incomplete step, double click to configure',
-                  )}
-                </span>
+                <span>{t('تحتاج إعدادًا', 'Needs configuration')}</span>
               </span>
             ) : (
               text
