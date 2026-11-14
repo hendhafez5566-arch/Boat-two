@@ -842,7 +842,6 @@ export default function DataSourcesPanel({
                     const latest = await api<Source[]>('/commerce/sources');
                     setEditing(latest.find((s) => s.id === editing!.id) ?? null);
                     await browse(0);
-                    onApplied?.(editing!.id);
                   })
                 }
               >
@@ -862,6 +861,16 @@ export default function DataSourcesPanel({
               'items in the accepted update. Review your catalog below.',
             )}
           </p>
+          {onApplied && editing && (
+            <button
+              type="button"
+              className="btn primary"
+              disabled={busy}
+              onClick={() => onApplied(editing.id)}
+            >
+              {t('استخدام المصدر في البوت', 'Use source in bot')}
+            </button>
+          )}
           <button className="btn" onClick={() => select(null)}>
             {t('استيراد ملف آخر', 'Import another file')}
           </button>
