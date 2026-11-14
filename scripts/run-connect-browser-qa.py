@@ -20,7 +20,7 @@ try:
         else:
             raise RuntimeError('Server not ready '+str(port))
     environment=dict(os.environ,BOAT_PREVIEW_ONLY='true',EXTERNAL_DELIVERY_ENABLED='false')
-    raise SystemExit(subprocess.run(['node','scripts/qa-connect-journeys-browser.mjs'],env=environment).returncode)
+    raise SystemExit(subprocess.run(['node',os.environ.get('BOAT_QA_BROWSER_SCRIPT','scripts/qa-connect-journeys-browser.mjs')],env=environment).returncode)
 finally:
     for p in procs:
         p.terminate()
