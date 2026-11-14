@@ -265,3 +265,44 @@
 .body .form-actions {
   margin-top: auto;
 }
+.toolbar label:first-child {
+  flex: 0 1 180px;
+  min-width: 140px;
+}
+.toolbar label:nth-child(2) {
+  flex: 1;
+  min-width: 200px;
+}
+.picker .option {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.picker .option > input {
+  width: 17px;
+  height: 17px;
+  min-width: 17px;
+  flex: 0 0 17px;
+  margin: 0;
+}
+.pickerTabs button[aria-pressed='true'] {
+  border-color: #7057ec;
+  background: #f5f3ff;
+  color: #4935a0;
+}
+.editor form > :global(.form-actions):last-child {
+  position: sticky;
+  bottom: -24px;
+  background: white;
+  z-index: 1;
+  margin-inline: -24px;
+  padding: 16px 24px;
+  border-top: 1px solid #e2e8f0;
+}
+@media (max-width: 600px) {
+  .toolbar label:first-child,
+  .toolbar label:nth-child(2) {
+    flex: initial;
+    min-width: 0;
+  }
+}

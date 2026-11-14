@@ -2,6 +2,7 @@
 import { assertLocalAcceptance } from './acceptance-local.mjs';
 assertLocalAcceptance();
 import { Buffer } from 'node:buffer';
+import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -9,6 +10,7 @@ import assert from 'node:assert/strict';
 const { chromium } = createRequire(import.meta.url)(
   process.env.BOAT_PLAYWRIGHT_MODULE || 'playwright',
 );
+const { Workbook } = createRequire(resolve('apps/api/package.json'))('exceljs');
 const out = 'docs/enterprise-20261114/products';
 mkdirSync(out, { recursive: true });
 async function api(path, token, body, method = body ? 'POST' : 'GET', expected) {
@@ -124,14 +126,23 @@ try {
       await page
         .getByRole('button', { name: t('مصادر البيانات', 'Data sources'), exact: true })
         .click();
+      const importName = `catalog-${language}-${width}`;
+      const xlsx = width === 1366;
+      const book = new Workbook();
+      book.addWorksheet('Products').addRows([
+        ['ID', 'Name', 'Description', 'Price'],
+        ['import-1', 'Imported tour', 'Import journey', '200'],
+      ]);
       await page
         .getByLabel(t('رفع ملف .xlsx أو .csv — حتى 5 MB', 'Upload .xlsx or .csv — up to 5 MB'))
         .setInputFiles({
-          name: 'catalog.csv',
-          mimeType: 'text/csv',
-          buffer: Buffer.from(
-            'ID,Name,Description,Price\nimport-1,Imported tour,CSV journey,200\n',
-          ),
+          name: importName + (xlsx ? '.xlsx' : '.csv'),
+          mimeType: xlsx
+            ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            : 'text/csv',
+          buffer: xlsx
+            ? Buffer.from(await book.xlsx.writeBuffer())
+            : Buffer.from('ID,Name,Description,Price\nimport-1,Imported tour,CSV journey,200\n'),
         });
       await page
         .getByRole('button', {
@@ -183,10 +194,17 @@ try {
         .getByRole('heading', { name: t('اكتمل الاستيراد', 'Import complete'), exact: true })
         .waitFor();
       const sources = await api('/commerce/sources', token);
-      const imported = sources.find((s) => s.name === 'catalog');
+      const imported = sources.find((s) => s.name === importName);
       assert.ok(imported);
       const importedItems = await api('/commerce/sources/' + imported.id + '/items', token);
       assert.ok(importedItems.items.some((item) => item.name === 'Imported tour'));
+      await page.reload();
+      await page
+        .getByRole('button', { name: t('مصادر البيانات', 'Data sources'), exact: true })
+        .click();
+      await page.getByLabel(t('المصدر', 'Source'), { exact: true }).selectOption(imported.id);
+      await page.getByRole('button', { name: t('عرض', 'Browse'), exact: true }).click();
+      await page.getByText('Imported tour', { exact: true }).waitFor();
       const f = await api('/flows', token, {
         name: 'Product flow ' + language + width,
         channelIds: [channel.id],
@@ -263,7 +281,40 @@ try {
       const sim = await api('/flows/' + f.id + '/test', token, {});
       assert.ok(JSON.stringify(sim).includes(name + ' edited'));
       assert.ok(JSON.stringify(sim).includes('150.29'));
-      results.push({ language, width, status: 'PASS', product: p.id, flow: f.id });
+      await page
+        .getByLabel(t('محتوى الكتالوج', 'Catalog content'), { exact: true })
+        .selectOption('dynamic');
+      await page
+        .getByLabel(t('مصدر البيانات', 'Data source'), { exact: true })
+        .selectOption(imported.id);
+      await page
+        .getByRole('dialog')
+        .filter({ has: page.getByLabel(t('محتوى الكتالوج', 'Catalog content'), { exact: true }) })
+        .getByRole('button', { name: t('حفظ التغييرات', 'Save Changes'), exact: true })
+        .click();
+      await Promise.all([
+        page.waitForResponse(
+          (r) => r.url().endsWith('/flows/' + f.id) && r.request().method() === 'PATCH' && r.ok(),
+        ),
+        page.getByRole('button', { name: t('حفظ', 'Save'), exact: true }).click(),
+      ]);
+      await page.reload();
+      await page.locator('.react-flow__node[data-id="catalog"]').dblclick();
+      await page.getByLabel(t('مصدر البيانات', 'Data source'), { exact: true }).waitFor();
+      assert.equal(
+        await page.getByLabel(t('مصدر البيانات', 'Data source'), { exact: true }).inputValue(),
+        imported.id,
+      );
+      const dynamicSim = await api('/flows/' + f.id + '/test', token, {});
+      assert.ok(JSON.stringify(dynamicSim).includes('Imported tour'));
+      results.push({
+        language,
+        width,
+        fileType: xlsx ? 'xlsx' : 'csv',
+        status: 'PASS',
+        product: p.id,
+        flow: f.id,
+      });
       await context.close();
     }
   const other = await api('/auth/register', null, {
