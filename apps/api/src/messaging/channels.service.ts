@@ -424,6 +424,30 @@ export class ChannelsService {
     });
   }
 
+  /** Token-only onboarding: verify identity before storing any channel data. */
+  async connectTelegram(tenantId: string, botToken: string) {
+    if (env.EXTERNAL_DELIVERY_ENABLED !== 'true')
+      throw new BadRequestException('External access is disabled');
+    if (!env.PUBLIC_API_URL.startsWith('https://'))
+      throw new BadRequestException('Telegram requires a public HTTPS webhook URL');
+    const account = await telegramCall(botToken, 'getMe');
+    if (account.is_bot !== true || String(account.id) !== botToken.split(':')[0])
+      throw new BadRequestException('Telegram bot identity mismatch');
+    const channel = await this.create(tenantId, {
+      type: 'telegram',
+      name: String(account.first_name || account.username || 'Telegram Bot').slice(0, 80),
+      credentials: { botToken },
+    });
+    try {
+      await this.setupTelegram(tenantId, channel.id);
+      const health = await this.verify(tenantId, channel.id);
+      return { id: channel.id, webhookReady: health.state === 'connected' };
+    } catch {
+      // Keep the saved identity recoverable without falsely reporting a working connection.
+      return { id: channel.id, webhookReady: false };
+    }
+  }
+
   async create(tenantId: string, input: CreateChannelInput) {
     let externalId: string;
     let credentialsEnc: string | null = null;
@@ -525,8 +549,10 @@ export class ChannelsService {
       const current = row.settings ?? {};
       if (!isDeepStrictEqual(botManagerSettingsSchema.parse(current.botManager ?? {}), expected))
         throw new ConflictException('Settings changed. Reload before activating.');
-      if (expected.sharedInbox?.inputFlowSessionExpiryMinutes === 0 ||
-          expected.sharedInbox?.humanSessionExpiryMinutes === 0)
+      if (
+        expected.sharedInbox?.inputFlowSessionExpiryMinutes === 0 ||
+        expected.sharedInbox?.humanSessionExpiryMinutes === 0
+      )
         throw new BadRequestException('Expiry must be positive; zero semantics are not verified');
       const actions = readSystemActions(current).actions;
       for (const [key, enabled] of [

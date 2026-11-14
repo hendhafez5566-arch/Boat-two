@@ -159,3 +159,9 @@ Product source1f249b6b pushed/verified. API-before-Web deploy staged on the same
 - Removed the extra first-customer journey, website-test shortcut and three bot preparation/test cards from the guide. Retained a concise bilingual connection explanation and removed unused step styles. Existing channel/OAuth/provider/diagnostic/data actions are unchanged.
 - Fresh Web production build PASS; scoped ESLint PASS; existing channel-overview/catalog contract checks PASS. This is a saved first batch, not full UI/provider acceptance.
 - Remaining: inspect reference details and actual Boat UI, align provider-specific launch surfaces, test AR/EN at requested widths, isolated provider/role/tenant journeys and visual before/after evidence. No deployment or full-parity claim for this batch.
+
+## Channel connection journeys — 2026-11-14
+- Owner requested skipping Facebook login. WhatsApp embedded journey actually opens Catalog/Without Catalog choices before Meta. Facebook human verification and all downstream provider choices remain BLOCKED; no permission granted or production link changed. Detailed observed steps are in docs/channel-connections-20261114/WHATSAPP.md.
+- Telegram has a dedicated connection page with Bot Token only; backend verifies bot identity before persistence, derives provider name, registers the existing webhook, checks connectivity and reports incomplete setup without false success. Duplicate guard and existing endpoints are preserved. Details in TELEGRAM.md.
+- Fresh API and Web production builds PASS; scoped lint PASS; nine isolated tests PASS. The tsx CLI IPC limitation was resolved with the supported node --import tsx test runner. No live provider acceptance, visual parity or deployment claim.
+- Current remaining scope includes WhatsApp manual/embedded UI, Facebook/Instagram pre-auth surfaces, Webchat/Google, provider post-auth states, full UI/HTTP regression and final release. Facebook login stays skipped per owner.

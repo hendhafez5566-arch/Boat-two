@@ -1227,6 +1227,10 @@ export default function Channels() {
               mode="connections"
               selected={selected}
               onSelect={(id) => {
+                if (id === 'telegram') {
+                  window.location.assign('/dashboard/channels/connect/telegram');
+                  return;
+                }
                 setSelected(id);
                 if (id === 'web' || id === 'telegram') setType(id);
                 setConnectOpen(true);
