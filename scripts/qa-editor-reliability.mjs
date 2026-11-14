@@ -29,6 +29,7 @@ const session = await api('/auth/register', null, {
   fullName: 'Recovery QA',
   workspaceName: 'Isolated editor reliability',
 });
+await api('/channels', session.accessToken, { type: 'web', name: 'Isolated editor QA' });
 await api('/workspace/onboarding/complete', session.accessToken, {});
 const product = await api('/commerce/products', session.accessToken, {
   name: 'Recovery product',
