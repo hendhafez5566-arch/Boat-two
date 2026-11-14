@@ -260,6 +260,21 @@ export default function Channels() {
     api<Channel[]>('/channels')
       .then((rows) => {
         setItems(rows);
+        // Deep-link from a provider account directly to its existing settings.
+        const requested = new URLSearchParams(window.location.search).get('manage');
+        if (requested && rows.some((row) => row.id === requested)) {
+          setPlatform('all');
+          setFilter('all');
+          setSearch('');
+          setExpandedId(requested);
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() =>
+              document.getElementById('channel-' + requested)?.scrollIntoView({
+                block: 'center',
+              }),
+            ),
+          );
+        }
         setError('');
       })
       .catch((e) => setError(e.message))
@@ -477,7 +492,7 @@ export default function Channels() {
             <tbody>
               {visible.map((c) => (
                 <Fragment key={c.id}>
-                  <tr>
+                  <tr id={'channel-' + c.id}>
                     <td>
                       <div className={styles.accountName}>
                         <span aria-hidden="true">
