@@ -74,9 +74,23 @@ export default function Inbox() {
     setNeedsReply(routeParams.get('needsReply') === 'true');
     if (routeParams.get('assignee'))
       setFilters((f) => ({ ...f, assignee: routeParams.get('assignee') || '' }));
-    const key = routeParams.get('tab');
-    if (key && key in TAB_QUERY) setTab(key as Tab);
+    const restoreTab = () => {
+      const value = new URLSearchParams(window.location.search).get('tab');
+      setTab(value && Object.prototype.hasOwnProperty.call(TAB_QUERY, value) ? (value as Tab) : 'active');
+    };
+    restoreTab();
+    window.addEventListener('popstate', restoreTab);
+    return () => window.removeEventListener('popstate', restoreTab);
   }, []);
+  function selectTab(next: Tab) {
+    const url = new URL(window.location.href);
+    if (next === 'active') url.searchParams.delete('tab');
+    else url.searchParams.set('tab', next);
+    if (url.href !== window.location.href) {
+      window.history.pushState(window.history.state, '', url);
+    }
+    setTab(next);
+  }
   const [q, setQ] = useState('');
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState(EMPTY_INBOX_FILTERS);
@@ -600,7 +614,7 @@ export default function Inbox() {
                 aria-pressed={tab === key}
                 aria-label={label}
                 title={`${label}${typeof counts[definition[2]] === 'number' ? ` (${counts[definition[2]]})` : ''}`}
-                onClick={() => setTab(key)}
+                onClick={() => selectTab(key)}
               >
                 <NavIcon
                   name={
@@ -821,7 +835,7 @@ export default function Inbox() {
                           setSearch('');
                           setFilters(EMPTY_INBOX_FILTERS);
                           setChannelId('');
-                          setTab('active');
+                          selectTab('active');
                         }}
                       >
                         {t('مسح البحث والفلاتر', 'Clear search and filters')}
@@ -832,7 +846,7 @@ export default function Inbox() {
                           onClick={() => {
                             setQ('');
                             setChannelId('');
-                            setTab('closed');
+                            selectTab('closed');
                           }}
                         >
                           {t('عرض المحادثات المغلقة', 'View closed conversations')}
