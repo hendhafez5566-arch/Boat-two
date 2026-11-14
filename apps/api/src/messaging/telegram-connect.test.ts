@@ -76,3 +76,28 @@ test('token-only Telegram onboarding verifies before save and reports webhook fa
     globalThis.fetch = original;
   }
 });
+
+test('Telegram sync distinguishes an installed webhook from a bot with a valid token only', async () => {
+  const { ChannelsService } = await import('./channels.service');
+  const token = '123456:synthetic_test_token_123456789';
+  const row = { type: 'telegram', status: 'active', external_id: '123456', settings: {}, credentials_enc: 'test' };
+  const db = {
+    withTenant: async (_tenant: string, run: (client: unknown) => Promise<unknown>) =>
+      run({ query: async () => ({ rows: [row], rowCount: 1 }) }),
+  };
+  const crypto = { decrypt: () => ({ botToken: token }) };
+  const service = new ChannelsService(db as never, {} as never, crypto as never);
+  const original = globalThis.fetch;
+  let webhookUrl = '';
+  globalThis.fetch = async (input) => Response.json({
+    ok: true,
+    result: String(input).endsWith('/getMe') ? { id: 123456, is_bot: true } : { url: webhookUrl },
+  });
+  try {
+    assert.equal((await service.verify('tenant-a', 'channel-a')).reason, 'telegram_webhook_not_configured');
+    webhookUrl = 'https://api.example.test/webhooks/telegram/123456';
+    assert.equal((await service.verify('tenant-a', 'channel-a')).reason, 'telegram_webhook_verified');
+  } finally {
+    globalThis.fetch = original;
+  }
+});

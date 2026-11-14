@@ -253,12 +253,18 @@ export class ChannelsService {
         // Do not mark a phone-readable token as able to send messages.
       } else if (row.type === 'telegram') {
         const account = await telegramCall(credentials.botToken, 'getMe');
-        health = {
-          state: String(account.id) === row.external_id ? 'connected' : 'needs_action',
-          checkedAt,
-          reason:
-            String(account.id) === row.external_id ? 'provider_verified' : 'provider_rejected',
-        };
+        if (account.is_bot !== true || String(account.id) !== row.external_id) {
+          health = { state: 'needs_action', checkedAt, reason: 'provider_rejected' };
+        } else {
+          const webhook = await telegramCall(credentials.botToken, 'getWebhookInfo');
+          const expectedUrl = `${env.PUBLIC_API_URL.replace(/\/$/, '')}/webhooks/telegram/${row.external_id}`;
+          const configured = webhook.url === expectedUrl;
+          health = {
+            state: configured ? 'connected' : 'needs_action',
+            checkedAt,
+            reason: configured ? 'telegram_webhook_verified' : 'telegram_webhook_not_configured',
+          };
+        }
       } else {
         const response = await fetch(`${GRAPH}/${encodeURIComponent(row.external_id)}?fields=id`, {
           headers: { Authorization: `Bearer ${token}` },
