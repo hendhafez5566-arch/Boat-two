@@ -44,6 +44,7 @@ export default function WebchatConnectionPage() {
     [error, setError] = useState(''),
     [search, setSearch] = useState(''),
     [code, setCode] = useState<Widget | null>(null);
+  const [copyMessage, setCopyMessage] = useState('');
   const [saved, setSaved] = useState('');
   const [editing, setEditing] = useState<Widget | null>(null);
   const visible = rows.filter((widget) =>
@@ -197,7 +198,10 @@ export default function WebchatConnectionPage() {
                       {t('الإعدادات', 'Settings')}
                     </button>
                     {a.widgetSnippet && (
-                      <button className="btn" onClick={() => setCode(a)}>
+                      <button className="btn" onClick={() => {
+                        setCopyMessage('');
+                        setCode(a);
+                      }}>
                         {t('كود التضمين', 'Get Embed Code')}
                       </button>
                     )}
@@ -365,6 +369,23 @@ export default function WebchatConnectionPage() {
         <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
           {code?.widgetSnippet}
         </pre>
+        <button
+          type="button"
+          className="btn"
+          disabled={!code?.widgetSnippet}
+          onClick={async () => {
+            if (!code?.widgetSnippet) return;
+            try {
+              await navigator.clipboard.writeText(code.widgetSnippet);
+              setCopyMessage(t('تم نسخ الكود.', 'Code copied.'));
+            } catch {
+              setCopyMessage(t('تعذر النسخ. حدّد الكود وانسخه يدويًا.', 'Select the code to copy it manually.'));
+            }
+          }}
+        >
+          {t('نسخ كود التضمين', 'Copy embed code')}
+        </button>
+        {copyMessage && <p role="status">{copyMessage}</p>}
       </Dialog>
     </main>
   );
