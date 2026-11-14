@@ -1,3 +1,4 @@
+/* global localStorage, document, innerWidth */
 import { assertLocalAcceptance } from './acceptance-local.mjs';
 assertLocalAcceptance();
 import { createRequire } from 'node:module';
@@ -87,7 +88,7 @@ try {
         .click();
       await page.getByText(t('تم حفظ المنتج.', 'Product saved.'), { exact: true }).waitFor();
       const p = (await api('/commerce/products', token)).find((p) => p.name === name);
-      assert.equal(p.price_cents, '15029');
+      assert.equal(String(p.price_cents), '15029');
       assert.equal(p.category_id, cat.id);
       await page.getByLabel(t('البحث', 'Search'), { exact: true }).fill(name);
       const card = page
@@ -135,6 +136,45 @@ try {
       await api('/flows/' + f.id, token, { graph, expectedUpdatedAt: f.updated_at }, 'PATCH');
       const reopened = await api('/flows/' + f.id, token);
       assert.deepEqual(reopened.draft_graph.nodes[0].data.productIds, [p.id]);
+      const second = await api('/commerce/products', token, {
+        name: 'Second ' + name,
+        sku: 'second-' + language + '-' + width,
+        description: '',
+        priceCents: '1299',
+        currency: 'EGP',
+        categoryId: cat.id,
+      });
+      await page.goto('http://localhost:3000/dashboard/flows/' + f.id);
+      await page.locator('.react-flow__node[data-id="catalog"]').dblclick();
+      await page.getByRole('dialog').waitFor();
+      await page
+        .getByLabel(t('البحث عن منتج', 'Find a product'), { exact: true })
+        .fill('Second ' + name);
+      await page.getByRole('checkbox', { name: new RegExp('Second ' + name) }).check();
+      await page
+        .getByRole('button', { name: t('تقديم', 'Move up') + ' Second ' + name, exact: true })
+        .click();
+      await page.screenshot({ path: `${out}/picker-${language}-${width}.png`, fullPage: true });
+      await page
+        .getByRole('button', {
+          name: t('إغلاق لوحة الإعدادات', 'Close configuration panel'),
+          exact: true,
+        })
+        .click();
+      await Promise.all([
+        page.waitForResponse(
+          (r) => r.url().endsWith('/flows/' + f.id) && r.request().method() === 'PATCH' && r.ok(),
+        ),
+        page.getByRole('button', { name: t('حفظ', 'Save'), exact: true }).click(),
+      ]);
+      const chosen = await api('/flows/' + f.id, token);
+      assert.deepEqual(chosen.draft_graph.nodes[0].data.productIds, [second.id, p.id]);
+      await page.reload();
+      await page.locator('.react-flow__node[data-id="catalog"]').dblclick();
+      await page.getByRole('dialog').waitFor();
+      await page
+        .getByRole('button', { name: t('إزالة', 'Remove') + ' Second ' + name, exact: true })
+        .waitFor();
       const sim = await api('/flows/' + f.id + '/test', token, {});
       assert.ok(JSON.stringify(sim).includes(name + ' edited'));
       assert.ok(JSON.stringify(sim).includes('150.29'));
