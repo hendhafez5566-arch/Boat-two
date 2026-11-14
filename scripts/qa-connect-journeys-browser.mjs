@@ -1,4 +1,4 @@
-/* global localStorage, document */
+/* global localStorage, document, window */
 import { assertLocalAcceptance } from './acceptance-local.mjs';
 assertLocalAcceptance();
 import assert from 'node:assert/strict';
@@ -88,6 +88,7 @@ try {
       });
       const text = (ar, en) => (language === 'ar' ? ar : en);
       async function capture(name) {
+        await page.evaluate(() => window.scrollTo(0, 0));
         await page.screenshot({ path: `${root}/${language}-${width}-${name}.png`, fullPage: true });
         const size = await page.evaluate(() => ({
           scroll: document.documentElement.scrollWidth,

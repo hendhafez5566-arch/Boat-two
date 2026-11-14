@@ -1,6 +1,7 @@
 'use client';
 import { DisclosureSummary } from './DisclosureSummary';
 import styles from './meta-connect.module.css';
+import ConnectionIllustration from './ConnectionIllustration';
 
 import { useState, type FormEvent } from 'react';
 import { api } from '../../lib/api';
@@ -184,14 +185,19 @@ export default function MetaConnect({
               </p>
             </header>
             <div className={styles.body}>
-              <ul>
-                <li>{t('اتصال آمن بضغطة واحدة', 'One-click secure connection')}</li>
-                <li>{t('WhatsApp Cloud API الرسمي', 'Official WhatsApp Cloud API')}</li>
-                <li>{t('مزامنة أرقام الهاتف تلقائيًا', 'Automatic number sync')}</li>
-              </ul>
+              <div className={styles.overview}>
+                {' '}
+                <ul>
+                  <li>{t('اتصال آمن بضغطة واحدة', 'One-click secure connection')}</li>
+                  <li>{t('WhatsApp Cloud API الرسمي', 'Official WhatsApp Cloud API')}</li>
+                  <li>{t('مزامنة أرقام الهاتف تلقائيًا', 'Automatic number sync')}</li>
+                  <li>{t('إعداد موجّه عبر Meta', 'Guided Meta setup')}</li>
+                </ul>
+                <ConnectionIllustration mode="embedded" />
+              </div>
               {!embeddedOpen ? (
                 <button
-                  className="btn btn-primary"
+                  className={`btn ${styles.embeddedButton}`}
                   disabled={busy}
                   onClick={() => setEmbeddedOpen(true)}
                 >
@@ -223,29 +229,31 @@ export default function MetaConnect({
                   )}
                 </div>
               )}
-              <details>
-                <DisclosureSummary>
-                  {t('خيارات الرقم المتقدمة', 'Advanced number options')}
-                </DisclosureSummary>
-                <label>
-                  <input
-                    type="radio"
-                    name="whatsappMode"
-                    checked={whatsappMode === 'coexistence'}
-                    onChange={() => setWhatsappMode('coexistence')}
-                  />
-                  {t('رقم تطبيق WhatsApp Business', 'WhatsApp Business app number')}
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="whatsappMode"
-                    checked={whatsappMode === 'cloud'}
-                    onChange={() => setWhatsappMode('cloud')}
-                  />
-                  {t('رقم WhatsApp Cloud', 'WhatsApp Cloud number')}
-                </label>
-              </details>
+              {embeddedOpen && (
+                <details>
+                  <DisclosureSummary>
+                    {t('خيارات الرقم المتقدمة', 'Advanced number options')}
+                  </DisclosureSummary>
+                  <label>
+                    <input
+                      type="radio"
+                      name="whatsappMode"
+                      checked={whatsappMode === 'coexistence'}
+                      onChange={() => setWhatsappMode('coexistence')}
+                    />
+                    {t('رقم تطبيق WhatsApp Business', 'WhatsApp Business app number')}
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="whatsappMode"
+                      checked={whatsappMode === 'cloud'}
+                      onChange={() => setWhatsappMode('cloud')}
+                    />
+                    {t('رقم WhatsApp Cloud', 'WhatsApp Cloud number')}
+                  </label>
+                </details>
+              )}
             </div>
           </section>
           <section className={styles.method}>
@@ -260,13 +268,18 @@ export default function MetaConnect({
               </p>
             </header>
             <div className={styles.body}>
-              <ul>
-                <li>{t('رمز الوصول الخاص بك', 'Your own access token')}</li>
-                <li>Cloud API</li>
-                <li>{t('مرونة كاملة', 'Full flexibility')}</li>
-              </ul>
+              <div className={styles.overview}>
+                {' '}
+                <ul>
+                  <li>{t('رمز الوصول الخاص بك', 'Your own access token')}</li>
+                  <li>Cloud API</li>
+                  <li>{t('مرونة كاملة', 'Full flexibility')}</li>
+                  <li>{t('إعداد Webhook', 'Webhook setup')}</li>
+                </ul>
+                <ConnectionIllustration mode="api" />
+              </div>
               <button
-                className="btn"
+                className={`btn ${styles.apiButton}`}
                 disabled={busy}
                 aria-expanded={existingOpen}
                 aria-controls="whatsapp-api-form"

@@ -112,3 +112,35 @@
     flex: 1 1 160px;
   }
 }
+
+.page {
+  margin-inline-end: 20px;
+  background: #f8f9fd;
+  box-shadow: 0 0 0 32px #f8f9fd;
+}
+.page nav {
+  line-height: 18px;
+}
+.page :global(.page-heading) {
+  margin-top: -8px;
+  margin-bottom: 0;
+}
+.page :global(.page-heading) h1 {
+  font-size: 20px;
+  line-height: 30px;
+  margin: 0 0 8px;
+}
+.page :global(.page-heading) p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 21px;
+}
+@media (max-width: 767px) {
+  .page {
+    margin-inline-end: 0;
+    box-shadow: 0 0 0 16px #f8f9fd;
+  }
+  .table table {
+    min-width: 620px;
+  }
+}
