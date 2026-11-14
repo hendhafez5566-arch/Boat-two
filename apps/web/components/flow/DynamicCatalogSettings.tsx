@@ -161,31 +161,37 @@ export default function DynamicCatalogSettings({
               onChange={(e) => set({ query: e.target.value })}
             />
           </label>
-          <fieldset>
-            <legend>
+          <fieldset className="min-w-0 rounded-lg border p-3">
+            <legend className="px-1">
               {t(
                 'الحقول المسموح عرضها — تركها دون تحديد يعرض كل الحقول المعتمدة',
                 'Allowed fields — leave unchecked to show all approved fields',
               )}
             </legend>
-            {sources
-              .find((s) => s.id === data.sourceId)
-              ?.mapping.fields.map((f) => (
-                <label key={f.label}>
-                  <input
-                    type="checkbox"
-                    checked={data.fields?.includes(f.label) ?? false}
-                    onChange={(e) =>
-                      set({
-                        fields: e.target.checked
-                          ? [...(data.fields ?? []), f.label]
-                          : (data.fields ?? []).filter((v) => v !== f.label),
-                      })
-                    }
-                  />
-                  {f.label}
-                </label>
-              ))}
+            <div className="grid gap-2 sm:grid-cols-2">
+              {sources
+                .find((s) => s.id === data.sourceId)
+                ?.mapping.fields.map((f) => (
+                  <label
+                    key={f.label}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 36 }}
+                  >
+                    <input
+                      type="checkbox"
+                      style={{ width: 16, height: 16, flexShrink: 0, margin: 0 }}
+                      checked={data.fields?.includes(f.label) ?? false}
+                      onChange={(e) =>
+                        set({
+                          fields: e.target.checked
+                            ? [...(data.fields ?? []), f.label]
+                            : (data.fields ?? []).filter((v) => v !== f.label),
+                        })
+                      }
+                    />
+                    {f.label}
+                  </label>
+                ))}
+            </div>
           </fieldset>
           <label>
             {t('رسالة عدم وجود نتائج', 'No results message')}
