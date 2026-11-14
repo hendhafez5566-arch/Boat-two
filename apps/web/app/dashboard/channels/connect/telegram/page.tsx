@@ -91,7 +91,7 @@ export default function TelegramConnection() {
                 required
                 autoComplete="off"
                 dir="ltr"
-                pattern="[0-9]{5,20}:[A-Za-z0-9_-]{20,100}"
+                pattern="[0-9]{5,20}:[A-Za-z0-9_\-]{20,100}"
                 disabled={busy}
               />
             </label>
