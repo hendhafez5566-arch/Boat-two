@@ -76,7 +76,9 @@ export default function Inbox() {
       setFilters((f) => ({ ...f, assignee: routeParams.get('assignee') || '' }));
     const restoreTab = () => {
       const value = new URLSearchParams(window.location.search).get('tab');
-      setTab(value && Object.prototype.hasOwnProperty.call(TAB_QUERY, value) ? (value as Tab) : 'active');
+      setTab(
+        value && Object.prototype.hasOwnProperty.call(TAB_QUERY, value) ? (value as Tab) : 'active',
+      );
     };
     restoreTab();
     window.addEventListener('popstate', restoreTab);
@@ -535,8 +537,9 @@ export default function Inbox() {
     detail?.channel_type === 'whatsapp' &&
     (!detail?.whatsapp_window_expires_at ||
       new Date(detail.whatsapp_window_expires_at) <= new Date());
+  const replyUnavailable = windowExpired || Boolean(detail?.blocked);
   const suggestions =
-    text.startsWith('/') && !internal
+    text.startsWith('/') && !internal && !replyUnavailable
       ? canned
           .filter(
             (c) =>
@@ -1096,12 +1099,20 @@ export default function Inbox() {
                       {error}
                     </p>
                   )}
-                  {windowExpired && !internal && (
-                    <p role="status" className="mb-1 rounded bg-amber-50 p-2 text-xs text-amber-800">
-                      {t(
-                        'انتهت نافذة واتساب. الرد الحر معطّل؛ يمكنك كتابة ملاحظة داخلية أو استخدام قالب معتمد من مسار الحملات.',
-                        'The WhatsApp window has expired. Free-form replies are disabled; add an internal note or use an approved template through campaigns.',
-                      )}
+                  {replyUnavailable && !internal && (
+                    <p
+                      role="status"
+                      className="mb-1 rounded bg-amber-50 p-2 text-xs text-amber-800"
+                    >
+                      {detail.blocked
+                        ? t(
+                            'المحادثة محظورة. يمكنك إضافة ملاحظة داخلية.',
+                            'This conversation is blocked. You can add an internal note.',
+                          )
+                        : t(
+                            'انتهت نافذة واتساب. الرد الحر معطّل؛ يمكنك كتابة ملاحظة داخلية أو استخدام قالب معتمد من مسار الحملات.',
+                            'The WhatsApp window has expired. Free-form replies are disabled; add an internal note or use an approved template through campaigns.',
+                          )}
                     </p>
                   )}
                   {detail.handled_by === 'bot' && !internal && (
@@ -1112,7 +1123,7 @@ export default function Inbox() {
                       )}
                     </p>
                   )}
-                  {(!windowExpired || internal) && suggestions.length > 0 && (
+                  {suggestions.length > 0 && (
                     <ul
                       className="composer-suggest mb-1 rounded border bg-white shadow"
                       aria-label={t('الردود الجاهزة', 'Saved replies')}
@@ -1140,7 +1151,7 @@ export default function Inbox() {
                       </button>
                     </div>
                   )}
-                  <div className="composer-row" hidden={windowExpired && !internal}>
+                  <div className="composer-row" hidden={replyUnavailable && !internal}>
                     <textarea
                       ref={composerInput}
                       aria-label={t('محرر الرد', 'Reply composer')}
