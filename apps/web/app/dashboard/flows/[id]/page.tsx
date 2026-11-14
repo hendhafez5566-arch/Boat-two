@@ -1687,8 +1687,12 @@ function Editor({ id }: { id: string }) {
         }}
       />
       {recovery && (
-        <section className="notice" role="status">
-          <strong>{t('توجد مسودة محلية غير محفوظة', 'Unsaved local draft found')}</strong>
+        <Dialog
+          open
+          onClose={() => {}}
+          className="flow-recovery-dialog"
+          title={t('توجد مسودة محلية غير محفوظة', 'Unsaved local draft found')}
+        >
           <p>
             {t(
               'استعدها لمتابعة عملك. لو تغيرت نسخة الخادم، سيظل فحص تعارض الحفظ فعالًا.',
@@ -1712,25 +1716,27 @@ function Editor({ id }: { id: string }) {
               {t('استخدام نسخة الخادم', 'Use server version')}
             </button>
           </div>
-        </section>
+        </Dialog>
       )}
       {recoveryWarning && (
-        <p className="notice error" role="alert">
-          {t(
-            'تعذّر حفظ نسخة الاسترجاع في هذا المتصفح. احفظ على الخادم أو نزّل نسخة قبل مغادرة الصفحة.',
-            'Browser recovery storage is unavailable. Save to the server or download a copy before leaving.',
+        <div className={styles.recoveryWarning} role="alert">
+          <p>
+            {t(
+              'تعذّر حفظ نسخة الاسترجاع في هذا المتصفح. احفظ على الخادم أو نزّل نسخة قبل المغادرة.',
+              'Browser recovery storage is unavailable. Save to the server or download a copy before leaving.',
+            )}
+          </p>
+          {recoveryRef.current && (
+            <button
+              className="btn"
+              onClick={() => {
+                if (recoveryRef.current) downloadFlowRecovery(recoveryRef.current, id);
+              }}
+            >
+              {t('تنزيل نسخة الاسترجاع', 'Download recovery copy')}
+            </button>
           )}
-        </p>
-      )}
-      {recoveryWarning && recoveryRef.current && (
-        <button
-          className="btn"
-          onClick={() => {
-            if (recoveryRef.current) downloadFlowRecovery(recoveryRef.current, id);
-          }}
-        >
-          {t('تنزيل نسخة الاسترجاع', 'Download recovery copy')}
-        </button>
+        </div>
       )}
       {!loaded && !msg && (
         <p className={styles.loading} role="status">

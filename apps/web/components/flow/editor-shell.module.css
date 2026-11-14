@@ -1217,3 +1217,21 @@
   background: transparent;
   border: 2px solid #d35664;
 }
+
+.editor :global(.flow-recovery-dialog .dialog-close) {
+  display: none;
+}
+.recoveryWarning {
+  position: fixed;
+  z-index: 120;
+  inset-inline: 16px;
+  top: 90px;
+  max-width: 720px;
+  margin-inline: auto;
+  background: #fff8e7;
+  border: 1px solid #e5bb5e;
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: 0 4px 20px #172b4d20;
+  font-size: 14px;
+}
