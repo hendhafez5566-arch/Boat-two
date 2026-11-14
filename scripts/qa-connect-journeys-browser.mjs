@@ -31,8 +31,6 @@ const results = [];
 try {
   for (const language of ['en', 'ar'])
     for (const width of [320, 390, 768, 1366, 1920]) {
-      const phonePrefix = `9${language === 'en' ? '1' : '2'}${width}`;
-      const wabaId = `${phonePrefix}500`;
       const owner = await api('/auth/register', null, {
         email: randomUUID() + '@example.test',
         password: 'Synthetic-' + randomUUID(),
@@ -43,8 +41,8 @@ try {
         type: 'whatsapp',
         name: 'Synthetic business',
         credentials: {
-          phoneNumberId: `${phonePrefix}123`,
-          wabaId: wabaId,
+          phoneNumberId: '900000123',
+          wabaId: '900000500',
           accessToken: 'synthetic-not-a-provider-token',
         },
       });
@@ -52,8 +50,8 @@ try {
         type: 'whatsapp',
         name: 'Synthetic second number',
         credentials: {
-          phoneNumberId: `${phonePrefix}124`,
-          wabaId: wabaId,
+          phoneNumberId: '900000124',
+          wabaId: '900000500',
           accessToken: 'synthetic-not-a-provider-token',
         },
       });
@@ -74,6 +72,19 @@ try {
       await page.route('**/*', async (route) => {
         const u = new URL(route.request().url());
         if (!['localhost', '127.0.0.1'].includes(u.hostname)) return route.abort();
+        if (u.pathname === '/integrations' && route.request().method() === 'GET')
+          return route.fulfill({
+            json: [
+              {
+                id: 'synthetic-google',
+                name: 'Synthetic Google',
+                provider: 'google',
+                enabled: true,
+                status: 'connected',
+                config: { scopes: ['https://www.googleapis.com/auth/calendar'] },
+              },
+            ],
+          });
         if (u.pathname === '/integrations/capabilities')
           return route.fulfill({ json: { google: { configured: true, externalEnabled: true } } });
         if (u.pathname === '/integrations/google/start') {
@@ -122,6 +133,21 @@ try {
         );
       }
       await page.goto('http://localhost:3000/dashboard/channels');
+      const googleRow = page.getByRole('row').filter({ hasText: 'Synthetic Google' });
+      await googleRow.waitFor();
+      const platform = page.getByRole('combobox', {
+        name: text('تصفية المنصة', 'Platform filter'),
+      });
+      await platform.selectOption('google');
+      assert.equal(
+        await page.getByRole('row').filter({ hasText: 'Synthetic business' }).count(),
+        0,
+      );
+      assert.equal(
+        await googleRow.getByRole('link', { name: text('إدارة', 'Manage') }).getAttribute('href'),
+        '/dashboard/channels/connect/google',
+      );
+      await platform.selectOption('all');
       await capture('accounts');
       const channelLinks = [
         ['Facebook', 'facebook'],
@@ -144,8 +170,8 @@ try {
         .getByRole('heading', { name: text('تكامل WhatsApp', 'WhatsApp Integration'), exact: true })
         .waitFor();
       await page.getByText('Synthetic business', { exact: true }).waitFor();
-      const phoneTable = page.getByRole('table').filter({ hasText: wabaId });
-      assert.equal(await phoneTable.getByText(wabaId, { exact: true }).count(), 1);
+      const phoneTable = page.getByRole('table').filter({ hasText: '900000500' });
+      assert.equal(await phoneTable.getByText('900000500', { exact: true }).count(), 1);
       await phoneTable.getByText('Synthetic second number', { exact: true }).waitFor();
       const firstPhone = phoneTable.getByRole('row').filter({ hasText: 'Synthetic business' });
       await firstPhone.getByRole('link', { name: text('إدارة', 'Manage'), exact: true }).click();
@@ -285,7 +311,9 @@ try {
       await dialog.getByRole('button', { name: text('ربط', 'Connect'), exact: true }).click();
       await dialog.waitFor({ state: 'hidden' }).catch(async (cause) => {
         const error = await dialog.getByRole('alert').allTextContents();
-        throw new Error(`Webchat save failed at ${language} ${width}: ${error.join(', ')}`, { cause });
+        throw new Error(`Webchat save failed at ${language} ${width}: ${error.join(', ')}`, {
+          cause,
+        });
       });
       await page
         .getByRole('cell', { name: `Synthetic ${language}-${width}`, exact: true })
@@ -325,7 +353,9 @@ try {
       await dialog.getByRole('button', { name: text('ربط', 'Connect'), exact: true }).click();
       await dialog.waitFor({ state: 'hidden' }).catch(async (cause) => {
         const error = await dialog.getByRole('alert').allTextContents();
-        throw new Error(`Webchat save failed at ${language} ${width}: ${error.join(', ')}`, { cause });
+        throw new Error(`Webchat save failed at ${language} ${width}: ${error.join(', ')}`, {
+          cause,
+        });
       });
       const saved = (await api('/channels', owner.accessToken)).find((row) => row.id === widget.id);
       assert.equal(saved.settings.verticalPosition, 'bottom');
