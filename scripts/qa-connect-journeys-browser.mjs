@@ -23,30 +23,6 @@ async function api(path, token, body) {
   assert.ok(r.ok, JSON.stringify(d));
   return d;
 }
-const owner = await api('/auth/register', null, {
-  email: randomUUID() + '@example.test',
-  password: 'Synthetic-' + randomUUID(),
-  fullName: 'Connection QA',
-  workspaceName: 'Isolated Connection QA',
-});
-await api('/channels', owner.accessToken, {
-  type: 'whatsapp',
-  name: 'Synthetic business',
-  credentials: {
-    phoneNumberId: '900000123',
-    wabaId: '900000500',
-    accessToken: 'synthetic-not-a-provider-token',
-  },
-});
-await api('/channels', owner.accessToken, {
-  type: 'whatsapp',
-  name: 'Synthetic second number',
-  credentials: {
-    phoneNumberId: '900000124',
-    wabaId: '900000500',
-    accessToken: 'synthetic-not-a-provider-token',
-  },
-});
 const browser = await chromium.launch({
   executablePath: process.env.BOAT_CHROMIUM || '/usr/bin/chromium',
   args: ['--no-sandbox'],
@@ -55,6 +31,30 @@ const results = [];
 try {
   for (const language of ['en', 'ar'])
     for (const width of [320, 390, 768, 1366, 1920]) {
+      const owner = await api('/auth/register', null, {
+        email: randomUUID() + '@example.test',
+        password: 'Synthetic-' + randomUUID(),
+        fullName: 'Connection QA',
+        workspaceName: 'Isolated Connection QA',
+      });
+      await api('/channels', owner.accessToken, {
+        type: 'whatsapp',
+        name: 'Synthetic business',
+        credentials: {
+          phoneNumberId: '900000123',
+          wabaId: '900000500',
+          accessToken: 'synthetic-not-a-provider-token',
+        },
+      });
+      await api('/channels', owner.accessToken, {
+        type: 'whatsapp',
+        name: 'Synthetic second number',
+        credentials: {
+          phoneNumberId: '900000124',
+          wabaId: '900000500',
+          accessToken: 'synthetic-not-a-provider-token',
+        },
+      });
       const context = await browser.newContext({ viewport: { width, height: 936 } });
       const page = await context.newPage();
       const errors = [];
@@ -281,7 +281,10 @@ try {
         .selectOption('open');
       await capture('webchat-setup');
       await dialog.getByRole('button', { name: text('ربط', 'Connect'), exact: true }).click();
-      await dialog.waitFor({ state: 'hidden' });
+      await dialog.waitFor({ state: 'hidden' }).catch(async (cause) => {
+        const error = await dialog.getByRole('alert').allTextContents();
+        throw new Error(`Webchat save failed at ${language} ${width}: ${error.join(', ')}`, { cause });
+      });
       await page
         .getByRole('cell', { name: `Synthetic ${language}-${width}`, exact: true })
         .waitFor();
@@ -318,7 +321,10 @@ try {
       assert.equal(await placement.inputValue(), 'top-right');
       await placement.selectOption('bottom-left');
       await dialog.getByRole('button', { name: text('ربط', 'Connect'), exact: true }).click();
-      await dialog.waitFor({ state: 'hidden' });
+      await dialog.waitFor({ state: 'hidden' }).catch(async (cause) => {
+        const error = await dialog.getByRole('alert').allTextContents();
+        throw new Error(`Webchat save failed at ${language} ${width}: ${error.join(', ')}`, { cause });
+      });
       const saved = (await api('/channels', owner.accessToken)).find((row) => row.id === widget.id);
       assert.equal(saved.settings.verticalPosition, 'bottom');
       assert.equal(saved.settings.position, 'left');
