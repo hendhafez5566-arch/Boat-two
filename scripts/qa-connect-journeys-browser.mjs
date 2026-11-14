@@ -274,10 +274,10 @@ try {
         .getByLabel(text('رابط الموقع', 'Website URL'), { exact: true })
         .fill('http://localhost:3000');
       await dialog
-        .getByLabel(text('الموضع', 'Position'), { exact: true })
+        .getByRole('combobox', { name: text('الموضع', 'Position'), exact: true })
         .selectOption('top-right');
       await dialog
-        .getByLabel(text('حالة البداية', 'Startup State'), { exact: true })
+        .getByRole('combobox', { name: text('حالة البداية', 'Startup State'), exact: true })
         .selectOption('open');
       await capture('webchat-setup');
       await dialog.getByRole('button', { name: text('ربط', 'Connect'), exact: true }).click();
@@ -306,6 +306,23 @@ try {
       });
       assert.ok(layout.left >= 0 && layout.right <= width + 1 && layout.top >= 0);
       await capture('webchat-runtime');
+      await page.reload();
+      const widgetRow = page.getByRole('row').filter({ hasText: widget.name });
+      await widgetRow
+        .getByRole('button', { name: text('الإعدادات', 'Settings'), exact: true })
+        .click();
+      const placement = dialog.getByRole('combobox', {
+        name: text('الموضع', 'Position'),
+        exact: true,
+      });
+      assert.equal(await placement.inputValue(), 'top-right');
+      await placement.selectOption('bottom-left');
+      await dialog.getByRole('button', { name: text('ربط', 'Connect'), exact: true }).click();
+      await dialog.waitFor({ state: 'hidden' });
+      const saved = (await api('/channels', owner.accessToken)).find((row) => row.id === widget.id);
+      assert.equal(saved.settings.verticalPosition, 'bottom');
+      assert.equal(saved.settings.position, 'left');
+      assert.equal(saved.widgetSnippet, widget.widgetSnippet);
       assert.deepEqual(errors, []);
       results.push({ language, width, status: 'PASS', screens: 12 });
       await context.close();

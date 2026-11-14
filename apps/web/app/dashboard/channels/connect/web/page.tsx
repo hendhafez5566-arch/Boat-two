@@ -262,7 +262,11 @@ export default function WebchatConnectionPage() {
           </label>
           <label>
             {t('الخط', 'Font')}
-            <select value={form.font} onChange={(e) => set('font', e.target.value)}>
+            <select
+              aria-label={t('الخط', 'Font')}
+              value={form.font}
+              onChange={(e) => set('font', e.target.value)}
+            >
               <option value="system-ui">System</option>
               <option>Arial</option>
               <option>Tahoma</option>
@@ -271,7 +275,11 @@ export default function WebchatConnectionPage() {
           <div className={styles.filters}>
             <label>
               {t('الموضع', 'Position')}
-              <select value={form.placement} onChange={(e) => set('placement', e.target.value)}>
+              <select
+                aria-label={t('الموضع', 'Position')}
+                value={form.placement}
+                onChange={(e) => set('placement', e.target.value)}
+              >
                 {['top-left', 'bottom-left', 'top-right', 'bottom-right'].map((p) => (
                   <option key={p} value={p}>
                     {p}
@@ -281,7 +289,11 @@ export default function WebchatConnectionPage() {
             </label>
             <label>
               {t('حالة البداية', 'Startup State')}
-              <select value={form.startup} onChange={(e) => set('startup', e.target.value)}>
+              <select
+                aria-label={t('حالة البداية', 'Startup State')}
+                value={form.startup}
+                onChange={(e) => set('startup', e.target.value)}
+              >
                 <option value="open">{t('مفتوح', 'Stay Open')}</option>
                 <option value="closed">{t('مغلق', 'Stay Closed')}</option>
               </select>
