@@ -1680,6 +1680,10 @@ function Editor({ id }: { id: string }) {
       </header>
       <UnsavedChangesGuard
         dirty={dirty || !!inspectorDraft}
+        onDiscard={() => {
+          recoveryRef.current = null;
+          writeFlowRecovery(id, null);
+        }}
         save={async () => {
           if (inspectorDraft) return false;
           await save();

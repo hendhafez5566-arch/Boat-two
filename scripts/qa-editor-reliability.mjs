@@ -198,6 +198,17 @@ try {
     );
     await page.getByRole('button', { name: t('إغلاق', 'Close'), exact: true }).click();
     // A live drag must not paint every full-node drop target purple.
+    await page
+      .getByRole('button', { name: t('المزيد من الأدوات', 'More tools'), exact: true })
+      .click();
+    await page
+      .getByRole('button', { name: t('إظهار كل الخطوات', 'Fit all steps'), exact: true })
+      .click();
+    await page
+      .getByRole('button', { name: t('إغلاق قائمة الأدوات', 'Close tools menu'), exact: true })
+      .click();
+    await page.waitForTimeout(350); // fitAllSteps animates for 300ms; measure after it settles.
+
     const source = await page
       .locator('.react-flow__node[data-id="catalog"] .react-flow__handle.source')
       .first()
@@ -221,8 +232,33 @@ try {
       JSON.stringify(colors),
     );
     await page.screenshot({ path: out + '/connecting-' + language + '.png', fullPage: false });
+    const target = await page.locator('.react-flow__node[data-id="spare"]').boundingBox();
+    assert.ok(target);
+    await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 6 });
     await page.mouse.up();
     await page.locator('.builder-canvas.is-connecting').waitFor({ state: 'detached' });
+    await page.keyboard.press('Escape');
+    await openNode();
+    await page
+      .getByLabel(t('نص الكتالوج', 'Catalog message'), { exact: true })
+      .fill('Discarded by explicit choice');
+    await applyNode();
+    await page.waitForFunction(() =>
+      Object.keys(localStorage).some((k) => k.startsWith('boat:flow-recovery:')),
+    );
+    await page
+      .getByRole('link', { name: t('رجوع لمدير البوت', 'Back to Bot Manager'), exact: true })
+      .click();
+    await page
+      .getByRole('button', { name: t('تجاهل ومغادرة', 'Discard and leave'), exact: true })
+      .click();
+    await page.waitForURL('**/dashboard/flows');
+    assert.equal(
+      await page.evaluate(
+        () => Object.keys(localStorage).filter((k) => k.startsWith('boat:flow-recovery:')).length,
+      ),
+      0,
+    );
     results.push({
       language,
       width,
@@ -231,6 +267,7 @@ try {
       renderBoundary: 'PASS',
       refreshAndSave: 'PASS',
       connectionColors: 'PASS',
+      explicitDiscard: 'PASS',
     });
     await context.close();
   }
