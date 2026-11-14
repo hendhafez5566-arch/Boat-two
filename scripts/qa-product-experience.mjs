@@ -1,6 +1,7 @@
 /* global localStorage, document, innerWidth */
 import { assertLocalAcceptance } from './acceptance-local.mjs';
 assertLocalAcceptance();
+import { Buffer } from 'node:buffer';
 import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -69,6 +70,10 @@ try {
         .getByRole('button', { name: t('حفظ القسم', 'Save category'), exact: true })
         .click();
       await page.getByText(t('تم حفظ القسم.', 'Category saved.'), { exact: true }).waitFor();
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: 'Close / إغلاق', exact: true })
+        .click();
       await page.getByRole('button', { name: t('إضافة منتج', 'Add product'), exact: true }).click();
       const name = 'Tour ' + language + ' ' + width;
       await page.getByLabel(t('اسم المنتج', 'Product name'), { exact: true }).fill(name);
@@ -78,6 +83,7 @@ try {
       await page
         .getByLabel(t('سعر المنتج (مثال 150.00)', 'Product price (e.g. 150.00)'), { exact: true })
         .fill('150.29');
+      await page.screenshot({ path: `${out}/editor-${language}-${width}.png`, fullPage: true });
       const cats = await api('/commerce/categories', token);
       const cat = cats.find((c) => c.name === category);
       await page
@@ -115,6 +121,72 @@ try {
       await page.getByRole('heading', { name: name + ' edited', exact: true }).waitFor();
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
       await page.screenshot({ path: `${out}/${language}-${width}.png`, fullPage: true });
+      await page
+        .getByRole('button', { name: t('مصادر البيانات', 'Data sources'), exact: true })
+        .click();
+      await page
+        .getByLabel(t('رفع ملف .xlsx أو .csv — حتى 5 MB', 'Upload .xlsx or .csv — up to 5 MB'))
+        .setInputFiles({
+          name: 'catalog.csv',
+          mimeType: 'text/csv',
+          buffer: Buffer.from(
+            'ID,Name,Description,Price\nimport-1,Imported tour,CSV journey,200\n',
+          ),
+        });
+      await page
+        .getByRole('button', {
+          name: t('التالي: مطابقة الأعمدة', 'Next: map columns'),
+          exact: true,
+        })
+        .click();
+      await page
+        .getByLabel(t('المعرف الثابت', 'Stable item key'), { exact: true })
+        .selectOption('ID');
+      await page.getByLabel(t('الاسم', 'Name'), { exact: true }).selectOption('Name');
+      await page
+        .getByRole('button', {
+          name: t('التالي: معاينة البيانات', 'Next: preview data'),
+          exact: true,
+        })
+        .click();
+      await page.getByRole('heading', { name: /Update preview|معاينة التحديث/ }).waitFor();
+      await page.screenshot({
+        path: `${out}/import-preview-${language}-${width}.png`,
+        fullPage: true,
+      });
+      await page
+        .getByRole('button', { name: t('تعديل المطابقة', 'Edit mapping'), exact: true })
+        .click();
+      assert.equal(
+        await page.getByLabel(t('المعرف الثابت', 'Stable item key'), { exact: true }).inputValue(),
+        'ID',
+      );
+      await page
+        .getByRole('button', {
+          name: t('التالي: معاينة البيانات', 'Next: preview data'),
+          exact: true,
+        })
+        .click();
+      await page
+        .getByRole('button', {
+          name: t('التالي: تأكيد الاستيراد', 'Next: confirm import'),
+          exact: true,
+        })
+        .click();
+      await page
+        .getByRole('button', {
+          name: t('تطبيق التحديث المعروض', 'Apply previewed update'),
+          exact: true,
+        })
+        .click();
+      await page
+        .getByRole('heading', { name: t('اكتمل الاستيراد', 'Import complete'), exact: true })
+        .waitFor();
+      const sources = await api('/commerce/sources', token);
+      const imported = sources.find((s) => s.name === 'catalog');
+      assert.ok(imported);
+      const importedItems = await api('/commerce/sources/' + imported.id + '/items', token);
+      assert.ok(importedItems.items.some((item) => item.name === 'Imported tour'));
       const f = await api('/flows', token, {
         name: 'Product flow ' + language + width,
         channelIds: [channel.id],
@@ -152,12 +224,20 @@ try {
         .fill('Second ' + name);
       await page.getByRole('checkbox', { name: new RegExp('Second ' + name) }).check();
       await page
+        .getByRole('button', { name: t('المختارة', 'Selected') + ' (2)', exact: true })
+        .click();
+      await page
         .getByRole('button', { name: t('تقديم', 'Move up') + ' Second ' + name, exact: true })
         .click();
       await page.screenshot({ path: `${out}/picker-${language}-${width}.png`, fullPage: true });
       await page
         .getByRole('dialog')
-        .filter({ has: page.getByLabel(t('البحث عن منتج', 'Find a product'), { exact: true }) })
+        .filter({
+          has: page.getByRole('button', {
+            name: t('تصفح المنتجات', 'Browse products'),
+            exact: true,
+          }),
+        })
         .getByRole('button', { name: t('حفظ التغييرات', 'Save Changes'), exact: true })
         .click();
       await Promise.all([
@@ -172,8 +252,14 @@ try {
       await page.locator('.react-flow__node[data-id="catalog"]').dblclick();
       await page.getByRole('dialog').waitFor();
       await page
+        .getByRole('button', { name: t('المختارة', 'Selected') + ' (2)', exact: true })
+        .click();
+      await page
         .getByRole('button', { name: t('إزالة', 'Remove') + ' Second ' + name, exact: true })
         .waitFor();
+      await page
+        .getByRole('button', { name: t('تصفح المنتجات', 'Browse products'), exact: true })
+        .click();
       const sim = await api('/flows/' + f.id + '/test', token, {});
       assert.ok(JSON.stringify(sim).includes(name + ' edited'));
       assert.ok(JSON.stringify(sim).includes('150.29'));

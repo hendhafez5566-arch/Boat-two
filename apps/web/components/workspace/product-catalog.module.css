@@ -187,3 +187,81 @@
     grid-template-columns: 1fr;
   }
 }
+.catalogSummary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: #64748b;
+  font-size: 14px;
+}
+.categoryList {
+  display: grid;
+  gap: 8px;
+  max-height: 260px;
+  overflow: auto;
+  margin-bottom: 20px;
+}
+.categoryList button {
+  display: flex;
+  justify-content: space-between;
+  text-align: start;
+  gap: 16px;
+}
+.editor {
+  width: min(740px, calc(100vw - 24px));
+  max-height: 90dvh;
+  order: initial;
+}
+.selected > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.selected > div > span {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.selected {
+  max-height: 240px;
+  overflow: auto;
+}
+.pickerHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 600;
+  padding-block: 8px;
+}
+.pickerTabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 10px;
+}
+.pickerTabs button {
+  flex: 1;
+}
+.options {
+  overscroll-behavior: contain;
+  min-height: 80px;
+}
+.card:has(.placeholder) {
+  display: flex;
+  flex-direction: column;
+}
+.card > .placeholder {
+  height: 92px;
+  font-size: 32px;
+  background: linear-gradient(130deg, #f8fafc, #f1f3fa);
+}
+.body {
+  flex: 1;
+  gap: 9px;
+}
+.body .form-actions {
+  margin-top: auto;
+}

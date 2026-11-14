@@ -1,4 +1,5 @@
 'use client';
+import { Dialog } from '../product/ProductUI';
 import { useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { productDecimal, productMinorUnits, productPrice } from '../../lib/product-money';
@@ -39,6 +40,18 @@ export function ProductImage({ product }: { product: Pick<CatalogProduct, 'image
 export default function ProductCatalog() {
   const { t } = useLocale();
   const categories = useData<{ id: string; name: string }[]>('/commerce/categories', []);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [editorDirty, setEditorDirty] = useState(false);
+  const closeEditor = () => {
+    if (
+      !busy &&
+      (!editorDirty ||
+        window.confirm(t('تجاهل تعديلات المنتج غير المحفوظة؟', 'Discard unsaved product changes?')))
+    ) {
+      setEditing(undefined);
+      setEditorDirty(false);
+    }
+  };
   const [category, setCategory] = useState('all');
   const [categoryEditing, setCategoryEditing] = useState('');
   const [draftImage, setDraftImage] = useState<string | null>(null);
@@ -99,6 +112,7 @@ export default function ProductCatalog() {
       });
       await products.reload();
       setEditing(undefined);
+      setEditorDirty(false);
       setSuccess(t('تم حفظ المنتج.', 'Product saved.'));
     } catch (e) {
       setError((e as Error).message);
@@ -158,6 +172,7 @@ export default function ProductCatalog() {
           className="btn btn-primary"
           onClick={() => {
             setDraftImage(null);
+            setEditorDirty(false);
             setEditing(null);
             setError('');
           }}
@@ -178,8 +193,42 @@ export default function ProductCatalog() {
           </button>
         </p>
       )}
-      <details className="card">
-        <summary>{t('إدارة الأقسام المحلية', 'Manage local categories')}</summary>
+      <div className={styles.catalogSummary}>
+        <span>
+          {products.data.filter((p) => !p.archived).length} {t('منتج نشط', 'active products')} ·{' '}
+          {categories.data.length} {t('قسم', 'categories')}
+        </span>
+        <button className="btn" onClick={() => setCategoriesOpen(true)}>
+          {t('إدارة الأقسام المحلية', 'Manage local categories')}
+        </button>
+      </div>
+      <Dialog
+        open={categoriesOpen}
+        onClose={() => {
+          if (!busy) setCategoriesOpen(false);
+        }}
+        title={t('إدارة الأقسام', 'Manage categories')}
+      >
+        {error && (
+          <p className="notice error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className={styles.categoryList}>
+          {categories.data.map((c) => (
+            <button
+              type="button"
+              className="btn"
+              key={c.id}
+              onClick={() => setCategoryEditing(c.id)}
+            >
+              <span>{c.name}</span>
+              <small>
+                {products.data.filter((p) => p.category_id === c.id).length} {t('منتج', 'products')}
+              </small>
+            </button>
+          ))}
+        </div>
         <p>
           {t(
             'لتنظيم المنتجات اليدوية؛ هذه الأقسام مستقلة عن كتالوج Meta ومصادر البيانات.',
@@ -222,7 +271,7 @@ export default function ProductCatalog() {
             {t('حفظ القسم', 'Save category')}
           </button>
         </form>
-      </details>
+      </Dialog>
       <div className={styles.toolbar}>
         <label className="field">
           {t('القسم', 'Category')}
@@ -300,6 +349,7 @@ export default function ProductCatalog() {
                     className="btn"
                     onClick={() => {
                       setDraftImage(p.image_url);
+                      setEditorDirty(false);
                       setEditing(p);
                       setError('');
                     }}
@@ -326,26 +376,21 @@ export default function ProductCatalog() {
         </div>
       )}
       {editing !== undefined && (
-        <div className={styles.editor}>
+        <Dialog
+          open
+          onClose={closeEditor}
+          title={editing ? t('تعديل المنتج', 'Edit product') : t('منتج جديد', 'New product')}
+          className={styles.editor}
+        >
           <form
-            className="card stack"
+            className="stack"
+            onChange={() => setEditorDirty(true)}
             key={editing?.id ?? 'new'}
             onSubmit={(e) => {
               e.preventDefault();
               void save(e.currentTarget);
             }}
           >
-            <header className={styles.header}>
-              <h2>{editing ? t('تعديل المنتج', 'Edit product') : t('منتج جديد', 'New product')}</h2>
-              <button
-                className="btn"
-                type="button"
-                disabled={busy}
-                onClick={() => setEditing(undefined)}
-              >
-                {t('إغلاق', 'Close')}
-              </button>
-            </header>
             {error && (
               <p role="alert" className="notice error">
                 {error}
@@ -420,7 +465,13 @@ export default function ProductCatalog() {
               <legend>{t('الصور والروابط', 'Images and links')}</legend>
               <label className="field">
                 {t('رابط الصورة', 'Image URL')}
-                <input name="image" type="url" defaultValue={editing?.image_url ?? ''} dir="ltr" />
+                <input
+                  name="image"
+                  type="url"
+                  onChange={(e) => setDraftImage(e.target.value || null)}
+                  defaultValue={editing?.image_url ?? ''}
+                  dir="ltr"
+                />
               </label>
               <p>
                 {t(
@@ -470,17 +521,12 @@ export default function ProductCatalog() {
               <button className="btn btn-primary" disabled={busy}>
                 {busy ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ المنتج', 'Save product')}
               </button>
-              <button
-                type="button"
-                className="btn"
-                disabled={busy}
-                onClick={() => setEditing(undefined)}
-              >
+              <button type="button" className="btn" disabled={busy} onClick={closeEditor}>
                 {t('إلغاء', 'Cancel')}
               </button>
             </div>
           </form>
-        </div>
+        </Dialog>
       )}
       {preview && (
         <section className="card stack" aria-label={t('معاينة المنتج', 'Product preview')}>
