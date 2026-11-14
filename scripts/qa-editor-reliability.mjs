@@ -252,7 +252,7 @@ try {
     await page
       .getByRole('button', { name: t('تجاهل ومغادرة', 'Discard and leave'), exact: true })
       .click();
-    await page.waitForURL('**/dashboard/flows');
+    await page.waitForURL(/\/dashboard\/flows(?:\?|$)/);
     assert.equal(
       await page.evaluate(
         () => Object.keys(localStorage).filter((k) => k.startsWith('boat:flow-recovery:')).length,
