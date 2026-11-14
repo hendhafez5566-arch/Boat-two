@@ -66,12 +66,18 @@ try {
         },
         { owner, language },
       );
+      let googleDisconnected = false;
       let posts = 0,
         catalogConfigured = false,
         lastStart;
       await page.route('**/*', async (route) => {
         const u = new URL(route.request().url());
         if (!['localhost', '127.0.0.1'].includes(u.hostname)) return route.abort();
+        if (u.pathname === '/integrations/synthetic-google/disconnect') {
+          assert.equal(route.request().method(), 'POST');
+          googleDisconnected = true;
+          return route.fulfill({ json: { disconnected: true } });
+        }
         if (u.pathname === '/integrations' && route.request().method() === 'GET')
           return route.fulfill({
             json: [
@@ -79,8 +85,8 @@ try {
                 id: 'synthetic-google',
                 name: 'Synthetic Google',
                 provider: 'google',
-                enabled: true,
-                status: 'connected',
+                enabled: !googleDisconnected,
+                status: googleDisconnected ? 'disconnected' : 'connected',
                 config: { scopes: ['https://www.googleapis.com/auth/calendar'] },
               },
             ],
@@ -287,6 +293,20 @@ try {
         .filter({ hasText: 'Synthetic Google authorization unavailable' })
         .waitFor();
       await capture('google');
+      const disconnect = page.getByRole('button', {
+        name: text('فصل الحساب', 'Disconnect account'),
+        exact: true,
+      });
+      page.once('dialog', (dialog) => dialog.dismiss());
+      await disconnect.click();
+      assert.equal(googleDisconnected, false);
+      page.once('dialog', (dialog) => dialog.accept());
+      await disconnect.click();
+      await disconnect.waitFor({ state: 'hidden' });
+      assert.equal(googleDisconnected, true);
+      await page.reload();
+      await page.getByText(text('غير متصل', 'Disconnected'), { exact: true }).last().waitFor();
+      assert.equal(await disconnect.count(), 0);
       await page.goto('http://localhost:3000/dashboard/channels/connect/web');
       await page
         .getByRole('button', {
