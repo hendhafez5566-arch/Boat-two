@@ -212,7 +212,7 @@ export default function MetaConnectionPage({
                         <Link className="btn" href={`/dashboard/flows?channelId=${c.id}`}>
                           {t('إدارة', 'Manage')}
                         </Link>
-                        <Link href="/dashboard/channels">
+                        <Link href={`/dashboard/channels?manage=${encodeURIComponent(c.id)}`}>
                           {t('إعدادات الاتصال', 'Connection settings')}
                         </Link>
                       </td>
