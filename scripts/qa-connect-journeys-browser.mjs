@@ -38,6 +38,15 @@ await api('/channels', owner.accessToken, {
     accessToken: 'synthetic-not-a-provider-token',
   },
 });
+await api('/channels', owner.accessToken, {
+  type: 'whatsapp',
+  name: 'Synthetic second number',
+  credentials: {
+    phoneNumberId: '900000124',
+    wabaId: '900000500',
+    accessToken: 'synthetic-not-a-provider-token',
+  },
+});
 const browser = await chromium.launch({
   executablePath: process.env.BOAT_CHROMIUM || '/usr/bin/chromium',
   args: ['--no-sandbox'],
@@ -112,14 +121,39 @@ try {
       }
       await page.goto('http://localhost:3000/dashboard/channels');
       await capture('accounts');
-      await page
-        .getByRole('button', { name: text('ربط WhatsApp', 'Connect WhatsApp'), exact: true })
-        .click();
-      await page.waitForURL('**/connect/whatsapp');
+      const channelLinks = [
+        ['Facebook', 'facebook'],
+        ['Instagram', 'instagram'],
+        ['Telegram', 'telegram'],
+        ['Webchat', 'web'],
+        ['Google', 'google'],
+        ['WhatsApp', 'whatsapp'],
+      ];
+      for (const [name, route] of channelLinks) {
+        await page
+          .getByRole('link', { name: text('ربط ', 'Connect ') + name, exact: true })
+          .click();
+        await page.waitForURL('**/connect/' + route);
+        if (route !== 'whatsapp') {
+          await page.goto('http://localhost:3000/dashboard/channels');
+        }
+      }
       await page
         .getByRole('heading', { name: text('تكامل WhatsApp', 'WhatsApp Integration'), exact: true })
         .waitFor();
       await page.getByText('Synthetic business', { exact: true }).waitFor();
+      const phoneTable = page.getByRole('table').filter({ hasText: '900000500' });
+      assert.equal(await phoneTable.getByText('900000500', { exact: true }).count(), 1);
+      await phoneTable.getByText('Synthetic second number', { exact: true }).waitFor();
+      const firstPhone = phoneTable.getByRole('row').filter({ hasText: 'Synthetic business' });
+      await firstPhone.getByRole('link', { name: text('إدارة', 'Manage'), exact: true }).click();
+      await page.waitForURL('**/dashboard/flows?channelId=*');
+      await page.goBack();
+      await firstPhone
+        .getByRole('link', { name: text('إعدادات الاتصال', 'Connection settings'), exact: true })
+        .click();
+      await page.waitForURL('**/dashboard/channels?manage=*');
+      await page.goBack();
       await capture('whatsapp');
       await page
         .getByRole('button', {
