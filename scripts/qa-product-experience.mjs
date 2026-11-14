@@ -156,10 +156,9 @@ try {
         .click();
       await page.screenshot({ path: `${out}/picker-${language}-${width}.png`, fullPage: true });
       await page
-        .getByRole('button', {
-          name: t('إغلاق لوحة الإعدادات', 'Close configuration panel'),
-          exact: true,
-        })
+        .getByRole('dialog')
+        .filter({ has: page.getByLabel(t('البحث عن منتج', 'Find a product'), { exact: true }) })
+        .getByRole('button', { name: t('حفظ التغييرات', 'Save Changes'), exact: true })
         .click();
       await Promise.all([
         page.waitForResponse(
