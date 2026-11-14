@@ -203,3 +203,8 @@ GitHub Actions run 43595935535 timed out selecting Webchat Position. Commit 8f9b
 - Cloud browser reference action denied by automatic approval review because Work usage limit was reached. No browser workaround attempted. Independent source/CI work continues.
 - Added complete source-route inventory and prioritized defect/acceptance backlog, with no unverified page marked DONE. Added full static-dashboard plus synthetic-flow runtime/responsive sweep across AR/EN and five widths, recording actual button/field/link inventory, headings, overflow culprits, runtime errors,5xx and desktop/failure screenshots. This is smoke coverage, not all-button functional acceptance.
 - New branch-only CI uses existing isolated API/PGlite and Web; all non-loopback browser requests blocked. Sweep results pending.
+
+### Shared interface batch
+- Introduced reusable page/body/dialog typography tokens; shared page headings now20px rather than variable23.2–30.4px. Dedicated editor/node typography remains scoped.
+- Fixed global menu search keyboard behavior: true combobox state, ArrowUp/Down selection, active descendant, selected result on Enter and visible active option. Added actual browser route assertion for keyboard selection.
+- Fresh Web production build and scoped ESLint PASS. Initial platform CI43605901007 stopped before UI because the synthetic onboarding fixture had no channel; added a synthetic Webchat before completing onboarding. No application rule/test assertion weakened. Next run pending.

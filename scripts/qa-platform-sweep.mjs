@@ -37,6 +37,7 @@ const owner = await api('/auth/register', null, {
   fullName: 'Enterprise QA',
   workspaceName: 'Isolated Enterprise QA',
 });
+await api('/channels', owner.accessToken, { type: 'web', name: 'Synthetic sweep website' });
 await api('/workspace/onboarding/complete', owner.accessToken, {});
 const flow = await api('/flows', owner.accessToken, { name: 'Synthetic sweep flow' });
 routes.push(
@@ -66,6 +67,23 @@ try {
           ? r.continue()
           : r.abort(),
       );
+      if (width >= 1366) {
+        await page.goto('http://localhost:3000/dashboard');
+        const search = page.getByRole('combobox', {
+          name: language === 'ar' ? 'بحث في القوائم' : 'Search menus',
+        });
+        await search.fill('manager');
+        await search.press('ArrowDown');
+        const selected = page.getByRole('option', { selected: true });
+        if (
+          !(await selected.textContent()).includes(
+            language === 'ar' ? 'مدير المستخدمين' : 'User Manager',
+          )
+        )
+          throw Error('Search arrow selection failed');
+        await search.press('Enter');
+        await page.waitForURL('**/dashboard/team');
+      }
       for (const path of routes) {
         const failures = [],
           requests = [];
