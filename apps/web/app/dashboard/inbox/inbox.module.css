@@ -594,9 +594,6 @@
   .customerStrip {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  .customerStrip div:nth-child(n + 4) {
-    display: none;
-  }
 }
 @media (max-width: 767px) {
   .back {
@@ -609,9 +606,6 @@
   .customerStrip {
     margin-inline: 10px;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  .customerStrip div:nth-child(n + 4) {
-    display: none;
   }
   .inbox :global(.composer) {
     padding: 8px 10px 12px;

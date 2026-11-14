@@ -1100,20 +1100,22 @@ export default function Inbox() {
                     </p>
                   )}
                   {replyUnavailable && !internal && (
-                    <p
-                      role="status"
-                      className="mb-1 rounded bg-amber-50 p-2 text-xs text-amber-800"
-                    >
-                      {detail.blocked
-                        ? t(
-                            'المحادثة محظورة. يمكنك إضافة ملاحظة داخلية.',
-                            'This conversation is blocked. You can add an internal note.',
-                          )
-                        : t(
-                            'انتهت نافذة واتساب. الرد الحر معطّل؛ يمكنك كتابة ملاحظة داخلية أو استخدام قالب معتمد من مسار الحملات.',
-                            'The WhatsApp window has expired. Free-form replies are disabled; add an internal note or use an approved template through campaigns.',
-                          )}
-                    </p>
+                    <div className="mb-1 rounded bg-amber-50 p-2 text-xs text-amber-800">
+                      <p role="status">
+                        {detail.blocked
+                          ? t(
+                              'المحادثة محظورة. يمكنك إضافة ملاحظة داخلية.',
+                              'This conversation is blocked. You can add an internal note.',
+                            )
+                          : t(
+                              'انتهت نافذة واتساب. الرد الحر معطّل؛ يمكنك كتابة ملاحظة داخلية أو استخدام قالب معتمد من مسار الحملات.',
+                              'The WhatsApp window has expired. Free-form replies are disabled; add an internal note or use an approved template through campaigns.',
+                            )}
+                      </p>
+                      <button type="button" className="btn mt-2" onClick={() => setInternal(true)}>
+                        {t('إضافة ملاحظة داخلية', 'Add internal note')}
+                      </button>
+                    </div>
                   )}
                   {detail.handled_by === 'bot' && !internal && (
                     <p className="sr-only" id="inbox-takeover-hint">

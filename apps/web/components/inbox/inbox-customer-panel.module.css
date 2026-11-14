@@ -1,5 +1,5 @@
 .panel {
-  width: 385px;
+  width: clamp(280px, 24vw, 340px);
   flex: none;
   overflow-y: auto;
   background: #f8f9fb;
