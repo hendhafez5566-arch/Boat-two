@@ -32,6 +32,10 @@ Object.assign(process.env, {
   BOAT_PREVIEW_ONLY: 'true',
   WHATSAPP_PREVIEW_BOT_ENABLED: 'false',
 });
+if (process.env.BOAT_TELEGRAM_QA === 'true') {
+  const { installTelegramProviderFixture } = await import('./qa-telegram-provider.mjs');
+  installTelegramProviderFixture();
+}
 (async () => {
   console.log('QA_PG_INITIALIZING');
   const { PGlite } = local('@electric-sql/pglite');
