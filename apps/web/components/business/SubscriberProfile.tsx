@@ -84,12 +84,10 @@ const tabs = [
 export default function SubscriberProfile({
   contactId,
   canManage,
-  onClose,
   onChanged,
 }: {
   contactId: string;
   canManage: boolean;
-  onClose: () => void;
   onChanged: () => void;
 }) {
   const { t, language } = useLocale();
@@ -174,14 +172,6 @@ export default function SubscriberProfile({
             <NavIcon name="edit" />
           </button>
         )}
-        <button
-          type="button"
-          className="btn"
-          onClick={onClose}
-          aria-label={t('إغلاق ملف المشترك', 'Close subscriber profile')}
-        >
-          <NavIcon name="close" />
-        </button>
       </header>
       {data.loading && <p role="status">{t('جارٍ تحميل الملف…', 'Loading profile…')}</p>}
       {(error || data.error) && (

@@ -712,3 +712,94 @@
 .inbox :global(.composer-row[hidden]) {
   display: none;
 }
+
+.listTitle {
+  margin: 0;
+  padding: 18px 16px 2px;
+  color: #232b43;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.inbox :global(.inbox-list) {
+  width: clamp(245px, 24vw, 330px);
+  background: #fff;
+  border-inline-end: 1px solid #e6e8f1;
+}
+
+.searchBar {
+  padding: 12px;
+  background: #fff;
+}
+
+.inbox :global(.inbox-list .inbox-item) {
+  margin-block: 4px;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+}
+
+.inbox :global(.inbox-list .inbox-item:hover) {
+  background: #f6f6fa;
+}
+
+.inbox :global(.inbox-list .inbox-item.is-selected) {
+  background: #f2edff;
+  border-color: #ded3ff;
+  border-inline-start: 3px solid #6a49f2;
+}
+
+.inbox :global(.inbox-chips) {
+  justify-content: flex-start;
+}
+
+.inbox :global(.inbox-time) {
+  color: #626b7a;
+}
+
+.threadHeader {
+  background: white;
+  border-bottom: 1px solid #e6e8f1;
+}
+
+.customerStrip {
+  margin: 10px 12px 0;
+}
+
+.customerStrip dt {
+  color: #58637a;
+}
+
+.inbox :global(.thread-msgs) {
+  background: #f5f6fb;
+}
+
+.inbox :global(.msg-bubble) {
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.inbox :global(.composer) {
+  background: #fff;
+  border-top: 1px solid #e6e8f1;
+  padding: 8px 12px 12px;
+}
+
+.inbox :global(.composer-row) {
+  min-height: 58px;
+  border-radius: 14px;
+}
+
+.inbox :global(.composer-input) {
+  min-width: 0;
+  min-height: 44px;
+}
+
+@media (max-width: 767px) {
+  .inbox :global(.inbox-list) {
+    width: 100%;
+  }
+  .inbox :global(.thread-msgs) {
+    padding-inline: 12px;
+  }
+}

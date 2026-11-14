@@ -78,7 +78,18 @@ export function InboxCustomerPanel({
   const [labelText, setLabelText] = useState('');
   const contact = profile.data?.contact;
   const timeline = profile.data?.timeline;
-  const allNotes = [...notes, ...(timeline?.notes || [])];
+  const allNotes = [
+    ...notes.map((note) => ({
+      key: `message-${note.id}`,
+      text: note.content?.text || note.text || note.body,
+      date: note.created_at || note.createdAt,
+    })),
+    ...(timeline?.notes || []).map((note: any) => ({
+      key: `contact-${note.id}`,
+      text: note.content?.text || note.text || note.body,
+      date: note.created_at || note.createdAt,
+    })),
+  ].sort((a, b) => (Date.parse(b.date) || 0) - (Date.parse(a.date) || 0));
   const patch = (body: any, notice: string) =>
     act(`/conversations/${detail.id}`, 'PATCH', body, notice);
   const time = (value: string) =>
@@ -177,6 +188,37 @@ export function InboxCustomerPanel({
         </Link>
       </header>
       {profile.error && <p role="alert">{profile.error}</p>}
+      <details open className={`${styles.card} ${styles.notesCard}`}>
+        <summary>
+          <span>
+            {t('الملاحظات الداخلية', 'Internal notes')}
+            <span className={styles.noteCount}>{allNotes.length}</span>
+          </span>
+          <NavIcon name="chevron" />
+        </summary>
+        <div className={styles.noteControls}>
+          <button type="button" className="btn btn-primary" onClick={onNote}>
+            <NavIcon name="plus" />
+            {t('إضافة ملاحظة', 'Add note')}
+          </button>
+        </div>
+        {allNotes.length ? (
+          <ol
+            className={styles.noteList}
+            tabIndex={0}
+            aria-label={t('سجل الملاحظات', 'Note history')}
+          >
+            {allNotes.map((note) => (
+              <li key={note.key}>
+                <time dateTime={note.date}>{time(note.date)}</time>
+                <p dir="auto">{formatNote(note.text || '')}</p>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className={styles.notesEmpty}>{t('لا توجد ملاحظات بعد', 'No notes yet')}</p>
+        )}
+      </details>
       <section className={styles.card}>
         <h3>{t('إجراءات سريعة', 'Quick Actions')}</h3>
         <div className={styles.quick}>
@@ -530,26 +572,6 @@ export function InboxCustomerPanel({
           ) : (
             <p>{t('لا توجد متابعات', 'No follow-up history')}</p>
           )}
-        </div>
-      </details>
-      <details open className={styles.card}>
-        <summary>
-          {t('ملاحظات', 'Notes')} ({allNotes.length || 0})<NavIcon name="chevron" />
-        </summary>
-        <div className={styles.fields}>
-          {allNotes.length ? (
-            allNotes.map((note: any) => (
-              <p key={note.id}>
-                {formatNote(note.content?.text || note.text || note.body || '')}{' '}
-                <small>{time(note.created_at)}</small>
-              </p>
-            ))
-          ) : (
-            <p>{t('لا توجد ملاحظات بعد', 'No notes yet')}</p>
-          )}
-          <button className={styles.secondary} onClick={onNote}>
-            {t('إضافة ملاحظة داخلية', 'Add internal note')}
-          </button>
         </div>
       </details>
       <InboxFieldDialog

@@ -86,7 +86,7 @@
 }
 .workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   align-items: start;
   min-width: 0;
@@ -221,28 +221,13 @@
   font-size: 12px;
   min-height: 32px;
 }
-.profile,
-.profileEmpty {
+.profile {
   background: #fff;
   border: 1px solid #e4ebf2;
   border-radius: 16px;
   min-width: 0;
   box-shadow: 0 5px 16px #203b4c05;
   padding: 18px;
-}
-.profileEmpty {
-  min-height: 330px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #5a7085;
-  text-align: center;
-  gap: 15px;
-}
-.profileEmpty h2 {
-  font-size: 17px;
-  color: #334d64;
 }
 .profile {
   position: sticky;
@@ -456,18 +441,6 @@
   background: #fffbee;
   padding: 12px;
   white-space: pre-wrap;
-}
-@media (max-width: 1050px) {
-  .workspace {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .profile {
-    position: static;
-    max-height: 800px;
-  }
-  .profileEmpty {
-    min-height: 160px;
-  }
 }
 @media (max-width: 760px) {
   .filters {
@@ -1013,4 +986,55 @@
   .profile {
     max-width: 100%;
   }
+}
+
+
+.searchTools input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 16px;
+  border: 1px solid #dce3ef;
+  border-radius: 12px;
+  background: white;
+  color: #273750;
+}
+
+.workspace .subscriberList :global(.product-table) th {
+  background: #f4f6fb;
+  color: #46566d;
+  text-align: start;
+  padding: 12px 10px;
+  font-size: 13px;
+}
+
+.workspace .subscriberList :global(.product-table) td {
+  font-size: 13px;
+}
+
+.profileDrawer:global(.product-dialog) {
+  position: fixed;
+  inset-block: 0;
+  inset-inline: auto 0;
+  margin: 0;
+  width: min(100%, 560px);
+  max-width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 0;
+}
+
+.profileDrawer:global(.product-dialog) :global(.dialog-body) {
+  padding: 0;
+  max-height: calc(100dvh - 78px);
+}
+
+.profileDrawer .profile {
+  position: static;
+  max-height: none;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+.profileDrawer .profileBody {
+  overflow: visible;
 }

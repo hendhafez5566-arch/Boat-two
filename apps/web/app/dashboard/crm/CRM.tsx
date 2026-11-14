@@ -504,6 +504,15 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
       )}
       {tab === 'contacts' && (
         <>
+          <div className={styles.searchTools}>
+            <input
+              type="search"
+              aria-label={t('بحث في المشتركين', 'Search subscribers')}
+              placeholder={t('بحث بالاسم أو الهاتف أو البريد…', 'Search by name, phone or email…')}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </div>
           <section
             className={styles.filters}
             aria-label={t('تصفية المشتركين', 'Subscriber filters')}
@@ -579,13 +588,6 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
               <option value="archived">{t('مؤرشف', 'Archived')}</option>
               <option value="all">{t('الكل', 'All Status')}</option>
             </select>
-            <input
-              type="search"
-              aria-label={t('بحث في المشتركين', 'Search subscribers')}
-              placeholder={t('بحث بالاسم أو الهاتف أو البريد…', 'Search by name, phone or email…')}
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
           </section>
           <div className={styles.filterActions}>
             <button className="btn" type="button" onClick={() => setToolsOpen(true)}>
@@ -900,7 +902,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
               </div>
               <div className={styles.tableScroll}>
                 <table className="product-table">
-                  <thead className="sr-only">
+                  <thead>
                     <tr>
                       <th>{t('تحديد', 'Select')}</th>
                       <th>{t('المشترك', 'Subscriber')}</th>
@@ -1060,31 +1062,25 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                 </button>
               </footer>
             </section>
-            {selected ? (
+          </div>
+          <Dialog
+            open={!!selected}
+            onClose={() => setSelected(null)}
+            title={t('ملف المشترك', 'Subscriber profile')}
+            className={styles.profileDrawer}
+          >
+            {selected && (
               <SubscriberProfile
                 key={selected.id}
                 contactId={selected.id}
                 canManage={canManage}
-                onClose={() => {
-                  setSelected(null);
-                }}
                 onChanged={() => {
                   void contacts.reload();
                   void summary.reload();
                 }}
               />
-            ) : (
-              <aside className={styles.profileEmpty}>
-                <h2>{t('ملف المشترك', 'Subscriber Profile')}</h2>
-                <p>
-                  {t(
-                    'اختر مشتركًا لعرض بياناته وإدارته.',
-                    'Select a subscriber to view and manage their profile.',
-                  )}
-                </p>
-              </aside>
             )}
-          </div>
+          </Dialog>
           <Dialog
             open={showCreate || !!edit}
             onClose={() => {

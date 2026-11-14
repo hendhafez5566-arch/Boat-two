@@ -67,7 +67,7 @@ export default function Inbox() {
   const [followupOpen, setFollowupOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<'name' | 'email' | null>(null);
   const [profileRefresh, setProfileRefresh] = useState(0);
-  const [actionsOpen, setActionsOpen] = useState(true);
+  const [actionsOpen, setActionsOpen] = useState(false);
   const [tab, setTab] = useState<Tab>('active');
   useEffect(() => {
     const routeParams = new URLSearchParams(window.location.search);
@@ -657,6 +657,7 @@ export default function Inbox() {
           <aside
             className={`${selId ? 'hidden md:flex' : 'flex'} inbox-list w-full flex-col border-l bg-white md:w-80`}
           >
+            <h1 className={styles.listTitle}>{t('المحادثات', 'Conversations')}</h1>
             {needsReply && (
               <button className="btn" onClick={() => setNeedsReply(false)}>
                 <NavIcon name="filter" />
@@ -959,7 +960,7 @@ export default function Inbox() {
                     <button
                       type="button"
                       aria-label={t('إجراءات المحادثة', 'Chat actions')}
-                      aria-expanded={actionsOpen}
+                      aria-expanded={actionsOpen || showContext}
                       onClick={() => {
                         if (window.matchMedia('(min-width: 1024px)').matches)
                           setActionsOpen((value) => !value);

@@ -490,3 +490,86 @@
   border-radius: 9px !important;
   min-height: 40px;
 }
+
+.panel {
+  overscroll-behavior: contain;
+}
+
+.heading {
+  border-bottom: 1px solid #e6e8f1;
+}
+
+.heading h2 {
+  font-weight: 700;
+}
+
+.notesCard summary > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.noteCount {
+  min-width: 24px;
+  padding: 2px 6px;
+  border-radius: 20px;
+  text-align: center;
+  background: #eee9ff;
+  color: #5033ab;
+  font-size: 12px;
+}
+
+.noteControls {
+  padding: 12px 14px 0;
+}
+
+.noteControls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+}
+
+.noteControls svg {
+  width: 16px;
+  height: 16px;
+}
+
+.noteList {
+  max-block-size: 250px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px 14px;
+  list-style: none;
+}
+
+.noteList li {
+  padding-block: 12px;
+  overflow-wrap: anywhere;
+}
+
+.noteList li + li {
+  border-block-start: 1px solid #e8e9f2;
+}
+
+.noteList time {
+  display: block;
+  margin-block-end: 5px;
+  color: #526177;
+  font-size: 12px;
+}
+
+.noteList p {
+  margin: 0;
+  color: #202b40;
+  font-size: 14px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+
+.notesEmpty {
+  margin: 0;
+  padding: 14px;
+  color: #526177;
+}
