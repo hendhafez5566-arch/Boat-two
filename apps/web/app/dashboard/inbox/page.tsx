@@ -1097,7 +1097,7 @@ export default function Inbox() {
                     </p>
                   )}
                   {windowExpired && !internal && (
-                    <p className="mb-1 rounded bg-amber-50 p-2 text-xs text-amber-800">
+                    <p role="status" className="mb-1 rounded bg-amber-50 p-2 text-xs text-amber-800">
                       {t(
                         'انتهت نافذة واتساب. الرد الحر معطّل؛ يمكنك كتابة ملاحظة داخلية أو استخدام قالب معتمد من مسار الحملات.',
                         'The WhatsApp window has expired. Free-form replies are disabled; add an internal note or use an approved template through campaigns.',
@@ -1112,7 +1112,7 @@ export default function Inbox() {
                       )}
                     </p>
                   )}
-                  {suggestions.length > 0 && (
+                  {(!windowExpired || internal) && suggestions.length > 0 && (
                     <ul
                       className="composer-suggest mb-1 rounded border bg-white shadow"
                       aria-label={t('الردود الجاهزة', 'Saved replies')}
@@ -1140,7 +1140,7 @@ export default function Inbox() {
                       </button>
                     </div>
                   )}
-                  <div className="composer-row">
+                  <div className="composer-row" hidden={windowExpired && !internal}>
                     <textarea
                       ref={composerInput}
                       aria-label={t('محرر الرد', 'Reply composer')}
