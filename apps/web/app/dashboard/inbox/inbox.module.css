@@ -249,7 +249,7 @@
   height: 100dvh;
 }
 .inbox :global(.inbox-list) {
-  width: 380px;
+  width: clamp(280px, 24vw, 340px);
   flex: none;
   background: #f8f8fb;
   border: 0;
@@ -476,9 +476,7 @@
   font-weight: 600;
   line-height: 12.65px;
   margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 .messageSearch {
   margin: 0 16px 10px;
