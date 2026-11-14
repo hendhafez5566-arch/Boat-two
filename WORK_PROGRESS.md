@@ -208,3 +208,7 @@ GitHub Actions run 43595935535 timed out selecting Webchat Position. Commit 8f9b
 - Introduced reusable page/body/dialog typography tokens; shared page headings now20px rather than variable23.2–30.4px. Dedicated editor/node typography remains scoped.
 - Fixed global menu search keyboard behavior: true combobox state, ArrowUp/Down selection, active descendant, selected result on Enter and visible active option. Added actual browser route assertion for keyboard selection.
 - Fresh Web production build and scoped ESLint PASS. Initial platform CI43605901007 stopped before UI because the synthetic onboarding fixture had no channel; added a synthetic Webchat before completing onboarding. No application rule/test assertion weakened. Next run pending.
+
+### Independent PostgreSQL acceptance
+- Added an ephemeral CI-only PostgreSQL16/pgvector + Redis8.2 job using actual migrations, a NOSUPERUSER/NOBYPASSRLS application role and the production Nest entrypoint (no DatabaseService/PGlite transport replacement). Executes existing channel, flow/User Input/handoff/CRM, signature and cross-feature parity HTTP scenarios. Synthetic accounts only, all delivery/AI/email disabled; localhost destinations enforced.
+- Local environment has no postgres/initdb/docker executable; this check must run on CI. Python syntax and diff checks PASS; integration results pending. No Railway database, service, domain, volume or Sleep setting changed.

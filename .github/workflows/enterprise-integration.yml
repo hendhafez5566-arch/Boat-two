@@ -1,0 +1,71 @@
+name: Enterprise PostgreSQL integration
+on:
+  push:
+    branches: [feat/flow-builder-fidelity-20261107]
+    paths:
+      - 'apps/api/**'
+      - 'scripts/run-enterprise-postgres-qa.py'
+      - '.github/workflows/enterprise-integration.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: enterprise-pg-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  real-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: isolated-ci-admin
+          POSTGRES_DB: boat_qa
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d boat_qa"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:8.2
+        ports: ['6379:6379']
+    env:
+      NODE_ENV: production
+      DATABASE_ADMIN_URL: postgres://postgres:isolated-ci-admin@localhost:5432/boat_qa
+      DATABASE_URL: postgres://app_user:isolated-ci-app@localhost:5432/boat_qa
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: isolated-ci-secret-never-used-outside-this-job
+      ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
+      APP_URL: http://localhost:3000
+      PUBLIC_API_URL: http://localhost:4000
+      BOAT_PREVIEW_ONLY: 'true'
+      EXTERNAL_DELIVERY_ENABLED: 'false'
+      EMAIL_DELIVERY_ENABLED: 'false'
+      AI_PROVIDER_CALLS_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install frozen dependencies and build API
+        run: corepack enable && pnpm install --frozen-lockfile && pnpm --filter api build
+        env:
+          NODE_ENV: development
+      - name: Initialize unprivileged isolated application role
+        env:
+          PGPASSWORD: isolated-ci-admin
+        run: psql -h localhost -U postgres -d boat_qa -v ON_ERROR_STOP=1 -c "CREATE ROLE app_user LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD 'isolated-ci-app'"
+      - name: Apply actual production migrations
+        run: node apps/api/dist/database/migrate.js
+      - name: Real PostgreSQL tenant, flow, CRM and Inbox acceptance
+        run: python3 scripts/run-enterprise-postgres-qa.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: enterprise-postgres-evidence
+          path: |
+            /tmp/boat-enterprise-postgres-api.log
+            docs/platform-fidelity-20261108/channels-http.json
+            docs/platform-fidelity-20261108/*http*.json
+            docs/flow-builder-20261107/
+            docs/acceptance/
