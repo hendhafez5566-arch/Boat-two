@@ -76,6 +76,8 @@ const nodeTypes = {
 };
 const edgeTypes = { smoothstep: FlowEdge, buttonLink: ButtonLinkEdge };
 
+const INITIAL_CANVAS_MIN_ZOOM = 0.5;
+
 type Issue = { nodeId?: string; message: string };
 
 function Editor({ id }: { id: string }) {
@@ -85,7 +87,7 @@ function Editor({ id }: { id: string }) {
   useEffect(() => {
     if (!nodesInitialized || initialViewportReady.current) return;
     initialViewportReady.current = true;
-    void rf.fitView({ padding: 0.25, maxZoom: 1 });
+    void rf.fitView({ padding: 0.25, minZoom: INITIAL_CANVAS_MIN_ZOOM, maxZoom: 1 });
   }, [nodesInitialized, rf]);
   const { t, language } = useLocale();
   const [nodeSearch, setNodeSearch] = useState('');
@@ -2025,8 +2027,6 @@ function Editor({ id }: { id: string }) {
                       multiSelectionKeyCode={['Shift', 'Meta', 'Control']}
                       minZoom={0.05}
                       maxZoom={2}
-                      fitView
-                      fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
                     >
                       {showMap && !previewOpen && (
                         <MiniMap
