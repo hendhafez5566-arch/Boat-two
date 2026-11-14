@@ -91,6 +91,7 @@ type Channel = {
 };
 
 const CHANNEL_NAMES: Record<string, string> = {
+  google: 'Google',
   whatsapp: 'WhatsApp',
   facebook: 'Facebook',
   instagram: 'Instagram',
@@ -105,6 +106,8 @@ export default function Channels() {
   const [widget, setWidget] = useState<Channel | null>(null);
   const [copied, setCopied] = useState('');
   const [items, setItems] = useState<Channel[]>([]);
+  const [google, setGoogle] = useState<Channel[]>([]);
+  const accounts = [...items, ...google];
   const [botDiagnostics, setBotDiagnostics] = useState<Record<string, BotReadiness>>({});
   const [authDiagnostics, setAuthDiagnostics] = useState<Record<string, WhatsAppAuthDiagnostics>>(
     {},
@@ -121,7 +124,7 @@ export default function Channels() {
   const [guideOpen, setGuideOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const stateOf = channelConnectionState;
-  const counts = connectionAccountCounts(items);
+  const counts = connectionAccountCounts(accounts);
   const stateLabels: Record<string, string> = {
     connected: t('متصل', 'Connected'),
     expiring: t('ينتهي قريبًا', 'Expiring soon'),
@@ -129,7 +132,7 @@ export default function Channels() {
     expired: t('تفويض منتهٍ', 'Authorization expired'),
     disconnected: t('متوقف', 'Disconnected'),
   };
-  const visible = filterConnectionAccounts(items, platform, filter, search);
+  const visible = filterConnectionAccounts(accounts, platform, filter, search);
   async function verify(c: Channel) {
     setBusy(true);
     setError('');
@@ -276,6 +279,28 @@ export default function Channels() {
       return;
     }
     load();
+    void api<{ id: string; name: string; provider: string; enabled: boolean; status: string }[]>(
+      '/integrations',
+    )
+      .then((rows) =>
+        setGoogle(
+          rows
+            .filter((row) => row.provider === 'google')
+            .map((row) => ({
+              id: row.id,
+              name: row.name,
+              type: 'google',
+              external_id: '',
+              status: row.enabled ? 'active' : 'disabled',
+              connectionHealth: {
+                state: row.status === 'connected' ? 'connected' : 'needs_action',
+                checkedAt: null,
+                reason: '',
+              },
+            })),
+        ),
+      )
+      .catch(() => setGoogle([]));
   }, []);
 
   async function remove(id: string) {
@@ -383,7 +408,7 @@ export default function Channels() {
               <span className={styles.srOnly}>{t('تصفية المنصة', 'Platform filter')}</span>
               <select value={platform} onChange={(e) => setPlatform(e.target.value)}>
                 <option value="all">{t('كل المنصات', 'All platforms')}</option>
-                {['whatsapp', 'facebook', 'instagram', 'telegram', 'web'].map((value) => (
+                {['whatsapp', 'facebook', 'instagram', 'telegram', 'web', 'google'].map((value) => (
                   <option key={value} value={value}>
                     {CHANNEL_NAMES[value]}
                   </option>
@@ -519,28 +544,32 @@ export default function Channels() {
                       )}
                     </td>
                     <td>
-                      {['whatsapp', 'facebook', 'instagram', 'telegram'].includes(c.type) && (
+                      {['whatsapp', 'facebook', 'instagram', 'telegram', 'google', 'web'].includes(
+                        c.type,
+                      ) && (
                         <Link className="btn" href={'/dashboard/channels/connect/' + c.type}>
                           {t('إدارة', 'Manage')}
                         </Link>
                       )}
-                      {c.status === 'active' && (
+                      {c.type !== 'google' && c.status === 'active' && (
                         <button className="btn" disabled={busy} onClick={() => setDeleting(c)}>
                           {t('فصل الاتصال', 'Disconnect')}
                         </button>
                       )}
-                      <button
-                        type="button"
-                        className="btn"
-                        aria-label={
-                          t('إعدادات الحساب المتقدمة', 'Advanced account settings') + ' ' + c.name
-                        }
-                        aria-expanded={expandedId === c.id}
-                        aria-controls={'channel-details-' + c.id}
-                        onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}
-                      >
-                        {t('المزيد', 'More')}
-                      </button>
+                      {c.type !== 'google' && (
+                        <button
+                          type="button"
+                          className="btn"
+                          aria-label={
+                            t('إعدادات الحساب المتقدمة', 'Advanced account settings') + ' ' + c.name
+                          }
+                          aria-expanded={expandedId === c.id}
+                          aria-controls={'channel-details-' + c.id}
+                          onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}
+                        >
+                          {t('المزيد', 'More')}
+                        </button>
+                      )}
                     </td>
                   </tr>
                   {expandedId === c.id && (
@@ -1112,7 +1141,7 @@ export default function Channels() {
               {!loading && !visible.length && (
                 <tr>
                   <td colSpan={7} className="empty">
-                    {items.length
+                    {accounts.length
                       ? t(
                           'لا توجد قنوات تطابق البحث أو التصفية.',
                           'No channels match your search or filters.',
@@ -1121,7 +1150,7 @@ export default function Channels() {
                           'لا توجد قنوات بعد. أضف ويدجت لتجربة أول محادثة.',
                           'No channels yet. Add a website widget for your first conversation.',
                         )}
-                    {items.length > 0 && (
+                    {accounts.length > 0 && (
                       <button
                         className="btn"
                         onClick={() => {
