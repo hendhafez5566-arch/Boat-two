@@ -2219,3 +2219,11 @@ button.underline {
   font-size: var(--text-page);
   line-height: var(--line-heading);
 }
+
+/* Code examples keep their own scroll area instead of widening the whole page. */
+.page-workspace pre {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}

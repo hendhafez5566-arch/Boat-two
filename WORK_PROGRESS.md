@@ -212,3 +212,8 @@ GitHub Actions run 43595935535 timed out selecting Webchat Position. Commit 8f9b
 ### Independent PostgreSQL acceptance
 - Added an ephemeral CI-only PostgreSQL16/pgvector + Redis8.2 job using actual migrations, a NOSUPERUSER/NOBYPASSRLS application role and the production Nest entrypoint (no DatabaseService/PGlite transport replacement). Executes existing channel, flow/User Input/handoff/CRM, signature and cross-feature parity HTTP scenarios. Synthetic accounts only, all delivery/AI/email disabled; localhost destinations enforced.
 - Local environment has no postgres/initdb/docker executable; this check must run on CI. Python syntax and diff checks PASS; integration results pending. No Railway database, service, domain, volume or Sleep setting changed.
+
+### Automated defect discovery
+- Platform sweep43606105719 reproduced actual Developer guide document overflow at320/390px; other initial English routes through768px had no reported runtime5xx or document overflow. Shared code examples now have bounded internal scrolling rather than widening the document.
+- Sweep then stopped on an ambiguous test option selector (native dashboard select also has selected options). Scoped the assertion to the global search listbox; did not change application behavior or weaken expected destination.
+- Real PostgreSQL CI43606232322 provisioned disposable test services successfully but migration command targeted a compiled directory without copied SQL. Corrected CI to run the existing source migrator with tsx, preserving actual migration files and production code. Functional PostgreSQL acceptance not yet claimed.

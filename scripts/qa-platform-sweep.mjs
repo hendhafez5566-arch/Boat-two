@@ -74,7 +74,9 @@ try {
         });
         await search.fill('manager');
         await search.press('ArrowDown');
-        const selected = page.getByRole('option', { selected: true });
+        const selected = page
+          .getByRole('listbox', { name: language === 'ar' ? 'نتائج البحث' : 'Search results' })
+          .getByRole('option', { selected: true });
         if (
           !(await selected.textContent()).includes(
             language === 'ar' ? 'مدير المستخدمين' : 'User Manager',
