@@ -31,6 +31,8 @@ const results = [];
 try {
   for (const language of ['en', 'ar'])
     for (const width of [320, 390, 768, 1366, 1920]) {
+      const phonePrefix = `9${language === 'en' ? '1' : '2'}${width}`;
+      const wabaId = `${phonePrefix}500`;
       const owner = await api('/auth/register', null, {
         email: randomUUID() + '@example.test',
         password: 'Synthetic-' + randomUUID(),
@@ -41,8 +43,8 @@ try {
         type: 'whatsapp',
         name: 'Synthetic business',
         credentials: {
-          phoneNumberId: '900000123',
-          wabaId: '900000500',
+          phoneNumberId: `${phonePrefix}123`,
+          wabaId: wabaId,
           accessToken: 'synthetic-not-a-provider-token',
         },
       });
@@ -50,8 +52,8 @@ try {
         type: 'whatsapp',
         name: 'Synthetic second number',
         credentials: {
-          phoneNumberId: '900000124',
-          wabaId: '900000500',
+          phoneNumberId: `${phonePrefix}124`,
+          wabaId: wabaId,
           accessToken: 'synthetic-not-a-provider-token',
         },
       });
@@ -142,8 +144,8 @@ try {
         .getByRole('heading', { name: text('تكامل WhatsApp', 'WhatsApp Integration'), exact: true })
         .waitFor();
       await page.getByText('Synthetic business', { exact: true }).waitFor();
-      const phoneTable = page.getByRole('table').filter({ hasText: '900000500' });
-      assert.equal(await phoneTable.getByText('900000500', { exact: true }).count(), 1);
+      const phoneTable = page.getByRole('table').filter({ hasText: wabaId });
+      assert.equal(await phoneTable.getByText(wabaId, { exact: true }).count(), 1);
       await phoneTable.getByText('Synthetic second number', { exact: true }).waitFor();
       const firstPhone = phoneTable.getByRole('row').filter({ hasText: 'Synthetic business' });
       await firstPhone.getByRole('link', { name: text('إدارة', 'Manage'), exact: true }).click();
