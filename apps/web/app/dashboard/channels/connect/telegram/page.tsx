@@ -43,6 +43,10 @@ export default function TelegramConnection() {
   }, [reload]);
 
   async function sync(targets: Bot[]) {
+    if (!targets.length) {
+      setNotice(t('لا توجد بوتات متاحة للتحقق.', 'No bots available to check.'));
+      return;
+    }
     setSyncing(true);
     setManageError('');
     setNotice('');
@@ -123,15 +127,20 @@ export default function TelegramConnection() {
         </div>
       </div>
       <div className={styles.layout}>
-        <section className="card stack">
-          <span aria-hidden="true">
+        <section className={`card ${styles.onboarding}`}>
+          <span className={styles.logo} aria-hidden="true">
             <ChannelLogo id="telegram" />
           </span>
-          <h2>{t('اربط بوت Telegram الخاص بك', 'Connect Your Telegram Bot')}</h2>
-          <p>
-            {t('اربط بوتك بخطوات بسيطة.', 'Connect your Telegram bot in just a few simple steps.')}
-          </p>
-          <ol>
+          <header className={styles.intro}>
+            <h2>{t('اربط بوت Telegram الخاص بك', 'Connect Your Telegram Bot')}</h2>
+            <p>
+              {t(
+                'اربط بوتك بخطوات بسيطة.',
+                'Connect your Telegram bot in just a few simple steps.',
+              )}
+            </p>
+          </header>
+          <ol className={styles.steps}>
             <li>
               {t(
                 'أنشئ بوتًا على Telegram باستخدام @BotFather.',
@@ -144,7 +153,7 @@ export default function TelegramConnection() {
             <li>{t('أدخل الرمز ثم اضغط ربط البوت.', 'Enter the token and connect your bot.')}</li>
           </ol>
           {savedId ? (
-            <div role="status" className="notice">
+            <div className="notice">
               <button className="btn" type="button" onClick={() => setSavedId('')}>
                 {t('ربط بوت آخر', 'Connect another bot')}
               </button>
@@ -181,34 +190,53 @@ export default function TelegramConnection() {
               </button>
             </form>
           )}
-          <Link href="/dashboard/channels">
-            {t('العودة إلى ربط الحساب', 'Back to Connect Account')}
-          </Link>
-        </section>
-        <section className="card stack" aria-labelledby="telegram-connected">
-          <header>
-            <h2 id="telegram-connected">{t('البوتات المتصلة', 'Connected Bots')}</h2>
+          <aside className={styles.guide}>
+            <h3>{t('أول مرة تربط بوت؟', 'New to Telegram bots?')}</h3>
             <p>
               {t(
-                'إدارة بوتات Telegram والتحقق من الاتصال.',
-                'Manage and verify your Telegram bots.',
+                'تعرّف على إنشاء بوت وإدارة رمزه باستخدام BotFather.',
+                'Create a bot and manage its token with BotFather.',
               )}
             </p>
-          </header>
-          <div className="form-actions">
-            <input
-              type="search"
-              aria-label={t('بحث عن بوت', 'Search bots')}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-            <button
+            <a
               className="btn"
-              disabled={syncing || !bots?.some((bot) => bot.status === 'active')}
-              onClick={() => void sync(bots?.filter((bot) => bot.status === 'active') ?? [])}
+              href="https://core.telegram.org/bots/features#botfather"
+              target="_blank"
+              rel="noreferrer"
             >
-              {syncing ? t('جارٍ التحقق…', 'Checking…') : t('مزامنة كل البوتات', 'Sync all bots')}
-            </button>
+              {t('دليل Telegram', 'Telegram guide')}
+            </a>
+          </aside>
+        </section>
+        <section className="card stack" aria-labelledby="telegram-connected">
+          <div className={styles.listHeader}>
+            <header>
+              <h2 id="telegram-connected">{t('البوتات المتصلة', 'Connected Bots')}</h2>
+              <p>
+                {t(
+                  'إدارة بوتات Telegram والتحقق من الاتصال.',
+                  'Manage and verify your Telegram bots.',
+                )}
+              </p>
+            </header>
+            <div className="form-actions">
+              <input
+                type="search"
+                aria-label={t('بحث عن بوت', 'Search bots')}
+                placeholder={t('بحث عن بوت…', 'Search bots…')}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+              <button
+                className="btn"
+                disabled={syncing || !bots}
+                onClick={() => void sync(bots?.filter((bot) => bot.status === 'active') ?? [])}
+              >
+                {syncing
+                  ? t('جارٍ التحقق…', 'Checking…')
+                  : t('التحقق من كل البوتات', 'Check all bots')}
+              </button>
+            </div>
           </div>
           {notice && <p role="status">{notice}</p>}
           {manageError && (
@@ -259,7 +287,10 @@ export default function TelegramConnection() {
                               )
                             : bot.connectionHealth?.reason === 'telegram_webhook_verified'
                               ? t('عنوان Webhook مؤكد', 'Webhook URL verified')
-                              : t('زامن البوت للتحقق من Webhook', 'Sync bot to check webhook')}
+                              : t(
+                                  'تحقق من الاتصال لفحص Webhook',
+                                  'Check connection to verify webhook',
+                                )}
                         </td>
                         <td>
                           <div className="form-actions">
@@ -268,7 +299,7 @@ export default function TelegramConnection() {
                               disabled={syncing || bot.status !== 'active'}
                               onClick={() => void sync([bot])}
                             >
-                              {t('مزامنة', 'Sync')}
+                              {t('تحقق من الاتصال', 'Check connection')}
                             </button>
                             <Link className="btn" href={channelHref('/dashboard/flows', bot.id)}>
                               {t('مدير البوت', 'Bot Manager')}
