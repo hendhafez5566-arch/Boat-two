@@ -1183,3 +1183,8 @@
 .editor :global(.fn-stat-label [data-stat='errors']) {
   color: #df6472;
 }
+
+.editor :global(.react-flow__node > .premium-flow-node.fn-card) {
+  background-color: #fff;
+  color: #064663;
+}

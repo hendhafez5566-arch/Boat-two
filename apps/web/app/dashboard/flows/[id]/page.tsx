@@ -778,7 +778,7 @@ function Editor({ id }: { id: string }) {
     setPreviewOpen(false);
     setInspectorOpen(true);
     setTab('node');
-    rf.fitView({ nodes: [{ id: nid }], padding: 1.2, maxZoom: 1, duration: 300 });
+    // Opening settings preserves the viewport so nearby steps stay visible.
   };
 
   const openReview = () => {
