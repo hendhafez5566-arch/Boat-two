@@ -103,14 +103,18 @@ try {
       .getByRole('button', { name: t('المزيد من الأدوات', 'More tools'), exact: true })
       .click();
     await page.getByRole('button', { name: t('نشر البوت', 'Publish bot'), exact: true }).click();
-    await page
-      .getByRole('button', { name: t('تأكيد النشر', 'Confirm publish'), exact: true })
-      .click();
-    await page
-      .getByText(t('لا يمكن النشر: صحّح الأخطاء', 'Fix validation errors before publishing'), {
-        exact: true,
-      })
-      .waitFor();
+    const rejected = await Promise.all([
+      page.waitForResponse(
+        (r) =>
+          r.url().endsWith('/flows/' + f.id) &&
+          r.request().method() === 'PATCH' &&
+          r.status() === 400,
+      ),
+      page.getByRole('button', { name: t('تأكيد النشر', 'Confirm publish'), exact: true }).click(),
+    ]);
+    const invalid = await rejected[0].json();
+    assert.ok(invalid.errors && !Array.isArray(invalid.errors));
+    await page.locator('.publish-outcome[data-kind="error"]').waitFor();
     assert.equal(await page.getByText(/Application error: a client-side exception/).count(), 0);
     await openNode();
     for (let i = 0; i < 24; i++)

@@ -23,7 +23,7 @@ export default class EditorErrorBoundary extends Component<
         <p>
           {recovery
             ? 'توجد نسخة استرجاع محلية. أعد فتح المصمم ثم اختر استعادة المسودة، أو نزّل نسخة الآن.'
-            : 'أعد فتح المصمم لتحميل آخر مسودة محفوظة. لم يتم نشر أي تعديل بسبب هذا الخطأ.'}
+            : 'أعد فتح المصمم لمراجعة آخر مسودة محفوظة وحالة النشر.'}
         </p>
         <p>
           Reopen the editor to recover your local draft. You can also download the recovery copy

@@ -154,6 +154,24 @@ function Editor({ id }: { id: string }) {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [connecting, setConnecting] = useState(false);
   const connectFrom = useRef<{ source: string; handle: string | null } | null>(null);
+  useEffect(() => {
+    if (!connecting) return;
+    const cancel = () => {
+      setConnecting(false);
+      connectFrom.current = null;
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') cancel();
+    };
+    window.addEventListener('blur', cancel);
+    window.addEventListener('pointercancel', cancel);
+    window.addEventListener('keydown', escape);
+    return () => {
+      window.removeEventListener('blur', cancel);
+      window.removeEventListener('pointercancel', cancel);
+      window.removeEventListener('keydown', escape);
+    };
+  }, [connecting]);
   const [nodes, setNodes, onNodesChange] = useNodesState<RFData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [startId, setStartId] = useState('');
@@ -2684,7 +2702,7 @@ function Editor({ id }: { id: string }) {
 
 export default function Page({ params }: { params: { id: string } }) {
   return (
-    <EditorErrorBoundary flowId={params.id}>
+    <EditorErrorBoundary key={params.id} flowId={params.id}>
       <ReactFlowProvider>
         <Editor id={params.id} />
       </ReactFlowProvider>
