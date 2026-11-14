@@ -199,26 +199,6 @@
     flex-basis: 100%;
   }
 }
-.steps {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.steps li {
-  display: grid;
-  align-content: start;
-  gap: 8px;
-  padding: 16px;
-  border: 1px solid var(--border, #dbe2ec);
-  border-radius: 12px;
-}
-.steps span {
-  color: var(--muted, #526177);
-  line-height: 1.7;
-}
 .account {
   min-width: 0;
   display: grid;
@@ -242,10 +222,6 @@
   max-width: 100%;
 }
 @media (max-width: 767px) {
-  .steps {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
   .identity {
     flex-direction: column;
     gap: 8px;

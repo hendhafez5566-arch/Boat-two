@@ -152,3 +152,10 @@ Complete reference interactions, archive safe screenshots/measurements; compare 
 
 ### Channels release checkpoint
 Product source1f249b6b pushed/verified. API-before-Web deploy staged on the same existing Preview API only; accept-deploy cancelled explicitly because tool approval was not granted. No new deployment/build; Web not staged or deployed. Pending patch ae600b07-b326-42c8-9aaf-d5e0efdca76d pins API to1f249b6b when/if approved. Do not deploy Web before successful API/schema104 compatibility and do not claim current-source visual acceptance.
+
+## Connect Account continuation — 2026-11-14, first batch
+- Resolved workspace blocker with a direct single-branch Git clone; verified starting HEAD b20dbe19. Frozen-lockfile dependency installation succeeded.
+- Reused authenticated live reference observations. Connection Guide, statistics, filters, MM Status and account table are present in BotSailor and are not indiscriminately removed.
+- Removed the extra first-customer journey, website-test shortcut and three bot preparation/test cards from the guide. Retained a concise bilingual connection explanation and removed unused step styles. Existing channel/OAuth/provider/diagnostic/data actions are unchanged.
+- Fresh Web production build PASS; scoped ESLint PASS; existing channel-overview/catalog contract checks PASS. This is a saved first batch, not full UI/provider acceptance.
+- Remaining: inspect reference details and actual Boat UI, align provider-specific launch surfaces, test AR/EN at requested widths, isolated provider/role/tenant journeys and visual before/after evidence. No deployment or full-parity claim for this batch.

@@ -341,53 +341,14 @@ export default function Channels() {
         aria-label={t('خطوات تشغيل القناة', 'Channel launch steps')}
       >
         <div>
-          <h2>{t('من الربط إلى أول عميل', 'From connection to your first customer')}</h2>
+          <h2>{t('دليل الربط', 'Connection Guide')}</h2>
           <p className="muted">
             {t(
-              'ابدأ بقناة اختبار على الموقع، أو اربط حساب شركتك. كل خطوة لها حالة مستقلة.',
-              'Start with a website test channel, or connect your business account. Each step has its own status.',
+              'اختر المنصة من الاتصالات المتاحة. لحسابات Meta، أكمل التفويض واختر حساب شركتك. لتليجرام، استخدم رمز البوت من BotFather. تظهر حالة الحساب بعد التحقق من الاتصال.',
+              'Choose a platform from Available Connections. For Meta accounts, complete authorization and select your business account. For Telegram, use the bot token from BotFather. The account status appears after connection verification.',
             )}
           </p>
         </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => {
-            setSelected('web');
-            setType('web');
-            setConnectOpen(true);
-          }}
-        >
-          {t('تجربة أول محادثة على الموقع', 'Try your first website conversation')}
-        </button>
-        <ol className={styles.steps}>
-          <li>
-            <strong>{t('١. اربط القناة', '1. Connect a channel')}</strong>
-            <span>
-              {t(
-                'اختر المنصة وأكمل التفويض أو تثبيت الويدجت.',
-                'Choose a platform and complete authorization or widget installation.',
-              )}
-            </span>
-          </li>
-          <li>
-            <strong>{t('٢. جهّز البوت', '2. Prepare your bot')}</strong>
-            <span>
-              {t(
-                'أنشئ التدفق واختبره ثم انشره على القناة المختارة.',
-                'Create and test a flow, then publish it on the selected channel.',
-              )}
-            </span>
-          </li>
-          <li>
-            <strong>{t('٣. جرّب المحادثة', '3. Test a conversation')}</strong>
-            <span>
-              {t(
-                'اختبر على قناتك التجريبية وتابع النتيجة في الوارد.',
-                'Test on your test channel and follow the result in the inbox.',
-              )}
-            </span>
-          </li>
-        </ol>
       </section>
 
       <div
