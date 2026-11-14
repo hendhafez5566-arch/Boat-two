@@ -1,0 +1,48 @@
+name: Channel connection acceptance
+on:
+  push:
+    branches: [feat/flow-builder-fidelity-20261107]
+    paths:
+      - 'apps/web/**'
+      - 'apps/api/**'
+      - 'scripts/qa-connect-journeys-browser.mjs'
+      - 'scripts/run-connect-browser-qa.py'
+      - '.github/workflows/channel-connect-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: channel-connect-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  isolated-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked project dependencies
+        run: corepack enable && pnpm install --frozen-lockfile
+      - name: Build API and Web
+        run: pnpm --filter api build && pnpm --filter web build
+      - name: Check Meta and Telegram identity contracts
+        working-directory: apps/api
+        run: node --import tsx --test src/messaging/meta-connect.pg.test.ts src/messaging/telegram-connect.test.ts
+      - name: Install isolated browser test driver
+        run: npm install --prefix "$RUNNER_TEMP/boat-playwright" playwright@1.56.1 --ignore-scripts
+      - name: Run isolated AR/EN browser acceptance
+        env:
+          BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
+          BOAT_CHROMIUM: /usr/bin/google-chrome
+        run: python3 scripts/run-connect-browser-qa.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: channel-connection-visual-evidence
+          path: |
+            docs/channel-connections-20261114/browser/
+            /tmp/boat-journeys-api.log
+            /tmp/boat-journeys-web.log
+          if-no-files-found: warn

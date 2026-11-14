@@ -108,6 +108,7 @@ export default function Channels() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<Channel | null>(null);
+  const [widget, setWidget] = useState<Channel | null>(null);
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState('');
   const [items, setItems] = useState<Channel[]>([]);
@@ -301,7 +302,10 @@ export default function Channels() {
     setBusy(true);
     setError('');
     try {
-      await api(`/channels/${id}`, { method: 'DELETE' });
+      await api(`/channels/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'disabled' }),
+      });
       setDeleting(null);
       await load();
     } catch (e) {
@@ -466,6 +470,7 @@ export default function Channels() {
                     {t('حالة MM', 'MM Status')}
                   </abbr>
                 </th>
+                <th scope="col">{t('كود التضمين', 'Get Embed Code')}</th>
                 <th scope="col">{t('الإجراءات', 'Actions')}</th>
               </tr>
             </thead>
@@ -524,21 +529,48 @@ export default function Channels() {
                       </span>
                     </td>
                     <td>
+                      {c.widgetSnippet ? (
+                        <button
+                          className="btn"
+                          onClick={() => {
+                            setCopied('');
+                            setWidget(c);
+                          }}
+                        >
+                          {t('الكود', 'Get code')}
+                        </button>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td>
+                      {['whatsapp', 'facebook', 'instagram', 'telegram'].includes(c.type) && (
+                        <Link className="btn" href={'/dashboard/channels/connect/' + c.type}>
+                          {t('إدارة', 'Manage')}
+                        </Link>
+                      )}
+                      {c.status === 'active' && (
+                        <button className="btn" disabled={busy} onClick={() => setDeleting(c)}>
+                          {t('فصل الاتصال', 'Disconnect')}
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="btn"
-                        aria-label={t('إدارة الحساب', 'Manage account') + ' ' + c.name}
+                        aria-label={
+                          t('إعدادات الحساب المتقدمة', 'Advanced account settings') + ' ' + c.name
+                        }
                         aria-expanded={expandedId === c.id}
                         aria-controls={'channel-details-' + c.id}
                         onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}
                       >
-                        {t('إدارة', 'Manage')}
+                        {t('المزيد', 'More')}
                       </button>
                     </td>
                   </tr>
                   {expandedId === c.id && (
                     <tr id={'channel-details-' + c.id}>
-                      <td colSpan={6}>
+                      <td colSpan={7}>
                         <section
                           className={styles.account}
                           aria-label={t('إدارة الحساب', 'Manage account') + ' ' + c.name}
@@ -565,13 +597,6 @@ export default function Channels() {
                                 ) · {statusLabel(c.status, t)} · {stateLabels[stateOf(c)]}
                               </span>
                             </strong>
-                            <button
-                              disabled={busy}
-                              onClick={() => setDeleting(c)}
-                              className="btn btn-danger"
-                            >
-                              {t('حذف', 'Delete')}
-                            </button>
                           </div>
                           <div className={styles.identity}>
                             <span>
@@ -1103,65 +1128,6 @@ export default function Channels() {
                               {t('إدارة قوالب WhatsApp', 'Manage WhatsApp templates')} ↗
                             </Link>
                           )}
-                          {c.widgetSnippet && (
-                            <>
-                              <p className="mt-2 text-sm">
-                                {t(
-                                  'الصق الكود في موقعك قبل </body>:',
-                                  'Paste this code before </body> on your website:',
-                                )}
-                              </p>
-                              <pre
-                                dir="ltr"
-                                className="overflow-x-auto rounded bg-gray-100 p-2 text-xs"
-                              >
-                                {c.widgetSnippet}
-                              </pre>
-                              <div className="form-actions">
-                                <button
-                                  className="btn"
-                                  onClick={async () => {
-                                    try {
-                                      await navigator.clipboard.writeText(c.widgetSnippet!);
-                                      setCopied(c.id);
-                                    } catch {
-                                      setError(
-                                        t(
-                                          'تعذر النسخ التلقائي. انسخ الكود الظاهر يدويًا.',
-                                          'Automatic copy failed. Copy the displayed code manually.',
-                                        ),
-                                      );
-                                    }
-                                  }}
-                                >
-                                  {copied === c.id
-                                    ? t('تم نسخ الكود', 'Code copied')
-                                    : t('نسخ كود التثبيت', 'Copy installation code')}
-                                </button>
-                                <a
-                                  className="btn"
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  href={
-                                    '/widget-demo.html?key=' + encodeURIComponent(c.external_id)
-                                  }
-                                >
-                                  {t('جرّب الويدجت', 'Try widget')}
-                                </a>
-                              </div>
-                              <p role="status">
-                                {copied === c.id &&
-                                  t(
-                                    'أرسل الكود لمسؤول موقعك وأضفه قبل إغلاق body. اضبط المواقع المسموحة من إعدادات القناة.',
-                                    'Share the code with your website administrator and insert before closing body. Set allowed origins in channel settings.',
-                                  )}
-                              </p>
-                              <p className="mt-1 text-xs">
-                                {t('للتجربة:', 'Try it:')}{' '}
-                                <code>/widget-demo.html?key={c.external_id}</code>
-                              </p>
-                            </>
-                          )}
                         </section>
                       </td>
                     </tr>
@@ -1170,7 +1136,7 @@ export default function Channels() {
               ))}
               {!loading && !visible.length && (
                 <tr>
-                  <td colSpan={6} className="empty">
+                  <td colSpan={7} className="empty">
                     {items.length
                       ? t(
                           'لا توجد قنوات تطابق البحث أو التصفية.',
@@ -1300,17 +1266,54 @@ export default function Channels() {
         )}
       </Dialog>
       <Dialog
+        open={!!widget}
+        onClose={() => {
+          setWidget(null);
+          setCopied('');
+        }}
+        title={t('كود التضمين', 'Get Embed Code')}
+      >
+        <p>{widget?.name}</p>
+        <pre className={styles.embedCode}>{widget?.widgetSnippet}</pre>
+        <button
+          className="btn btn-primary"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(widget!.widgetSnippet!);
+              setCopied(widget!.id);
+            } catch {
+              setError(
+                t(
+                  'تعذّر نسخ الكود. حدده وانسخه يدويًا.',
+                  'Could not copy the code. Select and copy it manually.',
+                ),
+              );
+            }
+          }}
+        >
+          {copied === widget?.id
+            ? t('تم النسخ', 'Copied')
+            : t('نسخ كود التثبيت', 'Copy installation code')}
+        </button>
+        <p>
+          {t(
+            'ضع الكود قبل إغلاق body في موقعك.',
+            'Paste the code before the closing body tag on your website.',
+          )}
+        </p>
+      </Dialog>
+      <Dialog
         open={!!deleting}
         onClose={() => {
           if (!busy) setDeleting(null);
         }}
-        title={t('حذف القناة ومحادثاتها؟', 'Delete channel and its conversations?')}
+        title={t('فصل الحساب عن Boat Two؟', 'Disconnect account from Boat Two?')}
       >
         <p>{deleting?.name}</p>
         <p>
           {t(
-            'سيحذف هذا الإجراء القناة ومحادثاتها.',
-            'This removes the channel and its conversations.',
+            'سيتوقف تشغيل القناة في Boat Two مع الاحتفاظ بالمحادثات والبيانات. لا يلغي ذلك صلاحيات التطبيق لدى المزود.',
+            'This pauses the channel in Boat Two and preserves conversations and data. It does not revoke provider app permissions.',
           )}
         </p>
         <div className="form-actions">
@@ -1322,7 +1325,7 @@ export default function Channels() {
             disabled={busy}
             onClick={() => deleting && void remove(deleting.id)}
           >
-            {t('تأكيد الحذف', 'Confirm deletion')}
+            {t('تأكيد الفصل', 'Confirm disconnect')}
           </button>
         </div>
       </Dialog>

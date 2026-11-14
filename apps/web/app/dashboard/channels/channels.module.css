@@ -259,3 +259,10 @@
   color: #b53636;
   background: #fff0f0;
 }
+
+.embedCode {
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
