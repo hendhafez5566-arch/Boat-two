@@ -1193,7 +1193,7 @@ export default function Channels() {
               mode="connections"
               selected={selected}
               onSelect={(id) => {
-                if (['telegram', 'whatsapp', 'facebook', 'instagram'].includes(id)) {
+                if (['telegram', 'whatsapp', 'facebook', 'instagram', 'web'].includes(id)) {
                   window.location.assign('/dashboard/channels/connect/' + id);
                   return;
                 }

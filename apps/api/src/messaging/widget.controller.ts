@@ -99,6 +99,18 @@ export class WidgetController {
       welcomeMessage: s.welcomeMessage,
       direction: s.direction,
       position: s.position,
+      verticalPosition: s.verticalPosition,
+      offsetX: s.offsetX,
+      offsetY: s.offsetY,
+      loadingDelay: s.loadingDelay,
+      startup: s.startup,
+      themeBackground: ch.settings.themeBackground ? s.themeBackground : undefined,
+      themeText: ch.settings.themeText ? s.themeText : undefined,
+      bubbleBackground: s.bubbleBackground,
+      bubbleText: s.bubbleText,
+      wallpaper: ch.settings.wallpaper ? s.wallpaper : undefined,
+      font: s.font,
+      logoUrl: s.logoUrl,
     };
   }
 

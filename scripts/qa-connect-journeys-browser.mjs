@@ -63,6 +63,17 @@ try {
       await page.route('**/*', async (route) => {
         const u = new URL(route.request().url());
         if (!['localhost', '127.0.0.1'].includes(u.hostname)) return route.abort();
+        if (u.pathname === '/integrations/capabilities')
+          return route.fulfill({ json: { google: { configured: true, externalEnabled: true } } });
+        if (u.pathname === '/integrations/google/start') {
+          assert.deepEqual(route.request().postDataJSON(), {
+            purposes: ['calendar', 'contacts_read'],
+          });
+          return route.fulfill({
+            status: 503,
+            json: { message: 'Synthetic Google authorization unavailable' },
+          });
+        }
         if (u.pathname === '/channels/meta/config')
           return route.fulfill({
             json: {
@@ -100,6 +111,7 @@ try {
         );
       }
       await page.goto('http://localhost:3000/dashboard/channels');
+      await capture('accounts');
       await page
         .getByRole('button', { name: text('ربط WhatsApp', 'Connect WhatsApp'), exact: true })
         .click();
@@ -201,8 +213,67 @@ try {
       assert.equal(await page.locator('input[name="botToken"]').count(), 1);
       assert.equal(await page.locator('input[name="name"]').count(), 0);
       await capture('telegram');
+      await page.goto('http://localhost:3000/dashboard/channels/connect/google');
+      await page
+        .getByRole('button', {
+          name: text('تسجيل الدخول باستخدام Google', 'Sign in with Google'),
+          exact: true,
+        })
+        .click();
+      await page
+        .getByRole('alert')
+        .filter({ hasText: 'Synthetic Google authorization unavailable' })
+        .waitFor();
+      await capture('google');
+      await page.goto('http://localhost:3000/dashboard/channels/connect/web');
+      await page
+        .getByRole('button', {
+          name: text('إنشاء ويدجت محادثة مباشرة', 'Create Live Chat Widget'),
+          exact: true,
+        })
+        .click();
+      const dialog = page.getByRole('dialog');
+      await dialog
+        .getByLabel(text('عنوان نافذة المحادثة', 'Chatbox Display Title'), { exact: true })
+        .fill(`Synthetic ${language}-${width}`);
+      await dialog
+        .getByLabel(text('رابط الموقع', 'Website URL'), { exact: true })
+        .fill('http://localhost:3000');
+      await dialog
+        .getByLabel(text('الموضع', 'Position'), { exact: true })
+        .selectOption('top-right');
+      await dialog
+        .getByLabel(text('حالة البداية', 'Startup State'), { exact: true })
+        .selectOption('open');
+      await capture('webchat-setup');
+      await dialog.getByRole('button', { name: text('ربط', 'Connect'), exact: true }).click();
+      await dialog.waitFor({ state: 'hidden' });
+      await page
+        .getByRole('cell', { name: `Synthetic ${language}-${width}`, exact: true })
+        .waitFor();
+      await capture('webchat');
+      const widgets = await api('/channels', owner.accessToken);
+      const widget = widgets.find((w) => w.name === `Synthetic ${language}-${width}`);
+      assert.equal(widget.settings.verticalPosition, 'top');
+      assert.equal(widget.settings.startup, 'open');
+      const config = await api('/widget/' + widget.external_id + '/config');
+      assert.equal(config.themeBackground, '#fbfbfc');
+      await page.evaluate((key) => {
+        const script = document.createElement('script');
+        script.src = 'http://localhost:4000/widget.js';
+        script.dataset.key = key;
+        document.body.appendChild(script);
+      }, widget.external_id);
+      const panel = page.locator('.panel.open');
+      await panel.waitFor();
+      const layout = await panel.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        return { left: r.left, right: r.right, top: r.top };
+      });
+      assert.ok(layout.left >= 0 && layout.right <= width + 1 && layout.top >= 0);
+      await capture('webchat-runtime');
       assert.deepEqual(errors, []);
-      results.push({ language, width, status: 'PASS', screens: 7 });
+      results.push({ language, width, status: 'PASS', screens: 12 });
       await context.close();
     }
 } finally {
@@ -222,5 +293,5 @@ writeFileSync(
 console.log(
   'PASS: ' +
     results.length +
-    ' AR/EN viewport cases; seven screenshots each, no document overflow, channel navigation, embedded choices/config gate, real authorization error rendering, API form open/close and token field order.',
+    ' AR/EN viewport cases; twelve screenshots each, no document overflow, channel navigation, embedded choices/config gate, real authorization error rendering, API form open/close and token field order.',
 );

@@ -43,18 +43,21 @@
 
   function build(cfg) {
     var side = cfg.position === 'left' ? 'left' : 'right';
+    var vertical = cfg.verticalPosition === 'top' ? 'top' : 'bottom';
+    var x = Math.min(200, Math.max(0, window.innerWidth - 280), Math.max(0, Number(cfg.offsetX) || 0));
+    var y = Math.min(200, Math.max(0, window.innerHeight - 180), Math.max(0, Number(cfg.offsetY) || 0));
     var css =
       ':host{all:initial}' +
-      '*{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Tahoma,sans-serif}' +
-      '.launcher{position:fixed;bottom:20px;' + side + ':20px;width:56px;height:56px;border-radius:50%;border:0;cursor:pointer;color:#fff;font-size:26px;background:' + cfg.color + ';box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:2147483646}' +
+      '*{box-sizing:border-box;font-family:' + (['Arial','Tahoma'].includes(cfg.font) ? cfg.font : 'system-ui') + ',sans-serif}' +
+      '.launcher{position:fixed;' + vertical + ':' + y + 'px;' + side + ':' + x + 'px;width:56px;height:56px;border-radius:50%;border:0;cursor:pointer;color:#fff;font-size:26px;background:' + cfg.color + ';box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:2147483646}' +
       '.badge{position:absolute;top:-4px;' + (side === 'left' ? 'right' : 'left') + ':-4px;background:#ef4444;color:#fff;border-radius:10px;font-size:12px;min-width:20px;height:20px;line-height:20px;text-align:center;display:none}' +
-      '.panel{position:fixed;bottom:90px;' + side + ':20px;width:360px;max-width:calc(100vw - 24px);height:520px;max-height:calc(100vh - 110px);background:#fff;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.25);display:none;flex-direction:column;overflow:hidden;z-index:2147483647}' +
+      '.panel{position:fixed;' + vertical + ':' + (y+70) + 'px;' + side + ':' + x + 'px;width:360px;max-width:calc(100vw - ' + (x+12) + 'px);height:520px;max-height:calc(100vh - ' + (y+90) + 'px);background:#fff;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.25);display:none;flex-direction:column;overflow:hidden;z-index:2147483647}' +
       '.panel.open{display:flex}' +
-      '.head{background:' + cfg.color + ';color:#fff;padding:14px 16px;font-weight:600;display:flex;justify-content:space-between;align-items:center}' +
-      '.close{background:none;border:0;color:#fff;font-size:20px;cursor:pointer}' +
-      '.msgs{flex:1;overflow-y:auto;padding:12px;background:#f5f6f8;display:flex;flex-direction:column;gap:8px}' +
+      '.head{background:' + (cfg.themeBackground || cfg.color) + ';color:' + (cfg.themeText || '#fff') + ';padding:14px 16px;font-weight:600;display:flex;justify-content:space-between;align-items:center}' +
+      '.close{background:none;border:0;color:inherit;font-size:20px;cursor:pointer}' +
+      '.msgs{flex:1;overflow-y:auto;padding:12px;background:' + (cfg.wallpaper || '#f5f6f8') + ';display:flex;flex-direction:column;gap:8px}' +
       '.m{max-width:80%;padding:8px 12px;border-radius:14px;font-size:14px;line-height:1.5;white-space:pre-wrap;word-break:break-word}' +
-      '.m.them{align-self:flex-start;background:#fff;color:#111;border:1px solid #e5e7eb}' +
+      '.m.them{align-self:flex-start;background:' + (cfg.bubbleBackground || '#fff') + ';color:' + (cfg.bubbleText || '#111') + ';border:1px solid #e5e7eb}' +
       '.m.me{align-self:flex-end;background:' + cfg.color + ';color:#fff}' +
       '.m img{max-width:100%;border-radius:8px;display:block;margin-bottom:4px}' +
       '.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}' +
@@ -75,6 +78,11 @@
     ui.panel = h('div', 'panel');
     ui.panel.setAttribute('dir', cfg.direction || 'rtl');
     var head = h('div', 'head');
+    if (cfg.logoUrl && /^https:\/\//i.test(cfg.logoUrl)) {
+      var logo = h('img'); logo.src = cfg.logoUrl; logo.alt = ''; logo.referrerPolicy = 'no-referrer';
+      logo.style.cssText = 'width:28px;height:28px;object-fit:contain;margin-inline-end:8px';
+      head.appendChild(logo);
+    }
     head.appendChild(h('span', '', cfg.title));
     ui.close = h('button', 'close', '\u00D7');
     ui.close.setAttribute('aria-label', cfg.direction === 'rtl' ? 'إغلاق المحادثة' : 'Close conversation');
@@ -250,8 +258,11 @@
     .then(function (r) { if (!r.ok) throw new Error('config'); return r.json(); })
     .then(function (cfg) {
       st.cfg = cfg;
-      build(cfg);
-      if (store(true)) { start().then(schedule); }
+      setTimeout(function () {
+        build(cfg);
+        if (cfg.startup === 'open') toggle(true);
+        else if (store(true)) { start().then(schedule); }
+      }, Math.min(30, Math.max(0, Number(cfg.loadingDelay) || 0)) * 1000);
     })
     .catch(function () { host.remove(); });
 })();

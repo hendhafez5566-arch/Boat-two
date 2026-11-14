@@ -303,7 +303,12 @@ export class MetaConnectController {
       if (
         !response.ok ||
         !Array.isArray(result.data) ||
-        result.data.some((p) => !/^\d+$/.test(p.id))
+        result.data.some(
+          (p) =>
+            typeof p?.id !== 'string' ||
+            !/^\d{1,30}$/.test(p.id) ||
+            (p.verified_name !== undefined && typeof p.verified_name !== 'string'),
+        )
       )
         throw new BadRequestException('Unable to verify WhatsApp Business Account phone numbers');
       phones.push(...result.data);

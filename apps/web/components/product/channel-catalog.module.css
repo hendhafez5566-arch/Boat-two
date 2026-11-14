@@ -58,3 +58,18 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.recommended {
+  font-size: 10px;
+  color: #16834b;
+  background: #e8f8ee;
+  border-radius: 4px;
+  padding: 3px 5px;
+  margin-inline-start: 4px;
+  white-space: nowrap;
+}
+.secure {
+  font-size: 11px;
+  color: #64748b;
+  margin: 0 0 10px !important;
+}

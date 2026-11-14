@@ -76,13 +76,19 @@ export default function ChannelCatalog({
                 <ChannelLogo id={c.id} />
               </span>
               <div>
-                <h3 dir="ltr">{c.name}</h3>
+                <h3 dir="ltr">
+                  {c.name}{' '}
+                  {c.id === 'whatsapp' && (
+                    <small className={styles.recommended}>{t('موصى به', 'Recommended')}</small>
+                  )}
+                </h3>
                 <p>{t(c.ar, c.en)}</p>
               </div>
             </header>
             <footer>
+              <p className={styles.secure}>{t('اتصال آمن', 'Secure connection')}</p>
               {c.id === 'google' ? (
-                <a className="btn" href="/dashboard/integrations">
+                <a className="btn" href="/dashboard/channels/connect/google">
                   {t('ربط Google', 'Connect Google')}
                 </a>
               ) : (

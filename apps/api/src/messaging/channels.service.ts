@@ -43,6 +43,33 @@ export const widgetSettingsSchema = z.object({
   welcomeMessage: z.string().max(500).default('أهلًا بك! كيف يمكننا مساعدتك؟'),
   direction: z.enum(['ltr', 'rtl']).default('rtl'),
   position: z.enum(['left', 'right']).default('right'),
+  verticalPosition: z.enum(['top', 'bottom']).default('bottom'),
+  offsetX: z.number().int().min(0).max(200).default(20),
+  offsetY: z.number().int().min(0).max(200).default(20),
+  loadingDelay: z.number().int().min(0).max(30).default(0),
+  startup: z.enum(['open', 'closed']).default('closed'),
+  themeBackground: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .default('#fbfbfc'),
+  themeText: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .default('#000000'),
+  bubbleBackground: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .default('#ffffff'),
+  bubbleText: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .default('#19181a'),
+  wallpaper: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .default('#ffffff'),
+  font: z.enum(['system-ui', 'Arial', 'Tahoma']).default('system-ui'),
+  logoUrl: z.string().url().startsWith('https://').max(2000).or(z.literal('')).default(''),
   allowedOrigins: z.array(z.string().url()).max(20).default([]),
 });
 
