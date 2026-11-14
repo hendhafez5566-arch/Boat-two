@@ -44,6 +44,7 @@ export default function WebchatConnectionPage() {
     [error, setError] = useState(''),
     [search, setSearch] = useState(''),
     [code, setCode] = useState<Widget | null>(null);
+  const [saved, setSaved] = useState('');
   const [editing, setEditing] = useState<Widget | null>(null);
   const visible = rows.filter((widget) =>
     [widget.name, ...(widget.settings?.allowedOrigins ?? [])].some((value) =>
@@ -51,6 +52,7 @@ export default function WebchatConnectionPage() {
     ),
   );
   function openForm(widget: Widget | null) {
+    setSaved('');
     setEditing(widget);
     setError('');
     const settings = widget?.settings;
@@ -105,6 +107,11 @@ export default function WebchatConnectionPage() {
       setOpen(false);
       setForm(defaults);
       await data.reload();
+      setSaved(
+        editing
+          ? t('تم حفظ إعدادات الويدجت.', 'Widget settings saved.')
+          : t('تم إنشاء الويدجت.', 'Widget created.'),
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -156,7 +163,15 @@ export default function WebchatConnectionPage() {
           {t('بحث', 'Search')}
           <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} />
         </label>
-        {data.error && <p role="alert">{data.error}</p>}
+        {saved && <p role="status">{saved}</p>}
+        {data.error && (
+          <div className="notice error">
+            <p role="alert">{data.error}</p>
+            <button type="button" className="btn" onClick={() => void data.reload()}>
+              {t('إعادة تحميل الويدجت', 'Reload widgets')}
+            </button>
+          </div>
+        )}
         <div className={styles.table}>
           <table>
             <thead>
@@ -181,9 +196,11 @@ export default function WebchatConnectionPage() {
                     <button className="btn" onClick={() => openForm(a)}>
                       {t('الإعدادات', 'Settings')}
                     </button>
-                    <button className="btn" onClick={() => setCode(a)}>
-                      {t('كود التضمين', 'Get Embed Code')}
-                    </button>
+                    {a.widgetSnippet && (
+                      <button className="btn" onClick={() => setCode(a)}>
+                        {t('كود التضمين', 'Get Embed Code')}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
