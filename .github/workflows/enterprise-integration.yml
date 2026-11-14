@@ -5,6 +5,8 @@ on:
     paths:
       - 'apps/api/**'
       - 'scripts/run-enterprise-postgres-qa.py'
+      - 'scripts/qa-assignment-http.mjs'
+      - 'scripts/acceptance-parity-api.mjs'
       - '.github/workflows/enterprise-integration.yml'
   workflow_dispatch:
 permissions:
@@ -70,3 +72,4 @@ jobs:
             docs/platform-fidelity-20261108/*http*.json
             docs/flow-builder-20261107/
             docs/acceptance/
+            /tmp/boat-parity-api-results.json

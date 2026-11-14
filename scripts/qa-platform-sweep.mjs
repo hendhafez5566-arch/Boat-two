@@ -163,7 +163,13 @@ try {
               };
             }),
           );
-          if (record.overflow || failures.length || requests.length || width === 1366) {
+          if (
+            record.overflow ||
+            failures.length ||
+            requests.length ||
+            width === 1366 ||
+            path === '/dashboard/developer'
+          ) {
             const file = `${language}-${width}-${path.replaceAll('/', '_')}.png`;
             await page.screenshot({ path: out + '/' + file, fullPage: true });
             record.screenshot = file;

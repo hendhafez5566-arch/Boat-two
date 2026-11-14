@@ -299,7 +299,8 @@ export class FlowsService {
         if (missing.length)
           throw new BadRequestException({
             code: 'FLOW_CHANNEL_NOT_FOUND',
-            message: 'A previously selected channel no longer exists. Choose a connected channel in bot settings.',
+            message:
+              'A previously selected channel no longer exists. Choose a connected channel in bot settings.',
             missingChannelIds: missing,
           });
       }
@@ -409,7 +410,7 @@ export class FlowsService {
     return this.db.withTenant(tenantId, async (c) => {
       const f = (
         await c.query(
-          'SELECT updated_at,draft_graph, triggers, channel_ids FROM flows WHERE id = $1 FOR UPDATE',
+          'SELECT updated_at,draft_graph, triggers, channel_ids, is_component FROM flows WHERE id = $1 FOR UPDATE',
           [id],
         )
       ).rows[0];
@@ -428,7 +429,8 @@ export class FlowsService {
         if (missing.length)
           throw new BadRequestException({
             code: 'FLOW_CHANNEL_NOT_FOUND',
-            message: 'One or more linked channels were removed. Reassign channels before publishing.',
+            message:
+              'One or more linked channels were removed. Reassign channels before publishing.',
             missingChannelIds: missing,
           });
       }
@@ -468,16 +470,20 @@ export class FlowsService {
       // Publishing a bot selects it as the active chat bot for the channels
       // linked to that bot. Only this tenant's channels are reachable here.
       // An empty channel_ids array intentionally means all tenant channels.
-      const selectedChannels = await c.query<{ id: string }>(
-        `UPDATE channels
+      // Reusable components are not standalone bots. Publishing one must never
+      // replace active channel bots (runtime intentionally excludes components).
+      const selectedChannels = f.is_component
+        ? { rowCount: 0 }
+        : await c.query<{ id: string }>(
+            `UPDATE channels
            SET settings=jsonb_set(
              COALESCE(settings,'{}'::jsonb),
              '{activeBotFlowId}', to_jsonb($1::text), true
            )
          WHERE cardinality($2::uuid[])=0 OR id=ANY($2::uuid[])
          RETURNING id`,
-        [id, f.channel_ids ?? []],
-      );
+            [id, f.channel_ids ?? []],
+          );
 
       // Publishing never resets conversations or changes human ownership.
 
@@ -501,7 +507,8 @@ export class FlowsService {
       // Never leave a channel pointing to a bot that has just been unpublished.
       await c.query(
         `UPDATE channels SET settings=settings-'activeBotFlowId'
-         WHERE settings->>'activeBotFlowId'=$1`, [id],
+         WHERE settings->>'activeBotFlowId'=$1`,
+        [id],
       );
       return { published: false, updated_at: r.rows[0].updated_at };
     });

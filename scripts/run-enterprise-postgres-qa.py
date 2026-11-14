@@ -23,8 +23,8 @@ with open('/tmp/boat-enterprise-postgres-api.log', 'w') as log:
                 time.sleep(.2)
         else:
             raise RuntimeError('Real PostgreSQL app did not become healthy')
-        for script in ['qa-channel-management-api.mjs', 'qa-flow-builder-api-resume.mjs', 'qa-channel-signature.mjs', 'acceptance-parity-api.mjs']:
-            result = subprocess.run(['node', 'scripts/'+script])
+        for script in ['qa-channel-management-api.mjs', 'qa-flow-builder-api-resume.mjs', 'qa-channel-signature.mjs', 'acceptance-parity-api.mjs', 'qa-assignment-http.mjs']:
+            result = subprocess.run(['node', 'scripts/'+script], env=dict(os.environ, BOAT_QA_EXISTING_API='true', QA_RESUME_HTTP='true'))
             if result.returncode:
                 raise SystemExit(result.returncode)
     finally:
