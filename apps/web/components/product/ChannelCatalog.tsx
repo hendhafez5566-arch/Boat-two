@@ -70,7 +70,7 @@ export default function ChannelCatalog({
         aria-label={t('مكتبة القنوات والتكاملات', 'Channel and integration library')}
       >
         {channels.map((c) => (
-          <article key={c.id} className={styles.card}>
+          <article key={c.id} className={styles.card} data-provider={c.id}>
             <header>
               <span aria-hidden="true">
                 <ChannelLogo id={c.id} />
@@ -85,14 +85,17 @@ export default function ChannelCatalog({
                 <p>{t(c.ar, c.en)}</p>
               </div>
             </header>
+            <div className={styles.hero} aria-hidden="true">
+              <span className={styles.heroIcon}><ChannelLogo id={c.id} /></span>
+            </div>
             <footer>
-              <p className={styles.secure}>{t('اتصال آمن', 'Secure connection')}</p>
+              <p className={styles.secure}><span aria-hidden="true">✓</span> {t('اتصال آمن', 'Secure connection')}</p>
               {c.id === 'google' ? (
-                <a className="btn" href="/dashboard/channels/connect/google">
+                <a className={`btn ${styles.connectButton}`} href="/dashboard/channels/connect/google">
                   {t('ربط Google', 'Connect Google')}
                 </a>
               ) : (
-                <button type="button" className="btn" onClick={() => onSelect(c.id)}>
+                <button type="button" className={`btn ${styles.connectButton}`} onClick={() => onSelect(c.id)}>
                   {t('ربط ', 'Connect ')}
                   {c.name}
                 </button>
