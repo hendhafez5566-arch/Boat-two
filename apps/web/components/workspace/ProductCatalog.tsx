@@ -196,7 +196,11 @@ export default function ProductCatalog() {
         >
           <label className="field">
             {t('القسم المطلوب تعديله', 'Category to edit')}
-            <select value={categoryEditing} onChange={(e) => setCategoryEditing(e.target.value)}>
+            <select
+              aria-label={t('القسم المطلوب تعديله', 'Category to edit')}
+              value={categoryEditing}
+              onChange={(e) => setCategoryEditing(e.target.value)}
+            >
               <option value="">{t('إنشاء قسم', 'New category')}</option>
               {categories.data.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -222,7 +226,11 @@ export default function ProductCatalog() {
       <div className={styles.toolbar}>
         <label className="field">
           {t('القسم', 'Category')}
-          <select value={category} onChange={(e) => setCategory(e.target.value)}>
+          <select
+            aria-label={t('القسم', 'Category')}
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
             <option value="all">{t('كل الأقسام', 'All categories')}</option>
             <option value="none">{t('دون قسم', 'Uncategorized')}</option>
             {categories.data.map((c) => (
@@ -243,7 +251,11 @@ export default function ProductCatalog() {
         </label>
         <label className="field">
           {t('الحالة', 'Status')}
-          <select value={status} onChange={(e) => setStatus(e.target.value)}>
+          <select
+            aria-label={t('الحالة', 'Status')}
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
             <option value="active">{t('نشط', 'Active')}</option>
             <option value="archived">{t('مؤرشف', 'Archived')}</option>
             <option value="all">{t('الكل', 'All')}</option>
@@ -251,7 +263,11 @@ export default function ProductCatalog() {
         </label>
         <label className="field">
           {t('الترتيب', 'Sort')}
-          <select value={sort} onChange={(e) => setSort(e.target.value)}>
+          <select
+            aria-label={t('الترتيب', 'Sort')}
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+          >
             <option value="name">{t('الاسم', 'Name')}</option>
             <option value="price">{t('العملة ثم السعر', 'Currency, then price')}</option>
           </select>

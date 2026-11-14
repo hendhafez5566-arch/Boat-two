@@ -484,7 +484,14 @@ export default function Inspector({
       className={`flow-inspector-content ${configStyles.form}`}
     >
       {type !== 'message' && type !== 'interactive' && type !== 'user_input' && (
-        <p className="smart-step-intro">{t(...STEP_GUIDANCE[type])}</p>
+        <p className="smart-step-intro">
+          {type === 'catalog' && !data.native && !data.sourceId
+            ? t(
+                'اختر منتجاتك المحلية ورتّبها. كتالوج Meta الأصلي له إعداد مستقل.',
+                'Select and order your local products. Native Meta catalogs use a separate setting.',
+              )
+            : t(...STEP_GUIDANCE[type])}
+        </p>
       )}
       {type === 'subflow' && (
         <F label="المكوّن المنشور" hint="تُثبت نسخة المكوّن عند نشر البوت الرئيسي.">

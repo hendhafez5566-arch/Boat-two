@@ -32,7 +32,7 @@ type Booking = {
 export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
   const { t } = useLocale();
   const [channelId, setChannelId] = useChannelContext();
-  const [tab, setTab] = useState(initialTab ?? 'sources'),
+  const [tab, setTab] = useState(initialTab ?? 'products'),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [result, setResult] = useState('');
@@ -80,12 +80,26 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
   }
   return (
     <section className="stack commerce-page">
-      <ChannelScope
-        value={channelId}
-        onChange={setChannelId}
-        channels={channels.data}
-        workspaceWide
-      />
+      {initialTab ? (
+        <ChannelScope
+          value={channelId}
+          onChange={setChannelId}
+          channels={channels.data}
+          workspaceWide
+        />
+      ) : (
+        <details className="card">
+          <DisclosureSummary>
+            {t('سياق القناة والتنقل بين الأقسام', 'Channel context and workspace navigation')}
+          </DisclosureSummary>
+          <ChannelScope
+            value={channelId}
+            onChange={setChannelId}
+            channels={channels.data}
+            workspaceWide
+          />
+        </details>
+      )}
       <h1>
         {initialTab === 'appointments'
           ? t('حجز المواعيد', 'Appointment Booking')
@@ -109,9 +123,11 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
           <Link className="btn" href="/dashboard/flows">
             {t('مدير البوت', 'Bot manager')}
           </Link>
-          <Link className="btn" href="/dashboard/integrations">
-            {t('تفويض Calendar والتكاملات', 'Calendar authorization and integrations')}
-          </Link>
+          {tab === 'appointments' && (
+            <Link className="btn" href="/dashboard/integrations">
+              {t('تفويض Calendar والتكاملات', 'Calendar authorization and integrations')}
+            </Link>
+          )}
         </nav>
       )}
       {(error || services.error) && (
@@ -120,11 +136,6 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
         </p>
       )}
       {tab === 'sources' && <DataSourcesPanel />}
-      {tab === 'products' && !initialTab && (
-        <button className="btn" onClick={() => setTab('sources')}>
-          {t('مصادر البيانات والكتالوج الديناميكي', 'Data sources and dynamic catalog')}
-        </button>
-      )}
       {tab === 'products' && <ProductCatalog />}
       {tab === 'appointments' && (
         <>

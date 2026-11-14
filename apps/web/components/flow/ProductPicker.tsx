@@ -34,7 +34,11 @@ export default function ProductPicker({
     <div className={styles.picker}>
       <label className="field">
         {t('القسم', 'Category')}
-        <select value={category} onChange={(e) => setCategory(e.target.value)}>
+        <select
+          aria-label={t('القسم', 'Category')}
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+        >
           <option value="all">{t('كل الأقسام', 'All categories')}</option>
           {categories.data.map((c) => (
             <option key={c.id} value={c.id}>
@@ -54,6 +58,7 @@ export default function ProductPicker({
       </label>
       {loading && <p role="status">{t('جارٍ تحميل المنتجات…', 'Loading products…')}</p>}
       {error && <p role="alert">{error}</p>}
+      {categories.error && <p role="alert">{categories.error}</p>}
       <div className={styles.selected}>
         <strong>
           {t('المنتجات المختارة', 'Selected products')} ({selected.length})
