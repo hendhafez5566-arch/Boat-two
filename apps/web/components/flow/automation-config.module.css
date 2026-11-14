@@ -491,3 +491,13 @@
 .section[data-kind='header'] .field {
   gap: 8px;
 }
+
+.choiceActions {
+  flex-wrap: wrap;
+}
+.choiceActions button,
+.form .button {
+  min-height: 36px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

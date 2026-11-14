@@ -40,6 +40,7 @@ const schema = z.object({
   META_CONNECT_ENABLED: z.enum(['true', 'false']).default('false'),
   META_APP_ID: z.string().optional(),
   META_EMBEDDED_CONFIG_ID: z.string().optional(),
+  META_EMBEDDED_CATALOG_CONFIG_ID: z.string().optional(),
   META_APP_SECRET: z.string().optional(),
   META_VERIFY_TOKEN: z.string().optional(),
   UPLOAD_DIR: z.string().default('./uploads'),

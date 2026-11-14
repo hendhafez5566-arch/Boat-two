@@ -3,7 +3,7 @@ import {
   BaseEdge,
   EdgeLabelRenderer,
   EdgeProps,
-  getSmoothStepPath,
+  getBezierPath,
   useReactFlow,
   useStore,
 } from 'reactflow';
@@ -26,7 +26,7 @@ export default function FlowEdge(props: EdgeProps) {
     selected,
   } = props;
   const { deleteElements } = useReactFlow();
-  // Highlight links touching the selected step; dim the rest while something is selected.
+  // Reveal connection tools for the selected step without changing reference link colors.
   const focus = useStore((s) => {
     let any = false;
     let touches = false;
@@ -39,31 +39,18 @@ export default function FlowEdge(props: EdgeProps) {
     return !any ? '' : touches ? 'hot' : 'dim';
   });
   const { t } = useLocale();
-  const [path, labelX, labelY] = getSmoothStepPath({
+  const [path, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
     targetX,
     targetY,
     sourcePosition,
     targetPosition,
-    borderRadius: 14,
-    offset: 36,
+    curvature: 0.5,
   });
   return (
     <>
-      <BaseEdge
-        id={id}
-        path={path}
-        markerEnd={markerEnd}
-        style={
-          focus === 'hot'
-            ? { ...style, stroke: 'var(--primary)', strokeWidth: 3.5 }
-            : focus === 'dim'
-              ? { ...style, opacity: 0.3 }
-              : style
-        }
-        interactionWidth={22}
-      />
+      <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} interactionWidth={22} />
       {selected && (
         <EdgeLabelRenderer>
           <button
@@ -116,14 +103,14 @@ export default function FlowEdge(props: EdgeProps) {
 /** Plain dashed link from a message to its button cards: no controls, never persisted. */
 export function ButtonLinkEdge(props: EdgeProps) {
   const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition } = props;
-  const [path] = getSmoothStepPath({
+  const [path] = getBezierPath({
     sourceX,
     sourceY,
     targetX,
     targetY,
     sourcePosition,
     targetPosition,
-    borderRadius: 14,
+    curvature: 0.5,
   });
   return (
     <BaseEdge

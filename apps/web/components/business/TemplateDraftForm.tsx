@@ -1,5 +1,7 @@
 'use client';
-import { useId, useState } from 'react';
+import { useId, useState, type ReactNode } from 'react';
+import studio from './template-studio.module.css';
+import { templateLocales } from './template-locales';
 import { useLocale } from '../product/locale';
 type Header = {
   type: 'HEADER';
@@ -38,13 +40,17 @@ export function TemplateDraftForm({
   busy,
   save,
   cancel,
+  mode = 'default',
+  saveAndReview,
 }: {
+  mode?: 'default' | 'manager';
   initial?: TemplateRow;
   busy: boolean;
   save: (draft: unknown) => Promise<boolean>;
+  saveAndReview?: (draft: unknown) => Promise<boolean>;
   cancel?: () => void;
 }) {
-  const { t } = useLocale();
+  const { t, language: uiLanguage } = useLocale();
   const mediaHintId = useId();
   const h = initial?.components.find((c) => c.type === 'HEADER');
   const [format, setFormat] = useState(h?.format || 'NONE');
@@ -66,46 +72,14 @@ export function TemplateDraftForm({
   function update(index: number, next: Partial<DraftButton>) {
     setButtons(buttons.map((b, i) => (i === index ? { ...b, ...next } : b)));
   }
-  return (
-    <form
-      className="card stack"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        await save({
-          name,
-          language,
-          category,
-          body,
-          examples: examples.split('\n').filter(Boolean),
-          ...(format !== 'NONE'
-            ? {
-                header: {
-                  type: 'HEADER',
-                  format,
-                  ...(format === 'TEXT'
-                    ? {
-                        text: headerText,
-                        ...(headerText.includes('{{1}}')
-                          ? { example: { header_text: [headerSample] } }
-                          : {}),
-                      }
-                    : { example: { header_handle: [headerSample] } }),
-                },
-              }
-            : {}),
-          ...(footer ? { footer } : {}),
-          buttons,
-        });
-      }}
-    >
-      <h2>
-        {initial
-          ? t('تعديل مسودة القالب', 'Edit template draft')
-          : t('مسودة قالب جديد', 'New template draft')}
-      </h2>
-      <div className="form-grid">
+  const manager = mode === 'manager';
+  const basicFields = (
+    <>
+      <div className={manager ? 'form-grid' : studio.defaultLayout}>
         <label className="field">
-          {t('معرّف إنجليزي صغير', 'Lowercase identifier')}
+          {manager
+            ? t('اسم القالب', 'Template Name')
+            : t('معرّف إنجليزي صغير', 'Lowercase identifier')}
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -117,22 +91,72 @@ export function TemplateDraftForm({
         </label>
         <label className="field">
           {t('اللغة', 'Language')}
-          <input
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-            pattern="[a-z]{2,3}(_[A-Z]{2})?"
-            required
-            dir="ltr"
-          />
-        </label>
-        <label className="field">
-          {t('التصنيف', 'Category')}
-          <select value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option value="UTILITY">{t('خدمي', 'Utility')}</option>
-            <option value="MARKETING">{t('تسويقي', 'Marketing')}</option>
-          </select>
+          {manager ? (
+            <select value={language} onChange={(e) => setLanguage(e.target.value)} required>
+              {!templateLocales.some(([code]) => code === language) && (
+                <option value={language}>{language}</option>
+              )}
+              {templateLocales.map(([code, label]) => (
+                <option key={code} value={code}>
+                  {uiLanguage === 'ar'
+                    ? new Intl.DisplayNames(['ar'], { type: 'language' }).of(
+                        code.replace('_', '-'),
+                      ) || label
+                    : label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <>
+              <input
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                pattern="[a-z]{2,3}(_[A-Z]{2})?"
+                required
+                dir="ltr"
+              />
+            </>
+          )}
         </label>
       </div>
+    </>
+  );
+  const categoryField = manager ? (
+    <>
+      <fieldset className={studio.choices} aria-label={t('تصنيف القالب', 'Template Category')}>
+        {['UTILITY', 'MARKETING'].map((value) => (
+          <label key={value}>
+            <input
+              type="radio"
+              name="templateCategory"
+              value={value}
+              checked={category === value}
+              onChange={() => setCategory(value)}
+            />
+            {value === 'UTILITY' ? t('خدمي', 'Utility') : t('تسويقي', 'Marketing')}
+          </label>
+        ))}
+      </fieldset>
+      <p className={studio.unavailable}>
+        {t(
+          'قوالب المصادقة وOTP غير مدعومة حاليًا.',
+          'Authentication and OTP templates are not currently supported.',
+        )}
+      </p>
+    </>
+  ) : (
+    <>
+      <label className="field">
+        {t('التصنيف', 'Category')}
+        <select value={category} onChange={(e) => setCategory(e.target.value)}>
+          <option value="UTILITY">{t('خدمي', 'Utility')}</option>
+          <option value="MARKETING">{t('تسويقي', 'Marketing')}</option>
+        </select>
+      </label>
+    </>
+  );
+  const contentFields = (
+    <>
       <label className="field">
         {t('النص: المتغيرات بالشكل {{1}}', 'Text: variables use {{1}}')}
         <textarea
@@ -147,22 +171,59 @@ export function TemplateDraftForm({
         {t('مثال لكل متغير، سطر لكل مثال', 'One example per variable, one per line')}
         <textarea value={examples} onChange={(e) => setExamples(e.target.value)} rows={3} />
       </label>
-      <label className="field">
-        {t('نوع الترويسة', 'Header type')}
-        <select
-          value={format}
-          onChange={(e) => {
-            setFormat(e.target.value);
-            setHeaderSample('');
-          }}
+    </>
+  );
+  const headerFields = (
+    <>
+      {manager ? (
+        <fieldset
+          className={`${studio.choices} ${studio.headerChoices}`}
+          aria-label={t('نوع الترويسة', 'Header Type')}
         >
-          <option value="NONE">{t('بدون ترويسة', 'No header')}</option>
-          <option value="TEXT">{t('نص', 'Text')}</option>
-          <option value="IMAGE">{t('صورة', 'Image')}</option>
-          <option value="VIDEO">{t('فيديو', 'Video')}</option>
-          <option value="DOCUMENT">{t('مستند', 'Document')}</option>
-        </select>
-      </label>
+          {(['NONE', 'TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT'] as const).map((value) => (
+            <label key={value}>
+              <input
+                type="radio"
+                name="templateHeader"
+                value={value}
+                checked={format === value}
+                onChange={() => {
+                  setFormat(value);
+                  setHeaderSample('');
+                }}
+              />
+              {
+                {
+                  NONE: t('بدون', 'None'),
+                  TEXT: t('نص', 'Text'),
+                  IMAGE: t('صورة', 'Image'),
+                  VIDEO: t('فيديو', 'Video'),
+                  DOCUMENT: t('مستند', 'Document'),
+                }[value]
+              }
+            </label>
+          ))}
+        </fieldset>
+      ) : (
+        <>
+          <label className="field">
+            {t('نوع الترويسة', 'Header type')}
+            <select
+              value={format}
+              onChange={(e) => {
+                setFormat(e.target.value);
+                setHeaderSample('');
+              }}
+            >
+              <option value="NONE">{t('بدون ترويسة', 'No header')}</option>
+              <option value="TEXT">{t('نص', 'Text')}</option>
+              <option value="IMAGE">{t('صورة', 'Image')}</option>
+              <option value="VIDEO">{t('فيديو', 'Video')}</option>
+              <option value="DOCUMENT">{t('مستند', 'Document')}</option>
+            </select>
+          </label>
+        </>
+      )}
       {format === 'TEXT' && (
         <label className="field">
           {t('نص الترويسة', 'Header text')}
@@ -201,10 +262,18 @@ export function TemplateDraftForm({
           )}
         </label>
       )}
+    </>
+  );
+  const footerField = (
+    <>
       <label className="field">
         {t('تذييل اختياري', 'Optional footer')}
         <input value={footer} onChange={(e) => setFooter(e.target.value)} maxLength={60} />
       </label>
+    </>
+  );
+  const buttonFields = (
+    <>
       <fieldset className="stack">
         <legend>{t('الأزرار', 'Buttons')}</legend>
         <p className="muted">
@@ -311,6 +380,10 @@ export function TemplateDraftForm({
           {t('إضافة زر', 'Add button')}
         </button>
       </fieldset>
+    </>
+  );
+  const previewFields = (
+    <>
       <section className="card stack" aria-label={t('معاينة القالب', 'Template preview')}>
         <h3>{t('معاينة البنية', 'Structure preview')}</h3>
         {format === 'TEXT' ? (
@@ -332,16 +405,142 @@ export function TemplateDraftForm({
           ))}
         </div>
       </section>
+    </>
+  );
+  const actionFields = (
+    <>
       <div className="flex flex-wrap gap-2">
         <button className="btn btn-primary" disabled={busy}>
           {busy ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ المسودة', 'Save draft')}
         </button>
+        {manager && saveAndReview && (
+          <button type="submit" name="intent" value="review" className="btn" disabled={busy}>
+            {t('حفظ / تقديم القالب', 'Save / Submit Template')}
+          </button>
+        )}
         {cancel && (
           <button type="button" className="btn" onClick={cancel} disabled={busy}>
             {t('إلغاء التعديل', 'Cancel editing')}
           </button>
         )}
       </div>
+    </>
+  );
+  const card = (title: string, description: string, children: ReactNode) => (
+    <section className={studio.card}>
+      <h3>{title}</h3>
+      <p className={studio.description}>{description}</p>
+      {children}
+    </section>
+  );
+  return (
+    <form
+      className={manager ? studio.form : 'card stack'}
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (busy) return;
+        const review = (e.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'review';
+        const persist = review && saveAndReview ? saveAndReview : save;
+        await persist({
+          name,
+          language,
+          category,
+          body,
+          examples: examples.split('\n').filter(Boolean),
+          ...(format !== 'NONE'
+            ? {
+                header: {
+                  type: 'HEADER',
+                  format,
+                  ...(format === 'TEXT'
+                    ? {
+                        text: headerText,
+                        ...(headerText.includes('{{1}}')
+                          ? { example: { header_text: [headerSample] } }
+                          : {}),
+                      }
+                    : { example: { header_handle: [headerSample] } }),
+                },
+              }
+            : {}),
+          ...(footer ? { footer } : {}),
+          buttons,
+        });
+      }}
+    >
+      <fieldset disabled={busy} className={manager ? studio.layout : studio.defaultLayout}>
+        {manager ? (
+          <>
+            <div className={studio.main}>
+              {card(
+                t('المعلومات الأساسية', 'Basic Information'),
+                t(
+                  'سمّ القالب واختر اللغة المستهدفة.',
+                  'Give your template a name and choose the target locale.',
+                ),
+                basicFields,
+              )}
+              {card(
+                t('تصنيف القالب', 'Template Category'),
+                t('اختر التصنيف المناسب لرسالتك.', 'Choose the best category for your message.'),
+                categoryField,
+              )}
+              {card(
+                t('نوع الترويسة', 'Header Type'),
+                t('أضف ترويسة إلى القالب (اختياري).', 'Add a header to your template (optional).'),
+                headerFields,
+              )}
+              {card(
+                t('محتوى الرسالة', 'Message Content'),
+                t('اكتب رسالتك باستخدام المتغيرات.', 'Write your message using variables.'),
+                contentFields,
+              )}
+              {card(
+                t('نص التذييل (اختياري)', 'Footer Text (Optional)'),
+                t(
+                  'أضف معلومات في نهاية الرسالة.',
+                  'Add additional information at the end of your message.',
+                ),
+                footerField,
+              )}
+              {card(
+                t('الأزرار (اختياري)', 'Buttons (Optional)'),
+                t('أضف أزرارًا تفاعلية إلى القالب.', 'Add interactive buttons to your template.'),
+                buttonFields,
+              )}
+              <div className={studio.actions}>{actionFields}</div>
+            </div>
+            <aside className={studio.preview}>
+              <h3>{t('معاينة مباشرة', 'Live Preview')}</h3>
+              <p className={studio.description}>
+                {t(
+                  'هكذا يظهر محتوى الرسالة. قد يختلف العرض حسب الجهاز.',
+                  'This is how your message content appears. Actual appearance may vary across devices.',
+                )}
+              </p>
+              {previewFields}
+            </aside>
+          </>
+        ) : (
+          <>
+            <h2>
+              {initial
+                ? t('تعديل مسودة القالب', 'Edit template draft')
+                : t('مسودة قالب جديد', 'New template draft')}
+            </h2>
+            <div className="form-grid">
+              {basicFields}
+              {categoryField}
+            </div>
+            {contentFields}
+            {headerFields}
+            {footerField}
+            {buttonFields}
+            {previewFields}
+            {actionFields}
+          </>
+        )}
+      </fieldset>
     </form>
   );
 }

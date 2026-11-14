@@ -902,6 +902,7 @@ test('user_input: asks questions in order, saves custom fields, then thank-you a
               id: 'q2',
               text: 'Mood?',
               kind: 'choice',
+              buttonText: 'Choose service',
               saveAs: 'billing_agent',
               options: [
                 { id: 'b', title: 'Burgers' },
@@ -942,6 +943,7 @@ test('user_input: asks questions in order, saves custom fields, then thank-you a
   r = await h.engine.resume(h.ctx, state);
   assert.equal(h.attrs.ai_agent, 'Order Food');
   assert.equal(h.sent[2].list?.sections[0].rows.length, 4); // أكتر من 3 اختيارات → قائمة
+  assert.equal(h.sent[2].list?.buttonText, 'Choose service');
 
   h.say('Pizza', 'p');
   r = await h.engine.resume(h.ctx, state);

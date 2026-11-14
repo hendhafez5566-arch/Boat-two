@@ -32,6 +32,10 @@ Object.assign(process.env, {
   BOAT_PREVIEW_ONLY: 'true',
   WHATSAPP_PREVIEW_BOT_ENABLED: 'false',
 });
+if (process.env.BOAT_TELEGRAM_QA === 'true') {
+  const { installTelegramProviderFixture } = await import('./qa-telegram-provider.mjs');
+  installTelegramProviderFixture();
+}
 (async () => {
   console.log('QA_PG_INITIALIZING');
   const { PGlite } = local('@electric-sql/pglite');
@@ -102,6 +106,10 @@ Object.assign(process.env, {
   app.useBodyParser('json', { limit: '1mb' });
   app.use((req, res, next) => requestContext.run(req, next));
   app.enableCors();
+  if (process.env.BOAT_TEMPLATE_QA === 'true') {
+    const { installTemplateFixtures } = await import('./qa-template-fixtures.mjs');
+    installTemplateFixtures(app, local);
+  }
   if (process.env.BOAT_CRM_QA === 'true') {
     const { installCrmFixtures } = await import('./qa-crm-fixtures.mjs');
     installCrmFixtures(app, local);

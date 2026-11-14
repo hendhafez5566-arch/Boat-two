@@ -1,3 +1,4 @@
+@import '@fontsource-variable/plus-jakarta-sans';
 .editor {
   position: relative;
   height: 100%;
@@ -355,7 +356,7 @@
   background: #fff;
   border: 1px solid #e5eaf0;
   border-radius: 12px;
-  box-shadow: 0 3px 7px #243b4b12;
+  box-shadow: 0 4px 8px rgba(139, 141, 141, 0.15);
   overflow: hidden;
   font-size: 13px;
 }
@@ -578,4 +579,612 @@
   color: var(--primary);
 }
 
-@media (max-width: 640px) { .publishButton { padding: 8px 10px; font-size: 12px; min-height: 36px; } }
+@media (max-width: 640px) {
+  .publishButton {
+    padding: 8px 10px;
+    font-size: 12px;
+    min-height: 36px;
+  }
+}
+
+/* FB-002/004: live reference dimensions. Scoped to this editor only. */
+.editor {
+  font-family: 'Plus Jakarta Sans Variable', Arial, sans-serif;
+}
+.surface {
+  padding-inline-start: 56px;
+}
+.toolbar {
+  top: 22px;
+  inset-inline-end: 30px;
+  padding: 8px 12px;
+  gap: 8px;
+  flex-wrap: nowrap;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 12px 40px #0f172a1f,
+    inset 0 1px #ffffffa6,
+    0 1px 3px #0f172a0f;
+}
+.toolButton {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.toolButton svg {
+  width: 16px;
+  height: 16px;
+}
+.channelBadge {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  max-width: 230px;
+  padding: 0 14px;
+  border: 1px solid #e2e8f0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.saveButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 88px;
+  height: 40px;
+  padding: 0 18px;
+  border-color: #10b981;
+  background: #d1fae5;
+  color: #065f46;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+.menuMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.menuMeta .title {
+  width: 100%;
+  max-width: none;
+  border-color: #e2e8f0;
+  font-weight: 500;
+}
+.menuMeta .saveState {
+  align-self: flex-start;
+}
+.toolsMenu .toolButton {
+  width: 100%;
+  justify-content: flex-start;
+}
+.toolsMenu .toolButton svg {
+  flex-shrink: 0;
+}
+.toolsMenu .publishButton {
+  background: var(--primary);
+  color: #fff;
+  justify-content: center;
+}
+.menuZoom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.menuZoom button {
+  padding: 6px;
+  min-width: 30px;
+  justify-content: center;
+}
+.menuZoom output {
+  font-size: 11px;
+}
+.palette {
+  width: 56px;
+  background: #f1f5f9cc;
+  border: 0;
+}
+.palette[data-expanded='true'] {
+  width: 264px;
+}
+.paletteHeader {
+  min-height: 76px;
+  padding: 12px;
+  border-bottom: 0;
+}
+.paletteToggle {
+  width: 30px;
+  height: 32px;
+  border: 0;
+  border-radius: 7px;
+  background: #172e91;
+  color: #fff;
+}
+.paletteScroll {
+  padding: 44px 4px 12px;
+}
+.paletteGroup {
+  gap: 7px;
+  margin-bottom: 74px;
+}
+.block {
+  min-height: 44px;
+  height: 44px;
+  padding: 8px;
+}
+.blockIcon svg {
+  width: 23px;
+  height: 23px;
+}
+.palette[data-expanded='true'] .paletteScroll {
+  padding: 10px 12px;
+}
+.palette[data-expanded='true'] .paletteGroup {
+  gap: 0;
+  margin-bottom: 20px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  background: #fff;
+}
+.palette[data-expanded='true'] .block {
+  padding: 8px 0;
+  height: 39px;
+  min-height: 39px;
+  border-radius: 0;
+  font-size: 13px;
+}
+.palette[data-expanded='true'] .block + .block {
+  border-top: 1px solid #f0f1f3;
+}
+.palette[data-expanded='true'] .blockIcon svg {
+  width: 16px;
+  height: 16px;
+}
+.additionalToggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  font-size: 12px;
+}
+@media (max-width: 700px) {
+  .toolbar {
+    top: 12px;
+    inset-inline-end: 10px;
+    padding: 6px;
+    gap: 6px;
+    max-width: calc(100% - 76px);
+  }
+  .toolbar .channelBadge {
+    display: none;
+  }
+  .toolbar .toolButton {
+    width: 34px;
+    min-width: 34px;
+    height: 36px;
+  }
+  .toolbar .saveButton {
+    min-width: 74px;
+    height: 36px;
+    padding: 0 12px;
+  }
+  .palette[data-expanded='true'] {
+    width: min(264px, calc(100% - 50px));
+  }
+  .reference {
+    width: 264px;
+  }
+}
+
+/* FB-005/008/010: node card, sockets and contextual actions. */
+.reference {
+  width: 264px;
+  min-height: 163px;
+  border: 2px solid #dee3e66b;
+  font-size: 14px;
+  color: #064663;
+}
+.reference header {
+  height: 48px;
+  padding: 10px 15px;
+  gap: 3px;
+}
+.reference header svg {
+  width: 14px;
+  height: 14px;
+}
+.reference header strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.reference > button {
+  min-height: 63px;
+  padding: 0 15px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.referenceSummary {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.reference footer {
+  height: 48px;
+  padding: 10px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.editor :global(.premium-flow-node.fn-card) {
+  width: 264px;
+  min-height: 163px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 2px solid #dee3e66b;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(139, 141, 141, 0.15);
+  color: #064663;
+  font-family: inherit;
+}
+.editor :global(.premium-flow-node.fn-card.is-selected) {
+  border: 2px solid #0d8bf1;
+  box-shadow: 0 4px 8px rgba(139, 141, 141, 0.15);
+}
+.editor :global(.premium-flow-node.fn-card.is-start),
+.editor :global(.premium-flow-node.fn-card.is-incomplete) {
+  background: #fff;
+  border-style: solid;
+}
+.editor :global(.fn-card .fn-main) {
+  flex: 1;
+  min-height: 111px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.editor :global(.fn-card .flow-node-heading) {
+  height: 48px;
+  padding: 10px 15px;
+  gap: 3px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+.editor :global(.fn-card .flow-node-icon) {
+  width: 14px;
+  height: 18px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  color: #064663;
+}
+.editor :global(.fn-card .flow-node-icon svg) {
+  width: 14px;
+  height: 14px;
+}
+.editor :global(.fn-card .flow-node-heading strong) {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 28px;
+  color: #064663;
+}
+.editor :global(.fn-card .fn-body) {
+  margin: 0 15px 10px;
+  padding: 8px 10px;
+  min-height: 50px;
+  border-radius: 8px;
+  background: #f1f6fb;
+  font-size: 11px;
+  line-height: 18px;
+  color: #253b4b;
+}
+.editor :global(.fn-card.is-incomplete .fn-body) {
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.editor :global(.fn-card .flow-node-empty) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #272e34;
+}
+.editor :global(.fn-card .fn-stats) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 58px;
+  padding: 5px 15px;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  gap: 3px;
+}
+.editor :global(.fn-card .fn-stats span) {
+  font-size: 9px;
+  line-height: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 0;
+  color: #74838e;
+}
+.editor :global(.fn-card .fn-stats b) {
+  font-size: 12px;
+  font-weight: 400;
+  color: #6c757d;
+}
+.editor :global(.fn-card .flow-node-port) {
+  position: relative;
+  min-height: 46px;
+  margin: 0;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  border-radius: 0 !important;
+  border: 0;
+  border-top: 1px dashed #9ba7b0;
+  background: #f1f3f4;
+  font-size: 10px;
+  line-height: 15px;
+  color: #064663;
+}
+.editor :global(.fn-card .flow-node-port:last-child) {
+  margin-bottom: 0;
+  border-radius: 0 0 10px 10px !important;
+}
+.editor :global(.fn-card .flow-node-port.is-single) {
+  padding-bottom: 10px;
+}
+.editor :global(.fn-card .react-flow__handle) {
+  width: 15px;
+  height: 15px;
+  background: #fff;
+  border: 2px solid #778292;
+  box-shadow: none;
+}
+.editor :global(.fn-card .react-flow__handle-left) {
+  left: -8px;
+}
+.editor :global(.fn-card .react-flow__handle-right) {
+  right: -8px;
+}
+.editor :global(.flow-node-tools) {
+  top: -52px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 42px;
+  padding: 4px;
+  gap: 0;
+  display: flex;
+  justify-content: space-between;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px #0f172a1a;
+}
+.editor :global(.flow-node-tools button) {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+.editor :global(.flow-node-tools button:last-child) {
+  color: #dc3545;
+}
+
+.editor :global(.fn-card .fn-body) {
+  margin-bottom: 15px;
+}
+.editor :global(.flow-node-tools) {
+  display: none;
+}
+.editor :global(.fn-card:hover .flow-node-tools),
+.editor :global(.fn-card:focus-within .flow-node-tools),
+.editor :global(.fn-card.is-selected .flow-node-tools) {
+  display: flex;
+}
+.editor :global(.flow-node-input-label) {
+  position: absolute;
+  bottom: 15px;
+  inset-inline-start: 14px;
+  font-size: 10px;
+  line-height: 15px;
+  color: #064663;
+  z-index: 1;
+  pointer-events: none;
+}
+.editor :global(.flow-node-port.is-open::before) {
+  display: none;
+}
+
+.more > .toolButton {
+  position: relative;
+  z-index: 28;
+}
+.contextScrim {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background: transparent;
+}
+.contextMenu {
+  position: absolute;
+  z-index: 41;
+  width: 220px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 24px #0f172a24;
+  padding: 8px 0;
+  color: #334155;
+}
+.contextMenu > input {
+  width: calc(100% - 24px);
+  height: 34px;
+  margin: 8px 12px;
+  border: 1px solid #d7dfe5;
+  border-radius: 18px;
+  background: #f8fafc;
+  font: inherit;
+  font-size: 12px;
+  padding: 7px 12px;
+}
+.contextMenu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  text-align: start;
+  border: 0;
+  border-top: 1px solid #edf0f2;
+  background: #fff;
+  color: #334155;
+}
+.contextMenu button:hover,
+.contextMenu button:focus-visible {
+  background: #f1f5f9;
+}
+.contextMenu button svg {
+  width: 16px;
+  height: 16px;
+}
+.contextGroup {
+  position: relative;
+}
+.contextGroup > button {
+  justify-content: space-between;
+}
+.contextSubmenu {
+  position: absolute;
+  inset-inline-start: 100%;
+  top: 0;
+  min-width: 220px;
+  max-height: 65dvh;
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 8px 24px #0f172a24;
+}
+.contextExtras {
+  max-height: 50dvh;
+  overflow: auto;
+  border-top: 1px solid #edf0f2;
+}
+.contextExtras summary {
+  padding: 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+@media (max-width: 700px) {
+  .contextMenu {
+    width: 220px;
+    max-width: calc(100vw - 84px);
+  }
+  .contextSubmenu {
+    position: static;
+    min-width: 0;
+    max-height: 35dvh;
+    box-shadow: none;
+    border-radius: 0;
+  }
+}
+
+.contextMenu[data-flip='true'] .contextSubmenu {
+  inset-inline-start: auto;
+  inset-inline-end: 100%;
+}
+.contextMenu[data-searching='true'] {
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+}
+
+.loading {
+  position: absolute;
+  z-index: 35;
+  inset-inline-start: 50%;
+  top: 45%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 14px 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #334155;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.feedback button:not([aria-label]) {
+  font-size: 12px;
+  white-space: nowrap;
+  border: 1px solid #dce4ef;
+  border-radius: 7px;
+  padding: 6px 10px;
+}
+.editor :global(.fn-card .flow-node-port) {
+  font-weight: 400;
+}
+
+.editor :global(.fn-stat-label) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-style: normal;
+  white-space: nowrap;
+}
+.editor :global(.fn-stat-label svg) {
+  flex: none;
+}
+.editor :global(.fn-stat-label [data-stat='sent']) {
+  color: #4c9fb8;
+}
+.editor :global(.fn-stat-label [data-stat='delivered']) {
+  color: #50a37b;
+}
+.editor :global(.fn-stat-label [data-stat='subscribers']) {
+  color: #398fc0;
+}
+.editor :global(.fn-stat-label [data-stat='errors']) {
+  color: #df6472;
+}
+
+.editor :global(.react-flow__node > .premium-flow-node.fn-card) {
+  background-color: #fff;
+  color: #064663;
+}

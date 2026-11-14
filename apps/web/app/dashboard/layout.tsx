@@ -2,7 +2,7 @@
 import { SalesNotifications } from '../../components/business/SalesNotifications';
 import { statusLabel } from '../../components/product/status';
 import { NavIcon } from '../../components/product/NavIcon';
-import { CSSProperties, ReactNode, useEffect, useRef, useState } from 'react';
+import { CSSProperties, ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api, getSession, setSession } from '../../lib/api';
@@ -117,6 +117,8 @@ function Shell({ children }: { children: ReactNode }) {
   const [moreOpen, setMoreOpen] = useState<boolean | null>(null);
   const [acctOpen, setAcctOpen] = useState(false);
   const [q, setQ] = useState('');
+  const [searchIndex, setSearchIndex] = useState(0);
+  const searchId = useId();
   const router = useRouter();
   const acctRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -390,23 +392,51 @@ function Shell({ children }: { children: ReactNode }) {
               <input
                 type="search"
                 value={q}
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={searchHits.length > 0}
+                aria-controls={searchHits.length ? searchId : undefined}
+                aria-activedescendant={
+                  searchHits[searchIndex] ? `${searchId}-${searchIndex}` : undefined
+                }
                 aria-label={t('بحث في القوائم', 'Search menus')}
                 placeholder={t('ابحث في القوائم…', 'Search menus…')}
-                onChange={(e) => setQ(e.target.value)}
+                onChange={(e) => {
+                  setQ(e.target.value);
+                  setSearchIndex(0);
+                }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && searchHits[0])
-                    router.push(`/dashboard${searchHits[0][0] ? '/' + searchHits[0][0] : ''}`);
+                  if (['ArrowDown', 'ArrowUp'].includes(e.key) && searchHits.length) {
+                    e.preventDefault();
+                    setSearchIndex(
+                      (i) =>
+                        (i + (e.key === 'ArrowDown' ? 1 : -1) + searchHits.length) %
+                        searchHits.length,
+                    );
+                  }
+                  if (e.key === 'Enter' && searchHits[searchIndex]) {
+                    e.preventDefault();
+                    const key = searchHits[searchIndex][0];
+                    router.push(`/dashboard${key ? '/' + key : ''}`);
+                  }
                   if (e.key === 'Escape') setQ('');
                 }}
               />
               {searchHits.length > 0 && (
-                <div className="bs-search-results" role="listbox">
-                  {searchHits.map(([k, , ar, en]) => (
+                <div
+                  id={searchId}
+                  className="bs-search-results"
+                  role="listbox"
+                  aria-label={t('نتائج البحث', 'Search results')}
+                >
+                  {searchHits.map(([k, , ar, en], index) => (
                     <Link
                       key={k}
                       href={`/dashboard${k ? '/' + k : ''}`}
                       role="option"
-                      aria-selected="false"
+                      id={`${searchId}-${index}`}
+                      aria-selected={index === searchIndex}
+                      onMouseEnter={() => setSearchIndex(index)}
                     >
                       <NavIcon name={k} />
                       {t(ar, en)}

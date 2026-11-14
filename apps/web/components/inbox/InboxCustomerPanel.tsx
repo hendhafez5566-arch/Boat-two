@@ -40,6 +40,20 @@ export function InboxCustomerPanel({
   onError,
 }: Props) {
   const { t, language } = useLocale();
+  function formatNote(body: string) {
+    const prefix = 'Catalog inquiry: ';
+    if (!body.startsWith(prefix)) return body;
+    try {
+      const selection = JSON.parse(body.slice(prefix.length));
+      const name = typeof selection?.name === 'string' ? selection.name : '';
+      const category = typeof selection?.category === 'string' ? selection.category : '';
+      return name
+        ? [t('استفسار عن برنامج', 'Catalog inquiry'), name, category].filter(Boolean).join(' · ')
+        : body;
+    } catch {
+      return body;
+    }
+  }
   const panel = useRef<HTMLElement>(null);
   function jump(target: string) {
     const element = panel.current?.querySelector<HTMLElement>(`[data-inbox-target="${target}"]`);
@@ -526,7 +540,7 @@ export function InboxCustomerPanel({
           {allNotes.length ? (
             allNotes.map((note: any) => (
               <p key={note.id}>
-                {note.content?.text || note.text || note.body}{' '}
+                {formatNote(note.content?.text || note.text || note.body || '')}{' '}
                 <small>{time(note.created_at)}</small>
               </p>
             ))

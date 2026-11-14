@@ -74,9 +74,25 @@ export default function Inbox() {
     setNeedsReply(routeParams.get('needsReply') === 'true');
     if (routeParams.get('assignee'))
       setFilters((f) => ({ ...f, assignee: routeParams.get('assignee') || '' }));
-    const key = routeParams.get('tab');
-    if (key && key in TAB_QUERY) setTab(key as Tab);
+    const restoreTab = () => {
+      const value = new URLSearchParams(window.location.search).get('tab');
+      setTab(
+        value && Object.prototype.hasOwnProperty.call(TAB_QUERY, value) ? (value as Tab) : 'active',
+      );
+    };
+    restoreTab();
+    window.addEventListener('popstate', restoreTab);
+    return () => window.removeEventListener('popstate', restoreTab);
   }, []);
+  function selectTab(next: Tab) {
+    const url = new URL(window.location.href);
+    if (next === 'active') url.searchParams.delete('tab');
+    else url.searchParams.set('tab', next);
+    if (url.href !== window.location.href) {
+      window.history.pushState(window.history.state, '', url);
+    }
+    setTab(next);
+  }
   const [q, setQ] = useState('');
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState(EMPTY_INBOX_FILTERS);
@@ -521,8 +537,9 @@ export default function Inbox() {
     detail?.channel_type === 'whatsapp' &&
     (!detail?.whatsapp_window_expires_at ||
       new Date(detail.whatsapp_window_expires_at) <= new Date());
+  const replyUnavailable = windowExpired || Boolean(detail?.blocked);
   const suggestions =
-    text.startsWith('/') && !internal
+    text.startsWith('/') && !internal && !replyUnavailable
       ? canned
           .filter(
             (c) =>
@@ -600,7 +617,7 @@ export default function Inbox() {
                 aria-pressed={tab === key}
                 aria-label={label}
                 title={`${label}${typeof counts[definition[2]] === 'number' ? ` (${counts[definition[2]]})` : ''}`}
-                onClick={() => setTab(key)}
+                onClick={() => selectTab(key)}
               >
                 <NavIcon
                   name={
@@ -821,7 +838,7 @@ export default function Inbox() {
                           setSearch('');
                           setFilters(EMPTY_INBOX_FILTERS);
                           setChannelId('');
-                          setTab('active');
+                          selectTab('active');
                         }}
                       >
                         {t('مسح البحث والفلاتر', 'Clear search and filters')}
@@ -832,7 +849,7 @@ export default function Inbox() {
                           onClick={() => {
                             setQ('');
                             setChannelId('');
-                            setTab('closed');
+                            selectTab('closed');
                           }}
                         >
                           {t('عرض المحادثات المغلقة', 'View closed conversations')}
@@ -1082,13 +1099,23 @@ export default function Inbox() {
                       {error}
                     </p>
                   )}
-                  {windowExpired && !internal && (
-                    <p className="mb-1 rounded bg-amber-50 p-2 text-xs text-amber-800">
-                      {t(
-                        'انتهت نافذة واتساب. الرد الحر معطّل؛ يمكنك كتابة ملاحظة داخلية أو استخدام قالب معتمد من مسار الحملات.',
-                        'The WhatsApp window has expired. Free-form replies are disabled; add an internal note or use an approved template through campaigns.',
-                      )}
-                    </p>
+                  {replyUnavailable && !internal && (
+                    <div className="mb-1 rounded bg-amber-50 p-2 text-xs text-amber-800">
+                      <p role="status">
+                        {detail.blocked
+                          ? t(
+                              'المحادثة محظورة. يمكنك إضافة ملاحظة داخلية.',
+                              'This conversation is blocked. You can add an internal note.',
+                            )
+                          : t(
+                              'انتهت نافذة واتساب. الرد الحر معطّل؛ يمكنك كتابة ملاحظة داخلية أو استخدام قالب معتمد من مسار الحملات.',
+                              'The WhatsApp window has expired. Free-form replies are disabled; add an internal note or use an approved template through campaigns.',
+                            )}
+                      </p>
+                      <button type="button" className="btn mt-2" onClick={() => setInternal(true)}>
+                        {t('إضافة ملاحظة داخلية', 'Add internal note')}
+                      </button>
+                    </div>
                   )}
                   {detail.handled_by === 'bot' && !internal && (
                     <p className="sr-only" id="inbox-takeover-hint">
@@ -1126,7 +1153,7 @@ export default function Inbox() {
                       </button>
                     </div>
                   )}
-                  <div className="composer-row">
+                  <div className="composer-row" hidden={replyUnavailable && !internal}>
                     <textarea
                       ref={composerInput}
                       aria-label={t('محرر الرد', 'Reply composer')}

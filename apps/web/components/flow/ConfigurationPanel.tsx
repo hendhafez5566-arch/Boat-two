@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { Children, isValidElement, ReactNode, useEffect, useId, useRef } from 'react';
 import { useLocale } from '../product/locale';
 import styles from './configuration-panel.module.css';
+import { NodeIcon } from './presentation';
+import { NODE_META, NodeType } from '../../lib/flow-types';
 
 /** Canvas inspector: a docked, non-modal panel. Canvas ports remain usable. */
 export default function ConfigurationPanel({
@@ -11,12 +13,14 @@ export default function ConfigurationPanel({
   title,
   description,
   children,
+  referenceType,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   description?: string;
   children: ReactNode;
+  referenceType?: string;
 }) {
   const { language, t } = useLocale();
   const heading = useId();
@@ -50,7 +54,8 @@ export default function ConfigurationPanel({
       aria-modal="false"
       aria-labelledby={heading}
       dir={language === 'ar' ? 'rtl' : 'ltr'}
-      className={styles.panel}
+      className={`${styles.panel} ${referenceType ? styles.referencePanel : ''}`}
+      data-reference-type={referenceType}
     >
       <div className={styles.scroll}>
         <header className={styles.header}>
@@ -74,9 +79,13 @@ export default function ConfigurationPanel({
             </svg>
           </button>
           <span className={styles.icon} aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="20" height="20">
-              <path d="m7 4 11 8-6 1-3 6z" fill="currentColor" />
-            </svg>
+            {referenceType && Object.prototype.hasOwnProperty.call(NODE_META, referenceType) ? (
+              <NodeIcon type={referenceType as NodeType} />
+            ) : (
+              <svg viewBox="0 0 24 24" width="20" height="20">
+                <path d="m7 4 11 8-6 1-3 6z" fill="currentColor" />
+              </svg>
+            )}
           </span>
           <div>
             <h2 id={heading}>{title}</h2>

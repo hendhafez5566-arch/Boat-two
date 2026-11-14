@@ -1,0 +1,82 @@
+# Flow Builder live reference inventory
+
+Observed 2026-11-07, BotSailor signed-in owner account. New UNSAVED flow only. Viewport 1363×936. Measurements are DOM/computed styles, not inferred. This inventory is incomplete and will be extended; unavailable values are marked unmeasured. No reference Save was executed.
+
+| ID | Element/location | Measured appearance | Behavior observed | Boat Two difference / verification |
+|---|---|---|---|---|
+| FB-001 | Canvas | Full viewport, pale grey/blue gradient | New flow contains Start Bot Flow | Boat editor uses surrounding app chrome and visible dot grid; comparison pending |
+| FB-002 | Collapsed palette, left | 56 px wide; items 48×43.72, radius10 | Interaction expands palette | Boat width58, expanded268; click currently adds immediately |
+| FB-003 | Expanded palette | 264 px; first measured item200×39 | Search and grouped blocks; drag Image onto canvas succeeds | Boat grouping/order includes extra blocks; retain important functions without default clutter |
+| FB-004 | Floating toolbar, upper right | Outer523.11×82 at827.89,10 including padding12×18; inner panel measurement pending | Back/Rearrange/channel/Save | Boat has visible name/status/Preview/settings/Publish/More; extra controls need relocation, not data/function deletion |
+| FB-005 | Reference card | 264×163, white, border2 rgba(222,227,230,.42), radius12; font14/21 Plus Jakarta Sans | Double-click opens Configure Reference | Boat summary/hint and sizing differ |
+| FB-006 | Output socket | 15×15, white, 2px #778292, radius12; right edge | Compose Next Message | Boat source start is not connectable; investigate existing derived start mapping |
+| FB-007 | Configure Reference | Left drawer576×912 at1,0, white, radius12, font16/24 | Keywords, exact/string match, title; automation labels/lists/sequences/team; data/custom-field/webhook; Save Changes/Close. Closed without save | Boat settings functional equivalents need comparison; no invented mapping |
+| FB-008 | Image card | 264×221, white; stats Sent/Delivered/Subscribers/Errors | Drag added to temporary unsaved canvas; double-click opens config | Boat width280, vertical ports, incomplete warning diverge |
+| FB-009 | Configure Image | Drawer dimensions not yet measured separately | Upload png/jpg, custom-field URL selector, URL; collapsed Delivery Options; Save Changes/Close | Boat own media editor supports URLs/upload; compare pending |
+| FB-010 | Node selection | Reference selected border blue; floating Clone/Delete controls exist in DOM | Double-click tested; clone/delete pending | Boat shows extra edit/set-start controls |
+
+## Discovered palette (18 types, not all configuration tested yet)
+Text, Image, Audio, Video, File, Location, AI Reply; User Input Flow, Whatsapp Flows, Appointment; Interactive Message, Template Message, CTA URL Button; Condition, New Sequence Campaign, Label Assign, Notify Contact, Random Number Generator.
+
+## EXTRA_ELEMENTS_REMOVAL
+No removals applied yet. Candidate default chrome: title/status, Preview, settings, Publish, More, bottom zoom/hint, dotted grid. Preserve necessary real functions in a secondary surface; do not remove saved data or runtime types. Decisions await completed reference inspection.
+
+## FB-011 onward — configuration observations
+
+All opened on temporary unsaved nodes; Close tested. Save Changes and provider side effects not executed. Snapshot observations are in `docs/flow-builder-20261107/reference/configuration-observations.json`. A sequence insertion also generated three Send Message After cards; its captured dialog is **Configure Sequence Message**, not the root campaign configuration.
+
+| ID | Type / dialog | Drawer W×H px | Observed fields and controls | Evidence | Result |
+|---|---|---|---|---|---|
+| FB-011 | Text / Configure Text Message | 576 × 613.609375 | Configure Text Message; Reply message *;  Custom;  Delivery Options Optional Typing indicator and reply delay settings. ; Delivery Options Optional;  Save Changes;  Close | [screenshot](docs/flow-builder-20261107/reference/text-drawer.jpg) | Open/close observed; mapping/visual acceptance pending |
+| FB-012 | Audio / Configure Audio | 576 × 912 | Configure Audio; How to send media; Upload audio; Audio URL;  Custom; Please provide reply audio url;  Delivery Options Optional Typing indicator and reply delay settings. ; Delivery Options Optional;  Save Changes;  Close | [screenshot](docs/flow-builder-20261107/reference/audio-drawer.jpg) | Open/close observed; mapping/visual acceptance pending |
+| FB-013 | Video / Configure Video | 576 × 912 | Configure Video; How to send media; Upload video; Video URL;  Custom; Please provide your reply video url;  Delivery Options Optional Typing indicator and reply delay settings. ; Delivery Options Optional;  Save Changes;  Close | [screenshot](docs/flow-builder-20261107/reference/video-drawer.jpg) | Open/close observed; mapping/visual acceptance pending |
+| FB-014 | File / Configure File | 576 × 912 | Configure File; How to send media; Upload file; File URL;  Custom; Please provide file url;  Delivery Options Optional Typing indicator and reply delay settings. ; Delivery Options Optional;  Save Changes;  Close | Screenshot not available; DOM observation retained | Open/close observed; mapping/visual acceptance pending |
+| FB-015 | Location / Configure Location Template | 576 × 573.609375 | Configure Location Template; Body text *;  Custom;  Delivery Options Optional Typing indicator and reply delay settings. ; Delivery Options Optional;  Save Changes;  Close | [screenshot](docs/flow-builder-20261107/reference/location-drawer.jpg) | Open/close observed; mapping/visual acceptance pending |
+| FB-016 | AI Reply / Configure AI Reply Message | 576 × 790.421875 | Configure AI Reply Message; Message to learn; Training campaign; Select AI training campaign;  Refresh;  Delivery Options Optional Typing indicator and reply delay settings. ; Delivery Options Optional;  Save Changes;  Close | Screenshot not available; DOM observation retained | Open/close observed; mapping/visual acceptance pending |
+| FB-017 | User Input Flow / Configure User-Input-Flow | 576 × 912 | Configure User-Input-Flow; User Input Flow; Add new input flow; User Input Campaign Name; Labels;  New; Integrations; Forward Data to Webhook;  Save Changes;  Close | [screenshot](docs/flow-builder-20261107/reference/user-input-flow-drawer.jpg) | Open/close observed; mapping/visual acceptance pending |
+| FB-018 | Whatsapp Flows / Configure Whatsapp Flows | 576 × 912 | Configure Whatsapp Flows; Choose a flow *; Select a Flow; Message Header *; Message Header; Message Body *; Message Footer Optional; Message Footer; Footer Button Text *; Footer Button Text;  Delivery Options Optional Typing indicator and reply delay settings. ; Delivery Options Optional;  Save Changes;  Close | [screenshot](docs/flow-builder-20261107/reference/whatsapp-flows-drawer.jpg) | Open/close observed; mapping/visual acceptance pending |
+| FB-019 | Appointment / Appointment Settings | 576 × 471.625 | Appointment Settings; Appointment list *; Manage lists;  Refresh Appointments;  Save Changes;  Close | Screenshot not available; DOM observation retained | Open/close observed; mapping/visual acceptance pending |
+| FB-020 | Interactive Message / Configure Interactive Message | 576 × 912 | Configure Interactive Message; Message Header Optional; Text Text-only header; Media Image, video or file; Text; Message Body *;  Custom; Message Footer Optional; Message Footer (Optional);  Delivery Options Optional Typing indicator and reply delay settings. ; Delivery Options Optional;  Save Changes;  Close | [screenshot](docs/flow-builder-20261107/reference/interactive-message-drawer.jpg) | Open/close observed; mapping/visual acceptance pending |
+| FB-021 | Template Message / Configure Template Message | 640 × 380.4375 | Configure Template Message; Select template *;  Delivery Options Optional Typing indicator and reply delay settings. ; Delivery Options Optional;  Save Changes;  Close | [screenshot](docs/flow-builder-20261107/reference/template-message-drawer.jpg) | Open/close observed; mapping/visual acceptance pending |
+| FB-022 | CTA URL Button / Configure CTA URL Button | 576 × 912 | Configure CTA URL Button; Header Message Optional;  Custom; Body Message *; Footer Message Optional; Call to Action Button; Button Text *; Button URL *;  Delivery Options Optional Typing indicator and reply delay settings. ; Delivery Options Optional;  Save Changes;  Close | Screenshot not available; DOM observation retained | Open/close observed; mapping/visual acceptance pending |
+| FB-023 | Condition / Configure Condition | 640 × 658.234375 | Configure Condition; Match type; All Match Every rule below must be true.; Any Match At least one rule below must be true.; System Field; ; Select; Custom Field;  Save Changes;  Close | [screenshot](docs/flow-builder-20261107/reference/condition-drawer.jpg) | Open/close observed; mapping/visual acceptance pending |
+| FB-024 | New Sequence Campaign / Configure Sequence Message | 640 × 734.625 | Configure Sequence Message; Message type *; Send Regular Message (Inside 24h) Option 1 – Regular Message (24-Hour Window) Send a standard message to your subscriber, but it must be delivered within 24 hours of their last interaction. Best for quick follow-ups, reminders, or conversational replies.; Send Template Message (Anytime) Option 2 – Template Message (Anytime) Send an approved template message at any time you want — minutes, hours, or even days later. Perfect for sequences, offers, updates, or re-engagement beyond the 24-hour window.; Schedule *; Select;  Enable Condition Optional Add conditions to control when this sequence should be triggered based on user data. ; Enable Condition Optional;  Save Changes;  Close | [screenshot](docs/flow-builder-20261107/reference/new-sequence-campaign-drawer.jpg) | Open/close observed; mapping/visual acceptance pending |
+| FB-025 | Label Assign / Label Assign | 520 × 366.484375 | Label Assign; Labels *;  New;  Save Changes;  Close | [screenshot](docs/flow-builder-20261107/reference/label-assign-drawer.jpg) | Open/close observed; mapping/visual acceptance pending |
+| FB-026 | Notify Contact / Notify Contact | 640 × 530.4375 | Notify Contact; Recipient *; Team member; Custom number; Select Team Member; Select template *;  Save Changes;  Close | [screenshot](docs/flow-builder-20261107/reference/notify-contact-drawer.jpg) | Open/close observed; mapping/visual acceptance pending |
+| FB-027 | Random Number Generator / Configure Random Number Generator | 576 × 707.21875 | Configure Random Number Generator; Character set *; Value length *; Length of random value; Custom field *;  Add new; Select;  Save Changes;  Close | Screenshot not available; DOM observation retained | Open/close observed; mapping/visual acceptance pending |
+| FB-028 | Start Bot Flow / Configure Reference | unmeasured × unmeasured | Configure Reference; Basic Setup; Trigger Keywords ; Exact keyword match Match exact keywords; String match Match similar keywords; Title * ;  Automation Actions Optional Manage labels, sequences and team assignment. ; Automation Actions Optional;  Data & Integrations Optional Store data in custom fields or send to external tools. ; Data & Integrations Optional; + Add new field; Forward Data to Webhook;  Save Changes;  Close | [screenshot](docs/flow-builder-20261107/reference/reference-drawer.jpg) | Open/close observed; mapping/visual acceptance pending |
+| FB-029 | Image / Configure Random Number Generator | unmeasured × unmeasured | Configure Random Number Generator; Character set *; Value length *; Length of random value; Custom field *;  Add new;  Save Changes;  Close | [screenshot](docs/flow-builder-20261107/reference/image-verified-drawer.jpg) | Open/close observed; mapping/visual acceptance pending |
+
+## Further live interaction observations
+- FB-030: Text configuration Save Changes updates only the temporary canvas. Text content used: generic unsaved inspection text. Global Save never clicked.
+- FB-031: Connecting Start→Text creates a grey curved connection and automatically opens Text configuration. Stroke #778292, 2px.
+- FB-032: Clone creates an unsaved duplicate; Delete removes that duplicate immediately. Both tested; no saved owner flow touched. Node toolbar measured80×42px.
+- FB-033: Canvas right-click opens Search blocks and four categorized submenus, plus Product, Product Section, Row, Section. Product subtype dialogs not yet inspected.
+- FB-034: Delivery Options expands typing toggle and Hours/Minutes/Seconds sliders. Text editor maxlength4096; toggles observed, no provider send.
+
+## EXTRA_ELEMENTS_REMOVAL — implementation checkpoint
+| Extra | Action | Dependencies retained | Verification |
+|---|---|---|---|
+| Always-visible name/save status | Moved to More | Name editing and live save state | Typecheck only; UI pending |
+| Preview/settings/Publish buttons | Moved to More | Actual simulator and explicit publish/version separation | Functional acceptance pending |
+| Bottom zoom/hint and dotted grid | Removed default chrome, zoom kept in More | Pan/wheel/zoom commands | Interaction test pending |
+| Additional block groups | Hidden by default; expandable in palette | All existing node types and saved data | Add/save checks pending |
+| Edit/set-start buttons on every node | Edit via double-click; start via reference socket | Existing actions retained in editor state, startNodeId contract unchanged | Connection persistence test pending |
+
+More is a necessary Boat-specific exception because its draft and published-version model needs explicit publishing, unlike the single visible reference Save. No fake Save=Publish behavior was introduced.
+
+## Evidence correction and acceptance limits
+- One late Image capture actually displayed Random Number Generator because nodes overlapped. It has been relabeled; a fresh isolated Image drawer was reopened and verified. Canonical configuration JSON retains only heading-verified updates.
+- New Sequence Campaign insertion generated three Send Message After nodes; FB-024 describes the child message dialog. Root campaign composition is not yet verified.
+- Reference random generator is a character-set/length/custom-field tool; Boat numeric min/max is functionally different. No false-equivalence mapping.
+- Notify Contact, Row and Section remain missing distinct editor concepts. Product/Product Section were discovered in the context menu; nested provider commerce behavior is not accepted.
+- Full screenshots at320/390/768/1366/1920 in the reference browser are not available: captured reference viewport1363×936. Boat before/after uses exact requested widths and same local graph. Those pairs prove the Boat change, not exact cross-product parity.
+- Live Preview create test on QA Webchat is BLOCKED by PLAN_LIMIT. No bypass/plan edits or real WhatsApp execution.
+- A saved audit-only reference row's updated date changed during inspection; its saved graph was read back and showed the original travel fixture, without temporary inspection text/nodes. Cause of timestamp change is unknown; no unchanged-timestamp claim is made.
+- Browser-produced image upload to GitHub has not succeeded; their verified local copies will be included in the evidence deliverable. Text measurements and test evidence are in PR14.
+
+## Resumed live observations — 2026-11-07
+- New unsaved reference canvas only: temporary Image and Random nodes added; Start→Image connection created. No global Save and no saved-owner-flow editing in this continuation.
+- With Image selected/configuration open, the actual connection remains rgb(119,130,146),2px. This supports removing Boat's selected-node purple/dim overrides.
+- Random Number Generator has four independent checkboxes: numbers (initially checked), upper case, lower case, special characters. Length initial5, HTML min5/step1, no HTML max. Custom field picker and Add new exist. Exact special-character pool and generation/delivery semantics remain unverified; do not infer them from numeric min/max.
+- Sanitized, heading-verified current Image and Random panel screenshots are in docs/flow-builder-20261107/resumed/images/. Each is a578×936 crop of the1363×936 viewport, not a new claim about the dialog's measured height. Account toolbar/phone are excluded.

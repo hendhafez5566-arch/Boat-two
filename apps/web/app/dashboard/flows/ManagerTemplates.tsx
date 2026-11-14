@@ -29,16 +29,25 @@ export default function ManagerTemplates({ channelId }: { channelId: string }) {
     [error, setError] = useState(''),
     [saved, setSaved] = useState(false);
   const lock = useRef(false);
-  async function act(url: string, body?: unknown, method = 'POST') {
+  async function act(
+    url: string,
+    body?: unknown,
+    method = 'POST',
+    onSuccess?: (row: Template) => void,
+  ) {
     if (lock.current) return false;
     lock.current = true;
     setBusy(true);
     setError('');
     setSaved(false);
     try {
-      await api(url, { method, ...(body ? { body: JSON.stringify(body) } : {}) });
+      const result = await api<Template>(url, {
+        method,
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
       await list.reload();
       setSaved(true);
+      onSuccess?.(result);
       return true;
     } catch (e) {
       setError(managerError(e, t));
@@ -93,6 +102,61 @@ export default function ManagerTemplates({ channelId }: { channelId: string }) {
   const close = () => {
     if (!busy) setEditing(undefined);
   };
+  if (editing !== undefined)
+    return (
+      <section className={styles.templateManager}>
+        <header className={styles.contentHeader}>
+          <div>
+            <h2>
+              {editing
+                ? t('تعديل القالب المختلط', 'Edit Mixed Template')
+                : t('قالب مختلط', 'Mixed Template')}
+            </h2>
+            <p>
+              {t(
+                'إنشاء ومزامنة وإدارة قوالب WhatsApp ومتغيراتها.',
+                'Create, sync, and manage WhatsApp message templates and template variables.',
+              )}
+            </p>
+          </div>
+          <button type="button" className="btn" disabled={busy} onClick={close}>
+            {t('العودة إلى القوالب', 'Back to templates')}
+          </button>
+        </header>
+        {error && (
+          <p role="alert" className="notice error">
+            {error}
+          </p>
+        )}
+        <TemplateDraftForm
+          mode="manager"
+          key={editing ? editing.id + ':' + editing.revision : 'new'}
+          initial={editing || undefined}
+          busy={busy}
+          cancel={close}
+          saveAndReview={async (draft) =>
+            act(
+              editing ? path + '/' + editing.id : path,
+              editing ? { revision: editing.revision, draft } : draft,
+              editing ? 'PATCH' : 'POST',
+              (row) => {
+                setEditing(undefined);
+                setSubmitting(row);
+              },
+            )
+          }
+          save={async (draft) => {
+            const ok = await act(
+              editing ? path + '/' + editing.id : path,
+              editing ? { revision: editing.revision, draft } : draft,
+              editing ? 'PATCH' : 'POST',
+            );
+            if (ok) setEditing(undefined);
+            return ok;
+          }}
+        />
+      </section>
+    );
   return (
     <section className={styles.templateManager}>
       <header className={styles.contentHeader}>
@@ -411,41 +475,6 @@ export default function ManagerTemplates({ channelId }: { channelId: string }) {
           </div>
         </>
       )}
-      <Dialog
-        className={`${styles.managerDialog} ${styles.templateDialog}`}
-        open={editing !== undefined}
-        onClose={close}
-        title={
-          editing
-            ? t('تعديل مسودة القالب', 'Edit Template Draft')
-            : t('إنشاء قالب رسالة', 'Create Message Template')
-        }
-      >
-        {editing !== undefined && (
-          <>
-            {error && (
-              <p role="alert" className="notice error">
-                {error}
-              </p>
-            )}
-            <TemplateDraftForm
-              key={editing ? editing.id + ':' + editing.revision : 'new'}
-              initial={editing || undefined}
-              busy={busy}
-              cancel={close}
-              save={async (draft) => {
-                const ok = await act(
-                  editing ? path + '/' + editing.id : path,
-                  editing ? { revision: editing.revision, draft } : draft,
-                  editing ? 'PATCH' : 'POST',
-                );
-                if (ok) setEditing(undefined);
-                return ok;
-              }}
-            />
-          </>
-        )}
-      </Dialog>
       <Dialog
         className={styles.managerDialog}
         open={!!view}

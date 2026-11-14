@@ -268,6 +268,7 @@ export const nodeSchema = z.discriminatedUnion('type', [
               .array(z.object({ id: z.string().min(1).max(200), title: z.string().min(1).max(24) }))
               .max(10)
               .optional(),
+            buttonText: z.string().max(20).optional(),
             saveAs: z.string().max(41),
             saveToSystem: z.enum(['name', 'email', 'phone']).optional(),
             allowSkip: z.boolean().optional(),

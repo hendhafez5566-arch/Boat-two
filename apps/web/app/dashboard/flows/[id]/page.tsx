@@ -7,11 +7,9 @@ import type { BotPolicy } from '../../../../lib/flow-types';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactFlow, {
   addEdge,
-  Background,
   Connection,
   ConnectionLineType,
   MiniMap,
-  Panel,
   MarkerType,
   Node,
   NodeChange,
@@ -20,6 +18,7 @@ import ReactFlow, {
   useEdgesState,
   useNodesState,
   useReactFlow,
+  useNodesInitialized,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useLocale } from '../../../../components/product/locale';
@@ -46,7 +45,6 @@ import FlowButtonNode from '../../../../components/flow/FlowButtonNode';
 import { validationMessage } from '../../../../lib/validation-message';
 import UnsavedChangesGuard from '../../../../components/flow/UnsavedChangesGuard';
 import { convertChoices } from '../../../../lib/smart-editor';
-import { STEP_GUIDANCE } from '../../../../lib/step-guidance';
 import ConfigurationPanel from '../../../../components/flow/ConfigurationPanel';
 import Inspector from '../../../../components/flow/Inspector';
 import type { ConditionVariable } from '../../../../components/business/ConditionModal';
@@ -78,12 +76,22 @@ const nodeTypes = {
 };
 const edgeTypes = { smoothstep: FlowEdge, buttonLink: ButtonLinkEdge };
 
+const INITIAL_CANVAS_MIN_ZOOM = 0.5;
+
 type Issue = { nodeId?: string; message: string };
 
 function Editor({ id }: { id: string }) {
   const rf = useReactFlow();
+  const nodesInitialized = useNodesInitialized();
+  const initialViewportReady = useRef(false);
+  useEffect(() => {
+    if (!nodesInitialized || initialViewportReady.current) return;
+    initialViewportReady.current = true;
+    void rf.fitView({ padding: 0.25, minZoom: INITIAL_CANVAS_MIN_ZOOM, maxZoom: 1 });
+  }, [nodesInitialized, rf]);
   const { t, language } = useLocale();
   const [nodeSearch, setNodeSearch] = useState('');
+  const [contextGroup, setContextGroup] = useState<string | null>(null);
   const [findNode, setFindNode] = useState('');
   const [findOpen, setFindOpen] = useState(false);
   const [accountContext, setAccountContext] = useState('');
@@ -130,8 +138,8 @@ function Editor({ id }: { id: string }) {
   const [dropMenu, setDropMenu] = useState<{
     x: number;
     y: number;
-    source: string;
-    handle: string | null;
+    source?: string;
+    handle?: string | null;
     edgeId?: string;
   } | null>(null);
   const [toast, setToast] = useState<{ text: string; undo: boolean } | null>(null);
@@ -259,7 +267,7 @@ function Editor({ id }: { id: string }) {
       clearInterval(timer);
     };
   }, [id]);
-  const [autoSave, setAutoSave] = useState(true);
+  const [autoSave, setAutoSave] = useState(false);
   const [versions, setVersions] = useState<{ id: string; version: number; created_at: string }[]>(
     [],
   );
@@ -281,17 +289,8 @@ function Editor({ id }: { id: string }) {
       const g = toFlow(f.draft_graph);
       setUpdatedAt(f.updated_at);
       setLoaded(true);
-      const spots = new Set(
-        g.nodes.map((n) => `${Math.round(n.position.x / 40)},${Math.round(n.position.y / 40)}`),
-      );
-      if (
-        g.nodes.length > 1 &&
-        (spots.size < g.nodes.length || hasLayoutOverlap(g.nodes, language === 'ar'))
-      ) {
-        const pos = computeLayout(g.nodes, g.edges, f.draft_graph.startNodeId, language === 'ar');
-        g.nodes = g.nodes.map((n) => ({ ...n, position: pos[n.id] ?? n.position }));
-        setDirty(true);
-      }
+      // Opening a saved graph must preserve author positions, including overlaps.
+      // Rearrangement is an explicit toolbar action and may mark the graph dirty.
       setNodes(g.nodes);
       setEdges(g.edges);
       setStartId(f.draft_graph.startNodeId);
@@ -318,7 +317,9 @@ function Editor({ id }: { id: string }) {
             ),
           );
         });
-    })().catch((e) => setMsg(e.message));
+    })().catch(() =>
+      setMsg(t('تعذّر تحميل التدفق. أعد المحاولة.', 'Could not load the flow. Please retry.')),
+    );
   }, [id, setNodes, setEdges]);
 
   // Stable handler: an inline onSelectionChange makes React Flow re-fire it on every
@@ -439,11 +440,14 @@ function Editor({ id }: { id: string }) {
           {
             id: reference.id,
             type: 'reference',
+            width: 264,
+            height: 163,
+            style: { width: 264, height: 163 },
             position: reference.position,
             draggable: false,
             deletable: false,
             selectable: false,
-            connectable: false,
+            connectable: true,
             data: {
               summary:
                 meta.triggers
@@ -534,18 +538,25 @@ function Editor({ id }: { id: string }) {
   const isValidConnection = useCallback(
     (c: Connection) => {
       if (!c.source || !c.target) return false;
+      if (c.source === reference?.id)
+        return c.sourceHandle === 'start' && nodes.some((node) => node.id === c.target);
       const real = toReal(c.source, c.sourceHandle);
       if (real.source === c.target) return false;
       const from = nodes.find((n) => n.id === real.source);
       if (!from || !nodes.some((n) => n.id === c.target)) return false;
       return handlesFor(from.data.type, from.data.data).some((h) => h.id === real.handle);
     },
-    [nodes, toReal],
+    [nodes, toReal, reference?.id],
   );
 
   const onConnect = useCallback(
     (raw: Connection) => {
       if (!isValidConnection(raw)) return;
+      if (raw.source === reference?.id && raw.target) {
+        setStartId(raw.target);
+        setDirty(true);
+        return;
+      }
       const r = toReal(raw.source, raw.sourceHandle);
       const c: Connection = { ...raw, source: r.source, sourceHandle: r.handle };
       const previous = edges.find(
@@ -568,7 +579,7 @@ function Editor({ id }: { id: string }) {
         );
       setDirty(true);
     },
-    [setEdges, edges, isValidConnection, toReal],
+    [setEdges, edges, isValidConnection, toReal, reference?.id],
   );
 
   const onEdgeUpdate = useCallback(
@@ -631,7 +642,9 @@ function Editor({ id }: { id: string }) {
         data: { type, data: NODE_META[type].defaults(), isStart: false },
       },
     ]);
-    if (from) {
+    if (from?.source === reference?.id) {
+      setStartId(nid);
+    } else if (from) {
       // Same replacement rule as onConnect: one outgoing edge per source handle.
       setEdges((es) =>
         addEdge(
@@ -767,7 +780,7 @@ function Editor({ id }: { id: string }) {
     setPreviewOpen(false);
     setInspectorOpen(true);
     setTab('node');
-    rf.fitView({ nodes: [{ id: nid }], padding: 1.2, maxZoom: 1.1, duration: 300 });
+    // Opening settings preserves the viewport so nearby steps stay visible.
   };
 
   const openReview = () => {
@@ -846,6 +859,54 @@ function Editor({ id }: { id: string }) {
           el.isContentEditable)
       )
         return;
+      if (
+        e.key === 'Enter' &&
+        el?.classList.contains('react-flow__node') &&
+        !inspectorOpen &&
+        !previewOpen
+      ) {
+        const nodeId = el.getAttribute('data-id');
+        if (nodeId === reference?.id) {
+          e.preventDefault();
+          openSettings();
+          return;
+        }
+        const realId = nodeId ? (btnIndexRef.current[nodeId]?.parentId ?? nodeId) : null;
+        if (realId && nodes.some((node) => node.id === realId)) {
+          e.preventDefault();
+          focusNode(realId);
+          return;
+        }
+      }
+      if (
+        !e.ctrlKey &&
+        !e.metaKey &&
+        ['Delete', 'Backspace'].includes(e.key) &&
+        !inspectorOpen &&
+        !previewOpen &&
+        !confirmPublish &&
+        !showVersions &&
+        !moreOpen
+      ) {
+        const chosen = new Set(nodes.filter((node) => node.selected).map((node) => node.id));
+        if (!chosen.size && selRef.current && nodes.some((node) => node.id === selRef.current))
+          chosen.add(selRef.current);
+        if (chosen.size) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          const remaining = nodes.filter((node) => !chosen.has(node.id));
+          setNodes(remaining);
+          setEdges((links) =>
+            links.filter((link) => !chosen.has(link.source) && !chosen.has(link.target)),
+          );
+          if (chosen.has(startId)) setStartId(remaining[0]?.id ?? '');
+          setSelected(null);
+          selRef.current = null;
+          setDirty(true);
+          notify(t('حُذفت الخطوة وتوصيلاتها.', 'Step and its links deleted.'), true);
+          return;
+        }
+      }
       if (!(e.ctrlKey || e.metaKey)) return;
       const k = e.key.toLowerCase();
       if (k === 'c') {
@@ -1232,39 +1293,58 @@ function Editor({ id }: { id: string }) {
     const excerpt = String(node.data.data?.text || node.data.note || '').slice(0, 55);
     return `${nodeLabel(node.data.type, language)} ${index + 1}${excerpt ? ` — ${excerpt}` : ''}`;
   };
-  const stepItems = (onPick: (type: NodeType) => void) =>
-    NODE_GROUPS.map((group) => {
-      const types = group.types.filter((type) =>
-        nodeLabel(type, language).toLowerCase().includes(nodeSearch.toLowerCase()),
-      );
-      return types.length ? (
-        <section key={group.id} role="group" aria-label={t(group.ar, group.en)}>
-          <h3 className="px-3 py-2 text-xs font-semibold">{t(group.ar, group.en)}</h3>
-          {types.map((type) => (
+  const stepItems = (onPick: (type: NodeType) => void) => {
+    const item = (type: NodeType) => (
+      <button type="button" role="menuitem" key={type} onClick={() => onPick(type)}>
+        <span style={{ color: NODE_META[type].color }}>
+          <NodeIcon type={type} />
+        </span>
+        {nodeLabel(type, language)}
+      </button>
+    );
+    const matches = (type: NodeType) =>
+      nodeLabel(type, language).toLocaleLowerCase().includes(nodeSearch.trim().toLocaleLowerCase());
+    if (nodeSearch.trim())
+      return NODE_GROUPS.flatMap((group) => group.types)
+        .filter(matches)
+        .map(item);
+    return (
+      <>
+        {NODE_GROUPS.filter((group) =>
+          ['messages', 'data', 'interactive', 'control'].includes(group.id),
+        ).map((group) => (
+          <section
+            key={group.id}
+            className={styles.contextGroup}
+            onMouseEnter={() => setContextGroup(group.id)}
+          >
             <button
               type="button"
               role="menuitem"
-              key={type}
-              className="add-step-item"
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData('application/boat-node', type);
-                e.dataTransfer.effectAllowed = 'move';
-              }}
-              onClick={() => onPick(type)}
+              aria-haspopup="menu"
+              aria-expanded={contextGroup === group.id}
+              onClick={() => setContextGroup(contextGroup === group.id ? null : group.id)}
             >
-              <span className="add-step-icon" style={{ background: NODE_META[type].color }}>
-                <NodeIcon type={type} />
-              </span>
-              <span>
-                {nodeLabel(type, language)}
-                <small className="smart-step-hint">{t(...STEP_GUIDANCE[type])}</small>
-              </span>
+              {t(group.ar, group.en)}
+              <span aria-hidden="true">›</span>
             </button>
-          ))}
-        </section>
-      ) : null;
-    });
+            {contextGroup === group.id && (
+              <div role="menu" aria-label={t(group.ar, group.en)} className={styles.contextSubmenu}>
+                {group.types.map(item)}
+              </div>
+            )}
+          </section>
+        ))}
+        {(['product', 'catalog'] as NodeType[]).map(item)}
+        <details className={styles.contextExtras}>
+          <summary>{t('أدوات Boat Two الإضافية', 'Additional Boat Two blocks')}</summary>
+          {NODE_GROUPS.filter((group) => ['advanced', 'integrations'].includes(group.id))
+            .flatMap((group) => group.types)
+            .map(item)}
+        </details>
+      </>
+    );
+  };
   const setTriggers = (triggers: Trigger[]) => {
     setMeta((m) => ({ ...m, triggers }));
     setDirty(true);
@@ -1274,6 +1354,7 @@ function Editor({ id }: { id: string }) {
     <div
       ref={builderRef}
       data-focus={focused}
+      aria-busy={!loaded || busy}
       className={`premium-builder ${styles.editor}`}
       dir={language === 'ar' ? 'rtl' : 'ltr'}
     >
@@ -1286,16 +1367,6 @@ function Editor({ id }: { id: string }) {
         >
           <NavIcon name="undo" />
         </a>
-        <input
-          className={styles.title}
-          disabled={!loaded}
-          aria-label={t('اسم التدفق', 'Flow name')}
-          value={meta.name}
-          onChange={(event) => {
-            setMeta({ ...meta, name: event.target.value });
-            setDirty(true);
-          }}
-        />
         {staleChannelIds.length > 0 && (
           <button
             type="button"
@@ -1309,28 +1380,6 @@ function Editor({ id }: { id: string }) {
             {t('القناة القديمة غير موجودة — تصحيح الربط', 'Missing channel — fix link')}
           </button>
         )}
-        {meta.channelIds.length === 1 && (
-          <span className={styles.channelBadge}>
-            {channels.find((channel) => channel.id === meta.channelIds[0])?.name ??
-              t('حساب مرتبط', 'Linked account')}
-          </span>
-        )}
-        <span
-          className={styles.saveState}
-          data-state={saveState === 'error' ? 'error' : dirty ? 'dirty' : 'saved'}
-          role="status"
-          aria-live="polite"
-        >
-          {!loaded
-            ? t('جارٍ التحميل…', 'Loading…')
-            : saveState === 'saving'
-              ? t('جارٍ الحفظ…', 'Saving…')
-              : saveState === 'error'
-                ? t('فشل الحفظ', 'Save failed')
-                : dirty
-                  ? t('غير محفوظ', 'Unsaved')
-                  : t('محفوظ', 'Saved')}
-        </span>
         <button
           type="button"
           className={styles.toolButton}
@@ -1340,48 +1389,30 @@ function Editor({ id }: { id: string }) {
         >
           <NavIcon name="flows" />
         </button>
-        <button
-          type="button"
-          className={styles.toolButton}
-          aria-pressed={previewOpen}
-          onClick={() => {
-            if (previewOpen) closeReview();
-            else openReview();
-          }}
-          title={t('تجربة البوت', 'Preview')}
-          aria-label={t('تجربة البوت', 'Preview')}
-        >
-          <NavIcon name="play" />
-        </button>
-        <button
-          type="button"
-          className={styles.toolButton}
-          onClick={openSettings}
-          title={t('إعداد البداية والقنوات', 'Reference and channels')}
-          aria-label={t('إعداد البداية والقنوات', 'Reference and channels')}
-        >
-          <NavIcon name="settings" />
-        </button>
+        {meta.channelIds.length === 1 && (
+          <span className={styles.channelBadge}>
+            {channels.find((channel) => channel.id === meta.channelIds[0])?.name ??
+              t('حساب مرتبط', 'Linked account')}
+          </span>
+        )}
         <button
           type="button"
           className={styles.saveButton}
           disabled={!loaded || busy}
           onClick={() => save().catch(() => {})}
         >
-          {t('حفظ', 'Save')}
-        </button>
-        <button
-          type="button"
-          className={styles.publishButton}
-          disabled={!loaded || busy}
-          onClick={() => {
-            setPublishOutcome(null);
-            setConfirmPublish(true);
-          }}
-        >
-          {meta.status === 'published'
-            ? t('نشر التحديث', 'Publish update')
-            : t('نشر البوت', 'Publish bot')}
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden="true"
+          >
+            <path d="M4 3h13l3 3v15H4V3ZM8 3v6h8V3M8 21v-8h9v8" />
+          </svg>{' '}
+          {saveState === 'saving' ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ', 'Save')}
         </button>
         <div className={styles.more} ref={moreRef}>
           <button
@@ -1402,6 +1433,90 @@ function Editor({ id }: { id: string }) {
                 onClick={() => setMoreOpen(false)}
               />
               <div className={styles.toolsMenu} onClick={() => setMoreOpen(false)}>
+                <div className={styles.menuMeta} onClick={(event) => event.stopPropagation()}>
+                  <input
+                    className={styles.title}
+                    disabled={!loaded}
+                    aria-label={t('اسم التدفق', 'Flow name')}
+                    value={meta.name}
+                    onChange={(event) => {
+                      setMeta({ ...meta, name: event.target.value });
+                      setDirty(true);
+                    }}
+                  />
+                  <span
+                    className={styles.saveState}
+                    data-state={saveState === 'error' ? 'error' : dirty ? 'dirty' : 'saved'}
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {!loaded
+                      ? t('جارٍ التحميل…', 'Loading…')
+                      : saveState === 'saving'
+                        ? t('جارٍ الحفظ…', 'Saving…')
+                        : saveState === 'error'
+                          ? t('فشل الحفظ', 'Save failed')
+                          : dirty
+                            ? t('غير محفوظ', 'Unsaved')
+                            : t('محفوظ', 'Saved')}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className={styles.toolButton}
+                  aria-pressed={previewOpen}
+                  onClick={() => {
+                    if (previewOpen) closeReview();
+                    else openReview();
+                  }}
+                  title={t('تجربة البوت', 'Preview')}
+                  aria-label={t('تجربة البوت', 'Preview')}
+                >
+                  <NavIcon name="play" /> <span>{t('تجربة البوت', 'Preview')}</span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.toolButton}
+                  onClick={openSettings}
+                  title={t('إعداد البداية والقنوات', 'Reference and channels')}
+                  aria-label={t('إعداد البداية والقنوات', 'Reference and channels')}
+                >
+                  <NavIcon name="settings" />{' '}
+                  <span>{t('إعداد البداية والقنوات', 'Reference and channels')}</span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.publishButton}
+                  disabled={!loaded || busy}
+                  onClick={() => {
+                    setPublishOutcome(null);
+                    setConfirmPublish(true);
+                  }}
+                >
+                  {meta.status === 'published'
+                    ? t('نشر التحديث', 'Publish update')
+                    : t('نشر البوت', 'Publish bot')}
+                </button>
+                <div className={styles.menuZoom} onClick={(event) => event.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={() => rf.zoomOut({ duration: 200 })}
+                    aria-label={t('تصغير', 'Zoom out')}
+                  >
+                    −
+                  </button>
+                  <output>{zoomPercent}%</output>
+                  <button
+                    type="button"
+                    onClick={() => rf.zoomIn({ duration: 200 })}
+                    aria-label={t('تكبير', 'Zoom in')}
+                  >
+                    +
+                  </button>
+                  <button type="button" onClick={fitAllSteps}>
+                    {t('إظهار كل الخطوات', 'Fit all steps')}
+                  </button>
+                </div>
                 <button
                   type="button"
                   disabled={busy || cursor.current <= 0}
@@ -1475,9 +1590,19 @@ function Editor({ id }: { id: string }) {
           return savedContent.current === latest.current;
         }}
       />
+      {!loaded && !msg && (
+        <p className={styles.loading} role="status">
+          {t('جارٍ تحميل التدفق…', 'Loading flow…')}
+        </p>
+      )}
       {msg && (
-        <p className={styles.feedback} role="status">
+        <p className={styles.feedback} role={!loaded ? 'alert' : 'status'}>
           {msg}
+          {!loaded && (
+            <button type="button" onClick={() => window.location.reload()}>
+              {t('إعادة المحاولة', 'Retry')}
+            </button>
+          )}
           <button type="button" aria-label={t('إغلاق', 'Close')} onClick={() => setMsg('')}>
             ×
           </button>
@@ -1680,9 +1805,15 @@ function Editor({ id }: { id: string }) {
         >
           {dropMenu && (
             <>
-              <div className="drop-menu-scrim" onClick={() => setDropMenu(null)} />
+              <div className={styles.contextScrim} onClick={() => setDropMenu(null)} />
               <div
-                className="add-step-menu drop-menu"
+                className={styles.contextMenu}
+                data-searching={!!nodeSearch.trim()}
+                data-flip={
+                  language === 'ar'
+                    ? dropMenu.x < 280
+                    : dropMenu.x > (builderRef.current?.clientWidth ?? 1000) - 500
+                }
                 role="menu"
                 style={{ left: dropMenu.x, top: dropMenu.y }}
                 onKeyDown={(e) => {
@@ -1706,7 +1837,7 @@ function Editor({ id }: { id: string }) {
                   addNode(
                     type,
                     { x: m.x + r.left, y: m.y + r.top },
-                    { source: m.source, handle: m.handle },
+                    m.source ? { source: m.source, handle: m.handle ?? null } : undefined,
                     oldEdge ? { target: oldEdge.target } : undefined,
                   );
                 })}
@@ -1787,6 +1918,16 @@ function Editor({ id }: { id: string }) {
                         );
                         if (c.some((x) => x.type === 'remove')) setDirty(true);
                       }}
+                      onPaneContextMenu={(event) => {
+                        event.preventDefault();
+                        const box = event.currentTarget.getBoundingClientRect();
+                        setNodeSearch('');
+                        setContextGroup(null);
+                        setDropMenu({
+                          x: Math.max(8, Math.min(event.clientX - box.left, box.width - 236)),
+                          y: Math.max(8, Math.min(event.clientY - box.top, box.height - 400)),
+                        });
+                      }}
                       onMove={(_, viewport) => setZoomPercent(Math.round(viewport.zoom * 100))}
                       onConnect={onConnect}
                       onConnectStart={(_, p) => {
@@ -1853,11 +1994,10 @@ function Editor({ id }: { id: string }) {
                       onEdgeUpdate={onEdgeUpdate}
                       connectionRadius={24}
                       zoomOnDoubleClick={false}
-                      connectionLineType={ConnectionLineType.SmoothStep}
+                      connectionLineType={ConnectionLineType.Bezier}
                       connectionLineStyle={{
                         stroke: 'var(--primary)',
-                        strokeWidth: 3,
-                        strokeDasharray: '6 4',
+                        strokeWidth: 2,
                       }}
                       elevateEdgesOnSelect
                       onEdgesDelete={() => notify(t('قُطع التوصيل.', 'Link removed.'), true)}
@@ -1873,10 +2013,10 @@ function Editor({ id }: { id: string }) {
                       }
                       defaultEdgeOptions={{
                         type: 'smoothstep',
-                        style: { stroke: '#64748b', strokeWidth: 2.5 },
+                        style: { stroke: '#778292', strokeWidth: 2 },
                         markerEnd: {
                           type: MarkerType.ArrowClosed,
-                          color: '#64748b',
+                          color: '#778292',
                           width: 18,
                           height: 18,
                         },
@@ -1887,44 +2027,7 @@ function Editor({ id }: { id: string }) {
                       multiSelectionKeyCode={['Shift', 'Meta', 'Control']}
                       minZoom={0.05}
                       maxZoom={2}
-                      fitView
-                      fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
                     >
-                      <Panel position="bottom-center">
-                        <div
-                          className="canvas-zoombar"
-                          role="group"
-                          aria-label={t('التحكم في العرض', 'View controls')}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => rf.zoomOut({ duration: 200 })}
-                            aria-label={t('تصغير', 'Zoom out')}
-                          >
-                            −
-                          </button>
-                          <span dir="ltr" aria-live="off">
-                            {zoomPercent}%
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => rf.zoomIn({ duration: 200 })}
-                            aria-label={t('تكبير', 'Zoom in')}
-                          >
-                            +
-                          </button>
-                          <button type="button" className="canvas-fit" onClick={fitAllSteps}>
-                            {t('إظهار كل الخطوات', 'Fit all steps')}
-                          </button>
-                          <small className="canvas-hint">
-                            {t(
-                              'اسحب الخلفية للتحريك • العجلة للتكبير',
-                              'Drag to pan • scroll to zoom',
-                            )}
-                          </small>
-                        </div>
-                      </Panel>
-                      <Background color="#dce4ec" gap={24} size={0.6} />
                       {showMap && !previewOpen && (
                         <MiniMap
                           pannable
@@ -1989,6 +2092,7 @@ function Editor({ id }: { id: string }) {
         </Dialog>
 
         <ConfigurationPanel
+          referenceType={tab === 'settings' ? 'reference' : sel?.data.type}
           open={inspectorOpen && !previewOpen && (tab === 'settings' || !!sel)}
           onClose={() => {
             setInspectorDraft(null);
@@ -2027,7 +2131,9 @@ function Editor({ id }: { id: string }) {
                   ? sel.data.data.list
                     ? t('إعداد القائمة', 'Configure List Message')
                     : t('إعداد الأزرار', 'Configure Buttons')
-                  : `${t('إعداد', 'Configure')} ${nodeLabel(sel.data.type === 'message' && optionsOf(sel.data.data).length ? 'interactive' : sel.data.type, language)}`
+                  : sel.data.type === 'message' && !optionsOf(sel.data.data).length
+                    ? t('إعداد الرسالة النصية', 'Configure Text Message')
+                    : `${t('إعداد', 'Configure')} ${nodeLabel(sel.data.type === 'message' && optionsOf(sel.data.data).length ? 'interactive' : sel.data.type, language)}`
               : t('إعداد بداية التدفق', 'Configure Reference')
           }
         >

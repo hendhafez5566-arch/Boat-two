@@ -1,0 +1,145 @@
+.page {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+  padding: 24px;
+  color: #263445;
+}
+
+.header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.header a:first-child {
+  color: #526a82;
+  font-size: 13px;
+}
+
+.header h1 {
+  margin: 8px 0 4px;
+  font-size: 24px;
+  font-weight: 650;
+}
+
+.header p {
+  margin: 0;
+  color: #68798a;
+  font-size: 13px;
+}
+
+.backButton {
+  flex: none;
+  border: 1px solid #dfe5ec;
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: #263445;
+  background: #fff;
+  font-size: 13px;
+}
+
+.report {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  border: 1px solid #e3e9ef;
+  border-radius: 14px;
+  padding: 18px;
+  background: #fff;
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #68798a;
+  font-size: 13px;
+}
+
+.summary strong {
+  margin-inline-end: 22px;
+  color: #24374a;
+  font-variant-numeric: tabular-nums;
+  font-size: 16px;
+}
+
+.notice,
+.error {
+  margin: 0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #80500c;
+  background: #fff8e8;
+  font-size: 13px;
+}
+
+.error {
+  color: #a42d35;
+  background: #fff0f0;
+}
+
+.tableWrap {
+  overflow: auto;
+  border: 1px solid #e6eaf1;
+  border-radius: 10px;
+}
+
+.tableWrap table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: start;
+  font-size: 13px;
+}
+
+.tableWrap th {
+  padding: 12px;
+  color: #59697c;
+  background: #f9fafc;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tableWrap td {
+  max-width: 320px;
+  border-top: 1px solid #edf0f5;
+  padding: 12px;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.tableWrap td small {
+  display: block;
+  margin-top: 3px;
+  color: #8290a0;
+  font-size: 10px;
+  direction: ltr;
+  text-align: start;
+}
+
+.empty {
+  padding: 42px 16px !important;
+  color: #718093;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding: 16px;
+  }
+
+  .header {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .summary {
+    flex-wrap: wrap;
+  }
+
+  .summary strong {
+    margin-inline-end: 10px;
+  }
+}

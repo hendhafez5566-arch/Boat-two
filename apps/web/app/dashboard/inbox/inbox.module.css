@@ -54,6 +54,7 @@
   text-align: center;
 }
 .inbox :global(.inbox-list .inbox-item.is-selected) {
+  border-inline-start: 3px solid #6a49f2;
   background: linear-gradient(#f7f4ff 0%, #f1ecff 30%, #eef2ff 60%, #f8f9ff 85%, #fff 100%);
 }
 .inbox :global(.inbox-item.is-unread .inbox-name) {
@@ -249,7 +250,7 @@
   height: 100dvh;
 }
 .inbox :global(.inbox-list) {
-  width: 380px;
+  width: clamp(280px, 24vw, 340px);
   flex: none;
   background: #f8f8fb;
   border: 0;
@@ -368,7 +369,7 @@
 .inbox :global(.inbox-chip) {
   padding: 0;
   background: transparent !important;
-  color: #94969c !important;
+  color: #656a75 !important;
   border-radius: 0;
   font-size: 10px;
 }
@@ -476,9 +477,7 @@
   font-weight: 600;
   line-height: 12.65px;
   margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 .messageSearch {
   margin: 0 16px 10px;
@@ -595,9 +594,6 @@
   .customerStrip {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  .customerStrip div:nth-child(n + 4) {
-    display: none;
-  }
 }
 @media (max-width: 767px) {
   .back {
@@ -610,9 +606,6 @@
   .customerStrip {
     margin-inline: 10px;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  .customerStrip div:nth-child(n + 4) {
-    display: none;
   }
   .inbox :global(.composer) {
     padding: 8px 10px 12px;
@@ -714,4 +707,8 @@
 .channelBadge svg {
   width: 12px;
   height: 12px;
+}
+
+.inbox :global(.composer-row[hidden]) {
+  display: none;
 }

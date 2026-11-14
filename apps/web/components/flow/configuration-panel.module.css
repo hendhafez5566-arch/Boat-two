@@ -175,3 +175,28 @@
     inset-inline-end: 18px;
   }
 }
+
+/* Reference mode is opt-in for Flow Builder; campaign panels retain their layout. */
+.referencePanel .scroll {
+  flex: 0 1 auto;
+  max-height: calc(100dvh - 100px);
+  padding-bottom: 16px;
+}
+.referencePanel :global(.smart-editor-footer) {
+  position: static;
+  flex-shrink: 0;
+}
+.referencePanel .close {
+  display: none;
+}
+.referencePanel[data-reference-type='condition'],
+.referencePanel[data-reference-type='template'] {
+  width: 640px;
+}
+.referencePanel[data-reference-type='tag'] {
+  width: 520px;
+}
+.referencePanel[data-reference-type='message'] textarea[aria-label='Reply Message'],
+.referencePanel[data-reference-type='message'] textarea[aria-label='رسالة الرد'] {
+  min-height: 200px;
+}

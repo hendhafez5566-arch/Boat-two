@@ -1,12 +1,17 @@
+import { assertLocalAcceptance } from './acceptance-local.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { openSync, writeFileSync } from 'node:fs';
 import { randomUUID as uuid } from 'node:crypto';
 const log = openSync('/tmp/boat-assignment-http-server.log', 'w');
-const server = spawn(process.execPath, ['scripts/qa-full-api.mjs'], {
-  stdio: ['ignore', log, log],
-  env: { ...process.env, BOAT_CLOUD_REVIEW: 'true' },
-});
+const existingApi = process.env.BOAT_QA_EXISTING_API === 'true';
+if (existingApi) assertLocalAcceptance();
+const server = existingApi
+  ? null
+  : spawn(process.execPath, ['scripts/qa-full-api.mjs'], {
+      stdio: ['ignore', log, log],
+      env: { ...process.env, BOAT_CLOUD_REVIEW: 'true' },
+    });
 const checks = [];
 async function req(path, token, body, method = body ? 'POST' : 'GET', status = 200) {
   const r = await fetch('http://127.0.0.1:4000' + path, {
@@ -28,7 +33,7 @@ try {
   for (let i = 0; i < 150; i++) {
     try {
       if ((await fetch('http://127.0.0.1:4000/health')).ok) break;
-    } catch {}
+    } catch { /* Wait for the isolated server to become ready. */ }
     await new Promise((r) => setTimeout(r, 300));
   }
   const owner = await req('/auth/register', null, {
@@ -64,7 +69,7 @@ try {
         members: index === 0 ? members.slice(0, 2).map((x) => x.id) : [members[index + 1].id],
       }),
     );
-  let state = await req('/crm/sales/settings', token);
+  const state = await req('/crm/sales/settings', token);
   assert.equal((await req('/crm/sales/assignment-test', token, {})).reason, 'policy_disabled');
   checks.push('disabled saved policy cannot pretend to select staff');
   const assignment = {
@@ -83,7 +88,7 @@ try {
       },
     ],
   };
-  state = await req('/crm/sales/settings', token, { ...state, assignment, expected: state });
+  await req('/crm/sales/settings', token, { ...state, assignment, expected: state });
   const scenario = {
     channelId: channel.id,
     departmentId: dept[0].id,
@@ -130,38 +135,80 @@ try {
   assert.equal((await req('/crm/sales/assignment-queue', token)).total, 0);
   checks.push('empty manager queue is truthful');
   if (process.env.QA_RESUME_HTTP) {
-    let current=await req('/crm/sales/settings',token);
-    await req('/crm/sales/settings',token,{...current,assignment:{enabled:true,method:'round_robin',memberIds:[members[0].id],rules:[],maxOpenPerAgent:1},expected:current});
-    await req('/team/me/availability',members[0].accessToken,{available:false},'PATCH');
-    const visitors=await Promise.all(Array.from({length:3},()=>req('/widget/'+channel.external_id+'/session',null,{})));
+    let current = await req('/crm/sales/settings', token);
+    await req('/crm/sales/settings', token, {
+      ...current,
+      assignment: {
+        enabled: true,
+        method: 'round_robin',
+        memberIds: [members[0].id],
+        rules: [],
+        maxOpenPerAgent: 1,
+      },
+      expected: current,
+    });
+    await req('/team/me/availability', members[0].accessToken, { available: false }, 'PATCH');
+    const visitors = await Promise.all(
+      Array.from({ length: 3 }, () => req('/widget/' + channel.external_id + '/session', null, {})),
+    );
     for (const v of visitors) {
-      const response=await fetch('http://127.0.0.1:4000/widget/'+channel.external_id+'/messages?visitorId='+v.visitorId,{method:'POST',headers:{'Content-Type':'application/json','x-visitor-token':v.token},body:JSON.stringify({clientMsgId:uuid(),text:'Synthetic waiting QA'})});
-      assert.equal(response.status,201);
+      const response = await fetch(
+        'http://127.0.0.1:4000/widget/' +
+          channel.external_id +
+          '/messages?visitorId=' +
+          v.visitorId,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-visitor-token': v.token },
+          body: JSON.stringify({ clientMsgId: uuid(), text: 'Synthetic waiting QA' }),
+        },
+      );
+      assert.equal(response.status, 201);
     }
-    const rows=(await req('/conversations?limit=100',token)).items;
-    for(const cv of rows) await req('/conversations/'+cv.id+'/auto-assign',token,{},'POST',400);
-    const waiting=await req('/crm/sales/assignment-queue',token);
-    assert.equal(waiting.total,3);
-    const oldest=waiting.items[0];
-    await req('/conversations/'+oldest.id,token,{handledBy:'human'},'PATCH');
-    const resumed=await req('/team/me/availability',members[0].accessToken,{available:true},'PATCH');
-    assert.equal(resumed.available,true);assert.equal(resumed.reassigned,1);
-    assert.equal((await req('/crm/sales/assignment-queue',token)).total,2);
-    checks.push('HTTP availability return automatically assigns oldest queued conversation up to capacity');
-    const detail=await req('/conversations/'+oldest.id,token);
-    assert.equal(detail.handled_by,'human');assert.equal(detail.assigned_to,members[0].id);
+    const rows = (await req('/conversations?limit=100', token)).items;
+    for (const cv of rows)
+      await req('/conversations/' + cv.id + '/auto-assign', token, {}, 'POST', 400);
+    const waiting = await req('/crm/sales/assignment-queue', token);
+    assert.equal(waiting.total, 3);
+    const oldest = waiting.items[0];
+    await req('/conversations/' + oldest.id, token, { handledBy: 'human' }, 'PATCH');
+    const resumed = await req(
+      '/team/me/availability',
+      members[0].accessToken,
+      { available: true },
+      'PATCH',
+    );
+    assert.equal(resumed.available, true);
+    assert.equal(resumed.reassigned, 1);
+    assert.equal((await req('/crm/sales/assignment-queue', token)).total, 2);
+    checks.push(
+      'HTTP availability return automatically assigns oldest queued conversation up to capacity',
+    );
+    const detail = await req('/conversations/' + oldest.id, token);
+    assert.equal(detail.handled_by, 'human');
+    assert.equal(detail.assigned_to, members[0].id);
     checks.push('HTTP automatic resume preserves human handoff');
-    assert.equal((await req('/team/me/availability',members[0].accessToken,{available:true},'PATCH')).reassigned,0);
-    assert.equal((await req('/crm/sales/assignment-queue',token)).total,2);
-    checks.push('repeated availability return cannot exceed capacity or replace existing assignment');
+    assert.equal(
+      (await req('/team/me/availability', members[0].accessToken, { available: true }, 'PATCH'))
+        .reassigned,
+      0,
+    );
+    assert.equal((await req('/crm/sales/assignment-queue', token)).total, 2);
+    checks.push(
+      'repeated availability return cannot exceed capacity or replace existing assignment',
+    );
   }
   writeFileSync(
-    process.env.QA_RESUME_HTTP ? 'docs/acceptance/2026-11-02-assignment-followup/http.json' : 'docs/acceptance/2026-11-02-assignment/http.json',
+    process.env.QA_RESUME_HTTP
+      ? 'docs/acceptance/2026-11-02-assignment-followup/http.json'
+      : 'docs/acceptance/2026-11-02-assignment/http.json',
     JSON.stringify(
       {
         checks,
         passed: checks.length,
-        database: 'isolated PostgreSQL/PGlite full schema RLS and real Nest HTTP guards',
+        database: existingApi
+          ? 'isolated independent PostgreSQL, unprivileged RLS role and production Nest entrypoint'
+          : 'isolated PostgreSQL/PGlite full schema RLS and real Nest HTTP guards',
       },
       null,
       2,
@@ -169,5 +216,5 @@ try {
   );
   console.log('ASSIGNMENT_HTTP_PASS', checks.length);
 } finally {
-  server.kill('SIGTERM');
+  server?.kill('SIGTERM');
 }

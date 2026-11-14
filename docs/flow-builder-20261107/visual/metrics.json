@@ -1,0 +1,327 @@
+{
+  "metrics": [
+    {
+      "locale": "en",
+      "width": 320,
+      "drawer": {
+        "x": 0,
+        "y": 0,
+        "width": 320,
+        "height": 936
+      },
+      "cards": [
+        {
+          "type": "Text",
+          "width": "264px",
+          "radius": "12px",
+          "border": "2px solid rgb(25, 147, 206)",
+          "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
+          "screenWidth": 120
+        },
+        {
+          "type": "End conversation",
+          "width": "264px",
+          "radius": "12px",
+          "border": "2px solid rgba(222, 227, 230, 0.42)",
+          "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
+          "screenWidth": 120.00006103515625
+        }
+      ]
+    },
+    {
+      "locale": "en",
+      "width": 390,
+      "drawer": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 936
+      },
+      "cards": [
+        {
+          "type": "Text",
+          "width": "264px",
+          "radius": "12px",
+          "border": "2px solid rgb(25, 147, 206)",
+          "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
+          "screenWidth": 151.8181915283203
+        },
+        {
+          "type": "End conversation",
+          "width": "264px",
+          "radius": "12px",
+          "border": "2px solid rgba(222, 227, 230, 0.42)",
+          "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
+          "screenWidth": 151.81817626953125
+        }
+      ]
+    },
+    {
+      "locale": "en",
+      "width": 768,
+      "drawer": {
+        "x": 0,
+        "y": 0,
+        "width": 576,
+        "height": 936
+      },
+      "cards": [
+        {
+          "type": "Text",
+          "width": "264px",
+          "radius": "12px",
+          "border": "2px solid rgb(25, 147, 206)",
+          "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
+          "screenWidth": 290.4000244140625
+        },
+        {
+          "type": "End conversation",
+          "width": "264px",
+          "radius": "12px",
+          "border": "2px solid rgba(222, 227, 230, 0.42)",
+          "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
+          "screenWidth": 290.4000244140625
+        }
+      ]
+    },
+    {
+      "locale": "en",
+      "width": 1366,
+      "drawer": {
+        "x": 0,
+        "y": 0,
+        "width": 576,
+        "height": 936
+      },
+      "cards": [
+        {
+          "type": "Text",
+          "width": "264px",
+          "radius": "12px",
+          "border": "2px solid rgb(25, 147, 206)",
+          "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
+          "screenWidth": 290.4000244140625
+        },
+        {
+          "type": "End conversation",
+          "width": "264px",
+          "radius": "12px",
+          "border": "2px solid rgba(222, 227, 230, 0.42)",
+          "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
+          "screenWidth": 290.40008544921875
+        }
+      ]
+    },
+    {
+      "locale": "en",
+      "width": 1920,
+      "drawer": {
+        "x": 0,
+        "y": 0,
+        "width": 576,
+        "height": 936
+      },
+      "cards": [
+        {
+          "type": "Text",
+          "width": "264px",
+          "radius": "12px",
+          "border": "2px solid rgb(25, 147, 206)",
+          "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
+          "screenWidth": 290.40008544921875
+        },
+        {
+          "type": "End conversation",
+          "width": "264px",
+          "radius": "12px",
+          "border": "2px solid rgba(222, 227, 230, 0.42)",
+          "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
+          "screenWidth": 290.4000244140625
+        }
+      ]
+    },
+    {
+      "locale": "ar",
+      "width": 320,
+      "drawer": {
+        "x": 0,
+        "y": 0,
+        "width": 320,
+        "height": 936
+      },
+      "cards": [
+        {
+          "type": "رسالة",
+          "width": "264px",
+          "radius": "12px",
+          "border": "2px solid rgb(25, 147, 206)",
+          "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
+          "screenWidth": 118.67721557617188
+        },
+        {
+          "type": "نهاية",
+          "width": "264px",
+          "radius": "12px",
+          "border": "2px solid rgba(222, 227, 230, 0.42)",
+          "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
+          "screenWidth": 118.67723083496094
+        }
+      ]
+    },
+    {
+      "locale": "ar",
+      "width": 390,
+      "drawer": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 936
+      },
+      "cards": [
+        {
+          "type": "رسالة",
+          "width": "264px",
+          "radius": "12px",
+          "border": "2px solid rgb(25, 147, 206)",
+          "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
+          "screenWidth": 151.29119873046875
+        },
+        {
+          "type": "نهاية",
+          "width": "264px",
+          "radius": "12px",
+          "border": "2px solid rgba(222, 227, 230, 0.42)",
+          "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
+          "screenWidth": 151.29119873046875
+        }
+      ]
+    },
+    {
+      "locale": "ar",
+      "width": 768,
+      "drawer": {
+        "x": 192,
+        "y": 0,
+        "width": 576,
+        "height": 936
+      },
+      "cards": [
+        {
+          "type": "رسالة",
+          "width": "264px",
+          "radius": "12px",
+          "border": "2px solid rgb(25, 147, 206)",
+          "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
+          "screenWidth": 290.4000244140625
+        },
+        {
+          "type": "نهاية",
+          "width": "264px",
+          "radius": "12px",
+          "border": "2px solid rgba(222, 227, 230, 0.42)",
+          "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
+          "screenWidth": 290.4000244140625
+        }
+      ]
+    },
+    {
+      "locale": "ar",
+      "width": 1366,
+      "drawer": {
+        "x": 790,
+        "y": 0,
+        "width": 576,
+        "height": 936
+      },
+      "cards": [
+        {
+          "type": "رسالة",
+          "width": "264px",
+          "radius": "12px",
+          "border": "2px solid rgb(25, 147, 206)",
+          "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
+          "screenWidth": 290.4000244140625
+        },
+        {
+          "type": "نهاية",
+          "width": "264px",
+          "radius": "12px",
+          "border": "2px solid rgba(222, 227, 230, 0.42)",
+          "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
+          "screenWidth": 290.40008544921875
+        }
+      ]
+    },
+    {
+      "locale": "ar",
+      "width": 1920,
+      "drawer": {
+        "x": 1344,
+        "y": 0,
+        "width": 576,
+        "height": 936
+      },
+      "cards": [
+        {
+          "type": "رسالة",
+          "width": "264px",
+          "radius": "12px",
+          "border": "2px solid rgb(25, 147, 206)",
+          "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
+          "screenWidth": 290.40008544921875
+        },
+        {
+          "type": "نهاية",
+          "width": "264px",
+          "radius": "12px",
+          "border": "2px solid rgba(222, 227, 230, 0.42)",
+          "font": "14.4px / 21.6px \"Plus Jakarta Sans Variable\", Arial, sans-serif",
+          "screenWidth": 290.4000244140625
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "Property drawer en 320",
+      "pass": true
+    },
+    {
+      "name": "Property drawer en 390",
+      "pass": true
+    },
+    {
+      "name": "Property drawer en 768",
+      "pass": true
+    },
+    {
+      "name": "Property drawer en 1366",
+      "pass": true
+    },
+    {
+      "name": "Property drawer en 1920",
+      "pass": true
+    },
+    {
+      "name": "Property drawer ar 320",
+      "pass": true
+    },
+    {
+      "name": "Property drawer ar 390",
+      "pass": true
+    },
+    {
+      "name": "Property drawer ar 768",
+      "pass": true
+    },
+    {
+      "name": "Property drawer ar 1366",
+      "pass": true
+    },
+    {
+      "name": "Property drawer ar 1920",
+      "pass": true
+    }
+  ],
+  "errors": []
+}

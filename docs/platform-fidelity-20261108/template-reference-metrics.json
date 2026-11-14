@@ -1,0 +1,61 @@
+{
+  "observedAt": "2026-11-08",
+  "source": "BotSailor live Mixed Template editor, read-only DOM/Computed Styles through Cloud Browser; no Save or Submit",
+  "viewport": {
+    "width": 1363,
+    "height": 936
+  },
+  "formColumn": {
+    "width": 499.90625,
+    "paddingInline": 12
+  },
+  "previewColumnRatio": "7/12 form, 5/12 preview as observed layout; 24px gutters",
+  "formCard": {
+    "width": 475.90625,
+    "border": "1px solid rgb(236, 239, 245)",
+    "borderRadius": "16px",
+    "padding": "18px 18px 16px",
+    "shadow": "rgba(15, 23, 42, 0.03) 0px 1px 2px 0px",
+    "background": "rgb(255, 255, 255)",
+    "bodyFontSize": "13px"
+  },
+  "basicCardHeight": 176,
+  "cardGap": 14,
+  "heading": {
+    "fontSize": "16px",
+    "fontWeight": "400",
+    "color": "rgb(31, 31, 31)"
+  },
+  "templateNameInput": {
+    "width": 210.953125,
+    "height": 52,
+    "border": "1px solid rgb(229, 231, 235)",
+    "borderRadius": "10px",
+    "padding": "8px 12px",
+    "fontSize": "12px",
+    "background": "rgb(248, 250, 252)"
+  },
+  "previewCard": {
+    "width": 333.078125,
+    "height": 304.296875,
+    "padding": "16px 16px 14px",
+    "borderRadius": "16px"
+  },
+  "limitations": [
+    "Only the 1363x936 live reference viewport was measured.",
+    "Account-identifying screenshot excluded from the public repository.",
+    "Modified Boat Two browser/pixel comparison has not been performed."
+  ],
+  "description": {
+    "fontSize": "11.6px",
+    "lineHeight": "16.24px",
+    "margin": "2px 0px 0px",
+    "color": "rgb(100, 116, 139)"
+  },
+  "label": {
+    "fontSize": "10px",
+    "lineHeight": "13px",
+    "margin": "0px 0px 5.6px",
+    "color": "rgb(95, 99, 104)"
+  }
+}

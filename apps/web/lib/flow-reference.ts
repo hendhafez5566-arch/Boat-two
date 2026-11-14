@@ -32,11 +32,11 @@ export function deriveFlowReference(
       source: id,
       sourceHandle: 'start',
       target: first.id,
-      type: 'default',
+      type: 'smoothstep',
       deletable: false,
       updatable: false,
       focusable: false,
-      style: { stroke: '#91a2b5', strokeWidth: 2 },
+      style: { stroke: '#778292', strokeWidth: 2 },
     } satisfies Edge,
   };
 }

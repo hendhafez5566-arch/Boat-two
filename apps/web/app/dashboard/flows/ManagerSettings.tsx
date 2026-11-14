@@ -341,8 +341,8 @@ export default function ManagerSettings({
       if (version !== request.current) return;
       setNotice(
         t(
-          'فُعّلت الخيارات المدعومة فقط: رد عدم التطابق، تشغيل رسالة البداية، إيقاف البوت أثناء ساعات العمل، ومهلة جلسة الإدخال. باقي الحقول مسودة.',
-          'Only supported options activated: no-match, get-started enablement, bot suppression during business hours, and input session expiry. Other fields remain drafts.',
+          'فُعّلت الخيارات المدعومة فقط: رد عدم التطابق، تشغيل رسالة البداية، إيقاف البوت أثناء ساعات العمل، ومهلتي جلسة الإدخال والموظف وتوقيع الموظف. باقي الحقول مسودة.',
+          'Only supported options activated: no-match, get-started enablement, bot suppression during business hours, input/human session expiry, and agent signature. Other fields remain drafts.',
         ),
       );
     } catch (e) {
@@ -401,8 +401,8 @@ export default function ManagerSettings({
       </nav>
       <p className={styles.settingsNotice} role="note">
         {t(
-          'الحفظ يحتفظ بالمسودة. التفعيل يطبق أربعة خيارات مدعومة فقط؛ التكاملات الأخرى غير مكتملة.',
-          'Saving retains a draft. Activation applies only four supported options; other integrations remain incomplete.',
+          'الحفظ يحتفظ بالمسودة. التفعيل يطبق الخيارات المدعومة فقط؛ التكاملات الأخرى غير مكتملة.',
+          'Saving retains a draft. Activation applies only supported options; other integrations remain incomplete.',
         )}
       </p>
       <fieldset
@@ -438,7 +438,8 @@ export default function ManagerSettings({
             )}
             <fieldset
               className={styles.frequency}
-              disabled={!canManage || !draft.general.getStartedEnabled}
+              disabled
+              aria-describedby="get-started-frequency-unavailable"
             >
               <legend>{labelText('GET STARTED MESSAGE FREQUENCY LIMIT')}</legend>
               <label>
@@ -460,6 +461,12 @@ export default function ManagerSettings({
                 {labelText('Once a day')}
               </label>
             </fieldset>
+            <p id="get-started-frequency-unavailable" className={styles.settingsDescription} role="note">
+              {t(
+                'تكرار رسالة البداية غير متاح في محرك التشغيل الحالي. تُحفظ القيمة السابقة دون تطبيقها عند التفعيل.',
+                'Get-started frequency is not supported by the current runtime. The existing value is preserved but is not applied on activation.',
+              )}
+            </p>
           </div>
         )}
         {active === 'webhook' && (
@@ -529,7 +536,7 @@ export default function ManagerSettings({
                       <th scope="row">{labelText(r.day)}</th>
                       <td>
                         <input
-                          aria-label={`${r.day} ${labelText('START')}`}
+                          aria-label={`${labelText(r.day)} ${labelText('START')}`}
                           type="time"
                           value={r.start}
                           onChange={(e) =>
@@ -545,7 +552,7 @@ export default function ManagerSettings({
                       </td>
                       <td>
                         <input
-                          aria-label={`${r.day} ${labelText('END')}`}
+                          aria-label={`${labelText(r.day)} ${labelText('END')}`}
                           type="time"
                           value={r.end}
                           onChange={(e) =>
@@ -599,8 +606,14 @@ export default function ManagerSettings({
               'ENABLE SIGNATURE MESSAGE · Enabled',
               draft.sharedInbox.signatureEnabled,
               (v) => put('sharedInbox', 'signatureEnabled', v),
-              true,
+              false,
             )}
+            <p className={styles.settingsDescription}>
+              {t(
+                'بعد التفعيل، يستخدم هذا الحساب قالب توقيع الموظف المحدد في إعدادات صندوق الوارد المشترك. لا يغيّر إعدادات الحسابات الأخرى.',
+                'After activation, this account uses the agent signature template configured in Shared Inbox settings. Other accounts keep their settings.',
+              )}
+            </p>
             <div className={styles.settingsSection}>
               {subhead('Session Expiry Time', 'Session Expiry Time Configuration')}
               {field(
