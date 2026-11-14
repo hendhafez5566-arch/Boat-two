@@ -1,9 +1,10 @@
 'use client';
-import { useRef, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import Link from 'next/link';
 import MetaConnect from './MetaConnect';
 import { useLocale } from './locale';
 import { useData } from '../business/useData';
+import { api } from '../../lib/api';
 import { channelConnectionState } from '../../lib/channel-overview';
 import styles from './meta-connection-page.module.css';
 type Account = {
@@ -39,6 +40,28 @@ export default function MetaConnectionPage({
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
+  const visibleGroups =
+    kind === 'whatsapp'
+      ? groups
+          .map((id) =>
+            visible.filter((account) => (account.businessAccountId || account.id) === id),
+          )
+          .filter((group) => group.length)
+      : [visible];
+  const [checking, setChecking] = useState<string | null>(null);
+  const [checkError, setCheckError] = useState('');
+  async function verifyPhone(id: string) {
+    setChecking(id);
+    setCheckError('');
+    try {
+      await api(`/channels/${id}/verify`, { method: 'POST' });
+      await accounts.reload();
+    } catch (cause) {
+      setCheckError((cause as Error).message);
+    } finally {
+      setChecking(null);
+    }
+  }
   const title =
     kind === 'whatsapp'
       ? t('تكامل WhatsApp', 'WhatsApp Integration')
@@ -159,6 +182,11 @@ export default function MetaConnectionPage({
               </select>
             </label>
           </div>
+          {checkError && (
+            <p role="alert" className="notice error">
+              {checkError}
+            </p>
+          )}
           {accounts.loading ? (
             <p role="status">{t('جارٍ التحميل…', 'Loading…')}</p>
           ) : !visible.length ? (
@@ -175,48 +203,76 @@ export default function MetaConnectionPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {visible.map((c) => (
-                    <tr key={c.id}>
-                      <td>
-                        <strong>{c.name}</strong>
-                        {c.businessAccountId && (
-                          <small>Business Account ID: {c.businessAccountId}</small>
-                        )}
-                        <small>
-                          {' '}
-                          {kind === 'whatsapp' ? 'Phone Number ID: ' : ''}
-                          {c.external_id}
-                        </small>
-                      </td>
-                      <td>
-                        {
-                          (
+                  {visibleGroups.map((group) => (
+                    <Fragment key={group[0].id}>
+                      {kind === 'whatsapp' && (
+                        <tr>
+                          <th colSpan={4}>
+                            <strong>{t('حساب أعمال WhatsApp', 'WhatsApp Business Account')}</strong>
+                            {' · '}
+                            <bdi>
+                              {group[0].businessAccountId ||
+                                t('المعرّف غير متاح', 'ID unavailable')}
+                            </bdi>
+                            <small>
+                              {t('أرقام الهاتف', 'Phone numbers')} ({group.length})
+                            </small>
+                          </th>
+                        </tr>
+                      )}
+                      {group.map((c) => (
+                        <tr key={c.id}>
+                          <td>
+                            <strong>{c.name}</strong>
+                            <small>
+                              {' '}
+                              {kind === 'whatsapp' ? 'Phone Number ID: ' : ''}
+                              {c.external_id}
+                            </small>
+                          </td>
+                          <td>
                             {
-                              connected: t('متصل', 'Connected'),
-                              expiring: t('ينتهي قريبًا', 'Expiring soon'),
-                              expired: t('تفويض منتهٍ', 'Authorization expired'),
-                              disconnected: t('متوقف', 'Disconnected'),
-                              needs_action: t('يحتاج إجراء', 'Needs action'),
-                            } as Record<string, string>
-                          )[channelConnectionState(c)]
-                        }
-                      </td>
-                      <td>
-                        {c.connectionHealth?.checkedAt
-                          ? new Date(c.connectionHealth.checkedAt).toLocaleString(
-                              language === 'ar' ? 'ar-EG' : 'en-GB',
-                            )
-                          : '—'}
-                      </td>
-                      <td>
-                        <Link className="btn" href={`/dashboard/flows?channelId=${c.id}`}>
-                          {t('إدارة', 'Manage')}
-                        </Link>
-                        <Link href={`/dashboard/channels?manage=${encodeURIComponent(c.id)}`}>
-                          {t('إعدادات الاتصال', 'Connection settings')}
-                        </Link>
-                      </td>
-                    </tr>
+                              (
+                                {
+                                  connected: t('متصل', 'Connected'),
+                                  expiring: t('ينتهي قريبًا', 'Expiring soon'),
+                                  expired: t('تفويض منتهٍ', 'Authorization expired'),
+                                  disconnected: t('متوقف', 'Disconnected'),
+                                  needs_action: t('يحتاج إجراء', 'Needs action'),
+                                } as Record<string, string>
+                              )[channelConnectionState(c)]
+                            }
+                          </td>
+                          <td>
+                            {c.connectionHealth?.checkedAt
+                              ? new Date(c.connectionHealth.checkedAt).toLocaleString(
+                                  language === 'ar' ? 'ar-EG' : 'en-GB',
+                                )
+                              : '—'}
+                          </td>
+                          <td>
+                            {kind === 'whatsapp' && c.status === 'active' && (
+                              <button
+                                className="btn"
+                                type="button"
+                                disabled={checking !== null}
+                                onClick={() => void verifyPhone(c.id)}
+                              >
+                                {checking === c.id
+                                  ? t('جارٍ التحقق…', 'Checking…')
+                                  : t('تحقق من الاتصال', 'Check connection')}
+                              </button>
+                            )}
+                            <Link className="btn" href={`/dashboard/flows?channelId=${c.id}`}>
+                              {t('إدارة', 'Manage')}
+                            </Link>
+                            <Link href={`/dashboard/channels?manage=${encodeURIComponent(c.id)}`}>
+                              {t('إعدادات الاتصال', 'Connection settings')}
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>

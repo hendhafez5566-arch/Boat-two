@@ -5,7 +5,6 @@ import { Fragment, useEffect, useState } from 'react';
 import ChannelLogo from '../../../components/product/ChannelLogo';
 import { NavIcon } from '../../../components/product/NavIcon';
 import Link from 'next/link';
-import MetaConnect from '../../../components/product/MetaConnect';
 import ChannelCatalog from '../../../components/product/ChannelCatalog';
 import ChannelSettings from '../../../components/product/ChannelSettings';
 import { useLocale } from '../../../components/product/locale';
@@ -98,18 +97,12 @@ const CHANNEL_NAMES: Record<string, string> = {
   telegram: 'Telegram',
   web: 'Webchat',
 };
-const FIELDS: Record<string, { key: string; label: string }[]> = {
-  telegram: [{ key: 'botToken', label: 'BotFather token' }],
-  web: [],
-};
-
 export default function Channels() {
   const { t, language } = useLocale();
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<Channel | null>(null);
   const [widget, setWidget] = useState<Channel | null>(null);
-  const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState('');
   const [items, setItems] = useState<Channel[]>([]);
   const [botDiagnostics, setBotDiagnostics] = useState<Record<string, BotReadiness>>({});
@@ -120,12 +113,9 @@ export default function Channels() {
   const [replacementToken, setReplacementToken] = useState('');
   const [tokenNotice, setTokenNotice] = useState('');
 
-  const [type, setType] = useState('web');
   const [error, setError] = useState('');
-  const [selected, setSelected] = useState('whatsapp');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
-  const [connectOpen, setConnectOpen] = useState(false);
   const [availableOpen, setAvailableOpen] = useState(true);
   const [platform, setPlatform] = useState('all');
   const [guideOpen, setGuideOpen] = useState(false);
@@ -288,31 +278,6 @@ export default function Channels() {
     load();
   }, []);
 
-  async function create(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (busy) return;
-    setBusy(true);
-    setSaved(false);
-    setError('');
-    const form = e.currentTarget;
-    const f = new FormData(form);
-    const body: Record<string, unknown> = { type, name: f.get('name') };
-    if (type !== 'web') {
-      body.credentials = Object.fromEntries(FIELDS[type].map((x) => [x.key, f.get(x.key)]));
-    }
-    try {
-      await api('/channels', { method: 'POST', body: JSON.stringify(body) });
-      form.reset();
-      await load();
-      setSaved(true);
-      setConnectOpen(false);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function remove(id: string) {
     setBusy(true);
     setError('');
@@ -458,11 +423,6 @@ export default function Channels() {
         {tokenNotice && (
           <p className="notice" role="status">
             {tokenNotice}
-          </p>
-        )}
-        {saved && (
-          <p className="notice" role="status">
-            {t('أُضيفت القناة.', 'Channel added.')}
           </p>
         )}
         {loading && <p role="status">{t('جارٍ تحميل القنوات…', 'Loading channels…')}</p>}
@@ -1202,84 +1162,8 @@ export default function Channels() {
             </span>
           </button>
         </header>
-        {availableOpen && (
-          <>
-            <ChannelCatalog
-              mode="connections"
-              selected={selected}
-              onSelect={(id) => {
-                if (['telegram', 'whatsapp', 'facebook', 'instagram', 'web'].includes(id)) {
-                  window.location.assign('/dashboard/channels/connect/' + id);
-                  return;
-                }
-                setSelected(id);
-                if (id === 'web' || id === 'telegram') setType(id);
-                setConnectOpen(true);
-              }}
-            />
-          </>
-        )}
+        {availableOpen && <ChannelCatalog />}
       </section>
-      <Dialog
-        open={connectOpen}
-        onClose={() => {
-          if (!busy) setConnectOpen(false);
-        }}
-        title={t('ربط الحساب', 'Connect Account') + ' · ' + (CHANNEL_NAMES[selected] || selected)}
-      >
-        {['web', 'telegram'].includes(selected) ? (
-          <>
-            <form onSubmit={create} className="card stack">
-              {type === 'telegram' && (
-                <p className="notice">
-                  {t(
-                    'أنشئ بوتًا من @BotFather وأدخل رمزه. لا تُسجل الإضافة Webhook تلقائيًا؛ افتح إعدادات القناة لتسجيله صراحة بعد توفير عنوان HTTPS عام. المجموعات اختيارية من إعدادات القناة؛ تُحمّل الوسائط عبر مسار محمي دون إظهار الرمز.',
-                    'Create a bot with @BotFather and enter its token. Adding a channel does not register a webhook automatically; open channel settings to explicitly register it after configuring public HTTPS. Groups are opt-in in channel settings; media downloads use an authenticated route without exposing the bot token.',
-                  )}
-                </p>
-              )}
-              <label className="field">
-                {t('اسم القناة', 'Channel name')}
-                <input name="name" required maxLength={80} />
-              </label>
-              {FIELDS[type].map((x) => (
-                <label className="field" key={x.key + type}>
-                  {(
-                    {
-                      phoneNumberId: t('معرّف رقم الهاتف', 'Phone Number ID'),
-                      wabaId: t('معرّف حساب WhatsApp Business', 'WhatsApp Business Account ID'),
-                      accessToken: t('رمز الوصول', 'Access Token'),
-                      pageId: t('معرّف الصفحة', 'Page ID'),
-                      pageAccessToken: t('رمز وصول الصفحة', 'Page Access Token'),
-                      igAccountId: t('معرّف حساب Instagram', 'Instagram Account ID'),
-                      botToken: t('رمز البوت من BotFather', 'BotFather bot token'),
-                    } as Record<string, string>
-                  )[x.key] || x.label}
-                  <input
-                    type={x.key.toLowerCase().includes('token') ? 'password' : 'text'}
-                    autoComplete="off"
-                    name={x.key}
-                    required
-                    dir="ltr"
-                    className="rounded border p-2"
-                  />
-                </label>
-              ))}
-              <button className="btn btn-primary" disabled={busy}>
-                {busy ? t('جارٍ الإضافة…', 'Adding…') : t('إضافة القناة', 'Add channel')}
-              </button>
-            </form>
-          </>
-        ) : (
-          <MetaConnect
-            onSaved={() => {
-              void load();
-              setConnectOpen(false);
-            }}
-            selectedKind={selected}
-          />
-        )}
-      </Dialog>
       <Dialog
         open={!!widget}
         onClose={() => {
