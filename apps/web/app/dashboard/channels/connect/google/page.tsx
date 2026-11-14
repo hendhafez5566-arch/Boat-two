@@ -28,6 +28,29 @@ export default function GoogleConnectionPage() {
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [disconnecting, setDisconnecting] = useState<string | null>(null);
+  async function disconnect(account: Account) {
+    if (
+      disconnecting ||
+      !window.confirm(
+        t(
+          'هل تريد فصل حساب Google؟ ستتوقف التكاملات التي تستخدم هذا الحساب.',
+          'Disconnect this Google account? Integrations using this account will stop.',
+        ),
+      )
+    )
+      return;
+    setDisconnecting(account.id);
+    setError('');
+    try {
+      await api(`/integrations/${account.id}/disconnect`, { method: 'POST' });
+      await accounts.reload();
+    } catch (cause) {
+      setError((cause as Error).message);
+    } finally {
+      setDisconnecting(null);
+    }
+  }
   async function connect() {
     setBusy(true);
     setError('');
@@ -164,9 +187,18 @@ export default function GoogleConnectionPage() {
                   )}
                 </ul>
               </details>
-              <Link className="btn" href="/dashboard/settings?tab=integrations">
-                {t('إدارة الحساب', 'Manage account')}
-              </Link>
+              {a.status !== 'disconnected' && (
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={disconnecting !== null}
+                  onClick={() => void disconnect(a)}
+                >
+                  {disconnecting === a.id
+                    ? t('جارٍ الفصل…', 'Disconnecting…')
+                    : t('فصل الحساب', 'Disconnect account')}
+                </button>
+              )}
             </div>
           ))
         ) : (
