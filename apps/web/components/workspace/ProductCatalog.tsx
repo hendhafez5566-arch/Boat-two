@@ -17,6 +17,7 @@ export type CatalogProduct = {
   catalog_id: string | null;
   retailer_id: string | null;
   archived: boolean;
+  category_id?: string | null;
 };
 export function ProductImage({ product }: { product: Pick<CatalogProduct, 'image_url' | 'name'> }) {
   const [failed, setFailed] = useState(false);
@@ -37,6 +38,11 @@ export function ProductImage({ product }: { product: Pick<CatalogProduct, 'image
 }
 export default function ProductCatalog() {
   const { t } = useLocale();
+  const categories = useData<{ id: string; name: string }[]>('/commerce/categories', []);
+  const [category, setCategory] = useState('all');
+  const [categoryEditing, setCategoryEditing] = useState('');
+  const [draftImage, setDraftImage] = useState<string | null>(null);
+  const [serverPreview, setServerPreview] = useState('');
   const products = useData<CatalogProduct[]>('/commerce/products', []);
   const [query, setQuery] = useState(''),
     [status, setStatus] = useState('active'),
@@ -50,6 +56,8 @@ export default function ProductCatalog() {
   const rows = products.data
     .filter(
       (p) =>
+        (category === 'all' ||
+          (category === 'none' ? !p.category_id : p.category_id === category)) &&
         (status === 'all' || p.archived === (status === 'archived')) &&
         `${p.name} ${p.sku} ${p.description}`
           .toLocaleLowerCase()
@@ -81,6 +89,7 @@ export default function ProductCatalog() {
           description: f.get('description'),
           priceCents: productMinorUnits(String(f.get('price'))),
           currency: f.get('currency'),
+          categoryId: f.get('category') || null,
           ...(f.get('image') ? { imageUrl: f.get('image') } : {}),
           ...(f.get('link') ? { linkUrl: f.get('link') } : {}),
           ...(f.get('catalog') ? { catalogId: f.get('catalog') } : {}),
@@ -98,6 +107,41 @@ export default function ProductCatalog() {
       setBusy(false);
     }
   }
+  async function saveCategory(form: HTMLFormElement) {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      const f = new FormData(form);
+      await api('/commerce/categories' + (categoryEditing ? '/' + categoryEditing : ''), {
+        method: categoryEditing ? 'PATCH' : 'POST',
+        body: JSON.stringify({ name: f.get('categoryName') }),
+      });
+      await categories.reload();
+      form.reset();
+      setCategoryEditing('');
+      setSuccess(t('تم حفظ القسم.', 'Category saved.'));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
+  async function previewSaved(p: CatalogProduct) {
+    setError('');
+    setServerPreview('');
+    setPreview(p);
+    try {
+      const r = await api<{ content: { text?: string } }>(`/commerce/products/${p.id}/preview`, {
+        method: 'POST',
+      });
+      setServerPreview(r.content.text ?? '');
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
   return (
     <section className={styles.root} aria-label={t('إدارة المنتجات', 'Product management')}>
       <header className={styles.header}>
@@ -113,6 +157,7 @@ export default function ProductCatalog() {
         <button
           className="btn btn-primary"
           onClick={() => {
+            setDraftImage(null);
             setEditing(null);
             setError('');
           }}
@@ -133,7 +178,60 @@ export default function ProductCatalog() {
           </button>
         </p>
       )}
+      <details className="card">
+        <summary>{t('إدارة الأقسام المحلية', 'Manage local categories')}</summary>
+        <p>
+          {t(
+            'لتنظيم المنتجات اليدوية؛ هذه الأقسام مستقلة عن كتالوج Meta ومصادر البيانات.',
+            'Organize manual products. Categories are separate from Meta catalogs and data sources.',
+          )}
+        </p>
+        {categories.error && <p role="alert">{categories.error}</p>}
+        <form
+          className="form-actions"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void saveCategory(e.currentTarget);
+          }}
+        >
+          <label className="field">
+            {t('القسم المطلوب تعديله', 'Category to edit')}
+            <select value={categoryEditing} onChange={(e) => setCategoryEditing(e.target.value)}>
+              <option value="">{t('إنشاء قسم', 'New category')}</option>
+              {categories.data.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field" key={categoryEditing}>
+            {t('اسم القسم', 'Category name')}
+            <input
+              name="categoryName"
+              required
+              maxLength={120}
+              defaultValue={categories.data.find((c) => c.id === categoryEditing)?.name ?? ''}
+            />
+          </label>
+          <button className="btn" disabled={busy}>
+            {t('حفظ القسم', 'Save category')}
+          </button>
+        </form>
+      </details>
       <div className={styles.toolbar}>
+        <label className="field">
+          {t('القسم', 'Category')}
+          <select value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option value="all">{t('كل الأقسام', 'All categories')}</option>
+            <option value="none">{t('دون قسم', 'Uncategorized')}</option>
+            {categories.data.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="field">
           {t('البحث', 'Search')}
           <input
@@ -174,6 +272,10 @@ export default function ProductCatalog() {
                   {p.archived ? t('مؤرشف', 'Archived') : t('نشط', 'Active')}
                 </span>
                 <h3>{p.name}</h3>
+                <small>
+                  {categories.data.find((c) => c.id === p.category_id)?.name ??
+                    t('دون قسم', 'Uncategorized')}
+                </small>
                 <strong dir="ltr">{productPrice(p.price_cents, p.currency)}</strong>
                 <p>{p.description}</p>
                 <small>SKU: {p.sku}</small>
@@ -181,13 +283,14 @@ export default function ProductCatalog() {
                   <button
                     className="btn"
                     onClick={() => {
+                      setDraftImage(p.image_url);
                       setEditing(p);
                       setError('');
                     }}
                   >
                     {t('تعديل', 'Edit')}
                   </button>
-                  <button className="btn" onClick={() => setPreview(p)}>
+                  <button className="btn" onClick={() => void previewSaved(p)}>
                     {t('معاينة', 'Preview')}
                   </button>
                 </div>
@@ -232,6 +335,17 @@ export default function ProductCatalog() {
                 {error}
               </p>
             )}
+            <label className="field">
+              {t('قسم المنتج', 'Product category')}
+              <select name="category" defaultValue={editing?.category_id ?? ''}>
+                <option value="">{t('دون قسم', 'Uncategorized')}</option>
+                {categories.data.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
             <fieldset className={styles.section}>
               <legend>{t('المعلومات الأساسية', 'Basic information')}</legend>
               <div className="form-grid">
@@ -299,6 +413,14 @@ export default function ProductCatalog() {
                 <input name="link" type="url" defaultValue={editing?.link_url ?? ''} dir="ltr" />
               </label>
             </fieldset>
+            {draftImage && (
+              <div className={styles.preview}>
+                <ProductImage
+                  key={draftImage}
+                  product={{ name: t('معاينة الصورة', 'Image preview'), image_url: draftImage }}
+                />
+              </div>
+            )}
             <details>
               <summary>
                 {t('تكامل كتالوج Meta (إعدادات متقدمة)', 'Meta catalog integration (advanced)')}
@@ -359,6 +481,7 @@ export default function ProductCatalog() {
             <h3>{preview.name}</h3>
             <strong dir="ltr">{productPrice(preview.price_cents, preview.currency)}</strong>
             <p>{preview.description}</p>
+            {serverPreview && <p>{serverPreview}</p>}
           </div>
         </section>
       )}

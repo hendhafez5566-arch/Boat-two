@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useData } from '../business/useData';
 import { useLocale } from '../product/locale';
 import { CatalogProduct, ProductImage } from '../workspace/ProductCatalog';
 import { productPrice } from '../../lib/product-money';
@@ -20,13 +21,28 @@ export default function ProductPicker({
   loading: boolean;
 }) {
   const { t } = useLocale();
+  const categories = useData<{ id: string; name: string }[]>('/commerce/categories', []);
+  const [category, setCategory] = useState('all');
   const [query, setQuery] = useState('');
   const visible = products.filter(
     (p) =>
-      !p.archived && `${p.name} ${p.sku}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
+      !p.archived &&
+      (category === 'all' || p.category_id === category) &&
+      `${p.name} ${p.sku}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
   );
   return (
     <div className={styles.picker}>
+      <label className="field">
+        {t('القسم', 'Category')}
+        <select value={category} onChange={(e) => setCategory(e.target.value)}>
+          <option value="all">{t('كل الأقسام', 'All categories')}</option>
+          {categories.data.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </label>
       <label className="field">
         {t('البحث عن منتج', 'Find a product')}
         <input
@@ -42,7 +58,7 @@ export default function ProductPicker({
         <strong>
           {t('المنتجات المختارة', 'Selected products')} ({selected.length})
         </strong>
-        {selected.map((id) => {
+        {selected.map((id, index) => {
           const p = products.find((p) => p.id === id);
           return (
             <div key={id}>
@@ -50,6 +66,36 @@ export default function ProductPicker({
                 {p?.name ?? t('منتج غير متاح', 'Unavailable product')}
                 {p?.archived ? t(' (مؤرشف)', ' (archived)') : ''}
               </span>
+              {multiple && (
+                <>
+                  <button
+                    className="btn"
+                    type="button"
+                    disabled={index === 0}
+                    onClick={() => {
+                      const ids = [...selected];
+                      [ids[index - 1], ids[index]] = [ids[index], ids[index - 1]];
+                      onChange(ids);
+                    }}
+                    aria-label={`${t('تقديم', 'Move up')} ${p?.name ?? ''}`}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    className="btn"
+                    type="button"
+                    disabled={index === selected.length - 1}
+                    onClick={() => {
+                      const ids = [...selected];
+                      [ids[index + 1], ids[index]] = [ids[index], ids[index + 1]];
+                      onChange(ids);
+                    }}
+                    aria-label={`${t('تأخير', 'Move down')} ${p?.name ?? ''}`}
+                  >
+                    ↓
+                  </button>
+                </>
+              )}
               <button
                 className="btn"
                 type="button"

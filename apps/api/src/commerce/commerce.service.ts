@@ -19,6 +19,27 @@ export class CommerceService {
     private google: GoogleService,
     private effects: ExternalEffects,
   ) {}
+  categories(tenant: string) {
+    return this.db.withTenant(
+      tenant,
+      async (c) => (await c.query('SELECT id,name FROM product_categories ORDER BY name')).rows,
+    );
+  }
+  saveCategory(tenant: string, name: string, id?: string) {
+    return this.db.withTenant(tenant, async (c) => {
+      const result = id
+        ? await c.query('UPDATE product_categories SET name=$2 WHERE id=$1 RETURNING id,name', [
+            id,
+            name,
+          ])
+        : await c.query(
+            'INSERT INTO product_categories(tenant_id,name) VALUES($1,$2) RETURNING id,name',
+            [tenant, name],
+          );
+      if (!result.rows[0]) throw new NotFoundException('Category unavailable');
+      return result.rows[0];
+    });
+  }
   products(tenant: string) {
     return this.db.withTenant(
       tenant,
@@ -36,7 +57,7 @@ export class CommerceService {
       async (c) =>
         (
           await c.query(
-            `INSERT INTO catalog_products(id,tenant_id,sku,name,description,price_cents,currency,image_url,link_url,catalog_id,retailer_id,archived) VALUES(COALESCE($1::uuid,gen_random_uuid()),$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(id) DO UPDATE SET sku=EXCLUDED.sku,name=EXCLUDED.name,description=EXCLUDED.description,price_cents=EXCLUDED.price_cents,currency=EXCLUDED.currency,image_url=EXCLUDED.image_url,link_url=EXCLUDED.link_url,catalog_id=EXCLUDED.catalog_id,retailer_id=EXCLUDED.retailer_id,archived=EXCLUDED.archived,updated_at=now() WHERE catalog_products.source_id IS NULL RETURNING *`,
+            `INSERT INTO catalog_products(id,tenant_id,sku,name,description,price_cents,currency,image_url,link_url,catalog_id,retailer_id,archived,category_id) VALUES(COALESCE($1::uuid,gen_random_uuid()),$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT(id) DO UPDATE SET sku=EXCLUDED.sku,name=EXCLUDED.name,description=EXCLUDED.description,price_cents=EXCLUDED.price_cents,currency=EXCLUDED.currency,image_url=EXCLUDED.image_url,link_url=EXCLUDED.link_url,catalog_id=EXCLUDED.catalog_id,retailer_id=EXCLUDED.retailer_id,archived=EXCLUDED.archived,category_id=CASE WHEN $14 THEN EXCLUDED.category_id ELSE catalog_products.category_id END,updated_at=now() WHERE catalog_products.source_id IS NULL RETURNING *`,
             [
               id ?? null,
               tenant,
@@ -50,6 +71,8 @@ export class CommerceService {
               input.catalogId ?? null,
               input.retailerId ?? null,
               input.archived,
+              input.categoryId ?? null,
+              input.categoryId !== undefined,
             ],
           )
         ).rows[0],
@@ -110,7 +133,12 @@ export class CommerceService {
         text,
         productList: {
           catalogId: rows[0].catalog_id,
-          sections: [{ title: 'Products', retailerIds: rows.map((p) => p.retailer_id) }],
+          sections: [
+            {
+              title: 'Products',
+              retailerIds: ids.map((id) => rows.find((p) => p.id === id)!.retailer_id),
+            },
+          ],
         },
       };
     }
