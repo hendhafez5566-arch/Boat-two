@@ -7,11 +7,16 @@ import { useLocale } from '../../../../../components/product/locale';
 import { Dialog } from '../../../../../components/product/ProductUI';
 import styles from '../../../../../components/product/meta-connection-page.module.css';
 type Widget = {
+  type: string;
   id: string;
   name: string;
   status: string;
   widgetSnippet?: string;
-  settings?: { allowedOrigins?: string[] };
+  settings?: Partial<typeof defaults> & {
+    allowedOrigins?: string[];
+    position?: string;
+    verticalPosition?: string;
+  };
 };
 const defaults = {
   title: '',
@@ -32,13 +37,37 @@ const defaults = {
 export default function WebchatConnectionPage() {
   const { t, language } = useLocale();
   const data = useData<Widget[]>('/channels', []),
-    rows = data.data.filter((a) => 'type' in a && a.type === 'web');
+    rows = data.data.filter((a) => a.type === 'web');
   const [open, setOpen] = useState(false),
     [form, setForm] = useState(defaults),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [search, setSearch] = useState(''),
     [code, setCode] = useState<Widget | null>(null);
+  const [editing, setEditing] = useState<Widget | null>(null);
+  const visible = rows.filter((widget) =>
+    [widget.name, ...(widget.settings?.allowedOrigins ?? [])].some((value) =>
+      value.toLowerCase().includes(search.trim().toLowerCase()),
+    ),
+  );
+  function openForm(widget: Widget | null) {
+    setEditing(widget);
+    setError('');
+    const settings = widget?.settings;
+    setForm(
+      widget
+        ? {
+            ...defaults,
+            ...settings,
+            title: settings?.title ?? widget.name,
+            website: settings?.allowedOrigins?.[0] ?? '',
+            placement:
+              (settings?.verticalPosition ?? 'bottom') + '-' + (settings?.position ?? 'left'),
+          }
+        : defaults,
+    );
+    setOpen(true);
+  }
   const set = (key: string, value: string | number) => setForm((f) => ({ ...f, [key]: value }));
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -46,14 +75,16 @@ export default function WebchatConnectionPage() {
     setError('');
     try {
       const origin = new URL(form.website).origin;
-      await api('/channels', {
-        method: 'POST',
+      await api(editing ? '/channels/' + editing.id : '/channels', {
+        method: editing ? 'PATCH' : 'POST',
         body: JSON.stringify({
-          type: 'web',
+          ...(!editing && { type: 'web' }),
           name: form.title,
           settings: {
             title: form.title,
-            allowedOrigins: [origin],
+            allowedOrigins: [
+              ...new Set([origin, ...(editing?.settings?.allowedOrigins?.slice(1) ?? [])]),
+            ],
             themeBackground: form.themeBackground,
             themeText: form.themeText,
             bubbleBackground: form.bubbleBackground,
@@ -104,16 +135,23 @@ export default function WebchatConnectionPage() {
         ))}
       </div>
       <section className="card stack">
+        <h2>{t('أنشئ ويدجت المحادثة المباشرة', 'Create Your Live Chat Widget')}</h2>
+        <p>
+          {t(
+            'خصّص نافذة المحادثة وحدد المواقع التي يمكن عرضها عليها.',
+            'Customize the chat window and choose the websites that can display it.',
+          )}
+        </p>
         <button
           className="btn btn-primary"
           style={{ alignSelf: 'start' }}
-          onClick={() => {
-            setError('');
-            setOpen(true);
-          }}
+          onClick={() => openForm(null)}
         >
           {t('إنشاء ويدجت محادثة مباشرة', 'Create Live Chat Widget')}
         </button>
+      </section>
+      <section className="card stack">
+        <h2>{t('ويدجت المحادثة', 'Your Chat Widgets')}</h2>
         <label>
           {t('بحث', 'Search')}
           <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -134,24 +172,31 @@ export default function WebchatConnectionPage() {
               </tr>
             </thead>
             <tbody>
-              {rows
-                .filter((a) => a.name.toLowerCase().includes(search.toLowerCase()))
-                .map((a) => (
-                  <tr key={a.id}>
-                    <td>{a.name}</td>
-                    <td>{a.settings?.allowedOrigins?.join(', ') || '—'}</td>
-                    <td>{a.status === 'active' ? t('نشط', 'Active') : t('غير نشط', 'Inactive')}</td>
-                    <td>
-                      <button className="btn" onClick={() => setCode(a)}>
-                        {t('كود التضمين', 'Get Embed Code')}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+              {visible.map((a) => (
+                <tr key={a.id}>
+                  <td>{a.name}</td>
+                  <td>{a.settings?.allowedOrigins?.join(', ') || '—'}</td>
+                  <td>{a.status === 'active' ? t('نشط', 'Active') : t('غير نشط', 'Inactive')}</td>
+                  <td>
+                    <button className="btn" onClick={() => openForm(a)}>
+                      {t('الإعدادات', 'Settings')}
+                    </button>
+                    <button className="btn" onClick={() => setCode(a)}>
+                      {t('كود التضمين', 'Get Embed Code')}
+                    </button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
-        {!rows.length && !data.loading && <p>{t('لا توجد ويدجت بعد.', 'No widgets yet.')}</p>}
+        {!visible.length && !data.loading && (
+          <p>
+            {rows.length
+              ? t('لا توجد نتائج مطابقة.', 'No matching widgets.')
+              : t('لا توجد ويدجت بعد.', 'No widgets yet.')}
+          </p>
+        )}
       </section>
       <Dialog
         open={open}

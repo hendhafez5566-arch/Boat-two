@@ -202,3 +202,16 @@
   .method header { padding: 14px; }
   .body { padding: 14px; }
 }
+
+.socialSetup {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+}
+
+@media (max-width: 800px) {
+  .socialSetup {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -22,6 +22,10 @@ export default function GoogleConnectionPage() {
   );
   const accounts = useData<Account[]>('/integrations', []);
   const rows = accounts.data.filter((a) => a.provider === 'google');
+  const [search, setSearch] = useState('');
+  const visible = rows.filter((account) =>
+    account.name.toLowerCase().includes(search.trim().toLowerCase()),
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   async function connect() {
@@ -124,9 +128,21 @@ export default function GoogleConnectionPage() {
         )}
       </section>
       <section className="card stack">
-        <h2>{t('الحسابات المتصلة', 'Connected Accounts')}</h2>
+        <h2>{t('حسابات Google', 'Google Accounts')}</h2>
+        <label className="field">
+          {t('بحث في حسابات Google', 'Search Google accounts')}
+          <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} />
+        </label>
+        {accounts.error && (
+          <button className="btn" onClick={() => void accounts.reload()}>
+            {t('إعادة التحميل', 'Reload')}
+          </button>
+        )}
+        {!!rows.length && !visible.length && (
+          <p>{t('لا توجد نتائج مطابقة.', 'No matching accounts.')}</p>
+        )}
         {rows.length ? (
-          rows.map((a) => (
+          visible.map((a) => (
             <div className="card" key={a.id}>
               <strong>{a.name}</strong>
               <p>
@@ -134,6 +150,20 @@ export default function GoogleConnectionPage() {
                   ? t('متصل', 'Connected')
                   : t('غير متصل', 'Disconnected')}
               </p>
+              <details>
+                <summary>{t('الخدمات المتصلة', 'Connected services')}</summary>
+                <ul>
+                  {a.config?.scopes?.some((scope) => scope.includes('/auth/calendar')) && (
+                    <li>Google Calendar</li>
+                  )}
+                  {a.config?.scopes?.some((scope) => scope.includes('/auth/contacts')) && (
+                    <li>{t('جهات اتصال Google', 'Google Contacts')}</li>
+                  )}
+                  {!a.config?.scopes?.length && (
+                    <li>{t('لا توجد صلاحيات مسجلة.', 'No scopes recorded.')}</li>
+                  )}
+                </ul>
+              </details>
               <Link className="btn" href="/dashboard/settings?tab=integrations">
                 {t('إدارة الحساب', 'Manage account')}
               </Link>

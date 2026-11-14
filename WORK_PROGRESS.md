@@ -191,3 +191,7 @@ Product source1f249b6b pushed/verified. API-before-Web deploy staged on the same
 - Added dedicated Webchat list/setup modal. Theme/bubble colors, HTTPS logo URL, wallpaper color, font allowlist, four placements, startup state, offsets and delay now persist and affect the real shadow-DOM widget. Existing legacy header/wallpaper behavior is retained when new keys are absent. No visitor upload/help tabs or fake controls; these reference gaps remain explicit.
 - Main cards gain observed WhatsApp recommendation and secure footer; catalog navigates directly to channel-specific surfaces. Expanded isolated browser checks capture main/Google/Webchat setup, saved row and actual widget runtime, asserting saved settings, provider-start errors and viewport containment. Results pending CI.
 - Fresh Web/API builds, scoped lint and all229 API tests PASS after runtime/schema changes. No live connection, production messages, deployment, new infrastructure or Sleep mutation.
+
+### Connect Account continuation
+
+Inspected the signed-in BotSailor overview and Facebook, Instagram, Google, and Webchat entry pages in the cloud browser. Added separate social setup and benefits panels, Google account search and scope details, and persistent Webchat settings editing alongside its separate creation and widget-list sections. Live provider authorization and acceptance of this branch on Railway remain pending. Next action is to verify this exact commit with CI and inspect the build on the existing preview before acceptance.

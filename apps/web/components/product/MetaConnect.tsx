@@ -347,32 +347,44 @@ export default function MetaConnect({
           </section>
         </div>
       ) : (
-        <section className={`card stack ${styles.meta}`}>
-          <h2>
-            {kind === 'instagram'
-              ? t('اربط حساب Instagram الخاص بك', 'Connect Your Instagram Account')
-              : t('اربط حساب Facebook الخاص بك', 'Connect Your Facebook Account')}
-          </h2>
-          <p>
-            {t(
-              'اربط حسابك لإدارة المحادثات وأتمتة الردود وتنمية جمهورك.',
-              'Connect your account to manage conversations, automate replies and grow your audience.',
-            )}
-          </p>
-          <ul>
-            <li>{t('إدارة الصفحات والوارد', 'Manage Pages & Inbox')}</li>
-            <li>{t('بوت للمحادثات', 'Messaging Chatbot')}</li>
-            <li>{t('الأتمتة والنمو', 'Automation & Growth')}</li>
-            <li>{t('آمن وموثوق', 'Secure & Reliable')}</li>
-          </ul>
-          <button
-            className="btn btn-primary"
-            disabled={busy || !enabled}
-            onClick={() => connect(kind)}
-          >
-            {t('تسجيل الدخول باستخدام Facebook', 'Login with Facebook')}
-          </button>
-        </section>
+        <div className={styles.socialSetup}>
+          <section className={`card stack ${styles.meta}`}>
+            <h2>
+              {kind === 'instagram'
+                ? t('اربط حساب Instagram الخاص بك', 'Connect Your Instagram Account')
+                : t('اربط حساب Facebook الخاص بك', 'Connect Your Facebook Account')}
+            </h2>
+            <p>
+              {t(
+                'اربط حسابك لإدارة المحادثات وأتمتة الردود وتنمية جمهورك.',
+                'Connect your account to manage conversations, automate replies and grow your audience.',
+              )}
+            </p>
+            <button
+              className="btn btn-primary"
+              disabled={busy || !enabled}
+              onClick={() => connect(kind)}
+            >
+              {t('تسجيل الدخول باستخدام Facebook', 'Login with Facebook')}
+            </button>
+          </section>
+          <aside className="card stack">
+            <h2>
+              {kind === 'instagram'
+                ? t('لماذا تربط Instagram؟', 'Why connect Instagram?')
+                : t('لماذا تربط Facebook؟', 'Why connect Facebook?')}
+            </h2>
+            <ul>
+              <li>
+                {kind === 'instagram'
+                  ? t('إدارة الرسائل المباشرة', 'Manage direct messages')
+                  : t('إدارة رسائل صفحاتك', 'Manage Page messages')}
+              </li>
+              <li>{t('أتمتة الردود', 'Automate replies')}</li>
+              <li>{t('الرد من صندوق الوارد المشترك', 'Reply from the shared inbox')}</li>
+            </ul>
+          </aside>
+        </div>
       )}
       {!config.loading && !enabled && (
         <div className="notice">
