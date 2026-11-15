@@ -1,3 +1,11 @@
+Visual reinspection of the real 320px CI screenshots found mixed Arabic/Latin selected-product titles and prices running together. Selected cards now isolate bidirectional names/numbers, put prices on a separate line and use compact labeled action icons; the selected list has room for two cards. Product modal and interactive simulator screenshots were inspected, not inferred from assertions.
+
+Category deletion acceptance found duplicate error rendering in the dialog and underlying page. Modal errors now stay in their action context and clear on cancel; rejection assertion is scoped to the confirmation dialog. The nonempty-delete API correctly returned a conflict and retained products.
+
+## Live navigation defect reproduced
+
+Cloud Browser: from embedded Commerce → Data sources, clicking Bot manager changed the URL but left Data sources on screen. The manager's local section state survived client navigation on the same route. Return now uses an explicit account-scoped automation URL and a document navigation, so the manager initializes the requested section. New isolated AR/EN × five-width regression checks the destination heading and retained channel ID.
+
 Import confirmation and result now identify the destination source; the result has a real Manage this source action returning to its saved configuration. Added/updated/unchanged breakdown remains pending backend statistics and is not fabricated in the UI.
 
 ## Safe category management batch

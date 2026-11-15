@@ -5,6 +5,7 @@ import ProductCatalog from './ProductCatalog';
 import DataSourcesPanel from './DataSourcesPanel';
 import ChannelScope from '../product/ChannelScope';
 import { useChannelContext } from '../product/useChannelContext';
+import { channelHref } from '../../lib/channel-context';
 
 import { useRef, useState } from 'react';
 import Link from 'next/link';
@@ -120,9 +121,9 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
                 {t(ar, en)}
               </button>
             ))}
-          <Link className="btn" href="/dashboard/flows?section=bot_reply">
+          <a className="btn" href={channelHref('/dashboard/flows?section=bot_reply', channelId)}>
             {t('مدير البوت', 'Bot manager')}
-          </Link>
+          </a>
           {tab === 'appointments' && (
             <Link className="btn" href="/dashboard/integrations">
               {t('تفويض Calendar والتكاملات', 'Calendar authorization and integrations')}

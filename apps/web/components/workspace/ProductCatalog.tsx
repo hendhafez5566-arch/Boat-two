@@ -52,6 +52,7 @@ export default function ProductCatalog() {
     ) {
       setEditing(undefined);
       setEditorDirty(false);
+      setError('');
     }
   };
   const [category, setCategory] = useState('all');
@@ -238,7 +239,7 @@ export default function ProductCatalog() {
               {success}
             </p>
           )}
-          {(products.error || (error && editing === undefined)) && (
+          {(products.error || (error && editing === undefined && !categoriesOpen && !deleteCategory)) && (
             <p className="notice error" role="alert">
               {products.error || error}
               <button className="btn" onClick={() => void products.reload()}>
@@ -305,12 +306,12 @@ export default function ProductCatalog() {
               </div>
             </header>
           )}
-          <Dialog open={!!deleteCategory} onClose={() => {if (!busy) setDeleteCategory(null);}} title={t('حذف القسم؟', 'Delete category?')}>
+          <Dialog open={!!deleteCategory} onClose={() => {if (!busy) {setDeleteCategory(null); setError('');}}} title={t('حذف القسم؟', 'Delete category?')}>
             <p>{deleteCategory?.name}</p>
             <p>{t('يمكن حذف القسم الفارغ فقط. انقل المنتجات النشطة والمؤرشفة إلى قسم آخر أولًا. حذف القسم نهائي.', 'Only empty categories can be deleted. Move active and archived products to another category first. Deletion is permanent.')}</p>
             {error && <p className="notice error" role="alert">{error}</p>}
             <div className="form-actions">
-              <button type="button" className="btn" disabled={busy} onClick={() => setDeleteCategory(null)}>{t('إلغاء', 'Cancel')}</button>
+              <button type="button" className="btn" disabled={busy} onClick={() => {setDeleteCategory(null); setError('');}}>{t('إلغاء', 'Cancel')}</button>
               <button type="button" className="btn btn-danger" disabled={busy} onClick={async () => {
                 if (!deleteCategory || lock.current) return;
                 lock.current = true; setBusy(true); setError('');

@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { Dialog } from '../product/ProductUI';
+import { NavIcon } from '../product/NavIcon';
 import { useData } from '../business/useData';
 import { useLocale } from '../product/locale';
 import { CatalogProduct, ProductImage } from '../workspace/ProductCatalog';
@@ -112,16 +113,16 @@ export default function ProductPicker({
             const p = products.find((p) => p.id === id);
             return (
               <div key={id}>
-                <span>
-                  <small>{index + 1}. </small>{p?.name ?? t('منتج غير متاح', 'Unavailable product')}
-                  {p?.archived ? t(' (مؤرشف)', ' (archived)') : ''}
-                  {p && <small dir="ltr"> · {productPrice(p.price_cents, p.currency)}</small>}
+                <span className={styles.selectedInfo}>
+                  <strong><bdi>{index + 1}.</bdi>{' '}<bdi>{p?.name ?? t('منتج غير متاح', 'Unavailable product')}</bdi></strong>
+                  {p?.archived && <small>{t('مؤرشف', 'Archived')}</small>}
+                  {p && <small><bdi>{productPrice(p.price_cents, p.currency)}</bdi></small>}
                 </span>
-                {p && <button type="button" className="btn" onClick={() => setPreview(p)} aria-label={`${t('معاينة', 'Preview')} ${p.name}`}>{t('معاينة', 'Preview')}</button>}
+                {p && <button type="button" className={`btn ${styles.smallAction}`} onClick={() => setPreview(p)} aria-label={`${t('معاينة', 'Preview')} ${p.name}`}><NavIcon name="eye" /></button>}
                 {multiple && (
                   <>
                     <button
-                      className="btn"
+                      className={`btn ${styles.smallAction}`}
                       type="button"
                       disabled={index === 0}
                       onClick={() => {
@@ -134,7 +135,7 @@ export default function ProductPicker({
                       ↑
                     </button>
                     <button
-                      className="btn"
+                      className={`btn ${styles.smallAction}`}
                       type="button"
                       disabled={index === selected.length - 1}
                       onClick={() => {
@@ -149,12 +150,12 @@ export default function ProductPicker({
                   </>
                 )}
                 <button
-                  className="btn"
+                  className={`btn ${styles.smallAction}`}
                   type="button"
                   aria-label={`${t('إزالة', 'Remove')} ${p?.name ?? ''}`}
                   onClick={() => onChange(selected.filter((x) => x !== id))}
                 >
-                  {t('إزالة', 'Remove')}
+                  <NavIcon name="trash" />
                 </button>
               </div>
             );

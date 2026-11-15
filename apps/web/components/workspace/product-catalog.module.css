@@ -401,3 +401,11 @@
 .pickerGuide { font-size: 14px; line-height: 1.8; color: #52667d; margin: 0; padding: 10px 12px; background: #f6f8fc; border-radius: 8px; }
 .selected > div { flex-wrap: wrap; }
 .selected > div > span { flex: 1 1 100%; font-size: 14px; overflow-wrap: anywhere; }
+
+.selected { max-height: 360px; }
+.selected > div { padding: 10px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; }
+.selectedInfo { display: grid; gap: 5px; line-height: 1.6; }
+.selectedInfo strong { font-weight: 600; }
+.selectedInfo small { display: block; color: #52667d; }
+.selected .smallAction { flex: 0 0 40px; width: 40px; min-width: 40px; min-height: 44px; padding: 8px; }
+.selected .smallAction svg { width: 18px; height: 18px; }

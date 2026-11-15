@@ -29,6 +29,11 @@ for (const language of ['ar', 'en']) for (const width of [320,390,768,1366,1920]
   await context.addInitScript(({session,language}) => { localStorage.setItem('session', JSON.stringify(session)); localStorage.setItem('boat-language', language); }, {session,language});
   page = await context.newPage(); const errors = []; page.on('pageerror', e => errors.push(e.message));
   await page.route('**/*', r => ['localhost','127.0.0.1'].includes(new URL(r.request().url()).hostname) ? r.continue() : r.abort());
+  await page.goto('http://localhost:3000/dashboard/flows?channelId='+channel.id+'&section=product_catalog');
+  await page.getByRole('button',{name:t('مصادر البيانات','Data sources'),exact:true}).click();
+  await page.getByRole('main').getByRole('link',{name:t('مدير البوت','Bot manager'),exact:true}).click();
+  await page.getByRole('heading',{name:t('الردود بالكلمات المفتاحية','Keyword Replies'),exact:true}).waitFor();
+  assert.equal(new URL(page.url()).searchParams.get('channelId'),channel.id);
   await page.goto('http://localhost:3000/dashboard/commerce');
   const categories = page.getByRole('navigation', {name:t('الأقسام','Categories'),exact:true});
   await categories.getByRole('button', {name:/^Scale category 099 \d+$/,exact:true}).waitFor();
@@ -57,7 +62,7 @@ for (const language of ['ar', 'en']) for (const width of [320,390,768,1366,1920]
   const product = (await api('/commerce/products',token)).find(p=>p.name===name); assert.equal(String(product.price_cents),'15005');
   await page.getByRole('button',{name:t('حذف القسم','Delete category'),exact:true}).click();
   await page.getByRole('button',{name:t('حذف نهائيًا','Delete permanently'),exact:true}).click();
-  await page.getByRole('alert').filter({hasText:t('انقل المنتجات النشطة والمؤرشفة','Move active and archived products')}).waitFor();
+  await page.getByRole('dialog',{name:t('حذف القسم؟','Delete category?'),exact:true}).getByRole('alert').filter({hasText:t('انقل المنتجات النشطة والمؤرشفة','Move active and archived products')}).waitFor();
   await page.getByRole('dialog',{name:t('حذف القسم؟','Delete category?'),exact:true}).getByRole('button',{name:t('إلغاء','Cancel'),exact:true}).click();
   const emptyName='Disposable category '+language+width;
   const emptyCat=await api('/commerce/categories',token,{name:emptyName});
