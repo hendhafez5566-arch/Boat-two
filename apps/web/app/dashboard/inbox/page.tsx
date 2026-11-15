@@ -66,6 +66,7 @@ export default function Inbox() {
   const [showContext, setShowContext] = useState(false);
   const [followupOpen, setFollowupOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<'name' | 'email' | null>(null);
+  const [notesVersion, setNotesVersion] = useState(0);
   const [profileRefresh, setProfileRefresh] = useState(0);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [tab, setTab] = useState<Tab>('active');
@@ -374,6 +375,7 @@ export default function Inbox() {
     if (e.type === 'message') {
       const m = e.message;
       if (e.conversationId === cur) {
+        if (m.isInternal && m.type === 'note') setNotesVersion((value) => value + 1);
         setMsgs((list) =>
           list.some((x) => x.id === m.id)
             ? list
@@ -403,6 +405,12 @@ export default function Inbox() {
         });
       }
       refreshSoon();
+    } else if (e.type === 'note_changed' && e.conversationId === cur) {
+      if (e.source === 'contact') setProfileRefresh((value) => value + 1);
+      else {
+        setNotesVersion((value) => value + 1);
+        updateThreadNote(e.noteId, e.text);
+      }
     } else if (e.type === 'message_status') {
       if (e.conversationId === cur)
         setMsgs((list) =>
@@ -551,13 +559,21 @@ export default function Inbox() {
     setText(c.content.replace(/\{\{\s*(contact\.)?name\s*\}\}/g, detail?.contact_name ?? ''));
   const title = (c: any) => c.contact_name || c.contact_phone || t('زائر', 'Visitor');
 
+  function updateThreadNote(id: string, text?: string) {
+    setMsgs((list) =>
+      text === undefined
+        ? list.filter((note) => note.id !== id)
+        : list.map((note) =>
+            note.id === id ? { ...note, content: { ...note.content, text } } : note,
+          ),
+    );
+  }
+
   const customerPanel = detail && selId && (
     <InboxCustomerPanel
       key={detail.id}
       detail={detail}
-      notes={msgs.filter(
-        (m) => (m.is_internal ?? m.isInternal) && (m.sender_type ?? m.senderType) !== 'system',
-      )}
+      notesVersion={notesVersion}
       team={team}
       acting={acting}
       canManage={workspaceRole !== 'agent'}
@@ -565,9 +581,13 @@ export default function Inbox() {
       refreshToken={profileRefresh}
       onFollowup={() => setFollowupOpen(true)}
       onEditEmail={() => setEditingContact('email')}
-      onNote={() => {
-        setInternal(true);
-        setShowContext(false);
+      onNoteChanged={(source, id, text) => {
+        if (selRef.current !== detail.id) return;
+        if (source === 'contact') setProfileRefresh((value) => value + 1);
+        else {
+          setNotesVersion((value) => value + 1);
+          if (id) updateThreadNote(id, text);
+        }
       }}
       onRefresh={async () => {
         const id = selRef.current;

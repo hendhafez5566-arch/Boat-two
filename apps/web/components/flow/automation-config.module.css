@@ -501,3 +501,29 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+
+.button.actionChoice {
+  display: grid;
+  justify-content: stretch;
+  align-content: center;
+  text-align: start;
+  padding: 10px 12px;
+  min-height: 64px;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  line-height: 1.4;
+}
+
+.actionChoice small {
+  color: #334155;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+@media (max-width: 540px) {
+  .grid:has(.actionChoice) {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}

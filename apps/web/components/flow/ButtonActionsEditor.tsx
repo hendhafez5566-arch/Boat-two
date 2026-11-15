@@ -237,6 +237,36 @@ export default function ButtonActionsEditor({
     assign: t('تحويل لموظف أو قسم', 'Assign employee or department'),
     webhook: t('إرسال Webhook', 'Send webhook'),
   };
+  const descriptions = {
+    integration: t(
+      'سجّل البيانات في جدول أو احجز موعدًا في التقويم.',
+      'Write data to a sheet or book a calendar event.',
+    ),
+    set_field: t(
+      'احفظ معلومة مثل المدينة في ملف العميل.',
+      'Save a detail such as the city in the customer profile.',
+    ),
+    tag: t(
+      'صنّف العميل بوسم مثل «مهتم بالعمرة».',
+      'Label the customer, for example as interested in Umrah.',
+    ),
+    list: t(
+      'أضف العميل إلى قائمة جمهور أو أزله منها.',
+      'Add the customer to an audience list or remove them.',
+    ),
+    sequence: t(
+      'ابدأ أو أوقف سلسلة رسائل مجدولة للعميل.',
+      'Start or stop scheduled messages for this customer.',
+    ),
+    assign: t(
+      'حوّل المحادثة إلى الموظف أو الفريق المسؤول.',
+      'Hand the conversation to an employee or team.',
+    ),
+    webhook: t(
+      'أرسل بيانات الاختيار إلى نظام خارجي مرتبط.',
+      'Send the reply data to a connected external system.',
+    ),
+  };
   const patch = (i: number, action: ButtonAction) =>
     onChange(value.map((a, j) => (j === i ? action : a)));
   const pick = (
@@ -305,12 +335,13 @@ export default function ButtonActionsEditor({
         {(Object.keys(labels) as ButtonAction['type'][]).map((type) => (
           <button
             type="button"
-            className={styles.button}
+            className={`${styles.button} ${styles.actionChoice}`}
             key={type}
             disabled={value.length >= 20}
             onClick={() => add(type)}
           >
-            ＋ {labels[type]}
+            <strong>＋ {labels[type]}</strong>
+            <small>{descriptions[type]}</small>
           </button>
         ))}
       </div>

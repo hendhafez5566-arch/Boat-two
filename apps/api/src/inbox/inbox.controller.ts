@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   NotFoundException,
   Param,
@@ -66,7 +67,7 @@ const patchSchema = z.object({
   handledBy: z.enum(['bot', 'human']).optional(),
   assignedTo: z.string().uuid().nullable().optional(),
 });
-const noteSchema = z.object({ text: z.string().min(1).max(2000) });
+const noteSchema = z.object({ text: z.string().trim().min(1).max(2000) });
 const availabilitySchema = z.object({ available: z.boolean() });
 const settingsSchema = z.object({
   signature_enabled: z.boolean().optional(),
@@ -352,6 +353,20 @@ export class InboxController {
     });
   }
 
+  @Get('conversations/:id/notes')
+  listNotes(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.db.withTenant(req.user.tenantId, async (c) => {
+      const result = await c.query(
+        `SELECT id, content, created_at FROM messages
+         WHERE tenant_id = $1 AND conversation_id = $2
+           AND is_internal AND type = 'note' AND sender_type <> 'system'
+         ORDER BY seq DESC`,
+        [req.user.tenantId, id],
+      );
+      return result.rows;
+    });
+  }
+
   @Post('conversations/:id/notes')
   async note(
     @Req() req: AuthedRequest,
@@ -386,6 +401,67 @@ export class InboxController {
       },
     });
     return { id: msg.id, seq: Number(msg.seq) };
+  }
+
+  @Patch('conversations/:id/notes/:source/:noteId')
+  async editNote(
+    @Req() req: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('source') source: string,
+    @Param('noteId', ParseUUIDPipe) noteId: string,
+    @Body() body: unknown,
+  ) {
+    if (source !== 'message' && source !== 'contact') throw new NotFoundException('Note not found');
+    const { text } = parse(noteSchema, body);
+    const result = await this.db.withTenant(req.user.tenantId, (c) =>
+      c.query(
+        source === 'contact'
+          ? `UPDATE crm_notes SET body = $4
+             WHERE tenant_id = $1 AND id = $3 AND contact_id =
+               (SELECT contact_id FROM conversations WHERE tenant_id = $1 AND id = $2)`
+          : `UPDATE messages SET content = content || jsonb_build_object('text', $4::text)
+         WHERE tenant_id = $1 AND conversation_id = $2 AND id = $3
+           AND is_internal AND type = 'note' AND sender_type <> 'system'`,
+        [req.user.tenantId, id, noteId, text],
+      ),
+    );
+    if (!result.rowCount) throw new NotFoundException('Note not found');
+    this.events.emit('inbox.note.changed', {
+      tenantId: req.user.tenantId,
+      conversationId: id,
+      source,
+      noteId,
+      text,
+    });
+    return { ok: true };
+  }
+
+  @Delete('conversations/:id/notes/:source/:noteId')
+  async deleteNote(
+    @Req() req: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('source') source: string,
+    @Param('noteId', ParseUUIDPipe) noteId: string,
+  ) {
+    if (source !== 'message' && source !== 'contact') throw new NotFoundException('Note not found');
+    const result = await this.db.withTenant(req.user.tenantId, (c) =>
+      c.query(
+        source === 'contact'
+          ? `DELETE FROM crm_notes WHERE tenant_id = $1 AND id = $3 AND contact_id =
+               (SELECT contact_id FROM conversations WHERE tenant_id = $1 AND id = $2)`
+          : `DELETE FROM messages WHERE tenant_id = $1 AND conversation_id = $2 AND id = $3
+           AND is_internal AND type = 'note' AND sender_type <> 'system'`,
+        [req.user.tenantId, id, noteId],
+      ),
+    );
+    if (!result.rowCount) throw new NotFoundException('Note not found');
+    this.events.emit('inbox.note.changed', {
+      tenantId: req.user.tenantId,
+      conversationId: id,
+      source,
+      noteId,
+    });
+    return { ok: true };
   }
 
   @Post('conversations/:id/read')

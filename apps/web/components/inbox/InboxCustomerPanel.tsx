@@ -15,12 +15,12 @@ import { NavIcon } from '../product/NavIcon';
 import styles from './inbox-customer-panel.module.css';
 type Props = {
   detail: any;
-  notes: any[];
+  notesVersion: number;
   team: any[];
   acting: boolean;
   canManage: boolean;
   act: (path: string, method: string, body?: any, notice?: string) => Promise<boolean>;
-  onNote: () => void;
+  onNoteChanged: (source: string, id?: string, text?: string) => void;
   onFollowup: () => void;
   onEditEmail: () => void;
   refreshToken: number;
@@ -29,12 +29,12 @@ type Props = {
 };
 export function InboxCustomerPanel({
   detail,
-  notes,
+  notesVersion,
   team,
   acting,
   canManage,
   act,
-  onNote,
+  onNoteChanged,
   onFollowup,
   onEditEmail,
   refreshToken,
@@ -89,18 +89,60 @@ export function InboxCustomerPanel({
     setLabels(contact.tags || []);
     setLabelsVersion(contact.updated_at);
   }, [contact, labelsDirty]);
+  const notes = useData<any[]>(`/conversations/${detail.id}/notes`, []);
+  const reloadNotes = notes.reload;
+  useEffect(() => {
+    if (notesVersion) void reloadNotes();
+  }, [notesVersion, reloadNotes]);
   const allNotes = [
-    ...notes.map((note) => ({
-      key: `message-${note.id}`,
+    ...notes.data.map((note) => ({
+      id: String(note.id),
+      source: 'message',
       text: note.content?.text || note.text || note.body,
       date: note.created_at || note.createdAt,
     })),
     ...(timeline?.notes || []).map((note: any) => ({
-      key: `contact-${note.id}`,
+      id: String(note.id),
+      source: 'contact',
       text: note.content?.text || note.text || note.body,
       date: note.created_at || note.createdAt,
     })),
   ].sort((a, b) => (Date.parse(b.date) || 0) - (Date.parse(a.date) || 0));
+  const [noteDraft, setNoteDraft] = useState<{ source: string; id: string; text: string } | null>(
+    null,
+  );
+  const [noteBusy, setNoteBusy] = useState(false);
+  const [noteError, setNoteError] = useState('');
+  const notesSection = useRef<HTMLDetailsElement>(null);
+  const addNote = () => {
+    setNoteError('');
+    setNoteDraft({ source: 'message', id: '', text: '' });
+    if (notesSection.current) {
+      notesSection.current.open = true;
+      notesSection.current.scrollIntoView({ block: 'nearest' });
+    }
+  };
+
+  async function changeNote(source: string, id: string, text?: string) {
+    const path = `/conversations/${detail.id}/notes` + (id ? `/${source}/${id}` : '');
+    setNoteBusy(true);
+    setNoteError('');
+    try {
+      await api(path, {
+        method: text === undefined ? 'DELETE' : id ? 'PATCH' : 'POST',
+        body: text === undefined ? undefined : JSON.stringify({ text }),
+      });
+      onNoteChanged(source, id, text);
+      if (text !== undefined || (noteDraft?.id === id && noteDraft.source === source)) {
+        setNoteDraft(null);
+      }
+    } catch (error) {
+      setNoteError((error as Error).message);
+    } finally {
+      setNoteBusy(false);
+    }
+  }
+
   const patch = (body: any, notice: string) =>
     act(`/conversations/${detail.id}`, 'PATCH', body, notice);
   const time = (value: string) =>
@@ -216,7 +258,7 @@ export function InboxCustomerPanel({
         </Link>
       </header>
       {profile.error && <p role="alert">{profile.error}</p>}
-      <details open className={`${styles.card} ${styles.notesCard}`}>
+      <details open ref={notesSection} className={`${styles.card} ${styles.notesCard}`}>
         <summary>
           <span>
             {t('الملاحظات الداخلية', 'Internal notes')}
@@ -225,11 +267,64 @@ export function InboxCustomerPanel({
           <NavIcon name="chevron" />
         </summary>
         <div className={styles.noteControls}>
-          <button type="button" className="btn btn-primary" onClick={onNote}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={addNote}
+            disabled={noteBusy || !!noteDraft}
+          >
             <NavIcon name="plus" />
             {t('إضافة ملاحظة', 'Add note')}
           </button>
         </div>
+        {(notes.error || noteError) && (
+          <p className={styles.noteControls} role="alert">
+            {noteError || notes.error}
+          </p>
+        )}
+        {noteDraft && (
+          <form
+            className={styles.noteEditor}
+            onSubmit={(event) => {
+              event.preventDefault();
+              const text = noteDraft.text.trim();
+              if (text && !noteBusy) void changeNote(noteDraft.source, noteDraft.id, text);
+            }}
+          >
+            <label className="field">
+              {noteDraft.id
+                ? t('تعديل الملاحظة', 'Edit note')
+                : t('ملاحظة للفريق', 'Note for your team')}
+              <textarea
+                autoFocus
+                rows={4}
+                maxLength={2000}
+                value={noteDraft.text}
+                onChange={(event) => setNoteDraft({ ...noteDraft, text: event.target.value })}
+              />
+            </label>
+            <div className={styles.noteActions}>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={noteBusy || !noteDraft.text.trim()}
+              >
+                {t('حفظ الملاحظة', 'Save note')}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={noteBusy}
+                onClick={() => {
+                  setNoteDraft(null);
+                  setNoteError('');
+                }}
+              >
+                {t('إلغاء', 'Cancel')}
+              </button>
+            </div>
+          </form>
+        )}
         {allNotes.length ? (
           <ol
             className={styles.noteList}
@@ -237,14 +332,45 @@ export function InboxCustomerPanel({
             aria-label={t('سجل الملاحظات', 'Note history')}
           >
             {allNotes.map((note) => (
-              <li key={note.key}>
+              <li key={note.source + note.id}>
                 <time dateTime={note.date}>{time(note.date)}</time>
                 <p dir="auto">{formatNote(note.text || '')}</p>
+                <div className={styles.noteActions}>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={noteBusy || !!noteDraft}
+                    onClick={() => {
+                      setNoteError('');
+                      setNoteDraft({ source: note.source, id: note.id, text: note.text || '' });
+                      notesSection.current?.scrollIntoView({ block: 'start' });
+                    }}
+                  >
+                    {t('تعديل', 'Edit')}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={noteBusy}
+                    data-tone="danger"
+                    onClick={() => {
+                      if (window.confirm(t('حذف هذه الملاحظة؟', 'Delete this note?'))) {
+                        void changeNote(note.source, note.id);
+                      }
+                    }}
+                  >
+                    {t('حذف', 'Delete')}
+                  </button>
+                </div>
               </li>
             ))}
           </ol>
         ) : (
-          <p className={styles.notesEmpty}>{t('لا توجد ملاحظات بعد', 'No notes yet')}</p>
+          <p className={styles.notesEmpty}>
+            {notes.loading
+              ? t('جارٍ تحميل الملاحظات…', 'Loading notes…')
+              : t('لا توجد ملاحظات بعد', 'No notes yet')}
+          </p>
         )}
       </details>
       <section className={styles.card}>
@@ -269,7 +395,7 @@ export function InboxCustomerPanel({
               ? t('إيقاف البوت', 'Pause Bot')
               : t('استئناف البوت', 'Resume Bot')}
           </button>
-          <button type="button" onClick={onNote}>
+          <button type="button" onClick={addNote} disabled={noteBusy || !!noteDraft}>
             <span>
               <NavIcon name="audit" />
             </span>
@@ -318,7 +444,25 @@ export function InboxCustomerPanel({
         }}
       />
       <section className={styles.card}>
-        <h3>{t('ملخص العميل', 'Customer Snapshot')}</h3>
+        <h3>
+          {t('ملخص العميل', 'Customer Snapshot')}{' '}
+          <span
+            className="semantic-state"
+            data-tone={
+              detail.status === 'open'
+                ? 'active'
+                : detail.status === 'closed'
+                  ? 'danger'
+                  : 'pending'
+            }
+          >
+            {detail.status === 'open'
+              ? t('محادثة مفتوحة', 'Open conversation')
+              : detail.status === 'closed'
+                ? t('محادثة مغلقة', 'Closed conversation')
+                : t('محادثة معلّقة', 'Pending conversation')}
+          </span>
+        </h3>
         <dl className={styles.facts}>
           {[
             [t('البريد الإلكتروني', 'Email'), detail.contact_email || t('غير محدد', 'Not set')],

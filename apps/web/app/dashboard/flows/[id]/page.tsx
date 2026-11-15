@@ -2320,54 +2320,77 @@ function Editor({ id }: { id: string }) {
                     data={inspectorDraft?.id === sel.id ? inspectorDraft.data : sel.data.data}
                     onChange={(data) => setInspectorDraft({ id: sel.id, data })}
                   />
-                  <ConfigDisclosure className="smart-section">
+                  <ConfigDisclosure
+                    open={choiceSelection?.parentId === sel.id}
+                    key={choiceSelection?.id ?? sel.id}
+                    className="smart-section"
+                  >
                     <ConfigSummary>{t('الخطوات التالية', 'Next steps')}</ConfigSummary>
                     <p className="muted">
                       {t(
-                        'اختر وجهة كل مسار بدل سحب التوصيلات. تغيير الوجهة يحدّث المسودة.',
-                        'Choose each path destination without dragging. Changing a destination updates the draft.',
+                        'بعد تنفيذ إجراءات الأتمتة، ينتقل العميل إلى الخطوة المحددة هنا.',
+                        'After the automation actions run, the customer moves to the step selected here.',
                       )}
                     </p>
-                    {handlesFor(sel.data.type, sel.data.data).map((handle) => (
-                      <label className="field" key={handle.id}>
-                        {editorLabel(handle.label, language)}
-                        <select
-                          aria-label={`${t('الخطوة التالية', 'Next step')} — ${editorLabel(handle.label, language)}`}
-                          value={
-                            edges.find(
-                              (edge) => edge.source === sel.id && edge.sourceHandle === handle.id,
-                            )?.target ?? ''
-                          }
-                          onChange={(event) => {
-                            if (event.target.value)
-                              onConnect({
-                                source: sel.id,
-                                sourceHandle: handle.id,
-                                target: event.target.value,
-                                targetHandle: null,
-                              });
-                            else {
-                              setEdges((links) =>
-                                links.filter(
-                                  (edge) =>
-                                    edge.source !== sel.id || edge.sourceHandle !== handle.id,
-                                ),
-                              );
-                              setDirty(true);
-                            }
-                          }}
-                        >
-                          <option value="">{t('بدون توصيل', 'Not connected')}</option>
-                          {nodes
-                            .filter((node) => node.id !== sel.id)
-                            .map((node) => (
-                              <option key={node.id} value={node.id}>
-                                {stepCaption(node.id)}
-                              </option>
-                            ))}
-                        </select>
-                      </label>
-                    ))}
+                    {handlesFor(
+                      sel.data.type,
+                      inspectorDraft?.id === sel.id ? inspectorDraft.data : sel.data.data,
+                    )
+                      .filter(
+                        (handle) =>
+                          choiceSelection?.parentId !== sel.id ||
+                          handle.id === `option:${choiceSelection.id}`,
+                      )
+                      .map((handle) => {
+                        const target =
+                          edges.find(
+                            (edge) => edge.source === sel.id && edge.sourceHandle === handle.id,
+                          )?.target ?? '';
+                        return (
+                          <label className="field" key={handle.id}>
+                            <span>
+                              {editorLabel(handle.label, language)}{' '}
+                              <small
+                                className="semantic-state"
+                                data-tone={target ? 'active' : 'danger'}
+                              >
+                                {target ? t('متصل', 'Connected') : t('غير متصل', 'Not connected')}
+                              </small>
+                            </span>
+                            <select
+                              aria-label={`${t('الخطوة التالية', 'Next step')} — ${editorLabel(handle.label, language)}`}
+                              value={target}
+                              onChange={(event) => {
+                                if (event.target.value)
+                                  onConnect({
+                                    source: sel.id,
+                                    sourceHandle: handle.id,
+                                    target: event.target.value,
+                                    targetHandle: null,
+                                  });
+                                else {
+                                  setEdges((links) =>
+                                    links.filter(
+                                      (edge) =>
+                                        edge.source !== sel.id || edge.sourceHandle !== handle.id,
+                                    ),
+                                  );
+                                  setDirty(true);
+                                }
+                              }}
+                            >
+                              <option value="">{t('بدون توصيل', 'Not connected')}</option>
+                              {nodes
+                                .filter((node) => node.id !== sel.id)
+                                .map((node) => (
+                                  <option key={node.id} value={node.id}>
+                                    {stepCaption(node.id)}
+                                  </option>
+                                ))}
+                            </select>
+                          </label>
+                        );
+                      })}
                   </ConfigDisclosure>
                 </div>
               ) : (

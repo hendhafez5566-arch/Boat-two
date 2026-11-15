@@ -333,7 +333,7 @@ export default function ProductCatalog() {
             <article className={styles.card} key={p.id}>
               <ProductImage key={p.image_url} product={p} />
               <div className={styles.body}>
-                <span className={styles.badge}>
+                <span className="semantic-state" data-tone={p.archived ? 'danger' : 'active'}>
                   {p.archived ? t('مؤرشف', 'Archived') : t('نشط', 'Active')}
                 </span>
                 <h3>{p.name}</h3>
@@ -396,6 +396,34 @@ export default function ProductCatalog() {
                 {error}
               </p>
             )}
+            <fieldset className={styles.priceSection}>
+              <legend>{t('السعر والعملة', 'Price and currency')}</legend>
+              <div className="form-grid">
+                <label className="field">
+                  {t('سعر المنتج (مثال 150.00)', 'Product price (e.g. 150.00)')}
+                  <input
+                    name="price"
+                    inputMode="decimal"
+                    pattern="[0-9]{1,13}(\.[0-9]{1,2})?"
+                    required
+                    defaultValue={editing ? productDecimal(editing.price_cents) : ''}
+                    placeholder="150.00"
+                    dir="ltr"
+                  />
+                </label>
+                <label className="field">
+                  {t('العملة', 'Currency')}
+                  <input
+                    name="currency"
+                    pattern="[A-Z]{3}"
+                    maxLength={3}
+                    required
+                    defaultValue={editing?.currency ?? 'EGP'}
+                    dir="ltr"
+                  />
+                </label>
+              </div>
+            </fieldset>
             <label className="field">
               {t('قسم المنتج', 'Product category')}
               <select
@@ -430,39 +458,21 @@ export default function ProductCatalog() {
                 </label>
               </div>
               <label className="field">
-                {t('الوصف', 'Description')}
-                <textarea name="description" maxLength={1000} defaultValue={editing?.description} />
+                {t('الوصف والمواصفات', 'Description and specifications')}
+                <textarea
+                  name="description"
+                  rows={4}
+                  maxLength={1000}
+                  defaultValue={editing?.description}
+                  placeholder={t(
+                    'اكتب المواصفات يدويًا، مثل مدة الرحلة ونوع الغرفة.',
+                    'Enter specifications manually, such as trip duration and room type.',
+                  )}
+                />
               </label>
             </fieldset>
-            <fieldset className={styles.section}>
-              <legend>{t('السعر', 'Price')}</legend>
-              <div className="form-grid">
-                <label className="field">
-                  {t('سعر المنتج (مثال 150.00)', 'Product price (e.g. 150.00)')}
-                  <input
-                    name="price"
-                    inputMode="decimal"
-                    pattern="[0-9]{1,13}(\.[0-9]{1,2})?"
-                    required
-                    defaultValue={editing ? productDecimal(editing.price_cents) : '0.00'}
-                    dir="ltr"
-                  />
-                </label>
-                <label className="field">
-                  {t('العملة', 'Currency')}
-                  <input
-                    name="currency"
-                    pattern="[A-Z]{3}"
-                    maxLength={3}
-                    required
-                    defaultValue={editing?.currency ?? 'EGP'}
-                    dir="ltr"
-                  />
-                </label>
-              </div>
-            </fieldset>
-            <fieldset className={styles.section}>
-              <legend>{t('الصور والروابط', 'Images and links')}</legend>
+            <details className={styles.section}>
+              <summary>{t('الصور والروابط (اختياري)', 'Images and links (optional)')}</summary>
               <label className="field">
                 {t('رابط الصورة', 'Image URL')}
                 <input
@@ -483,7 +493,7 @@ export default function ProductCatalog() {
                 {t('رابط المنتج', 'Product URL')}
                 <input name="link" type="url" defaultValue={editing?.link_url ?? ''} dir="ltr" />
               </label>
-            </fieldset>
+            </details>
             {draftImage && (
               <div className={styles.preview}>
                 <ProductImage

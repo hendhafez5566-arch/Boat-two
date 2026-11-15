@@ -573,3 +573,43 @@
   padding: 14px;
   color: #526177;
 }
+
+.noteEditor {
+  display: grid;
+  gap: 10px;
+  margin: 12px 14px;
+  padding: 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: #eff6ff;
+}
+
+.noteActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block-start: 6px;
+}
+
+.noteActions button {
+  min-block-size: 36px;
+}
+
+.noteActions button[data-tone='danger'] {
+  color: #991b1b;
+}
+
+.noteList {
+  max-block-size: 19rem;
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+}
+
+.noteList li,
+.noteList li + li {
+  padding: 12px;
+  border: 1px solid #dbe4f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}

@@ -25,12 +25,17 @@ export default function ProductPicker({
   const [view, setView] = useState<'browse' | 'selected'>('browse');
   const [category, setCategory] = useState('all');
   const [query, setQuery] = useState('');
-  const visible = products.filter(
-    (p) =>
-      !p.archived &&
-      (category === 'all' || p.category_id === category) &&
-      `${p.name} ${p.sku}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
-  );
+  const search = query.trim().toLocaleLowerCase();
+  const isBrowsing = !!search || category !== 'all';
+  const visible = isBrowsing
+    ? products.filter(
+        (p) =>
+          !p.archived &&
+          (category === 'all' ||
+            (category === 'none' ? !p.category_id : p.category_id === category)) &&
+          `${p.name} ${p.sku}`.toLocaleLowerCase().includes(search),
+      )
+    : [];
   return (
     <div className={styles.picker}>
       <div
@@ -65,6 +70,7 @@ export default function ProductPicker({
               onChange={(e) => setCategory(e.target.value)}
             >
               <option value="all">{t('كل الأقسام', 'All categories')}</option>
+              <option value="none">{t('دون قسم', 'Uncategorized')}</option>
               {categories.data.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -154,7 +160,9 @@ export default function ProductPicker({
         <>
           <div className={styles.pickerHeading}>
             <span>
-              {visible.length} {t('منتج', 'products')}
+              {isBrowsing
+                ? `${visible.length} ${t('منتج', 'products')}`
+                : t('اكتب اسم المنتج أو اختر قسمًا', 'Enter a product name or choose a category')}
             </span>
             <small>
               {selected.length} {t('مختار', 'selected')}
@@ -183,16 +191,20 @@ export default function ProductPicker({
                   <br />
                   <small dir="ltr">{productPrice(p.price_cents, p.currency)}</small>
                   <br />
-                  <small>{p.sku}</small>
+                  <small>
+                    {categories.data.find((c) => c.id === p.category_id)?.name ??
+                      t('دون قسم', 'Uncategorized')}{' '}
+                    · {p.sku}
+                  </small>
                 </span>
               </label>
             ))}
           </div>
-          {!loading && !error && !visible.length && (
+          {isBrowsing && !loading && !error && !visible.length && (
             <p>
               {t(
-                'لا توجد منتجات مطابقة. أضف المنتجات من قسم التجارة أولًا.',
-                'No matching products. Add products in Commerce first.',
+                'لا توجد منتجات تطابق البحث في القسم المحدد.',
+                'No products match your search in this category.',
               )}
             </p>
           )}

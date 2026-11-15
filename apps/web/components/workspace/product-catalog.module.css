@@ -306,3 +306,28 @@
     min-width: 0;
   }
 }
+
+.priceSection {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: #eff6ff;
+}
+
+.priceSection legend {
+  padding-inline: 6px;
+  color: #1e40af;
+  font-weight: 700;
+}
+
+.editor details.section[open] summary {
+  margin-block-end: 12px;
+}
+
+@media (max-width: 540px) {
+  .editor :global(.form-grid) {
+    grid-template-columns: 1fr;
+  }
+}
