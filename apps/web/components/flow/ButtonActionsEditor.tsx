@@ -192,6 +192,7 @@ export default function ButtonActionsEditor({
   );
   const [staff, setStaff] = useState<{ user_id: string; full_name: string; email: string }[]>([]);
   const [failed, setFailed] = useState(false);
+  const [expandedAction, setExpandedAction] = useState<number | null>(null);
   const [fields, setFields] = useState<{ key: string; label: string }[]>([]);
   useEffect(() => {
     let active = true;
@@ -327,7 +328,11 @@ export default function ButtonActionsEditor({
     assign: { type: 'assign' },
     webhook: { type: 'webhook', url: 'https://', body: '{}' },
   };
-  const add = (type: ButtonAction['type']) => onChange([...value, defaults[type]]);
+  const add = (type: ButtonAction['type']) => {
+    if (value.length >= 20) return;
+    setExpandedAction(value.length);
+    onChange([...value, defaults[type]]);
+  };
   const needsSetup = (a: ButtonAction) =>
     (a.type === 'integration' && !a.connectionId) ||
     (a.type === 'set_field' && !a.key.trim()) ||
@@ -414,7 +419,12 @@ export default function ButtonActionsEditor({
         <p className={styles.empty}>{t('لم تُضف إجراءات بعد. اختر إجراءً من المجموعات بالأعلى.', 'No actions added yet. Choose one of the actions above.')}</p>
       )}
       {value.map((a, i) => (
-        <ConfigDisclosure key={i} className={styles.actionItem} open={i === value.length - 1}>
+        <ConfigDisclosure
+          key={i}
+          className={styles.actionItem}
+          expanded={expandedAction === i}
+          onExpandedChange={(next) => setExpandedAction(next ? i : null)}
+        >
           <ConfigSummary>
             <span className={styles.actionSummary}>
               <span className={styles.actionOrder}>{i + 1}</span>
@@ -609,6 +619,7 @@ export default function ButtonActionsEditor({
                 const next = [...value];
                 [next[i - 1], next[i]] = [next[i], next[i - 1]];
                 onChange(next);
+                setExpandedAction(i - 1);
               }}
             >
               {t('لأعلى', 'Move up')}
@@ -621,11 +632,15 @@ export default function ButtonActionsEditor({
                 const next = [...value];
                 [next[i + 1], next[i]] = [next[i], next[i + 1]];
                 onChange(next);
+                setExpandedAction(i + 1);
               }}
             >
               {t('لأسفل', 'Move down')}
             </button>
-            <button className={styles.removeButton} type="button" onClick={() => onChange(value.filter((_, j) => j !== i))}>
+            <button className={styles.removeButton} type="button" onClick={() => {
+              onChange(value.filter((_, j) => j !== i));
+              setExpandedAction(null);
+            }}>
               <NavIcon name="trash" /> {t('إزالة الإجراء', 'Remove action')}
             </button>
           </div>
