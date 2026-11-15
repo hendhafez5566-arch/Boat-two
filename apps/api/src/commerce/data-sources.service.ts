@@ -10,6 +10,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { DatabaseService } from '../database/database.service';
 import { GoogleService } from '../integrations/google.service';
 import { CatalogItem, SourceInput, normalizeRows, itemText, searchTerms } from './data-contracts';
+import { ImportSummary, importSummary, sameImportedItem } from './import-summary';
 import { OutContent } from '../flows/engine/types';
 import { isGeneralCompanyQuestion } from './catalog-routing';
 @Injectable()
@@ -93,7 +94,7 @@ export class DataSourcesService implements OnModuleInit, OnModuleDestroy {
     const data = ('data' in r ? r.data : {}) as { values?: unknown[][] };
     return (data.values ?? []).map((row) => row.map((v) => String(v ?? '')));
   }
-  async failure(tenant: string, id: string) {
+  async failure(tenant: string, id: string, summary?: ImportSummary) {
     await this.db.withTenant(tenant, async (c) => {
       const updated = await c.query(
         "UPDATE catalog_sources SET last_attempt_at=now(),last_error='Update failed. Last successful data retained. Check authorization, columns and file contents.',next_sync_at=now()+interval '15 minutes' WHERE id=$1",
@@ -101,8 +102,8 @@ export class DataSourcesService implements OnModuleInit, OnModuleDestroy {
       );
       if (!updated.rowCount) return;
       await c.query(
-        "INSERT INTO catalog_sync_runs(tenant_id,source_id,status,error) VALUES($1,$2,'failed','Update failed; last successful data retained')",
-        [tenant, id],
+        "INSERT INTO catalog_sync_runs(tenant_id,source_id,status,error,summary) VALUES($1,$2,'failed','Update failed; last successful data retained',$3)",
+        [tenant, id, JSON.stringify(summary ?? {})],
       );
     });
   }
@@ -110,18 +111,20 @@ export class DataSourcesService implements OnModuleInit, OnModuleDestroy {
     try {
       const s = await this.source(tenant, id);
       const normalized = normalizeRows(rows ?? (await this.readGoogle(tenant, id)), s.mapping);
-      if (normalized.errors.length) {
-        await this.failure(tenant, id);
-        return {
-          valid: false,
-          errors: normalized.errors,
-          items: normalized.items.slice(0, 20),
-          total: normalized.items.length,
-          hidden: normalized.items.filter((item) => item.visible === false).length,
-        };
-      }
-      if (!normalized.items.length) throw new BadRequestException('Empty updates are not applied');
       return this.db.withTenant(tenant, async (c) => {
+        const current = (await c.query('SELECT revision FROM catalog_sources WHERE id=$1 FOR UPDATE', [id])).rows[0];
+        if (!current || current.revision !== s.revision) throw new ConflictException('Source changed; preview again');
+        const stored = (await c.query('SELECT * FROM catalog_products WHERE source_id=$1', [id])).rows;
+        const summary = importSummary(normalized.items, stored as any, normalized.errors);
+        if (normalized.errors.length) {
+          await this.failure(tenant, id, summary);
+          return {
+          valid: false, errors: normalized.errors, items: normalized.items.slice(0, 20),
+          total: normalized.items.length, hidden: normalized.items.filter(i => !i.visible).length,
+          missing: summary.missing, summary,
+        };
+        }
+        if (!normalized.items.length) throw new BadRequestException('Empty updates are not applied');
         await c.query(
           "DELETE FROM catalog_sync_previews WHERE source_id=$1 AND created_at<now()-interval '1 hour'",
           [id],
@@ -145,10 +148,12 @@ export class DataSourcesService implements OnModuleInit, OnModuleDestroy {
           total: normalized.items.length,
           hidden: normalized.items.filter((item) => item.visible === false).length,
           missing,
+          summary,
           errors: [],
         };
       });
     } catch (e) {
+      if (e instanceof ConflictException) throw e;
       await this.failure(tenant, id);
       throw new BadRequestException((e as Error).message);
     }
@@ -168,7 +173,12 @@ export class DataSourcesService implements OnModuleInit, OnModuleDestroy {
         throw new ConflictException('Preview expired or source changed; preview again');
       const items = p.items as CatalogItem[];
       if (!items.length) throw new BadRequestException('Empty update rejected');
+      const stored = (await c.query('SELECT * FROM catalog_products WHERE source_id=$1', [id])).rows;
+      const summary = importSummary(items, stored as any);
+      const previous = new Map(stored.map(row => [row.external_key, row]));
       for (const item of items) {
+        const old = previous.get(item.key);
+        if (old && sameImportedItem(item, old as any)) continue;
         const productId = randomUUID();
         await c.query(
           `INSERT INTO catalog_products(id,tenant_id,sku,name,description,price_cents,currency,image_url,link_url,archived,source_id,external_key,category_path,sort_order,dynamic_fields,category_sort)
@@ -191,21 +201,23 @@ export class DataSourcesService implements OnModuleInit, OnModuleDestroy {
           ],
         );
       }
-      if (archiveMissing)
-        await c.query(
-          'UPDATE catalog_products SET archived=true,updated_at=now() WHERE source_id=$1 AND NOT(external_key=ANY($2::text[]))',
+      if (archiveMissing) {
+        const archived = await c.query(
+          'UPDATE catalog_products SET archived=true,updated_at=now() WHERE source_id=$1 AND NOT archived AND NOT(external_key=ANY($2::text[])) RETURNING id',
           [id, items.map((i) => i.key)],
         );
+        summary.archived = archived.rows.length;
+      }
       await c.query(
         "UPDATE catalog_sources SET revision=revision+1,last_attempt_at=now(),last_success_at=now(),last_error=NULL,next_sync_at=now()+interval '15 minutes' WHERE id=$1",
         [id],
       );
       await c.query(
-        "INSERT INTO catalog_sync_runs(tenant_id,source_id,status,item_count) VALUES($1,$2,'success',$3)",
-        [tenant, id, items.length],
+        "INSERT INTO catalog_sync_runs(tenant_id,source_id,status,item_count,summary) VALUES($1,$2,'success',$3,$4)",
+        [tenant, id, items.length, JSON.stringify(summary)],
       );
       await c.query('DELETE FROM catalog_sync_previews WHERE source_id=$1', [id]);
-      return { updated: items.length, archivedMissing: archiveMissing };
+      return { ...summary, processed: items.length, archivedMissing: archiveMissing };
     });
   }
   async tick() {
@@ -242,7 +254,7 @@ export class DataSourcesService implements OnModuleInit, OnModuleDestroy {
       async (c) =>
         (
           await c.query(
-            'SELECT status,item_count,error,created_at FROM catalog_sync_runs WHERE source_id=$1 ORDER BY created_at DESC LIMIT 30',
+            'SELECT status,item_count,error,created_at,summary FROM catalog_sync_runs WHERE source_id=$1 ORDER BY created_at DESC LIMIT 30',
             [id],
           )
         ).rows,

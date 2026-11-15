@@ -1,3 +1,11 @@
+# Continuation batch — backend import statistics
+
+In progress on the existing PR branch, baseline f65b4d7 / deployed 99e6b67. UX01, UX05 and UX07 are unchanged.
+
+Implemented actual added/updated/unchanged/rejected, duplicate/missing-required/missing/archived counts from stored source rows. Preview and apply calculate server-side outcomes; unchanged rows are not rewritten. Migration 107 persists outcome summaries in sync history. UI renders returned counts, names the destination, and downloads row errors. Focused database and browser assertions cover first import, repeat import, changes and errors. Continue remaining product deletion, guided sidebar, action acceptance, isolated simulator and campaign patch; do not stop after this batch.
+
+---
+
 # Accepted release and exact resume point — 2026-11-15 18:30 UTC
 
 Application release: **99e6b6738c578ce2659bf8d90b8e53f61a246a02**, PR #14 only. Both existing Railway services are pinned to this accepted commit; later documentation/checkpoint commits do not auto-deploy. Do not merge main.

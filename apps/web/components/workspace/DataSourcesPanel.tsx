@@ -1,5 +1,6 @@
 'use client';
 import styles from './commerce-wizard.module.css';
+import ImportSummary, { ImportCounts } from './ImportSummary';
 import { DisclosureSummary } from '../product/DisclosureSummary';
 
 import { useEffect, useState } from 'react';
@@ -31,6 +32,7 @@ type Item = {
 };
 type Preview = {
   valid: boolean;
+  summary?: ImportCounts;
   previewId?: string;
   items: Item[];
   total: number;
@@ -62,6 +64,7 @@ export default function DataSourcesPanel({
   const { t, language } = useLocale();
   const [step, setStep] = useState(0);
   const [appliedCount, setAppliedCount] = useState(0);
+  const [appliedSummary, setAppliedSummary] = useState<ImportCounts | null>(null);
   const [sources, setSources] = useState<Source[]>([]),
     [editing, setEditing] = useState<Source | null>(null),
     [name, setName] = useState(''),
@@ -90,7 +93,7 @@ export default function DataSourcesPanel({
     [categories, setCategories] = useState<{ name: string; count: number }[]>([]),
     [query, setQuery] = useState(''),
     [runs, setRuns] = useState<
-      { status: string; item_count: number; error?: string; created_at: string }[]
+      { status: string; item_count: number; error?: string; created_at: string; summary?: Partial<ImportCounts> }[]
     >([]);
   const dirty =
     !!editing &&
@@ -182,6 +185,7 @@ export default function DataSourcesPanel({
     setAuto(s?.auto_sync ?? false);
     setAi(s?.ai_enabled ?? false);
     setPreview(null);
+    setAppliedSummary(null);
     setItems([]);
     setFile(null);
     setSample([]);
@@ -774,11 +778,12 @@ export default function DataSourcesPanel({
             {t('معاينة التحديث', 'Update preview')} — {preview.total}
             {hiddenCount > 0 && ` · ${hiddenCount} ${t('عنصر مخفي', 'hidden item(s)')}`}
           </h3>
-          <dl className={styles.previewStats}>
-            <div><dt>{t('العناصر في المعاينة', 'Preview items')}</dt><dd>{preview.total}</dd></div>
-            <div><dt>{t('أخطاء التحقق', 'Validation errors')}</dt><dd>{preview.errors.length}</dd></div>
-            <div><dt>{t('عناصر مفقودة', 'Missing items')}</dt><dd>{preview.missing}</dd></div>
-          </dl>
+          <ImportSummary counts={preview.summary} />
+          {!preview.valid && <p role="alert">{t('لم يتم استيراد أي صف. أصلح الأخطاء ثم أعد المعاينة.', 'No rows were imported. Fix the errors and preview again.')}</p>}
+          {!!preview.errors.length && <button type="button" className="btn" onClick={() => {
+            const url = URL.createObjectURL(new Blob([JSON.stringify({source: editing?.name, errors: preview.errors}, null, 2)], {type: 'application/json'}));
+            const link = document.createElement('a'); link.href = url; link.download = 'import-errors.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+          }}>{t('تنزيل تقرير الأخطاء', 'Download error report')}</button>}
           {preview.errors.map((e, i) => (
             <p role="alert" key={i}>
               {t('صف ', 'Row ')}
@@ -853,14 +858,15 @@ export default function DataSourcesPanel({
                 disabled={busy || (hiddenCount > 0 && !visibilityConfirmed)}
                 onClick={() =>
                   void act(async () => {
-                    await api('/commerce/sources/' + editing!.id + '/apply', {
+                    const applied = await api<ImportCounts & {processed: number}>('/commerce/sources/' + editing!.id + '/apply', {
                       method: 'POST',
                       body: JSON.stringify({
                         previewId: preview.previewId,
                         archiveMissing: archive,
                       }),
                     });
-                    setAppliedCount(preview.total);
+                    setAppliedCount(applied.processed);
+                    setAppliedSummary(applied);
                     setStep(4);
                     setPreview(null);
                     setFile(null);
@@ -888,6 +894,7 @@ export default function DataSourcesPanel({
               'items in the accepted update. Review your catalog below.',
             )}
           </p>
+          <ImportSummary counts={appliedSummary} />
           {onApplied && editing && (
             <button
               type="button"
@@ -967,13 +974,16 @@ export default function DataSourcesPanel({
             <details>
               <DisclosureSummary>{t('سجل المزامنة', 'Sync history')}</DisclosureSummary>
               {runs.map((r, i) => (
-                <p key={i}>
+                <section key={i}>
+                <p>
                   {new Date(r.created_at).toLocaleString(language)} —{' '}
                   {r.status === 'success' ? t('نجاح', 'Success') : t('فشل', 'Failed')} —{' '}
                   {r.item_count}{' '}
                   {r.error &&
                     t('النسخة السليمة السابقة محفوظة', 'Last successful version retained')}
                 </p>
+                <ImportSummary counts={r.summary} />
+                </section>
               ))}
             </details>
           )}

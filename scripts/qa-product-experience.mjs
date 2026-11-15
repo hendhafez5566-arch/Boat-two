@@ -157,6 +157,8 @@ try {
         })
         .click();
       await page.getByRole('heading', { name: /Update preview|معاينة التحديث/ }).waitFor();
+      assert.equal(await page.locator('[data-import-count="added"] dd').textContent(), '1');
+      assert.equal(await page.locator('[data-import-count="updated"] dd').textContent(), '0');
       await page.screenshot({
         path: `${out}/import-preview-${language}-${width}.png`,
         fullPage: true,
@@ -189,9 +191,14 @@ try {
       await page
         .getByRole('heading', { name: t('اكتمل الاستيراد', 'Import complete'), exact: true })
         .waitFor();
+      assert.equal(await page.locator('[data-import-count="added"] dd').textContent(), '1');
+      assert.equal(await page.locator('[data-import-count="unchanged"] dd').textContent(), '0');
       const sources = await api('/commerce/sources', token);
       const imported = sources.find((s) => s.name === importName);
       assert.ok(imported);
+      const runs = await api('/commerce/sources/' + imported.id + '/runs', token);
+      assert.equal(runs[0].summary.added, 1);
+      assert.equal(runs[0].summary.updated, 0);
       const importedItems = await api('/commerce/sources/' + imported.id + '/items', token);
       assert.ok(importedItems.items.some((item) => item.name === 'Imported tour'));
       await page.reload();
