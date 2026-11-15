@@ -70,3 +70,12 @@ Observed live: selecting a saved OR view displayed results underneath the unchan
 - Found ?create=true reopened an empty add dialog after reload. CRM contacts and shared work editor now consume this navigation command once while preserving other query parameters; browser suites start via these links and verify reload does not reopen creation.
 - Team page inspected: members/roles, empty pending invites/mail states, branding preview. No invitation sent and no permissions changed. Fixed raw role display and clarified the optional email request label.
 - Saved segment suite was blocked by the isolated runner leaving a Next child alive between two journeys. Runner now creates and cleans up its own process groups; no unrelated processes are killed. Rerun both journeys before accepting batch 4.
+
+## Second deployment / commerce live journey
+
+- Web 6746ad5 reached SUCCESS as dc69a2d1-5b4a-4fae-8f0e-2db6922e0e3e; Web Sleep remains true and no staged config exists. All six applicable workflow jobs passed, including 10 task/opportunity and 10 saved-segment combinations.
+- Live synthetic QA UX 20261115 follow-up was saved against the selected contact after searching for a different customer, reopened after refresh, and marked completed. Evidence image saved without customer data.
+- Live catalog: created a synthetic QA category and product; saved image URL and price 150.29, reopened and updated to 150.49. No existing product changed.
+- Live CSV: uploaded a two-row synthetic file, reviewed mapping/price display, previewed, explicitly confirmed and applied. Result showed 2 accepted items and updated last successful sync. Source remains separate from all existing sources.
+- Cloud file-chooser upload call stalled for roughly 16 minutes before returning successfully. Subsequent steps completed normally; do not classify this browser transport delay as product import latency.
+- Found duplicate empty-category option displayed as '(2)' and optional mapping controls crowded together. Batch 6 folds optional mapping fields, preserves their existing values, removes duplicate empty category choices in source browsing and dynamic node settings, and labels uncategorized cards. Browser acceptance now verifies unique category option values after an uncategorized CSV import.

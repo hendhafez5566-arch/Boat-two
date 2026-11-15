@@ -205,6 +205,17 @@ try {
       await page.getByLabel(t('المصدر', 'Source'), { exact: true }).selectOption(imported.id);
       await page.getByRole('button', { name: t('عرض', 'Browse'), exact: true }).click();
       await page.getByText('Imported tour', { exact: true }).waitFor();
+      const categoryValues = await page
+        .getByLabel(t('القسم', 'Category'), { exact: true })
+        .locator('option')
+        .evaluateAll((options) => options.map((option) => option.value));
+      assert.equal(
+        new Set(categoryValues).size,
+        categoryValues.length,
+        'Uncategorized must not create a duplicate all-categories option',
+      );
+      await page.getByText(t('دون قسم', 'Uncategorized'), { exact: true }).waitFor();
+
       const f = await api('/flows', token, {
         name: 'Product flow ' + language + width,
         channelIds: [channel.id],

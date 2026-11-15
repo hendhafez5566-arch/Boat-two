@@ -298,6 +298,28 @@ export default function DataSourcesPanel({
     ['image', 'رابط الصورة', 'Image link'],
     ['link', 'رابط التفاصيل', 'Details link'],
   ];
+  const mapColumns = (columns: typeof labels) => (
+    <div className="form-grid">
+      {columns.map(([key, ar, en]) => (
+        <label key={key}>
+          {t(ar, en)}
+          <select
+            aria-label={t(ar, en)}
+            value={mapping[key] ?? ''}
+            onChange={(e) => {
+              setMapping({ ...mapping, [key]: e.target.value || undefined });
+              setPreview(null);
+            }}
+          >
+            <option value="">{t('اختر عمودًا', 'Choose a column')}</option>
+            {headers.map((h) => (
+              <option key={h}>{h}</option>
+            ))}
+          </select>
+        </label>
+      ))}
+    </div>
+  );
   return (
     <section
       dir={language === 'ar' ? 'rtl' : 'ltr'}
@@ -583,26 +605,22 @@ export default function DataSourcesPanel({
               'Check the stable key and name. Extra columns are shown only when you select them.',
             )}
           </p>
-          <div className="form-grid">
-            {labels.map(([key, ar, en]) => (
-              <label key={key}>
-                {t(ar, en)}
-                <select
-                  aria-label={t(ar, en)}
-                  value={mapping[key] ?? ''}
-                  onChange={(e) => {
-                    setMapping({ ...mapping, [key]: e.target.value || undefined });
-                    setPreview(null);
-                  }}
-                >
-                  <option value="">{t('اختر عمودًا', 'Choose a column')}</option>
-                  {headers.map((h) => (
-                    <option key={h}>{h}</option>
-                  ))}
-                </select>
-              </label>
-            ))}
-          </div>
+          {mapColumns(labels.slice(0, 2))}
+          <details className={styles.optionalMapping}>
+            <DisclosureSummary>
+              {t(
+                'مطابقة اختيارية: الوصف والأقسام والصور والترتيب',
+                'Optional mapping: descriptions, categories, images and sorting',
+              )}
+            </DisclosureSummary>
+            <p>
+              {t(
+                'تُحفظ المطابقة المقترحة حتى إن أبقيت هذا الجزء مغلقًا. افتحه لتعديل الأعمدة الإضافية.',
+                'Suggested mappings are kept when this section is closed. Open it to change additional columns.',
+              )}
+            </p>
+            {mapColumns(labels.slice(2))}
+          </details>
           <h3>{t('الحقول والأسعار التي تريد عرضها', 'Fields and prices to display')}</h3>
           {headers
             .filter((h) => h !== mapping.id && h !== mapping.name)
@@ -887,11 +905,13 @@ export default function DataSourcesPanel({
               {t('القسم', 'Category')}
               <select value={category} onChange={(e) => setCategory(e.target.value)}>
                 <option value="">{t('كل الأقسام', 'All categories')}</option>
-                {categories.map((c) => (
-                  <option key={c.name} value={c.name}>
-                    {c.name} ({c.count})
-                  </option>
-                ))}
+                {categories
+                  .filter((c) => c.name.trim())
+                  .map((c) => (
+                    <option key={c.name} value={c.name}>
+                      {c.name} ({c.count})
+                    </option>
+                  ))}
               </select>
             </label>
             <button className="btn" disabled={busy} onClick={() => void act(() => browse(0))}>
@@ -901,7 +921,7 @@ export default function DataSourcesPanel({
           {items.map((p, i) => (
             <article className="card" key={i}>
               <strong>{p.name}</strong>
-              <p>{p.category_path}</p>
+              <p>{p.category_path || t('دون قسم', 'Uncategorized')}</p>
               <p>{p.description}</p>
               {p.dynamic_fields?.map((f) => (
                 <p key={f.label}>

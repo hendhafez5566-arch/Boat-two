@@ -158,11 +158,13 @@ export default function DynamicCatalogSettings({
               <option value="">
                 {t('قائمة الأقسام تلقائيًا', 'Browse categories automatically')}
               </option>
-              {categories.map((c) => (
-                <option key={c.name} value={c.name}>
-                  {c.name} ({c.count})
-                </option>
-              ))}
+              {categories
+                .filter((c) => c.name.trim())
+                .map((c) => (
+                  <option key={c.name} value={c.name}>
+                    {c.name} ({c.count})
+                  </option>
+                ))}
             </select>
           </label>
           <details>
