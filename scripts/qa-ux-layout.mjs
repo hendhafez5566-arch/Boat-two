@@ -81,10 +81,10 @@ for (const language of ['ar', 'en']) for (const width of [320,390,768,1366,1920]
   await page.getByRole('button',{name:t('تقديم','Move up')+' Second '+name,exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:t('تقديم','Move up')+' Second '+name,exact:true}).isDisabled(),true);
   await page.screenshot({path:`${out}/picker-${language}-${width}.png`});
-  const latest=await api('/flows/'+f.id,token);
+  const chatFlow=await api('/flows',token,{name:name+' conversation',channelIds:[channel.id]});
   const graph={startNodeId:'ask',nodes:[{id:'ask',type:'question',position:{x:100,y:100},data:{text:'Synthetic question',answerType:'text',saveAs:'qaName'},edges:{ok:'reply'}},{id:'reply',type:'message',position:{x:500,y:100},data:{text:'Hello {{qaName}}'},edges:{next:'end'}},{id:'end',type:'end',position:{x:900,y:100},data:{}}]};
-  await api('/flows/'+f.id,token,{graph,expectedUpdatedAt:latest.updated_at},'PATCH');
-  await page.goto('http://localhost:3000/dashboard/flows/'+f.id);
+  await api('/flows/'+chatFlow.id,token,{graph,expectedUpdatedAt:chatFlow.updated_at},'PATCH');
+  await page.goto('http://localhost:3000/dashboard/flows/'+chatFlow.id);
   await page.getByRole('button',{name:t('حفظ','Save'),exact:true}).click();
   await page.getByText(t('تم الحفظ','All changes saved'),{exact:true}).waitFor();
   await page.getByText(t('تم الحفظ','All changes saved'),{exact:true}).waitFor({state:'hidden',timeout:3000});

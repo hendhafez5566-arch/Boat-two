@@ -1,3 +1,7 @@
+## Acceptance fixture correction — b1e8f59
+
+The extended catalog journey successfully selected two products, reordered them, previewed the exact price, saved and reopened the graph. The next test overwrote that same server graph out of band while its inspector recovery snapshot existed; the editor correctly displayed its recovery decision instead of accepting a blind save. The conversation test now uses a separate isolated flow, preserving the recovery guard and all original assertions. Product/import journeys and editor reliability checks pass; rerun the extended suite before deployment.
+
 # Boat Two UX rebuild — resume point 2026-11-15
 
 Target: PR #14, `feat/flow-builder-fidelity-20261107`. Never merge main.
