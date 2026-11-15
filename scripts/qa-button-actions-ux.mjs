@@ -91,7 +91,7 @@ async function add(dialog, type, english, arabic, groupEn, groupAr, language) {
   await dialog.getByRole('button', { name: language === 'ar' ? 'إضافة ' + arabic : 'Add ' + english }).click();
   const item = dialog.locator('section[class*="actionItem"]').last();
   assert.equal(await item.locator('button[aria-expanded]').first().getAttribute('aria-expanded'), 'true');
-  const opened = await dialog.locator('section[class*="actionItem"] button[aria-expanded="true"]').count();
+  const opened = await dialog.locator('section[class*="actionItem"] > button[aria-expanded="true"]').count();
   assert.equal(opened, 1, 'only one expanded action at a time');
   return item;
 }
