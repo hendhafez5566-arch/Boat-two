@@ -6,7 +6,8 @@ export function productMinorUnits(value: string): string {
 }
 export function productDecimal(value: string): string {
   const cents = BigInt(value);
-  return `${cents / 100n}.${String(cents % 100n).padStart(2, '0')}`;
+  const fraction = String(cents % 100n).padStart(2, '0').replace(/0+$/, '');
+  return `${cents / 100n}${fraction ? `.${fraction}` : ''}`;
 }
 export function productPrice(value: string, currency: string): string {
   return `${productDecimal(value)} ${currency}`;

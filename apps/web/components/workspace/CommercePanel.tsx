@@ -120,7 +120,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
                 {t(ar, en)}
               </button>
             ))}
-          <Link className="btn" href="/dashboard/flows">
+          <Link className="btn" href="/dashboard/flows?section=bot_reply">
             {t('مدير البوت', 'Bot manager')}
           </Link>
           {tab === 'appointments' && (

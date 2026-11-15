@@ -1,3 +1,31 @@
+# Boat Two UX rebuild — resume point 2026-11-15
+
+Target: PR #14, `feat/flow-builder-fidelity-20261107`. Never merge main.
+Baseline rechecked: 385820bf06d3b59d8985be4c7384677f0fcc0c29 (newer catalog/specification/option work preserved).
+
+| Item | Current state | Remaining acceptance |
+|---|---|---|
+| UX01 product editor | Implemented modal with independent field scroll and reserved action row; exact integer/fraction money display | CI 10 language/viewport combinations + live published visual inspection |
+| UX02 catalog/categories | Searchable bounded category shelf; explicit Bot Manager destination | Safe referenced product/category delete design and backend tests remain; 100-category responsive CI pending |
+| UX03 import | Styled accessible file selector; required/optional mapping with samples; table preview and actual error/missing counts | Existing XLSX/CSV journey CI; backend added/updated/unchanged statistics and complete result redesign remain |
+| UX04 bot catalog picker | Existing browse/selected/reorder preserved | Guided journey redesign and full selection/save/reopen acceptance remain |
+| UX05 notices | Terminal saved/published notices dismiss after 1.8s; errors/conflicts/recovery remain; undo decisions stay until dismissed | Isolated timeout and error retention acceptance + live check |
+| UX06 automation actions | Latest baseline improvements preserved | Grouped prerequisite-aware action journeys remain |
+| UX07 toolbar | Red explicit exit X retains guarded navigation; current-channel informational label/icon | AR/EN responsive/unsaved guard acceptance |
+| UX08 simulator | Large responsive dialog; independent chat with reserved input; removed constraining phone frame | Interactive simulator at all 10 combinations + live inspection; rich product presentation still to review |
+
+Local build passed and exact money tests 3/3 passed. Browser/CI results must be recorded after execution, not inferred from compilation.
+New isolated acceptance script: `scripts/qa-ux-layout.mjs`, 100 categories, product create/edit exact cents, visible save controls, success dismissal, actual question/reply simulator, 320/390/768/1366/1920 in Arabic/English.
+Existing category acceptance selectors updated to current baseline add-category dialog behavior (removed obsolete auto-closed dialog close).
+
+Unaccepted campaign guidance work is retained in local branch `checkpoint/campaign-guidance-20261115` at 1bc2c30; excluded from this UX release until its isolated journey passes.
+
+Railway: existing project `boat-two-ui-preview`, environment `preview`; preserve PostgreSQL, Redis, API, Web and Sleep. Deploy accepted commit only after necessary checks; verify terminal deployment state and live UI. No customer data or real channel authorizations used in isolated tests.
+
+---
+
+## Previous recorded checkpoints (retained)
+
 # Flow Builder fidelity — 2026-11-07
 
 Branch: feat/flow-builder-fidelity-20261107. Base is the verified deployed source `559fa8c034a76a0f1a08842610f5a5d35caf268e`, preserving PR #12 product changes and PR #13. PR #12's later documentation-only checkpoint is not an ancestor; its existing branch remains untouched.

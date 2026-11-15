@@ -55,6 +55,7 @@ export default function ProductCatalog() {
     }
   };
   const [category, setCategory] = useState('all');
+  const [categorySearch, setCategorySearch] = useState('');
   const [categoryEditing, setCategoryEditing] = useState('');
   const [copyingCategory, setCopyingCategory] = useState(false);
   const [details, setDetails] = useState<
@@ -244,12 +245,18 @@ export default function ProductCatalog() {
               </button>
             </p>
           )}
+          <label className="field">
+            {t('ابحث عن قسم', 'Find a category')}
+            <input type="search" value={categorySearch} onChange={(e) => setCategorySearch(e.target.value)}
+              placeholder={t('اسم القسم…', 'Category name…')} />
+          </label>
           <nav className={styles.categoryShelf} aria-label={t('الأقسام', 'Categories')}>
             {[
               { id: 'all', name: t('كل المنتجات', 'All products') },
               ...categories.data,
               { id: 'none', name: t('دون قسم', 'Uncategorized') },
-            ].map((item) => (
+            ].filter((item) => item.id === 'all' || item.id === 'none' ||
+              item.name.toLocaleLowerCase().includes(categorySearch.trim().toLocaleLowerCase())).map((item) => (
               <button
                 type="button"
                 className="btn"
@@ -437,15 +444,8 @@ export default function ProductCatalog() {
         </>
       )}
       {editing !== undefined && (
-        <section className={styles.productEditor} aria-label={t('محرر المنتج', 'Product editor')}>
-          <header className={styles.catalogHeader}>
-            <div>
-              <button type="button" className="btn" disabled={busy} onClick={closeEditor}>
-                {t('رجوع للكتالوج', 'Back to catalog')}
-              </button>
-              <h2>{editing ? editing.name : t('منتج جديد', 'New product')}</h2>
-            </div>
-          </header>
+        <Dialog open onClose={closeEditor} className={styles.editorDialog}
+          title={editing ? t('تعديل المنتج', 'Edit product') : t('منتج جديد', 'New product')}>
           <form
             className={styles.productForm}
             onChange={() => setEditorDirty(true)}
@@ -455,6 +455,7 @@ export default function ProductCatalog() {
               void save(e.currentTarget);
             }}
           >
+            <div className={styles.editorFields}>
             {error && (
               <p role="alert" className="notice error">
                 {error}
@@ -663,6 +664,7 @@ export default function ProductCatalog() {
               <input type="checkbox" name="archived" defaultChecked={editing?.archived} />
               {t('أرشفة المنتج (يصبح غير متاح للبوت)', 'Archive product (unavailable to bots)')}
             </label>
+            </div>
             <div className="form-actions">
               <button className="btn btn-primary" disabled={busy}>
                 {busy ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ المنتج', 'Save product')}
@@ -672,7 +674,7 @@ export default function ProductCatalog() {
               </button>
             </div>
           </form>
-        </section>
+        </Dialog>
       )}
       {preview && (
         <section className="card stack" aria-label={t('معاينة المنتج', 'Product preview')}>

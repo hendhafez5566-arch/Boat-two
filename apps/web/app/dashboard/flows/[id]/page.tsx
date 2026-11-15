@@ -217,6 +217,12 @@ function Editor({ id }: { id: string }) {
   const savedContent = useRef('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  // Only terminal success notices disappear; validation, recovery and conflict notices stay.
+  useEffect(() => {
+    if (!/^(تم الحفظ$|All changes saved$|تم النشر v\d+$|Published v\d+$)/.test(msg)) return;
+    const timer = setTimeout(() => setMsg(''), 1800);
+    return () => clearTimeout(timer);
+  }, [msg]);
   const [confirmPublish, setConfirmPublish] = useState(false);
   const [publishOutcome, setPublishOutcome] = useState<{
     kind: 'success' | 'error';
@@ -569,7 +575,7 @@ function Editor({ id }: { id: string }) {
   const notify = (text: string, undo = false) => {
     setToast({ text, undo });
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 6000);
+    toastTimer.current = undo ? null : setTimeout(() => setToast(null), 1800);
   };
 
   // A connection is valid only between two different, existing steps and from a real output.
@@ -1455,12 +1461,12 @@ function Editor({ id }: { id: string }) {
     >
       <header className={styles.toolbar} aria-label={t('أدوات مصمم البوت', 'Flow editor toolbar')}>
         <a
-          className={styles.toolButton}
+          className={`${styles.toolButton} ${styles.exitButton}`}
           href={channelHref('/dashboard/flows', accountContext)}
-          title={t('رجوع لمدير البوت', 'Back to Bot Manager')}
-          aria-label={t('رجوع لمدير البوت', 'Back to Bot Manager')}
+          title={t('الخروج من محرر البوت', 'Exit bot editor')}
+          aria-label={t('الخروج من محرر البوت', 'Exit bot editor')}
         >
-          <NavIcon name="undo" />
+          <span aria-hidden="true">✕</span>
         </a>
         {staleChannelIds.length > 0 && (
           <button
@@ -1486,8 +1492,10 @@ function Editor({ id }: { id: string }) {
         </button>
         {meta.channelIds.length === 1 && (
           <span className={styles.channelBadge}>
+            <NavIcon name="channels" />
+            <span>{t('القناة الحالية:', 'Current channel:')}{' '}
             {channels.find((channel) => channel.id === meta.channelIds[0])?.name ??
-              t('حساب مرتبط', 'Linked account')}
+              t('حساب مرتبط', 'Linked account')}</span>
           </span>
         )}
         <button
@@ -2227,9 +2235,7 @@ function Editor({ id }: { id: string }) {
           <p className="smart-review-label">
             {t('محاكاة المنطق — بدون إرسال واتساب', 'Logic simulator — no WhatsApp delivery')}
           </p>
-          <div className="phone-frame">
-            <div className="phone-notch" />
-            <div className="phone-screen">
+          <div className={styles.simulatorBody}>
               <TestPanel
                 flowId={id}
                 onProgress={onPreviewProgress}
@@ -2239,7 +2245,6 @@ function Editor({ id }: { id: string }) {
                 }}
                 onTestSuccess={() => setTestedSnapshot(pendingTestSnapshot.current)}
               />
-            </div>
           </div>
         </Dialog>
 

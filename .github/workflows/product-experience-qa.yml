@@ -6,6 +6,7 @@ on:
       - 'apps/web/**'
       - 'apps/api/**'
       - 'scripts/qa-product-experience.mjs'
+      - 'scripts/qa-ux-layout.mjs'
       - 'scripts/run-connect-browser-qa.py'
       - '.github/workflows/product-experience-qa.yml'
   workflow_dispatch:
@@ -38,12 +39,19 @@ jobs:
           BOAT_QA_BROWSER_SCRIPT: scripts/qa-product-experience.mjs
           BOAT_CHROMIUM: /usr/bin/google-chrome
         run: python3 scripts/run-connect-browser-qa.py
+      - name: Run responsive product and simulator acceptance
+        env:
+          BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
+          BOAT_QA_BROWSER_SCRIPT: scripts/qa-ux-layout.mjs
+          BOAT_CHROMIUM: /usr/bin/google-chrome
+        run: python3 scripts/run-connect-browser-qa.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: product-experience-evidence
           path: |
             docs/enterprise-20261114/products/
+            docs/enterprise-20261115/ux-layout/
             /tmp/boat-journeys-api.log
             /tmp/boat-journeys-web.log
           if-no-files-found: warn

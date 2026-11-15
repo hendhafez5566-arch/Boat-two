@@ -14,3 +14,10 @@ test('invalid or overprecise prices cannot silently round or truncate', () => {
     assert.throws(() => productMinorUnits(value));
   }
 });
+
+test('display omits insignificant zeros without changing hundredths', () => {
+  for (const [cents, display] of [['150000', '1500'], ['15050', '150.5'], ['15005', '150.05'], ['0', '0'], ['999999999999999', '9999999999999.99']]) {
+    assert.equal(productDecimal(cents), display);
+    assert.equal(productMinorUnits(display), cents);
+  }
+});

@@ -247,7 +247,7 @@ try {
       Object.keys(localStorage).some((k) => k.startsWith('boat:flow-recovery:')),
     );
     await page
-      .getByRole('link', { name: t('رجوع لمدير البوت', 'Back to Bot Manager'), exact: true })
+      .getByRole('link', { name: t('الخروج من محرر البوت', 'Exit bot editor'), exact: true })
       .click();
     await page
       .getByRole('button', { name: t('تجاهل ومغادرة', 'Discard and leave'), exact: true })

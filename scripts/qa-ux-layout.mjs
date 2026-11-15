@@ -1,0 +1,85 @@
+/* global localStorage, document, innerWidth, innerHeight, getComputedStyle */
+import { assertLocalAcceptance } from './acceptance-local.mjs';
+assertLocalAcceptance();
+import { createRequire } from 'node:module';
+import { randomUUID } from 'node:crypto';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const { chromium } = createRequire(import.meta.url)(process.env.BOAT_PLAYWRIGHT_MODULE || 'playwright');
+const out = 'docs/enterprise-20261115/ux-layout';
+mkdirSync(out, { recursive: true });
+async function api(path, token, body, method = body ? 'POST' : 'GET') {
+  const r = await fetch('http://localhost:4000' + path, { method,
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+    ...(body ? { body: JSON.stringify(body) } : {}) });
+  const data = await r.json(); assert.ok(r.ok, path + JSON.stringify(data)); return data;
+}
+const session = await api('/auth/register', null, { email: randomUUID() + '@example.test', password: 'Synthetic-' + randomUUID(), fullName: 'Layout QA', workspaceName: 'Isolated UX acceptance' });
+const token = session.accessToken;
+const channel = await api('/channels', token, { type: 'web', name: 'Isolated UX channel' });
+await api('/workspace/onboarding/complete', token, {});
+for (let n = 0; n < 100; n++) await api('/commerce/categories', token, { name: 'Scale category ' + String(n).padStart(3, '0') });
+const browser = await chromium.launch({ executablePath: process.env.BOAT_CHROMIUM || '/usr/bin/google-chrome', args: ['--no-sandbox'] });
+const results = [];
+let page;
+try {
+for (const language of ['ar', 'en']) for (const width of [320,390,768,1366,1920]) {
+  const t = (ar,en) => language === 'ar' ? ar : en;
+  const context = await browser.newContext({ viewport: { width, height: 936 } });
+  await context.addInitScript(({session,language}) => { localStorage.setItem('session', JSON.stringify(session)); localStorage.setItem('boat-language', language); }, {session,language});
+  page = await context.newPage(); const errors = []; page.on('pageerror', e => errors.push(e.message));
+  await page.route('**/*', r => ['localhost','127.0.0.1'].includes(new URL(r.request().url()).hostname) ? r.continue() : r.abort());
+  await page.goto('http://localhost:3000/dashboard/commerce');
+  const categories = page.getByRole('navigation', {name:t('الأقسام','Categories'),exact:true});
+  await categories.getByRole('button', {name:'Scale category 099 0',exact:true}).waitFor();
+  await page.getByRole('searchbox', {name:t('ابحث عن قسم','Find a category'),exact:true}).fill('099');
+  assert.equal(await categories.getByRole('button').count(),3);
+  await categories.getByRole('button', {name:'Scale category 099 0',exact:true}).click();
+  await page.getByRole('button',{name:t('إضافة منتج','Add product'),exact:true}).click();
+  const editor = page.getByRole('dialog',{name:t('منتج جديد','New product'),exact:true});
+  await editor.waitFor();
+  const name = `Synthetic layout ${language}-${width}`;
+  await editor.getByLabel(t('اسم المنتج','Product name'),{exact:true}).fill(name);
+  await editor.getByLabel(t('رمز المنتج SKU','Product code (SKU)'),{exact:true}).fill(language+width);
+  await editor.getByLabel(t('سعر المنتج (مثال 150.00)','Product price (e.g. 150.00)'),{exact:true}).fill('1500');
+  const save = editor.getByRole('button',{name:t('حفظ المنتج','Save product'),exact:true});
+  assert.ok(await save.evaluate(el => { const r=el.getBoundingClientRect(); return r.top>=0 && r.bottom<=innerHeight && document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('button')===el; }), 'save must remain visible and unobscured');
+  await page.screenshot({path:`${out}/product-${language}-${width}.png`});
+  await save.click();
+  await page.getByText(t('تم حفظ المنتج.','Product saved.'),{exact:true}).waitFor();
+  const card = page.locator('article').filter({has:page.getByRole('heading',{name,exact:true})});
+  await card.getByText('1500 EGP',{exact:true}).waitFor();
+  await card.getByRole('button',{name:t('تعديل','Edit'),exact:true}).click();
+  assert.equal(await page.getByLabel(t('سعر المنتج (مثال 150.00)','Product price (e.g. 150.00)'),{exact:true}).inputValue(),'1500');
+  await page.getByLabel(t('سعر المنتج (مثال 150.00)','Product price (e.g. 150.00)'),{exact:true}).fill('150.05');
+  await page.getByRole('button',{name:t('حفظ المنتج','Save product'),exact:true}).click();
+  await card.getByText('150.05 EGP',{exact:true}).waitFor();
+  const product = (await api('/commerce/products',token)).find(p=>p.name===name); assert.equal(String(product.price_cents),'15005');
+  const f = await api('/flows',token,{name,channelIds:[channel.id]});
+  const graph={startNodeId:'ask',nodes:[{id:'ask',type:'question',position:{x:100,y:100},data:{text:'Synthetic question',answerType:'text',saveAs:'qaName'},edges:{ok:'reply'}},{id:'reply',type:'message',position:{x:500,y:100},data:{text:'Hello {{qaName}}'},edges:{next:'end'}},{id:'end',type:'end',position:{x:900,y:100},data:{}}]};
+  await api('/flows/'+f.id,token,{graph,expectedUpdatedAt:f.updated_at},'PATCH');
+  await page.goto('http://localhost:3000/dashboard/flows/'+f.id);
+  await page.getByRole('button',{name:t('حفظ','Save'),exact:true}).click();
+  await page.getByText(t('تم الحفظ','All changes saved'),{exact:true}).waitFor();
+  await page.getByText(t('تم الحفظ','All changes saved'),{exact:true}).waitFor({state:'hidden',timeout:3000});
+  await page.getByRole('link',{name:t('الخروج من محرر البوت','Exit bot editor'),exact:true}).waitFor();
+  await page.getByText(t('القناة الحالية:','Current channel:'),{exact:false}).waitFor();
+  await page.getByRole('button',{name:t('المزيد من الأدوات','More tools'),exact:true}).click();
+  await page.getByRole('button',{name:t('تجربة البوت','Preview'),exact:true}).click();
+  const simulator=page.getByRole('dialog',{name:t('تجربة البوت','Preview bot'),exact:true});
+  await simulator.getByRole('button',{name:t('ابدأ التجربة','Start preview'),exact:true}).click();
+  await simulator.getByText('Synthetic question',{exact:true}).waitFor();
+  const reply=simulator.getByRole('textbox',{name:t('رد العميل','Customer reply'),exact:true});
+  await reply.fill('QA visitor'); await simulator.getByRole('button',{name:t('إرسال','Send'),exact:true}).click();
+  await simulator.getByText('Hello QA visitor',{exact:true}).waitFor();
+  assert.ok(await reply.evaluate(el=>{const r=el.getBoundingClientRect();return r.top>=0 && r.bottom<=innerHeight;}), 'chat input remains visible');
+  assert.ok(await simulator.evaluate(el=>{const r=el.getBoundingClientRect();return r.width>=Math.min(1000,innerWidth-30) && r.bottom<=innerHeight && r.top>=0;}),'simulator uses available screen');
+  await page.screenshot({path:`${out}/simulator-${language}-${width}.png`});
+  await simulator.getByRole('button',{name:'Close / إغلاق',exact:true}).click();
+  assert.deepEqual(errors,[]);
+  results.push({language,width,categoryScale:100,productExactCents:true,unobscuredSave:true,successDismissal:true,interactiveSimulator:true});
+  await context.close();
+}
+writeFileSync(`${out}/results.json`,JSON.stringify(results,null,2));
+console.log(JSON.stringify({status:'PASS',journeys:results.length}));
+} catch(e) { if(page) await page.screenshot({path:`${out}/failure.png`}).catch(()=>{}); throw e; } finally { await browser.close(); }

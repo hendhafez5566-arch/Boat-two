@@ -453,7 +453,8 @@
   min-width: 0;
 }
 .previewDialog {
-  width: min(440px, calc(100vw - 24px));
+  width: min(1040px, calc(100vw - 24px));
+  height: min(820px, calc(100dvh - 24px));
   padding: 0;
   max-width: none;
   max-height: calc(100dvh - 24px);
@@ -472,7 +473,10 @@
 .previewDialog > :global(.dialog-body) {
   padding: 8px 16px 16px;
   min-height: 0;
-  overflow: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .previewDialog :global(.smart-review-label) {
   font-size: 11px;
@@ -1234,4 +1238,22 @@
   padding: 12px 16px;
   box-shadow: 0 4px 20px #172b4d20;
   font-size: 14px;
+}
+
+.exitButton { color: #b42318; border-color: #f3c9c4; background: #fff8f7; font-size: 20px; }
+.simulatorBody { flex: 1; min-height: 0; overflow: hidden; border: 1px solid #dce5ef; border-radius: 12px; }
+.simulatorBody :global(.tp) { font-size: 15px; }
+.simulatorBody :global(.tp-chat) { min-height: 120px; }
+.simulatorBody :global(.tp-head) { flex-shrink: 0; }
+.simulatorBody :global(.tp-input) { flex-shrink: 0; background: white; border-top: 1px solid #dce5ef; }
+.simulatorBody :global(.tp-adv) { flex-shrink: 0; max-height: 26%; font-size: 14px; }
+.simulatorBody :global(.tp-btn) { min-height: 44px; }
+.channelBadge { gap: 8px; }
+.channelBadge svg { flex-shrink: 0; width: 18px; height: 18px; }
+.channelBadge > span { overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 700px) {
+  .previewDialog { width: calc(100vw - 12px); height: calc(100dvh - 12px); max-height: calc(100dvh - 12px); border-radius: 12px; }
+  .previewDialog > :global(.dialog-body) { padding: 4px 8px 8px; }
+  .toolbar .channelBadge { display: flex; max-width: 118px; padding: 0 6px; font-size: 11px; height: 36px; }
+  .channelBadge svg { display: none; }
 }

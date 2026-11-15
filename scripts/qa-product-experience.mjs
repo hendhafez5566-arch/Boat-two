@@ -64,7 +64,7 @@ try {
       await page.goto('http://localhost:3000/dashboard/commerce');
       await page.getByRole('button', { name: t('المنتجات', 'Products'), exact: true }).click();
       await page
-        .getByText(t('إدارة الأقسام المحلية', 'Manage local categories'), { exact: true })
+        .getByRole('button', { name: t('إضافة قسم', 'Add category'), exact: true })
         .click();
       const category = 'Trips-' + language + '-' + width;
       await page.getByLabel(t('اسم القسم', 'Category name'), { exact: true }).fill(category);
@@ -72,10 +72,6 @@ try {
         .getByRole('button', { name: t('حفظ القسم', 'Save category'), exact: true })
         .click();
       await page.getByText(t('تم حفظ القسم.', 'Category saved.'), { exact: true }).waitFor();
-      await page
-        .getByRole('dialog')
-        .getByRole('button', { name: 'Close / إغلاق', exact: true })
-        .click();
       await page.getByRole('button', { name: t('إضافة منتج', 'Add product'), exact: true }).click();
       const name = 'Tour ' + language + ' ' + width;
       await page.getByLabel(t('اسم المنتج', 'Product name'), { exact: true }).fill(name);

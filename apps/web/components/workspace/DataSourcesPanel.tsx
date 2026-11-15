@@ -316,6 +316,10 @@ export default function DataSourcesPanel({
               <option key={h}>{h}</option>
             ))}
           </select>
+          {mapping[key] && <small className={styles.hint}>
+            {t('مثال من الملف:', 'File sample:')}{' '}
+            {sample.slice(0, 2).map((row) => row[headers.indexOf(mapping[key] ?? '')] || '—').join(' · ')}
+          </small>}
         </label>
       ))}
     </div>
@@ -410,7 +414,8 @@ export default function DataSourcesPanel({
           </div>
           {kind === 'file' ? (
             <>
-              <label>
+              <label className={styles.uploadZone}>
+                <strong>{t('اختر ملف المنتجات', 'Choose your product file')}</strong>
                 {t('رفع ملف .xlsx أو .csv — حتى 5 MB', 'Upload .xlsx or .csv — up to 5 MB')}
                 <input
                   disabled={busy}
@@ -769,6 +774,11 @@ export default function DataSourcesPanel({
             {t('معاينة التحديث', 'Update preview')} — {preview.total}
             {hiddenCount > 0 && ` · ${hiddenCount} ${t('عنصر مخفي', 'hidden item(s)')}`}
           </h3>
+          <dl className={styles.previewStats}>
+            <div><dt>{t('العناصر في المعاينة', 'Preview items')}</dt><dd>{preview.total}</dd></div>
+            <div><dt>{t('أخطاء التحقق', 'Validation errors')}</dt><dd>{preview.errors.length}</dd></div>
+            <div><dt>{t('عناصر مفقودة', 'Missing items')}</dt><dd>{preview.missing}</dd></div>
+          </dl>
           {preview.errors.map((e, i) => (
             <p role="alert" key={i}>
               {t('صف ', 'Row ')}
@@ -776,21 +786,17 @@ export default function DataSourcesPanel({
             </p>
           ))}
           {step === 2 && (
-            <div className={styles.previewGrid}>
-              {preview.items.map((p, i) => (
-                <article className="card" key={i}>
-                  <strong>{p.name}</strong>
-                  <p>{p.description}</p>
-                  <p>
-                    {p.category} {p.visible === false ? t('مخفي', 'Hidden') : ''}
-                  </p>
-                  {p.fields?.map((f) => (
-                    <p key={f.label}>
-                      {f.label}: {f.value}
-                    </p>
-                  ))}
-                </article>
-              ))}
+            <div className={styles.previewTable} tabIndex={0} role="region" aria-label={t('جدول معاينة المنتجات', 'Product preview table')}>
+              <table><thead><tr>
+                <th>{t('الاسم', 'Name')}</th><th>{t('الوصف', 'Description')}</th>
+                <th>{t('القسم', 'Category')}</th><th>{t('البيانات الإضافية', 'Extra data')}</th>
+              </tr></thead><tbody>
+              {preview.items.map((p, i) => <tr key={i}>
+                <td>{p.name}{p.visible === false && <small> · {t('مخفي', 'Hidden')}</small>}</td>
+                <td>{p.description || '—'}</td><td>{p.category || t('دون قسم', 'Uncategorized')}</td>
+                <td>{p.fields?.map((f) => <div key={f.label}>{f.label}: {f.value}</div>)}</td>
+              </tr>)}
+              </tbody></table>
             </div>
           )}
           {step === 2 && (
