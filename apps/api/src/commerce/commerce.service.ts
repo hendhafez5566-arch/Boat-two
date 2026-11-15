@@ -40,6 +40,33 @@ export class CommerceService {
       return result.rows[0];
     });
   }
+  async duplicateCategory(tenant: string, sourceId: string, name: string) {
+    return this.db.withTenant(tenant, async (c) => {
+      const result = await c.query(
+        `WITH new_category AS (
+           INSERT INTO product_categories (tenant_id, name)
+           SELECT tenant_id, $3 FROM product_categories WHERE tenant_id = $1 AND id = $2
+           RETURNING id, tenant_id, name
+         ), copied AS (
+           INSERT INTO catalog_products
+             (tenant_id, category_id, sku, name, description, price_cents, currency,
+              image_url, link_url, archived, specifications, options)
+           SELECT destination.tenant_id, destination.id, 'COPY-' || gen_random_uuid()::text,
+                  product.name, product.description, product.price_cents, product.currency,
+                  product.image_url, product.link_url, product.archived,
+                  product.specifications, product.options
+           FROM new_category destination
+           JOIN catalog_products product ON product.tenant_id = destination.tenant_id
+           WHERE product.category_id = $2 AND product.source_id IS NULL
+           RETURNING id
+         )
+         SELECT id, name, (SELECT count(*)::int FROM copied) AS product_count FROM new_category`,
+        [tenant, sourceId, name],
+      );
+      if (!result.rows[0]) throw new NotFoundException('Category unavailable');
+      return result.rows[0];
+    });
+  }
   products(tenant: string) {
     return this.db.withTenant(
       tenant,
@@ -57,7 +84,7 @@ export class CommerceService {
       async (c) =>
         (
           await c.query(
-            `INSERT INTO catalog_products(id,tenant_id,sku,name,description,price_cents,currency,image_url,link_url,catalog_id,retailer_id,archived,category_id) VALUES(COALESCE($1::uuid,gen_random_uuid()),$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT(id) DO UPDATE SET sku=EXCLUDED.sku,name=EXCLUDED.name,description=EXCLUDED.description,price_cents=EXCLUDED.price_cents,currency=EXCLUDED.currency,image_url=EXCLUDED.image_url,link_url=EXCLUDED.link_url,catalog_id=EXCLUDED.catalog_id,retailer_id=EXCLUDED.retailer_id,archived=EXCLUDED.archived,category_id=CASE WHEN $14 THEN EXCLUDED.category_id ELSE catalog_products.category_id END,updated_at=now() WHERE catalog_products.source_id IS NULL RETURNING *`,
+            `INSERT INTO catalog_products(id,tenant_id,sku,name,description,price_cents,currency,image_url,link_url,catalog_id,retailer_id,archived,category_id,specifications,options) VALUES(COALESCE($1::uuid,gen_random_uuid()),$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,COALESCE($15::jsonb,'[]'),COALESCE($16::jsonb,'[]')) ON CONFLICT(id) DO UPDATE SET sku=EXCLUDED.sku,name=EXCLUDED.name,description=EXCLUDED.description,price_cents=EXCLUDED.price_cents,currency=EXCLUDED.currency,image_url=EXCLUDED.image_url,link_url=EXCLUDED.link_url,catalog_id=EXCLUDED.catalog_id,retailer_id=EXCLUDED.retailer_id,archived=EXCLUDED.archived,category_id=CASE WHEN $14 THEN EXCLUDED.category_id ELSE catalog_products.category_id END,specifications=COALESCE($15::jsonb,catalog_products.specifications),options=COALESCE($16::jsonb,catalog_products.options),updated_at=now() WHERE catalog_products.source_id IS NULL RETURNING *`,
             [
               id ?? null,
               tenant,
@@ -73,6 +100,8 @@ export class CommerceService {
               input.archived,
               input.categoryId ?? null,
               input.categoryId !== undefined,
+              input.specifications === undefined ? null : JSON.stringify(input.specifications),
+              input.options === undefined ? null : JSON.stringify(input.options),
             ],
           )
         ).rows[0],

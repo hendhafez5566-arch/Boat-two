@@ -16,6 +16,24 @@ export const productSchema = z.object({
   catalogId: z.string().max(200).optional(),
   retailerId: z.string().max(200).optional(),
   archived: z.boolean().default(false),
+  specifications: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(80),
+        value: z.string().trim().min(1).max(200),
+      }),
+    )
+    .max(100)
+    .optional(),
+  options: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(120),
+        priceCents: z.string().regex(/^\d{1,15}$/),
+      }),
+    )
+    .max(100)
+    .optional(),
 });
 const time = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
 export const serviceSchema = z.object({

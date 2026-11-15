@@ -18,6 +18,7 @@ test('local categories persist, preserve legacy edits and enforce tenant isolati
  CREATE TABLE catalog_products(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),tenant_id uuid NOT NULL REFERENCES tenants(id),sku text,name text,description text,price_cents bigint,currency text,image_url text,link_url text,catalog_id text,retailer_id text,archived boolean,source_id uuid,updated_at timestamptz DEFAULT now());
  ALTER TABLE catalog_products ENABLE ROW LEVEL SECURITY;ALTER TABLE catalog_products FORCE ROW LEVEL SECURITY;CREATE POLICY tenant_isolation ON catalog_products USING(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid) WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);GRANT SELECT,INSERT,UPDATE ON catalog_products TO app_user;`);
     await pg.exec(readFileSync('src/database/migrations/105_product_categories.sql', 'utf8'));
+    await pg.exec(readFileSync('src/database/migrations/106_product_details.sql', 'utf8'));
     const db = {
       withTenant: async <T>(
         tenant: string,
@@ -44,13 +45,40 @@ test('local categories persist, preserve legacy edits and enforce tenant isolati
       currency: 'EGP',
       archived: false,
     };
-    const p = await service.saveProduct(a, { ...input, categoryId: String(c.id) });
+    const specifications = [{ name: 'Duration', value: '4 days' }];
+    const options = [{ name: 'Double room', priceCents: '19500' }];
+    const p = await service.saveProduct(a, {
+      ...input,
+      categoryId: String(c.id),
+      specifications,
+      options,
+      catalogId: 'provider',
+      retailerId: 'retailer',
+    });
     assert.equal(p.category_id, c.id);
     assert.equal(String(p.price_cents), '15000');
-    const edited = await service.saveProduct(a, { ...input, name: 'Updated' }, String(p.id));
+    const edited = await service.saveProduct(
+      a,
+      { ...input, name: 'Updated', catalogId: 'provider', retailerId: 'retailer' },
+      String(p.id),
+    );
     assert.equal(edited.category_id, c.id, 'legacy clients must not clear category');
+    assert.deepEqual(edited.specifications, specifications);
+    assert.deepEqual(edited.options, options);
+    await assert.rejects(service.duplicateCategory(b, String(c.id), 'Foreign copy'), /unavailable/);
+    const copy = await service.duplicateCategory(a, String(c.id), 'Copied tours');
+    assert.equal(copy.product_count, 1);
+    await assert.rejects(service.duplicateCategory(a, String(c.id), 'Copied tours'));
+    const copied = (await service.products(a)).find((item) => item.category_id === copy.id);
+    assert.notEqual(copied.id, p.id);
+    assert.notEqual(copied.sku, p.sku);
+    assert.deepEqual(copied.specifications, specifications);
+    assert.deepEqual(copied.options, options);
+    assert.equal(copied.catalog_id, null);
+    await service.saveProduct(a, { ...input, sku: copied.sku, options: [] }, copied.id);
+    assert.deepEqual((await service.products(a)).find((item) => item.id === p.id).options, options);
     await service.saveCategory(a, 'Trips', String(c.id));
-    assert.equal((await service.categories(a))[0].name, 'Trips');
+    assert.equal((await service.categories(a)).find((item) => item.id === c.id)?.name, 'Trips');
     assert.deepEqual(await service.products(b), []);
     await assert.rejects(service.saveProduct(b, { ...input, categoryId: String(c.id) }));
     await assert.rejects(service.saveProduct(b, input, String(p.id)));

@@ -42,6 +42,13 @@ export class CommerceController {
   ) {
     return this.commerce.saveCategory(r.user.tenantId, parse(categorySchema, body).name, id);
   }
+  @Post('categories/:id/duplicate') duplicateCategory(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.commerce.duplicateCategory(r.user.tenantId, id, parse(categorySchema, body).name);
+  }
   @Get('products') products(@Req() r: AuthedRequest) {
     return this.commerce.products(r.user.tenantId);
   }

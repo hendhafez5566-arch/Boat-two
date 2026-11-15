@@ -19,6 +19,8 @@ export type CatalogProduct = {
   retailer_id: string | null;
   archived: boolean;
   category_id?: string | null;
+  specifications?: { name: string; value: string }[];
+  options?: { name: string; priceCents: string }[];
 };
 export function ProductImage({ product }: { product: Pick<CatalogProduct, 'image_url' | 'name'> }) {
   const [failed, setFailed] = useState(false);
@@ -54,6 +56,39 @@ export default function ProductCatalog() {
   };
   const [category, setCategory] = useState('all');
   const [categoryEditing, setCategoryEditing] = useState('');
+  const [copyingCategory, setCopyingCategory] = useState(false);
+  const [details, setDetails] = useState<
+    { id: number; name: string; value: string; kind: 'specification' | 'option' }[]
+  >([]);
+  const nextDetail = useRef(0);
+  const selectedCategory = categories.data.find((item) => item.id === category);
+
+  function openEditor(product: CatalogProduct | null) {
+    setDraftImage(product?.image_url ?? null);
+    setDetails([
+      ...(product?.specifications ?? []).map((item) => ({
+        ...item,
+        id: nextDetail.current++,
+        kind: 'specification' as const,
+      })),
+      ...(product?.options ?? []).map((item) => ({
+        name: item.name,
+        value: productDecimal(item.priceCents),
+        id: nextDetail.current++,
+        kind: 'option' as const,
+      })),
+    ]);
+    setEditorDirty(false);
+    setError('');
+    setEditing(product);
+  }
+
+  function openCategory(id = '', copy = false) {
+    setError('');
+    setCategoryEditing(id);
+    setCopyingCategory(copy);
+    setCategoriesOpen(true);
+  }
   const [draftImage, setDraftImage] = useState<string | null>(null);
   const [serverPreview, setServerPreview] = useState('');
   const products = useData<CatalogProduct[]>('/commerce/products', []);
@@ -108,6 +143,12 @@ export default function ProductCatalog() {
           ...(f.get('catalog') ? { catalogId: f.get('catalog') } : {}),
           ...(f.get('retailer') ? { retailerId: f.get('retailer') } : {}),
           archived: f.get('archived') === 'on',
+          specifications: details
+            .filter((item) => item.kind === 'specification')
+            .map(({ name, value }) => ({ name, value })),
+          options: details
+            .filter((item) => item.kind === 'option')
+            .map(({ name, value }) => ({ name, priceCents: productMinorUnits(value.trim()) })),
         }),
       });
       await products.reload();
@@ -128,14 +169,25 @@ export default function ProductCatalog() {
     setError('');
     try {
       const f = new FormData(form);
-      await api('/commerce/categories' + (categoryEditing ? '/' + categoryEditing : ''), {
-        method: categoryEditing ? 'PATCH' : 'POST',
-        body: JSON.stringify({ name: f.get('categoryName') }),
-      });
-      await categories.reload();
-      form.reset();
-      setCategoryEditing('');
-      setSuccess(t('تم حفظ القسم.', 'Category saved.'));
+      const saved = await api<{ id: string }>(
+        '/commerce/categories' +
+          (categoryEditing ? '/' + categoryEditing : '') +
+          (copyingCategory ? '/duplicate' : ''),
+        {
+          method: categoryEditing && !copyingCategory ? 'PATCH' : 'POST',
+          body: JSON.stringify({ name: f.get('categoryName') }),
+        },
+      );
+      await Promise.all([categories.reload(), copyingCategory && products.reload()]);
+      setCategory(saved.id);
+      setQuery('');
+      if (copyingCategory) setStatus('all');
+      setCategoriesOpen(false);
+      setSuccess(
+        copyingCategory
+          ? t('تم نسخ القسم ومنتجاته.', 'Category and products copied.')
+          : t('تم حفظ القسم.', 'Category saved.'),
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -158,232 +210,244 @@ export default function ProductCatalog() {
   }
   return (
     <section className={styles.root} aria-label={t('إدارة المنتجات', 'Product management')}>
-      <header className={styles.header}>
-        <div>
-          <h2>{t('المنتجات', 'Products')}</h2>
-          <p>
-            {t(
-              'أضف منتجاتك اليدوية ثم اخترها داخل البوت. مصادر البيانات تُدار في تبويب مستقل.',
-              'Create manual products, then select them in your bot. Manage dynamic data in the separate Data sources tab.',
-            )}
-          </p>
-        </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => {
-            setDraftImage(null);
-            setEditorDirty(false);
-            setEditing(null);
-            setError('');
-          }}
-        >
-          {t('إضافة منتج', 'Add product')}
-        </button>
-      </header>
-      {success && (
-        <p className="notice" role="status">
-          {success}
-        </p>
-      )}
-      {(products.error || (error && editing === undefined)) && (
-        <p className="notice error" role="alert">
-          {products.error || error}
-          <button className="btn" onClick={() => void products.reload()}>
-            {t('إعادة المحاولة', 'Retry')}
-          </button>
-        </p>
-      )}
-      <div className={styles.catalogSummary}>
-        <span>
-          {products.data.filter((p) => !p.archived).length} {t('منتج نشط', 'active products')} ·{' '}
-          {categories.data.length} {t('قسم', 'categories')}
-        </span>
-        <button className="btn" onClick={() => setCategoriesOpen(true)}>
-          {t('إدارة الأقسام المحلية', 'Manage local categories')}
-        </button>
-      </div>
-      <Dialog
-        open={categoriesOpen}
-        onClose={() => {
-          if (!busy) setCategoriesOpen(false);
-        }}
-        title={t('إدارة الأقسام', 'Manage categories')}
-      >
-        {error && (
-          <p className="notice error" role="alert">
-            {error}
-          </p>
-        )}
-        <div className={styles.categoryList}>
-          {categories.data.map((c) => (
-            <button
-              type="button"
-              className="btn"
-              key={c.id}
-              onClick={() => setCategoryEditing(c.id)}
-            >
-              <span>{c.name}</span>
-              <small>
-                {products.data.filter((p) => p.category_id === c.id).length} {t('منتج', 'products')}
-              </small>
-            </button>
-          ))}
-        </div>
-        <p>
-          {t(
-            'لتنظيم المنتجات اليدوية؛ هذه الأقسام مستقلة عن كتالوج Meta ومصادر البيانات.',
-            'Organize manual products. Categories are separate from Meta catalogs and data sources.',
+      {editing === undefined && (
+        <>
+          <header className={styles.catalogHeader}>
+            <div>
+              <h2>{t('كتالوج المنتجات', 'Product catalog')}</h2>
+              <p>
+                {t(
+                  'نظّم منتجاتك في أقسام واختر منها داخل البوت.',
+                  'Organize your products into categories for use in the bot.',
+                )}
+              </p>
+            </div>
+            <div className="form-actions">
+              <button type="button" className="btn" onClick={() => openCategory()}>
+                {t('إضافة قسم', 'Add category')}
+              </button>
+              <button type="button" className="btn btn-primary" onClick={() => openEditor(null)}>
+                {t('إضافة منتج', 'Add product')}
+              </button>
+            </div>
+          </header>
+          {success && (
+            <p className="notice" role="status">
+              {success}
+            </p>
           )}
-        </p>
-        {categories.error && <p role="alert">{categories.error}</p>}
-        <form
-          className="form-actions"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void saveCategory(e.currentTarget);
-          }}
-        >
-          <label className="field">
-            {t('القسم المطلوب تعديله', 'Category to edit')}
-            <select
-              aria-label={t('القسم المطلوب تعديله', 'Category to edit')}
-              value={categoryEditing}
-              onChange={(e) => setCategoryEditing(e.target.value)}
-            >
-              <option value="">{t('إنشاء قسم', 'New category')}</option>
-              {categories.data.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field" key={categoryEditing}>
-            {t('اسم القسم', 'Category name')}
-            <input
-              name="categoryName"
-              required
-              maxLength={120}
-              defaultValue={categories.data.find((c) => c.id === categoryEditing)?.name ?? ''}
-            />
-          </label>
-          <button className="btn" disabled={busy}>
-            {t('حفظ القسم', 'Save category')}
-          </button>
-        </form>
-      </Dialog>
-      <div className={styles.toolbar}>
-        <label className="field">
-          {t('القسم', 'Category')}
-          <select
-            aria-label={t('القسم', 'Category')}
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          >
-            <option value="all">{t('كل الأقسام', 'All categories')}</option>
-            <option value="none">{t('دون قسم', 'Uncategorized')}</option>
-            {categories.data.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          {t('البحث', 'Search')}
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t('اسم المنتج أو SKU', 'Product name or SKU')}
-          />
-        </label>
-        <label className="field">
-          {t('الحالة', 'Status')}
-          <select
-            aria-label={t('الحالة', 'Status')}
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-          >
-            <option value="active">{t('نشط', 'Active')}</option>
-            <option value="archived">{t('مؤرشف', 'Archived')}</option>
-            <option value="all">{t('الكل', 'All')}</option>
-          </select>
-        </label>
-        <label className="field">
-          {t('الترتيب', 'Sort')}
-          <select
-            aria-label={t('الترتيب', 'Sort')}
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-          >
-            <option value="name">{t('الاسم', 'Name')}</option>
-            <option value="price">{t('العملة ثم السعر', 'Currency, then price')}</option>
-          </select>
-        </label>
-        <span role="status">
-          {rows.length} {t('منتج', 'products')}
-        </span>
-      </div>
-      {products.loading ? (
-        <p role="status">{t('جارٍ تحميل المنتجات…', 'Loading products…')}</p>
-      ) : rows.length ? (
-        <div className={styles.grid}>
-          {rows.map((p) => (
-            <article className={styles.card} key={p.id}>
-              <ProductImage key={p.image_url} product={p} />
-              <div className={styles.body}>
-                <span className="semantic-state" data-tone={p.archived ? 'danger' : 'active'}>
-                  {p.archived ? t('مؤرشف', 'Archived') : t('نشط', 'Active')}
-                </span>
-                <h3>{p.name}</h3>
+          {(products.error || (error && editing === undefined)) && (
+            <p className="notice error" role="alert">
+              {products.error || error}
+              <button className="btn" onClick={() => void products.reload()}>
+                {t('إعادة المحاولة', 'Retry')}
+              </button>
+            </p>
+          )}
+          <nav className={styles.categoryShelf} aria-label={t('الأقسام', 'Categories')}>
+            {[
+              { id: 'all', name: t('كل المنتجات', 'All products') },
+              ...categories.data,
+              { id: 'none', name: t('دون قسم', 'Uncategorized') },
+            ].map((item) => (
+              <button
+                type="button"
+                className="btn"
+                key={item.id}
+                aria-pressed={category === item.id}
+                onClick={() => setCategory(item.id)}
+              >
+                {item.name}
                 <small>
-                  {categories.data.find((c) => c.id === p.category_id)?.name ??
-                    t('دون قسم', 'Uncategorized')}
+                  {
+                    products.data.filter(
+                      (product) =>
+                        item.id === 'all' ||
+                        (item.id === 'none'
+                          ? !product.category_id
+                          : product.category_id === item.id),
+                    ).length
+                  }
                 </small>
-                <strong dir="ltr">{productPrice(p.price_cents, p.currency)}</strong>
-                <p>{p.description}</p>
-                <small>SKU: {p.sku}</small>
-                <div className="form-actions">
-                  <button
-                    className="btn"
-                    onClick={() => {
-                      setDraftImage(p.image_url);
-                      setEditorDirty(false);
-                      setEditing(p);
-                      setError('');
-                    }}
-                  >
-                    {t('تعديل', 'Edit')}
-                  </button>
-                  <button className="btn" onClick={() => void previewSaved(p)}>
-                    {t('معاينة', 'Preview')}
-                  </button>
-                </div>
+              </button>
+            ))}
+          </nav>
+          {categories.error && <p role="alert">{categories.error}</p>}
+          {selectedCategory && (
+            <header className={styles.header}>
+              <h3>{selectedCategory.name}</h3>
+              <div className="form-actions">
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => openCategory(selectedCategory.id)}
+                >
+                  {t('تعديل اسم القسم', 'Rename category')}
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => openCategory(selectedCategory.id, true)}
+                >
+                  {t('نسخ القسم ومنتجاته', 'Duplicate category and products')}
+                </button>
               </div>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <div className={styles.empty}>
-          <h3>{t('لا توجد منتجات في هذا العرض', 'No products in this view')}</h3>
-          <p>
-            {t(
-              'أضف أول منتج أو غيّر البحث والحالة.',
-              'Add your first product or adjust the search and status.',
-            )}
-          </p>
-        </div>
+            </header>
+          )}
+          <Dialog
+            open={categoriesOpen}
+            onClose={() => {
+              if (!busy) setCategoriesOpen(false);
+            }}
+            title={
+              copyingCategory
+                ? t('نسخ القسم ومنتجاته', 'Duplicate category and products')
+                : categoryEditing
+                  ? t('تعديل اسم القسم', 'Rename category')
+                  : t('إضافة قسم', 'Add category')
+            }
+          >
+            <form
+              className="stack"
+              key={String(categoriesOpen) + categoryEditing + String(copyingCategory)}
+              onSubmit={(event) => {
+                event.preventDefault();
+                void saveCategory(event.currentTarget);
+              }}
+            >
+              {error && (
+                <p className="notice error" role="alert">
+                  {error}
+                </p>
+              )}
+              {copyingCategory && (
+                <p>
+                  {t(
+                    'هيتعمل قسم مستقل بمنتجات وأسعار ومواصفات منسوخة، وبرموز منتجات جديدة.',
+                    'Create an independent category with copied products, prices and details, and new product codes.',
+                  )}
+                </p>
+              )}
+              <label className="field">
+                {t('اسم القسم', 'Category name')}
+                <input
+                  name="categoryName"
+                  required
+                  maxLength={120}
+                  defaultValue={
+                    copyingCategory
+                      ? t('نسخة من ', 'Copy of ') + (selectedCategory?.name ?? '').slice(0, 105)
+                      : selectedCategory?.id === categoryEditing
+                        ? selectedCategory.name
+                        : ''
+                  }
+                />
+              </label>
+              <button type="submit" className="btn btn-primary" disabled={busy}>
+                {copyingCategory
+                  ? t('إنشاء النسخة', 'Create copy')
+                  : t('حفظ القسم', 'Save category')}
+              </button>
+            </form>
+          </Dialog>
+          <div className={styles.toolbar}>
+            <label className="field">
+              {t('البحث', 'Search')}
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t('اسم المنتج أو SKU', 'Product name or SKU')}
+              />
+            </label>
+            <label className="field">
+              {t('الحالة', 'Status')}
+              <select
+                aria-label={t('الحالة', 'Status')}
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                <option value="active">{t('نشط', 'Active')}</option>
+                <option value="archived">{t('مؤرشف', 'Archived')}</option>
+                <option value="all">{t('الكل', 'All')}</option>
+              </select>
+            </label>
+            <label className="field">
+              {t('الترتيب', 'Sort')}
+              <select
+                aria-label={t('الترتيب', 'Sort')}
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+              >
+                <option value="name">{t('الاسم', 'Name')}</option>
+                <option value="price">{t('العملة ثم السعر', 'Currency, then price')}</option>
+              </select>
+            </label>
+            <span role="status">
+              {rows.length} {t('منتج', 'products')}
+            </span>
+          </div>
+          {products.loading ? (
+            <p role="status">{t('جارٍ تحميل المنتجات…', 'Loading products…')}</p>
+          ) : rows.length ? (
+            <div className={styles.grid}>
+              {rows.map((p) => (
+                <article className={styles.card} key={p.id}>
+                  <ProductImage key={p.image_url} product={p} />
+                  <div className={styles.body}>
+                    <span className="semantic-state" data-tone={p.archived ? 'danger' : 'active'}>
+                      {p.archived ? t('مؤرشف', 'Archived') : t('نشط', 'Active')}
+                    </span>
+                    <h3>{p.name}</h3>
+                    <small>
+                      {categories.data.find((c) => c.id === p.category_id)?.name ??
+                        t('دون قسم', 'Uncategorized')}
+                    </small>
+                    <strong dir="ltr">{productPrice(p.price_cents, p.currency)}</strong>
+                    <p>{p.description}</p>
+                    <small>SKU: {p.sku}</small>
+                    {!!p.options?.length && (
+                      <small>
+                        {p.options.length} {t('خيارات بسعر', 'priced options')}
+                      </small>
+                    )}
+                    <div className="form-actions">
+                      <button className="btn" onClick={() => openEditor(p)}>
+                        {t('تعديل', 'Edit')}
+                      </button>
+                      <button className="btn" onClick={() => void previewSaved(p)}>
+                        {t('معاينة', 'Preview')}
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className={styles.empty}>
+              <h3>{t('لا توجد منتجات في هذا العرض', 'No products in this view')}</h3>
+              <p>
+                {t(
+                  'أضف أول منتج أو غيّر البحث والحالة.',
+                  'Add your first product or adjust the search and status.',
+                )}
+              </p>
+            </div>
+          )}
+        </>
       )}
       {editing !== undefined && (
-        <Dialog
-          open
-          onClose={closeEditor}
-          title={editing ? t('تعديل المنتج', 'Edit product') : t('منتج جديد', 'New product')}
-          className={styles.editor}
-        >
+        <section className={styles.productEditor} aria-label={t('محرر المنتج', 'Product editor')}>
+          <header className={styles.catalogHeader}>
+            <div>
+              <button type="button" className="btn" disabled={busy} onClick={closeEditor}>
+                {t('رجوع للكتالوج', 'Back to catalog')}
+              </button>
+              <h2>{editing ? editing.name : t('منتج جديد', 'New product')}</h2>
+            </div>
+          </header>
           <form
-            className="stack"
+            className={styles.productForm}
             onChange={() => setEditorDirty(true)}
             key={editing?.id ?? 'new'}
             onSubmit={(e) => {
@@ -429,7 +493,7 @@ export default function ProductCatalog() {
               <select
                 aria-label={t('قسم المنتج', 'Product category')}
                 name="category"
-                defaultValue={editing?.category_id ?? ''}
+                defaultValue={editing ? (editing.category_id ?? '') : (selectedCategory?.id ?? '')}
               >
                 <option value="">{t('دون قسم', 'Uncategorized')}</option>
                 {categories.data.map((c) => (
@@ -458,19 +522,91 @@ export default function ProductCatalog() {
                 </label>
               </div>
               <label className="field">
-                {t('الوصف والمواصفات', 'Description and specifications')}
+                {t('وصف المنتج', 'Product description')}
                 <textarea
                   name="description"
                   rows={4}
                   maxLength={1000}
                   defaultValue={editing?.description}
-                  placeholder={t(
-                    'اكتب المواصفات يدويًا، مثل مدة الرحلة ونوع الغرفة.',
-                    'Enter specifications manually, such as trip duration and room type.',
-                  )}
                 />
               </label>
             </fieldset>
+            {(['specification', 'option'] as const).map((kind) => (
+              <fieldset className={styles.section} key={kind}>
+                <legend>
+                  {kind === 'specification'
+                    ? t('مواصفات المنتج', 'Specifications')
+                    : t('خيارات المنتج وأسعارها', 'Product options and prices')}
+                </legend>
+                {details
+                  .filter((item) => item.kind === kind)
+                  .map((item) => (
+                    <div className={styles.detailRow} key={item.id}>
+                      <label className="field">
+                        {kind === 'specification'
+                          ? t('اسم المواصفة', 'Specification name')
+                          : t('اسم الخيار', 'Option name')}
+                        <input
+                          required
+                          maxLength={kind === 'specification' ? 80 : 120}
+                          value={item.name}
+                          onChange={(e) =>
+                            setDetails((rows) =>
+                              rows.map((row) =>
+                                row.id === item.id ? { ...row, name: e.target.value } : row,
+                              ),
+                            )
+                          }
+                        />
+                      </label>
+                      <label className="field">
+                        {kind === 'specification'
+                          ? t('القيمة', 'Value')
+                          : t('السعر بعملة المنتج', 'Price in product currency')}
+                        <input
+                          required
+                          maxLength={kind === 'specification' ? 200 : 16}
+                          inputMode={kind === 'option' ? 'decimal' : 'text'}
+                          pattern={kind === 'option' ? '[0-9]{1,13}(\\.[0-9]{1,2})?' : undefined}
+                          value={item.value}
+                          onChange={(e) =>
+                            setDetails((rows) =>
+                              rows.map((row) =>
+                                row.id === item.id ? { ...row, value: e.target.value } : row,
+                              ),
+                            )
+                          }
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="btn"
+                        aria-label={t('إزالة السطر', 'Remove row')}
+                        onClick={() => {
+                          setEditorDirty(true);
+                          setDetails((rows) => rows.filter((row) => row.id !== item.id));
+                        }}
+                      >
+                        {t('إزالة', 'Remove')}
+                      </button>
+                    </div>
+                  ))}
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={details.filter((row) => row.kind === kind).length >= 100}
+                  onClick={() => {
+                    const id = nextDetail.current++;
+                    setDetails((rows) => [...rows, { id, name: '', value: '', kind }]);
+                    setEditorDirty(true);
+                  }}
+                >
+                  {kind === 'specification'
+                    ? t('+ إضافة مواصفة', '+ Add specification')
+                    : t('+ إضافة خيار بسعر', '+ Add priced option')}
+                </button>
+              </fieldset>
+            ))}
             <details className={styles.section}>
               <summary>{t('الصور والروابط (اختياري)', 'Images and links (optional)')}</summary>
               <label className="field">
@@ -536,7 +672,7 @@ export default function ProductCatalog() {
               </button>
             </div>
           </form>
-        </Dialog>
+        </section>
       )}
       {preview && (
         <section className="card stack" aria-label={t('معاينة المنتج', 'Product preview')}>
@@ -557,6 +693,25 @@ export default function ProductCatalog() {
             <h3>{preview.name}</h3>
             <strong dir="ltr">{productPrice(preview.price_cents, preview.currency)}</strong>
             <p>{preview.description}</p>
+            {!!preview.specifications?.length && (
+              <dl>
+                {preview.specifications.map((item, index) => (
+                  <div key={index}>
+                    <dt>{item.name}</dt>
+                    <dd>{item.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+            {!!preview.options?.length && (
+              <ul>
+                {preview.options.map((item, index) => (
+                  <li key={index}>
+                    {item.name} · <bdi>{productPrice(item.priceCents, preview.currency)}</bdi>
+                  </li>
+                ))}
+              </ul>
+            )}
             {serverPreview && <p>{serverPreview}</p>}
           </div>
         </section>
