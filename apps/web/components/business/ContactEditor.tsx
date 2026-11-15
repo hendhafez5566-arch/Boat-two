@@ -279,6 +279,7 @@ export function ContactEditor({
         <label className="field">
           {t('البيانات الإضافية JSON', 'Additional attributes JSON')}
           <textarea
+            aria-label={t('البيانات الإضافية JSON', 'Additional attributes JSON')}
             rows={5}
             dir="ltr"
             value={attributes}

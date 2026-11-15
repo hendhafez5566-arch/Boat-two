@@ -2,6 +2,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { LabelEditor } from '../product/LabelEditor';
+import { collectContactLabels } from '../../lib/contact-labels';
 import { InboxCrmOverview } from './InboxCrmOverview';
 import { InboxFieldDialog } from './InboxFieldDialog';
 import { InboxSequences } from './InboxSequences';
@@ -76,8 +78,17 @@ export function InboxCustomerPanel({
   const [saving, setSaving] = useState(false);
   const [labels, setLabels] = useState<string[]>(detail.contact_tags || []);
   const [labelText, setLabelText] = useState('');
+  const [labelsDirty, setLabelsDirty] = useState(false);
+  const [labelsVersion, setLabelsVersion] = useState('');
+  const [labelError, setLabelError] = useState('');
+  const [labelNotice, setLabelNotice] = useState('');
   const contact = profile.data?.contact;
   const timeline = profile.data?.timeline;
+  useEffect(() => {
+    if (!contact || labelsDirty) return;
+    setLabels(contact.tags || []);
+    setLabelsVersion(contact.updated_at);
+  }, [contact, labelsDirty]);
   const allNotes = [
     ...notes.map((note) => ({
       key: `message-${note.id}`,
@@ -150,20 +161,37 @@ export function InboxCustomerPanel({
     if (!canManage || !contact || saving) return;
 
     setSaving(true);
+    setLabelError('');
+    setLabelNotice('');
     try {
+      const next = collectContactLabels(labels, labelText);
       await api(`/crm/contacts/${detail.contact_id}/profile`, {
         method: 'PATCH',
         body: JSON.stringify({
-          tags: [...new Set([...labels, labelText.trim()].filter(Boolean))],
-          expectedUpdatedAt: contact.updated_at,
+          tags: next,
+          expectedUpdatedAt: labelsVersion,
         }),
       });
-      setLabels([...new Set([...labels, labelText.trim()].filter(Boolean))]);
+      setLabels(next);
       setLabelText('');
+      setLabelsDirty(false);
+      setLabelNotice(t('تم حفظ الوسوم.', 'Labels saved.'));
       await profile.reload();
       await onRefresh();
     } catch (error) {
-      onError((error as Error).message);
+      const code = (error as Error).message;
+      setLabelError(
+        code === 'LABEL_COUNT'
+          ? t('الحد الأقصى 30 وسمًا.', 'Use up to 30 labels.')
+          : code === 'LABEL_LENGTH'
+            ? t('اسم الوسم لا يتجاوز 50 حرفًا.', 'Labels must be 50 characters or fewer.')
+            : code.includes('changed')
+              ? t(
+                  'تغيّرت الوسوم منذ بدء التعديل. أعد تحميلها قبل الحفظ لحماية تعديلات الفريق.',
+                  'Labels changed since you started editing. Reload them before saving to protect your teammates’ changes.',
+                )
+              : code,
+      );
     } finally {
       setSaving(false);
     }
@@ -370,44 +398,43 @@ export function InboxCustomerPanel({
             </select>
           </label>
           <form onSubmit={saveTags}>
-            <label>
-              {t('الوسوم', 'Labels')}
-              <div className={styles.labelEditor}>
-                {labels.map((label) => (
-                  <span key={label}>
-                    {label}
-                    <button
-                      type="button"
-                      disabled={!canManage || saving}
-                      aria-label={`${t('إزالة الوسم', 'Remove label')} ${label}`}
-                      onClick={() => setLabels(labels.filter((value) => value !== label))}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-                <input
-                  data-inbox-target="labels"
-                  name="tags"
-                  disabled={!canManage || saving || labels.length >= 30}
-                  value={labelText}
-                  onChange={(event) => setLabelText(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
-                    event.preventDefault();
-                    if (!labelText.trim() || labels.length >= 30) return;
-                    setLabels([...new Set([...labels, labelText.trim()])]);
-                    setLabelText('');
-                  }}
-                  placeholder={t(
-                    'اكتب اسمًا واضغط Enter لإضافة وسم',
-                    'Type a name and hit Enter to add a label',
-                  )}
-                  maxLength={50}
-                />
-              </div>
-            </label>
-            <button className={styles.secondary} disabled={!canManage || !contact || saving}>
+            <LabelEditor
+              value={labels}
+              pending={labelText}
+              onPending={(value) => {
+                setLabelText(value);
+                setLabelsDirty(true);
+                setLabelNotice('');
+              }}
+              onChange={(value) => {
+                setLabels(value);
+                setLabelsDirty(true);
+                setLabelNotice('');
+              }}
+              disabled={!canManage || !contact || saving}
+              target="labels"
+            />
+            {labelError && <p role="alert">{labelError}</p>}
+            {labelNotice && <p role="status">{labelNotice}</p>}
+            {labelError && (
+              <button
+                type="button"
+                className={styles.secondary}
+                disabled={saving}
+                onClick={async () => {
+                  await profile.reload();
+                  setLabelsDirty(false);
+                  setLabelText('');
+                  setLabelError('');
+                }}
+              >
+                {t('إعادة تحميل الوسوم', 'Reload labels')}
+              </button>
+            )}
+            <button
+              className={styles.secondary}
+              disabled={!canManage || !contact || saving || !labelsDirty}
+            >
               {saving ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ الوسوم', 'Save labels')}
             </button>
           </form>

@@ -40,7 +40,7 @@ try {
         workspaceName: 'Isolated contact acceptance',
       });
       const token = session.accessToken;
-      await api('/channels', token, { type: 'web', name: 'Isolated website' });
+      const channel = await api('/channels', token, { type: 'web', name: 'Isolated website' });
       await api('/workspace/onboarding/complete', token, {});
       for (const field of [
         { key: 'budget', label: 'Budget', type: 'number' },
@@ -173,6 +173,75 @@ try {
       await discard
         .getByRole('button', { name: t('تجاهل التغييرات', 'Discard changes'), exact: true })
         .click();
+      const visitor = await api('/widget/' + channel.external_id + '/session', null, {});
+      const message = await fetch(
+        'http://localhost:4000/widget/' +
+          channel.external_id +
+          '/messages?visitorId=' +
+          visitor.visitorId,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-visitor-token': visitor.token },
+          body: JSON.stringify({ text: 'Synthetic inquiry', clientMsgId: randomUUID() }),
+        },
+      );
+      assert.ok(message.ok, await message.text());
+      const cv = (await api('/conversations', token)).items[0];
+      const original = await api('/crm/contacts/' + cv.contact_id, token);
+      await api(
+        '/crm/contacts/' + cv.contact_id + '/profile',
+        token,
+        {
+          name: 'Inbox synthetic customer',
+          tags: ['kept'],
+          expectedUpdatedAt: original.updated_at,
+        },
+        'PATCH',
+      );
+      await page.goto('http://localhost:3000/dashboard/inbox?conversation=' + cv.id);
+      await page
+        .getByRole('button', { name: t('إجراءات المحادثة', 'Chat actions'), exact: true })
+        .click();
+      const panel = page.getByRole('complementary', {
+        name: t('إجراءات المحادثة وبيانات العميل', 'Chat actions and customer details'),
+        exact: true,
+      });
+      await panel
+        .getByRole('button', { name: t('إزالة الوسم', 'Remove label') + ' kept', exact: true })
+        .waitFor();
+      await panel.getByLabel(t('الوسوم', 'Labels'), { exact: true }).fill('Fresh');
+      await panel
+        .getByRole('button', { name: t('حفظ الوسوم', 'Save labels'), exact: true })
+        .click();
+      await panel.getByText(t('تم حفظ الوسوم.', 'Labels saved.'), { exact: true }).waitFor();
+      assert.deepEqual((await api('/crm/contacts/' + cv.contact_id, token)).tags, [
+        'kept',
+        'Fresh',
+      ]);
+      await panel.getByLabel(t('الوسوم', 'Labels'), { exact: true }).fill('Stale');
+      const latestInbox = await api('/crm/contacts/' + cv.contact_id, token);
+      await api(
+        '/crm/contacts/' + cv.contact_id + '/profile',
+        token,
+        { tags: ['kept', 'Fresh', 'External'], expectedUpdatedAt: latestInbox.updated_at },
+        'PATCH',
+      );
+      await panel
+        .getByRole('button', { name: t('حفظ الوسوم', 'Save labels'), exact: true })
+        .click();
+      await panel.getByRole('alert').waitFor();
+      assert.deepEqual((await api('/crm/contacts/' + cv.contact_id, token)).tags, [
+        'kept',
+        'Fresh',
+        'External',
+      ]);
+      await panel
+        .getByRole('button', { name: t('إعادة تحميل الوسوم', 'Reload labels'), exact: true })
+        .click();
+      await panel
+        .getByRole('button', { name: t('إزالة الوسم', 'Remove label') + ' External', exact: true })
+        .waitFor();
+      await page.screenshot({ path: `${out}/inbox-${language}-${width}.png`, fullPage: true });
       assert.deepEqual(errors, []);
       results.push({
         language,
