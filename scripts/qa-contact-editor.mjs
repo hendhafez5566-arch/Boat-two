@@ -66,13 +66,16 @@ try {
           ? r.continue()
           : r.abort(),
       );
-      await page.goto('http://localhost:3000/dashboard/crm');
-      await page
-        .getByRole('button', { name: t('إضافة عميل', 'Add customer'), exact: true })
-        .click();
+      await page.goto('http://localhost:3000/dashboard/crm?create=true');
       const editor = page.getByRole('dialog', {
         name: t('إضافة عميل', 'Add contact'),
         exact: true,
+      });
+      await editor.waitFor();
+      assert.ok(!new URL(page.url()).searchParams.has('create'));
+      await page.screenshot({
+        path: `${out}/clean-editor-${language}-${width}.png`,
+        fullPage: false,
       });
       const name = 'QA ' + language + ' ' + width;
       await editor.getByLabel(t('اسم العميل', 'Customer name'), { exact: true }).fill(name);
@@ -138,6 +141,9 @@ try {
       assert.equal(saved.attributes.budget, 0);
       assert.equal(saved.attributes.approved, false);
       await page.reload();
+      await page
+        .getByRole('dialog', { name: t('إضافة عميل', 'Add contact'), exact: true })
+        .waitFor({ state: 'hidden' });
       await page.getByRole('button', { name: t('تعديل: ', 'Edit: ') + name, exact: true }).click();
       const edit = page.getByRole('dialog', {
         name: t('تعديل العميل', 'Edit contact'),

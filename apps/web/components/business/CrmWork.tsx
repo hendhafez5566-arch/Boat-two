@@ -64,7 +64,12 @@ export function CrmWork({
     if (p.has('ownerId')) setOwner(p.get('ownerId') || '');
     if (p.has('status')) setStatus(p.get('status') || '');
     if (p.has('period')) setPeriod(p.get('period') || 'all');
-    if (p.get('create') === 'true') setDialog('new');
+    if (p.get('create') === 'true') {
+      setDialog('new');
+      const url = new URL(window.location.href);
+      url.searchParams.delete('create');
+      window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    }
     if (p.get('view') === 'table') setView('table');
     if (p.get('allPipelines') === 'true') setAllPipelines(true);
     const dates: Record<string, string> = {};

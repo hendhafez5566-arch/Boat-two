@@ -1,13 +1,14 @@
 """Run local isolated API, Web and the repository's configured Chromium checks together."""
 import os
 import subprocess
+import signal
 import time
 import urllib.request
 procs=[]
 try:
     for cmd, log in [(['node','scripts/qa-full-api.mjs'],'/tmp/boat-journeys-api.log'), (['corepack','pnpm','--filter','web','start'],'/tmp/boat-journeys-web.log')]:
         output=open(log,'w')
-        procs.append(subprocess.Popen(cmd,stdout=output,stderr=output))
+        procs.append(subprocess.Popen(cmd,stdout=output,stderr=output,start_new_session=True))
     for port in [4000,3000]:
         for _ in range(150):
             if any(p.poll() is not None for p in procs):
@@ -23,9 +24,15 @@ try:
     raise SystemExit(subprocess.run(['node',os.environ.get('BOAT_QA_BROWSER_SCRIPT','scripts/qa-connect-journeys-browser.mjs')],env=environment).returncode)
 finally:
     for p in procs:
-        p.terminate()
+        try:
+            os.killpg(p.pid,signal.SIGTERM)
+        except ProcessLookupError:
+            pass
     for p in procs:
         try:
             p.wait(timeout=10)
         except subprocess.TimeoutExpired:
-            p.kill()
+            try:
+                os.killpg(p.pid,signal.SIGKILL)
+            except ProcessLookupError:
+                pass

@@ -1,6 +1,7 @@
 'use client';
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
+import { statusLabel } from '../../../components/product/status';
 import { InvitationMailPanel } from '../../../components/product/InvitationMailPanel';
 import { useLocale } from '../../../components/product/locale';
 type Member = {
@@ -134,7 +135,7 @@ export default function Team() {
                       <option value="agent">{t('موظف', 'Agent')}</option>
                     </select>
                   ) : (
-                    m.role
+                    statusLabel(m.role, t)
                   )}
                 </td>
                 <td>{m.available ? t('متاح', 'Available') : t('غير متاح', 'Away')}</td>
@@ -178,7 +179,7 @@ export default function Team() {
             </div>
             <label>
               <input type="checkbox" name="sendEmail" />{' '}
-              {t('إضافة رسالة دعوة إلى طابور البريد الآمن', 'Queue a branded invitation email')}
+              {t('طلب إرسال الدعوة بالبريد الإلكتروني أيضًا', 'Request an invitation email too')}
             </label>
             <div className="form-actions">
               <button disabled={busy} className="btn btn-primary">
@@ -221,7 +222,7 @@ export default function Team() {
               <div>
                 <strong>{i.email}</strong>
                 <small>
-                  {i.role} · {new Date(i.expires_at).toLocaleDateString()}
+                  {statusLabel(i.role, t)} · {new Date(i.expires_at).toLocaleDateString(language)}
                 </small>
               </div>
               <button

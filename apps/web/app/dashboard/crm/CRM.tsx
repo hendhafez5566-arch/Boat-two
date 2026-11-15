@@ -140,7 +140,12 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     if (preset === 'unattended') filters.withoutFollowup = 'true';
     if (preset === 'openDeals') filters.hasOpenDeal = 'true';
     setRouteFilters(filters);
-    if (q.get('create') === 'true') setShowCreate(true);
+    if (q.get('create') === 'true') {
+      setShowCreate(true);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('create');
+      window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    }
   }, []);
   const [contactDraft, setContactDraft] = useState<Contact | null>(null);
   const [contactDirty, setContactDirty] = useState(false);

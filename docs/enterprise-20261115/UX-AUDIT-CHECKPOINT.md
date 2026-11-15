@@ -62,3 +62,11 @@ Never commit live customer screenshots, credentials, .env, database copies or se
 ## Batch 4 — saved segments
 
 Observed live: selecting a saved OR view displayed results underneath the unchanged empty AND rule builder, with no result source title. New layout separates custom conditions, saved view cards with readable summaries, and explicitly named results. Draft changes invalidate old results. Added empty/loading/error/retry/save/reopen/preview acceptance at all ten combinations. Still pending CI and live verification.
+
+## Live acceptance after first deployment
+
+- 2a012d1 reached Railway SUCCESS. Web /login 200; API /health 200 with db up.
+- Created one explicitly synthetic contact, QA UX 20261115, with example.test email and QA label. Reloaded and reopened, verified pending label persisted, edited only its synthetic custom-field value and saved successfully. No real contact was changed.
+- Found ?create=true reopened an empty add dialog after reload. CRM contacts and shared work editor now consume this navigation command once while preserving other query parameters; browser suites start via these links and verify reload does not reopen creation.
+- Team page inspected: members/roles, empty pending invites/mail states, branding preview. No invitation sent and no permissions changed. Fixed raw role display and clarified the optional email request label.
+- Saved segment suite was blocked by the isolated runner leaving a Next child alive between two journeys. Runner now creates and cleans up its own process groups; no unrelated processes are killed. Rerun both journeys before accepting batch 4.

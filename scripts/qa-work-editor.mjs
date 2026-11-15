@@ -66,16 +66,10 @@ try {
       );
       for (const kind of ['tasks', 'deals']) {
         await page.goto(
-          'http://localhost:3000/dashboard/crm/' + (kind === 'tasks' ? 'tasks' : 'pipeline'),
+          'http://localhost:3000/dashboard/crm/' +
+            (kind === 'tasks' ? 'tasks' : 'pipeline') +
+            '?create=true',
         );
-        const add = page.getByRole('button', {
-          name:
-            kind === 'tasks'
-              ? t('إضافة متابعة', 'Add follow-up')
-              : t('إضافة فرصة', 'Add opportunity'),
-          exact: true,
-        });
-        await add.click();
         const editor = page.getByRole('dialog', {
           name:
             kind === 'tasks'
@@ -83,6 +77,8 @@ try {
               : t('فرصة جديدة', 'New opportunity'),
           exact: true,
         });
+        await editor.waitFor();
+        assert.ok(!new URL(page.url()).searchParams.has('create'));
         const select = editor.getByRole('combobox', { name: t('العميل', 'Customer'), exact: true });
         await select.selectOption(first.id);
         const searchResponse = page.waitForResponse(
