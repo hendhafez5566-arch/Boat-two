@@ -66,12 +66,20 @@ for(const language of ['ar','en'])for(const width of [390,1366]){
     await item.getByRole('button',{name:'New field name or advanced setting'}).click();
     await item.getByLabel('Technical field key').fill('qa_visit');
     await item.getByLabel('Value (supports variables)').fill('yes');
+    await dialog.screenshot({path:shots+'/live-en-1366-before-save.png'});
     await dialog.getByRole('button',{name:'Save Changes',exact:true}).click();
     await page.getByRole('button',{name:'Save',exact:true}).click();
     await page.getByText('All changes saved',{exact:true}).waitFor();
     const saved=await request('/flows/'+flow.id,token);
     assert.equal(saved.draft_graph.nodes.find(n=>n.id==='pick').data.buttons[0].actions[0].key,'qa_visit');
-    results.push({checkpoint:'real Preview saved action in synthetic tenant',status:'PASS'});
+    await page.reload();
+    await page.getByRole('button',{name:'More tools',exact:true}).click();
+    await page.getByRole('button',{name:'Fit all steps',exact:true}).click();
+    await page.getByRole('button',{name:'More tools',exact:true}).click();
+    await page.locator('.react-flow__node').filter({hasText:'Continue'}).last().click();
+    await dialog.waitFor();
+    assert.equal(await dialog.locator('section[class*="actionItem"]').count(),1,'saved automation action must reopen on real Preview');
+    results.push({checkpoint:'real Preview saved and reopened action in synthetic tenant',status:'PASS'});
   }
   if(width===390)assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),'no mobile sideways overflow');
   await dialog.screenshot({path:shots+'/live-'+language+'-'+width+'.png'});
