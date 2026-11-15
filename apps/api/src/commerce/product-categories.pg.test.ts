@@ -45,6 +45,11 @@ test('local categories persist, preserve legacy edits and enforce tenant isolati
       currency: 'EGP',
       archived: false,
     };
+    const disposable = await service.saveCategory(a, 'Disposable empty category');
+    await assert.rejects(service.removeCategory(b, String(disposable.id)), /unavailable/);
+    assert.deepEqual(await service.removeCategory(a, String(disposable.id)), { deleted: true });
+    assert.equal((await service.categories(a)).some((item) => item.id === disposable.id), false);
+    await assert.rejects(service.removeCategory(a, String(disposable.id)), /unavailable/);
     const specifications = [{ name: 'Duration', value: '4 days' }];
     const options = [{ name: 'Double room', priceCents: '19500' }];
     const p = await service.saveProduct(a, {
@@ -56,7 +61,13 @@ test('local categories persist, preserve legacy edits and enforce tenant isolati
       retailerId: 'retailer',
     });
     assert.equal(p.category_id, c.id);
+    await assert.rejects(service.removeCategory(a, String(c.id)), /Move all products/);
     assert.equal(String(p.price_cents), '15000');
+    const archiveCategory = await service.saveCategory(a, 'Archive guard');
+    const archivedProduct = await service.saveProduct(a, { ...input, sku: 'ARCHIVE-GUARD', categoryId: String(archiveCategory.id), archived: true });
+    await assert.rejects(service.removeCategory(a, String(archiveCategory.id)), /Move all products/);
+    assert.equal((await service.products(a)).find((item) => item.id === archivedProduct.id)?.archived, true);
+
     const edited = await service.saveProduct(
       a,
       { ...input, name: 'Updated', catalogId: 'provider', retailerId: 'retailer' },

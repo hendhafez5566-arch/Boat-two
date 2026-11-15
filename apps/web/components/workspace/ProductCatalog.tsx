@@ -58,6 +58,7 @@ export default function ProductCatalog() {
   const [categorySearch, setCategorySearch] = useState('');
   const [categoryEditing, setCategoryEditing] = useState('');
   const [copyingCategory, setCopyingCategory] = useState(false);
+  const [deleteCategory, setDeleteCategory] = useState<{id: string; name: string} | null>(null);
   const [details, setDetails] = useState<
     { id: number; name: string; value: string; kind: 'specification' | 'option' }[]
   >([]);
@@ -298,9 +299,30 @@ export default function ProductCatalog() {
                 >
                   {t('نسخ القسم ومنتجاته', 'Duplicate category and products')}
                 </button>
+                <button type="button" className="btn btn-danger" onClick={() => {setError(''); setDeleteCategory(selectedCategory);}}>
+                  {t('حذف القسم', 'Delete category')}
+                </button>
               </div>
             </header>
           )}
+          <Dialog open={!!deleteCategory} onClose={() => {if (!busy) setDeleteCategory(null);}} title={t('حذف القسم؟', 'Delete category?')}>
+            <p>{deleteCategory?.name}</p>
+            <p>{t('يمكن حذف القسم الفارغ فقط. انقل المنتجات النشطة والمؤرشفة إلى قسم آخر أولًا. حذف القسم نهائي.', 'Only empty categories can be deleted. Move active and archived products to another category first. Deletion is permanent.')}</p>
+            {error && <p className="notice error" role="alert">{error}</p>}
+            <div className="form-actions">
+              <button type="button" className="btn" disabled={busy} onClick={() => setDeleteCategory(null)}>{t('إلغاء', 'Cancel')}</button>
+              <button type="button" className="btn btn-danger" disabled={busy} onClick={async () => {
+                if (!deleteCategory || lock.current) return;
+                lock.current = true; setBusy(true); setError('');
+                try {
+                  await api('/commerce/categories/' + deleteCategory.id, {method: 'DELETE', body: JSON.stringify({confirm: true})});
+                  await categories.reload(); setCategory('all'); setDeleteCategory(null);
+                  setSuccess(t('تم حذف القسم الفارغ.', 'Empty category deleted.'));
+                } catch (e) {const message = (e as Error).message; setError(message.includes('Move all products') ? t('انقل المنتجات النشطة والمؤرشفة من القسم أولًا، ثم أعد محاولة حذفه.', 'Move active and archived products out of this category before deleting it.') : message);}
+                finally {lock.current = false; setBusy(false);}
+              }}>{t('حذف نهائيًا', 'Delete permanently')}</button>
+            </div>
+          </Dialog>
           <Dialog
             open={categoriesOpen}
             onClose={() => {

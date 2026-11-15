@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -41,6 +42,14 @@ export class CommerceController {
     @Body() body: unknown,
   ) {
     return this.commerce.saveCategory(r.user.tenantId, parse(categorySchema, body).name, id);
+  }
+  @Delete('categories/:id') removeCategory(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    parse(z.object({ confirm: z.literal(true) }), body);
+    return this.commerce.removeCategory(r.user.tenantId, id);
   }
   @Post('categories/:id/duplicate') duplicateCategory(
     @Req() r: AuthedRequest,

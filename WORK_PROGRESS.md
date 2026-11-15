@@ -1,3 +1,13 @@
+Import confirmation and result now identify the destination source; the result has a real Manage this source action returning to its saved configuration. Added/updated/unchanged breakdown remains pending backend statistics and is not fabricated in the UI.
+
+## Safe category management batch
+
+Added explicit confirmed deletion for empty local categories only. Backend locks the category and blocks deletion when any active or archived product remains; the existing composite foreign key guards concurrent inserts. Owner/admin route permissions and tenant RLS remain in effect. Local database test passes: foreign tenant rejection, missing category, empty deletion and nonempty rejection. Isolated browser script now checks blocked nonempty deletion and confirmed empty deletion at all ten combinations.
+
+94774ea responsive suite completed its first 320px Arabic product/picker/reopen/success/conversation journey, then exposed a test-fixture assumption: category 099 no longer has zero products on the next iteration. Locator now accepts its real numeric count; count filtering and all persistence assertions remain. No application behavior bypassed.
+
+Product permanent deletion with historical/published references is deliberately not implemented by this category endpoint; it remains a separate required item. No real data is deleted in acceptance.
+
 ## Mobile tool-menu defect found by real pointer acceptance — 0681c64
 
 At 320px the palette (z-index 30) intercepted the actual Preview button inside the toolbar menu (toolbar stacking context 25). Raised the toolbar stacking context above the palette; no forced clicks or test bypasses. Rerun all impacted browser workflows before acceptance. Catalog ordering/reopen and success dismissal passed before reaching this mobile obstruction.

@@ -40,6 +40,18 @@ export class CommerceService {
       return result.rows[0];
     });
   }
+  async removeCategory(tenant: string, id: string) {
+    return this.db.withTenant(tenant, async (c) => {
+      // The composite foreign key also protects against a concurrent product insert.
+      const category = await c.query('SELECT id FROM product_categories WHERE id=$1 FOR UPDATE', [id]);
+      if (!category.rows[0]) throw new NotFoundException('Category unavailable');
+      const products = await c.query('SELECT 1 FROM catalog_products WHERE category_id=$1 LIMIT 1', [id]);
+      if (products.rows.length)
+        throw new ConflictException('Move all products, including archived products, before deleting this category');
+      await c.query('DELETE FROM product_categories WHERE id=$1', [id]);
+      return { deleted: true };
+    });
+  }
   async duplicateCategory(tenant: string, sourceId: string, name: string) {
     return this.db.withTenant(tenant, async (c) => {
       const result = await c.query(

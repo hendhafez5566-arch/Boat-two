@@ -815,6 +815,8 @@ export default function DataSourcesPanel({
           )}
           {step === 3 && preview.valid && (
             <>
+              <p><strong>{t('مصدر الاستيراد:', 'Import destination:')} {editing?.name}</strong></p>
+              <p>{t('سيتم تطبيق المعاينة التي راجعتها فقط:', 'Only the reviewed preview will be applied:')} {preview.total} {t('عنصر', 'items')}</p>
               <button type="button" className="btn" disabled={busy} onClick={() => setStep(2)}>
                 {t('العودة للمعاينة', 'Back to preview')}
               </button>
@@ -878,6 +880,7 @@ export default function DataSourcesPanel({
       {step === 4 && (
         <section className={styles.result} role="status">
           <h3>{t('اكتمل الاستيراد', 'Import complete')}</h3>
+          <p><strong>{editing?.name}</strong></p>
           <p>
             {appliedCount}{' '}
             {t(
@@ -895,6 +898,9 @@ export default function DataSourcesPanel({
               {t('استخدام المصدر في البوت', 'Use source in bot')}
             </button>
           )}
+          <button className="btn" onClick={() => setStep(0)}>
+            {t('إدارة هذا المصدر', 'Manage this source')}
+          </button>
           <button className="btn" onClick={() => select(null)}>
             {t('استيراد ملف آخر', 'Import another file')}
           </button>

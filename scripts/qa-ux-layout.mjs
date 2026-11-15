@@ -31,10 +31,10 @@ for (const language of ['ar', 'en']) for (const width of [320,390,768,1366,1920]
   await page.route('**/*', r => ['localhost','127.0.0.1'].includes(new URL(r.request().url()).hostname) ? r.continue() : r.abort());
   await page.goto('http://localhost:3000/dashboard/commerce');
   const categories = page.getByRole('navigation', {name:t('الأقسام','Categories'),exact:true});
-  await categories.getByRole('button', {name:'Scale category 099 0',exact:true}).waitFor();
+  await categories.getByRole('button', {name:/^Scale category 099 \d+$/,exact:true}).waitFor();
   await page.getByRole('searchbox', {name:t('ابحث عن قسم','Find a category'),exact:true}).fill('099');
   assert.equal(await categories.getByRole('button').count(),3);
-  await categories.getByRole('button', {name:'Scale category 099 0',exact:true}).click();
+  await categories.getByRole('button', {name:/^Scale category 099 \d+$/,exact:true}).click();
   await page.getByRole('button',{name:t('إضافة منتج','Add product'),exact:true}).click();
   const editor = page.getByRole('dialog',{name:t('منتج جديد','New product'),exact:true});
   await editor.waitFor();
@@ -55,6 +55,19 @@ for (const language of ['ar', 'en']) for (const width of [320,390,768,1366,1920]
   await page.getByRole('button',{name:t('حفظ المنتج','Save product'),exact:true}).click();
   await card.getByText('150.05 EGP',{exact:true}).waitFor();
   const product = (await api('/commerce/products',token)).find(p=>p.name===name); assert.equal(String(product.price_cents),'15005');
+  await page.getByRole('button',{name:t('حذف القسم','Delete category'),exact:true}).click();
+  await page.getByRole('button',{name:t('حذف نهائيًا','Delete permanently'),exact:true}).click();
+  await page.getByRole('alert').filter({hasText:t('انقل المنتجات النشطة والمؤرشفة','Move active and archived products')}).waitFor();
+  await page.getByRole('dialog',{name:t('حذف القسم؟','Delete category?'),exact:true}).getByRole('button',{name:t('إلغاء','Cancel'),exact:true}).click();
+  const emptyName='Disposable category '+language+width;
+  const emptyCat=await api('/commerce/categories',token,{name:emptyName});
+  await page.reload();
+  await page.getByRole('searchbox',{name:t('ابحث عن قسم','Find a category'),exact:true}).fill(emptyName);
+  await page.getByRole('navigation',{name:t('الأقسام','Categories'),exact:true}).getByRole('button',{name:emptyName+' 0',exact:true}).click();
+  await page.getByRole('button',{name:t('حذف القسم','Delete category'),exact:true}).click();
+  await page.getByRole('button',{name:t('حذف نهائيًا','Delete permanently'),exact:true}).click();
+  await page.getByText(t('تم حذف القسم الفارغ.','Empty category deleted.'),{exact:true}).waitFor();
+  assert.equal((await api('/commerce/categories',token)).some(c=>c.id===emptyCat.id),false);
   const f = await api('/flows',token,{name,channelIds:[channel.id]});
   const other = await api('/commerce/products',token,{name:'Second '+name,sku:'second-'+language+width,description:'Synthetic only',priceCents:'15050',currency:'EGP'});
   const catalogGraph={startNodeId:'catalog',nodes:[{id:'catalog',type:'catalog',position:{x:250,y:100},data:{text:'Synthetic catalog',productIds:[]},edges:{next:'end'}},{id:'end',type:'end',position:{x:700,y:100},data:{}}]};
@@ -103,7 +116,7 @@ for (const language of ['ar', 'en']) for (const width of [320,390,768,1366,1920]
   await page.screenshot({path:`${out}/simulator-${language}-${width}.png`});
   await simulator.getByRole('button',{name:'Close / إغلاق',exact:true}).click();
   assert.deepEqual(errors,[]);
-  results.push({language,width,categoryScale:100,productExactCents:true,unobscuredSave:true,successDismissal:true,interactiveSimulator:true,selectedOrderReopened:true});
+  results.push({language,width,categoryScale:100,safeCategoryDelete:true,productExactCents:true,unobscuredSave:true,successDismissal:true,interactiveSimulator:true,selectedOrderReopened:true});
   await context.close();
 }
 writeFileSync(`${out}/results.json`,JSON.stringify(results,null,2));
