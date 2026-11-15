@@ -1,3 +1,29 @@
+# Accepted PR #14 UX delivery — 2026-11-15, completed real Preview verification
+
+## Guided interactive-reply automation — ACCEPTED
+
+- Accepted application Web commit: `4adfc37f583e2cee2dcfd26081204bb318c84bd0`. Preserves seven existing action schemas, action order, max count, save and existing runtime.
+- Functional defect fixed: only one added action editor expands at a time, preventing form pile-up; advanced integration JSON collapsed, accessible task-first cards and summaries; missing plus glyph replaced with shared SVG.
+- New `button-actions-qa.yml`, `qa-button-actions-ux.mjs`, `flow-actions-seven.test.ts`: API and Web builds, isolated actual service execution with mocked outbound connectors, idempotent receipts and tenant isolation pass 3/3. Add/configure/save/reopen all seven types and ten AR/EN viewports (320/390/768/1366/1920) pass; screenshots manually inspected. GitHub run: https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43755194606
+- Live browser accessed **deployed Railway Web**, using a distinct *synthetic tenant*, demonstrated task-first UI, saved a field action and reloaded/reopened; AR/EN at 390 and 1366 screenshots inspected. GitHub run: https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43756095269 . Test fixtures remain unpublished; no real customer messages sent.
+- Initial accepted live Web deployment: `48245f2c-266b-4dda-898f-a4e5a54bfe0d` SUCCESS. Superseded by the second accepted release below.
+
+## CRM subscriber lists task-oriented redesign — ACCEPTED
+
+- Application source commit: `ceade845623e50d888a53f24db914d77e258b808`. Scope `/dashboard/crm/lists`; grouped into create/manage tasks with shared `Button`, `Feedback`, `EmptyState`, localized error/success and empty-member guidance, responsive component-scoped layout and confirmation before membership removal. Same existing tenant-scoped API contracts; no schema/migration changes.
+- Isolated browser tests create list, search/add/remove contact and assert empty state at AR/EN × 320/390/768/1366/1920, 10/10 PASS, screenshots inspected. GitHub run https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43756718467 .
+- **Live deployed Preview** verification in separate synthetic QA tenant: 4/4 AR/EN × 390/1366 real browser create/add/remove journeys PASS; screenshots visually inspected. GitHub run https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43757657027 .
+- Current accepted Railway Web deployment: `56c24da1-576c-4d89-854c-aac2acafce21` SUCCESS, source pinned to `e4c3115766bb9cbb0283f3a31c0f51d871d8fde8`. Current API remains pinned to `1d23067acad94f4fb0712e2d5bfb6755a82e6be9`; all 4 existing services healthy; Sleep preserved; no pending staged changes; same project/environment/domains/volumes; no main merge or new infrastructure.
+
+## Source/deployment distinction and next work
+
+- Latest PR HEAD after adding live verification workflow is `b7bc92d8411e9b3499e670ab963a65634d1a40fb` (this checkpoint commit will advance it); later commits contain *test/workflow and documentation only*, so deployed Web still correctly pins `e4c31157`.
+- Work completed beyond the first automation batch: **one additional real functional section, CRM subscriber lists, redesigned, tested and deployed**. This is **not** a claim of platform-wide UX completion or full live parity with BotSailor.
+- Continue remaining sections through shared components (CRM other screens, Inbox, Team & Permissions, Campaigns, Commerce/Products, Reports, Settings) with explicit visual and functional acceptance in isolated tenants, then staged Preview-only deployments. Continue older PARTIAL issues (safe permanent product deletion, remaining selection advanced settings, every external integration acceptance, quota-limited live simulator, unaccepted campaign patch); preserve UX01/UX05/UX07 and accepted releases.
+- No customer account or current bot was changed; live verification created clearly labeled isolated synthetic QA tenants and records only. No outbound messaging, plan modification or resource creation.
+
+---
+
 # UX design-system reconstruction checkpoint — 2026-11-15 19:27 UTC
 
 PR #14 current work continues on `feat/flow-builder-fidelity-20261107`. UX01, UX05 and UX07 preserved. New implementation commit `806ba1f4a9d2886e83c825b41644645a9aca0176` makes the interactive-reply automation action editor task-oriented: question-first onboarding, full-size icon cards, saved-action accordions with contextual summaries and required-setup hints, existing/custom CRM field selection, technical Google provider JSON behind advanced disclosure, 44px reorder/removal controls. Existing action payload shapes, callbacks, execute order and 20-action limit were preserved. Only `ButtonActionsEditor.tsx` and its existing CSS module changed. This is a focused first batch, **not** a platform-wide DONE claim. Review action-specific prerequisites and executed outcomes separately.
