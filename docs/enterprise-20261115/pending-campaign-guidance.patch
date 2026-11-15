@@ -1,0 +1,420 @@
+diff --git a/apps/web/app/dashboard/campaigns/page.tsx b/apps/web/app/dashboard/campaigns/page.tsx
+index 7c31df2..b7f4d59 100644
+--- a/apps/web/app/dashboard/campaigns/page.tsx
++++ b/apps/web/app/dashboard/campaigns/page.tsx
+@@ -90,6 +90,14 @@ export default function Campaigns() {
+     [creating, setCreating] = useState(false),
+     [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null),
+     [scheduling, setScheduling] = useState<Campaign | null>(null);
++  const [campaignDirty, setCampaignDirty] = useState(false);
++  const [composerBusy, setComposerBusy] = useState(false);
++  const [confirmComposerClose, setConfirmComposerClose] = useState(false);
++  function closeComposer() {
++    if (composerBusy || busy) return;
++    if (campaignDirty) setConfirmComposerClose(true);
++    else setCreating(false);
++  }
+   const [campaignSearch, setCampaignSearch] = useState(''),
+     [campaignStatus, setCampaignStatus] = useState(''),
+     [campaignPage, setCampaignPage] = useState(1);
+@@ -313,7 +321,14 @@ export default function Campaigns() {
+           </nav>
+           {mode === 'broadcast' && activeChannelId && (
+             <>
+-              <button className="btn btn-primary" type="button" onClick={() => setCreating(true)}>
++              <button
++                className="btn btn-primary"
++                type="button"
++                onClick={() => {
++                  setCampaignDirty(false);
++                  setCreating(true);
++                }}
++              >
+                 + {t('إنشاء حملة', 'Create Campaign')}
+               </button>
+             </>
+@@ -446,28 +461,59 @@ export default function Campaigns() {
+             <>
+               <ConfigurationPanel
+                 open={creating}
+-                onClose={() => {
+-                  if (!busy) setCreating(false);
+-                }}
++                onClose={closeComposer}
+                 title={t('إنشاء حملة', 'Create Campaign')}
+               >
+                 <CampaignComposer
+                   layout="reference"
++                  onDirtyChange={setCampaignDirty}
++                  onBusyChange={setComposerBusy}
+                   channels={platformChannels.filter((c) => c.id === activeChannelId)}
+                   segments={segments.data}
+                   onSaved={async () => {
+                     await list.reload();
+                     setSaved(true);
++                    setCampaignDirty(false);
+                     setCreating(false);
+                     void summary.reload();
+                   }}
+                 />
+                 <footer className="smart-editor-footer">
+-                  <button type="button" onClick={() => setCreating(false)}>
++                  <button type="button" disabled={composerBusy} onClick={closeComposer}>
+                     {t('إغلاق', 'Close')}
+                   </button>
+                 </footer>
+               </ConfigurationPanel>
++              <Dialog
++                open={confirmComposerClose}
++                onClose={() => setConfirmComposerClose(false)}
++                title={t('تجاهل مسودة الحملة؟', 'Discard campaign draft?')}
++              >
++                <p>
++                  {t(
++                    'لم تُحفظ الحملة بعد. يمكنك متابعة إعدادها أو تجاهل المدخلات.',
++                    'This campaign has not been saved. Keep editing or discard your input.',
++                  )}
++                </p>
++                <div className="form-actions">
++                  <button
++                    className="btn btn-primary"
++                    onClick={() => setConfirmComposerClose(false)}
++                  >
++                    {t('متابعة التعديل', 'Keep editing')}
++                  </button>
++                  <button
++                    className="btn"
++                    onClick={() => {
++                      setConfirmComposerClose(false);
++                      setCampaignDirty(false);
++                      setCreating(false);
++                    }}
++                  >
++                    {t('تجاهل التغييرات', 'Discard changes')}
++                  </button>
++                </div>
++              </Dialog>
+               <section className={styles.campaignCard} aria-label={t('الحملات', 'Campaigns')}>
+                 <section className={styles.filters}>
+                   <select
+diff --git a/apps/web/components/business/CampaignComposer.tsx b/apps/web/components/business/CampaignComposer.tsx
+index 9e9e8ea..1fd7b6c 100644
+--- a/apps/web/components/business/CampaignComposer.tsx
++++ b/apps/web/components/business/CampaignComposer.tsx
+@@ -65,11 +65,15 @@ export function CampaignComposer({
+   segments,
+   onSaved,
+   layout = 'wizard',
++  onDirtyChange,
++  onBusyChange,
+ }: {
+   channels: Channel[];
+   segments: Segment[];
+   onSaved: () => Promise<void>;
+   layout?: 'wizard' | 'reference';
++  onDirtyChange?: (dirty: boolean) => void;
++  onBusyChange?: (busy: boolean) => void;
+ }) {
+   const { t } = useLocale();
+   const reference = layout === 'reference';
+@@ -99,6 +103,31 @@ export function CampaignComposer({
+   const [saving, setSaving] = useState(false);
+   const [error, setError] = useState(''),
+     [busy, setBusy] = useState(false);
++  useEffect(() => {
++    onDirtyChange?.(
++      !!name.trim() ||
++        !!text ||
++        !!template ||
++        Object.keys(rich).length > 0 ||
++        includeTags.length > 0 ||
++        excludeTags.length > 0 ||
++        includeListIds.length > 0 ||
++        excludeListIds.length > 0,
++    );
++  }, [
++    name,
++    text,
++    template,
++    rich,
++    includeTags,
++    excludeTags,
++    includeListIds,
++    excludeListIds,
++    onDirtyChange,
++  ]);
++  useEffect(() => {
++    onBusyChange?.(busy);
++  }, [busy, onBusyChange]);
+   const review = useRef(0),
+     heading = useRef<HTMLHeadingElement>(null);
+   useEffect(() => {
+@@ -227,13 +256,12 @@ export function CampaignComposer({
+       className={reference ? styles.configuration : 'card stack'}
+       aria-label={t('إنشاء حملة', 'Create campaign')}
+     >
+-      {!reference && (
++      {
+         <>
+           <h2 ref={heading} tabIndex={-1}>
+-            {t('حملة جديدة', 'New campaign')} ·{' '}
+-            {t(`الخطوة ${step + 1} من 3`, `Step ${step + 1} of 3`)}
++            {labels[step]} · {t(`الخطوة ${step + 1} من 3`, `Step ${step + 1} of 3`)}
+           </h2>
+-          <ol className="flex flex-wrap gap-3" aria-label={t('خطوات الإنشاء', 'Creation steps')}>
++          <ol className={styles.steps} aria-label={t('خطوات الإنشاء', 'Creation steps')}>
+             {labels.map((label, index) => (
+               <li
+                 key={label}
+@@ -245,19 +273,13 @@ export function CampaignComposer({
+             ))}
+           </ol>
+         </>
+-      )}
+-      {reference && (
+-        <div className={styles.actionType}>
+-          <strong>{t('نوع الإجراء', 'Action Type')}</strong>
+-          <span>{t('حملة بث', 'Broadcasting')}</span>
+-        </div>
+-      )}
++      }
+       {error && (
+         <p role="alert" className="notice error">
+           {error}
+         </p>
+       )}
+-      {(reference || step === 0) && (
++      {step === 0 && (
+         <div className="stack">
+           <div className="form-grid">
+             <label className="field">
+@@ -312,38 +334,46 @@ export function CampaignComposer({
+             </label>
+           </div>
+           {reference && (
+-            <div className={styles.filterGrid}>
+-              <AudienceFilterSelect
+-                label={t('تضمين الوسوم', 'Include label ids')}
+-                options={labelOptions.data.map(({ name }) => ({ id: name, name }))}
+-                value={includeTags}
+-                onChange={setIncludeTags}
+-                disabled={labelOptions.loading || !!labelOptions.error}
+-              />
+-              <AudienceFilterSelect
+-                label={t('استبعاد الوسوم', 'Exclude label ids')}
+-                options={labelOptions.data.map(({ name }) => ({ id: name, name }))}
+-                value={excludeTags}
+-                onChange={setExcludeTags}
+-                disabled={labelOptions.loading || !!labelOptions.error}
+-              />
+-              <AudienceFilterSelect
+-                label={t('تضمين قوائم المشتركين', 'Include Subscriber Lists')}
+-                options={lists.data}
+-                value={includeListIds}
+-                onChange={setIncludeListIds}
+-                disabled={lists.loading || !!lists.error}
+-              />
+-              <AudienceFilterSelect
+-                label={t('استبعاد قوائم المشتركين', 'Exclude Subscriber Lists')}
+-                options={lists.data}
+-                value={excludeListIds}
+-                onChange={setExcludeListIds}
+-                disabled={lists.loading || !!lists.error}
+-              />
+-              {labelOptions.error && <p role="alert">{labelOptions.error}</p>}
+-              {lists.error && <p role="alert">{lists.error}</p>}
+-            </div>
++            <details className={styles.optionalFilters}>
++              <summary>
++                {t(
++                  'تصفية إضافية بالوسوم والقوائم (اختياري)',
++                  'Filter by labels and lists (optional)',
++                )}
++              </summary>
++              <div className={styles.filterGrid}>
++                <AudienceFilterSelect
++                  label={t('تضمين الوسوم', 'Include label ids')}
++                  options={labelOptions.data.map(({ name }) => ({ id: name, name }))}
++                  value={includeTags}
++                  onChange={setIncludeTags}
++                  disabled={labelOptions.loading || !!labelOptions.error}
++                />
++                <AudienceFilterSelect
++                  label={t('استبعاد الوسوم', 'Exclude label ids')}
++                  options={labelOptions.data.map(({ name }) => ({ id: name, name }))}
++                  value={excludeTags}
++                  onChange={setExcludeTags}
++                  disabled={labelOptions.loading || !!labelOptions.error}
++                />
++                <AudienceFilterSelect
++                  label={t('تضمين قوائم المشتركين', 'Include Subscriber Lists')}
++                  options={lists.data}
++                  value={includeListIds}
++                  onChange={setIncludeListIds}
++                  disabled={lists.loading || !!lists.error}
++                />
++                <AudienceFilterSelect
++                  label={t('استبعاد قوائم المشتركين', 'Exclude Subscriber Lists')}
++                  options={lists.data}
++                  value={excludeListIds}
++                  onChange={setExcludeListIds}
++                  disabled={lists.loading || !!lists.error}
++                />
++                {labelOptions.error && <p role="alert">{labelOptions.error}</p>}
++                {lists.error && <p role="alert">{lists.error}</p>}
++              </div>
++            </details>
+           )}
+           <button type="button" className="btn" disabled={!channel || busy} onClick={checkAudience}>
+             {busy && !saving
+@@ -363,7 +393,7 @@ export function CampaignComposer({
+               )}
+             </>
+           )}
+-          {!reference && (
++          {
+             <button
+               className="btn btn-primary"
+               disabled={
+@@ -379,10 +409,10 @@ export function CampaignComposer({
+             >
+               {t('التالي', 'Next')}
+             </button>
+-          )}
++          }
+         </div>
+       )}
+-      {(reference || step === 1) && (
++      {step === 1 && (
+         <div className="stack">
+           {reference && <h3>{t('نوع البث والمحتوى', 'Broadcast type and content')}</h3>}
+           {reference && selectedChannel?.type === 'whatsapp' && (
+@@ -487,7 +517,7 @@ export function CampaignComposer({
+               'Supports text, media, reply buttons, menus and approved templates with supported headers and buttons. Reply windows, consent and channel policy are checked at delivery.',
+             )}
+           </p>
+-          {!reference && (
++          {
+             <div className="form-actions">
+               <button className="btn" onClick={() => move(0)}>
+                 {t('السابق', 'Back')}
+@@ -500,10 +530,10 @@ export function CampaignComposer({
+                 {t('معاينة الرسالة', 'Preview message')}
+               </button>
+             </div>
+-          )}
++          }
+         </div>
+       )}
+-      {(reference || step === 2) && (
++      {step === 2 && (
+         <div className="stack">
+           <h3>{name || t('معاينة الرسالة', 'Message Preview')}</h3>
+           <p>
+@@ -529,11 +559,11 @@ export function CampaignComposer({
+             )}
+           </p>
+           <div className="form-actions">
+-            {!reference && (
++            {
+               <button className="btn" disabled={busy} onClick={() => move(1)}>
+                 {t('تعديل الرسالة', 'Edit message')}
+               </button>
+-            )}
++            }
+             <button
+               className="btn btn-primary"
+               disabled={
+diff --git a/apps/web/components/business/campaign-configuration.module.css b/apps/web/components/business/campaign-configuration.module.css
+index 84528c7..f2a71c3 100644
+--- a/apps/web/components/business/campaign-configuration.module.css
++++ b/apps/web/components/business/campaign-configuration.module.css
+@@ -15,7 +15,7 @@
+   gap: 14px;
+ }
+ .configuration :global(.field) {
+-  font-size: 12px;
++  font-size: 14px;
+   color: #43505e;
+   gap: 6px;
+ }
+@@ -38,13 +38,13 @@
+   margin: 0;
+ }
+ .configuration :global(.btn) {
+-  font-size: 12px;
++  font-size: 14px;
+   border-radius: 8px;
+ }
+ .configuration :global(.muted),
+ .configuration :global(.notice) {
+-  font-size: 11px;
+-  line-height: 18px;
++  font-size: 13px;
++  line-height: 1.7;
+ }
+ .actionType {
+   display: grid;
+@@ -71,7 +71,7 @@
+   margin: 0;
+ }
+ .broadcastTypes legend {
+-  font-size: 12px;
++  font-size: 14px;
+   margin-bottom: 8px;
+ }
+ .broadcastTypes label {
+@@ -93,10 +93,10 @@
+   grid-row: 1 / 3;
+ }
+ .broadcastTypes strong {
+-  font-size: 12px;
++  font-size: 14px;
+ }
+ .broadcastTypes small {
+-  font-size: 10px;
++  font-size: 12px;
+   color: #7b8794;
+ }
+ @media (max-width: 640px) {
+@@ -117,3 +117,40 @@
+     grid-template-columns: minmax(0, 1fr);
+   }
+ }
++
++.steps {
++  display: grid;
++  grid-template-columns: repeat(3, minmax(0, 1fr));
++  gap: 8px;
++  padding: 0;
++  margin: 0;
++  list-style: none;
++}
++.steps li {
++  padding: 10px 6px;
++  border-bottom: 3px solid #e2e8f0;
++  font-size: 12px;
++  line-height: 1.6;
++  overflow-wrap: anywhere;
++}
++.steps li[aria-current='step'] {
++  border-color: #6554d9;
++  color: #4936b3;
++  font-weight: 700;
++  background: #f5f3ff;
++  border-radius: 8px 8px 0 0;
++}
++.optionalFilters {
++  border: 1px solid #e2e8f0;
++  border-radius: 10px;
++  padding: 12px;
++  min-width: 0;
++}
++.optionalFilters summary {
++  cursor: pointer;
++  font-weight: 600;
++  font-size: 14px;
++}
++.optionalFilters[open] .filterGrid {
++  margin-top: 14px;
++}

@@ -1,3 +1,52 @@
+# Accepted release and exact resume point — 2026-11-15 18:30 UTC
+
+Application release: **99e6b6738c578ce2659bf8d90b8e53f61a246a02**, PR #14 only. Both existing Railway services are pinned to this accepted commit; later documentation/checkpoint commits do not auto-deploy. Do not merge main.
+
+| Requirement | Acceptance | Evidence / exact remaining work |
+|---|---|---|
+| UX01 product editor | DONE | Scrollable modal with reserved actions; exact 1500 / 150.5 / 150.05; 10 isolated combinations and actual live save/edit/refresh/reopen |
+| UX02 catalog/categories | PARTIAL | Search at 100-category scale, counts, rename/copy preserved; confirmed empty deletion rejects foreign tenant and active/archived contents. Permanent product deletion with historical/published references remains |
+| UX03 import wizard | PARTIAL | Five stages, styled upload, required/optional mapping with samples, real table/counts, named destination and manage-source action; CSV/XLSX acceptance passes. Added/updated/unchanged/rejected breakdown still needs real backend statistics |
+| UX04 product sidebar | PARTIAL | Guide, filter/search, numbered selected cards, local preview, order persistence/reopen at 10 combinations; manual/dynamic source retention also passes existing suite. Full progressive advanced-settings/text-variable arrangement still needs further UX work |
+| UX05 save notices | DONE | Terminal saved/published notices dismiss at 1.8s; recovery/conflict/error/undo decisions stay. Success timing and save failure/recovery journeys pass |
+| UX06 automation actions | PARTIAL | Customer data / routing-follow-up / connected-system groups and prerequisite guidance implemented. Every action's actual configured/prerequisite/error journey still needs separate acceptance |
+| UX07 toolbar | DONE | Explicit red exit X, current-channel label/icon and retained unsaved-change guard. Actual pointer regression fixed mobile menu under palette |
+| UX08 simulator | PARTIAL | Large responsive dialog, independent chat/input, 10 actual question/reply journeys pass and screenshots inspected. New live isolated bot creation was BLOCKED by workspace plan bot quota; no existing bot or plan changed |
+
+## Passed checks
+
+All six browser workflows at 99e6b67 are successful:
+- Products/import and 10 responsive catalog/product/picker/simulator journeys: https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43745940900
+- Editor crash/recovery/token refresh/connection: https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43745940971
+- Contact/Inbox: https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43745940978
+- Work/segments: https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43745940937
+- Channels: https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43745940977
+- Platform responsive/runtime inventory: https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43745940895
+
+PostgreSQL integration passes at a217c22 (API tree identical to 99e6b67): https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43745471622 . Focused category/money tests 4/4 pass; API/Web production builds and TypeScript pass. Inventory is not a claim of full state-by-state whole-platform acceptance.
+
+## Delivered Railway state
+
+Existing project boat-two-ui-preview / preview only. Web **41662585-dc53-41f5-80b9-1a70d7ff831f SUCCESS**; API **2e913862-4e2d-4435-8f66-3bb24eaea983 SUCCESS**. Both source pins are 99e6b67; Sleep remains true on both. Four original services online, zero issues, no staged/pending changes. PostgreSQL/Redis resources/domains were not changed and no resource created.
+
+## Live verification and test data
+
+Cloud Browser verified Sources -> Bot Manager now opens keyword replies and retains the QA channel. Created synthetic product SKU **QA-UX-LIVE-20261115-1825**, saved at 150.05, refreshed/reopened, edited to 150.5 and archived, refreshed/reopened again. Verified save action visible and unobscured. Inspected category deletion confirmation then canceled; no live permanent deletion. The synthetic product is archived and unavailable to bots. Existing customer records and existing bot graphs/publications were not changed.
+
+New live bot name attempt “QA UX 20261115 — فحص المحاكي فقط” was rejected by the normal workspace bot quota; no bot was created, subscription changed or existing bot deleted. Existing original local bot recovery drafts remain untouched. Simulator acceptance is proven in isolated CI, not claimed as a completed new live bot journey.
+
+## Safe continuation
+
+Continue the PARTIAL items above; inspect current HEAD/deployments again first. API permanent product deletion must protect published versions/history and concurrent reference creation; do not add a blind DELETE. Do not fabricate import change counts in the frontend. Keep test fixtures separate from out-of-band graph updates to respect recovery decisions.
+
+Earlier unaccepted campaign guidance work is now preserved as **docs/enterprise-20261115/pending-campaign-guidance.patch** in this PR, in addition to local checkpoint branch 1bc2c30. It is unapplied and excluded from the published application; review against current source and add isolated campaign acceptance before applying it.
+
+The evidence bundle includes 46 isolated screenshots, two result files, and a live saved-product screenshot; no runtime logs, secrets, customer data or database dump. GitHub artifact: https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43745940900/artifacts/14174372401 .
+
+---
+
+## Historical work notes (superseded by the accepted state above)
+
 Visual reinspection of the real 320px CI screenshots found mixed Arabic/Latin selected-product titles and prices running together. Selected cards now isolate bidirectional names/numbers, put prices on a separate line and use compact labeled action icons; the selected list has room for two cards. Product modal and interactive simulator screenshots were inspected, not inferred from assertions.
 
 Category deletion acceptance found duplicate error rendering in the dialog and underlying page. Modal errors now stay in their action context and clear on cancel; rejection assertion is scoped to the confirmation dialog. The nonempty-delete API correctly returned a conflict and retained products.
