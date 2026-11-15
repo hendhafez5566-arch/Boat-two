@@ -502,23 +502,239 @@
   overflow-wrap: anywhere;
 }
 
-.button.actionChoice {
-  display: grid;
-  justify-content: stretch;
-  align-content: center;
-  text-align: start;
-  padding: 10px 12px;
-  min-height: 64px;
-  color: #1d4ed8;
-  background: #eff6ff;
-  border-color: #bfdbfe;
-  line-height: 1.4;
+/* One task-oriented action picker, shared by all interactive reply editors. */
+.automationRoot {
+  gap: 16px;
+  font-size: 15px;
 }
-
+.automationIntro {
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--primary-softer, #f6f7ff);
+  border: 1px solid var(--primary-line, #d4d8f7);
+}
+.automationIntro h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  line-height: 1.6;
+  font-weight: 750;
+}
+.automationIntro p {
+  margin: 0;
+  line-height: 1.65;
+  color: var(--muted, #64748b);
+  font-size: 13px;
+}
+.actionGrid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+.button.actionChoice {
+  display: flex;
+  min-height: 80px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  width: 100%;
+  text-align: start;
+  padding: 14px;
+  border: 1px solid var(--line-strong, #d3dae6);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  color: var(--ink, #0f172a);
+  font-size: 14px;
+  line-height: 1.45;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 4%);
+}
+.button.actionChoice:hover:not(:disabled),
+.button.actionChoice:focus-visible {
+  border-color: var(--primary, #5141e3);
+  background: var(--primary-softer, #f6f7ff);
+}
+.actionIcon {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  color: var(--primary, #5141e3);
+  background: var(--primary-soft, #f0effe);
+}
+.actionChoiceText {
+  display: grid;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.actionChoiceText strong {
+  font-weight: 700;
+}
 .actionChoice small {
-  color: #334155;
+  color: var(--muted, #64748b);
+  font-size: 13px;
+  line-height: 1.55;
+  font-weight: 400;
+}
+.addAction {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--primary-line, #c7c3f8);
+  border-radius: 10px;
+  color: var(--primary, #5141e3);
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 500;
+}
+.actionListHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.actionListHeading h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+.actionListHeading span {
+  font-size: 13px;
+  color: var(--muted, #64748b);
+}
+.actionItem {
+  border-color: var(--line-strong, #d3dae6);
+}
+.actionItem .disclosureToggle {
+  min-height: 84px;
+  padding: 12px 14px;
+}
+.actionItem .disclosureToggle > span:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.actionSummary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  width: 100%;
+  text-align: start;
+}
+.actionSummary .actionIcon {
+  flex-basis: 36px;
+  width: 36px;
+  height: 36px;
+}
+.actionOrder {
+  flex: 0 0 24px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 99px;
+  background: var(--canvas, #f3f5f9);
+  color: var(--ink-2, #334155);
+  font-size: 12px;
+}
+.actionSummaryText {
+  display: grid;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.actionSummaryText strong {
+  font-size: 14px;
+}
+.actionSummaryText small {
+  color: var(--muted, #64748b);
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   font-weight: 400;
+}
+.needsSetup {
+  color: #8a570e;
+  background: #fff4dc;
+  border-radius: 99px;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 4px 8px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.actionItem .disclosureBody {
+  padding-inline: 14px;
+}
+.actionContent {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  font-size: 14px;
+}
+.actionContent > label {
+  gap: 8px;
+}
+.actionControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-top: 1px solid var(--line, #e5e9f0);
+  padding-top: 14px;
+}
+.orderButton,
+.removeButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  border: 1px solid var(--line-strong, #d3dae6);
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px 12px;
+  color: var(--ink-2, #334155);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.orderButton:disabled {
+  color: var(--faint, #94a3b8);
+  background: var(--surface-muted, #f6f8fb);
+  cursor: not-allowed;
+}
+.removeButton {
+  color: var(--danger, #d6303f);
+  border-color: #f0c4cd;
+}
+.removeButton:hover:not(:disabled) {
+  background: var(--danger-soft, #fdecee);
+}
+.removeButton svg {
+  width: 17px;
+  height: 17px;
+}
+@media (max-width: 390px) {
+  .actionSummary {
+    gap: 7px;
+  }
+  .actionSummary .actionIcon {
+    display: none;
+  }
+  .needsSetup {
+    font-size: 10px;
+    max-width: 85px;
+    white-space: normal;
+  }
+  .actionControls > button {
+    flex: 1 1 auto;
+  }
 }
 
 @media (max-width: 540px) {
