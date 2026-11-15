@@ -224,8 +224,8 @@ export default function ProductPicker({
       </Dialog>
       <small>
         {t(
-          'هذا اختيار لبيانات المنتجات، وليس محاكاة لشكل رسالة القناة. استخدم اختبار البوت لمعاينة الإخراج.',
-          'This selects product data, rather than simulating a channel message. Use the bot simulator to preview output.',
+          'راجع المنتجات وترتيبها، ثم احفظ التغييرات واحفظ البوت.',
+          'Review the products and their order, then save these changes and save the bot.',
         )}
       </small>
     </div>

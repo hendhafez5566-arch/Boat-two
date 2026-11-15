@@ -1,3 +1,7 @@
+## Mobile tool-menu defect found by real pointer acceptance — 0681c64
+
+At 320px the palette (z-index 30) intercepted the actual Preview button inside the toolbar menu (toolbar stacking context 25). Raised the toolbar stacking context above the palette; no forced clicks or test bypasses. Rerun all impacted browser workflows before acceptance. Catalog ordering/reopen and success dismissal passed before reaching this mobile obstruction.
+
 ## Acceptance fixture correction — b1e8f59
 
 The extended catalog journey successfully selected two products, reordered them, previewed the exact price, saved and reopened the graph. The next test overwrote that same server graph out of band while its inspector recovery snapshot existed; the editor correctly displayed its recovery decision instead of accepting a blind save. The conversation test now uses a separate isolated flow, preserving the recovery guard and all original assertions. Product/import journeys and editor reliability checks pass; rerun the extended suite before deployment.
