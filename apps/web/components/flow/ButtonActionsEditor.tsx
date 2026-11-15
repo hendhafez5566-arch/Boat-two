@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useId, useState } from 'react';
 import { api } from '../../lib/api';
+import { ConfigDisclosure, ConfigSummary } from './ConfigDisclosure';
 import { useLocale } from '../product/locale';
 import styles from './automation-config.module.css';
 
@@ -229,13 +230,13 @@ export default function ButtonActionsEditor({
     };
   }, []);
   const labels = {
-    integration: t('Google Sheets / Calendar / مزود خارجي', 'Google Sheets / Calendar / provider'),
+    integration: t('تحديث جدول أو حجز موعد', 'Update a sheet or book an appointment'),
     set_field: t('حفظ حقل مخصص', 'Save custom field'),
     tag: t('إضافة / إزالة وسوم', 'Add / remove labels'),
     list: t('إضافة / إزالة من قائمة', 'Add / remove list membership'),
     sequence: t('اشتراك / إلغاء تسلسل', 'Subscribe / unsubscribe sequence'),
     assign: t('تحويل لموظف أو قسم', 'Assign employee or department'),
-    webhook: t('إرسال Webhook', 'Send webhook'),
+    webhook: t('إرسال البيانات لنظام خارجي', 'Send data to another system'),
   };
   const descriptions = {
     integration: t(
@@ -331,20 +332,33 @@ export default function ButtonActionsEditor({
           )}
         </p>
       )}
-      <div className={styles.grid}>
-        {(Object.keys(labels) as ButtonAction['type'][]).map((type) => (
-          <button
-            type="button"
-            className={`${styles.button} ${styles.actionChoice}`}
-            key={type}
-            disabled={value.length >= 20}
-            onClick={() => add(type)}
-          >
-            <strong>＋ {labels[type]}</strong>
-            <small>{descriptions[type]}</small>
-          </button>
-        ))}
-      </div>
+      {([
+        { title: t('بيانات العميل وتصنيفه', 'Customer data and organization'), types: ['set_field', 'tag', 'list'], open: true },
+        { title: t('المتابعة وتحويل المحادثة', 'Follow-up and conversation routing'), types: ['sequence', 'assign'], open: false },
+        { title: t('الربط مع أنظمة أخرى', 'Connected systems'), types: ['integration', 'webhook'], open: false },
+      ] as { title: string; types: ButtonAction['type'][]; open: boolean }[]).map((group) => (
+        <ConfigDisclosure key={group.title} open={group.open}>
+          <ConfigSummary>{group.title}</ConfigSummary>
+          <div className={styles.grid}>
+          {group.types.map((type) => (
+            <button type="button" className={`${styles.button} ${styles.actionChoice}`} key={type}
+              disabled={value.length >= 20} onClick={() => add(type)}>
+              <strong>＋ {labels[type]}</strong><small>{descriptions[type]}</small>
+            </button>
+          ))}
+          </div>
+          {group.types.includes('integration') && !connections.some((c) => c.enabled && c.provider !== 'webhook') && (
+            <p className={styles.note}>
+              {t('لتحديث الجداول أو التقويم، اربط حسابًا أولًا من إعدادات التكاملات.', 'To update sheets or calendars, connect an account in integration settings first.')}{' '}
+              <a href="/dashboard/integrations" target="_blank" rel="noopener noreferrer">{t('إعداد الربط', 'Set up connection')}</a>
+            </p>
+          )}
+          {group.types.includes('sequence') && !sequences.some((s) => s.status === 'active') && (
+            <p className={styles.note}>{t('ابدأ بإنشاء تسلسل متابعة نشط قبل الاشتراك فيه.', 'Create an active follow-up sequence before subscribing a customer.')}</p>
+          )}
+        </ConfigDisclosure>
+      ))}
+      {value.length > 0 && <h3>{t('الإجراءات بالترتيب', 'Actions in execution order')} ({value.length})</h3>}
       {value.map((a, i) => (
         <fieldset className={styles.section} key={i}>
           <legend>

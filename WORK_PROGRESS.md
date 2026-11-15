@@ -14,6 +14,10 @@ Baseline rechecked: 385820bf06d3b59d8985be4c7384677f0fcc0c29 (newer catalog/spec
 | UX07 toolbar | Red explicit exit X retains guarded navigation; current-channel informational label/icon | AR/EN responsive/unsaved guard acceptance |
 | UX08 simulator | Large responsive dialog; independent chat with reserved input; removed constraining phone frame | Interactive simulator at all 10 combinations + live inspection; rich product presentation still to review |
 
+Second coherent batch: product fields start with basic details before price; catalog picker has a task guide, numbered selected order, exact prices and a local product preview; automation choices grouped into customer data, follow-up/routing and connected systems with prerequisite guidance. Mobile current-channel badge gets a dedicated row.
+
+CI at 6da3aee: existing product/category/XLSX/CSV journeys PASS; editor crash/recovery/refresh/connection PASS; contacts PASS; work/segments PASS; channel connection PASS. New responsive script failed locating a success paragraph whose close button was included in its exact text; success text is now a dedicated span. No test assertion removed. The extended test also persists/reopens/reorders two chosen products before testing the actual question/reply conversation.
+
 Local build passed and exact money tests 3/3 passed. Browser/CI results must be recorded after execution, not inferred from compilation.
 New isolated acceptance script: `scripts/qa-ux-layout.mjs`, 100 categories, product create/edit exact cents, visible save controls, success dismissal, actual question/reply simulator, 320/390/768/1366/1920 in Arabic/English.
 Existing category acceptance selectors updated to current baseline add-category dialog behavior (removed obsolete auto-closed dialog close).

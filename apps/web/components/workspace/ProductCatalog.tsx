@@ -461,34 +461,6 @@ export default function ProductCatalog() {
                 {error}
               </p>
             )}
-            <fieldset className={styles.priceSection}>
-              <legend>{t('السعر والعملة', 'Price and currency')}</legend>
-              <div className="form-grid">
-                <label className="field">
-                  {t('سعر المنتج (مثال 150.00)', 'Product price (e.g. 150.00)')}
-                  <input
-                    name="price"
-                    inputMode="decimal"
-                    pattern="[0-9]{1,13}(\.[0-9]{1,2})?"
-                    required
-                    defaultValue={editing ? productDecimal(editing.price_cents) : ''}
-                    placeholder="150.00"
-                    dir="ltr"
-                  />
-                </label>
-                <label className="field">
-                  {t('العملة', 'Currency')}
-                  <input
-                    name="currency"
-                    pattern="[A-Z]{3}"
-                    maxLength={3}
-                    required
-                    defaultValue={editing?.currency ?? 'EGP'}
-                    dir="ltr"
-                  />
-                </label>
-              </div>
-            </fieldset>
             <label className="field">
               {t('قسم المنتج', 'Product category')}
               <select
@@ -531,6 +503,34 @@ export default function ProductCatalog() {
                   defaultValue={editing?.description}
                 />
               </label>
+            </fieldset>
+            <fieldset className={styles.priceSection}>
+              <legend>{t('السعر والعملة', 'Price and currency')}</legend>
+              <div className="form-grid">
+                <label className="field">
+                  {t('سعر المنتج (مثال 150.00)', 'Product price (e.g. 150.00)')}
+                  <input
+                    name="price"
+                    inputMode="decimal"
+                    pattern="[0-9]{1,13}(\.[0-9]{1,2})?"
+                    required
+                    defaultValue={editing ? productDecimal(editing.price_cents) : ''}
+                    placeholder="150.00"
+                    dir="ltr"
+                  />
+                </label>
+                <label className="field">
+                  {t('العملة', 'Currency')}
+                  <input
+                    name="currency"
+                    pattern="[A-Z]{3}"
+                    maxLength={3}
+                    required
+                    defaultValue={editing?.currency ?? 'EGP'}
+                    dir="ltr"
+                  />
+                </label>
+              </div>
             </fieldset>
             {(['specification', 'option'] as const).map((kind) => (
               <fieldset className={styles.section} key={kind}>

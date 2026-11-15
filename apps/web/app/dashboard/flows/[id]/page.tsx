@@ -1757,7 +1757,7 @@ function Editor({ id }: { id: string }) {
       )}
       {msg && (
         <p className={styles.feedback} role={!loaded ? 'alert' : 'status'}>
-          {msg}
+          <span>{msg}</span>
           {!loaded && (
             <button type="button" onClick={() => window.location.reload()}>
               {t('إعادة المحاولة', 'Retry')}

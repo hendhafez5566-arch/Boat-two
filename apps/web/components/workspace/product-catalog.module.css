@@ -397,3 +397,7 @@
 }
 
 .categoryShelf { max-height: 180px; overflow: auto; align-content: start; }
+
+.pickerGuide { font-size: 14px; line-height: 1.8; color: #52667d; margin: 0; padding: 10px 12px; background: #f6f8fc; border-radius: 8px; }
+.selected > div { flex-wrap: wrap; }
+.selected > div > span { flex: 1 1 100%; font-size: 14px; overflow-wrap: anywhere; }

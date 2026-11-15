@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { Dialog } from '../product/ProductUI';
 import { useData } from '../business/useData';
 import { useLocale } from '../product/locale';
 import { CatalogProduct, ProductImage } from '../workspace/ProductCatalog';
@@ -25,6 +26,7 @@ export default function ProductPicker({
   const [view, setView] = useState<'browse' | 'selected'>('browse');
   const [category, setCategory] = useState('all');
   const [query, setQuery] = useState('');
+  const [preview, setPreview] = useState<CatalogProduct | null>(null);
   const search = query.trim().toLocaleLowerCase();
   const isBrowsing = !!search || category !== 'all';
   const visible = isBrowsing
@@ -38,6 +40,7 @@ export default function ProductPicker({
     : [];
   return (
     <div className={styles.picker}>
+      <p className={styles.pickerGuide}>{t('اختر القسم ← أضف المنتجات ← راجع ترتيب المختارة', 'Choose a category → add products → review the selected order')}</p>
       <div
         className={styles.pickerTabs}
         role="group"
@@ -110,9 +113,11 @@ export default function ProductPicker({
             return (
               <div key={id}>
                 <span>
-                  {p?.name ?? t('منتج غير متاح', 'Unavailable product')}
+                  <small>{index + 1}. </small>{p?.name ?? t('منتج غير متاح', 'Unavailable product')}
                   {p?.archived ? t(' (مؤرشف)', ' (archived)') : ''}
+                  {p && <small dir="ltr"> · {productPrice(p.price_cents, p.currency)}</small>}
                 </span>
+                {p && <button type="button" className="btn" onClick={() => setPreview(p)} aria-label={`${t('معاينة', 'Preview')} ${p.name}`}>{t('معاينة', 'Preview')}</button>}
                 {multiple && (
                   <>
                     <button
@@ -210,6 +215,13 @@ export default function ProductPicker({
           )}
         </>
       )}
+      <Dialog open={!!preview} onClose={() => setPreview(null)} title={t('معاينة المنتج', 'Product preview')}>
+        {preview && <div className={styles.preview}>
+          <ProductImage key={preview.image_url} product={preview} /><h3>{preview.name}</h3>
+          <strong dir="ltr">{productPrice(preview.price_cents, preview.currency)}</strong><p>{preview.description}</p>
+          {!!preview.specifications?.length && <dl>{preview.specifications.map((item, i) => <div key={i}><dt>{item.name}</dt><dd>{item.value}</dd></div>)}</dl>}
+        </div>}
+      </Dialog>
       <small>
         {t(
           'هذا اختيار لبيانات المنتجات، وليس محاكاة لشكل رسالة القناة. استخدم اختبار البوت لمعاينة الإخراج.',
