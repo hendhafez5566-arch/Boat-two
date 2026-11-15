@@ -1,3 +1,13 @@
+# UX design-system reconstruction checkpoint — 2026-11-15 19:27 UTC
+
+PR #14 current work continues on `feat/flow-builder-fidelity-20261107`. UX01, UX05 and UX07 preserved. New implementation commit `806ba1f4a9d2886e83c825b41644645a9aca0176` makes the interactive-reply automation action editor task-oriented: question-first onboarding, full-size icon cards, saved-action accordions with contextual summaries and required-setup hints, existing/custom CRM field selection, technical Google provider JSON behind advanced disclosure, 44px reorder/removal controls. Existing action payload shapes, callbacks, execute order and 20-action limit were preserved. Only `ButtonActionsEditor.tsx` and its existing CSS module changed. This is a focused first batch, **not** a platform-wide DONE claim. Review action-specific prerequisites and executed outcomes separately.
+
+Latest pre-batch live deployment: Web `99e6b67` SLEEPING, API `1d23067` SUCCESS. Railway has the same four existing services, no staged changes, PostgreSQL/Redis volumes unchanged and Sleep enabled. **Do not deploy 806ba1f before CI passes and visual QA.** GitHub push started six workflows: 43752515185, 43752515255, 43752515146, 43752515166, 43752515237, 43752515205. Workflows were in progress at checkpoint. Previous `1d23067` workflows were successful. Browser extension is not accessible from the current chat context; live signed-in visual verification is NOT claimed.
+
+Next: inspect these six workflow results, resolve any failures, conduct targeted automation action configure/save/reopen/execute and responsive visual QA, then move to shared-component migration across other sections in discrete tested batches. Product deletion safety, import statistics live Web parity, picker advanced settings, isolated simulator live quota and campaign patch remain independent unfinished items. Keep PR draft and preserve main, resources and data.
+
+---
+
 # Continuation batch — backend import statistics
 
 In progress on the existing PR branch, baseline f65b4d7 / deployed 99e6b67. UX01, UX05 and UX07 are unchanged.
