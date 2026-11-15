@@ -72,7 +72,7 @@ async function openPage(language, width) {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
     });
   }
-  await page.route('**/*', route => ['localhost', '127.0.0.1'].includes(new URL(route.request().url()).hostname) ? route.continue() : route.abort());
+  await page.route('**/*', route => ['localhost', '127.0.0.1'].includes(new URL(route.request().url()).hostname) ? route.fallback() : route.abort());
   await page.goto(webBase + '/dashboard/flows/' + flow.id);
   await page.locator('.react-flow__node').filter({ hasText: 'Continue' }).last().click();
   const title = language === 'ar' ? 'إعداد الاختيار' : 'Configure Reply';
