@@ -45,7 +45,8 @@ test('seven button action types execute with isolated dependencies, order and re
       return { ok: true };
     },
   };
-  const service = new FlowActionsService(db as never, effects as never, sequences as never, bus as never, undefined, integrations as never);
+  const google = { execute: async () => ({ ok: true }) };
+  const service = new FlowActionsService(db as never, effects as never, sequences as never, bus as never, google as never, integrations as never);
   const idA = '11111111-1111-4111-8111-111111111111';
   const idB = '22222222-2222-4222-8222-222222222222';
   const scope = { tenantId, contactId: idA, conversationId: idB, eventId: 'inbound-isolated' };
