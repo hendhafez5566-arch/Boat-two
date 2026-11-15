@@ -14,6 +14,7 @@ async function api(path,token,body,method=body?'POST':'GET') {
   const data=await r.json();assert.ok(r.ok,path+JSON.stringify(data));return data;
 }
 const session=await api('/auth/register',null,{email:randomUUID()+'@example.test',password:'Qa-Crm-'+randomUUID(),fullName:'CRM list UX QA',workspaceName:'Isolated CRM list QA'});
+await api('/channels',session.accessToken,{type:'web',name:'Isolated CRM channel'});
 await api('/workspace/onboarding/complete',session.accessToken,{});
 const contact=await api('/crm/contacts',session.accessToken,{name:'Test Contact QA'});
 const browser=await chromium.launch({executablePath:process.env.BOAT_CHROMIUM || '/usr/bin/google-chrome',args:['--no-sandbox']});
