@@ -1,0 +1,35 @@
+name: Live Railway CRM audiences real-browser QA
+on:
+  push:
+    branches: [feat/flow-builder-fidelity-20261107]
+    paths:
+      - 'scripts/qa-live-crm-preview.mjs'
+      - '.github/workflows/live-crm-preview-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: live-crm-preview-pr14
+  cancel-in-progress: true
+jobs:
+  preview-crm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser driver
+        run: npm install --prefix "$RUNNER_TEMP/boat-playwright" playwright@1.56.1 --ignore-scripts
+      - name: Test actual Preview Web in a synthetic unpublished customer workspace
+        env:
+          BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
+          BOAT_CHROMIUM: /usr/bin/google-chrome
+        run: node scripts/qa-live-crm-preview.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-preview-crm-lists-evidence
+          path: docs/enterprise-20261115/live-crm-lists/
+          if-no-files-found: warn
