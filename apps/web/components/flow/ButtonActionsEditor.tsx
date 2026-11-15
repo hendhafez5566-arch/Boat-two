@@ -396,7 +396,7 @@ export default function ButtonActionsEditor({
                   <strong>{labels[type]}</strong>
                   <small>{descriptions[type]}</small>
                 </span>
-                <span className={styles.addAction} aria-hidden="true">＋</span>
+                <span className={styles.addAction} aria-hidden="true"><NavIcon name="plus" /></span>
               </button>
             ))}
           </div>
