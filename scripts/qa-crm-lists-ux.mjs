@@ -40,7 +40,7 @@ for(const language of ['ar','en'])for(const width of [320,390,768,1366,1920]){
   await page.getByRole('combobox',{name:t('اختر العميل من النتائج','Choose a customer from results')}).selectOption(contact.id);
   await page.getByRole('button',{name:t('إضافة إلى القائمة','Add to list')}).click();
   await page.getByText(t('تمت إضافة العميل إلى القائمة.','Customer added to the list.')).waitFor();
-  assert.equal(await page.getByText('Test Contact QA',{exact:true}).count(),1);
+  assert.equal(await page.locator('ul[class*="memberList"]').getByText('Test Contact QA',{exact:true}).count(),1);
   await page.screenshot({path:out+'/crm-list-'+language+'-'+width+'.png'});
   page.once('dialog',async d=>{assert.equal(d.type(),'confirm');await d.accept();});
   await page.getByRole('button',{name:t('إزالة','Remove'),exact:true}).click();
