@@ -1,6 +1,8 @@
 'use client';
 import { DisclosureSummary } from '../../../components/product/DisclosureSummary';
 
+import type { ContactField } from '../../../lib/inbox-contact-fields';
+import { ContactEditor } from '../../../components/business/ContactEditor';
 import { CrmScoring } from '../../../components/business/CrmScoring';
 import { CrmAutomation } from '../../../components/business/CrmAutomation';
 import { CrmSegments } from '../../../components/business/CrmSegments';
@@ -14,7 +16,7 @@ import { Dialog } from '../../../components/product/ProductUI';
 import { statusLabel } from '../../../components/product/status';
 import { CrmJobs } from '../../../components/business/CrmJobs';
 import { ContactLifecycle } from '../../../components/business/ContactLifecycle';
-import { FormEvent, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
@@ -32,6 +34,7 @@ type Contact = {
   tags: string[];
   owner_id: string | null;
   archived_at: string | null;
+  updated_at: string;
   attributes: Record<string, string | number | boolean | null>;
 };
 type Pipeline = {
@@ -52,15 +55,6 @@ type Deal = {
   currency: string;
 };
 type Task = { id: string; title: string; contact_name: string; due_at: string; status: string };
-const blank = {
-  name: '',
-  email: '',
-  phone: '',
-  lifecycle: 'lead',
-  tags: '',
-  ownerId: '',
-  attributes: '{}',
-};
 const COLUMNS = ['contact', 'lifecycle', 'tags', 'id'] as const;
 type Column = (typeof COLUMNS)[number];
 
@@ -148,7 +142,24 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     setRouteFilters(filters);
     if (q.get('create') === 'true') setShowCreate(true);
   }, []);
-  const [form, setForm] = useState(blank);
+  const [contactDraft, setContactDraft] = useState<Contact | null>(null);
+  const [contactDirty, setContactDirty] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
+  function closeContact() {
+    if (busy) return;
+    if (contactDirty) {
+      setConfirmClose(true);
+      return;
+    }
+    setShowCreate(false);
+    setEdit(null);
+  }
+  function discardContact() {
+    setContactDirty(false);
+    setConfirmClose(false);
+    setShowCreate(false);
+    setEdit(null);
+  }
   const [selected, setSelected] = useState<Contact | null>(null);
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('contact');
@@ -186,15 +197,8 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
   );
   const editContact = (contact: Contact) => {
     setEdit(contact.id);
-    setForm({
-      name: contact.name || '',
-      email: contact.email || '',
-      phone: contact.phone || '',
-      lifecycle: contact.lifecycle,
-      tags: contact.tags.join(', '),
-      ownerId: contact.owner_id || '',
-      attributes: JSON.stringify(contact.attributes, null, 2),
-    });
+    setContactDraft(contact);
+    setContactDirty(false);
   };
   const summary = useData<{
     total: number;
@@ -232,10 +236,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     items: [],
     total: 0,
   });
-  const fields = useData<{ id: string; key: string; label: string; type: string }[]>(
-    '/crm/fields',
-    [],
-  );
+  const fields = useData<ContactField[]>('/crm/fields', []);
   const segments = useData<
     {
       id: string;
@@ -295,31 +296,6 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
       setBusy(false);
     }
   }
-  async function save(e: FormEvent) {
-    e.preventDefault();
-    try {
-      await act(
-        '/crm/contacts' + (edit ? '/' + edit : ''),
-        {
-          ...form,
-          email: form.email || null,
-          phone: form.phone || null,
-          tags: form.tags
-            .split(',')
-            .map((x) => x.trim())
-            .filter(Boolean),
-          ownerId: form.ownerId || null,
-          attributes: JSON.parse(form.attributes),
-        },
-        edit ? 'PATCH' : 'POST',
-      );
-      setForm(blank);
-      setEdit(null);
-      setShowCreate(false);
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }
   async function exportContacts() {
     try {
       const r = await api<{ items: Contact[]; total: number }>(`/crm/contacts/export?${filter}`);
@@ -363,7 +339,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
             className="btn btn-primary"
             onClick={() => {
               setEdit(null);
-              setForm(blank);
+              setContactDraft(null);
               setShowCreate(true);
               setTab('contacts');
             }}
@@ -425,7 +401,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                   onClick={() => {
                     setHeadMenu(null);
                     setEdit(null);
-                    setForm(blank);
+                    setContactDraft(null);
                     setShowCreate(true);
                     setTab('contacts');
                   }}
@@ -1083,154 +1059,50 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
           </Dialog>
           <Dialog
             open={showCreate || !!edit}
-            onClose={() => {
-              setShowCreate(false);
-              setEdit(null);
-            }}
+            onClose={closeContact}
             title={edit ? t('تعديل العميل', 'Edit contact') : t('إضافة عميل', 'Add contact')}
           >
-            <form className="card" onSubmit={save}>
-              <h2>
-                {edit
-                  ? t('تعديل ملف العميل', 'Edit customer profile')
-                  : t('عميل جديد', 'New contact')}
-              </h2>
-              <div className="form-grid">
-                {(['name', 'email', 'phone', 'tags'] as const).map((k) => (
-                  <label className="field" key={k}>
-                    {
-                      {
-                        name: t('الاسم', 'Name'),
-                        email: t('البريد', 'Email'),
-                        phone: t('الهاتف', 'Phone'),
-                        tags: t('وسوم مفصولة بفاصلة', 'Comma-separated tags'),
-                      }[k]
-                    }
-                    <input
-                      type={k === 'email' ? 'email' : 'text'}
-                      required={k === 'name'}
-                      value={form[k]}
-                      onChange={(e) => setForm({ ...form, [k]: e.target.value })}
-                    />
-                  </label>
-                ))}
-                <label className="field">
-                  {t('المرحلة', 'Lifecycle')}
-                  <select
-                    value={form.lifecycle}
-                    onChange={(e) => setForm({ ...form, lifecycle: e.target.value })}
-                  >
-                    {['lead', 'qualified', 'customer', 'inactive'].map((x) => (
-                      <option key={x} value={x}>
-                        {statusLabel(x, t)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  {t('مسؤول العميل', 'Owner')}
-                  <select
-                    value={form.ownerId}
-                    onChange={(e) => setForm({ ...form, ownerId: e.target.value })}
-                  >
-                    <option value="">{t('غير معيّن', 'Unassigned')}</option>
-                    {team.data.members.map((x) => (
-                      <option value={x.user_id} key={x.user_id}>
-                        {x.full_name || x.email}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+            {(showCreate || edit) && (
+              <div>
+                <ContactEditor
+                  key={edit || 'create'}
+                  contact={contactDraft}
+                  fields={fields.data}
+                  members={team.data.members}
+                  onCancel={closeContact}
+                  onDirty={() => setContactDirty(true)}
+                  onSave={async (draft) => {
+                    await act(
+                      '/crm/contacts' + (edit ? '/' + edit + '/profile' : ''),
+                      draft,
+                      edit ? 'PATCH' : 'POST',
+                    );
+                    discardContact();
+                    setContactDraft(null);
+                  }}
+                />
               </div>
-              <div className="form-grid mt-4">
-                {fields.data.map((field) => {
-                  let attributes: Record<string, unknown> = {};
-                  try {
-                    attributes = JSON.parse(form.attributes);
-                  } catch {
-                    /* Advanced JSON editor validates on submit. */
-                  }
-                  const value = attributes[field.key];
-                  return (
-                    <label className="field" key={field.id}>
-                      {field.label}
-                      {field.type === 'boolean' ? (
-                        <input
-                          type="checkbox"
-                          checked={value === true}
-                          onChange={(e) =>
-                            setForm({
-                              ...form,
-                              attributes: JSON.stringify({
-                                ...attributes,
-                                [field.key]: e.target.checked,
-                              }),
-                            })
-                          }
-                        />
-                      ) : (
-                        <input
-                          type={
-                            field.type === 'number'
-                              ? 'number'
-                              : field.type === 'date'
-                                ? 'date'
-                                : 'text'
-                          }
-                          value={value === undefined || value === null ? '' : String(value)}
-                          onChange={(e) =>
-                            setForm({
-                              ...form,
-                              attributes: JSON.stringify({
-                                ...attributes,
-                                [field.key]:
-                                  e.target.value === ''
-                                    ? null
-                                    : field.type === 'number'
-                                      ? Number(e.target.value)
-                                      : e.target.value,
-                              }),
-                            })
-                          }
-                        />
-                      )}
-                    </label>
-                  );
-                })}
-              </div>
-              <details className="mt-4">
-                <DisclosureSummary className="muted">
-                  {t('بيانات إضافية متقدمة', 'Advanced additional attributes')}
-                </DisclosureSummary>
-                <label className="field mt-4">
-                  {t('حقول العميل المخصصة (JSON)', 'Custom attributes (JSON)')}
-                  <textarea
-                    rows={3}
-                    dir="ltr"
-                    value={form.attributes}
-                    onChange={(e) => setForm({ ...form, attributes: e.target.value })}
-                  />
-                </label>
-              </details>
-              <div className="form-actions">
-                <button disabled={busy} className="btn btn-primary">
-                  {t('حفظ العميل', 'Save contact')}
-                </button>
-                {edit && (
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => {
-                      setEdit(null);
-                      setForm(blank);
-                      setShowCreate(false);
-                    }}
-                  >
-                    {t('إلغاء', 'Cancel')}
-                  </button>
-                )}
-              </div>
-            </form>{' '}
+            )}
+          </Dialog>
+          <Dialog
+            open={confirmClose}
+            onClose={() => setConfirmClose(false)}
+            title={t('تجاهل التغييرات؟', 'Discard changes?')}
+          >
+            <p>
+              {t(
+                'لم يتم حفظ بيانات العميل. يمكنك العودة لإكمالها أو تجاهل التعديلات.',
+                'This contact has unsaved changes. Keep editing or discard your changes.',
+              )}
+            </p>
+            <div className="form-actions">
+              <button className="btn btn-primary" onClick={() => setConfirmClose(false)}>
+                {t('متابعة التعديل', 'Keep editing')}
+              </button>
+              <button className="btn" onClick={discardContact}>
+                {t('تجاهل التغييرات', 'Discard changes')}
+              </button>
+            </div>
           </Dialog>
         </>
       )}
