@@ -74,6 +74,10 @@ async function openPage(language, width) {
   }
   await page.route('**/*', route => ['localhost', '127.0.0.1'].includes(new URL(route.request().url()).hostname) ? route.fallback() : route.abort());
   await page.goto(webBase + '/dashboard/flows/' + flow.id);
+  const more = page.getByRole('button', { name: language === 'ar' ? 'المزيد من الأدوات' : 'More tools', exact: true });
+  await more.click();
+  await page.getByRole('button', { name: language === 'ar' ? 'إظهار كل الخطوات' : 'Fit all steps', exact: true }).click();
+  await more.click();
   await page.locator('.react-flow__node').filter({ hasText: 'Continue' }).last().click();
   const title = language === 'ar' ? 'إعداد الاختيار' : 'Configure Reply';
   const dialog = page.getByRole('dialog', { name: title, exact: true });
