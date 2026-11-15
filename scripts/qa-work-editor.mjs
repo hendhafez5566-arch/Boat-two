@@ -85,10 +85,20 @@ try {
         });
         const select = editor.getByRole('combobox', { name: t('العميل', 'Customer'), exact: true });
         await select.selectOption(first.id);
+        const searchResponse = page.waitForResponse(
+          (r) => r.url().includes('/crm/contacts?') && r.url().includes('Second') && r.ok(),
+        );
         await editor
           .getByLabel(t('ابحث عن العميل', 'Find customer'), { exact: true })
           .fill('Second customer');
-        await select.locator('option', { hasText: 'Second customer' }).waitFor();
+        await searchResponse;
+        await editor
+          .getByRole('status')
+          .filter({ hasText: t('جارٍ البحث عن العملاء…', 'Searching customers…') })
+          .waitFor({ state: 'hidden' });
+        await select
+          .locator('option', { hasText: 'Second customer' })
+          .waitFor({ state: 'attached' });
         assert.equal(
           await select.inputValue(),
           first.id,
