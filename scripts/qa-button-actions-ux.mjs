@@ -108,6 +108,7 @@ try {
   // Full real UI create/edit/save/reopen journey on an isolated tenant.
   const { page, dialog, context, errors } = await openPage('en', 1366);
   for (const entry of labels) {
+    console.log('Configuring isolated action', entry.type);
     const item = await add(dialog, entry.type, entry.en, entry.ar, entry.groupEn, entry.groupAr, 'en');
     if (entry.type === 'set_field') {
       await item.getByRole('button', { name: 'New field name or advanced setting' }).click();
@@ -120,21 +121,21 @@ try {
       await input.press('Tab');
     }
     if (entry.type === 'list') {
-      await item.getByLabel('List', { exact: true }).selectOption(ids.list);
-      await item.getByLabel('Operation', { exact: true }).selectOption('remove');
-      await item.getByLabel('Operation', { exact: true }).selectOption('add');
+      await item.locator('select').first().selectOption(ids.list);
+      await item.locator('select').nth(1).selectOption('remove');
+      await item.locator('select').nth(1).selectOption('add');
     }
     if (entry.type === 'sequence') {
-      await item.getByLabel('Sequence', { exact: true }).selectOption(ids.sequence);
-      await item.getByLabel('Operation', { exact: true }).selectOption('unsubscribe');
-      await item.getByLabel('Operation', { exact: true }).selectOption('subscribe');
+      await item.locator('select').first().selectOption(ids.sequence);
+      await item.locator('select').nth(1).selectOption('unsubscribe');
+      await item.locator('select').nth(1).selectOption('subscribe');
     }
     if (entry.type === 'assign') {
-      await item.getByLabel('Department (optional)').selectOption(ids.department);
-      await item.getByLabel('Employee (optional)').selectOption(ids.staff);
+      await item.locator('select').first().selectOption(ids.department);
+      await item.locator('select').nth(1).selectOption(ids.staff);
     }
     if (entry.type === 'integration') {
-      await item.getByLabel('Authorized connection').selectOption(ids.connection);
+      await item.locator('select').first().selectOption(ids.connection);
       await item.getByLabel('Event Title').fill('QA appointment');
       await item.getByLabel(/Start, e.g./).fill('2026-12-25T14:30:00+02:00');
       await item.getByLabel('End with UTC offset').fill('2026-12-25T15:30:00+02:00');
