@@ -66,7 +66,7 @@ test('seven button action types execute with isolated dependencies, order and re
     return req;
   }) as unknown as typeof https.request;
   try {
-    const actions = [
+    const actions: import('./engine/types').ButtonAction[] = [
       { type: 'set_field', key: 'interest', value: 'Umrah' },
       { type: 'tag', add: ['qualified'], remove: ['lead'] },
       { type: 'list', listId: idA, operation: 'add' },
@@ -74,7 +74,7 @@ test('seven button action types execute with isolated dependencies, order and re
       { type: 'assign', userId: idA, departmentId: idB },
       { type: 'integration', connectionId: idA, payload: JSON.stringify({ operation: 'subscribe', listId: 'local' }) },
       { type: 'webhook', url: 'https://example.test/isolated-flow', body: '{"qa":true}' },
-    ] as const;
+    ];
     for (const [index, action] of actions.entries()) await service.execute(scope, action, 'option:button:' + index);
     assert.ok(queries.some((q) => q.sql.startsWith('UPDATE contacts SET attributes') && q.params[1] === 'interest'));
     assert.ok(queries.some((q) => q.sql.includes('SET tags=') && (q.params[1] as string[])[0] === 'qualified'));
