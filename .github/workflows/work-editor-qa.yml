@@ -6,6 +6,7 @@ on:
       - 'apps/web/**'
       - 'apps/api/**'
       - 'scripts/qa-work-editor.mjs'
+      - 'scripts/qa-segment-experience.mjs'
       - 'scripts/run-connect-browser-qa.py'
       - '.github/workflows/work-editor-qa.yml'
   workflow_dispatch:
@@ -38,12 +39,19 @@ jobs:
           BOAT_QA_BROWSER_SCRIPT: scripts/qa-work-editor.mjs
           BOAT_CHROMIUM: /usr/bin/google-chrome
         run: python3 scripts/run-connect-browser-qa.py
+      - name: Run isolated saved segment and preview journeys
+        env:
+          BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
+          BOAT_QA_BROWSER_SCRIPT: scripts/qa-segment-experience.mjs
+          BOAT_CHROMIUM: /usr/bin/google-chrome
+        run: python3 scripts/run-connect-browser-qa.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: work-editor-evidence
           path: |
             docs/enterprise-20261115/work-editor/
+            docs/enterprise-20261115/segments/
             /tmp/boat-journeys-api.log
             /tmp/boat-journeys-web.log
           if-no-files-found: warn
