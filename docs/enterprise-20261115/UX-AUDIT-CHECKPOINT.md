@@ -35,3 +35,11 @@
 
 ## Safety and evidence
 Never commit live customer screenshots, credentials, .env, database copies or session artifacts. Browser CI screenshots contain synthetic data only. Publish accepted batches to existing preview, verify terminal deployment success and live UI before marking accepted.
+
+## Batch 2 and 3 discovered while CI ran
+- Inbox: inspected filters, isolated existing QA webchat, opened actions/customer panel, internal note and follow-up entry points. No live messages sent.
+- Unified Inbox labels with the structured label editor. Initialize from the latest contact profile, retain the revision at the start of a local draft, show inline result/conflict feedback, and provide explicit reload after conflict. Isolated CI seeds existing labels and tests pending-input saves and external concurrent changes.
+- Reproduced a wrong-customer bug live without saving: choose QA English in the follow-up dialog, search QA CSV; after search results arrive the native select silently changes to QA CSV while the optional opportunity lookup still refers to the earlier customer.
+- Shared follow-up/opportunity editor now retains the selected customer across result changes. Added search/loading/empty guidance, meaningful save labels, sticky cancel/save, disabled fields during save, dirty-close protection and narrow-screen grid bounds.
+- Added isolated task/opportunity create, retry, reload and edit journeys at all five widths in both languages, verifying persisted contact_id and exact cents.
+- First contact CI found advanced textarea accessible-name mismatch; fixed with explicit localized accessible label. This is recorded as a real failed check, not accepted until rerun passes.
