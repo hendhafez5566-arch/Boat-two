@@ -813,12 +813,12 @@
   --chat-accent: #495bb5;
   font-family: system-ui, Tahoma, Arial, sans-serif;
   color: var(--chat-ink);
-  background: #f7f8fa;
+  background: var(--canvas, #f7fafc);
 }
 
 .inbox :global(.inbox-list) {
-  background: #fff;
-  border-inline-end: 1px solid #d9e4de;
+  background: var(--surface, #fff);
+  border-inline-end: 1px solid var(--line, #dfe7f0);
 }
 
 .inbox :global(.inbox-list .inbox-item) {
@@ -888,7 +888,7 @@
 }
 .threadHeader {
   min-height: 68px;
-  background: #fbfcfd;
+  background: var(--surface, #fff);
   border-bottom: 1px solid #dce3ed;
   padding: 10px 18px;
 }
@@ -915,8 +915,8 @@
   background: #edf1f6;
 }
 .customerStrip {
-  background: #f7faf8;
-  border-color: #d9e6df;
+  background: #ffffff;
+  border-color: var(--line, #dfe7f0);
 }
 .customerStrip dt {
   color: #53675b;
@@ -929,9 +929,9 @@
   line-height: 1.5;
 }
 .inbox :global(.thread-msgs) {
-  background-color: #f5f6f7;
-  background-image: radial-gradient(#c3ccd52c 0.6px, transparent 0.6px);
-  background-size: 18px 18px;
+  /* A clear white-blue canvas with the bubbles providing the visual hierarchy. */
+  background-color: #f8fbfd;
+  background-image: none;
   padding: 18px clamp(12px, 3vw, 34px);
   overscroll-behavior-y: contain;
 }
@@ -998,7 +998,7 @@
   margin: 11px auto;
   max-width: min(90%, 550px);
   color: #44566a;
-  background: #e9edf2;
+  background: var(--surface-soft, #eef3f8);
   font-size: 12.5px;
   font-weight: 550;
   line-height: 1.55;
@@ -1013,7 +1013,7 @@
   padding: 5px 12px;
   border: 1px solid #dce3eb;
   border-radius: 999px;
-  background: #fafbfcf2;
+  background: #ffffff;
   color: #46576a;
   font-size: 12px;
   font-weight: 700;
@@ -1038,8 +1038,8 @@
   color: #1b6247;
 }
 .inbox :global(.composer) {
-  background: #f7f8fa;
-  border-top: 1px solid #dce3eb;
+  background: var(--surface, #fff);
+  border-top: 1px solid var(--line, #dfe7f0);
   padding: 10px 15px max(10px, env(safe-area-inset-bottom));
 }
 .inbox :global(.composer-modes) {
