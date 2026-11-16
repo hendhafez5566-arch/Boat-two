@@ -167,6 +167,7 @@ try {
         await page.screenshot({ path: output + '/bot-paused-' + language + '-' + width + '.png' });
         await botButton.click();
         await page.locator('button[data-bot-state="running"]:visible').waitFor();
+        await page.waitForTimeout(240);
         await page.screenshot({ path: output + '/bot-running-' + language + '-' + width + '.png' });
         if (width < 1024) await page.keyboard.press('Escape');
       }
