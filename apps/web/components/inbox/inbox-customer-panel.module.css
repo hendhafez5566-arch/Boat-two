@@ -703,3 +703,193 @@
   border-radius: 10px;
   background: #f8fafc;
 }
+
+
+/* Focused employee workspace panel: quiet white surface, clear information hierarchy. */
+.panel {
+  background: #fff;
+  border-inline-start: 1px solid #e2e9f1;
+  color: #25384e;
+  font-size: 14px;
+}
+.heading {
+  padding: 15px 16px;
+  gap: 11px;
+  border-bottom: 1px solid #e4eaf2;
+  background: #fff;
+  box-shadow: 0 2px 9px rgb(25 46 70 / 4%);
+}
+.heading h2 {
+  color: #172e44;
+  font-size: 18px;
+  line-height: 1.5;
+  font-weight: 780;
+  letter-spacing: 0;
+}
+.headingActions a {
+  min-height: 40px;
+  border: 1px solid #dce5ee;
+  border-radius: 11px;
+  padding: 8px 12px;
+  color: #344d66;
+  background: #fff;
+  font-size: 13.5px;
+}
+.headingActions a:hover,
+.headingActions a:focus-visible {
+  background: #f3f8fd;
+  color: #334e84;
+  border-color: #b9cde1;
+}
+.card {
+  margin: 11px 11px 15px;
+  background: #fff;
+  border: 1px solid #e0e8f0;
+  border-radius: 15px;
+  box-shadow: 0 2px 9px rgb(30 58 86 / 4%);
+}
+.card h3,
+.card summary {
+  min-height: 50px;
+  padding: 13px 15px;
+  background: #fff;
+  border-bottom-color: #e9eff5;
+  color: #22364b;
+  font-size: 14.5px;
+  line-height: 1.55;
+  font-weight: 730;
+}
+.card summary:hover {
+  background: #f8fbff;
+}
+.card summary:focus-visible {
+  outline: 2px solid #5d73bd;
+  outline-offset: -3px;
+}
+.card h3 svg,
+.card summary svg {
+  width: 18px;
+  height: 18px;
+}
+.facts {
+  gap: 0;
+  padding: 8px 15px 12px;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+.facts > div {
+  grid-template-columns: minmax(0, 42%) minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  padding: 10px 0;
+}
+.facts > div + div {
+  border-top: 1px solid #f0f3f7;
+}
+.facts dt {
+  color: #596c80;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.facts dt svg {
+  color: #637d99;
+  width: 17px;
+  height: 17px;
+}
+.facts dd {
+  color: #243d53;
+  font-weight: 650;
+  line-height: 1.65;
+}
+.crmCard {
+  padding: 15px !important;
+  border-color: #e0e8f0 !important;
+  background: #fff !important;
+  box-shadow: 0 2px 9px rgb(30 58 86 / 4%);
+}
+.crmCard h3 {
+  padding: 11px 0 12px;
+  font-size: 15px !important;
+  line-height: 1.5 !important;
+  color: #22364b !important;
+  border-bottom: 1px solid #e7eef5;
+}
+.crmCard .facts {
+  border: 0;
+  background: #fff;
+  padding: 3px 0 0;
+}
+.crmCard .facts dt {
+  color: #566e83;
+  font-size: 13px;
+}
+.crmCard .facts dd {
+  color: #1e374c;
+  font-size: 13.5px;
+}
+.crmEyebrow {
+  margin-bottom: 8px;
+  color: #5d7187;
+  letter-spacing: .025em;
+  font-size: 12px;
+}
+.fields {
+  padding: 15px;
+  gap: 15px;
+  color: #2e445a;
+  font-size: 14px;
+}
+.fields label {
+  gap: 7px;
+  font-weight: 630;
+}
+.fields input,
+.fields select,
+.crmEditor input,
+.crmEditor select {
+  min-height: 44px;
+  border: 1px solid #d7e1ec;
+  border-radius: 11px !important;
+  background: #fff;
+  color: #23354a;
+  font-size: 14px;
+}
+.fields small {
+  color: #617489;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.crmEditor label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 7px;
+  color: #40566d !important;
+  font-weight: 600;
+}
+.quickTimes button,
+.secondary,
+.addFollowup {
+  border-color: #d7e2ee;
+  border-radius: 10px;
+  color: #415ab3;
+  background: #fff;
+  font-size: 12.5px;
+  min-height: 34px;
+}
+.chips span,
+.labelEditor > span {
+  background: #f0f5fb;
+  color: #415571;
+  border-radius: 8px;
+}
+.panel::-webkit-scrollbar-thumb {
+  background: #cbd9e6;
+  border-color: #fff;
+}
+@media (max-width: 1023px) {
+  .panel {
+    width: 100%;
+    border: 0;
+  }
+}
