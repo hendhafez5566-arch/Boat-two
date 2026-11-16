@@ -218,6 +218,43 @@ export default function ProductCatalog() {
       setBusy(false);
     }
   }
+  function requestProductDelete(product: CatalogProduct) {
+    setDeleteProduct(product);
+    setProductDeleteConfirmed(false);
+    setError('');
+    setSuccess('');
+  }
+  async function removeOrArchiveProduct(action: 'delete' | 'archive') {
+    if (!deleteProduct || lock.current || !productDeleteConfirmed) return;
+    lock.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      await api(
+        `/commerce/products/${deleteProduct.id}${action === 'archive' ? '/archive' : ''}`,
+        { method: action === 'archive' ? 'POST' : 'DELETE', body: JSON.stringify({ confirm: true }) },
+      );
+      await products.reload();
+      setSuccess(action === 'archive'
+        ? t('تمت أرشفة المنتج، ولم تعد البوتات تستخدمه.', 'Product archived and unavailable to bots.')
+        : t('تم حذف المنتج نهائيًا.', 'Product permanently deleted.'));
+      setDeleteProduct(null);
+      setProductDeleteConfirmed(false);
+    } catch (e) {
+      const message = (e as Error).message;
+      setError(
+        message.includes('Product is used') || message.includes('referenced by existing records')
+          ? t(
+              'المنتج مرتبط ببوت أو بيانات موجودة. احذف الارتباط من التدفقات أولًا، ثم أعد المحاولة. لم نحذف أي بيانات.',
+              'This product is linked to a bot or existing records. Remove references first; no data was deleted.',
+            )
+          : message,
+      );
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
   async function previewSaved(p: CatalogProduct) {
     const request = ++previewRequest.current;
     setError('');
@@ -574,6 +611,13 @@ export default function ProductCatalog() {
                         <button type="button" className="btn" onClick={() => void previewSaved(p)}>
                           {t('معاينة', 'Preview')}
                         </button>
+                        <button
+                          type="button"
+                          className="btn btn-danger"
+                          onClick={() => requestProductDelete(p)}
+                        >
+                          {t('حذف', 'Delete')}
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -836,6 +880,63 @@ export default function ProductCatalog() {
           </form>
         </Dialog>
       )}
+      <Dialog
+        open={deleteProduct !== null}
+        onClose={() => {
+          if (!busy) {
+            setDeleteProduct(null);
+            setProductDeleteConfirmed(false);
+            setError('');
+          }
+        }}
+        title={t('حذف أو أرشفة المنتج', 'Delete or archive product')}
+      >
+        {deleteProduct && (
+          <div className={styles.deleteDialog}>
+            <strong>{deleteProduct.name}</strong>
+            <p className={styles.deleteSku} dir="ltr">SKU: {deleteProduct.sku}</p>
+            <p>
+              {t(
+                'الحذف النهائي يزيل المنتج من قائمة Boat Two ولا يمكن التراجع عنه. الأرشفة تحتفظ بالمنتج لكنها توقف إتاحته للبوت. في الحالتين سيتم منع العملية إذا كان المنتج مرتبطًا بتدفق أو جلسة.',
+                'Permanent deletion cannot be undone. Archiving keeps the product but makes it unavailable to bots. Both actions are blocked when the product is referenced by a flow or session.',
+              )}
+            </p>
+            {error && <p className="notice error" role="alert">{error}</p>}
+            <label className={styles.confirmCheckbox}>
+              <input
+                type="checkbox"
+                checked={productDeleteConfirmed}
+                disabled={busy}
+                onChange={(event) => setProductDeleteConfirmed(event.target.checked)}
+              />
+              {t('راجعت اسم المنتج وأؤكد الإجراء', 'I reviewed the product and confirm the action')}
+            </label>
+            <div className={styles.deleteActions}>
+              <button
+                type="button" className="btn"
+                disabled={busy}
+                onClick={() => {
+                  setDeleteProduct(null);
+                  setProductDeleteConfirmed(false);
+                  setError('');
+                }}
+              >{t('إلغاء', 'Cancel')}</button>
+              {!deleteProduct.archived && (
+                <button
+                  type="button" className="btn"
+                  disabled={busy || !productDeleteConfirmed}
+                  onClick={() => void removeOrArchiveProduct('archive')}
+                >{t('أرشفة المنتج', 'Archive product')}</button>
+              )}
+              <button
+                type="button" className="btn btn-danger"
+                disabled={busy || !productDeleteConfirmed}
+                onClick={() => void removeOrArchiveProduct('delete')}
+              >{busy ? t('جارٍ التنفيذ…', 'Working…') : t('حذف نهائيًا', 'Delete permanently')}</button>
+            </div>
+          </div>
+        )}
+      </Dialog>
       <Dialog
         open={preview !== null}
         onClose={closePreview}
