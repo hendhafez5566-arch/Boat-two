@@ -70,9 +70,6 @@ export default function ProductCatalog() {
   >([]);
   const nextDetail = useRef(0);
   const selectedCategory = categories.data.find((item) => item.id === category);
-  const categoryProductCount = deleteCategory
-    ? products.data.filter((product) => product.category_id === deleteCategory.id).length
-    : 0;
 
   function openEditor(product: CatalogProduct | null) {
     setDraftImage(product?.image_url ?? null);
@@ -106,6 +103,9 @@ export default function ProductCatalog() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const previewRequest = useRef(0);
   const products = useData<CatalogProduct[]>('/commerce/products', []);
+  const categoryProductCount = deleteCategory
+    ? products.data.filter((product) => product.category_id === deleteCategory.id).length
+    : 0;
   const [query, setQuery] = useState(''),
     [status, setStatus] = useState('active'),
     [sort, setSort] = useState('name');
