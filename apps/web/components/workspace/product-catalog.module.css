@@ -766,3 +766,74 @@
   .productFooter { align-items: flex-start; }
   .productActions { width: 100%; }
 }
+
+
+/* Product preview dialog: immediate, safe inspection */
+.previewDialog {
+  display: grid;
+  gap: 17px;
+  max-width: 700px;
+  padding: 4px 0;
+  color: #22394c;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.previewProduct {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 17px;
+  padding: 14px;
+  background: #f6f9fb;
+  border: 1px solid #dce6ed;
+  border-radius: 12px;
+}
+.previewProduct > .image,
+.previewProduct > .placeholder {
+  width: 140px;
+  height: 140px;
+  border-radius: 8px;
+  background: #fff;
+  object-fit: contain;
+}
+.previewProductInfo {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 6px;
+}
+.previewProductInfo h3 { margin: 0; font-size: 19px; line-height: 1.4; }
+.previewProductInfo strong { color: #17583c; font-size: 18px; }
+.previewProductInfo p { margin: 0; overflow-wrap: anywhere; }
+.previewProductInfo small { color: #405a6e; }
+.previewDialog h4 { margin: 0 0 9px; font-size: 15px; color: #22394c; }
+.previewDetails { display: grid; gap: 0; margin: 0; border: 1px solid #dce5eb; border-radius: 10px; overflow: hidden; }
+.previewDetails > div {
+  display: grid;
+  grid-template-columns: minmax(100px, 30%) minmax(0, 1fr);
+  gap: 12px;
+  padding: 10px 13px;
+  border-top: 1px solid #e7edf1;
+}
+.previewDetails > div:first-child { border-top: 0; }
+.previewDetails dt { color: #44596b; }
+.previewDetails dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.previewOptions { margin: 0; padding: 0; list-style: none; border: 1px solid #dce5eb; border-radius: 10px; overflow: hidden; }
+.previewOptions li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 13px; border-top: 1px solid #e7edf1; }
+.previewOptions li:first-child { border-top: 0; }
+.previewOptions bdi { color: #17583c; font-weight: 700; }
+.previewResponse {
+  padding: 12px;
+  border-radius: 9px;
+  background: #f4faf7;
+  border: 1px solid #d5e9dd;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.previewDisclaimer { margin: 0; font-size: 13px; color: #456071; }
+@media (max-width: 540px) {
+  .previewProduct { grid-template-columns: minmax(0, 1fr); }
+  .previewProduct > .image,
+  .previewProduct > .placeholder { width: 100%; height: 160px; }
+  .previewDetails > div { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+}
