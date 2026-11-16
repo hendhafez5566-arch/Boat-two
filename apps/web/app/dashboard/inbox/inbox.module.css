@@ -1457,3 +1457,149 @@
     font-size: 12px;
   }
 }
+
+
+/* Employee-first inbox palette — final override for legacy purple/grey fragments.
+   Calm white surfaces and subtle blue/green semantic accents across all panes. */
+.inbox {
+  --chat-ink: #203047;
+  --chat-muted: #51647b;
+  --chat-outline: #e0e8f0;
+  --chat-accent: #285ab7;
+  background: #ffffff;
+  color: var(--chat-ink);
+}
+.rail,
+.inbox :global(.inbox-list),
+.searchBar,
+.threadHeader,
+.inbox :global(.composer) {
+  background: #ffffff;
+}
+.rail {
+  border-inline-end: 1px solid #e7edf4;
+}
+.railTabs button[aria-pressed='true'] {
+  background: #eaf2ff;
+  color: #2456ad;
+}
+.rail button:hover,
+.rail a:hover {
+  background: #f1f6fc;
+}
+.inbox :global(.inbox-list) {
+  border-inline-end: 1px solid #e5ebf3;
+}
+.inbox :global(.inbox-list .inbox-item) {
+  background: #ffffff;
+  border-bottom-color: #edf1f6;
+}
+.inbox :global(.inbox-list .inbox-item:hover) {
+  background: #f5f9fe;
+}
+.inbox :global(.inbox-list .inbox-item.is-selected) {
+  background: #ebf3ff;
+  border-color: #d4e3f8;
+  border-inline-start-color: #316ac2;
+}
+.listTitle,
+.inbox :global(.inbox-name) {
+  color: #203047;
+}
+.inbox :global(.inbox-preview),
+.inbox :global(.inbox-time),
+.inbox :global(.inbox-chip) {
+  color: #53647b !important;
+}
+.threadHeader {
+  border-bottom: 1px solid #e5ebf3;
+}
+.threadIdentity strong,
+.customerStrip dd {
+  color: #203047;
+}
+.threadIdentity small,
+.customerStrip dt {
+  color: #52667c;
+}
+.customerStrip {
+  background: #ffffff;
+  border: 1px solid #e1eaf3;
+  box-shadow: 0 1px 3px rgb(35 70 110 / 4%);
+}
+.customerStrip div {
+  border-inline-end-color: #e8eef5;
+}
+.customerStrip svg,
+.threadTools button,
+.back,
+.editName {
+  color: #285ab7;
+}
+.threadActionTrigger {
+  background: #ffffff !important;
+  color: #24466f !important;
+  border-color: #d9e6f4 !important;
+}
+.threadActionTrigger:hover,
+.threadActionTrigger[aria-expanded='true'] {
+  background: #eef5ff !important;
+  border-color: #a9c5ed !important;
+}
+.inbox :global(.thread-msgs) {
+  background: #f9fbff;
+  background-image: none;
+}
+.inbox :global(.msg-bubble.is-in) {
+  background: #ffffff;
+  color: #203047;
+  border-color: #dfe8f2;
+}
+.inbox :global(.msg-bubble.is-out),
+.inbox :global(.msg-bubble.is-out.is-failed) {
+  background: #e5f5ed;
+  color: #193d30;
+  border-color: #cbe7d8;
+}
+.inbox :global(.msg-system) {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: #53677f;
+}
+.inbox :global(.msg-system-label) {
+  color: #405a76;
+}
+.inbox :global(.msg-day-separator) {
+  background: #ffffff;
+  border-color: #e0e8f2;
+  color: #53677e;
+}
+.inbox :global(.composer-modes button) {
+  background: transparent;
+  color: #50647d;
+}
+.inbox :global(.composer-modes button.is-on) {
+  background: #eaf2ff;
+  color: #285ab7;
+  border-bottom-color: #285ab7;
+}
+.inbox :global(.composer-row) {
+  background: #ffffff;
+  border-color: #cbdced;
+}
+.inbox :global(.composer-input) {
+  color: #203047;
+}
+.inbox :global(.composer-send:not(.is-note)) {
+  background: #236e52;
+}
+.inbox :global(.composer-send:not(.is-note):not(:disabled):hover) {
+  background: #195740;
+}
+.inbox :global(.inbox-item:focus-visible),
+.threadActionTrigger:focus-visible,
+.inbox :global(.composer-modes button:focus-visible) {
+  outline: 2px solid #285ab7;
+  outline-offset: 2px;
+}
