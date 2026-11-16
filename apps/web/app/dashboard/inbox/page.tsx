@@ -7,7 +7,7 @@ import { InboxCustomerPanel } from '../../../components/inbox/InboxCustomerPanel
 import styles from './inbox.module.css';
 import { useChannelContext } from '../../../components/product/useChannelContext';
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ConversationDrafts, sameConversationDraft } from '../../../lib/conversation-drafts';
 import { useLocale } from '../../../components/product/locale';
@@ -601,7 +601,7 @@ export default function Inbox() {
   );
 
   return (
-    <div className={`premium-inbox ${styles.inbox}`}>
+    <div className={`premium-inbox ${styles.inbox} ${selId ? styles.threadActive : ''}`}>
       <nav className={styles.rail} aria-label={t('تصفية المحادثات', 'Filter conversations')}>
         <button
           type="button"
@@ -675,7 +675,7 @@ export default function Inbox() {
         <div className="flex min-h-0 flex-1">
           {/* ---------- القائمة ---------- */}
           <aside
-            className={`${selId ? 'hidden md:flex' : 'flex'} inbox-list w-full flex-col border-l bg-white md:w-80`}
+            className={`${selId ? 'hidden lg:flex' : 'flex'} inbox-list w-full flex-col border-l bg-white lg:w-80`}
           >
             <h1 className={styles.listTitle}>{t('المحادثات', 'Conversations')}</h1>
             {needsReply && (
@@ -903,7 +903,7 @@ export default function Inbox() {
           </aside>
 
           {/* ---------- الخيط ---------- */}
-          <section className={`${selId ? 'flex' : 'hidden md:flex'} min-w-0 flex-1 flex-col`}>
+          <section className={`${selId ? 'flex' : 'hidden lg:flex'} min-w-0 flex-1 flex-col`}>
             {detailLoading ? (
               <div className={styles.empty} role="status">
                 {t('جارٍ تحميل المحادثة…', 'Loading conversation…')}
@@ -1078,9 +1078,28 @@ export default function Inbox() {
                           .toLocaleLowerCase()
                           .includes(messageSearch.trim().toLocaleLowerCase()),
                     )
-                    .map((m) => (
-                      <MessageBubble key={m.id} m={m} conversationId={selId} name={nameOf} />
-                    ))}
+                    .map((m, index, visibleMessages) => {
+                      const created = new Date(m.created_at ?? m.createdAt);
+                      const previous = index > 0
+                        ? new Date(visibleMessages[index - 1].created_at ?? visibleMessages[index - 1].createdAt)
+                        : null;
+                      const startsDay = !previous || created.toDateString() !== previous.toDateString();
+                      return (
+                        <Fragment key={m.id}>
+                          {startsDay && (
+                            <div className="msg-day-separator" role="separator">
+                              {created.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', {
+                                weekday: 'short',
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </div>
+                          )}
+                          <MessageBubble m={m} conversationId={selId} name={nameOf} />
+                        </Fragment>
+                      );
+                    })}
                   <div ref={bottom} />
                 </div>
 
