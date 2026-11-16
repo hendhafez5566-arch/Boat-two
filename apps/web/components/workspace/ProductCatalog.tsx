@@ -56,6 +56,7 @@ export default function ProductCatalog() {
     }
   };
   const [category, setCategory] = useState('all');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [categorySearch, setCategorySearch] = useState('');
   const [categoryEditing, setCategoryEditing] = useState('');
   const [copyingCategory, setCopyingCategory] = useState(false);
@@ -104,6 +105,15 @@ export default function ProductCatalog() {
     [error, setError] = useState(''),
     [success, setSuccess] = useState('');
   const lock = useRef(false);
+  const activeProducts = products.data.filter((product) => !product.archived).length;
+  const archivedProducts = products.data.length - activeProducts;
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const resetFilters = () => {
+    setCategory('all');
+    setCategorySearch('');
+    setStatus('all');
+    setQuery('');
+  };
   const rows = products.data
     .filter(
       (p) =>
@@ -112,7 +122,7 @@ export default function ProductCatalog() {
         (status === 'all' || p.archived === (status === 'archived')) &&
         `${p.name} ${p.sku} ${p.description}`
           .toLocaleLowerCase()
-          .includes(query.toLocaleLowerCase()),
+          .includes(normalizedQuery),
     )
     .sort((a, b) =>
       sort === 'name'
@@ -217,23 +227,41 @@ export default function ProductCatalog() {
         <>
           <header className={styles.catalogHeader}>
             <div>
-              <h2>{t('كتالوج المنتجات', 'Product catalog')}</h2>
+              <h2>{t('المنتجات', 'Products')}</h2>
               <p>
                 {t(
-                  'نظّم منتجاتك في أقسام واختر منها داخل البوت.',
-                  'Organize your products into categories for use in the bot.',
+                  'أضف منتجاتك ونظّمها في أقسام، ثم اختر ما يحتاجه البوت داخل مصمم التدفقات.',
+                  'Create and organize products here, then select them inside the flow builder.',
                 )}
               </p>
             </div>
-            <div className="form-actions">
+            <div className={styles.headerActions}>
               <button type="button" className="btn" onClick={() => openCategory()}>
-                {t('إضافة قسم', 'Add category')}
+                {t('قسم جديد', 'New category')}
               </button>
               <button type="button" className="btn btn-primary" onClick={() => openEditor(null)}>
-                {t('إضافة منتج', 'Add product')}
+                {t('+ إضافة منتج', '+ Add product')}
               </button>
             </div>
           </header>
+          <div className={styles.catalogSummary} aria-label={t('ملخص المنتجات', 'Product summary')}>
+            <span>
+              <strong>{products.data.length}</strong>
+              {t('إجمالي المنتجات', 'Total products')}
+            </span>
+            <span>
+              <strong>{activeProducts}</strong>
+              {t('منتجات نشطة', 'Active products')}
+            </span>
+            <span>
+              <strong>{archivedProducts}</strong>
+              {t('منتجات مؤرشفة', 'Archived products')}
+            </span>
+            <span>
+              <strong>{categories.data.length}</strong>
+              {t('أقسام', 'Categories')}
+            </span>
+          </div>
           {success && (
             <p className="notice" role="status">
               {success}
@@ -242,46 +270,58 @@ export default function ProductCatalog() {
           {(products.error || (error && editing === undefined && !categoriesOpen && !deleteCategory)) && (
             <p className="notice error" role="alert">
               {products.error || error}
-              <button className="btn" onClick={() => void products.reload()}>
+              <button type="button" className="btn" onClick={() => void products.reload()}>
                 {t('إعادة المحاولة', 'Retry')}
               </button>
             </p>
           )}
-          <label className="field">
-            {t('ابحث عن قسم', 'Find a category')}
-            <input type="search" value={categorySearch} onChange={(e) => setCategorySearch(e.target.value)}
-              placeholder={t('اسم القسم…', 'Category name…')} />
-          </label>
-          <nav className={styles.categoryShelf} aria-label={t('الأقسام', 'Categories')}>
-            {[
-              { id: 'all', name: t('كل المنتجات', 'All products') },
-              ...categories.data,
-              { id: 'none', name: t('دون قسم', 'Uncategorized') },
-            ].filter((item) => item.id === 'all' || item.id === 'none' ||
-              item.name.toLocaleLowerCase().includes(categorySearch.trim().toLocaleLowerCase())).map((item) => (
-              <button
-                type="button"
-                className="btn"
-                key={item.id}
-                aria-pressed={category === item.id}
-                onClick={() => setCategory(item.id)}
-              >
-                {item.name}
-                <small>
-                  {
-                    products.data.filter(
-                      (product) =>
-                        item.id === 'all' ||
-                        (item.id === 'none'
-                          ? !product.category_id
-                          : product.category_id === item.id),
-                    ).length
-                  }
-                </small>
-              </button>
-            ))}
-          </nav>
-          {categories.error && <p role="alert">{categories.error}</p>}
+          <section className={styles.categoriesPanel} aria-label={t('أقسام المنتجات', 'Product categories')}>
+            <div className={styles.categoryHeading}>
+              <h3>{t('الأقسام', 'Categories')}</h3>
+              <label className={styles.categorySearch}>
+                <span>{t('البحث في الأقسام', 'Find category')}</span>
+                <input
+                  type="search"
+                  value={categorySearch}
+                  onChange={(e) => setCategorySearch(e.target.value)}
+                  placeholder={t('اسم القسم…', 'Category name…')}
+                />
+              </label>
+            </div>
+            <nav className={styles.categoryShelf} aria-label={t('الأقسام', 'Categories')}>
+              {[
+                { id: 'all', name: t('كل المنتجات', 'All products') },
+                ...categories.data,
+                { id: 'none', name: t('دون قسم', 'Uncategorized') },
+              ]
+                .filter((item) =>
+                  item.id === 'all' ||
+                  item.id === 'none' ||
+                  item.name.toLocaleLowerCase().includes(categorySearch.trim().toLocaleLowerCase()),
+                )
+                .map((item) => (
+                  <button
+                    type="button"
+                    className="btn"
+                    key={item.id}
+                    aria-pressed={category === item.id}
+                    onClick={() => setCategory(item.id)}
+                  >
+                    {item.name}
+                    <small>
+                      {products.data.filter(
+                        (product) =>
+                          item.id === 'all' ||
+                          (item.id === 'none'
+                            ? !product.category_id
+                            : product.category_id === item.id),
+                      ).length}
+                    </small>
+                  </button>
+                ))}
+            </nav>
+            {categories.error && <p role="alert">{categories.error}</p>}
+          </section>
           {selectedCategory && (
             <header className={styles.header}>
               <h3>{selectedCategory.name}</h3>
@@ -382,72 +422,80 @@ export default function ProductCatalog() {
           </Dialog>
           <div className={styles.toolbar}>
             <label className="field">
-              {t('البحث', 'Search')}
+              {t('البحث في المنتجات', 'Search products')}
               <input
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={t('اسم المنتج أو SKU', 'Product name or SKU')}
+                placeholder={t('اسم المنتج أو الكود أو الوصف', 'Name, code, or description')}
               />
             </label>
             <label className="field">
               {t('الحالة', 'Status')}
-              <select
-                aria-label={t('الحالة', 'Status')}
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="active">{t('نشط', 'Active')}</option>
-                <option value="archived">{t('مؤرشف', 'Archived')}</option>
-                <option value="all">{t('الكل', 'All')}</option>
+              <select aria-label={t('الحالة', 'Status')} value={status} onChange={(e) => setStatus(e.target.value)}>
+                <option value="active">{t('النشطة', 'Active')}</option>
+                <option value="archived">{t('المؤرشفة', 'Archived')}</option>
+                <option value="all">{t('كل الحالات', 'All statuses')}</option>
               </select>
             </label>
             <label className="field">
               {t('الترتيب', 'Sort')}
-              <select
-                aria-label={t('الترتيب', 'Sort')}
-                value={sort}
-                onChange={(e) => setSort(e.target.value)}
-              >
-                <option value="name">{t('الاسم', 'Name')}</option>
+              <select aria-label={t('الترتيب', 'Sort')} value={sort} onChange={(e) => setSort(e.target.value)}>
+                <option value="name">{t('حسب الاسم', 'By name')}</option>
                 <option value="price">{t('العملة ثم السعر', 'Currency, then price')}</option>
               </select>
             </label>
-            <span role="status">
+            <div className={styles.viewToggle} role="group" aria-label={t('طريقة عرض المنتجات', 'Product view')}>
+              <button type="button" aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')}>
+                {t('قائمة', 'List')}
+              </button>
+              <button type="button" aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')}>
+                {t('بطاقات', 'Cards')}
+              </button>
+            </div>
+            <span className={styles.resultCount} role="status">
               {rows.length} {t('منتج', 'products')}
             </span>
           </div>
           {products.loading ? (
             <p role="status">{t('جارٍ تحميل المنتجات…', 'Loading products…')}</p>
           ) : rows.length ? (
-            <div className={styles.grid}>
+            <div className={styles.grid} data-view={viewMode}>
               {rows.map((p) => (
                 <article className={styles.card} key={p.id}>
                   <ProductImage key={p.image_url} product={p} />
                   <div className={styles.body}>
-                    <span className="semantic-state" data-tone={p.archived ? 'danger' : 'active'}>
-                      {p.archived ? t('مؤرشف', 'Archived') : t('نشط', 'Active')}
-                    </span>
-                    <h3>{p.name}</h3>
-                    <small>
-                      {categories.data.find((c) => c.id === p.category_id)?.name ??
-                        t('دون قسم', 'Uncategorized')}
-                    </small>
-                    <strong dir="ltr">{productPrice(p.price_cents, p.currency)}</strong>
-                    <p>{p.description}</p>
-                    <small>SKU: {p.sku}</small>
-                    {!!p.options?.length && (
-                      <small>
-                        {p.options.length} {t('خيارات بسعر', 'priced options')}
-                      </small>
-                    )}
-                    <div className="form-actions">
-                      <button className="btn" onClick={() => openEditor(p)}>
-                        {t('تعديل', 'Edit')}
-                      </button>
-                      <button className="btn" onClick={() => void previewSaved(p)}>
-                        {t('معاينة', 'Preview')}
-                      </button>
+                    <div className={styles.productHeading}>
+                      <div>
+                        <h3>{p.name}</h3>
+                        <small>
+                          {categories.data.find((c) => c.id === p.category_id)?.name ??
+                            t('دون قسم', 'Uncategorized')}
+                          {' · SKU: '}{p.sku}
+                        </small>
+                      </div>
+                      <span className="semantic-state" data-tone={p.archived ? 'danger' : 'active'}>
+                        {p.archived ? t('مؤرشف', 'Archived') : t('نشط', 'Active')}
+                      </span>
+                    </div>
+                    <p>{p.description || t('بدون وصف', 'No description')}</p>
+                    <div className={styles.productFooter}>
+                      <div className={styles.productPrice}>
+                        <strong dir="ltr">{productPrice(p.price_cents, p.currency)}</strong>
+                        {!!p.options?.length && (
+                          <small>
+                            {p.options.length} {t('خيارات إضافية', 'priced options')}
+                          </small>
+                        )}
+                      </div>
+                      <div className={styles.productActions}>
+                        <button type="button" className="btn" onClick={() => openEditor(p)}>
+                          {t('تعديل', 'Edit')}
+                        </button>
+                        <button type="button" className="btn" onClick={() => void previewSaved(p)}>
+                          {t('معاينة', 'Preview')}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </article>
@@ -455,13 +503,23 @@ export default function ProductCatalog() {
             </div>
           ) : (
             <div className={styles.empty}>
-              <h3>{t('لا توجد منتجات في هذا العرض', 'No products in this view')}</h3>
+              <h3>
+                {products.data.length
+                  ? t('لا توجد منتجات تطابق الفلاتر', 'No products match these filters')
+                  : t('ابدأ بإضافة أول منتج', 'Start with your first product')}
+              </h3>
               <p>
-                {t(
-                  'أضف أول منتج أو غيّر البحث والحالة.',
-                  'Add your first product or adjust the search and status.',
-                )}
+                {products.data.length
+                  ? t('جرّب تغيير القسم أو البحث أو حالة المنتج.', 'Change the category, search, or status.')
+                  : t('أنشئ منتجًا يدويًا أو استخدم تبويب مصادر البيانات للاستيراد.', 'Create a product or use Data sources to import products.')}
               </p>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={products.data.length ? resetFilters : () => openEditor(null)}
+              >
+                {products.data.length ? t('مسح الفلاتر', 'Clear filters') : t('إضافة منتج', 'Add product')}
+              </button>
             </div>
           )}
         </>
