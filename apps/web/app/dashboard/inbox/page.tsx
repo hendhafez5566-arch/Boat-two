@@ -1358,13 +1358,15 @@ export default function Inbox() {
           )}
           {/* ---------- تفاصيل العميل ---------- */}
           <div className="hidden lg:contents">{actionsOpen && !showContext && customerPanel}</div>
-          <Dialog
-            open={showContext && !!detail}
-            onClose={() => setShowContext(false)}
-            title={t('ملف العميل', 'Customer profile')}
-          >
-            {customerPanel}
-          </Dialog>
+          {showContext && !!detail && (
+            <Dialog
+              open={true}
+              onClose={() => setShowContext(false)}
+              title={t('ملف العميل', 'Customer profile')}
+            >
+              {customerPanel}
+            </Dialog>
+          )}
         </div>
       </div>
     </div>
