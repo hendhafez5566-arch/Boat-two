@@ -2428,3 +2428,53 @@ button.underline {
   opacity: 1;
 }
 /* Conversation timestamps, canvas labels and status badges retain their local module styles. */
+
+
+/* Product section: clear local catalog workflow */
+.product-shell .commerce-page .commerce-catalog-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 5px 0;
+}
+.product-shell .commerce-page .commerce-catalog-tabs > button {
+  border: 1px solid #d7e2e9;
+  background: #fff;
+  color: #30495f;
+  min-height: 42px;
+  padding: 9px 17px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 650;
+}
+.product-shell .commerce-page .commerce-catalog-tabs > button[aria-pressed='true'] {
+  color: #205279;
+  background: #eaf3fc;
+  border-color: #9ebed8;
+}
+.product-shell .commerce-page .commerce-catalog-guide {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 15px;
+  border: 1px solid #cfe2ef;
+  border-radius: 11px;
+  background: #f3f8fb;
+}
+.product-shell .commerce-page .commerce-catalog-guide p {
+  flex: 1 1 350px;
+  margin: 0;
+  color: #304d61;
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+.product-shell .commerce-page .commerce-catalog-guide .btn {
+  min-height: 39px;
+  color: #20537a;
+  background: #fff;
+  border-color: #b9d2e3;
+  font-size: 13.5px;
+  font-weight: 700;
+}
