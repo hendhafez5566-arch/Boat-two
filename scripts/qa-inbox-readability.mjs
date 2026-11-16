@@ -138,6 +138,44 @@ try {
       assert.equal(values.listVisible, width >= 1024, 'Mobile/tablet must not show split conversation list');
       assert.equal(values.threadVisible, true, 'Chat pane must remain visible');
       assert.deepEqual(errors, []);
+      // Isolated presentational probe for states that should never require a live failed WhatsApp delivery.
+      // The probe is removed immediately; no customer messages are created or sent.
+      const visual = await page.evaluate(() => {
+        const thread = document.querySelector('.thread-msgs');
+        const probe = document.createElement('div');
+        probe.innerHTML = `
+          <div class="msg-system" data-event="taken_over"><span class="msg-system-label">Conversation transferred to agent</span><time>12:30</time></div>
+          <div class="msg-bubble is-out is-failed">Synthetic failed delivery probe</div>
+          <div class="msg-meta is-delivery-failed"><details class="msg-delivery-error"><summary><span class="msg-delivery-icon">!</span><strong>Message not delivered</strong><span class="msg-delivery-more">View reason</span></summary><p>External delivery is disabled</p></details></div>
+        `;
+        thread.append(probe);
+        const system = probe.querySelector('.msg-system');
+        const failed = probe.querySelector('.msg-bubble');
+        const details = probe.querySelector('.msg-delivery-error');
+        const summary = details.querySelector('summary');
+        const style = (element) => getComputedStyle(element);
+        const report = {
+          systemBackground: style(system).backgroundColor,
+          systemBorder: style(system).borderTopWidth,
+          systemFont: parseFloat(style(system).fontSize),
+          bubbleOutline: style(failed).outlineStyle,
+          bubbleBorder: style(failed).borderTopColor,
+          bubbleFont: parseFloat(style(failed).fontSize),
+          warningBackground: style(details).backgroundColor,
+          summaryCursor: style(summary).cursor,
+        };
+        summary.click();
+        report.revealsReason = details.open && details.textContent.includes('External delivery is disabled');
+        probe.remove();
+        return report;
+      });
+      assert.equal(visual.systemBackground, 'rgba(0, 0, 0, 0)', 'Timeline event must not be a grey capsule');
+      assert.equal(visual.systemBorder, '0px', 'Timeline event has no heavy borders');
+      assert.ok(visual.systemFont >= 12.5, 'Timeline event stays legible');
+      assert.equal(visual.bubbleOutline, 'none', 'Failed delivery must not draw harsh red outlines');
+      assert.ok(visual.bubbleFont >= 16, 'Failed message retains normal message typography');
+      assert.equal(visual.summaryCursor, 'pointer', 'Delivery failure reason is actionable');
+      assert.ok(visual.revealsReason, 'Delivery reason can be expanded without hiding failure');
       await page.screenshot({ path: output + '/chat-' + language + '-' + width + '.png', fullPage: false });
       if (width === 390 || width === 1366) {
         // The customer action drawer is the highest-traffic employee control.
@@ -148,6 +186,12 @@ try {
         }).click();
         const botButton = page.locator('button[data-bot-state]:visible');
         await botButton.waitFor();
+        const panelReadability = await page.locator('.customer-panel:visible').evaluate((element) => ({
+          background: getComputedStyle(element).backgroundColor,
+          headerSize: parseFloat(getComputedStyle(element.querySelector('h2')).fontSize),
+        }));
+        assert.equal(panelReadability.background, 'rgb(255, 255, 255)', 'Customer actions should be a white surface, not grey');
+        assert.ok(panelReadability.headerSize >= 18, 'Customer panel title is easy to read');
         if ((await botButton.getAttribute('data-bot-state')) === 'paused') {
           await botButton.click();
           await page.locator('button[data-bot-state="running"]:visible').waitFor();
