@@ -161,8 +161,8 @@ export default function ProductCatalog() {
           priceCents: productMinorUnits(String(f.get('price'))),
           currency: f.get('currency'),
           categoryId: f.get('category') || null,
-          ...(f.get('image') ? { imageUrl: f.get('image') } : {}),
-          ...(f.get('link') ? { linkUrl: f.get('link') } : {}),
+          imageUrl: String(f.get('image') ?? '').trim() || null,
+          linkUrl: String(f.get('link') ?? '').trim() || null,
           ...(f.get('catalog') ? { catalogId: f.get('catalog') } : {}),
           ...(f.get('retailer') ? { retailerId: f.get('retailer') } : {}),
           archived: f.get('archived') === 'on',
@@ -702,7 +702,7 @@ export default function ProductCatalog() {
                   <input
                     name="price"
                     inputMode="decimal"
-                    pattern="[0-9]{1,13}(\\.[0-9]{1,2})?"
+                    pattern="[0-9]{1,13}([.][0-9]{1,2})?"
                     required
                     defaultValue={editing ? productDecimal(editing.price_cents) : ''}
                     placeholder="150.00"
