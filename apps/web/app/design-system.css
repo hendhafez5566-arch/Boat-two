@@ -2371,3 +2371,60 @@ button.underline {
 .bs-shell .product-topbar.bs-topbar {
   color: #344b60;
 }
+
+
+/* Universal product typography scale — all workspaces */
+/* Apply the accepted dashboard typography to every Boat Two workspace.
+   Status colors, visual editor canvas labels, message timestamps and compact icon counters
+   retain their intentional semantics and independent sizing. */
+.product-shell {
+  --text-caption: 0.875rem;
+  --text-body: 1rem;
+  --text-section: 1.075rem;
+  --line-body: 1.65;
+  --ink: #192b3c;
+  --ink-2: #30485d;
+  --muted: #344b60;
+  --faint: #485e71;
+}
+.product-shell :is(.text-xs, .text-\[11px\], .text-\[12px\]) {
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+.product-shell :is(.text-sm, .text-\[13px\], .text-\[14px\]) {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+.product-shell :where(.muted, .page-heading p, .section-title span, .nav-group,
+  .workspace-chip small, .product-table th, .field-help, .form-hint) {
+  color: #344b60;
+}
+.product-shell :where(.text-gray-400, .text-gray-500, .text-slate-400,
+  .text-slate-500, .text-zinc-400, .text-zinc-500) {
+  color: #40566b;
+}
+.product-shell :where(.card, .panel, .table-wrap, .page-workspace) {
+  line-height: 1.6;
+}
+.product-shell :where(.card, .panel, .table-wrap) :is(p, small, dt, dd, label, th, td) {
+  overflow-wrap: anywhere;
+}
+.product-shell :where(.card, .panel, .table-wrap) small {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.product-shell :where(.card, .panel, .table-wrap) :is(dt, th, label) {
+  color: #344b60;
+}
+.product-shell :is(input, textarea, select) {
+  color: #192b3c;
+  font-size: 0.9375rem;
+}
+.product-shell :is(input, textarea, select)::placeholder {
+  color: #50667a;
+  opacity: 1;
+}
+/* Avoid changing conversation layout, badge counts or nodes merely to change reading sizes. */
+.product-shell.inbox-shell :is(.thread-msgs, .msg-meta, .msg-system) {
+  font-size: revert-layer;
+}
