@@ -67,7 +67,7 @@
   min-width: 0;
   border: 1px solid #e5e7eb;
   border-radius: 10px;
-  background: #f8fafc;
+  background: var(--surface-muted, #f3f6fa);
   color: #3c4043;
   font-size: 12px;
   padding: 8px 12px;
