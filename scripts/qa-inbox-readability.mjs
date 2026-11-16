@@ -109,6 +109,10 @@ try {
           metaFont: parseFloat(style(meta).fontSize),
           metaOpacity: parseFloat(style(meta).opacity),
           composerFont: parseFloat(style(composer).fontSize),
+          composerSurface: style(document.querySelector('.composer')).backgroundColor,
+          threadSurface: style(thread).backgroundColor,
+          sharedCanvas: style(document.documentElement).getPropertyValue('--canvas').trim(),
+          sharedMuted: style(document.documentElement).getPropertyValue('--surface-muted').trim(),
           daySeparators: document.querySelectorAll('.msg-day-separator').length,
           listVisible: style(list).display !== 'none',
           railVisible: rail ? style(rail).display !== 'none' : null,
@@ -124,6 +128,10 @@ try {
       assert.ok(ratio(values.inbound.color, values.inbound.background) >= 7, 'Inbound text needs AAA-grade contrast');
       assert.ok(ratio(values.outbound.color, values.outbound.background) >= 7, 'Outbound text needs AAA-grade contrast');
       assert.ok(values.daySeparators >= 1, 'Message timeline needs day separators');
+      assert.equal(values.sharedCanvas, '#f7fafc', 'Shared canvas must be clean off-white');
+      assert.equal(values.sharedMuted, '#f3f6fa', 'Supporting panels use pale off-white');
+      assert.equal(values.threadSurface, 'rgb(248, 251, 253)', 'Chat must not use old grey wash');
+      assert.equal(values.composerSurface, 'rgb(255, 255, 255)', 'Composer stays clean white');
       assert.ok(values.documentWidth <= values.viewportWidth + 1, 'No page horizontal overflow');
       assert.ok(values.outbound.rect.left >= -1 && values.outbound.rect.right <= values.viewportWidth + 1, 'Outgoing message stays on screen');
       assert.ok(values.inbound.rect.left >= -1 && values.inbound.rect.right <= values.viewportWidth + 1, 'Incoming message stays on screen');
@@ -187,7 +195,8 @@ try {
         metaFont: values.metaFont, composerFont: values.composerFont,
         inboundContrast: Number(ratio(values.inbound.color, values.inbound.background).toFixed(2)),
         outboundContrast: Number(ratio(values.outbound.color, values.outbound.background).toFixed(2)),
-        mobileSinglePane: !values.listVisible });
+        mobileSinglePane: !values.listVisible, sharedCanvas: values.sharedCanvas,
+        threadSurface: values.threadSurface, composerSurface: values.composerSurface });
       await context.close();
     }
 } finally {
