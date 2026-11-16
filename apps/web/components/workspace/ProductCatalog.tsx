@@ -61,14 +61,22 @@ export default function ProductCatalog() {
   const [categoryEditing, setCategoryEditing] = useState('');
   const [copyingCategory, setCopyingCategory] = useState(false);
   const [deleteCategory, setDeleteCategory] = useState<{id: string; name: string} | null>(null);
+  const [categoryDeleteConfirmed, setCategoryDeleteConfirmed] = useState(false);
+  const [deleteProduct, setDeleteProduct] = useState<CatalogProduct | null>(null);
+  const [productDeleteConfirmed, setProductDeleteConfirmed] = useState(false);
+  const [skuDraft, setSkuDraft] = useState('');
   const [details, setDetails] = useState<
     { id: number; name: string; value: string; kind: 'specification' | 'option' }[]
   >([]);
   const nextDetail = useRef(0);
   const selectedCategory = categories.data.find((item) => item.id === category);
+  const categoryProductCount = deleteCategory
+    ? products.data.filter((product) => product.category_id === deleteCategory.id).length
+    : 0;
 
   function openEditor(product: CatalogProduct | null) {
     setDraftImage(product?.image_url ?? null);
+    setSkuDraft(product?.sku ?? `SKU-${crypto.randomUUID().slice(0, 8).toUpperCase()}`);
     setDetails([
       ...(product?.specifications ?? []).map((item) => ({
         ...item,
@@ -301,81 +309,139 @@ export default function ProductCatalog() {
                 />
               </label>
             </div>
-            <nav className={styles.categoryShelf} aria-label={t('الأقسام', 'Categories')}>
-              {[
-                { id: 'all', name: t('كل المنتجات', 'All products') },
-                ...categories.data,
-                { id: 'none', name: t('دون قسم', 'Uncategorized') },
-              ]
-                .filter((item) =>
-                  item.id === 'all' ||
-                  item.id === 'none' ||
-                  item.name.toLocaleLowerCase().includes(categorySearch.trim().toLocaleLowerCase()),
-                )
-                .map((item) => (
-                  <button
-                    type="button"
-                    className="btn"
-                    key={item.id}
-                    aria-pressed={category === item.id}
-                    onClick={() => setCategory(item.id)}
-                  >
-                    {item.name}
-                    <small>
-                      {products.data.filter(
-                        (product) =>
+            <div className={styles.categoryChooser}>
+              <label className={styles.categorySelect}>
+                <span>{t('عرض منتجات قسم', 'Show products in')}</span>
+                <select
+                  aria-label={t('اختر قسم المنتجات', 'Choose product category')}
+                  value={category}
+                  onChange={(event) => setCategory(event.target.value)}
+                >
+                  {[
+                    { id: 'all', name: t('كل المنتجات', 'All products') },
+                    { id: 'none', name: t('دون قسم', 'Uncategorized') },
+                    ...categories.data,
+                  ]
+                    .filter((item) =>
+                      item.id === 'all' ||
+                      item.id === 'none' ||
+                      item.id === category ||
+                      item.name.toLocaleLowerCase().includes(categorySearch.trim().toLocaleLowerCase()),
+                    )
+                    .map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name} ({products.data.filter((product) =>
                           item.id === 'all' ||
                           (item.id === 'none'
                             ? !product.category_id
-                            : product.category_id === item.id),
-                      ).length}
-                    </small>
-                  </button>
-                ))}
-            </nav>
+                            : product.category_id === item.id)).length})
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <div className={styles.categoryActions}>
+                <button type="button" className="btn" onClick={() => openCategory()}>
+                  {t('إضافة قسم', 'Add category')}
+                </button>
+                {selectedCategory && (
+                  <>
+                    <button type="button" className="btn" onClick={() => openCategory(selectedCategory.id)}>
+                      {t('تعديل الاسم', 'Rename')}
+                    </button>
+                    <button type="button" className="btn" onClick={() => openCategory(selectedCategory.id, true)}>
+                      {t('نسخ القسم', 'Duplicate')}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-danger"
+                      onClick={() => {
+                        setError('');
+                        setCategoryDeleteConfirmed(false);
+                        setDeleteCategory(selectedCategory);
+                      }}
+                    >
+                      {t('حذف القسم', 'Delete category')}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+            <p className={styles.categoryHint}>
+              {t(
+                'الأقسام تظهر في قائمة واحدة حتى لو كان لديك مئات الأقسام؛ ابحث بالاسم للوصول للقسم المطلوب.',
+                'Categories stay in one dropdown, even for hundreds of categories. Search by name to find one.',
+              )}
+            </p>
             {categories.error && <p role="alert">{categories.error}</p>}
           </section>
-          {selectedCategory && (
-            <header className={styles.header}>
-              <h3>{selectedCategory.name}</h3>
-              <div className="form-actions">
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => openCategory(selectedCategory.id)}
-                >
-                  {t('تعديل اسم القسم', 'Rename category')}
-                </button>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => openCategory(selectedCategory.id, true)}
-                >
-                  {t('نسخ القسم ومنتجاته', 'Duplicate category and products')}
-                </button>
-                <button type="button" className="btn btn-danger" onClick={() => {setError(''); setDeleteCategory(selectedCategory);}}>
-                  {t('حذف القسم', 'Delete category')}
-                </button>
+          <Dialog
+            open={!!deleteCategory}
+            onClose={() => {
+              if (!busy) {
+                setDeleteCategory(null);
+                setCategoryDeleteConfirmed(false);
+                setError('');
+              }
+            }}
+            title={t('حذف القسم', 'Delete category')}
+          >
+            {deleteCategory && (
+              <div className={styles.deleteDialog}>
+                <strong>{deleteCategory.name}</strong>
+                <p>
+                  {t(
+                    'الحذف نهائي ولا يمكن التراجع عنه. حمايةً للبيانات، لا يمكن حذف قسم يحتوي على منتجات نشطة أو مؤرشفة.',
+                    'Deletion is permanent. To protect data, a category cannot be deleted while it contains active or archived products.',
+                  )}
+                </p>
+                <p className={categoryProductCount ? styles.blockedDeletion : styles.safeDeletion}>
+                  {categoryProductCount
+                    ? t(`القسم يحتوي على ${categoryProductCount} منتج. انقل كل المنتجات لقسم آخر أولًا.`,
+                        `This category has ${categoryProductCount} products. Move them first.`)
+                    : t('القسم فارغ ويمكن حذفه بعد التأكيد.', 'The category is empty and can be deleted after confirmation.')}
+                </p>
+                {error && <p className="notice error" role="alert">{error}</p>}
+                <label className={styles.confirmCheckbox}>
+                  <input
+                    type="checkbox"
+                    checked={categoryDeleteConfirmed}
+                    onChange={(event) => setCategoryDeleteConfirmed(event.target.checked)}
+                    disabled={busy || categoryProductCount > 0}
+                  />
+                  {t('أؤكد الحذف النهائي لهذا القسم', 'I confirm permanent deletion of this category')}
+                </label>
+                <div className="form-actions">
+                  <button type="button" className="btn" disabled={busy} onClick={() => {
+                    setDeleteCategory(null);
+                    setCategoryDeleteConfirmed(false);
+                    setError('');
+                  }}>{t('إلغاء', 'Cancel')}</button>
+                  <button type="button" className="btn btn-danger"
+                    disabled={busy || !categoryDeleteConfirmed || categoryProductCount > 0}
+                    onClick={async () => {
+                      if (!deleteCategory || lock.current) return;
+                      lock.current = true; setBusy(true); setError('');
+                      try {
+                        await api('/commerce/categories/' + deleteCategory.id, {
+                          method: 'DELETE',
+                          body: JSON.stringify({ confirm: true }),
+                        });
+                        await categories.reload();
+                        setCategory('all');
+                        setDeleteCategory(null);
+                        setCategoryDeleteConfirmed(false);
+                        setSuccess(t('تم حذف القسم الفارغ.', 'Empty category deleted.'));
+                      } catch (e) {
+                        setError((e as Error).message);
+                      } finally {
+                        lock.current = false;
+                        setBusy(false);
+                      }
+                    }}
+                  >{busy ? t('جارٍ الحذف…', 'Deleting…') : t('حذف نهائيًا', 'Delete permanently')}</button>
+                </div>
               </div>
-            </header>
-          )}
-          <Dialog open={!!deleteCategory} onClose={() => {if (!busy) {setDeleteCategory(null); setError('');}}} title={t('حذف القسم؟', 'Delete category?')}>
-            <p>{deleteCategory?.name}</p>
-            <p>{t('يمكن حذف القسم الفارغ فقط. انقل المنتجات النشطة والمؤرشفة إلى قسم آخر أولًا. حذف القسم نهائي.', 'Only empty categories can be deleted. Move active and archived products to another category first. Deletion is permanent.')}</p>
-            {error && <p className="notice error" role="alert">{error}</p>}
-            <div className="form-actions">
-              <button type="button" className="btn" disabled={busy} onClick={() => {setDeleteCategory(null); setError('');}}>{t('إلغاء', 'Cancel')}</button>
-              <button type="button" className="btn btn-danger" disabled={busy} onClick={async () => {
-                if (!deleteCategory || lock.current) return;
-                lock.current = true; setBusy(true); setError('');
-                try {
-                  await api('/commerce/categories/' + deleteCategory.id, {method: 'DELETE', body: JSON.stringify({confirm: true})});
-                  await categories.reload(); setCategory('all'); setDeleteCategory(null);
-                  setSuccess(t('تم حذف القسم الفارغ.', 'Empty category deleted.'));
-                } catch (e) {const message = (e as Error).message; setError(message.includes('Move all products') ? t('انقل المنتجات النشطة والمؤرشفة من القسم أولًا، ثم أعد محاولة حذفه.', 'Move active and archived products out of this category before deleting it.') : message);}
-                finally {lock.current = false; setBusy(false);}
-              }}>{t('حذف نهائيًا', 'Delete permanently')}</button>
-            </div>
+            )}
           </Dialog>
           <Dialog
             open={categoriesOpen}
