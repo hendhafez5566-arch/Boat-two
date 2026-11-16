@@ -81,7 +81,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
   }
   return (
     <section className="stack commerce-page">
-      {initialTab ? (
+      {initialTab === 'products' ? null : initialTab ? (
         <ChannelScope
           value={channelId}
           onChange={setChannelId}
@@ -109,10 +109,10 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
             : t('التجارة والمواعيد', 'Commerce and appointments')}
       </h1>
       {initialTab !== 'appointments' && (
-        <nav className="form-actions">
+        <nav className="form-actions commerce-catalog-tabs" aria-label={t('التنقل بين المنتجات ومصادرها', 'Product sections')}>
           {[
-            ['products', 'المنتجات', 'Products'],
-            ['sources', 'مصادر البيانات', 'Data sources'],
+            ['products', 'إدارة المنتجات', 'Manage products'],
+            ['sources', 'الاستيراد والمزامنة', 'Import & sync'],
             ['appointments', 'المواعيد', 'Appointments'],
           ]
             .filter(([id]) => !initialTab || id !== 'appointments')
@@ -121,9 +121,11 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
                 {t(ar, en)}
               </button>
             ))}
-          <a className="btn" href={channelHref('/dashboard/flows?section=bot_reply', channelId)}>
-            {t('مدير البوت', 'Bot manager')}
-          </a>
+          {initialTab !== 'products' && (
+            <Link className="btn" href={channelHref('/dashboard/flows?section=bot_reply', channelId)}>
+              {t('العودة إلى مدير البوت', 'Back to bot manager')}
+            </Link>
+          )}
           {tab === 'appointments' && (
             <Link className="btn" href="/dashboard/integrations">
               {t('تفويض Calendar والتكاملات', 'Calendar authorization and integrations')}
@@ -135,6 +137,19 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
         <p className="notice error" role="alert">
           {error || services.error}
         </p>
+      )}
+      {initialTab === 'products' && (
+        <div className="commerce-catalog-guide">
+          <p>
+            {t(
+              'المنتجات هنا محفوظة داخل Boat Two ومتاحة للاختيار من مصمم البوت. عرض كتالوج WhatsApp الأصلي يتطلب ربط كتالوج Meta بالقناة، ولا يتم بمجرد إضافة منتج هنا.',
+              'These are Boat Two products for use in your bot flows. Native WhatsApp catalog display requires a linked Meta catalog; adding a product here alone does not publish it to WhatsApp.',
+            )}
+          </p>
+          <Link className="btn" href={channelHref('/dashboard/flows?section=bot_reply', channelId)}>
+            {t('الانتقال إلى ردود البوت', 'Go to bot replies')}
+          </Link>
+        </div>
       )}
       {tab === 'sources' && <DataSourcesPanel />}
       {tab === 'products' && <ProductCatalog />}
