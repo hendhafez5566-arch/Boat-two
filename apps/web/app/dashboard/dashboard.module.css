@@ -391,3 +391,31 @@
   .quick strong { font-size: 14px; }
   .quick small { font-size: 12px; }
 }
+
+
+/* Dashboard readability remediation v2: increase actual rendered text, not only tokens. */
+.page { font-size: 16px; line-height: 1.65; }
+.heading h1 { font-size: 25px; line-height: 1.45; font-weight: 750; }
+.heading p { color: #34495b; font-size: 15px; line-height: 1.6; }
+.quick strong { color: #172b3e; font-size: 16px; line-height: 1.5; font-weight: 750; }
+.quick small { color: #354c60; font-size: 14px; line-height: 1.55; font-weight: 500; }
+.card h2 { font-size: 17px; color: #172b3e; font-weight: 720; }
+.card h2 > span { color: #34495b; font-size: 14px; font-weight: 500; }
+.distribution > small, .trend > small { color: #34495b; font-size: 14px; font-weight: 600; letter-spacing: 0; }
+.distribution > p, .trend > p { color: #354c60; font-size: 14px; line-height: 1.6; }
+.donut strong { font-size: 25px; color: #172b3e; font-weight: 750; }
+.donut small { color: #34495b; font-size: 13px; }
+.legend { color: #30485d; font-size: 14px; font-weight: 550; }
+.plot text { fill: #364e61; font-size: 14px; font-weight: 500; }
+.ai dt { color: #344b60; font-size: 14px; font-weight: 600; }
+.ai dd { color: #1e3144; font-size: 14px; font-weight: 650; }
+.ai header a { color: #3e39b6; font-size: 14px; font-weight: 700; }
+.inactive { color: #344b60; font-size: 13px; }
+.active { color: #14613a; font-size: 13px; }
+@media (max-width: 700px) {
+  .page { font-size: 15px; }
+  .heading h1 { font-size: 21px; }
+  .quick strong { font-size: 15px; }
+  .quick small { font-size: 13.5px; }
+  .plot text { font-size: 13px; }
+}
