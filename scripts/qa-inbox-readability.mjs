@@ -131,6 +131,41 @@ try {
       assert.equal(values.threadVisible, true, 'Chat pane must remain visible');
       assert.deepEqual(errors, []);
       await page.screenshot({ path: output + '/chat-' + language + '-' + width + '.png', fullPage: false });
+      if (width === 390 || width === 1366) {
+        // The customer action drawer is the highest-traffic employee control.
+        // Its colors must reflect persisted human/bot ownership, never a fixed green icon.
+        await page.getByRole('button', {
+          name: language === 'ar' ? 'إجراءات المحادثة' : 'Chat actions',
+          exact: true,
+        }).click();
+        const botButton = page.locator('button[data-bot-state]');
+        await botButton.waitFor();
+        if ((await botButton.getAttribute('data-bot-state')) === 'paused') {
+          await botButton.click();
+          await page.locator('button[data-bot-state="running"]').waitFor();
+        }
+        const running = await botButton.evaluate((element) => ({
+          bg: getComputedStyle(element).backgroundColor,
+          label: element.getAttribute('aria-label'),
+        }));
+        assert.ok(running.label.includes(language === 'ar' ? 'يعمل' : 'running'));
+        const green = rgb(running.bg);
+        assert.ok(green[1] > green[0] && green[1] > green[2], 'Running bot has green state');
+        await botButton.click();
+        await page.locator('button[data-bot-state="paused"]').waitFor();
+        const paused = await botButton.evaluate((element) => ({
+          bg: getComputedStyle(element).backgroundColor,
+          label: element.getAttribute('aria-label'),
+        }));
+        assert.ok(paused.label.includes(language === 'ar' ? 'متوقف' : 'paused'));
+        const red = rgb(paused.bg);
+        assert.ok(red[0] > red[1] && red[0] > red[2], 'Paused bot has subtle red state');
+        await page.screenshot({ path: output + '/bot-paused-' + language + '-' + width + '.png' });
+        await botButton.click();
+        await page.locator('button[data-bot-state="running"]').waitFor();
+        await page.screenshot({ path: output + '/bot-running-' + language + '-' + width + '.png' });
+        if (width < 1024) await page.keyboard.press('Escape');
+      }
       if (width < 1024) {
         await page.getByRole('button', { name: language === 'ar' ? 'رجوع للقائمة' : 'Back to list' }).click();
         await page.locator('aside.inbox-list').waitFor({ state: 'visible' });
