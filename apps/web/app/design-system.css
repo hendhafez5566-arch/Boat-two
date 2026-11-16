@@ -7,42 +7,42 @@
 
 /* ───────────── 1. Tokens ───────────── */
 :root {
-  --primary: #5141e3;
+  --primary: #495bb5;
   --primary-ink: #fff;
   --primary-soft: color-mix(in srgb, var(--primary) 9%, #fff);
   --primary-softer: color-mix(in srgb, var(--primary) 5%, #fff);
   --primary-line: color-mix(in srgb, var(--primary) 28%, #fff);
   --primary-deep: color-mix(in srgb, var(--primary) 84%, #0b1020);
 
-  --ink: #0f1a2b;
-  --ink-2: #33445b;
-  --muted: #64748b;
-  --faint: #94a3b8;
-  --line: #e5e9f0;
-  --line-strong: #d3dae6;
+  --ink: #192638;
+  --ink-2: #3d4d61;
+  --muted: #58687a;
+  --faint: #8596a8;
+  --line: #e3e8ee;
+  --line-strong: #cdd7e3;
   --surface: #fff;
-  --surface-muted: #f6f8fb;
-  --canvas: #f3f5f9;
+  --surface-muted: #f6f8fa;
+  --canvas: #f6f7f9;
 
-  --success: #12935c;
-  --success-soft: #e6f6ee;
+  --success: #198052;
+  --success-soft: #e7f5ea;
   --warning: #b86a00;
   --warning-soft: #fff4de;
-  --danger: #d6303f;
-  --danger-soft: #fdecee;
+  --danger: #b84246;
+  --danger-soft: #fdf0ef;
 
   --radius: 16px;
   --radius-md: 12px;
   --radius-sm: 9px;
   --shadow-xs: 0 1px 2px rgb(16 28 51 / 6%);
-  --shadow-sm: 0 1px 2px rgb(16 28 51 / 5%), 0 2px 8px rgb(16 28 51 / 4%);
+  --shadow-sm: 0 1px 2px rgb(16 28 51 / 4%), 0 4px 14px rgb(16 28 51 / 5%);
   --shadow-md: 0 4px 12px rgb(16 28 51 / 7%), 0 12px 32px rgb(16 28 51 / 6%);
   --shadow-lg: 0 24px 64px rgb(16 28 51 / 18%);
   --ring: 0 0 0 4px color-mix(in srgb, var(--primary) 18%, transparent);
   --sidebar-w: 268px;
   --topbar-h: 70px;
   --text-caption: 0.75rem;
-  --text-body: 0.875rem;
+  --text-body: 0.925rem;
   --text-section: 1rem;
   --text-page: 1.25rem;
   --text-dialog: 1.1rem;
@@ -54,7 +54,7 @@
 body {
   background: var(--canvas);
   color: var(--ink);
-  font-family: 'Plus Jakarta Sans Variable', Arial, sans-serif;
+  font-family: 'Noto Sans Arabic Variable', 'Plus Jakarta Sans Variable', Tahoma, Arial, sans-serif;
   font-size: var(--text-body);
   line-height: var(--line-body);
 }
@@ -2249,4 +2249,51 @@ button.underline {
 .semantic-state[data-tone='danger'] {
   background: #fee2e2;
   color: #991b1b;
+}
+
+/* Shared workspace control refinement: neutral surfaces; tenant brand accent remains configurable. */
+.product-shell {
+  --workspace-icon: #53657a;
+  --workspace-control-border: #d5dfe9;
+}
+.product-shell .btn {
+  border-radius: 12px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+.product-shell .btn:not(.btn-primary):not(.btn-danger):not(:disabled) {
+  border-color: var(--workspace-control-border);
+  color: var(--ink-2);
+}
+.product-shell .btn:not(.btn-primary):not(.btn-danger):hover {
+  background: #f2f5f9;
+  border-color: #aab9cb;
+  color: var(--ink);
+}
+.product-shell :is(button, a, summary):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.product-shell :is(button, a):disabled {
+  cursor: not-allowed;
+}
+.product-shell .semantic-state[data-tone='active'] {
+  background: #e5f5ea;
+  color: #17623b;
+  border-color: #a5dabb;
+}
+.product-shell .semantic-state[data-tone='danger'] {
+  background: #fdf0ee;
+  color: #973939;
+  border-color: #edc5c0;
+}
+.product-shell .semantic-state[data-tone='pending'] {
+  background: #fff6e6;
+  color: #92590b;
+  border-color: #edd6a6;
+}
+@media (prefers-reduced-motion: reduce) {
+  .product-shell :is(.btn, button, a) {
+    transition-duration: 0.01ms;
+  }
 }
