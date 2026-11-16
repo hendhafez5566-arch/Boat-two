@@ -2001,3 +2001,128 @@
   box-shadow: none;
   color: #687680;
 }
+
+
+/* Inbox list visual refinement and message legibility — 2026-11-16 */
+.inbox :global(.inbox-list) {
+  background: #ffffff;
+  border-inline-end: 1px solid #e6ebee;
+}
+.listTitle {
+  padding: 17px 18px 11px;
+  font-size: 19px;
+  line-height: 1.5;
+  font-weight: 750;
+  color: #172b30;
+}
+.searchBar {
+  padding: 7px 12px 13px;
+  gap: 7px;
+  background: #ffffff;
+}
+.searchBar :global(.inbox-search) {
+  height: 43px;
+  min-height: 43px;
+  background: #f6f8f8;
+  border: 1px solid #e3e9e9;
+  border-radius: 10px;
+  box-shadow: none;
+  color: #203034;
+  font-size: 13px;
+}
+.searchBar :global(.inbox-search):focus {
+  border-color: #77b9a6;
+  outline: 2px solid #d7f1e8;
+  outline-offset: 0;
+}
+.searchBar button,
+.searchBar .filterButton {
+  height: 43px;
+  width: 42px;
+  background: #fff;
+  color: #45616b;
+  border: 1px solid #e1e8e8;
+  border-radius: 10px;
+  margin-inline-start: 0;
+}
+.searchBar button:hover,
+.searchBar .filterButton:hover,
+.searchBar .filterButton:focus-visible {
+  background: #edf7f3;
+  border-color: #b8ded2;
+  color: #08765d;
+}
+.inbox :global(.inbox-list) :global(ul) {
+  padding: 0 9px 10px;
+}
+.inbox :global(.inbox-list .inbox-item) {
+  margin: 3px 0;
+  padding: 13px 10px;
+  min-height: 108px;
+  border: 1px solid transparent;
+  border-bottom-color: #edf0f1;
+  border-radius: 11px;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+.inbox :global(.inbox-list .inbox-item:hover) {
+  background: #f4f9f7;
+  border-color: #e1ebe7;
+}
+.inbox :global(.inbox-list .inbox-item.is-selected) {
+  background: #eaf7f2;
+  border: 1px solid #d0e9df;
+  border-inline-start: 3px solid #008069;
+  border-radius: 11px;
+}
+.inbox :global(.inbox-row) { gap: 10px; }
+.inbox :global(.inbox-avatar) {
+  width: 42px;
+  height: 42px;
+  flex-basis: 42px;
+  background: #eaf1f5;
+  color: #31566a;
+  font-size: 16px;
+}
+.inbox :global(.inbox-name) {
+  font-size: 14.5px;
+  line-height: 1.45;
+  font-weight: 720;
+  color: #172b30;
+}
+.inbox :global(.inbox-preview) {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #536874 !important;
+}
+.inbox :global(.inbox-time) {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #697d83 !important;
+}
+.inbox :global(.inbox-chips) {
+  margin-top: 5px;
+  gap: 5px;
+  align-items: center;
+}
+.inbox :global(.inbox-chip) {
+  color: #607780 !important;
+  font-size: 11px;
+}
+.inbox :global(.msg-bubble) {
+  font-size: 16px;
+  line-height: 1.56;
+  padding: 8px 11px 7px;
+}
+.inbox :global(.composer-input) {
+  font-size: 16px;
+}
+@media (max-width: 767px) {
+  .inbox :global(.msg-bubble) {
+    font-size: 16px;
+    line-height: 1.56;
+    padding: 8px 10px 7px;
+  }
+  .inbox :global(.inbox-list .inbox-item) {
+    min-height: 96px;
+  }
+}
