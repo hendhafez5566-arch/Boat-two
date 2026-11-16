@@ -88,10 +88,18 @@ export default function MessageBubble({
 }) {
   const { t, language } = useLocale();
   const c = m.content ?? {};
-  const time = new Date(m.created_at ?? m.createdAt).toLocaleString(
-    language === 'ar' ? 'ar-EG' : 'en-US',
-    { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' },
-  );
+  const messageDate = new Date(m.created_at ?? m.createdAt);
+  const time = messageDate.toLocaleTimeString(language === 'ar' ? 'ar-EG' : 'en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const fullTimestamp = messageDate.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
   const senderType = m.sender_type ?? m.senderType;
   const isInternal = m.is_internal ?? m.isInternal;
 
@@ -107,7 +115,7 @@ export default function MessageBubble({
       <div className="msg-note">
         <div className="msg-note-head">
           🔒 {t('ملاحظة داخلية', 'Internal note')} ·{' '}
-          {m.sender_name ?? name(m.sender_user_id ?? m.senderUserId)} · {time}
+          {m.sender_name ?? name(m.sender_user_id ?? m.senderUserId)} · <time title={fullTimestamp}>{time}</time>
         </div>
         <div className="whitespace-pre-wrap">{c.text}</div>
       </div>
@@ -195,12 +203,24 @@ export default function MessageBubble({
           )}
         </div>
         <div className="msg-meta" title={who || undefined}>
-          <span>{time}</span>
+          <time dateTime={messageDate.toISOString()} title={fullTimestamp}>{time}</time>
           {mine && status && status !== 'failed' && (
             <span
               className={status === 'read' ? 'text-sky-200' : ''}
-              title={status === 'queued' ? t('في انتظار الإرسال إلى القناة', 'Waiting for channel delivery') : undefined}
-              aria-label={status === 'queued' ? t('الرسالة لم تُرسل بعد', 'Message not sent yet') : undefined}
+              title={status === 'queued'
+                ? t('في انتظار الإرسال إلى القناة', 'Waiting for channel delivery')
+                : status === 'sent'
+                  ? t('تم الإرسال إلى القناة', 'Sent to channel')
+                  : status === 'delivered'
+                    ? t('وصلت للعميل', 'Delivered to customer')
+                    : status === 'read'
+                      ? t('قرأها العميل', 'Read by customer')
+                      : undefined}
+              aria-label={status === 'queued'
+                ? t('الرسالة لم تُرسل بعد', 'Message not sent yet')
+                : status === 'sent' ? t('مرسلة', 'Sent')
+                  : status === 'delivered' ? t('تم التسليم', 'Delivered')
+                  : status === 'read' ? t('مقروءة', 'Read') : undefined}
             >{TICKS[status] ?? ''}</span>
           )}
           {status === 'failed' && (
