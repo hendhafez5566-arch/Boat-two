@@ -71,6 +71,13 @@ export default function ProductCatalog() {
   const [deleteProduct, setDeleteProduct] = useState<CatalogProduct | null>(null);
   const [productDeleteConfirmed, setProductDeleteConfirmed] = useState(false);
   const [skuDraft, setSkuDraft] = useState('');
+  const [expandedSections, setExpandedSections] = useState({
+    specification: false,
+    option: false,
+    media: false,
+    meta: false,
+  });
+
   const [details, setDetails] = useState<
     { id: number; name: string; value: string; kind: 'specification' | 'option' }[]
   >([]);
@@ -79,6 +86,13 @@ export default function ProductCatalog() {
 
   function openEditor(product: CatalogProduct | null) {
     setDraftImage(product?.image_url ?? null);
+    setExpandedSections({
+      specification: !!product?.specifications?.length,
+      option: !!product?.options?.length,
+      media: !!(product?.image_url || product?.link_url),
+      meta: !!(product?.catalog_id || product?.retailer_id),
+    });
+
     setSkuDraft(product?.sku ?? `SKU-${crypto.randomUUID().slice(0, 8).toUpperCase()}`);
     setDetails([
       ...(product?.specifications ?? []).map((item) => ({
@@ -757,7 +771,13 @@ export default function ProductCatalog() {
               <details
                 className={styles.editorDisclosure}
                 key={kind}
-                defaultOpen={details.some((item) => item.kind === kind)}
+                open={expandedSections[kind]}
+                onToggle={(event) => {
+                  const isOpen = event.currentTarget.open;
+                  setExpandedSections((current) =>
+                    current[kind] === isOpen ? current : { ...current, [kind]: isOpen },
+                  );
+                }
               >
                 <summary>
                   {kind === 'specification'
@@ -836,7 +856,13 @@ export default function ProductCatalog() {
                 </div>
               </details>
             ))}
-            <details className={styles.editorDisclosure} defaultOpen={!!editing?.image_url || !!editing?.link_url}>
+            <details className={styles.editorDisclosure} open={expandedSections.media}
+              onToggle={(event) => {
+                const isOpen = event.currentTarget.open;
+                setExpandedSections((current) =>
+                  current.media === isOpen ? current : { ...current, media: isOpen },
+                );
+              }>
               <summary>{t('صورة المنتج والروابط (اختياري)', 'Product image and links (optional)')}</summary>
               <div className={styles.editorDisclosureBody}>
               <label className="field">
@@ -869,7 +895,13 @@ export default function ProductCatalog() {
                 />
               </div>
             )}
-            <details className={styles.editorDisclosure} defaultOpen={!!editing?.catalog_id || !!editing?.retailer_id}>
+            <details className={styles.editorDisclosure} open={expandedSections.meta}
+              onToggle={(event) => {
+                const isOpen = event.currentTarget.open;
+                setExpandedSections((current) =>
+                  current.meta === isOpen ? current : { ...current, meta: isOpen },
+                );
+              }>
               <summary>
                 {t('تكامل كتالوج Meta (متقدم)', 'Meta catalog integration (advanced)')}
               </summary>
