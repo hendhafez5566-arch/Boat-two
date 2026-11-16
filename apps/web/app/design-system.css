@@ -2331,3 +2331,43 @@ button.underline {
   color: var(--muted);
   font-size: 0.8125rem;
 }
+
+
+/* Workspace shell compact labels — readable revision.
+   Scope to active app shell; avoid changing visual hierarchy inside node editors. */
+.bs-shell .product-sidebar nav a,
+.bs-shell .nav-more-btn {
+  font-size: 15px;
+  font-weight: 550;
+  line-height: 1.5;
+}
+.bs-shell .bs-meter-text { line-height: 1.35; }
+.bs-shell .bs-meter-text small {
+  color: #344b60;
+  font-size: 13px;
+  font-weight: 600;
+}
+.bs-shell .bs-meter-text strong {
+  color: #1d3349;
+  font-size: 14px;
+  font-weight: 750;
+}
+.bs-shell .bs-ring b {
+  color: #20364c;
+  font-size: 12px;
+  font-weight: 800;
+}
+.bs-shell .bs-search input {
+  font-size: 14px;
+}
+.bs-shell .bs-search input::placeholder {
+  color: #496073;
+  opacity: 1;
+}
+.bs-shell .bs-menu-head small {
+  color: #3d5367;
+  font-size: 13px;
+}
+.bs-shell .product-topbar.bs-topbar {
+  color: #344b60;
+}
