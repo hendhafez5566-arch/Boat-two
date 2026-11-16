@@ -1038,3 +1038,172 @@
 .profileDrawer .profileBody {
   overflow: visible;
 }
+
+
+/* CRM contacts table: legible and compact workspace — Nov 2026 */
+.page {
+  color: #1e3041;
+  font-family: 'Noto Sans Arabic Variable', 'Plus Jakarta Sans Variable', Tahoma, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  gap: 14px;
+}
+.heading { gap: 14px; }
+.heading h1 {
+  font-family: inherit;
+  font-size: 24px !important;
+  font-weight: 750;
+  line-height: 1.4;
+  color: #192e40;
+}
+.heading p {
+  color: #40566a !important;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.headActions :global(.btn) {
+  min-height: 42px;
+  font-size: 14px;
+  font-weight: 650;
+  padding: 8px 12px;
+}
+.headActions svg { width: 17px; height: 17px; }
+.dropdownMenu :is(button, a) { font-size: 14px; }
+.filters {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.filters :is(input, select),
+.searchTools input {
+  min-height: 44px;
+  border: 1px solid #ccd9e2;
+  background: #fff;
+  color: #263e52;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.filters :is(input, select):focus-visible,
+.searchTools input:focus-visible {
+  outline: 2px solid #5b80bd;
+  outline-offset: 1px;
+}
+.filterActions {
+  font-size: 14px;
+  color: #40566a;
+}
+.statistics { gap: 12px; }
+.statistics article {
+  padding: 14px;
+  min-height: 96px;
+  border-color: #dce5ec;
+  box-shadow: none;
+}
+.statistics article > span:not(.statIcon) {
+  color: #364e62;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.statistics strong {
+  color: #1a3044 !important;
+  font-size: 24px !important;
+  font-weight: 750;
+  line-height: 1.25;
+}
+.statistics small {
+  color: #4d6173;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.subscriberList {
+  border-color: #dce5eb;
+  box-shadow: none;
+}
+.listToolbar {
+  min-height: 64px;
+  padding: 12px 14px;
+  color: #334a5e;
+  font-size: 14px;
+}
+.listToolbar button,
+.listToolbar > select {
+  min-height: 38px;
+  font-size: 13px;
+}
+.listFooter { font-size: 13px; color: #3f566a; }
+.listFooter button { font-size: 13px; }
+.subscriberList :global(.product-table) {
+  font-size: 14px;
+  line-height: 1.55;
+  table-layout: auto;
+}
+.workspace .subscriberList :global(.product-table) th {
+  background: #f1f5f8;
+  color: #2d4358;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 12px 14px;
+}
+.subscriberList :global(.product-table) td,
+.table td {
+  padding: 13px 14px !important;
+  color: #263b4e;
+  font-size: 14px;
+  vertical-align: middle;
+}
+.subscriberList :global(.product-table) tbody tr:hover {
+  background: #f4f8fb;
+}
+.subscriberList .subscriberName {
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 700;
+  color: #192e40;
+}
+.identity { gap: 10px; }
+.identity small {
+  font-size: 12.5px;
+  color: #4d6376;
+  line-height: 1.5;
+  margin-top: 3px;
+}
+.inlineTags button {
+  color: #40586b;
+  font-size: 12.5px !important;
+  line-height: 1.45;
+}
+.statePills { gap: 4px; }
+.statePills span {
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 600;
+  padding: 3px 8px;
+}
+.statePills small { font-size: 12px; color: #4c6173; }
+.rowActions { gap: 7px; }
+.rowActions :global(.btn) {
+  min-height: 34px !important;
+  min-width: 34px;
+  padding: 7px !important;
+}
+.rowActions svg { width: 17px; height: 17px; }
+.rowAvatar {
+  width: 40px;
+  height: 40px;
+  font-size: 15px;
+  color: #344e68;
+}
+@media (max-width: 900px) {
+  .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .statistics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .listToolbar { min-height: 0; }
+}
+@media (max-width: 640px) {
+  .heading h1 { font-size: 22px !important; }
+  .filters :is(input, select) { font-size: 14px; }
+  .subscriberList :global(.product-table) { min-width: 600px; }
+  .statistics article > span:not(.statIcon) { font-size: 13px; }
+  .subscriberList[data-view='grid'] table { min-width: 0; }
+  .subscriberList[data-view='grid'] tbody { grid-template-columns: minmax(0, 1fr); }
+}
