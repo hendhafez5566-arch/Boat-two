@@ -665,58 +665,44 @@ export default function ProductCatalog() {
                 {error}
               </p>
             )}
-            <label className="field">
-              {t('قسم المنتج', 'Product category')}
-              <select
-                aria-label={t('قسم المنتج', 'Product category')}
-                name="category"
-                defaultValue={editing ? (editing.category_id ?? '') : (selectedCategory?.id ?? '')}
-              >
-                <option value="">{t('دون قسم', 'Uncategorized')}</option>
-                {categories.data.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <fieldset className={styles.section}>
+            <div className={styles.editorGuide}>
+              <strong>{editing ? t('تعديل بيانات المنتج', 'Edit product details') : t('إضافة منتج جديد', 'Create a product')}</strong>
+              <p>{t(
+                'املأ الاسم والقسم والسعر. باقي الحقول اختيارية ويمكن إضافتها لاحقًا.',
+                'Enter a name, category and price. Other details can be added later.',
+              )}</p>
+            </div>
+            <fieldset className={styles.editorBlock}>
               <legend>{t('المعلومات الأساسية', 'Basic information')}</legend>
-              <div className="form-grid">
+              <div className={styles.editorTwoColumns}>
                 <label className="field">
-                  {t('اسم المنتج', 'Product name')}
+                  {t('اسم المنتج *', 'Product name *')}
                   <input
                     autoFocus
                     name="name"
                     required
                     maxLength={120}
                     defaultValue={editing?.name}
+                    placeholder={t('مثال: رحلة عمرة 5 أيام', 'e.g. Five-day travel package')}
                   />
                 </label>
                 <label className="field">
-                  {t('رمز المنتج SKU', 'Product code (SKU)')}
-                  <input name="sku" required maxLength={80} defaultValue={editing?.sku} />
+                  {t('القسم', 'Category')}
+                  <select
+                    aria-label={t('قسم المنتج', 'Product category')}
+                    name="category"
+                    defaultValue={editing ? (editing.category_id ?? '') : (selectedCategory?.id ?? '')}
+                  >
+                    <option value="">{t('دون قسم', 'Uncategorized')}</option>
+                    {categories.data.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
                 </label>
-              </div>
-              <label className="field">
-                {t('وصف المنتج', 'Product description')}
-                <textarea
-                  name="description"
-                  rows={4}
-                  maxLength={1000}
-                  defaultValue={editing?.description}
-                />
-              </label>
-            </fieldset>
-            <fieldset className={styles.priceSection}>
-              <legend>{t('السعر والعملة', 'Price and currency')}</legend>
-              <div className="form-grid">
                 <label className="field">
-                  {t('سعر المنتج (مثال 150.00)', 'Product price (e.g. 150.00)')}
+                  {t('السعر *', 'Price *')}
                   <input
                     name="price"
                     inputMode="decimal"
-                    pattern="[0-9]{1,13}(\.[0-9]{1,2})?"
+                    pattern="[0-9]{1,13}(\\.[0-9]{1,2})?"
                     required
                     defaultValue={editing ? productDecimal(editing.price_cents) : ''}
                     placeholder="150.00"
@@ -724,7 +710,7 @@ export default function ProductCatalog() {
                   />
                 </label>
                 <label className="field">
-                  {t('العملة', 'Currency')}
+                  {t('العملة *', 'Currency *')}
                   <input
                     name="currency"
                     pattern="[A-Z]{3}"
@@ -732,17 +718,51 @@ export default function ProductCatalog() {
                     required
                     defaultValue={editing?.currency ?? 'EGP'}
                     dir="ltr"
+                    placeholder="EGP"
                   />
                 </label>
               </div>
+              <div className={styles.editorSkuRow}>
+                <label className="field">
+                  {t('كود المنتج SKU *', 'Product code (SKU) *')}
+                  <input
+                    name="sku"
+                    required
+                    maxLength={80}
+                    value={skuDraft}
+                    onChange={(event) => setSkuDraft(event.target.value)}
+                    dir="ltr"
+                  />
+                </label>
+                <button type="button" className="btn" onClick={() => {
+                  setSkuDraft(`SKU-${crypto.randomUUID().slice(0, 8).toUpperCase()}`);
+                  setEditorDirty(true);
+                }}>{t('توليد كود', 'Generate code')}</button>
+              </div>
+              <label className="field">
+                {t('وصف المنتج (اختياري)', 'Description (optional)')}
+                <textarea
+                  name="description"
+                  rows={3}
+                  maxLength={1000}
+                  defaultValue={editing?.description}
+                  placeholder={t('اكتب وصفًا مختصرًا يفهمه العميل والبوت.', 'Describe the product for customers and your bot.')}
+                />
+              </label>
             </fieldset>
             {(['specification', 'option'] as const).map((kind) => (
-              <fieldset className={styles.section} key={kind}>
-                <legend>
+              <details
+                className={styles.editorDisclosure}
+                key={kind}
+                defaultOpen={details.some((item) => item.kind === kind)}
+              >
+                <summary>
                   {kind === 'specification'
-                    ? t('مواصفات المنتج', 'Specifications')
+                    ? t('المواصفات الإضافية', 'Additional specifications')
                     : t('خيارات المنتج وأسعارها', 'Product options and prices')}
-                </legend>
+                  <span>{details.filter((item) => item.kind === kind).length}</span>
+                </summary>
+                <div className={styles.editorDisclosureBody}>
                 {details
                   .filter((item) => item.kind === kind)
                   .map((item) => (
@@ -810,10 +830,12 @@ export default function ProductCatalog() {
                     ? t('+ إضافة مواصفة', '+ Add specification')
                     : t('+ إضافة خيار بسعر', '+ Add priced option')}
                 </button>
-              </fieldset>
+                </div>
+              </details>
             ))}
-            <details className={styles.section}>
-              <summary>{t('الصور والروابط (اختياري)', 'Images and links (optional)')}</summary>
+            <details className={styles.editorDisclosure} defaultOpen={!!editing?.image_url || !!editing?.link_url}>
+              <summary>{t('صورة المنتج والروابط (اختياري)', 'Product image and links (optional)')}</summary>
+              <div className={styles.editorDisclosureBody}>
               <label className="field">
                 {t('رابط الصورة', 'Image URL')}
                 <input
@@ -834,6 +856,7 @@ export default function ProductCatalog() {
                 {t('رابط المنتج', 'Product URL')}
                 <input name="link" type="url" defaultValue={editing?.link_url ?? ''} dir="ltr" />
               </label>
+              </div>
             </details>
             {draftImage && (
               <div className={styles.preview}>
@@ -843,10 +866,11 @@ export default function ProductCatalog() {
                 />
               </div>
             )}
-            <details>
+            <details className={styles.editorDisclosure} defaultOpen={!!editing?.catalog_id || !!editing?.retailer_id}>
               <summary>
-                {t('تكامل كتالوج Meta (إعدادات متقدمة)', 'Meta catalog integration (advanced)')}
+                {t('تكامل كتالوج Meta (متقدم)', 'Meta catalog integration (advanced)')}
               </summary>
+              <div className={styles.editorDisclosureBody}>
               <p>
                 {t(
                   'هذه معرّفات المزود وليست تصنيفات محلية. المنتجات الأصلية تتطلب كتالوجًا معتمدًا.',
@@ -863,10 +887,17 @@ export default function ProductCatalog() {
                   <input name="retailer" defaultValue={editing?.retailer_id ?? ''} />
                 </label>
               </div>
+              </div>
             </details>
-            <label>
+            <label className={styles.archiveField}>
               <input type="checkbox" name="archived" defaultChecked={editing?.archived} />
-              {t('أرشفة المنتج (يصبح غير متاح للبوت)', 'Archive product (unavailable to bots)')}
+              <span>
+                <strong>{t('أرشفة المنتج', 'Archive product')}</strong>
+                <small>{t(
+                  'المنتج المؤرشف لا يمكن استخدامه في البوت؛ راجع ارتباطاته أولًا.',
+                  'Archived products are unavailable to bots. Check dependencies first.',
+                )}</small>
+              </span>
             </label>
             </div>
             <div className="form-actions">
