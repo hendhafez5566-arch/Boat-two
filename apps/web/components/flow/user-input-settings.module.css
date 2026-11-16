@@ -59,7 +59,7 @@
   height: 20px;
   place-items: center;
   border-radius: 50%;
-  background: #f0f2f6;
+  background: var(--surface-muted, #f3f6fa);
   color: #344054;
   font-size: 11px;
 }
