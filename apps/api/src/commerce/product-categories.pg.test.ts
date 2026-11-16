@@ -19,6 +19,14 @@ test('local categories persist, preserve legacy edits and enforce tenant isolati
  ALTER TABLE catalog_products ENABLE ROW LEVEL SECURITY;ALTER TABLE catalog_products FORCE ROW LEVEL SECURITY;CREATE POLICY tenant_isolation ON catalog_products USING(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid) WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);GRANT SELECT,INSERT,UPDATE ON catalog_products TO app_user;`);
     await pg.exec(readFileSync('src/database/migrations/105_product_categories.sql', 'utf8'));
     await pg.exec(readFileSync('src/database/migrations/106_product_details.sql', 'utf8'));
+    await pg.exec(readFileSync('src/database/migrations/107_local_product_delete_grant.sql', 'utf8'));
+    // Flow references are JSON rather than direct FKs, so deletion must guard them.
+    await pg.exec(`
+      CREATE TABLE flows(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),tenant_id uuid NOT NULL,draft_graph jsonb NOT NULL DEFAULT '{}');
+      CREATE TABLE flow_versions(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),tenant_id uuid NOT NULL,graph jsonb NOT NULL DEFAULT '{}');
+      CREATE TABLE flow_sessions(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),tenant_id uuid NOT NULL,state jsonb NOT NULL DEFAULT '{}');
+      GRANT SELECT ON flows,flow_versions,flow_sessions TO app_user;
+    `);
     const db = {
       withTenant: async <T>(
         tenant: string,
@@ -95,6 +103,31 @@ test('local categories persist, preserve legacy edits and enforce tenant isolati
     await assert.rejects(service.saveProduct(b, input, String(p.id)));
     const cleared = await service.saveProduct(a, { ...input, categoryId: null }, String(p.id));
     assert.equal(cleared.category_id, null);
+    const removable = await service.saveProduct(a, { ...input, sku: 'SAFE-REMOVE' });
+    await assert.rejects(service.removeProduct(b, String(removable.id)), /Product unavailable/);
+    await pg.query('INSERT INTO flows(tenant_id,draft_graph) VALUES($1,$2::jsonb)', [
+      a, JSON.stringify({ nodes: [{ data: { productId: removable.id } }] }),
+    ]);
+    await assert.rejects(service.removeProduct(a, String(removable.id)), /Product is used/);
+    await assert.rejects(service.archiveProduct(a, String(removable.id)), /Product is used/);
+    await pg.query('DELETE FROM flows WHERE tenant_id=$1', [a]);
+    await pg.query('INSERT INTO flow_versions(tenant_id,graph) VALUES($1,$2::jsonb)', [
+      a, JSON.stringify({ nodes: [{ data: { productIds: [removable.id] } }] }),
+    ]);
+    await assert.rejects(service.removeProduct(a, String(removable.id)), /Product is used/);
+    await pg.query('DELETE FROM flow_versions WHERE tenant_id=$1', [a]);
+    await pg.query('INSERT INTO flow_sessions(tenant_id,state) VALUES($1,$2::jsonb)', [
+      a, JSON.stringify({ currentProduct: removable.id }),
+    ]);
+    await assert.rejects(service.removeProduct(a, String(removable.id)), /Product is used/);
+    await pg.query('DELETE FROM flow_sessions WHERE tenant_id=$1', [a]);
+    const archived = await service.archiveProduct(a, String(removable.id));
+    assert.equal(archived.archived, true);
+    assert.deepEqual(await service.removeProduct(a, String(removable.id)), {
+      deleted: true,
+      id: removable.id,
+    });
+    assert.equal((await service.products(a)).some((item) => item.id === removable.id), false);
   } finally {
     await pg.close();
   }
