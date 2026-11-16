@@ -1845,3 +1845,114 @@
     white-space: normal;
   }
 }
+
+
+/* Bot manager readability and density pass — 2026-11-16 */
+.manager {
+  font-family: 'Noto Sans Arabic Variable', 'Plus Jakarta Sans Variable', Tahoma, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #203447;
+}
+.accounts { border-color: #dce5ed; box-shadow: none; }
+.accounts h1 { color: #1c3044; font-size: 17px; font-weight: 700; }
+.accounts > header a { font-size: 14px; }
+.manager .search { min-height: 43px; border-color: #cfdbe5; }
+.manager .search input { font-family: inherit; font-size: 14px; color: #24394e; }
+.search svg { color: #4e6579; }
+.account { min-height: 62px; }
+.account strong { font-size: 15px; font-weight: 700; line-height: 1.5; }
+.account small { font-size: 13px; line-height: 1.5; color: #43596c; }
+.account[aria-pressed='true'] { background: #f0f3ff; border-color: #cfd7f4; }
+.workspaceHeader h2 { font-size: 17px; font-weight: 700; line-height: 1.45; color: #1b3044; }
+.workspaceHeader p { font-size: 13px; color: #455c71; }
+.sections { background: #fff; border-color: #dce5ed; }
+.sections button {
+  min-height: 54px;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 600;
+  color: #344d62;
+}
+.sections button[aria-pressed='true'] { font-weight: 750; }
+.subsections button {
+  font-size: 13.5px;
+  line-height: 1.5;
+  min-height: 40px;
+  padding: 9px 13px;
+  color: #34495d;
+  border-color: #dae3ec;
+}
+.content { border-color: #dce5ed; box-shadow: none; padding: 21px; }
+.contentHeader { margin-bottom: 16px; }
+.contentHeader h2 { font-size: 19px; font-weight: 750; color: #1c3044; }
+.contentHeader p { font-size: 14px; color: #42596e; line-height: 1.6; }
+.manager .filters { gap: 10px; margin-bottom: 14px; }
+.filters select,
+.pagination select,
+.form input:not([type='checkbox']),
+.form select {
+  min-height: 44px;
+  font-size: 14px;
+  color: #243b50;
+  border-color: #cfdbe5;
+}
+.filters > .search { min-height: 44px; }
+.tableScroll { border-color: #dbe4ed; }
+.table { font-size: 14px; line-height: 1.55; }
+.table th {
+  color: #344d62;
+  font-size: 13.5px;
+  letter-spacing: 0;
+  font-weight: 700;
+  padding: 12px 13px;
+  background: #f1f5f8;
+}
+.table td { padding: 12px 13px; color: #24394e; }
+.table td:nth-child(3) { min-width: 180px; }
+.table th:last-child { background: #f1f5f8; }
+.flowName { color: #1c3044; font-size: 14.5px; font-weight: 700; }
+.flowDetail { color: #445b70; font-size: 13px; line-height: 1.55; }
+.uniqueId { max-width: 135px; font-size: 13px; color: #41596d; }
+.status, .manager .table .status {
+  font-size: 12.5px;
+  line-height: 1.4;
+  font-weight: 600;
+  min-height: 26px;
+}
+.actions { gap: 6px; }
+.actions :global(.btn) {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 7px;
+  border-color: #d5e0e9;
+  box-shadow: none;
+}
+.actions svg { width: 17px; height: 17px; }
+.pagination { font-size: 13.5px; color: #3b5268; }
+.pagination :global(.btn) { font-size: 13px; min-height: 37px; }
+.pagination select { min-height: 37px; }
+.settingsCard { color: #30475c; font-size: 14px; }
+.settingsDescription { color: #42596d; font-size: 14px; font-style: normal; }
+.settingField { color: #364e63; font-size: 13.5px; line-height: 1.5; }
+.templateTabs button { font-size: 14px; }
+.templateSearch input { font-size: 14px; }
+.templateStatus { font-size: 12.5px; }
+.actionCardText strong { font-size: 15px; line-height: 1.4; font-weight: 700; }
+.actionCardText small { font-size: 13px; line-height: 1.5; color: #40586a; }
+.actionCardText em { font-size: 12px; }
+.actionHint { font-size: 13.5px; line-height: 1.6; color: #41586c; }
+@media (max-width: 850px) {
+  .manager { font-size: 14px; }
+  .sections button { flex: 0 0 auto; font-size: 13.5px; }
+  .content { padding: 15px; }
+  .contentHeader h2 { font-size: 17px; }
+  .table td::before { font-size: 13px; color: #3b5266; font-weight: 650; }
+  .table td:nth-child(3) { min-width: 0; }
+}
+@media (max-width: 480px) {
+  .accounts { padding: 12px; }
+  .content { padding: 12px; }
+  .sections button { padding: 10px 12px; }
+}
