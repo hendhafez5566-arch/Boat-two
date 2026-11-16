@@ -95,6 +95,8 @@ export default function ProductCatalog() {
   }
   const [draftImage, setDraftImage] = useState<string | null>(null);
   const [serverPreview, setServerPreview] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const previewRequest = useRef(0);
   const products = useData<CatalogProduct[]>('/commerce/products', []);
   const [query, setQuery] = useState(''),
     [status, setStatus] = useState('active'),
@@ -209,17 +211,28 @@ export default function ProductCatalog() {
     }
   }
   async function previewSaved(p: CatalogProduct) {
+    const request = ++previewRequest.current;
     setError('');
     setServerPreview('');
     setPreview(p);
+    setPreviewLoading(true);
     try {
       const r = await api<{ content: { text?: string } }>(`/commerce/products/${p.id}/preview`, {
         method: 'POST',
       });
-      setServerPreview(r.content.text ?? '');
+      if (request === previewRequest.current) setServerPreview(r.content.text ?? '');
     } catch (e) {
-      setError((e as Error).message);
+      if (request === previewRequest.current) setError((e as Error).message);
+    } finally {
+      if (request === previewRequest.current) setPreviewLoading(false);
     }
+  }
+  function closePreview() {
+    ++previewRequest.current;
+    setPreview(null);
+    setServerPreview('');
+    setPreviewLoading(false);
+    setError('');
   }
   return (
     <section className={styles.root} aria-label={t('إدارة المنتجات', 'Product management')}>
@@ -267,7 +280,7 @@ export default function ProductCatalog() {
               {success}
             </p>
           )}
-          {(products.error || (error && editing === undefined && !categoriesOpen && !deleteCategory)) && (
+          {(products.error || (error && editing === undefined && !categoriesOpen && !deleteCategory && !preview)) && (
             <p className="notice error" role="alert">
               {products.error || error}
               <button type="button" className="btn" onClick={() => void products.reload()}>
@@ -757,48 +770,75 @@ export default function ProductCatalog() {
           </form>
         </Dialog>
       )}
-      {preview && (
-        <section className="card stack" aria-label={t('معاينة المنتج', 'Product preview')}>
-          <header className={styles.header}>
-            <h2>{t('معاينة البيانات المحفوظة', 'Saved product preview')}</h2>
-            <button className="btn" onClick={() => setPreview(null)}>
-              {t('إغلاق المعاينة', 'Close preview')}
-            </button>
-          </header>
-          <p>
-            {t(
-              'بطاقة بيانات محلية دون إرسال. الشكل النهائي يعتمد على القناة ونوع عقدة البوت.',
-              'Local data card, no message sent. Final appearance depends on the channel and bot node type.',
-            )}
-          </p>
-          <div className={styles.preview}>
-            <ProductImage key={preview.image_url} product={preview} />
-            <h3>{preview.name}</h3>
-            <strong dir="ltr">{productPrice(preview.price_cents, preview.currency)}</strong>
-            <p>{preview.description}</p>
+      <Dialog
+        open={preview !== null}
+        onClose={closePreview}
+        title={t('معاينة المنتج', 'Product preview')}
+      >
+        {preview && (
+          <div className={styles.previewDialog} aria-busy={previewLoading}>
+            <div className={styles.previewProduct}>
+              <ProductImage key={preview.image_url} product={preview} />
+              <div className={styles.previewProductInfo}>
+                <span className="semantic-state" data-tone={preview.archived ? 'danger' : 'active'}>
+                  {preview.archived ? t('مؤرشف', 'Archived') : t('نشط', 'Active')}
+                </span>
+                <h3>{preview.name}</h3>
+                <strong dir="ltr">{productPrice(preview.price_cents, preview.currency)}</strong>
+                <p>{preview.description || t('بدون وصف', 'No description')}</p>
+                <small>SKU: {preview.sku}</small>
+              </div>
+            </div>
             {!!preview.specifications?.length && (
-              <dl>
-                {preview.specifications.map((item, index) => (
-                  <div key={index}>
-                    <dt>{item.name}</dt>
-                    <dd>{item.value}</dd>
-                  </div>
-                ))}
-              </dl>
+              <section>
+                <h4>{t('المواصفات', 'Specifications')}</h4>
+                <dl className={styles.previewDetails}>
+                  {preview.specifications.map((item, index) => (
+                    <div key={index}>
+                      <dt>{item.name}</dt>
+                      <dd>{item.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
             )}
             {!!preview.options?.length && (
-              <ul>
-                {preview.options.map((item, index) => (
-                  <li key={index}>
-                    {item.name} · <bdi>{productPrice(item.priceCents, preview.currency)}</bdi>
-                  </li>
-                ))}
-              </ul>
+              <section>
+                <h4>{t('الخيارات والأسعار', 'Options and prices')}</h4>
+                <ul className={styles.previewOptions}>
+                  {preview.options.map((item, index) => (
+                    <li key={index}>
+                      <span>{item.name}</span>
+                      <bdi>{productPrice(item.priceCents, preview.currency)}</bdi>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             )}
-            {serverPreview && <p>{serverPreview}</p>}
+            {previewLoading && <p role="status">{t('جارٍ تجهيز المعاينة…', 'Loading preview…')}</p>}
+            {error && <p role="alert" className="notice error">{error}</p>}
+            {serverPreview && <p className={styles.previewResponse}>{serverPreview}</p>}
+            <p className={styles.previewDisclaimer}>
+              {t(
+                'دي معاينة للبيانات المحفوظة فقط؛ مش بيتم إرسال أي رسالة للعميل.',
+                'This previews saved product data only; no message is sent to a customer.',
+              )}
+            </p>
+            <div className="form-actions">
+              <button type="button" className="btn" onClick={closePreview}>
+                {t('إغلاق', 'Close')}
+              </button>
+              <button type="button" className="btn btn-primary" onClick={() => {
+                const selected = preview;
+                closePreview();
+                openEditor(selected);
+              }}>
+                {t('تعديل المنتج', 'Edit product')}
+              </button>
+            </div>
           </div>
-        </section>
-      )}
+        )}
+      </Dialog>
     </section>
   );
 }
