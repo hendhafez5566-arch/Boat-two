@@ -893,3 +893,73 @@
     border: 0;
   }
 }
+
+
+/* WhatsApp Web light — customer actions panel */
+.panel {
+  background: #ffffff;
+  border-inline-start: 1px solid #e9edef;
+  color: #111b21;
+}
+.heading {
+  background: #ffffff;
+  border-bottom: 1px solid #e9edef;
+  box-shadow: none;
+}
+.heading h2, .card h3, .card summary,
+.crmCard h3, .facts dd, .crmCard .facts dd,
+.noteList p {
+  color: #111b21 !important;
+}
+.headingActions a, .secondary, .addFollowup, .quickTimes button {
+  background: #ffffff;
+  color: #008069;
+  border-color: #e9edef;
+}
+.headingActions a:hover, .secondary:hover,
+.addFollowup:hover, .quickTimes button:hover {
+  background: #e7f6f2;
+  color: #008069;
+  border-color: #c4e8dd;
+}
+.card, .crmCard {
+  background: #ffffff !important;
+  border: 1px solid #e9edef !important;
+  box-shadow: none;
+}
+.card h3, .card summary {
+  background: #fff;
+  border-color: #e9edef;
+}
+.card summary:hover { background: #f5f6f6; }
+.facts > div + div { border-top-color: #e9edef; }
+.facts dt, .crmCard .facts dt, .crmEyebrow,
+.fields small, .notesEmpty {
+  color: #667781;
+}
+.facts dt svg { color: #54656f; }
+.fields, .fields label, .crmEditor label {
+  color: #111b21 !important;
+}
+.fields input, .fields select,
+.crmEditor input, .crmEditor select {
+  background: #fff;
+  color: #111b21;
+  border-color: #d7e1e5;
+}
+.fields :is(input, select):focus-visible,
+.crmEditor :is(input, select):focus-visible,
+.card summary:focus-visible {
+  outline: 2px solid #008069;
+  outline-offset: 1px;
+}
+.chips span, .labelEditor > span {
+  background: #e7f6f2;
+  color: #075e4a;
+}
+.noteEditor { background: #f5fbf8; border-color: #c4e8dd; }
+.noteList li, .noteList li + li {
+  background: #fff;
+  border-color: #e9edef;
+}
+.panel::-webkit-scrollbar-thumb { background: #d4dddf; }
