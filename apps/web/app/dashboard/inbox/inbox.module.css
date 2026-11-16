@@ -2126,3 +2126,57 @@
     min-height: 96px;
   }
 }
+
+
+/* High-legibility message typography — 2026-11-16 */
+.inbox :global(.msg-bubble) {
+  font-size: 18px;
+  line-height: 1.65;
+  font-weight: 450;
+  letter-spacing: 0;
+  padding: 9px 12px 8px;
+}
+.inbox :global(.msg-bubble .whitespace-pre-wrap),
+.inbox :global(.msg-bubble .break-words) {
+  font-size: inherit;
+  line-height: inherit;
+}
+.inbox :global(.msg-bubble small),
+.inbox :global(.msg-bubble footer),
+.inbox :global(.msg-bubble .text-xs) {
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.inbox :global(.msg-bubble .rounded-full.text-xs) {
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 4px 9px;
+  border-color: #b9dfb4;
+  color: #20533b;
+  background: #eafce5;
+  opacity: 1;
+}
+.inbox :global(.msg-meta) {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #54656f;
+}
+.inbox :global(.msg-who) {
+  font-size: 13px;
+  font-weight: 600;
+  color: #40545b;
+}
+.inbox :global(.composer-input) {
+  font-size: 17px;
+  line-height: 1.55;
+}
+@media (max-width: 767px) {
+  .inbox :global(.msg-bubble) {
+    font-size: 17px;
+    line-height: 1.65;
+    padding: 8px 11px 7px;
+  }
+  .inbox :global(.msg-bubble .rounded-full.text-xs) {
+    font-size: 13.5px;
+  }
+}
