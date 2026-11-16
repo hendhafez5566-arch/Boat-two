@@ -1802,12 +1802,8 @@
 /* Compact chat composition based on the user's side-by-side WhatsApp Web reference.
    Original low-contrast pattern: no third-party artwork is copied. */
 .inbox :global(.thread-msgs) {
-  background-color: #efeae2;
-  background-image:
-    radial-gradient(circle at 16px 16px, transparent 11px, rgba(192, 158, 116, .075) 11.5px, transparent 12.5px),
-    radial-gradient(circle at 56px 45px, rgba(192, 158, 116, .08) 1.5px, transparent 2.5px),
-    radial-gradient(circle at 83px 80px, transparent 16px, rgba(192, 158, 116, .055) 17px, transparent 18px);
-  background-size: 112px 106px;
+  background-color: #f7f5f2;
+  background-image: none;
   padding-block: 10px 14px;
   padding-inline: clamp(12px, 4vw, 56px);
 }
@@ -1940,3 +1936,68 @@
 .inbox :global(.msg-bubble) { text-align: start; }
 .inbox :global(.msg-bubble[dir='auto']) { unicode-bidi: plaintext; }
 .inbox :global(.msg-row.is-out .msg-meta) { direction: ltr; }
+
+/* Calm chat canvas and unobtrusive event markers — owner feedback 2026-11-16 */
+.inbox :global(.thread-msgs) {
+  background: #f7f5f2;
+  background-image: none;
+}
+.inbox :global(.msg-system) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 7px;
+  width: fit-content;
+  max-width: min(92%, 560px);
+  margin: 10px auto;
+  padding: 5px 11px;
+  background: #fff;
+  border: 1px solid #e6e4e0;
+  border-radius: 12px;
+  box-shadow: none;
+  color: #596973;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: center;
+}
+.inbox :global(.msg-system::before) {
+  display: none;
+  content: none;
+}
+.inbox :global(.msg-system-label) {
+  color: #53636c;
+  font-size: inherit;
+  font-weight: 500;
+}
+.inbox :global(.msg-system time) {
+  color: #7a8790;
+  font-size: 10.5px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.inbox :global(.msg-system[data-event='returned_to_bot']),
+.inbox :global(.msg-system[data-event='taken_over']),
+.inbox :global(.msg-system[data-event='assigned']) {
+  background: #fff;
+  border-color: #e3e7e3;
+}
+.inbox :global(.msg-system[data-event='returned_to_bot'] .msg-system-label),
+.inbox :global(.msg-system[data-event='taken_over'] .msg-system-label),
+.inbox :global(.msg-system[data-event='assigned'] .msg-system-label) {
+  color: #52616a;
+}
+.inbox :global(.msg-system[data-event='sla_escalated']) {
+  background: #fff9ed;
+  border-color: #efdfbb;
+}
+.inbox :global(.msg-system[data-event='sla_escalated'] .msg-system-label) {
+  color: #765827;
+}
+.inbox :global(.msg-day-separator) {
+  background: #fff;
+  border: 1px solid #ebe8e2;
+  box-shadow: none;
+  color: #687680;
+}
