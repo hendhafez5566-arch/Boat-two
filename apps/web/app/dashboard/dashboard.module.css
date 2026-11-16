@@ -353,3 +353,41 @@
     gap: 18px;
   }
 }
+
+
+/* Dashboard content-contrast pass — 2026-11-16.
+   Never use faint grey for information employees need to read. */
+.page {
+  color: #243446;
+  font-size: 14px;
+  font-family: 'Noto Sans Arabic Variable', 'Plus Jakarta Sans Variable', Tahoma, Arial, sans-serif;
+  line-height: 1.6;
+}
+.heading p, .quick small, .card h2 > span,
+.distribution > small, .trend > small,
+.distribution > p, .trend > p,
+.donut small, .legend, .ai dt {
+  color: #4d6273;
+  font-size: 12.5px;
+  line-height: 1.55;
+  letter-spacing: 0;
+}
+.quick strong, .card h2 {
+  color: #203247;
+  font-size: 15px;
+}
+.quick small { margin-top: 4px; }
+.heading p { font-size: 13.5px; }
+.donut strong { color: #172b3e; font-weight: 650; }
+.ai dl { color: #263a4e; }
+.plot text {
+  fill: #53677a;
+  font-size: 11px;
+}
+.arrow { color: #627789; }
+.refresh { color: #405a71; }
+.inactive { color: #4a6273; }
+@media (max-width: 700px) {
+  .quick strong { font-size: 14px; }
+  .quick small { font-size: 12px; }
+}
