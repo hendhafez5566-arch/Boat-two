@@ -11,8 +11,8 @@ export const productSchema = z.object({
     .string()
     .regex(/^[A-Z]{3}$/)
     .default('EGP'),
-  imageUrl: z.string().url().optional(),
-  linkUrl: z.string().url().optional(),
+  imageUrl: z.string().url().nullable().optional(),
+  linkUrl: z.string().url().nullable().optional(),
   catalogId: z.string().max(200).optional(),
   retailerId: z.string().max(200).optional(),
   archived: z.boolean().default(false),
