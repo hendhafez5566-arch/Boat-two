@@ -837,3 +837,282 @@
   .previewProduct > .placeholder { width: 100%; height: 160px; }
   .previewDetails > div { grid-template-columns: minmax(0, 1fr); gap: 3px; }
 }
+
+
+/* Product editor and deletion UX polish — Nov 2026 */
+.categoryChooser {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.categorySelect {
+  flex: 1 1 300px;
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 650;
+  color: #30495f;
+}
+.categorySelect select {
+  width: 100%;
+  max-width: 480px;
+  min-height: 46px;
+  padding: 9px 13px;
+  border: 1px solid #cbd8e3;
+  border-radius: 10px;
+  background: #fff;
+  color: #253e53;
+  font: inherit;
+  font-size: 14px;
+}
+.categoryActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+.categoryActions :global(.btn) {
+  min-height: 39px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.categoryHint {
+  margin: 0;
+  color: #4d6375;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.categorySelect select:focus-visible {
+  outline: 2px solid #376b9c;
+  outline-offset: 2px;
+}
+.editorDialog {
+  width: min(800px, calc(100vw - 24px));
+  max-width: none;
+  max-height: min(90dvh, 900px);
+  border-radius: 18px;
+}
+.editorDialog > header {
+  padding: 16px 22px;
+  border-bottom: 1px solid #e0e7ec;
+}
+.editorDialog > :global(.dialog-body) {
+  min-height: 0;
+  overflow: hidden;
+}
+.editorDialog .productForm {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+.editorFields {
+  padding: 20px 22px 24px;
+  gap: 14px !important;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: #b7c9d4 #f5f8fa;
+}
+.editorGuide {
+  display: grid;
+  gap: 4px;
+  padding: 0 0 4px;
+}
+.editorGuide strong {
+  color: #1e3448;
+  font-size: 17px;
+  font-weight: 750;
+}
+.editorGuide p {
+  margin: 0;
+  color: #435a6e;
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+.editorBlock {
+  min-inline-size: 0;
+  padding: 18px;
+  margin: 0;
+  display: grid;
+  gap: 14px;
+  background: #fff;
+  border: 1px solid #d5e2eb;
+  border-radius: 13px;
+}
+.editorBlock legend {
+  padding-inline: 9px;
+  color: #1b3d56;
+  font-size: 15px;
+  font-weight: 750;
+}
+.editorTwoColumns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.editorBlock :global(.field),
+.editorDisclosureBody :global(.field) {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 650;
+  color: #314b60;
+  line-height: 1.5;
+}
+.editorBlock :is(input, select, textarea),
+.editorDisclosureBody :is(input, select, textarea) {
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  border: 1px solid #cfdce6;
+  border-radius: 9px;
+  padding: 10px 12px;
+  background: #fff;
+  color: #183146;
+  font-size: 15px;
+  font-weight: 500;
+}
+.editorBlock textarea,
+.editorDisclosureBody textarea {
+  min-height: 84px;
+  resize: vertical;
+  line-height: 1.55;
+}
+.editorSkuRow {
+  display: flex;
+  align-items: end;
+  gap: 9px;
+}
+.editorSkuRow > label { flex: 1; min-width: 0; }
+.editorSkuRow button {
+  flex: 0 0 auto;
+  min-height: 46px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.editorDisclosure {
+  border: 1px solid #dce5ec;
+  border-radius: 11px;
+  background: #fff;
+  min-width: 0;
+  overflow: hidden;
+}
+.editorDisclosure > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  min-height: 48px;
+  padding: 12px 15px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #264157;
+  background: #f8fafc;
+  list-style-position: inside;
+}
+.editorDisclosure > summary:hover { background: #f0f5f9; }
+.editorDisclosure > summary span {
+  margin-inline-start: auto;
+  font-size: 12px;
+  color: #3d6078;
+  background: #e8f0f5;
+  border-radius: 20px;
+  padding: 2px 9px;
+}
+.editorDisclosureBody {
+  display: grid;
+  gap: 13px;
+  padding: 15px;
+  border-top: 1px solid #e3ebf0;
+}
+.editorDisclosureBody > p { margin: 0; font-size: 13px; line-height: 1.6; color: #4c6072; }
+.editorDisclosureBody > :global(.btn) {
+  justify-self: start;
+  min-height: 38px;
+  font-size: 13px;
+}
+.detailRow {
+  background: #f7f9fb;
+  border: 1px solid #e3eaf0;
+  margin-block: 0;
+}
+.detailRow button { min-height: 42px; }
+.archiveField {
+  display: flex;
+  align-items: start;
+  gap: 11px;
+  padding: 12px 14px;
+  border: 1px solid #e1e7ec;
+  border-radius: 11px;
+  background: #fbfcfe;
+  color: #344d60;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.archiveField input { width: 18px; height: 18px; flex: 0 0 auto; margin-top: 3px; }
+.archiveField span { display: grid; gap: 3px; }
+.archiveField strong { color: #294355; font-size: 14px; }
+.archiveField small { font-size: 12.5px; color: #526b7d; }
+.editorDialog .productForm > :global(.form-actions) {
+  display: flex;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 13px 22px;
+  border-top: 1px solid #e0e8ee;
+  box-shadow: 0 -3px 12px rgb(30 54 75 / 4%);
+  background: #fff;
+}
+.editorDialog .productForm > :global(.form-actions) button {
+  min-height: 43px;
+  min-width: 104px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.deleteDialog {
+  display: grid;
+  gap: 13px;
+  color: #31485b;
+  font-size: 14px;
+  line-height: 1.65;
+  max-width: 620px;
+}
+.deleteDialog > strong { font-size: 17px; color: #1c3447; }
+.deleteDialog > p { margin: 0; }
+.deleteSku { color: #526779; font-size: 12.5px; text-align: start; }
+.blockedDeletion, .safeDeletion {
+  padding: 10px 12px;
+  border-radius: 9px;
+  border: 1px solid #edd9ae;
+  color: #805c25;
+  background: #fff8ea;
+}
+.safeDeletion { background: #f2faf5; border-color: #cde5d7; color: #28563c; }
+.confirmCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #294153;
+}
+.confirmCheckbox input { flex: 0 0 auto; width: 19px; height: 19px; accent-color: #365d8a; }
+.deleteActions { display: flex; gap: 8px; flex-wrap: wrap; }
+.deleteActions button { min-height: 40px; font-size: 13.5px; }
+.productActions :global(.btn-danger) {
+  color: #983a3a;
+  border-color: #edc9c9;
+  background: #fff;
+}
+.productActions :global(.btn-danger):hover { background: #fff1f1; }
+@media (max-width: 720px) {
+  .editorDialog { width: calc(100vw - 12px); max-height: calc(100dvh - 12px); border-radius: 12px; }
+  .editorFields { padding: 16px 12px; }
+  .editorBlock { padding: 12px; }
+  .editorTwoColumns { grid-template-columns: minmax(0, 1fr); }
+  .editorSkuRow { flex-wrap: wrap; }
+  .editorSkuRow button { width: 100%; }
+  .editorDialog .productForm > :global(.form-actions) { padding: 11px 12px; }
+  .categorySelect { flex-basis: 100%; }
+  .categorySelect select { max-width: none; }
+}
