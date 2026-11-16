@@ -378,6 +378,11 @@ export function InboxCustomerPanel({
         <div className={styles.quick}>
           <button
             type="button"
+            className={styles.botControl}
+            data-bot-state={detail.handled_by === 'bot' ? 'running' : 'paused'}
+            aria-label={detail.handled_by === 'bot'
+              ? t('البوت يعمل الآن — إيقاف البوت', 'Bot is running — pause bot')
+              : t('البوت متوقف — استئناف البوت', 'Bot is paused — resume bot')}
             disabled={acting}
             onClick={() =>
               void act(
@@ -388,12 +393,15 @@ export function InboxCustomerPanel({
               )
             }
           >
-            <span className={styles.green}>
-              <NavIcon name="agents" />
+            <span className={styles.botIcon}>
+              <NavIcon name={detail.handled_by === 'bot' ? 'pause' : 'play'} />
             </span>
-            {detail.handled_by === 'bot'
-              ? t('إيقاف البوت', 'Pause Bot')
-              : t('استئناف البوت', 'Resume Bot')}
+            <strong>{detail.handled_by === 'bot'
+              ? t('البوت يعمل', 'Bot running')
+              : t('البوت متوقف', 'Bot paused')}</strong>
+            <small>{detail.handled_by === 'bot'
+              ? t('إيقاف البوت', 'Pause bot')
+              : t('استئناف البوت', 'Resume bot')}</small>
           </button>
           <button type="button" onClick={addNote} disabled={noteBusy || !!noteDraft}>
             <span>
