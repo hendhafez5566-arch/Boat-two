@@ -149,6 +149,8 @@ try {
           label: element.getAttribute('aria-label'),
         }));
         assert.equal(running.label, language === 'ar' ? 'إيقاف البوت' : 'Pause Bot');
+        console.log('BOT RUNNING COMPUTED STYLE', JSON.stringify({ language, width, running }));
+        await page.screenshot({ path: output + '/bot-running-diagnostic-' + language + '-' + width + '.png' });
         const green = rgb(running.bg);
         assert.ok(green[1] > green[0] && green[1] > green[2], 'Running bot has green state');
         await botButton.click();
