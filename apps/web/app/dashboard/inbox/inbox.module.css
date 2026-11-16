@@ -1797,3 +1797,135 @@
   outline: 2px solid var(--wa-green-dark);
   outline-offset: 2px;
 }
+
+
+/* Compact chat composition based on the user's side-by-side WhatsApp Web reference.
+   Original low-contrast pattern: no third-party artwork is copied. */
+.inbox :global(.thread-msgs) {
+  background-color: #efeae2;
+  background-image:
+    radial-gradient(circle at 16px 16px, transparent 11px, rgba(192, 158, 116, .075) 11.5px, transparent 12.5px),
+    radial-gradient(circle at 56px 45px, rgba(192, 158, 116, .08) 1.5px, transparent 2.5px),
+    radial-gradient(circle at 83px 80px, transparent 16px, rgba(192, 158, 116, .055) 17px, transparent 18px);
+  background-size: 112px 106px;
+  padding-block: 10px 14px;
+  padding-inline: clamp(12px, 4vw, 56px);
+}
+.inbox :global(.msg-row) {
+  margin-block: 3px;
+}
+.inbox :global(.msg-stack) {
+  max-width: min(78%, 480px);
+  gap: 0;
+}
+.inbox :global(.msg-bubble) {
+  min-width: 58px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 6px 9px 5px;
+  border: 0;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.48;
+  font-weight: 400;
+  box-shadow: 0 1px 1px rgb(11 20 26 / 12%);
+}
+.inbox :global(.msg-bubble.is-in) {
+  border: 0;
+  border-start-start-radius: 2px;
+}
+.inbox :global(.msg-bubble.is-out) {
+  border: 0;
+  border-start-end-radius: 2px;
+}
+.inbox :global(.msg-bubble .whitespace-pre-wrap) {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.inbox :global(.msg-meta) {
+  justify-content: flex-end;
+  margin-top: 1px;
+  font-size: 10.5px;
+  line-height: 1.1;
+  font-weight: 400;
+  color: #667781;
+  gap: 3px;
+}
+.inbox :global(.msg-meta .text-sky-200) {
+  color: #53bdeb;
+}
+.inbox :global(.msg-bubble .msg-meta) {
+  padding-top: 2px;
+  min-height: 13px;
+}
+.inbox :global(.msg-bubble .msg-meta time) {
+  white-space: nowrap;
+}
+.inbox :global(.msg-delivery-error) {
+  margin-top: 5px;
+}
+.inbox :global(.msg-day-separator) {
+  padding: 4px 9px;
+  margin-block: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 7px;
+}
+.inbox :global(.msg-system) {
+  font-size: 11px;
+  line-height: 1.4;
+  margin: 9px auto;
+}
+.inbox :global(.composer) {
+  padding: 7px 12px max(9px, env(safe-area-inset-bottom));
+}
+.inbox :global(.composer-modes) {
+  margin-bottom: 5px;
+}
+.inbox :global(.composer-modes button) {
+  font-size: 12px;
+  min-height: 32px;
+  border-radius: 5px 5px 0 0;
+  padding: 5px 12px;
+}
+.inbox :global(.composer-row) {
+  min-height: 48px;
+  border-radius: 24px;
+  padding: 2px 7px;
+}
+.inbox :global(.composer-input) {
+  min-height: 40px;
+  font-size: 14px;
+  line-height: 1.45;
+  padding: 8px 4px;
+}
+.inbox :global(.composer-send:not(.is-note)) {
+  width: 39px;
+  height: 39px;
+  min-height: 39px;
+}
+.inbox :global(.composer-attach),
+.emojiButton {
+  width: 34px;
+  height: 38px;
+}
+.customerStrip {
+  border-radius: 8px;
+  margin-top: 6px;
+  padding: 7px 8px;
+  box-shadow: none;
+}
+.customerStrip div { min-height: 25px; }
+@media (max-width: 767px) {
+  .inbox :global(.thread-msgs) {
+    padding-inline: 10px;
+    padding-block: 8px;
+  }
+  .inbox :global(.msg-stack) {
+    max-width: 88%;
+  }
+  .inbox :global(.msg-bubble) {
+    padding: 6px 8px 5px;
+    font-size: 14px;
+  }
+}
