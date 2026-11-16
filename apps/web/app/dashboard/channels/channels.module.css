@@ -57,7 +57,7 @@
   justify-content: space-between;
   gap: 16px;
   padding: 16px 20px;
-  background: #fafbfc;
+  background: var(--canvas, #f7fafc);
 }
 .connectedHeader h2 {
   margin: 0 0 4px;
@@ -164,10 +164,10 @@
 }
 .healthBadge[data-state='disconnected'] {
   color: #5f6368;
-  background: #f1f3f5;
+  background: var(--surface-soft, #eef3f8);
 }
 .connectionsTable > tbody > tr:has(> td[colspan]) > td {
-  background: #fafbfc;
+  background: var(--canvas, #f7fafc);
 }
 .srOnly {
   position: absolute;
