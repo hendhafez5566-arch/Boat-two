@@ -1929,3 +1929,14 @@
     font-size: 14px;
   }
 }
+
+
+/* Keep the WhatsApp left/right conversation geometry independent of RTL UI chrome. */
+.inbox :global(.msg-row) { direction: ltr; }
+.inbox :global(.msg-row.is-in) { justify-content: flex-start; }
+.inbox :global(.msg-row.is-out) { justify-content: flex-end; }
+.inbox :global(.msg-row.is-in .msg-stack) { align-items: flex-start; }
+.inbox :global(.msg-row.is-out .msg-stack) { align-items: flex-end; }
+.inbox :global(.msg-bubble) { text-align: start; }
+.inbox :global(.msg-bubble[dir='auto']) { unicode-bidi: plaintext; }
+.inbox :global(.msg-row.is-out .msg-meta) { direction: ltr; }
