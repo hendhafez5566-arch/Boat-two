@@ -979,7 +979,9 @@ export default function Inbox() {
                     </button>
                     <button
                       type="button"
+                      className={styles.threadActionTrigger}
                       aria-label={t('إجراءات المحادثة', 'Chat actions')}
+                      title={t('فتح إجراءات المحادثة وبيانات العميل', 'Open chat actions and customer details')}
                       aria-expanded={actionsOpen || showContext}
                       onClick={() => {
                         if (window.matchMedia('(min-width: 1024px)').matches)
@@ -988,6 +990,7 @@ export default function Inbox() {
                       }}
                     >
                       <NavIcon name="moreVertical" />
+                      <span aria-hidden="true" className={styles.actionLabel}>{t('إجراءات', 'Actions')}</span>
                     </button>
                     <button
                       type="button"
