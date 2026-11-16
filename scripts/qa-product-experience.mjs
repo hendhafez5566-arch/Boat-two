@@ -333,6 +333,38 @@ try {
       );
       const dynamicSim = await api('/flows/' + f.id + '/test', token, {});
       assert.ok(JSON.stringify(dynamicSim).includes('Imported tour'));
+      // Confirm users can delete a local product from the new list without touching linked products.
+      const temporaryName = 'Removable ' + language + ' ' + width;
+      const temporary = await api('/commerce/products', token, {
+        name: temporaryName,
+        sku: 'temp-' + language + '-' + width,
+        description: '',
+        priceCents: '500',
+        currency: 'EGP',
+      });
+      const emptyCategory = await api('/commerce/categories', token, {
+        name: 'Empty-' + language + '-' + width,
+      });
+      await page.goto('http://localhost:3000/dashboard/commerce');
+      await page.getByRole('button', { name: t('إدارة المنتجات', 'Manage products'), exact: true }).click();
+      await page.getByLabel(t('البحث في المنتجات', 'Search products'), { exact: true }).fill(temporaryName);
+      const removableCard = page.locator('article').filter({
+        has: page.getByRole('heading', { name: temporaryName, exact: true }),
+      });
+      await removableCard.getByRole('button', { name: t('حذف', 'Delete'), exact: true }).click();
+      const productDeleteDialog = page.getByRole('dialog').filter({ hasText: temporaryName });
+      await productDeleteDialog.getByRole('checkbox').check();
+      await productDeleteDialog.getByRole('button', { name: t('حذف نهائيًا', 'Delete permanently') }).click();
+      await page.getByText(t('تم حذف المنتج نهائيًا.', 'Product permanently deleted.')).waitFor();
+      assert.equal((await api('/commerce/products', token)).some((item) => item.id === temporary.id), false);
+      await page.getByLabel(t('اختر قسم المنتجات', 'Choose product category'))
+        .selectOption(emptyCategory.id);
+      await page.getByRole('button', { name: t('حذف القسم', 'Delete category'), exact: true }).click();
+      const categoryDialog = page.getByRole('dialog').filter({ hasText: emptyCategory.name });
+      await categoryDialog.getByRole('checkbox').check();
+      await categoryDialog.getByRole('button', { name: t('حذف نهائيًا', 'Delete permanently') }).click();
+      assert.equal((await api('/commerce/categories', token))
+        .some((item) => item.id === emptyCategory.id), false);
       results.push({
         language,
         width,
