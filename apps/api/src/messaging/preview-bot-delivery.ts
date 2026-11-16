@@ -45,6 +45,45 @@ export function previewBotDeliveryAllowed(
     && now - lastInbound <= 15 * 60_000;
 }
 
+/**
+ * One-conversation WhatsApp agent QA exception. This uses the existing explicit
+ * preview channel/conversation allowlist, never a global delivery toggle.
+ * Only fresh non-marketing replies to a recently active test chat are eligible.
+ * Historical queued messages and other contacts remain blocked.
+ */
+export function previewAgentDeliveryAllowed(
+  row: PreviewBotMessage | null | undefined,
+  marketing: boolean,
+  settings: Record<string, string | undefined> = process.env,
+  now = Date.now(),
+): boolean {
+  if (!row || marketing || settings.BOAT_PREVIEW_ONLY !== 'true'
+    || settings.WHATSAPP_PREVIEW_BOT_ENABLED !== 'true'
+    || !settings.WHATSAPP_PREVIEW_BOT_CHANNEL_ID
+    || !settings.WHATSAPP_PREVIEW_BOT_CONVERSATION_ID
+    || !settings.WHATSAPP_PREVIEW_BOT_AFTER) return false;
+  const cutoff = Date.parse(settings.WHATSAPP_PREVIEW_BOT_AFTER);
+  const created = new Date(row.created_at).getTime();
+  const inbound = row.last_inbound_at ? new Date(row.last_inbound_at).getTime() : NaN;
+  return row.channel_type === 'whatsapp'
+    && row.channel_status === 'active'
+    && row.channel_id === settings.WHATSAPP_PREVIEW_BOT_CHANNEL_ID
+    && row.conversation_id === settings.WHATSAPP_PREVIEW_BOT_CONVERSATION_ID
+    && row.sender_type === 'agent'
+    && !row.flow_id
+    && !row.content?.template
+    && Number.isFinite(cutoff)
+    && created >= cutoff
+    && created <= now + 60_000
+    && now - created >= 0
+    && now - created <= 10 * 60_000
+    && Number.isFinite(inbound)
+    && inbound >= cutoff
+    && inbound <= now + 60_000
+    && now - inbound >= 0
+    && now - inbound <= 15 * 60_000;
+}
+
 /** Preview QA may restart from ANY inbound content only in the designated
  * test conversation, while respecting an existing waiting flow session.
  */
