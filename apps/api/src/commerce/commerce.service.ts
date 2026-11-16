@@ -119,6 +119,70 @@ export class CommerceService {
         ).rows[0],
     );
   }
+  async archiveProduct(tenant: string, id: string) {
+    return this.changeLocalProduct(tenant, id, 'archive');
+  }
+  async removeProduct(tenant: string, id: string) {
+    return this.changeLocalProduct(tenant, id, 'delete');
+  }
+  private async changeLocalProduct(tenant: string, id: string, action: 'archive' | 'delete') {
+    return this.db.withTenant(tenant, async (c) => {
+      // Lock the local product before deciding what can be removed. Imported source data
+      // is managed through its source workflow, never from this local-product endpoint.
+      const product = await c.query(
+        'SELECT id FROM catalog_products WHERE tenant_id=$1 AND id=$2 AND source_id IS NULL FOR UPDATE',
+        [tenant, id],
+      );
+      if (!product.rows[0]) throw new NotFoundException('Product unavailable');
+      // Product identifiers live in JSON graphs rather than foreign key columns.
+      // Preserve draft graphs, every published version and running session state.
+      // This intentionally fails closed for historical versions that can be restored.
+      const token = `%${id}%`;
+      const referencedInDraft = await c.query(
+        'SELECT 1 FROM flows WHERE tenant_id=$1 AND draft_graph::text LIKE $2 LIMIT 1',
+        [tenant, token],
+      );
+      const referencedInVersions = await c.query(
+        'SELECT 1 FROM flow_versions WHERE tenant_id=$1 AND graph::text LIKE $2 LIMIT 1',
+        [tenant, token],
+      );
+      const referencedInSessions = await c.query(
+        'SELECT 1 FROM flow_sessions WHERE tenant_id=$1 AND state::text LIKE $2 LIMIT 1',
+        [tenant, token],
+      );
+      if (
+        referencedInDraft.rows.length ||
+        referencedInVersions.rows.length ||
+        referencedInSessions.rows.length
+      ) {
+        throw new ConflictException(
+          'Product is used in a bot draft, published version or session. Remove the reference before deleting or archiving it.',
+        );
+      }
+      if (action === 'archive') {
+        const archived = await c.query(
+          'UPDATE catalog_products SET archived=true, updated_at=now() WHERE tenant_id=$1 AND id=$2 RETURNING id, archived',
+          [tenant, id],
+        );
+        return archived.rows[0];
+      }
+      try {
+        const removed = await c.query(
+          'DELETE FROM catalog_products WHERE tenant_id=$1 AND id=$2 RETURNING id',
+          [tenant, id],
+        );
+        if (!removed.rows[0]) throw new NotFoundException('Product unavailable');
+        return { deleted: true, id };
+      } catch (error) {
+        if ((error as { code?: string }).code === '23503') {
+          throw new ConflictException(
+            'Product is referenced by existing records. Keep it until dependencies are removed.',
+          );
+        }
+        throw error;
+      }
+    });
+  }
   async productContent(tenant: string, id: string, native: boolean): Promise<OutContent> {
     const p = await this.db.withTenant(
       tenant,
