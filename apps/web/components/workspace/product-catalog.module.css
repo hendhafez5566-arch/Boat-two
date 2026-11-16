@@ -1116,3 +1116,31 @@
   .categorySelect { flex-basis: 100%; }
   .categorySelect select { max-width: none; }
 }
+
+
+/* Neutral, accessible product thumbnails */
+.root .placeholder,
+.picker .placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  background: #f3f6f9;
+  color: #6e8395;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  padding: 9px;
+}
+.placeholder svg {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  color: #8a9dad;
+}
+.placeholder span {
+  font-size: 11.5px;
+  line-height: 1.3;
+  white-space: normal;
+}
