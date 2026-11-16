@@ -144,6 +144,7 @@ try {
           await botButton.click();
           await page.locator('button[data-bot-state="running"]:visible').waitFor();
         }
+        await page.waitForTimeout(240); // wait for the deliberate 150ms hover/background transition
         const running = await botButton.evaluate((element) => ({
           bg: getComputedStyle(element).backgroundColor,
           label: element.getAttribute('aria-label'),
@@ -155,6 +156,7 @@ try {
         assert.ok(green[1] > green[0] && green[1] > green[2], 'Running bot has green state');
         await botButton.click();
         await page.locator('button[data-bot-state="paused"]:visible').waitFor();
+        await page.waitForTimeout(240);
         const paused = await botButton.evaluate((element) => ({
           bg: getComputedStyle(element).backgroundColor,
           label: element.getAttribute('aria-label'),
