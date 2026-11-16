@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   previewBotDeliveryAllowed,
+  previewAgentDeliveryAllowed,
   isScopedPreviewConversation,
   selectPreviewWelcomeFlow,
   selectPreviewRestartFlow,
@@ -72,4 +73,23 @@ test('preview restart refuses flows on other channels or unpublished history', (
   assert.equal(selectPreviewRestartFlow([other,general],'only-preview-channel','other'),null);
   assert.equal(selectPreviewRestartFlow([other,general],'only-preview-channel','general'),general);
   assert.equal(selectPreviewRestartFlow([], 'only-preview-channel','general'),null);
+});
+
+test('preview agent send is limited to fresh replies in the one authorized test conversation', () => {
+  const agent = { ...testMessage, sender_type: 'agent', flow_id: null };
+  assert.equal(previewAgentDeliveryAllowed(agent, false, settings, now), true);
+  assert.equal(previewAgentDeliveryAllowed(testMessage, false, settings, now), false);
+  assert.equal(previewAgentDeliveryAllowed(agent, true, settings, now), false);
+  assert.equal(previewAgentDeliveryAllowed({ ...agent, conversation_id: 'customer-conversation' }, false, settings, now), false);
+  assert.equal(previewAgentDeliveryAllowed({ ...agent, channel_id: 'another-channel' }, false, settings, now), false);
+  assert.equal(previewAgentDeliveryAllowed({ ...agent, channel_status: 'disabled' }, false, settings, now), false);
+  assert.equal(previewAgentDeliveryAllowed({ ...agent, channel_type: 'facebook' }, false, settings, now), false);
+  assert.equal(previewAgentDeliveryAllowed({ ...agent, content: { template: {} } }, false, settings, now), false);
+  assert.equal(previewAgentDeliveryAllowed({ ...agent, flow_id: 'bot-flow' }, false, settings, now), false);
+  assert.equal(previewAgentDeliveryAllowed({ ...agent, created_at: '2026-10-31T11:49:00Z' }, false, settings, now), false);
+  assert.equal(previewAgentDeliveryAllowed({ ...agent, created_at: '2026-10-31T11:29:00Z' }, false, settings, now), false);
+  assert.equal(previewAgentDeliveryAllowed({ ...agent, last_inbound_at: '2026-10-31T11:40:00Z' }, false, settings, now), false);
+  assert.equal(previewAgentDeliveryAllowed(agent, false, { ...settings, BOAT_PREVIEW_ONLY: 'false' }, now), false);
+  assert.equal(previewAgentDeliveryAllowed(agent, false, { ...settings, WHATSAPP_PREVIEW_BOT_ENABLED: 'false' }, now), false);
+  assert.equal(previewAgentDeliveryAllowed(agent, false, { ...settings, WHATSAPP_PREVIEW_BOT_CONVERSATION_ID: '' }, now), false);
 });
