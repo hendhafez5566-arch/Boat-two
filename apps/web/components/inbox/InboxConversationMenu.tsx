@@ -69,6 +69,7 @@ export function InboxConversationMenu({
         type="button"
         className={styles.trigger}
         aria-label={t('إجراءات المحادثة في القائمة', 'Conversation row actions')}
+        title={t('خيارات المحادثة', 'Conversation options')}
         aria-expanded={!!position}
         onClick={(event) => {
           if (position) {
@@ -78,7 +79,7 @@ export function InboxConversationMenu({
           const r = event.currentTarget.getBoundingClientRect();
           setPosition({
             top: r.bottom + 280 < window.innerHeight ? r.bottom + 4 : Math.max(8, r.top - 280),
-            left: Math.min(Math.max(8, r.left), window.innerWidth - 220),
+            left: Math.min(Math.max(8, r.left), window.innerWidth - 240),
           });
           setError('');
         }}
