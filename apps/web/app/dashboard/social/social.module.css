@@ -122,7 +122,7 @@
   font-weight: 500;
   white-space: nowrap;
   text-transform: uppercase;
-  background: #fafbfc;
+  background: var(--canvas, #f7fafc);
   color: #7b8592;
   padding: 14px 10px;
   border-bottom: 1px solid #e2e6ec;
