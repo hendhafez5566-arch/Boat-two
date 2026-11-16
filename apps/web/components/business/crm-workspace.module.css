@@ -337,7 +337,7 @@
   max-width: 100%;
 }
 .column {
-  background: #eaf0f7;
+  background: var(--surface-soft, #eef3f8);
   border: 1px solid #dfe6ef;
   border-radius: 17px;
   padding: 14px;
@@ -395,7 +395,7 @@
 .card select {
   width: 100%;
   margin-top: 7px;
-  background: #f8f9fd;
+  background: var(--surface-muted, #f3f6fa);
 }
 .card[data-overdue='true'] {
   border-inline-start: 4px solid #ca5559;
@@ -425,7 +425,7 @@
 }
 .table th {
   text-align: start;
-  background: #f5f7fc;
+  background: var(--surface-muted, #f3f6fa);
   color: #5e6d84;
   font-size: 12px;
   padding: 16px;
@@ -499,7 +499,7 @@
   padding: 16px;
   border: 1px solid #dce4ef;
   border-radius: 12px;
-  background: #f7f9fc;
+  background: var(--canvas, #f7fafc);
 }
 .definitions summary {
   cursor: pointer;
@@ -516,7 +516,7 @@
   border-radius: 14px;
   text-align: center;
   color: #586d86;
-  background: #f9fbff;
+  background: var(--canvas, #f7fafc);
   line-height: 1.8;
 }
 .empty > svg {
@@ -575,7 +575,7 @@
 .timeline article {
   padding: 14px;
   border-radius: 12px;
-  background: #f8f9fd;
+  background: var(--surface-muted, #f3f6fa);
   border: 1px solid #e6e9f1;
   display: grid;
   gap: 8px;
