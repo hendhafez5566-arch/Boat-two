@@ -225,13 +225,14 @@ export default function MessageBubble({
             >{TICKS[status] ?? ''}</span>
           )}
           {status === 'failed' && (
-            <span className="msg-delivery-error" role="status" title={m.error || undefined}>
-              <span className="msg-delivery-icon" aria-hidden="true">!</span>
-              <span>
+            <details className="msg-delivery-error" title={m.error || undefined}>
+              <summary>
+                <span className="msg-delivery-icon" aria-hidden="true">!</span>
                 <strong>{t('لم تصل الرسالة', 'Message not delivered')}</strong>
-                {failureReason ? ` — ${failureReason}` : ''}
-              </span>
-            </span>
+                {failureReason && <span className="msg-delivery-more">{t('معرفة السبب', 'View reason')}</span>}
+              </summary>
+              {failureReason && <p>{failureReason}</p>}
+            </details>
           )}
         </div>
       </div>
