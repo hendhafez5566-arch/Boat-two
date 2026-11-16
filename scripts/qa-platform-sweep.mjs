@@ -174,7 +174,7 @@ try {
           );
           if (record.palette && (
             record.palette.canvas !== '#f7fafc' ||
-            record.palette.surface !== '#ffffff' ||
+            !['#fff', '#ffffff'].includes(record.palette.surface.toLowerCase()) ||
             record.palette.muted !== '#f3f6fa' ||
             record.palette.soft !== '#eef3f8' ||
             (record.palette.shellBackground && record.palette.shellBackground !== 'rgb(247, 250, 252)')
