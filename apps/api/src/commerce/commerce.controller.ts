@@ -71,6 +71,22 @@ export class CommerceController {
   ) {
     return this.commerce.saveProduct(r.user.tenantId, parse(productSchema, body), id);
   }
+  @Delete('products/:id') removeProduct(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    parse(z.object({ confirm: z.literal(true) }), body);
+    return this.commerce.removeProduct(r.user.tenantId, id);
+  }
+  @Post('products/:id/archive') archiveProduct(
+    @Req() r: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    parse(z.object({ confirm: z.literal(true) }), body);
+    return this.commerce.archiveProduct(r.user.tenantId, id);
+  }
   @Post('products/:id/preview') previewProduct(
     @Req() r: AuthedRequest,
     @Param('id', ParseUUIDPipe) id: string,
