@@ -24,6 +24,7 @@ export type CatalogProduct = {
 };
 export function ProductImage({ product }: { product: Pick<CatalogProduct, 'image_url' | 'name'> }) {
   const [failed, setFailed] = useState(false);
+  const { t } = useLocale();
   return product.image_url && !failed ? (
     <img
       className={styles.image}
@@ -34,8 +35,13 @@ export function ProductImage({ product }: { product: Pick<CatalogProduct, 'image
       referrerPolicy="no-referrer"
     />
   ) : (
-    <div className={styles.placeholder} aria-label={product.name}>
-      ◇
+    <div className={styles.placeholder} role="img" aria-label={t('لا توجد صورة للمنتج', 'No product image')}>
+      <svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="5" width="26" height="22" rx="3" />
+        <circle cx="11" cy="12" r="2.4" />
+        <path d="M5 24l8-8 6 5 4-4 6 6" />
+      </svg>
+      <span>{t('بدون صورة', 'No image')}</span>
     </div>
   );
 }
@@ -294,9 +300,6 @@ export default function ProductCatalog() {
               </p>
             </div>
             <div className={styles.headerActions}>
-              <button type="button" className="btn" onClick={() => openCategory()}>
-                {t('قسم جديد', 'New category')}
-              </button>
               <button type="button" className="btn btn-primary" onClick={() => openEditor(null)}>
                 {t('+ إضافة منتج', '+ Add product')}
               </button>
