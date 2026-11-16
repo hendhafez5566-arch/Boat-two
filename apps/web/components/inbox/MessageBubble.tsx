@@ -105,8 +105,9 @@ export default function MessageBubble({
 
   if (senderType === 'system') {
     return (
-      <div className="msg-system">
-        {eventText(c, name, language)} · {time}
+      <div className="msg-system" data-event={String(c.event || 'other')}>
+        <span className="msg-system-label">{eventText(c, name, language)}</span>
+        <time dateTime={messageDate.toISOString()} title={fullTimestamp}>{time}</time>
       </div>
     );
   }
@@ -202,7 +203,7 @@ export default function MessageBubble({
             </div>
           )}
         </div>
-        <div className="msg-meta" title={who || undefined}>
+        <div className={`msg-meta ${status === 'failed' ? 'is-delivery-failed' : ''}`} title={who || undefined}>
           <time dateTime={messageDate.toISOString()} title={fullTimestamp}>{time}</time>
           {mine && status && status !== 'failed' && (
             <span
@@ -224,8 +225,12 @@ export default function MessageBubble({
             >{TICKS[status] ?? ''}</span>
           )}
           {status === 'failed' && (
-            <span title={m.error}>
-              ⚠ {t('تعذر الإرسال', 'Delivery failed')}{failureReason ? `: ${failureReason}` : ''}
+            <span className="msg-delivery-error" role="status" title={m.error || undefined}>
+              <span className="msg-delivery-icon" aria-hidden="true">!</span>
+              <span>
+                <strong>{t('لم تصل الرسالة', 'Message not delivered')}</strong>
+                {failureReason ? ` — ${failureReason}` : ''}
+              </span>
             </span>
           )}
         </div>
