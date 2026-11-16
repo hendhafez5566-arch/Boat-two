@@ -381,8 +381,11 @@ export function InboxCustomerPanel({
             className={styles.botControl}
             data-bot-state={detail.handled_by === 'bot' ? 'running' : 'paused'}
             aria-label={detail.handled_by === 'bot'
-              ? t('البوت يعمل الآن — إيقاف البوت', 'Bot is running — pause bot')
-              : t('البوت متوقف — استئناف البوت', 'Bot is paused — resume bot')}
+              ? t('إيقاف البوت', 'Pause Bot')
+              : t('استئناف البوت', 'Resume Bot')}
+            title={detail.handled_by === 'bot'
+              ? t('البوت يعمل الآن', 'Bot is running')
+              : t('البوت متوقف', 'Bot is paused')}
             disabled={acting}
             onClick={() =>
               void act(
