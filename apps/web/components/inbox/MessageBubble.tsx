@@ -122,6 +122,13 @@ export default function MessageBubble({
         ? (m.sender_name ?? name(m.sender_user_id ?? m.senderUserId))
         : null;
   const status = m.status;
+  const failureReason = m.error === 'EXTERNAL_DELIVERY_DISABLED'
+    ? t('الإرسال الخارجي غير مفعّل لهذه المحادثة.', 'External delivery is not enabled for this conversation.')
+    : m.error === 'CHANNEL_INACTIVE'
+      ? t('قناة المراسلة غير نشطة.', 'The messaging channel is inactive.')
+      : m.error === 'RECIPIENT_UNAVAILABLE'
+        ? t('بيانات المستلم غير متاحة.', 'Recipient details are unavailable.')
+        : m.error ? String(m.error).slice(0, 100) : '';
   const options = [...(c.buttons ?? []), ...(c.list?.sections ?? []).flatMap((s: any) => s.rows)];
 
   return (
@@ -190,11 +197,15 @@ export default function MessageBubble({
         <div className="msg-meta" title={who || undefined}>
           <span>{time}</span>
           {mine && status && status !== 'failed' && (
-            <span className={status === 'read' ? 'text-sky-200' : ''}>{TICKS[status] ?? ''}</span>
+            <span
+              className={status === 'read' ? 'text-sky-200' : ''}
+              title={status === 'queued' ? t('في انتظار الإرسال إلى القناة', 'Waiting for channel delivery') : undefined}
+              aria-label={status === 'queued' ? t('الرسالة لم تُرسل بعد', 'Message not sent yet') : undefined}
+            >{TICKS[status] ?? ''}</span>
           )}
           {status === 'failed' && (
             <span title={m.error}>
-              ⚠ فشل الإرسال{m.error ? `: ${String(m.error).slice(0, 60)}` : ''}
+              ⚠ {t('تعذر الإرسال', 'Delivery failed')}{failureReason ? `: ${failureReason}` : ''}
             </span>
           )}
         </div>
