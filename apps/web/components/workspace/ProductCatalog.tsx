@@ -777,7 +777,7 @@ export default function ProductCatalog() {
                   setExpandedSections((current) =>
                     current[kind] === isOpen ? current : { ...current, [kind]: isOpen },
                   );
-                }
+                }}
               >
                 <summary>
                   {kind === 'specification'
@@ -862,7 +862,7 @@ export default function ProductCatalog() {
                 setExpandedSections((current) =>
                   current.media === isOpen ? current : { ...current, media: isOpen },
                 );
-              }>
+              }}>
               <summary>{t('صورة المنتج والروابط (اختياري)', 'Product image and links (optional)')}</summary>
               <div className={styles.editorDisclosureBody}>
               <label className="field">
@@ -901,7 +901,7 @@ export default function ProductCatalog() {
                 setExpandedSections((current) =>
                   current.meta === isOpen ? current : { ...current, meta: isOpen },
                 );
-              }>
+              }}>
               <summary>
                 {t('تكامل كتالوج Meta (متقدم)', 'Meta catalog integration (advanced)')}
               </summary>
