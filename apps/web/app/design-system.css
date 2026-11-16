@@ -2424,7 +2424,4 @@ button.underline {
   color: #50667a;
   opacity: 1;
 }
-/* Avoid changing conversation layout, badge counts or nodes merely to change reading sizes. */
-.product-shell.inbox-shell :is(.thread-msgs, .msg-meta, .msg-system) {
-  font-size: revert-layer;
-}
+/* Conversation timestamps, canvas labels and status badges retain their local module styles. */
