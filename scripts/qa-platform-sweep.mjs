@@ -114,6 +114,8 @@ try {
             record,
             await page.evaluate(() => {
               const w = document.documentElement.clientWidth;
+              const documentTheme = getComputedStyle(document.documentElement);
+              const appShell = document.querySelector('.product-shell.bs-shell');
               const visible = (e) => {
                 const r = e.getBoundingClientRect();
                 const s = getComputedStyle(e);
@@ -155,6 +157,13 @@ try {
               return {
                 overflow,
                 offenders,
+                palette: {
+                  canvas: documentTheme.getPropertyValue('--canvas').trim(),
+                  surface: documentTheme.getPropertyValue('--surface').trim(),
+                  muted: documentTheme.getPropertyValue('--surface-muted').trim(),
+                  soft: documentTheme.getPropertyValue('--surface-soft').trim(),
+                  shellBackground: appShell ? getComputedStyle(appShell).backgroundColor : null,
+                },
                 heading: [...document.querySelectorAll('main h1')].map((e) => ({
                   text: e.textContent,
                   font: getComputedStyle(e).fontSize,
@@ -163,6 +172,13 @@ try {
               };
             }),
           );
+          if (record.palette && (
+            record.palette.canvas !== '#f7fafc' ||
+            record.palette.surface !== '#ffffff' ||
+            record.palette.muted !== '#f3f6fa' ||
+            record.palette.soft !== '#eef3f8' ||
+            (record.palette.shellBackground && record.palette.shellBackground !== 'rgb(247, 250, 252)')
+          )) failures.push('Inconsistent workspace off-white surface palette: ' + JSON.stringify(record.palette));
           if (
             record.overflow ||
             failures.length ||
