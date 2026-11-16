@@ -98,3 +98,22 @@
     width: min(230px, calc(100vw - 20px));
   }
 }
+
+
+/* WhatsApp Web light — conversation menu */
+.trigger { color: #54656f; border-color: #e9edef; }
+.trigger:hover, .trigger[aria-expanded='true'] {
+  background: #f0f2f5;
+  color: #008069;
+  border-color: #cedbd8;
+}
+.trigger:focus-visible, .menu button:focus-visible {
+  outline-color: #008069;
+}
+.menu { border-color: #e9edef; background: #fff; }
+.menu button { color: #111b21; }
+.menu button:hover, .menu button:focus-visible {
+  background: #f5f6f6;
+  color: #008069;
+}
+.menu svg { color: #54656f; }
