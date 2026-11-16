@@ -62,6 +62,7 @@ const paths: Record<string, string> = {
   redo: 'm15 5 6 6-6 6M21 11H10a6 6 0 0 0-6 6',
   search: 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm5 12 6 6',
   play: 'm8 4 12 8-12 8V4Z',
+  pause: 'M8 5v14M16 5v14',
   menu: 'M4 6h16M4 12h16M4 18h16',
   team: 'M4 20v-3a4 4 0 0 1 4-4h3a4 4 0 0 1 4 4v3M9 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6M18 10a2 2 0 1 0 0-4M18 14a3 3 0 0 1 3 3v3',
   departments: 'M9 3h6v5H9V3ZM3 16h6v5H3v-5ZM15 16h6v5h-6v-5ZM12 8v4M6 16v-4h12v4',
@@ -94,7 +95,7 @@ export function NavIcon({ name }: { name: string }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.9"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
