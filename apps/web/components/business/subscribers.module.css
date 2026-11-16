@@ -200,7 +200,7 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  background: #fafbfd;
+  background: var(--canvas, #f7fafc);
   padding: 14px;
   font-size: 12px;
   border-top: 1px solid #e7edf3;
@@ -654,7 +654,7 @@
 }
 .statePills [data-tone='muted'] {
   color: #596776;
-  background: #f4f6f8;
+  background: var(--surface-muted, #f3f6fa);
 }
 .statePills small {
   font-size: 10px;
@@ -802,7 +802,7 @@
   font-size: 13px;
 }
 .table th {
-  background: #f1f4fa !important;
+  background: var(--surface-muted, #f3f6fa) !important;
   color: #5e6d84 !important;
   font-size: 12px !important;
   letter-spacing: 0 !important;
@@ -1000,7 +1000,7 @@
 }
 
 .workspace .subscriberList :global(.product-table) th {
-  background: #f4f6fb;
+  background: var(--surface-muted, #f3f6fa);
   color: #46566d;
   text-align: start;
   padding: 12px 10px;
