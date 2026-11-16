@@ -138,11 +138,11 @@ try {
           name: language === 'ar' ? 'إجراءات المحادثة' : 'Chat actions',
           exact: true,
         }).click();
-        const botButton = page.locator('button[data-bot-state]');
+        const botButton = page.locator('button[data-bot-state]:visible');
         await botButton.waitFor();
         if ((await botButton.getAttribute('data-bot-state')) === 'paused') {
           await botButton.click();
-          await page.locator('button[data-bot-state="running"]').waitFor();
+          await page.locator('button[data-bot-state="running"]:visible').waitFor();
         }
         const running = await botButton.evaluate((element) => ({
           bg: getComputedStyle(element).backgroundColor,
@@ -154,7 +154,7 @@ try {
         const green = rgb(running.bg);
         assert.ok(green[1] > green[0] && green[1] > green[2], 'Running bot has green state');
         await botButton.click();
-        await page.locator('button[data-bot-state="paused"]').waitFor();
+        await page.locator('button[data-bot-state="paused"]:visible').waitFor();
         const paused = await botButton.evaluate((element) => ({
           bg: getComputedStyle(element).backgroundColor,
           label: element.getAttribute('aria-label'),
@@ -164,7 +164,7 @@ try {
         assert.ok(red[0] > red[1] && red[0] > red[2], 'Paused bot has subtle red state');
         await page.screenshot({ path: output + '/bot-paused-' + language + '-' + width + '.png' });
         await botButton.click();
-        await page.locator('button[data-bot-state="running"]').waitFor();
+        await page.locator('button[data-bot-state="running"]:visible').waitFor();
         await page.screenshot({ path: output + '/bot-running-' + language + '-' + width + '.png' });
         if (width < 1024) await page.keyboard.press('Escape');
       }
