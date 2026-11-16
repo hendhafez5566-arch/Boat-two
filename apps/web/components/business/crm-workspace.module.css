@@ -796,3 +796,39 @@
     padding: 12px;
   }
 }
+
+
+/* CRM navigation accessibility and spacing — Nov 2026 */
+.nav {
+  gap: 5px;
+  padding: 7px;
+  border-color: #dbe5ec;
+  box-shadow: none;
+}
+.nav a {
+  min-height: 44px;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 650;
+  color: #30475b;
+  border-radius: 9px;
+}
+.nav a:hover { background: #f2f5fb; color: #263a53; }
+.nav a[aria-current='page'] {
+  background: #eae8ff;
+  color: #4239ae;
+}
+.nav a svg { width: 18px; height: 18px; }
+@media (max-width: 900px) {
+  .nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+  }
+  .nav a {
+    font-size: 13.5px;
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
