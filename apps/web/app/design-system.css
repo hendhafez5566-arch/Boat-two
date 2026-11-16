@@ -2386,6 +2386,9 @@ button.underline {
   --ink-2: #30485d;
   --muted: #344b60;
   --faint: #485e71;
+  font-size: var(--text-body);
+  line-height: var(--line-body);
+  color: var(--ink);
 }
 .product-shell :is(.text-xs, .text-\[11px\], .text-\[12px\]) {
   font-size: 0.875rem;
