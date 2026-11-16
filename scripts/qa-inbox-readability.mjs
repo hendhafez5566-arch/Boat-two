@@ -148,7 +148,7 @@ try {
           bg: getComputedStyle(element).backgroundColor,
           label: element.getAttribute('aria-label'),
         }));
-        assert.ok(running.label.includes(language === 'ar' ? 'يعمل' : 'running'));
+        assert.equal(running.label, language === 'ar' ? 'إيقاف البوت' : 'Pause Bot');
         const green = rgb(running.bg);
         assert.ok(green[1] > green[0] && green[1] > green[2], 'Running bot has green state');
         await botButton.click();
@@ -157,7 +157,7 @@ try {
           bg: getComputedStyle(element).backgroundColor,
           label: element.getAttribute('aria-label'),
         }));
-        assert.ok(paused.label.includes(language === 'ar' ? 'متوقف' : 'paused'));
+        assert.equal(paused.label, language === 'ar' ? 'استئناف البوت' : 'Resume Bot');
         const red = rgb(paused.bg);
         assert.ok(red[0] > red[1] && red[0] > red[2], 'Paused bot has subtle red state');
         await page.screenshot({ path: output + '/bot-paused-' + language + '-' + width + '.png' });
