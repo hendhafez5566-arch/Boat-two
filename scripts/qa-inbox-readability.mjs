@@ -130,7 +130,7 @@ try {
       assert.ok(values.daySeparators >= 1, 'Message timeline needs day separators');
       assert.equal(values.sharedCanvas, '#f7fafc', 'Shared canvas must be clean off-white');
       assert.equal(values.sharedMuted, '#f3f6fa', 'Supporting panels use pale off-white');
-      assert.equal(values.threadSurface, 'rgb(248, 251, 253)', 'Chat must not use old grey wash');
+      assert.equal(values.threadSurface, 'rgb(251, 252, 255)', 'Chat uses the final soft ivory-blue surface, not the old grey wash');
       assert.equal(values.composerSurface, 'rgb(255, 255, 255)', 'Composer stays clean white');
       assert.ok(values.documentWidth <= values.viewportWidth + 1, 'No page horizontal overflow');
       assert.ok(values.outbound.rect.left >= -1 && values.outbound.rect.right <= values.viewportWidth + 1, 'Outgoing message stays on screen');
