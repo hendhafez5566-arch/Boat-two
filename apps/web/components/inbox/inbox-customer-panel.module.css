@@ -166,7 +166,9 @@
   font-weight: 600;
   line-height: 1.4;
 }
-.quick .botControl[data-bot-state='running'] {
+.quick .botControl[data-bot-state='running'],
+.quick .botControl[data-bot-state='running']:hover:not(:disabled),
+.quick .botControl[data-bot-state='running']:focus-visible {
   background: #effaf3;
   color: #16633f;
   border-color: #a5d6b6;
@@ -176,7 +178,9 @@
   color: #177549;
   border-color: #a5d6b6;
 }
-.quick .botControl[data-bot-state='paused'] {
+.quick .botControl[data-bot-state='paused'],
+.quick .botControl[data-bot-state='paused']:hover:not(:disabled),
+.quick .botControl[data-bot-state='paused']:focus-visible {
   background: #fff3f2;
   color: #9b3434;
   border-color: #ebc1bd;
