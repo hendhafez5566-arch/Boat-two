@@ -246,16 +246,19 @@ export function InboxCustomerPanel({
     >
       <header className={styles.heading}>
         <h2>{t('إجراءات المحادثة', 'Chat Actions')}</h2>
-        <Link
-          href="/dashboard/crm/notifications"
-          aria-label={t('تنبيهات CRM', 'CRM notifications')}
-        >
-          <NavIcon name="bell" />
-        </Link>
-        <Link href={`/dashboard/crm?contact=${detail.contact_id}`}>
-          <NavIcon name="user" />
-          {t('مدير المشترك', 'Manager')}
-        </Link>
+        <div className={styles.headingActions}>
+          <Link
+            href="/dashboard/crm/notifications"
+            aria-label={t('تنبيهات CRM', 'CRM notifications')}
+            title={t('تنبيهات CRM', 'CRM notifications')}
+          >
+            <NavIcon name="bell" />
+          </Link>
+          <Link href={`/dashboard/crm?contact=${detail.contact_id}`}>
+            <NavIcon name="user" />
+            {t('فتح ملف العميل', 'Open customer profile')}
+          </Link>
+        </div>
       </header>
       {profile.error && <p role="alert">{profile.error}</p>}
       <details open ref={notesSection} className={`${styles.card} ${styles.notesCard}`}>
