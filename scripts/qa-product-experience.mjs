@@ -62,7 +62,7 @@ try {
       );
       const t = (ar, en) => (language === 'ar' ? ar : en);
       await page.goto('http://localhost:3000/dashboard/commerce');
-      await page.getByRole('button', { name: t('المنتجات', 'Products'), exact: true }).click();
+      await page.getByRole('button', { name: t('إدارة المنتجات', 'Manage products'), exact: true }).click();
       await page
         .getByRole('button', { name: t('إضافة قسم', 'Add category'), exact: true })
         .click();
@@ -72,14 +72,14 @@ try {
         .getByRole('button', { name: t('حفظ القسم', 'Save category'), exact: true })
         .click();
       await page.getByText(t('تم حفظ القسم.', 'Category saved.'), { exact: true }).waitFor();
-      await page.getByRole('button', { name: t('إضافة منتج', 'Add product'), exact: true }).click();
+      await page.getByRole('button', { name: t('+ إضافة منتج', '+ Add product'), exact: true }).click();
       const name = 'Tour ' + language + ' ' + width;
-      await page.getByLabel(t('اسم المنتج', 'Product name'), { exact: true }).fill(name);
+      await page.getByLabel(t('اسم المنتج *', 'Product name *'), { exact: true }).fill(name);
       await page
-        .getByLabel(t('رمز المنتج SKU', 'Product code (SKU)'), { exact: true })
+        .getByLabel(t('كود المنتج SKU *', 'Product code (SKU) *'), { exact: true })
         .fill('sku-' + language + '-' + width);
       await page
-        .getByLabel(t('سعر المنتج (مثال 150.00)', 'Product price (e.g. 150.00)'), { exact: true })
+        .getByLabel(t('السعر *', 'Price *'), { exact: true })
         .fill('150.29');
       await page.screenshot({ path: `${out}/editor-${language}-${width}.png`, fullPage: true });
       const cats = await api('/commerce/categories', token);
@@ -94,7 +94,11 @@ try {
       const p = (await api('/commerce/products', token)).find((p) => p.name === name);
       assert.equal(String(p.price_cents), '15029');
       assert.equal(p.category_id, cat.id);
-      await page.getByLabel(t('البحث', 'Search'), { exact: true }).fill(name);
+      const chooser = page.getByLabel(t('اختر قسم المنتجات', 'Choose product category'), { exact: true });
+      await chooser.selectOption(cat.id);
+      assert.equal(await chooser.inputValue(), cat.id);
+
+      await page.getByLabel(t('البحث في المنتجات', 'Search products'), { exact: true }).fill(name);
       const card = page
         .locator('article')
         .filter({ has: page.getByRole('heading', { name, exact: true }) });
@@ -102,25 +106,25 @@ try {
       await card.getByRole('button', { name: t('تعديل', 'Edit'), exact: true }).click();
       assert.equal(
         await page
-          .getByLabel(t('سعر المنتج (مثال 150.00)', 'Product price (e.g. 150.00)'), { exact: true })
+          .getByLabel(t('السعر *', 'Price *'), { exact: true })
           .inputValue(),
         '150.29',
       );
       await page
-        .getByLabel(t('اسم المنتج', 'Product name'), { exact: true })
+        .getByLabel(t('اسم المنتج *', 'Product name *'), { exact: true })
         .fill(name + ' edited');
       await page
         .getByRole('button', { name: t('حفظ المنتج', 'Save product'), exact: true })
         .click();
       await page.getByText(t('تم حفظ المنتج.', 'Product saved.'), { exact: true }).waitFor();
       await page.reload();
-      await page.getByRole('button', { name: t('المنتجات', 'Products'), exact: true }).click();
-      await page.getByLabel(t('البحث', 'Search'), { exact: true }).fill(name);
+      await page.getByRole('button', { name: t('إدارة المنتجات', 'Manage products'), exact: true }).click();
+      await page.getByLabel(t('البحث في المنتجات', 'Search products'), { exact: true }).fill(name);
       await page.getByRole('heading', { name: name + ' edited', exact: true }).waitFor();
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
       await page.screenshot({ path: `${out}/${language}-${width}.png`, fullPage: true });
       await page
-        .getByRole('button', { name: t('مصادر البيانات', 'Data sources'), exact: true })
+        .getByRole('button', { name: t('الاستيراد والمزامنة', 'Import & sync'), exact: true })
         .click();
       const importName = `catalog-${language}-${width}`;
       const xlsx = width === 1366;
@@ -203,7 +207,7 @@ try {
       assert.ok(importedItems.items.some((item) => item.name === 'Imported tour'));
       await page.reload();
       await page
-        .getByRole('button', { name: t('مصادر البيانات', 'Data sources'), exact: true })
+        .getByRole('button', { name: t('الاستيراد والمزامنة', 'Import & sync'), exact: true })
         .click();
       await page.getByLabel(t('المصدر', 'Source'), { exact: true }).selectOption(imported.id);
       await page.getByRole('button', { name: t('عرض', 'Browse'), exact: true }).click();
@@ -238,6 +242,8 @@ try {
         edges: [{ id: 'e', source: 'catalog', sourceHandle: 'next', target: 'end' }],
       };
       await api('/flows/' + f.id, token, { graph, expectedUpdatedAt: f.updated_at }, 'PATCH');
+      await api('/commerce/products/' + p.id, token, { confirm: true }, 'DELETE', 409);
+      await api('/commerce/products/' + p.id + '/archive', token, { confirm: true }, 'POST', 409);
       const reopened = await api('/flows/' + f.id, token);
       assert.deepEqual(reopened.draft_graph.nodes[0].data.productIds, [p.id]);
       const second = await api('/commerce/products', token, {
