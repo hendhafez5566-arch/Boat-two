@@ -15,3 +15,7 @@ Rollback remains application `3cdb26b` on original Preview API/Web services with
 Added`qa-p2-business-journeys.mjs`: separate tourism/store/services companies, actual products and prices, published name-collection bot, CRM name/tag preservation, handoff, authorized human reply, private-note exclusion, human ownership and pairwise foreign-company denial. Local real HTTP/PGlite/outbox worker PASS (about4s per journey). Added to actual PostgreSQL acceptance; result pending. P2-02 remains PARTIAL until broader real-browser/role/failure/business-owner acceptance. No provider/paid AI/payment acceptance is inferred.
 
 PostgreSQL CI44140822768 and44141540059 accepted all three synthetic business journeys. Recorded durations2266/2006/1995ms in the first run are CI-only end-to-end synthetic timings. No production latency, conversion, employee savings or revenue claim. Official real-provider and business-owner acceptance remains outside this evidence.
+
+## Final checkpoint
+
+Actual published Preview Inbox/report acceptance44143748624 PASS uses a separate synthetic company and no external provider delivery. This adds live application evidence to the three-industry PostgreSQL fixtures; it does not certify all commercial journeys. P2 remains PARTIAL. Next: extend three-industry real-browser/role/failure acceptance, optional feature readiness, privacy/terms/help/support/incident operations review and approved production transition. Existing paid-provider/merchant/legal-owner/production approvals stay BLOCKED — EXTERNAL; independent test/code work remains available.
