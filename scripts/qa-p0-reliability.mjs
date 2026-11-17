@@ -6,7 +6,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 const base='http://localhost:4000', checks=[];
 async function call(path,token,body,method=body?'POST':'GET'){
  const response=await fetch(base+path,{method,headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});
- return {status:response.status,data:await response.json()};
+ const text=await response.text();return {status:response.status,data:text?JSON.parse(text):null};
 }
 async function api(path,token,body,method){const r=await call(path,token,body,method);assert.ok(r.status<300,path+' HTTP '+r.status+' '+JSON.stringify(r.data));return r.data;}
 async function check(name,fn){try{await fn();checks.push({name,status:'PASS'});}catch(e){checks.push({name,status:'FAIL',error:e.message});}}
@@ -75,7 +75,20 @@ await check('Inbox and Webchat drain long history without omission or internal n
  }
  assert.ok(pages>=3);assert.ok(seen.size>=207);
 });
-writeFileSync('/tmp/boat-p0-fixture.json',JSON.stringify({conversationId:cv.id,tenantId:(await api('/conversations/'+cv.id,token)).tenant_id}),{mode:0o600});
+await check('session ownership, revocation, token rotation and logout reject replay',async()=>{
+ const agent=agents[0],sessions=await api('/auth/sessions',agent.accessToken);
+ const current=sessions.find(s=>s.is_current);assert.ok(current);
+ assert.equal((await call('/auth/sessions/'+current.id+'/revoke',token,{})).status,404);
+ await api('/auth/sessions/'+current.id+'/revoke',agent.accessToken,{});
+ assert.equal((await call('/auth/sessions',agent.accessToken)).status,401);
+ assert.equal((await call('/auth/refresh',null,{refreshToken:agent.refreshToken})).status,401);
+ const rotated=await api('/auth/refresh',null,{refreshToken:owner.refreshToken});
+ assert.equal((await call('/auth/refresh',null,{refreshToken:owner.refreshToken})).status,401);
+ await api('/auth/logout',null,{refreshToken:rotated.refreshToken});
+ assert.equal((await call('/auth/sessions',rotated.accessToken)).status,401);
+ assert.equal((await call('/auth/refresh',null,{refreshToken:rotated.refreshToken})).status,401);
+});
+writeFileSync('/tmp/boat-p0-fixture.json',JSON.stringify({conversationId:cv.id,tenantId:cv.tenant_id}),{mode:0o600});
 mkdirSync('docs/p0-evidence',{recursive:true});
 writeFileSync('docs/p0-evidence/reliability-http.json',JSON.stringify({checks,providerCalls:false},null,2)+'\n');
 console.log(JSON.stringify(checks));

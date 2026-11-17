@@ -136,3 +136,11 @@ Baseline retained: PR14 HEAD `48c476478579f20f0e928ec65d02161db1b67883`, verifie
 - Local API and Web production builds PASS. `scripts/qa-p0-reliability.mjs` four local HTTP checks PASS on PGlite; this does not constitute PostgreSQL or deployed acceptance.
 - Existing PostgreSQL and Inbox AR/EN responsive workflows retained. New acceptance scripts added without replacing old tests. Real PostgreSQL / browser / Preview deployment acceptance PENDING; all P0 rows remain PARTIAL.
 - Rollback: repin existing API/Web to verified `3cdb26b`; no migrations or schema changes in this batch. Preserve Preview Sleep and existing services.
+
+
+### Dependency and SSE continuation
+
+- Overrides patch `qs`6.16.1, `file-type`21.3.2 and `uuid`11.1.1. Fresh production audit: zero critical/high, **one moderate**, down from eight (`docs/p0-evidence/dependency-audit-continuation.json`). Remaining Nest10 SSE advisory GHSA-36xv-jgw5-4q75 is mitigated at our sole SSE emitter: decimal persisted IDs and bounded single-line event types; invalid types become generic `message`, data remains JSON. Regression includes CR/LF protocol injection. Advisory remains visible; no claim of package-level remediation or full security certification.
+- Real PostgreSQL CI44047653153: all four reliability HTTP groups PASS. The new SLA recovery test FAILED because its synthetic tenant had no inbox_settings row; fixture corrected to upsert settings. No production acceptance claimed for that failed run.
+- Existing complete local API suite239/239 PASS with isolated environment configuration. Browser additions cover actual PNG upload/render, >100 history, offline reconnect and reload in AR/EN390/1366; acceptance pending workflow result. Prior AR/EN five-width Inbox checks remain unchanged.
+- Session acceptance extended with foreign session revocation denial, own session revocation, refresh rotation/replay and logout. This is additional acceptance, not replacement of previous tests.
