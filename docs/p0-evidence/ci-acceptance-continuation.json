@@ -68,6 +68,36 @@
         "4 Webchat browser journeys",
         "4 measured-report browser journeys"
       ]
+    },
+    {
+      "runId": 44141540059,
+      "commit": "4e058e0",
+      "database": "actual isolated PostgreSQL16",
+      "accepted": [
+        "pending delayed flow survives actual API replacement",
+        "republished new bot version does not change pending original version",
+        "resumes one original response only",
+        "241 API tests",
+        "all previous enterprise acceptance and backup restore"
+      ]
+    },
+    {
+      "runId": 44142442945,
+      "commit": "2c67736",
+      "accepted": [
+        "18 AR/EN browser journeys",
+        "selected-language ownership event labels"
+      ]
+    },
+    {
+      "commit": "2c67736",
+      "allAssociatedWorkflows": "7 SUCCESS",
+      "selectedRuns": {
+        "platform500": 44142442776,
+        "inboxWebchatReports18": 44142442945,
+        "products": 44142442836,
+        "editorRecovery": 44142442771
+      }
     }
   ],
   "limitations": [
