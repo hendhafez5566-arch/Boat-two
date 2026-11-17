@@ -84,3 +84,8 @@ No migration added in this batch. Revert only this batch's source changes in a n
 - Production code configuration prepared under deploy/production with separate always-on opt-in service configs and explicit backup, persistent attachment, monitoring/cost/activation gates. These files are not applied to Preview.
 
 - Extended real PostgreSQL runner with the existing billing price/delinquency/reconciliation fixture. Added loopback guard and hard-blocked HTTPS so this remains a synthetic provider test, never official Stripe sandbox acceptance or a real charge. Pending execution.
+
+## Accepted API source — 3cdb26b11284e327fa17a1e3aecae4544f7630e6
+- Independent PostgreSQL CI44038297841 SUCCESS: channel/flow/signature/parity/assignment journeys,105queued conversations,24concurrent login attempts, synthetic billing price/grace/reconciliation and actual dump/restore comparing data/RLS/ownership. Restore remains CI-only; productionBackupTested=false.
+- Product core UI journeys PASS at this SHA. Responsive script advanced through scoped navigation after its fix, then found stale product form label selectors. Updated exact labels to current name/price/SKU labels; no assertions or journey steps removed. Full responsive result pending.
+- API deployment e3b1a5e5-68cd-4fd7-97b4-e87fb477bdf8 started on existing Preview; terminal status not yet observed. Web remains prior version until responsive acceptance passes.

@@ -44,9 +44,9 @@ for (const language of ['ar', 'en']) for (const width of [320,390,768,1366,1920]
   const editor = page.getByRole('dialog',{name:t('منتج جديد','New product'),exact:true});
   await editor.waitFor();
   const name = `Synthetic layout ${language}-${width}`;
-  await editor.getByLabel(t('اسم المنتج','Product name'),{exact:true}).fill(name);
-  await editor.getByLabel(t('رمز المنتج SKU','Product code (SKU)'),{exact:true}).fill(language+width);
-  await editor.getByLabel(t('سعر المنتج (مثال 150.00)','Product price (e.g. 150.00)'),{exact:true}).fill('1500');
+  await editor.getByLabel(t('اسم المنتج *','Product name *'),{exact:true}).fill(name);
+  await editor.getByLabel(t('كود المنتج SKU *','Product code (SKU) *'),{exact:true}).fill(language+width);
+  await editor.getByLabel(t('السعر *','Price *'),{exact:true}).fill('1500');
   const save = editor.getByRole('button',{name:t('حفظ المنتج','Save product'),exact:true});
   assert.ok(await save.evaluate(el => { const r=el.getBoundingClientRect(); return r.top>=0 && r.bottom<=innerHeight && document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('button')===el; }), 'save must remain visible and unobscured');
   await page.screenshot({path:`${out}/product-${language}-${width}.png`});
@@ -55,8 +55,8 @@ for (const language of ['ar', 'en']) for (const width of [320,390,768,1366,1920]
   const card = page.locator('article').filter({has:page.getByRole('heading',{name,exact:true})});
   await card.getByText('1500 EGP',{exact:true}).waitFor();
   await card.getByRole('button',{name:t('تعديل','Edit'),exact:true}).click();
-  assert.equal(await page.getByLabel(t('سعر المنتج (مثال 150.00)','Product price (e.g. 150.00)'),{exact:true}).inputValue(),'1500');
-  await page.getByLabel(t('سعر المنتج (مثال 150.00)','Product price (e.g. 150.00)'),{exact:true}).fill('150.05');
+  assert.equal(await page.getByLabel(t('السعر *','Price *'),{exact:true}).inputValue(),'1500');
+  await page.getByLabel(t('السعر *','Price *'),{exact:true}).fill('150.05');
   await page.getByRole('button',{name:t('حفظ المنتج','Save product'),exact:true}).click();
   await card.getByText('150.05 EGP',{exact:true}).waitFor();
   const product = (await api('/commerce/products',token)).find(p=>p.name===name); assert.equal(String(product.price_cents),'15005');
