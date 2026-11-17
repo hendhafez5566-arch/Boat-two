@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import {randomUUID as uuid} from 'node:crypto';
+import {createRequire} from 'node:module';
+import {mkdirSync,writeFileSync} from 'node:fs';
+import {assertLocalAcceptance} from './acceptance-local.mjs';
+assertLocalAcceptance();
+const {chromium}=createRequire(import.meta.url)(process.env.BOAT_PLAYWRIGHT_MODULE||'playwright');
+async function api(path,token,body){const r=await fetch('http://localhost:4000'+path,{method:body?'POST':'GET',headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});assert.ok(r.ok,path+' '+r.status);return r.json();}
+const session=await api('/auth/register',null,{email:uuid()+'@example.test',password:'Synthetic-'+uuid(),fullName:'Report browser',workspaceName:'Isolated report browser'}),token=session.accessToken;
+await api('/workspace/onboarding/complete',token,{});const channel=await api('/channels',token,{type:'web',name:'Report browser'}),visitor=await api('/widget/'+channel.external_id+'/session',null,{});
+const r=await fetch('http://localhost:4000/widget/'+channel.external_id+'/messages?visitorId='+visitor.visitorId,{method:'POST',headers:{'content-type':'application/json','x-visitor-token':visitor.token},body:JSON.stringify({text:'Synthetic report question',clientMsgId:uuid()})});assert.ok(r.ok);
+const cv=(await api('/conversations',token)).items[0];await api('/conversations/'+cv.id+'/notes',token,{text:'Internal note is not a measured reply'});
+const browser=await chromium.launch({executablePath:process.env.BOAT_CHROMIUM||'/usr/bin/google-chrome',args:['--no-sandbox']}),results=[];mkdirSync('docs/p0-evidence/report-browser',{recursive:true});
+try{for(const language of ['ar','en'])for(const width of [390,1366]){
+ const context=await browser.newContext({viewport:{width,height:900}});await context.addInitScript(({session,language})=>{localStorage.setItem('session',JSON.stringify(session));localStorage.setItem('boat-language',language);},{session,language});
+ const page=await context.newPage();await page.route('**/*',r=>['localhost','127.0.0.1'].includes(new URL(r.request().url()).hostname)?r.continue():r.abort());
+ await page.goto('http://localhost:3000/dashboard/reports');await page.getByRole('button',{name:language==='ar'?'عرض التقارير':'View reports',exact:true}).click();
+ const section=page.getByRole('region',{name:language==='ar'?'وقت أول رد بشري':'First human response time'});await section.waitFor();
+ // Before the first staff reply, notes cannot manufacture an average.
+ if(results.length===0){await section.getByText('لا توجد ردود بشرية مقاسة خلال الفترة',{exact:true}).waitFor();await api('/conversations/'+cv.id+'/messages',token,{text:'Synthetic human report reply'});await page.getByRole('button',{name:'عرض التقارير',exact:true}).click();await section.getByText('لا توجد ردود بشرية مقاسة خلال الفترة',{exact:true}).waitFor({state:'hidden'});}
+ assert.ok((await section.textContent()).includes(language==='ar'?'ثانية':'seconds'));
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:`docs/p0-evidence/report-browser/${language}-${width}.png`});results.push({language,width,status:'PASS'});await context.close();
+}}finally{await browser.close();writeFileSync('docs/p0-evidence/report-browser/results.json',JSON.stringify(results,null,2)+'\n');}
+console.log('PASS measured report browser journeys',results.length);

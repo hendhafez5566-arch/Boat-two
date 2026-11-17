@@ -152,3 +152,10 @@ Baseline retained: PR14 HEAD `48c476478579f20f0e928ec65d02161db1b67883`, verifie
 - Local patched API suite240/240 PASS. All31 supported node draft contracts survive API/database roundtrip; actual published variable→condition→random→attribute→tag→private note→split→business hours→message/end chain PASS locally with the real outbox worker enabled. Local SQL here is PGlite; PostgreSQL acceptance for this extended matrix remains pending.
 - Added multi-tenant graded100/500/1000unique-message CI acceptance with concurrency8, actual API process replacement, replay dedupe after restart, retained histories and report inbound/conversation/new-contact counts. Test harness added to existing disposable PostgreSQL job; measurements pending. No stress on Railway.
 - Program continuation: P1 and P2 tracked in their dedicated docs. No stage is marked DONE merely because a subset passes.
+
+### PostgreSQL and browser acceptance update
+
+- Independent PostgreSQL CI44139220828 SUCCESS at`3a7bede`:31node draft contracts and published runtime chain; five reliability groups including sessions; SLA alerts; graded1000message load; actual API restart and dedupe; report count integrity; backup restore data/RLS/ownership. Artifact14352888917.
+- Inbox/Webchat browser CI44139718797 SUCCESS at`e3bdc74`: all ten AR/EN×5width Inbox journeys, plus four AR/EN390/1366Webchat history105+, actual uploaded PNG rendering, offline/reconnect, reload/no-duplicates/private-note journeys. Prior color-only harness failure and undersized contact-name regression retained in CI history; name fixed to15.5px rather than reducing its assertion.
+- Local current patched API240/240 PASS before newly added report SQL fixture. Production audit remains0critical/0high/1moderate with application SSE mitigation, not full audit closure.
+- P1 first-human-response reporting and P2 three-industry synthetic journeys implemented next; pending their own PostgreSQL/browser acceptance. No full P0/P1/P2 DONE claim.

@@ -1,0 +1,53 @@
+{
+  "status": "PASS",
+  "scope": "isolated synthetic companies over actual HTTP; PostgreSQL CI acceptance pending",
+  "results": [
+    {
+      "business": "tourism",
+      "status": "PASS",
+      "durationMs": 3997,
+      "checks": [
+        "company onboarding",
+        "real product price",
+        "published bot",
+        "name and tag persisted to CRM",
+        "handoff",
+        "staff reply",
+        "private note",
+        "human ownership retained"
+      ]
+    },
+    {
+      "business": "store",
+      "status": "PASS",
+      "durationMs": 4014,
+      "checks": [
+        "company onboarding",
+        "real product price",
+        "published bot",
+        "name and tag persisted to CRM",
+        "handoff",
+        "staff reply",
+        "private note",
+        "human ownership retained"
+      ]
+    },
+    {
+      "business": "services",
+      "status": "PASS",
+      "durationMs": 3974,
+      "checks": [
+        "company onboarding",
+        "real product price",
+        "published bot",
+        "name and tag persisted to CRM",
+        "handoff",
+        "staff reply",
+        "private note",
+        "human ownership retained"
+      ]
+    }
+  ],
+  "externalCalls": false,
+  "database": "PGlite local"
+}

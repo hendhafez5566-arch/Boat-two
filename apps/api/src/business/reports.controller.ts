@@ -1,3 +1,4 @@
+import { FIRST_RESPONSE_SQL } from './first-response.sql';
 import { Controller, Get, Query, Req } from '@nestjs/common';
 import { z } from 'zod';
 import { Roles } from '../auth/decorators';
@@ -59,7 +60,9 @@ export class ReportsController {
       const followups = await rows(
         `SELECT status,count(*)::int AS tasks,count(*) FILTER(WHERE status='open' AND due_at<now())::int AS overdue FROM crm_tasks WHERE due_at >= $1 AND due_at < $2 GROUP BY status`,
       );
+      const firstResponse=(await c.query(FIRST_RESPONSE_SQL,params)).rows[0];
       return {
+        firstResponse,
         range: input,
         timezone,
         daily,

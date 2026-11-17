@@ -12,6 +12,7 @@ type Row = Record<string, string | number | null>;
 type Report = {
   range: { from: string; to: string };
   timezone: string;
+  firstResponse?: { answered:number; unanswered:number; average_ms:number|null };
   daily: Row[];
   channels: Row[];
   employees: Row[];
@@ -33,7 +34,7 @@ export default function Reports() {
   const [hideEmpty,setHideEmpty]=useState(true);
   const [from,setFrom]=useState(''),[to,setTo]=useState('');
   useEffect(()=>{api<{tenant:{settings?:{timezone?:string}}}>('/workspace').then(w=>{const zone=w.tenant.settings?.timezone || 'Africa/Cairo';const today=localDay(new Date(),zone);setTimezone(zone);setFrom(shiftDay(today,-29));setTo(today);}).catch(e=>setError(e.message));},[]);
-  const sections: [keyof Omit<Report, 'range' | 'timezone'>, string][] = [
+  const sections: [keyof Omit<Report, 'range' | 'timezone' | 'firstResponse'>, string][] = [
     ['daily', t('الرسائل اليومية', 'Daily messages')],
     ['channels', t('القنوات', 'Channels')],
     ['employees', t('نشاط الموظفين', 'Employee activity')],
@@ -130,6 +131,12 @@ export default function Reports() {
             )}
           </p>
           <section className="card"><strong>{t('ملخص التقرير','Report summary')}</strong><p>{t('أقسام تحتوي بيانات','Sections with data')}: {sections.filter(([key])=>report[key].length>0).length} {t('من','of')} {sections.length}</p><p><bdi>{localDay(new Date(report.range.from),report.timezone || timezone)}</bdi> — <bdi>{localDay(new Date(Date.parse(report.range.to)-1),report.timezone || timezone)}</bdi> · <bdi>{report.timezone || timezone}</bdi></p><label><input type="checkbox" checked={hideEmpty} onChange={e=>setHideEmpty(e.target.checked)} /> {t('إخفاء الأقسام الفارغة','Hide empty sections')}</label><nav className="form-actions">{sections.filter(([key])=>!hideEmpty || report[key].length).map(([key,title])=><a className="btn" key={key} href={'#report-'+key}>{title}</a>)}</nav></section>
+          {report.firstResponse && <section className="card" aria-label={t('وقت أول رد بشري','First human response time')}>
+            <h2>{t('وقت أول رد بشري','First human response time')}</h2>
+            <p><strong>{report.firstResponse.average_ms === null ? t('لا توجد ردود بشرية مقاسة خلال الفترة','No measured human replies in this period') : new Intl.NumberFormat(language === 'ar' ? 'ar-EG' : 'en',{maximumFractionDigits:1}).format(report.firstResponse.average_ms/1000)+' '+t('ثانية','seconds')}</strong></p>
+            <p>{t('محادثات رُد عليها','Answered conversations')}: {report.firstResponse.answered} · {t('لم يصلها رد بشري','Without a human reply')}: {report.firstResponse.unanswered}</p>
+            <p>{t('عينة واحدة لكل محادثة: من أقدم رسالة واردة ضمن الفترة إلى أول رد موظف مُرسَل بعدها وقبل نهاية الفترة. تُستبعد ملاحظات الفريق وردود البوت والإرسال الفاشل؛ المحادثات دون رد لا تُحسب بصفر.','One sample per conversation: earliest inbound in range to its first sent staff reply before the range ends. Internal notes, bot replies and failed sends are excluded; unanswered conversations are not counted as zero.')}</p>
+          </section>}
           {sections.filter(([key])=>!hideEmpty || report[key].length>0).map(([key, title]) => {
             const rows = report[key];
             const headers = rows.length ? Object.keys(rows[0]) : [];
