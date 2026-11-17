@@ -1,4 +1,5 @@
 'use client';
+import { catchUpMessages } from '../../../lib/inbox-catchup';
 import { InboxConversationMenu } from '../../../components/inbox/InboxConversationMenu';
 import { InboxFilters, EMPTY_INBOX_FILTERS } from '../../../components/inbox/InboxFilters';
 import { InboxFollowupDialog } from '../../../components/inbox/InboxFollowupDialog';
@@ -312,7 +313,7 @@ export default function Inbox() {
       const id = selRef.current;
       if (id) {
         const last = msgsRef.current.reduce((n, x) => Math.max(n, Number(x.seq) || 0), 0);
-        api<any>(`/conversations/${id}/messages?afterSeq=${last}&limit=200`)
+        catchUpMessages<any>(last, after => api(`/conversations/${id}/messages?afterSeq=${after}&limit=200`)).then(items => ({ items }))
           .then((r) => {
             if (selRef.current === id)
               setMsgs((cur) => [
@@ -427,7 +428,7 @@ export default function Inbox() {
           })
           .catch(() => {});
         const last = msgsRef.current.reduce((n, x) => Math.max(n, Number(x.seq) || 0), 0);
-        api<any>(`/conversations/${cur}/messages?afterSeq=${last}`)
+        catchUpMessages<any>(last, after => api(`/conversations/${cur}/messages?afterSeq=${after}&limit=200`)).then(items => ({ items }))
           .then((r) => {
             if (selRef.current === cur)
               setMsgs((list) => [
@@ -499,9 +500,9 @@ export default function Inbox() {
       return;
     const sendingId = selId;
     const sentDraft = { ...composerState.current };
-    const t = text.trim();
+    const draftText = text.trim();
     // Internal notes require non-empty text, even when a reply attachment was selected earlier.
-    if (!t && (internal || !attach)) return;
+    if (!draftText && (internal || !attach)) return;
     sendLock.current = true;
     setBusy(true);
     setError('');
@@ -509,7 +510,7 @@ export default function Inbox() {
       if (internal)
         await api(`/conversations/${selId}/notes`, {
           method: 'POST',
-          body: JSON.stringify({ text: t }),
+          body: JSON.stringify({ text: draftText }),
         });
       else if (attach)
         await api(`/conversations/${selId}/messages`, {
@@ -519,14 +520,14 @@ export default function Inbox() {
               kind: attach.kind,
               url: attach.url,
               filename: attach.filename,
-              ...(t ? { caption: t } : {}),
+              ...(draftText ? { caption: draftText } : {}),
             },
           }),
         });
       else
         await api(`/conversations/${selId}/messages`, {
           method: 'POST',
-          body: JSON.stringify({ text: t }),
+          body: JSON.stringify({ text: draftText }),
         });
       drafts.current.clearSent(sendingId, sentDraft);
       if (selRef.current === sendingId && sameConversationDraft(composerState.current, sentDraft)) {
@@ -534,7 +535,7 @@ export default function Inbox() {
         setAttach(null);
       }
     } catch (e: any) {
-      if (selRef.current === sendingId) setError(e.details?.message ?? e.message);
+      if (selRef.current === sendingId) setError(e.details?.code === 'CONVERSATION_OWNED' ? t('المحادثة مسندة لموظف آخر. اطلب إعادة توزيعها قبل الرد.', 'This conversation belongs to another teammate. Request reassignment before replying.') : e.details?.message ?? e.message);
     } finally {
       sendLock.current = false;
       setBusy(false);
