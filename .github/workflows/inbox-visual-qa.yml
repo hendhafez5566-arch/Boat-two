@@ -9,6 +9,9 @@ on:
       - 'scripts/qa-p0-webchat-browser.mjs'
       - 'scripts/qa-reports-response-browser.mjs'
       - 'apps/web/app/dashboard/reports/**'
+      - 'apps/web/app/dashboard/settings/attachments/**'
+      - 'apps/web/components/workspace/SettingsHub.tsx'
+      - 'scripts/qa-attachments-browser.mjs'
       - 'apps/api/assets/widget.js'
       - 'apps/web/lib/inbox-catchup.ts'
       - 'scripts/run-connect-browser-qa.py'
@@ -52,6 +55,12 @@ jobs:
           BOAT_QA_BROWSER_SCRIPT: scripts/qa-reports-response-browser.mjs
           BOAT_CHROMIUM: /usr/bin/google-chrome
         run: python3 scripts/run-connect-browser-qa.py
+      - name: Verify attachment lifecycle and linked-data protection in Arabic and English
+        env:
+          BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
+          BOAT_QA_BROWSER_SCRIPT: scripts/qa-attachments-browser.mjs
+          BOAT_CHROMIUM: /usr/bin/google-chrome
+        run: python3 scripts/run-connect-browser-qa.py
       - name: Upload screenshots and measured contrast results
         uses: actions/upload-artifact@v4
         if: always()
@@ -61,6 +70,7 @@ jobs:
             docs/enterprise-20261116/inbox-readability/
             docs/p0-evidence/webchat-browser/
             docs/p0-evidence/report-browser/
+            docs/p0-evidence/attachments-browser/
             /tmp/boat-journeys-api.log
             /tmp/boat-journeys-web.log
           if-no-files-found: warn

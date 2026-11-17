@@ -1,3 +1,4 @@
+import {AssignmentRecoveryService} from './assignment-recovery.service';
 import {InboxPolicyService} from './inbox-policy.service';
 import { Module } from '@nestjs/common';
 import { MessagingModule } from '../messaging/messaging.module';
@@ -11,7 +12,7 @@ import { RealtimeService } from './realtime/realtime.service';
 @Module({
   imports: [MessagingModule],
   controllers: [InboxController, CannedRepliesController, RealtimeController, FilesController],
-  providers: [InboxPolicyService,AssignmentService, RealtimeService],
+  providers: [AssignmentRecoveryService,InboxPolicyService,AssignmentService, RealtimeService],
   exports: [AssignmentService],
 })
 export class InboxModule {}

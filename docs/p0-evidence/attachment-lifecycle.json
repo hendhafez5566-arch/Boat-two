@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "database": "PGlite local",
+  "checks": [
+    "actual upload and byte-identical retrieval",
+    "private metadata/download tenant denial",
+    "manager and agent permissions",
+    "recoverable deletion and restore",
+    "linked-file deletion conflict",
+    "explicit public-sharing revocation and restore",
+    "no-store cache policy",
+    "foreign/revoked upload cannot be sent",
+    "send versus delete race atomicity",
+    "forged MIME and oversized upload denial",
+    "keyset list pagination"
+  ],
+  "limitations": [
+    "Public provider/visitor links remain unpredictable bearer capabilities for backward compatibility",
+    "Downloaded/cached copies cannot be recalled",
+    "Persistent production storage and purge retention policy require approval"
+  ]
+}

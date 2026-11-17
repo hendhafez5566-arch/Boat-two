@@ -127,7 +127,7 @@ export class AssignmentService {
        (SELECT count(*)::int FROM conversations cv WHERE cv.assigned_to=m.user_id AND cv.status<>'closed' AND cv.archived_at IS NULL AND ($3::uuid IS NULL OR cv.id<>$3)) AS open,
        (SELECT count(*)::int FROM contacts ct WHERE ct.owner_id=m.user_id AND ct.archived_at IS NULL AND ct.merged_into_id IS NULL) AS leads,
        ($2::uuid IS NULL OR EXISTS(SELECT 1 FROM department_members dm JOIN departments d ON d.id=dm.department_id WHERE dm.department_id=$2 AND dm.user_id=m.user_id AND d.archived_at IS NULL)) AS department_ok
-       FROM memberships m WHERE cardinality($1::uuid[])=0 OR m.user_id=ANY($1::uuid[]) ORDER BY m.user_id`,
+       FROM memberships m JOIN users u ON u.id=m.user_id AND u.disabled_at IS NULL WHERE cardinality($1::uuid[])=0 OR m.user_id=ANY($1::uuid[]) ORDER BY m.user_id`,
         [ids, context.departmentId || null, context.conversationId || null],
       )
     ).rows;
@@ -239,9 +239,10 @@ export class AssignmentService {
     for (const cv of ids) await this.autoAssignIfEnabled(event.tenantId, cv.id);
   }
   /** Selection and write share a tenant lock, also across worker replicas. */
-  async retryWaiting(tenantId: string) {
+  async retryWaiting(tenantId: string, skipLocked = false) {
     return this.db.withTenant(tenantId, async (c) => {
-      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+      const lock=await c.query('SELECT id FROM tenants FOR NO KEY UPDATE'+(skipLocked?' SKIP LOCKED':''));
+      if(skipLocked&&!lock.rowCount)return 0;
       // Only revisit conversations the assignment engine has already queued.
       // Never replace an existing assignment or resume a bot during a human handoff.
       const waiting = await c.query(

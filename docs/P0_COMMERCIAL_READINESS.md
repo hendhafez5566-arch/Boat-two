@@ -192,3 +192,17 @@ This checkpoint supersedes the pending localization/live-acceptance statements a
 4. Complete every-page interaction UX, remaining report dimensions and optional-feature failure/readiness gates; scoped500route smoke is not complete acceptance.
 5. Continue tourism/store/services browser/role/failure journeys. Official messaging/AI/payment identities and independent production approval stay BLOCKED — EXTERNAL.
 6. Rollback by repinning existing API and Web source to accepted`3cdb26b` if this batch needs full rollback; no schema migration was introduced by this continuation. Do not recreate databases, alter Sleep, erase records or accept staged infrastructure changes.
+
+## New continuation — attachment lifecycle and assignment worker (2026-11-17)
+
+Start from actual PR14 HEAD5d25e580c933e180a0f327d52274c06caab163ad. Accepted baseline CI44141540059/44142442945/44143748624 retained.
+
+Proven gaps: public file serving ignored the database lifecycle and advertised a full-day cache; tenant-owned uploads could be re-sent from another company's conversation if their bearer URL was known. Added DB-authoritative sharing status, private metadata/content, owner/admin revoke/restore, recoverable unused-file deletion, linked-resource protection, upload orphan cleanup, tenant ownership validation inside outbound publication and no-store responses. Public unpredictable bearer links remain compatible for provider/visitor retrieval; already-downloaded copies cannot be recalled. New owner/admin attachment management UI covers upload/download/delete/revoke/restore and persistence. Additive migration109 changes no existing file names/bytes/rows.
+
+Proven recovery gap: assignment queue retry was invoked only by availability changes. Added bounded30-second recovery scans with fair tenant cursor, tenant SKIP LOCKED, existing transactional assignment selection, and disabled-user exclusion. Additive migration110 installs a scoped scan function. No external delivery or new resource.
+
+Local API/Web production builds PASS. Local real HTTP/PGlite attachment lifecycle, tenant/role denial, byte retrieval, linked deletion conflict and simultaneous send/delete regression PASS. Real PostgreSQL child SIGKILL/rollback/recovery/disabled-user and browser lifecycle acceptance added; PENDING CI. No new deployment accepted yet.
+
+Rollback constraint: migrations are additive and preserve records/bytes. Once sharing is revoked or files soft-deleted, do not roll back to an API whose public file handler ignores the new lifecycle; retain the lifecycle gate in any rollback build. Old accepted images remain preserved for investigation, but a privacy-preserving rollback must keep this gate. No hard purge, automatic record deletion or retention policy is enabled. API storage still requires an approved persistent volume/object store before production; no new storage provisioned.
+
+Nest remaining moderate advisory reviewed and disposition documented in docs/security/NEST_SSE_ADVISORY.md. Existing application mitigation remains; package advisory is not suppressed or declared patched.

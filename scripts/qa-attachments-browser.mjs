@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';
+import {randomUUID as uuid} from 'node:crypto';
+import {createRequire} from 'node:module';
+import {mkdirSync,writeFileSync} from 'node:fs';
+import {assertLocalAcceptance} from './acceptance-local.mjs';
+assertLocalAcceptance();
+const {chromium}=createRequire(import.meta.url)(process.env.BOAT_PLAYWRIGHT_MODULE||'playwright');
+async function api(path,token,body){const r=await fetch('http://localhost:4000'+path,{method:body?'POST':'GET',headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});assert.ok(r.ok,path+' '+r.status);return r.json();}
+const browser=await chromium.launch({executablePath:process.env.BOAT_CHROMIUM||'/usr/bin/google-chrome',args:['--no-sandbox']}),results=[],out='docs/p0-evidence/attachments-browser';mkdirSync(out,{recursive:true});
+try{for(const language of ['ar','en'])for(const width of [390,1366]){
+ const session=await api('/auth/register',null,{email:uuid()+'@example.test',password:'Synthetic-'+uuid(),fullName:'Attachments browser',workspaceName:'Isolated attachment browser'}),token=session.accessToken,channel=await api('/channels',token,{type:'web',name:'Attachment browser'});await api('/workspace/onboarding/complete',token,{});
+ const context=await browser.newContext({viewport:{width,height:900}});await context.addInitScript(({session,language})=>{localStorage.setItem('session',JSON.stringify(session));localStorage.setItem('boat-language',language);},{session,language});
+ const page=await context.newPage();page.on('dialog',d=>d.accept());const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>['localhost','127.0.0.1'].includes(new URL(r.request().url()).hostname)?r.continue():r.abort());
+ const t=(ar,en)=>language==='ar'?ar:en;
+ await page.goto('http://localhost:3000/dashboard/settings');await page.getByRole('link',{name:t('إدارة المرفقات','Attachment management'),exact:true}).click();await page.getByRole('heading',{name:t('إدارة المرفقات','Attachment management'),exact:true}).waitFor();
+ await page.getByLabel(t('رفع مرفق','Upload attachment'),{exact:true}).setInputFiles({name:'Synthetic.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jz1sAAAAASUVORK5CYII=','base64')});
+ const card=page.getByRole('article',{name:'Synthetic.png',exact:true});await card.waitFor();const file=(await api('/uploads',token)).items[0];
+ await card.getByRole('button',{name:t('حذف غير المستخدم','Delete unused'),exact:true}).click();await card.getByText(t('محذوف قابل للاسترجاع','Recoverably deleted'),{exact:false}).waitFor();assert.equal((await fetch('http://localhost:4000/files/'+file.name)).status,404);
+ await card.getByRole('button',{name:t('استعادة وإتاحة الرابط','Restore and enable link'),exact:true}).click();await card.getByRole('button',{name:t('إيقاف الرابط','Revoke link'),exact:true}).waitFor();
+ await card.getByRole('button',{name:t('إيقاف الرابط','Revoke link'),exact:true}).click();await card.getByText(t('الرابط موقوف','Link revoked'),{exact:false}).waitFor();assert.equal((await fetch('http://localhost:4000/files/'+file.name)).status,404);
+ await card.getByRole('button',{name:t('استعادة وإتاحة الرابط','Restore and enable link'),exact:true}).click();await card.getByRole('button',{name:t('إيقاف الرابط','Revoke link'),exact:true}).waitFor();
+ const downloadPromise=page.waitForEvent('download');await card.getByRole('button',{name:t('تنزيل مصرح','Authorized download'),exact:true}).click();assert.equal((await downloadPromise).suggestedFilename(),'Synthetic.png');
+ const visitor=await api('/widget/'+channel.external_id+'/session',null,{});await fetch('http://localhost:4000/widget/'+channel.external_id+'/messages?visitorId='+visitor.visitorId,{method:'POST',headers:{'content-type':'application/json','x-visitor-token':visitor.token},body:JSON.stringify({text:'Link attachment fixture',clientMsgId:uuid()})});const cv=(await api('/conversations',token)).items[0];await api('/conversations/'+cv.id+'/messages',token,{media:{kind:'image',url:'http://localhost:4000/files/'+file.name}});
+ await card.getByRole('button',{name:t('حذف غير المستخدم','Delete unused'),exact:true}).click();await page.getByRole('alert').getByText(t('المرفق مرتبط ببيانات محفوظة. يمكنك إيقاف رابطه بدل حذفه.','This attachment is referenced by saved data. You can revoke its link instead.'),{exact:true}).waitFor();
+ await page.reload();await card.getByRole('button',{name:t('إيقاف الرابط','Revoke link'),exact:true}).waitFor();assert.equal((await fetch('http://localhost:4000/files/'+file.name)).status,200);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert.deepEqual(errors,[]);await page.screenshot({path:`${out}/${language}-${width}.png`});results.push({language,width,status:'PASS',checks:['settings navigation','real upload','soft deletion','restore','revoke','authenticated download','linked deletion denied','reload persistence']});await context.close();
+}}finally{await browser.close();writeFileSync(out+'/results.json',JSON.stringify(results,null,2)+'\n');}console.log('PASS attachment browser lifecycle journeys',results.length);

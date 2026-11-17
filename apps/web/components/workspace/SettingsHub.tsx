@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useLocale } from '../product/locale';
 import { NavIcon } from '../product/NavIcon';
@@ -47,6 +48,7 @@ export default function SettingsHub() {
       <header className={styles.heading}>
         <h1>{t('الإعدادات والتكاملات', 'Settings & Integration')}</h1>
         <p>{t('الإعدادات وتكاملات API', 'Settings and API Integration')}</p>
+        <Link className="btn" href="/dashboard/settings/attachments">{t('إدارة المرفقات','Attachment management')}</Link>
       </header>
       <div className={styles.layout}>
         <nav

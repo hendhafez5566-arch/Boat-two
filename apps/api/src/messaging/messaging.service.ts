@@ -1,3 +1,4 @@
+import {assertOwnedUpload} from '../inbox/files/owned-upload';
 import { activeBotSettings } from './bot-runtime-settings';
 import { validateTemplateParameters } from './template-contract';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
@@ -343,6 +344,7 @@ export class MessagingService {
         if (!template) throw new BadRequestException('Template is not approved for this channel');
         validateTemplateParameters(template, p.content.template);
       }
+      await assertOwnedUpload(c,p.content.media?.url);
       const msg = (
         await c.query(
           `INSERT INTO messages (tenant_id, conversation_id, channel_id, direction, sender_type, sender_user_id, type, content, status,effect_key, flow_id, flow_node_id)
