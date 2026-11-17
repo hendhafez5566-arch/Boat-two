@@ -22,14 +22,14 @@ if(process.argv.includes('--child')){
  const invite=await api('/team/invitations',token,{email:uuid()+'@example.test',role:'agent',sendEmail:false}),agent=await api('/auth/accept-invitation',null,{token:new URL(invite.inviteUrl).searchParams.get('token'),password:'Synthetic-'+uuid(),fullName:'Recovery staff'}),member=(await api('/crm/workspace/members',agent.accessToken)).currentUserId;
  const channel=await api('/channels',token,{type:'web',name:'Crash recovery'});
  for(let i=0;i<5;i++){const v=await api('/widget/'+channel.external_id+'/session',null,{});assert.ok((await fetch('http://localhost:4000/widget/'+channel.external_id+'/messages?visitorId='+v.visitorId,{method:'POST',headers:{'content-type':'application/json','x-visitor-token':v.token},body:JSON.stringify({text:'Queue fixture '+i,clientMsgId:uuid()})})).ok);}
- const conversations=(await api('/conversations',token)).items,tenantId=conversations[0].tenant_id;
+ const conversations=(await api('/conversations',token)).items,tenantId=owner.tenantId;assert.ok(typeof tenantId==='string'&&tenantId.length>0,'Synthetic tenant scope required');
  await admin.query("UPDATE conversations SET handled_by='human',human_since=now() WHERE tenant_id=$1",[tenantId]);
  await admin.query("INSERT INTO messages(tenant_id,conversation_id,channel_id,direction,sender_type,type,content,status,is_internal) SELECT tenant_id,id,channel_id,'out','system','event','{\"event\":\"assignment_waiting\",\"reason\":\"no_eligible_employee\"}','sent',true FROM conversations WHERE tenant_id=$1",[tenantId]);
  await admin.query('UPDATE memberships SET available=(user_id=$2) WHERE tenant_id=$1',[tenantId,member]);
  await admin.query("UPDATE tenants SET settings=jsonb_set(settings,'{crmAssignment}',$2::jsonb) WHERE id=$1",[tenantId,JSON.stringify({enabled:true,method:'round_robin',memberIds:[member],rules:[],maxOpenPerAgent:100})]);
  writeFileSync(file,JSON.stringify({tenantId}),{mode:0o600});
  const child=fork(new URL(import.meta.url),['--child','--pause'],{stdio:['ignore','inherit','inherit','ipc']});
- const timeout=setTimeout(()=>child.kill('SIGKILL'),10000);const message=await once(child,'message');assert.equal(message[0],'after-uncommitted-assignment');clearTimeout(timeout);
+ const timeout=setTimeout(()=>child.kill('SIGKILL'),10000);const message=await Promise.race([once(child,'message'),once(child,'exit').then(()=>{throw new Error('Fault worker exited before the injected checkpoint');})]);assert.equal(message[0],'after-uncommitted-assignment');clearTimeout(timeout);
  assert.equal((await admin.query('SELECT count(*)::int n FROM conversations WHERE tenant_id=$1 AND assigned_to IS NOT NULL',[tenantId])).rows[0].n,0,'uncommitted assignment is not externally visible');
  const exited=once(child,'exit');child.kill('SIGKILL');await exited;
  assert.equal((await admin.query("SELECT count(*)::int n FROM messages WHERE tenant_id=$1 AND content->>'event'='assigned'",[tenantId])).rows[0].n,0,'killed transaction has no partial assignment log');

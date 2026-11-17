@@ -10,6 +10,7 @@ export class DatabaseService implements OnModuleDestroy {
   private effects = new AsyncLocalStorage<{ id: string; counter: number }>();
   private readonly effectPool = new Pool({ connectionString: env.DATABASE_URL, max: 4 });
   async detached<T>(tenantId: string, fn: (c: PoolClient) => Promise<T>) {
+    if(typeof tenantId!=='string'||!tenantId.trim())throw new Error('Tenant scope required');
     const client = await this.effectPool.connect();
     try {
       await client.query('BEGIN');
@@ -45,6 +46,7 @@ export class DatabaseService implements OnModuleDestroy {
 
   /** تنفيذ داخل transaction مع ضبط الشركة الحالية ليعمل Row Level Security */
   async withTenant<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+    if(typeof tenantId!=='string'||!tenantId.trim())throw new Error('Tenant scope required');
     const active = this.context.getStore();
     if (active) {
       if (active.tenantId !== tenantId) throw new Error('Cross-tenant nested transaction denied');
@@ -55,7 +57,7 @@ export class DatabaseService implements OnModuleDestroy {
       await client.query('BEGIN');
       await client.query("SELECT set_config('app.tenant_id', $1, true)", [tenantId]);
       const actor = requestContext.getStore()?.user;
-      if (actor?.tenantId === tenantId)
+      if (actor && actor.tenantId === tenantId)
         await client.query("SELECT set_config('app.actor_id', $1, true)", [actor.userId]);
       const result = await this.context.run({ tenantId, client }, () => fn(client));
       await client.query('COMMIT');
