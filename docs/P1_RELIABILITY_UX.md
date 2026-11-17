@@ -25,3 +25,9 @@ Checkpoint`4e058e0`: real PostgreSQL44141540059 and18browser journeys44141540075
 ## Final live checkpoint
 
 API4e058e0/Web2c67736 deployed SUCCESS on original Preview; exact deployment IDs and rollback are in P0. All localization-related workflows passed. Live Railway browser44143748624 accepted four AR/EN390/1366Inbox/reconnect/reload/report journeys; artifact14355163261, persisted results in`docs/p0-evidence/live-runtime-browser/results.json`. First duplicate-locator harness failure retained and repaired without weakening thread checks. CI response120s/30s fixture is measurement correctness, not a real employee performance claim. All broad P1 rows remain PARTIAL.
+
+## New accepted recovery and attachment batch
+
+Actual PostgreSQL CI44150302692 PASS at3b841c5, including worker SIGKILL after an uncommitted assignment, transaction rollback, fresh-process queue recovery, disabled-user exclusion and no duplicate assignment events. New attachment lifecycle/ownership/send-delete race assertions PASS. All241retained API tests plus new missing-tenant-scope regression are included. Original broad reruns are justified here by changes to shared DatabaseService and outbound publication, not by report-only changes.
+
+All31node inspector/routing UI save/reopen journeys also passed in editor CI44150302652 (four AR/EN390/1366contexts). This certifies inspector opening, route editing and roundtrip, not every property/provider/error combination. Attachment settings and help are receiving explicit owner/agent and search/navigation browser acceptance.

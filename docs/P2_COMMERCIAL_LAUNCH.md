@@ -19,3 +19,9 @@ PostgreSQL CI44140822768 and44141540059 accepted all three synthetic business jo
 ## Final checkpoint
 
 Actual published Preview Inbox/report acceptance44143748624 PASS uses a separate synthetic company and no external provider delivery. This adds live application evidence to the three-industry PostgreSQL fixtures; it does not certify all commercial journeys. P2 remains PARTIAL. Next: extend three-industry real-browser/role/failure acceptance, optional feature readiness, privacy/terms/help/support/incident operations review and approved production transition. Existing paid-provider/merchant/legal-owner/production approvals stay BLOCKED — EXTERNAL; independent test/code work remains available.
+
+## Help and commercial operations package — new batch
+
+Expanded the existing support page into a searchable AR/EN help center with real routes for onboarding, bot publication, ownership, attachments, queues, measured reports, external integrations and safe incident reporting. No fictional support address or provider-readiness claim.
+
+Prepared internal, unpublished legal-review drafts in docs/launch/PRIVACY_DRAFT.md and TERMS_DRAFT.md; operational support/incident procedure in SUPPORT_INCIDENTS.md; exact external identity/permission/secure-provision/cost/acceptance matrix in EXTERNAL_ACCEPTANCE.md. These drafts are not legally approved or published customer agreements. Owner/legal support contacts, final policies and production/storage costs remain external decisions. Browser search/navigation and role acceptance pending.

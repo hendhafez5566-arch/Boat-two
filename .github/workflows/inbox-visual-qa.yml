@@ -10,6 +10,7 @@ on:
       - 'scripts/qa-reports-response-browser.mjs'
       - 'apps/web/app/dashboard/reports/**'
       - 'apps/web/app/dashboard/settings/attachments/**'
+      - 'apps/web/app/dashboard/support/**'
       - 'apps/web/components/workspace/SettingsHub.tsx'
       - 'scripts/qa-attachments-browser.mjs'
       - 'apps/api/assets/widget.js'
