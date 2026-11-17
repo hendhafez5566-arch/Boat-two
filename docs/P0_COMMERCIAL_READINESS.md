@@ -6,14 +6,15 @@ Starting PR #14 HEAD: d84844a3639b2b558fa25474d1dae05ba741717a. Preserve newer w
 
 |ID|Requirement|Status|Code Evidence|Test Evidence|Deployment|Blocker|
 |---|---|---|---|---|---|---|
-|P0-01|Channels|PARTIAL|messaging/webhooks.controller.ts; adapters; channels service|Existing channel CI 43952711632 success at starting HEAD; synthetic provider coverage only|Starting Web d84844a; API c38293f|No authorized provider test accounts supplied for end-to-end Meta/Telegram acceptance|
-|P0-02|AI|PARTIAL|ai/providers; knowledge/embedding-budget.ts; external-effect ledger|Fresh embedding failure/order/corruption checks; full local API 237/237|This batch pending deployment|Real model/embedding test keys absent from API variable names; actual answer/cost acceptance pending|
-|P0-03|Flow Builder|PARTIAL|flows engine, publish component guard already present|Fresh engine regression passes; independent PostgreSQL retest pending|Existing implementation retained|Full supported-node UI/runtime matrix, concurrent publish and live authenticated acceptance remain|
-|P0-04|Inbox|PARTIAL|Existing assignment, ownership and human takeover retained|Fresh local regression; independent PostgreSQL assignment retest pending|Existing implementation retained|100+ queue, restart/recovery/concurrent staff end-to-end matrix not yet freshly accepted|
-|P0-05|Webchat|PARTIAL|Existing widget settings/runtime; unsupported upload/help controls absent per prior work|Channel setup CI at starting HEAD; fresh complete widget journey pending|Existing implementation retained|Live isolated visitor/staff/reconnect/attachments acceptance pending|
-|P0-06|Billing|PARTIAL|Existing Stripe event ledger, invoices, plan limits and reconciliation retained|Local suite passes; no official provider sandbox transaction performed|Existing implementation retained|STRIPE_SECRET_KEY/STRIPE_WEBHOOK_SECRET absent from API variable names; merchant eligibility and sandbox account required|
-|P0-07|Security|PARTIAL|Existing tenant/RLS/roles/encryption; this batch hardens IPv6 SSRF checks and embedding diagnostics|237 local API tests pass; engine internal/mapped/tunnel IPv6 regression passes|This batch pending deployment|Full endpoint/attachment/session audit and current independent PostgreSQL tests still required|
-|P0-08|Production|PARTIAL|CI-only dump/restore acceptance added; existing preview healthcheck retained|Restore script syntax checked, CI execution pending|No Production created; Preview Sleep preserved|Independent production architecture/cost approval, actual backup schedule/offsite restore and alert acceptance required|
+|P0-01|Channels|PARTIAL|apps/api/src/messaging/webhooks.controller.ts; adapters; channels service|CI44038297686 synthetic channel UI; live Preview Webchat bot/CRM/handoff/reply/dedupe/tenant rejection PASS|Web/API3cdb26b SUCCESS|Official WhatsApp/Facebook/Instagram/Telegram end-to-end test identities and provider approvals not supplied; real provider acceptance BLOCKED — EXTERNAL|
+|P0-02|AI|PARTIAL|apps/api/src/ai/providers/embeddings.ts; knowledge/embedding-budget.ts; external-effect ledger|Fresh provider malformed/error/no-replay and complete local API239/239 PASS|API3cdb26b SUCCESS|Authorized paid model/embedding test credentials and budget, actual grounded Arabic/English answer/source/cost matrix pending. Existing tenant credentials not accessed|
+|P0-03|Flow Builder|PARTIAL|Existing engine/component publish guard retained; Next route synchronization repaired|Real PostgreSQL CI44038297841; editor CI44038297701; responsive product/simulator CI44039908071 AR/EN×5sizes PASS|Web/API3cdb26b SUCCESS|Exhaustive every-supported-node/version/concurrent-publish/failure matrix still not fully accepted|
+|P0-04|Inbox|PARTIAL|Existing assignment, ownership, human takeover retained|Actual PostgreSQL105queued conversations, bounded100+4drain, human ownership/capacity checks; live human reply/private notes PASS|Web/API3cdb26b SUCCESS|Full crash/restart/escalation/notifications/supervisor/multiple simultaneous human send matrix remains|
+|P0-05|Webchat|PARTIAL|Existing widget runtime/settings preserved; sparse PATCH now retains allowed origins|Live published flow→CRM→human→visitor reply; dedupe/private notes/foreign company rejection PASS|Web/API3cdb26b SUCCESS|Long conversations, all media/attachment ownership/reconnect failure matrix and persistent production attachment storage remain|
+|P0-06|Billing|PARTIAL|Existing Stripe ledger/price registry/reconciliation retained; auth rate limit added|Independent PostgreSQL synthetic price/grace/reconciliation/no-proration fixture PASS; external HTTPS blocked|API3cdb26b SUCCESS|Official Stripe sandbox merchant keys/webhook and full subscription lifecycle, invoice/payment acceptance and market eligibility BLOCKED — EXTERNAL|
+|P0-07|Security|PARTIAL|IPv6 SSRF hardening; embedding diagnostic redaction/validation; shared atomic auth counters; patched runtime dependencies|239local API tests; real PostgreSQL RLS/role/journey tests and24concurrent login attempts PASS; production dependency audit0critical/0high/8moderate|Web/API3cdb26b SUCCESS|Complete endpoint/session/attachment/SSRF audit not finished; dependency audit is not security certification. Eight moderate advisories remain|
+|P0-08|Production|PARTIAL|deploy/production opt-in configs and runbook; CI dump/restore test|CI44038297841 actual restore compares rows/RLS/policies/owners PASS. Preview health db up; Sleep readback true on both services|Existing Preview only; no Production created|Approved independent architecture/cost, persistent attachments, real backup/offsite restore timing, monitoring and operational recovery acceptance required|
+
 
 ## Current observations
 - PR #14 is open/draft. Last known SHA in owner prompt is older than actual HEAD.
@@ -96,3 +97,30 @@ No migration added in this batch. Revert only this batch's source changes in a n
 - Two explicitly synthetic workspaces remain; no real customer data changed/deleted, no provider messages, no financial charges, no plan changes. Credential values were never logged or saved.
 - Current official-provider acceptance remains external-blocked; browser authenticated acceptance remains unavailable without secure test-account login.
 - Responsive run44038832233 progressed through the first viewport and then hit an unstable test selector expecting category product count0 on a category reused across widths. Selector now uses the actual stable category ID, while retaining100category scale, option count, editing/deletion/price/reopen/simulator assertions. Complete ten-viewport result pending.
+
+## Final release and acceptance checkpoint — 2026-11-17
+- Application release3cdb26b11284e327fa17a1e3aecae4544f7630e6 is deployed on BOTH original services:
+  - API e3b1a5e5-68cd-4fd7-97b4-e87fb477bdf8 SUCCESS.
+  - Web1e6808de-ca7d-4065-ab4f-f3367a9642ec SUCCESS.
+- Both service configurations read back pinned to that SHA with Sleep=true and no staged changes. All newer commits after3cdb26b modify acceptance scripts/evidence/docs only; application trees are identical.
+- Final product acceptance44039908071 at404b16fc85f6b1c9e89b8d514b2d3dd085d4ea9a SUCCESS: core product/import journeys plus ten AR/EN×320/390/768/1366/1920category/price/edit/reopen/picker/simulator journeys. Artifact14307884689. All assertions retained. Stale empty-state create-action selection corrected to the persistent header action; scoped lint PASS.
+- Current production dependency audit using declared pnpm9:0critical,0high,8moderate (437dependencies). This is advisory coverage only, not a claim of no application vulnerabilities.
+- Live API acceptance PASS is persisted in p0-evidence/live-preview-api.json.
+- Secure browser sign-in completed. Observed live dashboard, selected the explicitly labeled existing QA Webchat channel, inspected Products, then Import & sync→Back to bot manager. Actual Keyword Replies heading returned with channelId preserved. No real products/bots/channels were edited/published/deleted in that account.
+- Reviewed CI Arabic/English commerce and Arabic Inbox screenshots. This is scoped visual review, not complete visual parity or all-page manual acceptance.
+- No main merge, new Railway services/project/database, provider credential changes, paid transactions or Preview Sleep changes.
+
+### Final owner verdict
+**NOT READY** for commercial launch. The implemented and tested batch is released, but P0 as a whole is NOT closed. Do not advertise real provider/AI/payment or operational guarantees based on synthetic tests.
+
+### Precise continuation
+1. Obtain authorized official test identities: WhatsApp WABA/phone + required Meta app permissions/webhook approval; Facebook Page/Messenger and Instagram messaging permissions; Telegram bot token/verified HTTPS webhook. Complete each receive→bot→CRM→handoff→employee reply→reload→disconnect/reconnect/error matrix without real customers.
+2. Supply a test AI provider/embedding account with an explicit spending ceiling through secure settings. Run the ten specified knowledge/source/unknown answer/Arabic/English/usage/failure/isolation scenarios; no paid calls authorized by this release.
+3. Supply official Stripe Sandbox/test-mode merchant access and webhook secret through secure settings; validate merchant eligibility for the intended market and full plan/invoice/payment/failure/deduplication matrix. No live charge.
+4. Finish supported-node/editor publish concurrency, Inbox multi-role/concurrent-reply/escalation/crash recovery and Webchat reconnect/media/long-history acceptance. Existing positive evidence must be retained; do not rebuild functioning code.
+5. Finish all-sensitive-endpoint/attachment/session review and triage eight moderate dependency advisories with reachability evidence and compatible patches.
+6. Review deploy/production/README.md: approve exact infrastructure/cost, persistent attachment storage, backups/retention, monitoring recipients and measured recovery. Do not create resources or disable Preview Sleep without that approval.
+7. Update each table row only when the entire requirement's acceptance passes. Retain PARTIAL/BLOCKED states until then.
+
+### Measured owner benefits supported now
+Railway acceptance demonstrates automated collection of a visitor name into CRM, context-preserving human transfer, staff response through Webchat, internal-note privacy and duplicate-message suppression. Independent PostgreSQL tests demonstrate eligible/capacity-limited queue assignment and105conversation bounded recovery. No response-time saving percentage, staffing reduction or revenue claim has been measured.
