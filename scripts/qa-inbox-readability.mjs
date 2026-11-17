@@ -216,6 +216,8 @@ try {
         assert.equal(paused.label, language === 'ar' ? 'استئناف البوت' : 'Resume Bot');
         const red = rgb(paused.bg);
         assert.ok(red[0] > red[1] && red[0] > red[2], 'Paused bot has subtle red state');
+        const returnedText=await page.locator('.msg-system[data-event="returned_to_bot"] .msg-system-label').last().textContent();
+        assert.ok(returnedText.includes(language === 'ar' ? 'أُعيدت المحادثة' : 'Conversation returned to the bot'), 'Activity events use the selected UI language');
         await page.screenshot({ path: output + '/bot-paused-' + language + '-' + width + '.png' });
         await botButton.click();
         await page.locator('button[data-bot-state="running"]:visible').waitFor();

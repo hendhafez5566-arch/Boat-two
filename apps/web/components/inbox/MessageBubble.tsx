@@ -15,6 +15,7 @@ function ProviderMedia({
   messageId: string;
   kind: string;
 }) {
+  const { t } = useLocale();
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -30,14 +31,14 @@ function ProviderMedia({
     };
   }, [conversationId, messageId]);
   if (failed)
-    return <div className="text-xs opacity-70">تعذّر تحميل الوسائط (قد تكون انتهت صلاحيتها)</div>;
-  if (!src) return <div className="text-xs opacity-70">جارٍ التحميل…</div>;
+    return <div className="text-xs opacity-70">{t('تعذّر تحميل الوسائط (قد تكون انتهت صلاحيتها)', 'Unable to load media; it may have expired')}</div>;
+  if (!src) return <div className="text-xs opacity-70">{t('جارٍ التحميل…', 'Loading…')}</div>;
   if (kind === 'image') return <img src={src} alt="" className="mb-1 max-h-64 rounded" />;
   if (kind === 'video') return <video src={src} controls className="mb-1 max-h-64 rounded" />;
   if (kind === 'audio') return <audio src={src} controls className="mb-1" />;
   return (
     <a href={src} download className="msg-file">
-      📎 تنزيل الملف
+      📎 {t('تنزيل الملف', 'Download file')}
     </a>
   );
 }
@@ -56,22 +57,27 @@ export function eventText(c: any, name: (id?: string) => string, language = 'ar'
           : 'Waiting for an eligible employee; check the assignment queue';
     case 'assigned':
       return c.auto
-        ? `عُيّنت تلقائياً إلى ${name(c.userId)}`
-        : `عيّن ${name(c.by)} المحادثة إلى ${name(c.userId)}`;
+        ? (language === 'ar' ? `عُيّنت تلقائياً إلى ${name(c.userId)}` : `Automatically assigned to ${name(c.userId)}`)
+        : (language === 'ar' ? `عيّن ${name(c.by)} المحادثة إلى ${name(c.userId)}` : `${name(c.by)} assigned the conversation to ${name(c.userId)}`);
     case 'unassigned':
-      return `ألغى ${name(c.by)} التعيين`;
+      return language === 'ar' ? `ألغى ${name(c.by)} التعيين` : `${name(c.by)} removed the assignment`;
     case 'status':
+      if (language !== 'ar') return `${name(c.by)} changed the status to ${c.status}`;
       return `${name(c.by)} غيّر الحالة إلى ${({ open: 'مفتوحة', pending: 'معلّقة', closed: 'مغلقة' } as any)[c.status] ?? c.status}`;
     case 'taken_over':
-      return `استلم ${name(c.by)} المحادثة`;
+      return language === 'ar' ? `استلم ${name(c.by)} المحادثة` : `${name(c.by)} took over the conversation`;
     case 'returned_to_bot':
+      if (language !== 'ar') return `Conversation returned to the bot${c.by ? ` by ${name(c.by)}` : ''}`;
       return `أُعيدت المحادثة إلى البوت${c.by ? ` بواسطة ${name(c.by)}` : ''}`;
     case 'human_session_expired':
-      return 'انتهت جلسة الموظف وأعيدت المحادثة إلى البوت';
+      return language === 'ar' ? 'انتهت جلسة الموظف وأعيدت المحادثة إلى البوت' : 'The employee session expired; conversation returned to the bot';
     case 'sla_escalated':
+      if (language !== 'ar') return `Response time exceeded; conversation escalated${c.assignedTo ? ' to '+name(c.assignedTo) : ''}`;
       return `تجاوز وقت SLA؛ جرى التصعيد${c.assignedTo ? ' إلى ' + name(c.assignedTo) : ''}`;
     case 'handoff':
-      return 'حوّل البوت المحادثة إلى موظف';
+      return language === 'ar' ? 'حوّل البوت المحادثة إلى موظف' : 'The bot transferred the conversation to an employee';
+    case 'blocked': return language === 'ar' ? 'حُظر العميل على هذه القناة' : 'Customer blocked on this channel';
+    case 'unblocked': return language === 'ar' ? 'أُلغي حظر العميل على هذه القناة' : 'Customer unblocked on this channel';
     default:
       return String(c?.event ?? '');
   }
