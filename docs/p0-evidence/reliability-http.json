@@ -1,0 +1,21 @@
+{
+  "checks": [
+    {
+      "name": "concurrent saves reject the stale editor and concurrent publish is atomic",
+      "status": "PASS"
+    },
+    {
+      "name": "failed publication preserves active version and restoration rejects stale editors",
+      "status": "PASS"
+    },
+    {
+      "name": "two simultaneous staff claims have one winner; non-owner cannot send, release or steal",
+      "status": "PASS"
+    },
+    {
+      "name": "Inbox and Webchat drain long history without omission or internal note leakage",
+      "status": "PASS"
+    }
+  ],
+  "providerCalls": false
+}

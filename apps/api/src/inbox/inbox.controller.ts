@@ -3,6 +3,8 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ConflictException,
+  ForbiddenException,
   Delete,
   Get,
   NotFoundException,
@@ -282,423 +284,502 @@ export class InboxController {
       // نافذة الـ 24 ساعة في واتساب
       const windowExpiresAt =
         r.channel_type === 'whatsapp' && r.last_inbound_at
-          ? new Date(new Date(r.last_inbound_at).getTime() + 24 * 3600 * 1000).toISOString()
-          : null;
-      return { ...r, whatsapp_window_expires_at: windowExpiresAt };
-    });
-  }
+          ? new Date(new Date(r.last_inbound…15610 tokens truncated…المغلقة', 'View closed conversations')}
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="stack">
+                      <p>
+                        {t(
+                          'لا توجد محادثات بعد. ابدأ بربط قناة أو تجربة ويدجت الموقع.',
+                          'No conversations yet. Connect a channel or try your website widget.',
+                        )}
+                      </p>
+                      <Link className="btn" href="/dashboard/channels">
+                        {t('القنوات وتجربة الويدجت', 'Channels and widget demo')}
+                      </Link>
+                    </div>
+                  )}
+                </li>
+              )}
+            </ul>
+            {nextBefore && (
+              <button className="p-3 border-t" disabled={loadingMore} onClick={moreConversations}>
+                {loadingMore
+                  ? t('جارٍ التحميل…', 'Loading…')
+                  : t('تحميل محادثات أقدم', 'Load older conversations')}
+              </button>
+            )}
+          </aside>
 
-  // ---------------------------------------------------------------- messages
+          {/* ---------- الخيط ---------- */}
+          <section className={`${selId ? 'flex' : 'hidden lg:flex'} min-w-0 flex-1 flex-col`}>
+            {detailLoading ? (
+              <div className={styles.empty} role="status">
+                {t('جارٍ تحميل المحادثة…', 'Loading conversation…')}
+              </div>
+            ) : !detail || !selId ? (
+              <div className={styles.empty}>
+                <img src="/navigation/shared-inbox.svg" alt="" />
+                <h1>{t('صندوق الوارد المشترك', 'Shared Inbox')}</h1>
+                <h2>
+                  {t(
+                    'كل قنواتك في صندوق وارد واحد',
+                    'Connect Multiple Platforms – all in one inbox!',
+                  )}
+                </h2>
+                <p>
+                  {t(
+                    'إدارة الرسائل من منصات متعددة في مكان واحد.',
+                    'Easily manage messages from multiple platforms in a single inbox.',
+                  )}
+                </p>
+              </div>
+            ) : (
+              <>
+                <header className={styles.threadHeader}>
+                  <button
+                    type="button"
+                    className={styles.back}
+                    aria-label={t('رجوع للقائمة', 'Back to list')}
+                    onClick={() => {
+                      if (selRef.current)
+                        drafts.current.write(selRef.current, composerState.current);
+                      selRef.current = null;
+                      setSelId(null);
+                      setDetail(null);
+                    }}
+                  >
+                    <NavIcon name="undo" />
+                  </button>
+                  <span className={styles.threadAvatar}>
+                    {String(title(detail)).trim().charAt(0).toUpperCase()}
+                  </span>
+                  <div className={styles.threadIdentity}>
+                    <strong>
+                      {title(detail)}
+                      {workspaceRole !== 'agent' && (
+                        <button
+                          type="button"
+                          className={styles.editName}
+                          aria-label={t('تعديل اسم العميل', 'Edit customer name')}
+                          onClick={() => setEditingContact('name')}
+                        >
+                          <NavIcon name="edit" />
+                        </button>
+                      )}
+                    </strong>
+                    <small>{detail.contact_phone || detail.channel_name}</small>
+                  </div>
+                  <div className={styles.threadTools}>
+                    <button
+                      type="button"
+                      aria-label={t('بحث الرسائل', 'Search messages')}
+                      aria-expanded={searchMessages}
+                      onClick={() => setSearchMessages((v) => !v)}
+                    >
+                      <NavIcon name="search" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t('تعيين متابعة', 'Set Follow-up')}
+                      onClick={() => setFollowupOpen(true)}
+                    >
+                      <NavIcon name="stopwatch" />
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.threadActionTrigger}
+                      aria-label={t('إجراءات المحادثة', 'Chat actions')}
+                      title={t('فتح إجراءات المحادثة وبيانات العميل', 'Open chat actions and customer details')}
+                      aria-expanded={actionsOpen || showContext}
+                      onClick={() => {
+                        if (window.matchMedia('(min-width: 1024px)').matches)
+                          setActionsOpen((value) => !value);
+                        else setShowContext(true);
+                      }}
+                    >
+                      <NavIcon name="moreVertical" />
+                      <span aria-hidden="true" className={styles.actionLabel}>{t('إجراءات', 'Actions')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t('إظهار معلومات العميل', 'Toggle customer info')}
+                      aria-expanded={infoOpen}
+                      onClick={() => setInfoOpen((v) => !v)}
+                    >
+                      <NavIcon name="chevron" />
+                    </button>
+                  </div>
+                </header>
+                {infoOpen && (
+                  <dl className={styles.customerStrip}>
+                    {[
+                      [
+                        t('عميل منذ', 'Customer Since'),
+                        detail.contact_since
+                          ? new Date(detail.contact_since).toLocaleDateString(
+                              language === 'ar' ? 'ar-EG' : 'en-US',
+                            )
+                          : '—',
+                        'userClock',
+                      ],
+                      [
+                        t('آخر ظهور', 'Last Seen'),
+                        detail.last_inbound_at
+                          ? new Date(detail.last_inbound_at).toLocaleString(
+                              language === 'ar' ? 'ar-EG' : 'en-US',
+                            )
+                          : '—',
+                        'eye',
+                      ],
+                      [
+                        t('اللغة', 'Language'),
+                        detail.contact_attributes?.language || '—',
+                        'language',
+                      ],
+                      [t('البلد', 'Country'), detail.contact_attributes?.country || '—', 'pin'],
+                      [
+                        t('المنطقة الزمنية', 'Timezone'),
+                        detail.contact_attributes?.timezone || '—',
+                        'sessions',
+                      ],
+                    ].map(([label, value, icon]) => (
+                      <div key={label}>
+                        <NavIcon name={icon} />
+                        <dt>{label}</dt>
+                        <dd title={value}>{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+                {searchMessages && (
+                  <input
+                    className={styles.messageSearch}
+                    aria-label={t('بحث داخل الرسائل المحملة', 'Search loaded messages')}
+                    placeholder={t('بحث داخل الرسائل المحملة…', 'Search loaded messages…')}
+                    value={messageSearch}
+                    onChange={(e) => setMessageSearch(e.target.value)}
+                  />
+                )}
 
-  @Get('conversations/:id/messages')
-  messages(
-    @Req() req: AuthedRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Query() query: unknown,
-  ) {
-    const q = parse(messagesQuery, query);
-    return this.db.withTenant(req.user.tenantId, async (c) => {
-      const exists = await c.query('SELECT 1 FROM conversations WHERE id = $1', [id]);
-      if (!exists.rowCount) throw new NotFoundException('Conversation not found');
-      const cols = `m.id, m.seq, m.direction, m.sender_type, m.sender_user_id, u.full_name AS sender_name, m.type,
-                    m.content, m.status, m.error, m.is_internal, m.created_at`;
-      if (q.afterSeq !== undefined) {
-        const r = await c.query(
-          `SELECT ${cols} FROM messages m LEFT JOIN users u ON u.id = m.sender_user_id
-           WHERE m.conversation_id = $1 AND m.seq > $2 ORDER BY m.seq LIMIT $3`,
-          [id, q.afterSeq, q.limit],
-        );
-        return { items: r.rows, hasMore: false };
-      }
-      const r = await c.query(
-        `SELECT ${cols} FROM messages m LEFT JOIN users u ON u.id = m.sender_user_id
-         WHERE m.conversation_id = $1 AND ($2::bigint IS NULL OR m.seq < $2) ORDER BY m.seq DESC LIMIT $3`,
-        [id, q.beforeSeq ?? null, q.limit + 1],
-      );
-      const rows = r.rows.slice(0, q.limit).reverse();
-      return { items: rows, hasMore: r.rows.length > q.limit };
-    });
-  }
+                {notice && (
+                  <p className="handoff-notice" role="status">
+                    ✓ {notice}
+                  </p>
+                )}
+                {acting && (
+                  <p className="handoff-notice is-busy" role="status">
+                    {t('جارٍ التنفيذ…', 'Working…')}
+                  </p>
+                )}
+                <div ref={threadScroll} className="thread-msgs flex-1 overflow-y-auto p-3">
+                  {hasMore && (
+                    <button
+                      onClick={loadOlder}
+                      disabled={olderLoading}
+                      className="mx-auto mb-2 block rounded border bg-white px-3 py-1 text-xs"
+                    >
+                      {t('تحميل رسائل أقدم', 'Load older messages')}
+                    </button>
+                  )}
+                  {msgs
+                    .filter(
+                      (m) =>
+                        !messageSearch.trim() ||
+                        preview(m.content)
+                          .toLocaleLowerCase()
+                          .includes(messageSearch.trim().toLocaleLowerCase()),
+                    )
+                    .map((m, index, visibleMessages) => {
+                      const created = new Date(m.created_at ?? m.createdAt);
+                      const previous = index > 0
+                        ? new Date(visibleMessages[index - 1].created_at ?? visibleMessages[index - 1].createdAt)
+                        : null;
+                      const startsDay = !previous || created.toDateString() !== previous.toDateString();
+                      return (
+                        <Fragment key={m.id}>
+                          {startsDay && (
+                            <div className="msg-day-separator" role="separator">
+                              {created.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', {
+                                weekday: 'short',
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </div>
+                          )}
+                          <MessageBubble m={m} conversationId={selId} name={nameOf} />
+                        </Fragment>
+                      );
+                    })}
+                  <div ref={bottom} />
+                </div>
 
-  @Post('conversations/:id/messages')
-  async send(
-    @Req() req: AuthedRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: unknown,
-  ) {
-    return this.db.conversation(req.user.tenantId, id, async () => {
-      const content = parse(contentSchema, body);
-      const result = await this.messaging.sendOutbound({
-        tenantId: req.user.tenantId,
-        conversationId: id,
-        content,
-        senderType: 'agent',
-        senderUserId: req.user.userId,
-      });
-      await this.db.withTenant(req.user.tenantId, async (c) => {
-        const before = (
-          await c.query('SELECT handled_by, status FROM conversations WHERE id = $1', [id])
-        ).rows[0];
-        await c.query(
-          `UPDATE conversations SET handled_by = 'human', assigned_to = COALESCE(assigned_to, $2), status = 'open', unread_count = 0 WHERE id = $1`,
-          [id, req.user.userId],
-        );
-        if (before?.handled_by === 'bot') {
-          await this.expireSessions(c, id);
-          await this.logEvent(c, id, { event: 'taken_over', by: req.user.userId });
-        }
-      });
-      this.changed(req.user.tenantId, id, 'agent_reply');
-      return result;
-    });
-  }
+                <div className={`composer border-t bg-white p-2 ${internal ? 'is-note' : ''}`}>
+                  <div
+                    className="composer-modes"
+                    role="group"
+                    aria-label={t('نوع الرسالة', 'Message type')}
+                  >
+                    <button
+                      type="button"
+                      aria-pressed={!internal}
+                      className={!internal ? 'is-on' : ''}
+                      onClick={() => setInternal(false)}
+                    >
+                      {t('رد', 'Reply')}
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={internal}
+                      className={internal ? 'is-on is-note' : ''}
+                      onClick={() => setInternal(true)}
+                    >
+                      {t('ملاحظة', 'Note')}
+                    </button>
+                  </div>
+                  {internal && (
+                    <p className="composer-note-banner" role="status">
+                      {t(
+                        'ملاحظة داخلية — لن يراها العميل.',
+                        'Internal note — the customer will not see this.',
+                      )}
+                    </p>
+                  )}
+                  {error && (
+                    <p className="mb-1 text-xs text-red-600" role="alert">
+                      {error}
+                    </p>
+                  )}
+                  {replyUnavailable && !internal && (
+                    <div className="mb-1 rounded bg-amber-50 p-2 text-xs text-amber-800">
+                      <p role="status">
+                        {detail.blocked
+                          ? t(
+                              'المحادثة محظورة. يمكنك إضافة ملاحظة داخلية.',
+                              'This conversation is blocked. You can add an internal note.',
+                            )
+                          : t(
+                              'انتهت نافذة واتساب. الرد الحر معطّل؛ يمكنك كتابة ملاحظة داخلية أو استخدام قالب معتمد من مسار الحملات.',
+                              'The WhatsApp window has expired. Free-form replies are disabled; add an internal note or use an approved template through campaigns.',
+                            )}
+                      </p>
+                      <button type="button" className="btn mt-2" onClick={() => setInternal(true)}>
+                        {t('إضافة ملاحظة داخلية', 'Add internal note')}
+                      </button>
+                    </div>
+                  )}
+                  {detail.handled_by === 'bot' && !internal && (
+                    <p className="sr-only" id="inbox-takeover-hint">
+                      {t(
+                        'البوت يتولى هذه المحادثة. إرسال رد يستلمها تلقائيًا.',
+                        'The bot handles this conversation. Sending a reply takes over automatically.',
+                      )}
+                    </p>
+                  )}
+                  {suggestions.length > 0 && (
+                    <ul
+                      className="composer-suggest mb-1 rounded border bg-white shadow"
+                      aria-label={t('الردود الجاهزة', 'Saved replies')}
+                    >
+                      {suggestions.map((s) => (
+                        <li
+                          key={s.id}
+                          onClick={() => fill(s)}
+                          className="cursor-pointer px-2 py-1 hover:bg-gray-100"
+                        >
+                          <strong>/{s.shortcut}</strong> — {s.title}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {attach && (
+                    <div className="composer-attached mb-1 flex items-center gap-2 rounded bg-gray-100 px-2 py-1 text-xs">
+                      <NavIcon name="knowledge" /> {attach.filename}
+                      <button
+                        aria-label={t('إزالة المرفق', 'Remove attachment')}
+                        onClick={() => setAttach(null)}
+                        className="text-red-600"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                  <div className="composer-row" hidden={replyUnavailable && !internal}>
+                    <textarea
+                      ref={composerInput}
+                      aria-label={t('محرر الرد', 'Reply composer')}
+                      aria-describedby={
+                        detail.handled_by === 'bot' && !internal ? 'inbox-takeover-hint' : undefined
+                      }
+                      value={text}
+                      onChange={(e) => setText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                          e.preventDefault();
+                          send();
+                        }
+                      }}
+                      rows={2}
+                      disabled={!internal && (!!windowExpired || !!detail?.blocked)}
+                      placeholder={
+                        internal
+                          ? t(
+                              'اكتب ملاحظة داخلية (لا يراها العميل)…',
+                              'Write an internal note (hidden from customer)…',
+                            )
+                          : t(
+                              'اكتب ردّاً… (اكتب / للردود الجاهزة)',
+                              'Write a reply… (type / for saved replies)',
+                            )
+                      }
+                      className="composer-input flex-1 rounded border p-2"
+                    />
+                    {!internal && (
+                      <div ref={emojiHost} className={styles.emojiHost}>
+                        <button
+                          type="button"
+                          className={styles.emojiButton}
+                          aria-label={t('رموز تعبيرية', 'Emoji')}
+                          aria-expanded={emojiOpen}
+                          disabled={!!windowExpired || !!detail.blocked}
+                          onClick={() => setEmojiOpen((value) => !value)}
+                        >
+                          <NavIcon name="smile" />
+                        </button>
+                        {emojiOpen && (
+                          <div
+                            className={styles.emojiPicker}
+                            role="group"
+                            aria-label={t('اختيار رمز تعبيري', 'Choose emoji')}
+                          >
+                            {[
+                              '😀',
+                              '😊',
+                              '😍',
+                              '👍',
+                              '🙏',
+                              '❤️',
+                              '🎉',
+                              '✅',
+                              '👋',
+                              '🌹',
+                              '🤝',
+                              '🤔',
+                            ].map((emoji) => (
+                              <button
+                                type="button"
+                                key={emoji}
+                                aria-label={emoji}
+                                onClick={() => {
+                                  const input = composerInput.current;
+                                  const start = input?.selectionStart ?? text.length;
+                                  const end = input?.selectionEnd ?? text.length;
+                                  setText(text.slice(0, start) + emoji + text.slice(end));
+                                  setEmojiOpen(false);
+                                  requestAnimationFrame(() => {
+                                    input?.focus();
+                                    input?.setSelectionRange(
+                                      start + emoji.length,
+                                      start + emoji.length,
+                                    );
+                                  });
+                                }}
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="composer-actions">
+                      <label
+                        className={`composer-attach ${internal ? 'is-disabled' : ''}`}
+                        title={t('إرفاق ملف', 'Attach file')}
+                      >
+                        <NavIcon name="plus" />
+                        <span className="sr-only">{t('إرفاق', 'Attach')}</span>
+                        <input
+                          aria-label={t('إرفاق ملف', 'Attach file')}
+                          type="file"
+                          hidden
+                          onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])}
+                          disabled={internal || uploading || !!windowExpired || !!detail.blocked}
+                        />
+                      </label>
+                      <button
+                        onClick={send}
+                        disabled={
+                          busy ||
+                          uploading ||
+                          (!text.trim() && (internal || !attach)) ||
+                          (!internal && (!!detail?.blocked || !!windowExpired))
+                        }
+                        className={`composer-send ${internal ? 'is-note' : ''}`}
+                      >
+                        {busy ? (
+                          '…'
+                        ) : internal ? (
+                          t('حفظ الملاحظة', 'Save note')
+                        ) : (
+                          <>
+                            <NavIcon name="campaigns" />
+                            <span className="sr-only">{t('إرسال', 'Send')}</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
 
-  @Get('conversations/:id/notes')
-  listNotes(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
-    return this.db.withTenant(req.user.tenantId, async (c) => {
-      const result = await c.query(
-        `SELECT id, content, created_at FROM messages
-         WHERE tenant_id = $1 AND conversation_id = $2
-           AND is_internal AND type = 'note' AND sender_type <> 'system'
-         ORDER BY seq DESC`,
-        [req.user.tenantId, id],
-      );
-      return result.rows;
-    });
-  }
-
-  @Post('conversations/:id/notes')
-  async note(
-    @Req() req: AuthedRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: unknown,
-  ) {
-    const { text } = parse(noteSchema, body);
-    const msg = await this.db.withTenant(req.user.tenantId, async (c) => {
-      const r = await c.query(
-        `INSERT INTO messages (tenant_id, conversation_id, channel_id, direction, sender_type, sender_user_id, type, content, status, is_internal)
-         SELECT tenant_id, id, channel_id, 'out', 'agent', $2, 'note', $3::jsonb, 'sent', true FROM conversations WHERE id = $1
-         RETURNING id, seq, created_at`,
-        [id, req.user.userId, JSON.stringify({ text })],
-      );
-      if (!r.rows[0]) throw new NotFoundException('Conversation not found');
-      return r.rows[0];
-    });
-    this.events.emit('message.created', {
-      tenantId: req.user.tenantId,
-      conversationId: id,
-      message: {
-        id: msg.id,
-        seq: Number(msg.seq),
-        direction: 'out',
-        senderType: 'agent',
-        senderUserId: req.user.userId,
-        type: 'note',
-        content: { text },
-        status: 'sent',
-        isInternal: true,
-        createdAt: msg.created_at,
-      },
-    });
-    return { id: msg.id, seq: Number(msg.seq) };
-  }
-
-  @Patch('conversations/:id/notes/:source/:noteId')
-  async editNote(
-    @Req() req: AuthedRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Param('source') source: string,
-    @Param('noteId', ParseUUIDPipe) noteId: string,
-    @Body() body: unknown,
-  ) {
-    if (source !== 'message' && source !== 'contact') throw new NotFoundException('Note not found');
-    const { text } = parse(noteSchema, body);
-    const result = await this.db.withTenant(req.user.tenantId, (c) =>
-      c.query(
-        source === 'contact'
-          ? `UPDATE crm_notes SET body = $4
-             WHERE tenant_id = $1 AND id = $3 AND contact_id =
-               (SELECT contact_id FROM conversations WHERE tenant_id = $1 AND id = $2)`
-          : `UPDATE messages SET content = content || jsonb_build_object('text', $4::text)
-         WHERE tenant_id = $1 AND conversation_id = $2 AND id = $3
-           AND is_internal AND type = 'note' AND sender_type <> 'system'`,
-        [req.user.tenantId, id, noteId, text],
-      ),
-    );
-    if (!result.rowCount) throw new NotFoundException('Note not found');
-    this.events.emit('inbox.note.changed', {
-      tenantId: req.user.tenantId,
-      conversationId: id,
-      source,
-      noteId,
-      text,
-    });
-    return { ok: true };
-  }
-
-  @Delete('conversations/:id/notes/:source/:noteId')
-  async deleteNote(
-    @Req() req: AuthedRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Param('source') source: string,
-    @Param('noteId', ParseUUIDPipe) noteId: string,
-  ) {
-    if (source !== 'message' && source !== 'contact') throw new NotFoundException('Note not found');
-    const result = await this.db.withTenant(req.user.tenantId, (c) =>
-      c.query(
-        source === 'contact'
-          ? `DELETE FROM crm_notes WHERE tenant_id = $1 AND id = $3 AND contact_id =
-               (SELECT contact_id FROM conversations WHERE tenant_id = $1 AND id = $2)`
-          : `DELETE FROM messages WHERE tenant_id = $1 AND conversation_id = $2 AND id = $3
-           AND is_internal AND type = 'note' AND sender_type <> 'system'`,
-        [req.user.tenantId, id, noteId],
-      ),
-    );
-    if (!result.rowCount) throw new NotFoundException('Note not found');
-    this.events.emit('inbox.note.changed', {
-      tenantId: req.user.tenantId,
-      conversationId: id,
-      source,
-      noteId,
-    });
-    return { ok: true };
-  }
-
-  @Post('conversations/:id/read')
-  async read(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
-    await this.db.withTenant(req.user.tenantId, (c) =>
-      c.query('UPDATE conversations SET unread_count = 0 WHERE id = $1', [id]),
-    );
-    this.changed(req.user.tenantId, id, 'read');
-    return { ok: true };
-  }
-
-  // ---------------------------------------------------------------- state changes
-
-  @Patch('conversations/:id')
-  async update(
-    @Req() req: AuthedRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: unknown,
-  ) {
-    return this.db.conversation(req.user.tenantId, id, async () => {
-      const p = parse(patchSchema, body);
-      const out = await this.db.withTenant(req.user.tenantId, async (c) => {
-        const cur = (
-          await c.query('SELECT status, handled_by, assigned_to FROM conversations WHERE id = $1', [
-            id,
-          ])
-        ).rows[0];
-        if (!cur) throw new NotFoundException('Conversation not found');
-        if (p.important !== undefined)
-          await c.query('UPDATE conversations SET important=$2 WHERE id=$1', [id, p.important]);
-        if (p.archived !== undefined)
-          await c.query(
-            'UPDATE conversations SET archived_at=CASE WHEN $2 THEN now() ELSE NULL END WHERE id=$1',
-            [id, p.archived],
-          );
-        if (p.blocked !== undefined) {
-          await c.query(
-            'UPDATE contact_channels SET blocked_at=CASE WHEN $2 THEN now() ELSE NULL END WHERE (contact_id,channel_id)=(SELECT contact_id,channel_id FROM conversations WHERE id=$1)',
-            [id, p.blocked],
-          );
-          if (p.blocked) await this.expireSessions(c, id);
-          await this.logEvent(c, id, {
-            event: p.blocked ? 'blocked' : 'unblocked',
-            by: req.user.userId,
-          });
-        }
-
-        if (
-          p.departmentId &&
-          !(
-            await c.query(
-              'SELECT 1 FROM departments WHERE id=$1 AND archived_at IS NULL FOR SHARE',
-              [p.departmentId],
-            )
-          ).rowCount
-        )
-          throw new BadRequestException('Department not found');
-        if (p.departmentId !== undefined)
-          await c.query('UPDATE conversations SET department_id=$2 WHERE id=$1', [
-            id,
-            p.departmentId,
-          ]);
-        if (p.assignedTo) {
-          const m = await c.query('SELECT 1 FROM memberships WHERE user_id = $1', [p.assignedTo]);
-          if (!m.rowCount)
-            throw new BadRequestException('Assignee is not a member of this workspace');
-        }
-        const r = await c.query(
-          `UPDATE conversations SET status = COALESCE($2, status), handled_by = COALESCE($3, handled_by),
-           assigned_to = CASE WHEN $4::boolean THEN $5::uuid ELSE assigned_to END
-         WHERE id = $1 RETURNING id, status, handled_by, assigned_to`,
-          [
-            id,
-            p.status ?? null,
-            p.handledBy ?? null,
-            p.assignedTo !== undefined,
-            p.assignedTo ?? null,
-          ],
-        );
-        const by = req.user.userId;
-        if (p.status && p.status !== cur.status)
-          await this.logEvent(c, id, { event: 'status', status: p.status, by });
-        if (p.assignedTo !== undefined && p.assignedTo !== cur.assigned_to) {
-          await this.logEvent(
-            c,
-            id,
-            p.assignedTo
-              ? { event: 'assigned', userId: p.assignedTo, by }
-              : { event: 'unassigned', by },
-          );
-        }
-        if (p.handledBy && p.handledBy !== cur.handled_by) {
-          await this.expireSessions(c, id);
-          await this.logEvent(c, id, {
-            event: p.handledBy === 'human' ? 'taken_over' : 'returned_to_bot',
-            by,
-          });
-        }
-        return r.rows[0];
-      });
-      this.changed(req.user.tenantId, id, 'updated');
-      return out;
-    });
-  }
-
-  @Post('conversations/:id/takeover')
-  async takeover(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
-    return this.db.conversation(req.user.tenantId, id, async () => {
-      const out = await this.db.withTenant(req.user.tenantId, async (c) => {
-        const r = await c.query(
-          "UPDATE conversations SET handled_by = 'human', assigned_to = $2, status = 'open' WHERE id = $1 RETURNING id, status, handled_by, assigned_to",
-          [id, req.user.userId],
-        );
-        if (!r.rows[0]) throw new NotFoundException('Conversation not found');
-        await this.expireSessions(c, id);
-        await this.logEvent(c, id, { event: 'taken_over', by: req.user.userId });
-        return r.rows[0];
-      });
-      this.changed(req.user.tenantId, id, 'takeover');
-      return out;
-    });
-  }
-
-  @Post('conversations/:id/release')
-  async release(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
-    return this.db.conversation(req.user.tenantId, id, async () => {
-      const out = await this.db.withTenant(req.user.tenantId, async (c) => {
-        const r = await c.query(
-          "UPDATE conversations SET handled_by = 'bot', assigned_to = NULL, status = 'open' WHERE id = $1 RETURNING id, status, handled_by, assigned_to",
-          [id],
-        );
-        if (!r.rows[0]) throw new NotFoundException('Conversation not found');
-        await this.expireSessions(c, id);
-        await this.logEvent(c, id, { event: 'returned_to_bot', by: req.user.userId });
-        return r.rows[0];
-      });
-      this.changed(req.user.tenantId, id, 'release');
-      return out;
-    });
-  }
-
-  @Post('conversations/:id/auto-assign')
-  @Roles('owner', 'admin')
-  async autoAssign(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
-    const agent = await this.assignment.autoAssignIfEnabled(req.user.tenantId, id, true);
-    if (!agent)
-      throw new BadRequestException('No available agent (everyone is away or at capacity)');
-    return { assignedTo: agent };
-  }
-
-  // ---------------------------------------------------------------- inbound media (WhatsApp keeps media on Meta servers)
-
-  @Get('conversations/:id/messages/:messageId/media')
-  async media(
-    @Req() req: AuthedRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Param('messageId', ParseUUIDPipe) messageId: string,
-    @Res() res: Response,
-  ) {
-    const row = await this.db.withTenant(req.user.tenantId, async (c) => {
-      const r = await c.query(
-        `SELECT m.content, ch.type, ch.credentials_enc FROM messages m JOIN channels ch ON ch.id = m.channel_id
-         WHERE m.id = $1 AND m.conversation_id = $2`,
-        [messageId, id],
-      );
-      return r.rows[0];
-    });
-    const media = row?.content?.media;
-    if (!media?.providerMediaId || !['whatsapp', 'telegram'].includes(row.type))
-      throw new NotFoundException('No downloadable media');
-
-    const creds = this.channels.credentials({ credentials_enc: row.credentials_enc } as ChannelRow);
-    if (row.type === 'telegram') {
-      const file = await telegramFile(creds.botToken, media.providerMediaId);
-      const mime = MEDIA_TYPES.test(file.mimeType) ? file.mimeType : 'application/octet-stream';
-      res.set({
-        'Content-Type': mime,
-        'X-Content-Type-Options': 'nosniff',
-        'Content-Security-Policy': "default-src 'none'; sandbox",
-        'Cache-Control': 'private, max-age=300',
-        ...(mime === 'application/octet-stream' ? { 'Content-Disposition': 'attachment' } : {}),
-      });
-      res.send(file.buffer);
-      return;
-    }
-    const auth = { Authorization: `Bearer ${creds.accessToken}` };
-    const meta: any = await fetch(`${GRAPH}/${encodeURIComponent(media.providerMediaId)}`, {
-      headers: auth,
-      signal: AbortSignal.timeout(15000),
-    })
-      .then((r) => r.json())
-      .catch(() => null);
-    if (!meta?.url || !/^https:\/\//.test(meta.url))
-      throw new NotFoundException('Media is no longer available');
-    const file = await fetch(meta.url, { headers: auth, signal: AbortSignal.timeout(30000) });
-    if (!file.ok) throw new NotFoundException('Media is no longer available');
-    const buf = Buffer.from(await file.arrayBuffer());
-    if (buf.length > 16 * 1024 * 1024) throw new BadRequestException('Media is too large');
-
-    const mime = MEDIA_TYPES.test(String(meta.mime_type ?? ''))
-      ? String(meta.mime_type)
-      : 'application/octet-stream';
-    res.set({
-      'Content-Type': mime,
-      'X-Content-Type-Options': 'nosniff',
-      'Content-Security-Policy': "default-src 'none'; sandbox",
-      'Cache-Control': 'private, max-age=300',
-      ...(mime === 'application/octet-stream' ? { 'Content-Disposition': 'attachment' } : {}),
-    });
-    res.send(buf);
-  }
-
-  // ---------------------------------------------------------------- availability & settings
-
-  @Patch('team/me/availability')
-  async availability(@Req() req: AuthedRequest, @Body() body: unknown) {
-    const { available } = parse(availabilitySchema, body);
-    return this.db.withTenant(req.user.tenantId, async (c) => {
-      // Keep lock ordering consistent with assignment selection across replicas.
-      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
-      await c.query('UPDATE memberships SET available = $2 WHERE user_id = $1', [
-        req.user.userId,
-        available,
-      ]);
-      const reassigned = available ? await this.assignment.retryWaiting(req.user.tenantId) : 0;
-      return { available, reassigned };
-    });
-  }
-
-  @Get('inbox/settings')
-  settings(@Req() req: AuthedRequest) {
-    return this.assignment.getSettings(req.user.tenantId);
-  }
-
-  @Roles('owner', 'admin')
-  @Put('inbox/settings')
-  saveSettings(@Req() req: AuthedRequest, @Body() body: unknown) {
-    return this.assignment.saveSettings(req.user.tenantId, parse(settingsSchema, body));
-  }
+          {detail && (
+            <>
+              <InboxFollowupDialog
+                key={`followup-${detail.id}`}
+                open={followupOpen}
+                detail={detail}
+                onClose={() => setFollowupOpen(false)}
+                onSaved={async () => {
+                  setProfileRefresh((value) => value + 1);
+                }}
+              />
+              <InboxContactDialog
+                key={`contact-${detail.id}`}
+                field={editingContact}
+                contactId={detail.contact_id}
+                onClose={() => setEditingContact(null)}
+                onSaved={async () => {
+                  const id = selRef.current;
+                  if (!id) return;
+                  const updated = await api(`/conversations/${id}`);
+                  if (selRef.current === id) {
+                    setDetail(updated);
+                    setProfileRefresh((value) => value + 1);
+                  }
+                  await loadList();
+                }}
+              />
+            </>
+          )}
+          {/* ---------- تفاصيل العميل ---------- */}
+          <div className="hidden lg:contents">{actionsOpen && !showContext && customerPanel}</div>
+          {showContext && !!detail && (
+            <Dialog
+              open={true}
+              onClose={() => setShowContext(false)}
+              title={t('ملف العميل', 'Customer profile')}
+            >
+              {customerPanel}
+            </Dialog>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }

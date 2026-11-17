@@ -5,6 +5,8 @@ on:
     paths:
       - 'apps/api/**'
       - 'scripts/run-enterprise-postgres-qa.py'
+      - 'scripts/qa-p0-reliability.mjs'
+      - 'scripts/qa-p0-policy-recovery.mjs'
       - 'scripts/qa-assignment-http.mjs'
       - 'scripts/acceptance-parity-api.mjs'
       - 'scripts/qa-backup-restore.py'

@@ -124,3 +124,15 @@ No migration added in this batch. Revert only this batch's source changes in a n
 
 ### Measured owner benefits supported now
 Railway acceptance demonstrates automated collection of a visitor name into CRM, context-preserving human transfer, staff response through Webchat, internal-note privacy and duplicate-message suppression. Independent PostgreSQL tests demonstrate eligible/capacity-limited queue assignment and105conversation bounded recovery. No response-time saving percentage, staffing reduction or revenue claim has been measured.
+
+
+## Continuation batch — ownership, backlog and durable SLA (2026-11-17)
+
+Baseline retained: PR14 HEAD `48c476478579f20f0e928ec65d02161db1b67883`, verified Preview application `3cdb26b`. No previous accepted evidence superseded.
+
+- Reproduced defect: simultaneous agent takeover returned two successes. Conversation-locked ownership checks now reject competing claims, replies, release and reassignment with HTTP409; owner/admin explicit reassignment remains available. Local HTTP regression PASS.
+- Reproduced backlog defect: Inbox incremental endpoint incorrectly returned `hasMore:false`; fixed lookahead paging and bounded client catch-up. Widget now exposes truthful paging and drains bounded pages with single-flight polling and historical typing suppression. Local HTTP >200-message/private-note regression PASS.
+- SLA worker now persists deduplicated internal notifications in the same transaction, emits UI refresh after commit, excludes disabled escalation targets, and isolates individual item failures. PostgreSQL notification/recovery acceptance is added to existing isolated CI; acceptance pending until actual run passes.
+- Local API and Web production builds PASS. `scripts/qa-p0-reliability.mjs` four local HTTP checks PASS on PGlite; this does not constitute PostgreSQL or deployed acceptance.
+- Existing PostgreSQL and Inbox AR/EN responsive workflows retained. New acceptance scripts added without replacing old tests. Real PostgreSQL / browser / Preview deployment acceptance PENDING; all P0 rows remain PARTIAL.
+- Rollback: repin existing API/Web to verified `3cdb26b`; no migrations or schema changes in this batch. Preserve Preview Sleep and existing services.

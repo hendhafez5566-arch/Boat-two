@@ -40,6 +40,7 @@
   var ui = {};
   var displayQueue = Promise.resolve();
   var historyBoundary = 0;
+  var historyLoading = false;
 
   function build(cfg) {
     var side = cfg.position === 'left' ? 'left' : 'right';
@@ -196,24 +197,34 @@
     }).catch(function () {});
   }
 
+  var polling = null;
   function poll() {
     if (!st.token) return Promise.resolve();
-    return req('/widget/' + key + '/messages?visitorId=' + encodeURIComponent(st.visitorId) + '&after=' + st.lastSeq)
-      .then(function (d) {
-        var fresh = 0;
-        (d.messages || []).forEach(function (m) {
-          if (m.seq <= st.lastSeq) return;
-          st.lastSeq = m.seq;
-          displayMessage(m);
-          if (m.senderType !== 'contact') fresh++;
+    if (polling) return polling;
+    function page(remaining) {
+      var before = st.lastSeq;
+      return req('/widget/' + key + '/messages?visitorId=' + encodeURIComponent(st.visitorId) + '&after=' + before)
+        .then(function (d) {
+          var fresh = 0;
+          (d.messages || []).forEach(function (m) {
+            if (m.seq <= st.lastSeq) return;
+            st.lastSeq = m.seq;
+            if (historyLoading) historyBoundary = Math.max(historyBoundary, m.seq);
+            displayMessage(m);
+            if (m.senderType !== 'contact') fresh++;
+          });
+          if (fresh && !st.open) {
+            st.unread += fresh;
+            ui.badge.textContent = String(st.unread);
+            ui.badge.style.display = 'block';
+          }
+          // Bounded catch-up after reload/offline; never loop on an unchanged cursor.
+          if (!d.hasMore) historyLoading = false;
+          if (d.hasMore && st.lastSeq > before && remaining > 1) return page(remaining - 1);
         });
-        if (fresh && !st.open) {
-          st.unread += fresh;
-          ui.badge.textContent = String(st.unread);
-          ui.badge.style.display = 'block';
-        }
-      })
-      .catch(function () {});
+    }
+    polling = page(10).catch(function () {}).finally(function () { polling = null; });
+    return polling;
   }
 
   function send(payload) {
@@ -230,6 +241,7 @@
       st.visitorId = d.visitorId;
       st.token = d.token;
       store(false, d.visitorId);
+      historyLoading = true;
       return req('/widget/' + key + '/messages?visitorId=' + encodeURIComponent(st.visitorId)).then(function (r) {
         historyBoundary = Math.max.apply(null, [0].concat((r.messages || []).map(function(m) { return m.seq; })));
         if (!r.messages || !r.messages.length) addBubble('them', { text: st.cfg.welcomeMessage });
