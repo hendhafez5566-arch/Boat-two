@@ -73,3 +73,14 @@ No migration added in this batch. Revert only this batch's source changes in a n
 - Expanded independent assignment acceptance to105queued conversations, paginated persistence, unavailable staff, capacity1, human ownership retention, repeated availability safety, then two bounded drains100+4 and per-conversation eligible owner verification. No load on Railway.
 - Fresh local suite239/239 PASS, API build PASS, Web Next15 build PASS. Current independent PostgreSQL, restore and responsive acceptance must still pass.
 - Rollback for migration108: additive operational counters only, no customer rows changed. Roll back application to previous compatible release and retain counters/schema; do not drop tables or reverse customer data.
+
+## Independent PostgreSQL batch3 result
+- CI44037571907 passed actual migrations and every HTTP script, including105queued conversations and24concurrent login attempts. Sparse settings regression no longer reproduces.
+- Restore failure now diagnosed precisely: host pg_restore emitted SET transaction_timeout, unsupported by PostgreSQL16. Matching tools now run inside the existing ephemeral CI database container (not Railway); same source/restore row counts and RLS assertions remain mandatory. Retest pending.
+- No application failure/failed release was deployed.
+
+## Navigation defect discovered during responsive product acceptance
+- CI44037571876 clicked Back to bot manager but stayed in the product section: Next client navigation changed URL parameters without dispatching popstate. Both manager section state and shared channel context now observe Next search parameters as well as explicit history/context events. The existing acceptance still requires the real Keyword Replies heading and original channelId after clicking; no destination assertion weakened.
+- Production code configuration prepared under deploy/production with separate always-on opt-in service configs and explicit backup, persistent attachment, monitoring/cost/activation gates. These files are not applied to Preview.
+
+- Extended real PostgreSQL runner with the existing billing price/delinquency/reconciliation fixture. Added loopback guard and hard-blocked HTTPS so this remains a synthetic provider test, never official Stripe sandbox acceptance or a real charge. Pending execution.

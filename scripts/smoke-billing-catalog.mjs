@@ -1,3 +1,8 @@
+import { assertLocalAcceptance } from './acceptance-local.mjs';
+import https from 'node:https';
+assertLocalAcceptance();
+// Stripe fixtures must never reach any real merchant/provider endpoint.
+https.request = () => { throw new Error('Real HTTPS delivery is disabled in billing acceptance'); };
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
 import { randomUUID, randomBytes } from 'node:crypto';

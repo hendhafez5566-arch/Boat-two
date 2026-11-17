@@ -1,6 +1,7 @@
 """Restore acceptance for disposable local CI PostgreSQL only. Never use on Railway."""
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -13,11 +14,14 @@ if u.hostname not in ('localhost', '127.0.0.1') or u.path != '/boat_qa':
 if os.environ.get('GITHUB_ACTIONS') != 'true':
     raise SystemExit('Restore acceptance is CI-only')
 restored = urlunparse(u._replace(path='/boat_restore_qa'))
+container = os.environ.get('BOAT_QA_POSTGRES_CONTAINER', '')
+if not re.fullmatch(r'[0-9a-f]{12,64}', container):
+    raise SystemExit('Restore acceptance requires the disposable PostgreSQL service container')
 
 def run(*args):
-    # Match the server's major client version when the CI image provides it.
-    binary = Path('/usr/lib/postgresql/16/bin') / args[0]
-    command = (str(binary), *args[1:]) if binary.is_file() else args
+    # Use the server container's matching tools. Newer host pg_dump/pg_restore
+    # emit transaction_timeout, which PostgreSQL16 correctly rejects.
+    command = ('docker', 'exec', container, *args) if args[0] in ('pg_dump', 'pg_restore') else args
     result = subprocess.run(command, capture_output=True, text=True)
     if result.returncode:
         detail = result.stderr.replace(admin, '[source]').replace(restored, '[restore]')
@@ -32,7 +36,7 @@ assert sql(admin, "SELECT count(*) FROM pg_database WHERE datname='boat_restore_
 owner = sql(admin, 'SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname=current_database()')
 assert owner in ('postgres', 'app_user')
 with tempfile.TemporaryDirectory(prefix='boat-restore-') as directory:
-    dump = str(Path(directory) / 'acceptance.dump')
+    dump = '/tmp/boat-restore-acceptance.dump'
     run('pg_dump', '--dbname', admin, '--format=custom', '--file', dump)
     sql(admin, 'CREATE DATABASE boat_restore_qa')
     run('pg_restore', '--dbname', restored, '--exit-on-error', dump)

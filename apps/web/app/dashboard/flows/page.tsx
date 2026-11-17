@@ -7,6 +7,7 @@ import { managerError } from './manager-feedback';
 import { statusLabel } from '../../../components/product/status';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import AccountPanel from '../../../components/workspace/AccountPanel';
 import { AccountWorkspaceContext } from '../../../components/product/AccountWorkspaceContext';
 import {
@@ -56,6 +57,7 @@ type InputFlowReport = {
 const channelTypes = ['whatsapp', 'telegram', 'facebook', 'instagram', 'web'];
 
 export default function BotManager() {
+  const searchQuery = useSearchParams().toString();
   const { t, language } = useLocale();
   const channels = useData<Channel[]>('/channels', []);
   const flows = useData<Flow[]>('/flows', []);
@@ -75,7 +77,7 @@ export default function BotManager() {
     read();
     window.addEventListener('popstate', read);
     return () => window.removeEventListener('popstate', read);
-  }, []);
+  }, [searchQuery]);
   const selectSection = (value: string) => {
     if (['autoresponder', 'integrations'].includes(value)) {
       window.location.assign('/dashboard/settings?tab=integrations&action=emailauto-tab');

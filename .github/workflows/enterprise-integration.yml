@@ -9,6 +9,7 @@ on:
       - 'scripts/acceptance-parity-api.mjs'
       - 'scripts/qa-backup-restore.py'
       - 'scripts/qa-auth-rate-limit.mjs'
+      - 'scripts/smoke-billing-catalog.mjs'
       - '.github/workflows/enterprise-integration.yml'
   workflow_dispatch:
 permissions:
@@ -71,6 +72,8 @@ jobs:
       - name: Real PostgreSQL tenant, flow, CRM and Inbox acceptance
         run: python3 scripts/run-enterprise-postgres-qa.py
       - name: Restore disposable PostgreSQL backup and verify data and RLS
+        env:
+          BOAT_QA_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
         run: python3 scripts/qa-backup-restore.py
       - uses: actions/upload-artifact@v4
         if: always()
