@@ -13,7 +13,9 @@
         "deployed Inbox persisted replies",
         "offline reconnect",
         "reload without duplicates",
-        "measured response report"
+        "measured response report",
+        "deployed attachment upload/revoke/reload/restore/download",
+        "searchable help"
       ]
     },
     {
@@ -24,7 +26,9 @@
         "deployed Inbox persisted replies",
         "offline reconnect",
         "reload without duplicates",
-        "measured response report"
+        "measured response report",
+        "deployed attachment upload/revoke/reload/restore/download",
+        "searchable help"
       ]
     },
     {
@@ -35,7 +39,9 @@
         "deployed Inbox persisted replies",
         "offline reconnect",
         "reload without duplicates",
-        "measured response report"
+        "measured response report",
+        "deployed attachment upload/revoke/reload/restore/download",
+        "searchable help"
       ]
     },
     {
@@ -46,9 +52,11 @@
         "deployed Inbox persisted replies",
         "offline reconnect",
         "reload without duplicates",
-        "measured response report"
+        "measured response report",
+        "deployed attachment upload/revoke/reload/restore/download",
+        "searchable help"
       ]
     }
   ],
-  "createdAt": "2026-11-17T18:04:38.065Z"
+  "createdAt": "2026-11-17T20:08:32.048Z"
 }

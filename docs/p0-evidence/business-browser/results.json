@@ -1,0 +1,230 @@
+[
+  {
+    "business": "tourism",
+    "language": "ar",
+    "width": 390,
+    "status": "PASS",
+    "durationMs": 17645,
+    "checks": [
+      "actual visitor widget",
+      "name/email collection with invalid-email recovery",
+      "actual catalog price",
+      "handoff",
+      "employee UI reply",
+      "private note",
+      "reload history",
+      "manager CRM UI",
+      "foreign-company denial"
+    ],
+    "scope": "Synthetic locally seeded businesses and published flows; provider transport and complete UI signup/bot-authoring are separate acceptance"
+  },
+  {
+    "business": "tourism",
+    "language": "ar",
+    "width": 1366,
+    "status": "PASS",
+    "durationMs": 16875,
+    "checks": [
+      "actual visitor widget",
+      "name/email collection with invalid-email recovery",
+      "actual catalog price",
+      "handoff",
+      "employee UI reply",
+      "private note",
+      "reload history",
+      "manager CRM UI",
+      "foreign-company denial"
+    ],
+    "scope": "Synthetic locally seeded businesses and published flows; provider transport and complete UI signup/bot-authoring are separate acceptance"
+  },
+  {
+    "business": "tourism",
+    "language": "en",
+    "width": 390,
+    "status": "PASS",
+    "durationMs": 16895,
+    "checks": [
+      "actual visitor widget",
+      "name/email collection with invalid-email recovery",
+      "actual catalog price",
+      "handoff",
+      "employee UI reply",
+      "private note",
+      "reload history",
+      "manager CRM UI",
+      "foreign-company denial"
+    ],
+    "scope": "Synthetic locally seeded businesses and published flows; provider transport and complete UI signup/bot-authoring are separate acceptance"
+  },
+  {
+    "business": "tourism",
+    "language": "en",
+    "width": 1366,
+    "status": "PASS",
+    "durationMs": 17822,
+    "checks": [
+      "actual visitor widget",
+      "name/email collection with invalid-email recovery",
+      "actual catalog price",
+      "handoff",
+      "employee UI reply",
+      "private note",
+      "reload history",
+      "manager CRM UI",
+      "foreign-company denial"
+    ],
+    "scope": "Synthetic locally seeded businesses and published flows; provider transport and complete UI signup/bot-authoring are separate acceptance"
+  },
+  {
+    "business": "store",
+    "language": "ar",
+    "width": 390,
+    "status": "PASS",
+    "durationMs": 17888,
+    "checks": [
+      "actual visitor widget",
+      "name/email collection with invalid-email recovery",
+      "actual catalog price",
+      "handoff",
+      "employee UI reply",
+      "private note",
+      "reload history",
+      "manager CRM UI",
+      "foreign-company denial"
+    ],
+    "scope": "Synthetic locally seeded businesses and published flows; provider transport and complete UI signup/bot-authoring are separate acceptance"
+  },
+  {
+    "business": "store",
+    "language": "ar",
+    "width": 1366,
+    "status": "PASS",
+    "durationMs": 17788,
+    "checks": [
+      "actual visitor widget",
+      "name/email collection with invalid-email recovery",
+      "actual catalog price",
+      "handoff",
+      "employee UI reply",
+      "private note",
+      "reload history",
+      "manager CRM UI",
+      "foreign-company denial"
+    ],
+    "scope": "Synthetic locally seeded businesses and published flows; provider transport and complete UI signup/bot-authoring are separate acceptance"
+  },
+  {
+    "business": "store",
+    "language": "en",
+    "width": 390,
+    "status": "PASS",
+    "durationMs": 17873,
+    "checks": [
+      "actual visitor widget",
+      "name/email collection with invalid-email recovery",
+      "actual catalog price",
+      "handoff",
+      "employee UI reply",
+      "private note",
+      "reload history",
+      "manager CRM UI",
+      "foreign-company denial"
+    ],
+    "scope": "Synthetic locally seeded businesses and published flows; provider transport and complete UI signup/bot-authoring are separate acceptance"
+  },
+  {
+    "business": "store",
+    "language": "en",
+    "width": 1366,
+    "status": "PASS",
+    "durationMs": 16730,
+    "checks": [
+      "actual visitor widget",
+      "name/email collection with invalid-email recovery",
+      "actual catalog price",
+      "handoff",
+      "employee UI reply",
+      "private note",
+      "reload history",
+      "manager CRM UI",
+      "foreign-company denial"
+    ],
+    "scope": "Synthetic locally seeded businesses and published flows; provider transport and complete UI signup/bot-authoring are separate acceptance"
+  },
+  {
+    "business": "services",
+    "language": "ar",
+    "width": 390,
+    "status": "PASS",
+    "durationMs": 16681,
+    "checks": [
+      "actual visitor widget",
+      "name/email collection with invalid-email recovery",
+      "actual catalog price",
+      "handoff",
+      "employee UI reply",
+      "private note",
+      "reload history",
+      "manager CRM UI",
+      "foreign-company denial"
+    ],
+    "scope": "Synthetic locally seeded businesses and published flows; provider transport and complete UI signup/bot-authoring are separate acceptance"
+  },
+  {
+    "business": "services",
+    "language": "ar",
+    "width": 1366,
+    "status": "PASS",
+    "durationMs": 17630,
+    "checks": [
+      "actual visitor widget",
+      "name/email collection with invalid-email recovery",
+      "actual catalog price",
+      "handoff",
+      "employee UI reply",
+      "private note",
+      "reload history",
+      "manager CRM UI",
+      "foreign-company denial"
+    ],
+    "scope": "Synthetic locally seeded businesses and published flows; provider transport and complete UI signup/bot-authoring are separate acceptance"
+  },
+  {
+    "business": "services",
+    "language": "en",
+    "width": 390,
+    "status": "PASS",
+    "durationMs": 17597,
+    "checks": [
+      "actual visitor widget",
+      "name/email collection with invalid-email recovery",
+      "actual catalog price",
+      "handoff",
+      "employee UI reply",
+      "private note",
+      "reload history",
+      "manager CRM UI",
+      "foreign-company denial"
+    ],
+    "scope": "Synthetic locally seeded businesses and published flows; provider transport and complete UI signup/bot-authoring are separate acceptance"
+  },
+  {
+    "business": "services",
+    "language": "en",
+    "width": 1366,
+    "status": "PASS",
+    "durationMs": 14025,
+    "checks": [
+      "actual visitor widget",
+      "name/email collection with invalid-email recovery",
+      "actual catalog price",
+      "handoff",
+      "employee UI reply",
+      "private note",
+      "reload history",
+      "manager CRM UI",
+      "foreign-company denial"
+    ],
+    "scope": "Synthetic locally seeded businesses and published flows; provider transport and complete UI signup/bot-authoring are separate acceptance"
+  }
+]

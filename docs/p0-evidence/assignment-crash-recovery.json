@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "database": "real PostgreSQL CI",
+  "checks": [
+    "worker killed after actual uncommitted assignment update",
+    "rollback preserves queue and audit",
+    "fresh process recovers persistent queue",
+    "disabled staff excluded",
+    "five queued conversations assigned once",
+    "human takeover retained",
+    "agent cannot force assignment"
+  ],
+  "faultInjection": "test child process only"
+}

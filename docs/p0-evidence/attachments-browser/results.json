@@ -1,0 +1,62 @@
+[
+  {
+    "language": "ar",
+    "width": 390,
+    "status": "PASS",
+    "checks": [
+      "settings navigation",
+      "real upload",
+      "soft deletion",
+      "restore",
+      "revoke",
+      "authenticated download",
+      "linked deletion denied",
+      "reload persistence"
+    ]
+  },
+  {
+    "language": "ar",
+    "width": 1366,
+    "status": "PASS",
+    "checks": [
+      "settings navigation",
+      "real upload",
+      "soft deletion",
+      "restore",
+      "revoke",
+      "authenticated download",
+      "linked deletion denied",
+      "reload persistence"
+    ]
+  },
+  {
+    "language": "en",
+    "width": 390,
+    "status": "PASS",
+    "checks": [
+      "settings navigation",
+      "real upload",
+      "soft deletion",
+      "restore",
+      "revoke",
+      "authenticated download",
+      "linked deletion denied",
+      "reload persistence"
+    ]
+  },
+  {
+    "language": "en",
+    "width": 1366,
+    "status": "PASS",
+    "checks": [
+      "settings navigation",
+      "real upload",
+      "soft deletion",
+      "restore",
+      "revoke",
+      "authenticated download",
+      "linked deletion denied",
+      "reload persistence"
+    ]
+  }
+]

@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "database": "PGlite local",
+  "database": "PostgreSQL CI",
   "checks": [
     "actual upload and byte-identical retrieval",
     "private metadata/download tenant denial",

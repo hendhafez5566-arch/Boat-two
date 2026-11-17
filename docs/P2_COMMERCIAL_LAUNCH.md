@@ -3,12 +3,12 @@
 |ID|Requirement|Status|Evidence|Remaining|
 |---|---|---|---|---|
 |P2-01|Optional business features|PARTIAL|Existing campaigns/appointments/social draft tests retained; production external delivery is disabled for acceptance|Explicit provider-approved execution/recovery and UI readiness gates for every advertised feature|
-|P2-02|Real business acceptance|PARTIAL|Actual PostgreSQL tourism/store/services synthetic published-bot→CRM→human journeys PASS in CI44140822768|Complete business-owner/browser/role/failure acceptance and authorized real-provider identities; real company accounts require explicit authorization|
-|P2-03|Commercial launch package|PARTIAL|deploy/production/README.md independent production/backup/rollback plan; current billing code retained|Legal owner review of privacy/terms, support contacts and incident ownership; official payment sandbox; real provider acceptance; production cost/infrastructure approval|
+|P2-02|Real business acceptance|PARTIAL|Actual PostgreSQL tourism/store/services journeys PASS;12 seeded AR/EN390/1366 real-browser visitor/employee/CRM journeys PASS CI44152172456|Complete business-owner/browser/role/failure acceptance and authorized real-provider identities; real company accounts require explicit authorization|
+|P2-03|Commercial launch package|PARTIAL|deploy/production/README.md independent production/backup/rollback plan; current billing code retained|Searchable AR/EN help accepted CI44154028003; unpublished privacy/terms/support/incident/external-input drafts prepared. Legal owner review/support contacts; official payment sandbox; provider acceptance; production/storage approval remain|
 
 Verdict: **NOT READY**. P0 remains PARTIAL and external official messaging, paid AI test identity/budget, official merchant sandbox and independent production approval remain BLOCKED — EXTERNAL. These do not block independent coding/tests. No real charges, external messages, new services/databases or main merge.
 
-Rollback remains application `3cdb26b` on original Preview API/Web services with existing Sleep preserved. Commercial release must never be inferred from route coverage, fixtures or mocked provider transport.
+Historical rollback reference was application `3cdb26b`. SECURITY OVERRIDE: after migration109/revocation, any rollback must retain DB-authoritative file lifecycle and safe message URL guards; do not deploy that old API unchanged. Original Preview services/Sleep remain preserved. Commercial release must never be inferred from route coverage, fixtures or mocked provider transport.
 
 ## Synthetic business acceptance added
 
@@ -25,3 +25,21 @@ Actual published Preview Inbox/report acceptance44143748624 PASS uses a separate
 Expanded the existing support page into a searchable AR/EN help center with real routes for onboarding, bot publication, ownership, attachments, queues, measured reports, external integrations and safe incident reporting. No fictional support address or provider-readiness claim.
 
 Prepared internal, unpublished legal-review drafts in docs/launch/PRIVACY_DRAFT.md and TERMS_DRAFT.md; operational support/incident procedure in SUPPORT_INCIDENTS.md; exact external identity/permission/secure-provision/cost/acceptance matrix in EXTERNAL_ACCEPTANCE.md. These drafts are not legally approved or published customer agreements. Owner/legal support contacts, final policies and production/storage costs remain external decisions. Browser search/navigation and role acceptance pending.
+
+## Security and recovery release — 2026-11-17
+
+Application commit69c57c8e9faf99723e05ff2a782c2cd2905e5300 accepted by all eight applicable workflows. Actual PostgreSQL44154027940 passed243/243 API tests, additive migrations109/110, attachment tenant/role/lifecycle/send-delete race and worker SIGKILL/rollback/recovery suites, plus disposable DB backup/restore/RLS checks. This does not restore attachment file bytes or establish persistent media storage.
+
+Editor44154027850 accepted all31 inspector/routing save/reopen configurations in AR/EN390/1366. Inbox/browser44154028003 accepted22 scoped contexts including four attachment owner/agent/help journeys and the controlled legacy executable-link rendering probe. Earlier recovery44150302692 and editor44150302652 remain valid in their scopes. Three-business browser44152172456 accepted12 seeded tourism/store/services visitor→data collection→handoff→employee UI reply/private note→CRM journeys; full company signup/invite/bot-authoring browser acceptance remains separate.
+
+Deployed existing Preview API first:db67a55a-70be-4677-aa8f-4e6e6884dcd2 SUCCESS, then Web0011f966-d6e2-4aba-b34a-6132a18623f8 SUCCESS, both pinned69c57c8, both Sleep=true. Health returned200/db up. Live functional acceptance is tracked separately below. No main merge/new resource/real-customer mutation/provider send/paid call.
+
+Security rollback is mandatory: retain migrations109/110 and file records, and retain the DB-authoritative public-file lifecycle gate plus message URL validation/rendering guards in any rollback build. Do not repin the old3cdb26b/4e058e0 API unchanged after revocation. Keep accepted images/history for investigation, but prefer a forward fix or a compatibility rollback build preserving these boundaries. No migration-down/drop or file purge is authorized.
+
+Remaining independent work: advanced node property/runtime/provider-error combinations; multi-tenant assignment fairness and all-role UI interactions; every media variant and sensitive endpoint audit; complete registration/invitation/authoring UI journey; full reports attribution and every-section interaction UX. External requirements are enumerated in docs/launch/EXTERNAL_ACCEPTANCE.md. Persistent storage, provider identities/permissions, authorized AI budget, official payment sandbox, Production architecture/cost, and legal/support owner approvals stay BLOCKED — EXTERNAL. Overall P0/P1/P2 remain PARTIAL; verdict NOT READY for broad commercial launch.
+
+### Live deployed acceptance and exact continuation
+
+Live Preview CI44165829215 SUCCESS at test commitfd409936ce29427e176964fcb616de100b0ab4e5, artifact14365137911. Four AR/EN390/1366 real deployed browser journeys passed Inbox offline catch-up/reload without duplicates, measured first-response report, real upload→revoke→public404→reload still revoked→restore/public200 with no-store→authorized download, and help search/navigation. Evidence:docs/p0-evidence/live-runtime-browser/results.json. Synthetic company only; no external provider or financial delivery. Reviewed live Arabic390 attachment screenshot; no horizontal overflow. This certifies the scoped deployed operations, not durable attachment storage across application replacement.
+
+Application pin remains69c57c8 on API/Web deployments recorded above; later commits contain tests/evidence only. Preserve accepted baseline tests and existing resources/Sleep. Next independent execution point: advanced node property/invalid/runtime/error matrix, multi-company recovery fairness/all-role interactions, full signup/invitation/authoring UI, reports attribution and remaining endpoint/media audit. Read actual PR14 HEAD before editing. Whole requirements retain PARTIAL; no outside-session continuation promised.
