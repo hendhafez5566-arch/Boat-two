@@ -11,6 +11,7 @@ on:
       - 'scripts/qa-p0-node-matrix.mjs'
       - 'scripts/qa-p1-report-response.mjs'
       - 'scripts/qa-p2-business-journeys.mjs'
+      - 'scripts/qa-p0-delay-restart.mjs'
       - 'scripts/qa-assignment-http.mjs'
       - 'scripts/acceptance-parity-api.mjs'
       - 'scripts/qa-backup-restore.py'

@@ -27,6 +27,7 @@ with open('/tmp/boat-enterprise-postgres-api.log', 'w') as log:
             result = subprocess.run(['node', 'scripts/'+script], env=dict(os.environ, BOAT_QA_EXISTING_API='true', QA_RESUME_HTTP='true', SMOKE_API_URL='http://localhost:4000'))
             if result.returncode:
                 raise SystemExit(result.returncode)
+        subprocess.run(['node','scripts/qa-p0-delay-restart.mjs','--prepare'],check=True)
         # Verify database-backed history and dedupe after a real process replacement.
         server.terminate()
         server.wait(timeout=10)
@@ -39,6 +40,7 @@ with open('/tmp/boat-enterprise-postgres-api.log', 'w') as log:
                 time.sleep(.2)
         else:
             raise RuntimeError('Restarted PostgreSQL API did not recover')
+        subprocess.run(['node','scripts/qa-p0-delay-restart.mjs'],check=True)
         subprocess.run(['node','scripts/qa-p1-load-recovery.mjs','--verify-restart'],check=True)
         subprocess.run(['node','scripts/qa-p1-report-response.mjs'],check=True)
     finally:

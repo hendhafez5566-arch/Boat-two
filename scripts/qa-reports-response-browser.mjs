@@ -7,8 +7,9 @@ assertLocalAcceptance();
 const {chromium}=createRequire(import.meta.url)(process.env.BOAT_PLAYWRIGHT_MODULE||'playwright');
 async function api(path,token,body){const r=await fetch('http://localhost:4000'+path,{method:body?'POST':'GET',headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});assert.ok(r.ok,path+' '+r.status);return r.json();}
 const session=await api('/auth/register',null,{email:uuid()+'@example.test',password:'Synthetic-'+uuid(),fullName:'Report browser',workspaceName:'Isolated report browser'}),token=session.accessToken;
-await api('/workspace/onboarding/complete',token,{});const channel=await api('/channels',token,{type:'web',name:'Report browser'}),visitor=await api('/widget/'+channel.external_id+'/session',null,{});
+const channel=await api('/channels',token,{type:'web',name:'Report browser'}),visitor=await api('/widget/'+channel.external_id+'/session',null,{});
 const r=await fetch('http://localhost:4000/widget/'+channel.external_id+'/messages?visitorId='+visitor.visitorId,{method:'POST',headers:{'content-type':'application/json','x-visitor-token':visitor.token},body:JSON.stringify({text:'Synthetic report question',clientMsgId:uuid()})});assert.ok(r.ok);
+await api('/workspace/onboarding/complete',token,{});
 const cv=(await api('/conversations',token)).items[0];await api('/conversations/'+cv.id+'/notes',token,{text:'Internal note is not a measured reply'});
 const browser=await chromium.launch({executablePath:process.env.BOAT_CHROMIUM||'/usr/bin/google-chrome',args:['--no-sandbox']}),results=[];mkdirSync('docs/p0-evidence/report-browser',{recursive:true});
 try{for(const language of ['ar','en'])for(const width of [390,1366]){
