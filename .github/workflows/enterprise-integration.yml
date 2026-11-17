@@ -7,6 +7,7 @@ on:
       - 'scripts/run-enterprise-postgres-qa.py'
       - 'scripts/qa-assignment-http.mjs'
       - 'scripts/acceptance-parity-api.mjs'
+      - 'scripts/qa-backup-restore.py'
       - '.github/workflows/enterprise-integration.yml'
   workflow_dispatch:
 permissions:
@@ -68,6 +69,8 @@ jobs:
         run: node --import tsx src/database/migrate.ts
       - name: Real PostgreSQL tenant, flow, CRM and Inbox acceptance
         run: python3 scripts/run-enterprise-postgres-qa.py
+      - name: Restore disposable PostgreSQL backup and verify data and RLS
+        run: python3 scripts/qa-backup-restore.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -79,3 +82,4 @@ jobs:
             docs/flow-builder-20261107/
             docs/acceptance/
             /tmp/boat-parity-api-results.json
+            docs/p0-evidence/

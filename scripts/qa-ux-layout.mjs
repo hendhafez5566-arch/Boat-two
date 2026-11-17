@@ -30,7 +30,7 @@ for (const language of ['ar', 'en']) for (const width of [320,390,768,1366,1920]
   page = await context.newPage(); const errors = []; page.on('pageerror', e => errors.push(e.message));
   await page.route('**/*', r => ['localhost','127.0.0.1'].includes(new URL(r.request().url()).hostname) ? r.continue() : r.abort());
   await page.goto('http://localhost:3000/dashboard/flows?channelId='+channel.id+'&section=product_catalog');
-  await page.getByRole('button',{name:t('مصادر البيانات','Data sources'),exact:true}).click();
+  await page.getByRole('button',{name:t('الاستيراد والمزامنة','Import & sync'),exact:true}).click();
   await page.getByRole('main').getByRole('link',{name:t('مدير البوت','Bot manager'),exact:true}).click();
   await page.getByRole('heading',{name:t('الردود بالكلمات المفتاحية','Keyword Replies'),exact:true}).waitFor();
   assert.equal(new URL(page.url()).searchParams.get('channelId'),channel.id);

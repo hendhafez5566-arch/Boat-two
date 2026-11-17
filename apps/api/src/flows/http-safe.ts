@@ -10,7 +10,8 @@ const MAX_BODY = 1024 * 1024;
 /** عناوين داخلية/محجوزة يُمنع الاتصال بها (حماية من SSRF) */
 export function isBlockedIp(ip: string): boolean {
   if (net.isIPv6(ip)) {
-    const v = ip.toLowerCase();
+    // Canonicalize expanded forms before prefix checks (including mapped IPv4).
+    const v = new URL(`http://[${ip}]/`).hostname.slice(1, -1).toLowerCase();
     if (v === '::' || v === '::1') return true;
     if (v.startsWith('::ffff:')) {
       const rest = v.slice(7);
@@ -22,7 +23,10 @@ export function isBlockedIp(ip: string): boolean {
       }
       return true;
     }
-    return /^f[cd]/.test(v) || /^fe[89ab]/.test(v) || v.startsWith('ff') || v.startsWith('64:ff9b');
+    // Only ordinary global unicast destinations. Reject translation/tunnel and
+    // documentation ranges too: they can encode an otherwise blocked IPv4 host.
+    return !/^[23]/.test(v) || v.startsWith('2002:') ||
+      v.startsWith('2001:db8:') || v.startsWith('2001:0:') || v.startsWith('2001::');
   }
   if (!net.isIPv4(ip)) return true;
   const [a, b] = ip.split('.').map(Number);
