@@ -1,0 +1,79 @@
+{
+  "status": "PASS",
+  "scope": "selected acceptance only, not complete P0/P1/P2",
+  "source": "GitHub Actions job logs read on 2026-11-17",
+  "checks": [
+    {
+      "runId": 44139220828,
+      "commit": "3a7bede",
+      "database": "actual isolated PostgreSQL16",
+      "accepted": [
+        "31 node draft contracts",
+        "published condition/variable/CRM runtime chain",
+        "5 reliability groups",
+        "SLA notifications",
+        "1000-message multi-tenant load",
+        "actual API process replacement",
+        "message preservation and replay dedupe",
+        "report count consistency",
+        "backup restore rows/RLS/ownership"
+      ],
+      "loadStages": [
+        {
+          "cumulative": 100,
+          "p95Ms": 68,
+          "durationMs": 307
+        },
+        {
+          "cumulative": 500,
+          "p95Ms": 36,
+          "durationMs": 1090
+        },
+        {
+          "cumulative": 1000,
+          "p95Ms": 34,
+          "durationMs": 1203
+        }
+      ]
+    },
+    {
+      "runId": 44139718797,
+      "commit": "e3bdc74",
+      "accepted": [
+        "10 AR/EN five-width Inbox journeys",
+        "4 AR/EN Webchat media/history/offline/reload journeys"
+      ]
+    },
+    {
+      "runId": 44140822768,
+      "commit": "2303332",
+      "database": "actual isolated PostgreSQL16",
+      "accepted": [
+        "241 API tests",
+        "known 120s/30s first-response reports",
+        "empty averages null",
+        "tourism/store/services synthetic journeys"
+      ],
+      "businessDurationMs": {
+        "tourism": 2266,
+        "store": 2006,
+        "services": 1995
+      }
+    },
+    {
+      "runId": 44141540075,
+      "commit": "4e058e0",
+      "accepted": [
+        "10 Inbox browser journeys",
+        "4 Webchat browser journeys",
+        "4 measured-report browser journeys"
+      ]
+    }
+  ],
+  "limitations": [
+    "CI timing is not a production capacity guarantee",
+    "Draft node coverage is not all-node UI/provider certification",
+    "Official channels/AI/payment acceptance remains external",
+    "Production infrastructure and persistent attachment storage remain unapproved"
+  ]
+}

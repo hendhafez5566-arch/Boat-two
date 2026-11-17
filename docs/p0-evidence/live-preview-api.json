@@ -1,10 +1,10 @@
 {
   "status": "PASS",
   "scope": "existing Railway Preview API/Webchat runtime only; not browser or official provider acceptance",
-  "createdAt": "2026-11-17T07:29:39.237Z",
-  "tenantId": "0a635cb2-7282-44e6-b5ea-06592fceda6c",
-  "flowId": "c4e9a373-0b2f-4b21-8936-1e8a3652bd93",
-  "channelId": "b216f4bb-bf9e-41b7-aacf-c87771cfb161",
+  "createdAt": "2026-11-17T17:51:13.747Z",
+  "tenantId": "e322964b-fce5-4b4a-87b7-96c31fbd752d",
+  "flowId": "2e13a936-ee0d-4b71-a86c-c553defcee95",
+  "channelId": "f02fe13b-d19a-4688-9582-fa1e7408437d",
   "checks": [
     "Company registration/onboarding; Webchat settings retain allowed origins after partial update",
     "Published flow asks for name, saves CRM identity and transfers to human",
