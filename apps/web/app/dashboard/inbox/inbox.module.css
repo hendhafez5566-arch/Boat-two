@@ -2184,3 +2184,4 @@
 /* Preserve newer activity marker styling while keeping operational events readable. */
 .inbox :global(.msg-system) { font-size: 13px; }
 .inbox :global(.msg-system time) { font-size: 12px; }
+.inbox :global(.inbox-name) { font-size: 15.5px; }
