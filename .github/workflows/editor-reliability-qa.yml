@@ -6,6 +6,7 @@ on:
       - 'apps/web/**'
       - 'apps/api/**'
       - 'scripts/qa-editor-reliability.mjs'
+      - 'scripts/qa-all-node-ui.mjs'
       - 'scripts/run-connect-browser-qa.py'
       - '.github/workflows/editor-reliability-qa.yml'
   workflow_dispatch:
@@ -38,12 +39,19 @@ jobs:
           BOAT_QA_BROWSER_SCRIPT: scripts/qa-editor-reliability.mjs
           BOAT_CHROMIUM: /usr/bin/google-chrome
         run: python3 scripts/run-connect-browser-qa.py
+      - name: Verify all supported node configuration and routing roundtrips in AR and EN
+        env:
+          BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
+          BOAT_QA_BROWSER_SCRIPT: scripts/qa-all-node-ui.mjs
+          BOAT_CHROMIUM: /usr/bin/google-chrome
+        run: python3 scripts/run-connect-browser-qa.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: editor-reliability-evidence
           path: |
             docs/enterprise-20261114/editor-reliability/
+            docs/p0-evidence/node-ui-matrix/
             /tmp/boat-journeys-api.log
             /tmp/boat-journeys-web.log
           if-no-files-found: warn
