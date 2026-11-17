@@ -1,4 +1,4 @@
-/* global localStorage, document, innerWidth, innerHeight, getComputedStyle */
+/* global localStorage, document, innerWidth, innerHeight */
 import { assertLocalAcceptance } from './acceptance-local.mjs';
 assertLocalAcceptance();
 import { createRequire } from 'node:module';
@@ -42,7 +42,7 @@ for (const language of ['ar', 'en']) for (const width of [320,390,768,1366,1920]
   await page.getByRole('searchbox', {name:t('البحث في الأقسام','Find category'),exact:true}).fill('099');
   assert.equal(await categories.getByRole('option').count(),3);
   await categories.selectOption(scaleCategory.id);
-  await page.getByRole('button',{name:t('إضافة منتج','Add product'),exact:true}).click();
+  await page.getByRole('button',{name:t('+ إضافة منتج','+ Add product'),exact:true}).click();
   const editor = page.getByRole('dialog',{name:t('منتج جديد','New product'),exact:true});
   await editor.waitFor();
   const name = `Synthetic layout ${language}-${width}`;
