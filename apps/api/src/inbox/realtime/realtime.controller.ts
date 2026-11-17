@@ -9,6 +9,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { safeRealtimeEvent } from './safe-event';
 import { Observable } from 'rxjs';
 import { Public } from '../../auth/decorators';
 import { AuthedRequest } from '../../common/types';
@@ -92,7 +93,7 @@ export class RealtimeController {
           for (const row of rows) {
             if (stopped) break;
             cursor = row.id;
-            sub.next({ id: row.id, type: row.payload.type, data: row.payload });
+            sub.next(safeRealtimeEvent(row.id, row.payload));
           }
         } catch (e) {
           sub.error(e);

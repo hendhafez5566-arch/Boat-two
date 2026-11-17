@@ -15,9 +15,10 @@ try{
  const cv=(await admin.query('SELECT * FROM conversations WHERE id=$1',[fixture.conversationId])).rows[0];assert.ok(cv);
  const department=randomUUID();
  await admin.query('INSERT INTO departments(id,tenant_id,name,sla_minutes) VALUES($1,$2,$3,1)',[department,cv.tenant_id,'Isolated SLA']);
- await admin.query(`UPDATE inbox_settings SET sla_escalation_enabled=true,human_session_minutes=1440 WHERE tenant_id=$1`,[cv.tenant_id]);
+ await admin.query(`INSERT INTO inbox_settings(tenant_id,sla_escalation_enabled,human_session_minutes) VALUES($1,true,1440) ON CONFLICT(tenant_id) DO UPDATE SET sla_escalation_enabled=true,human_session_minutes=1440`,[cv.tenant_id]);
  await admin.query(`UPDATE messages SET created_at=now()-interval '2 hours' WHERE conversation_id=$1 AND sender_type='agent' AND NOT is_internal`,[cv.id]);
  await admin.query(`UPDATE conversations SET department_id=$2,handled_by='human',human_since=now(),last_inbound_at=now()-interval '5 minutes',sla_escalated_at=NULL WHERE id=$1`,[cv.id,department]);
+ assert.ok((await admin.query('SELECT * FROM inbox_policy_due(50)')).rows.some(r=>r.id===cv.id),'Synthetic conversation must be due');
  const emitted=[];await new InboxPolicyService(db,{emit:(...args)=>emitted.push(args)}).tick();
  assert.ok((await admin.query('SELECT sla_escalated_at FROM conversations WHERE id=$1',[cv.id])).rows[0].sla_escalated_at);
  const notifications=(await admin.query(`SELECT * FROM crm_notifications WHERE resource_id=$1 AND kind='awaiting_reply'`,[cv.id])).rows;
