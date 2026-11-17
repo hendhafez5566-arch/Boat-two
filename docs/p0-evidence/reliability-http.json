@@ -15,6 +15,10 @@
     {
       "name": "Inbox and Webchat drain long history without omission or internal note leakage",
       "status": "PASS"
+    },
+    {
+      "name": "session ownership, revocation, token rotation and logout reject replay",
+      "status": "PASS"
     }
   ],
   "providerCalls": false

@@ -7,6 +7,8 @@ on:
       - 'scripts/run-enterprise-postgres-qa.py'
       - 'scripts/qa-p0-reliability.mjs'
       - 'scripts/qa-p0-policy-recovery.mjs'
+      - 'scripts/qa-p1-load-recovery.mjs'
+      - 'scripts/qa-p0-node-matrix.mjs'
       - 'scripts/qa-assignment-http.mjs'
       - 'scripts/acceptance-parity-api.mjs'
       - 'scripts/qa-backup-restore.py'
@@ -58,6 +60,11 @@ jobs:
         run: corepack enable && pnpm install --frozen-lockfile && pnpm --filter api build
         env:
           NODE_ENV: development
+      - name: Complete API regression after runtime dependency patches
+        working-directory: apps/api
+        env:
+          NODE_ENV: test
+        run: node --import tsx --test --test-concurrency=1 'src/**/*.test.ts'
       - name: Check scoped WhatsApp agent handoff and outbound error states
         working-directory: apps/api
         env:

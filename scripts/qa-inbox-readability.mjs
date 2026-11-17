@@ -130,7 +130,7 @@ try {
       assert.ok(values.daySeparators >= 1, 'Message timeline needs day separators');
       assert.equal(values.sharedCanvas, '#f7fafc', 'Shared canvas must be clean off-white');
       assert.equal(values.sharedMuted, '#f3f6fa', 'Supporting panels use pale off-white');
-      assert.equal(values.threadSurface, 'rgb(251, 252, 255)', 'Chat uses the final soft ivory-blue surface, not the old grey wash');
+      assert.equal(values.threadSurface, 'rgb(247, 245, 242)', 'Retain the calm canvas from the newer owner-requested Inbox refinement');
       assert.equal(values.composerSurface, 'rgb(255, 255, 255)', 'Composer stays clean white');
       assert.ok(values.documentWidth <= values.viewportWidth + 1, 'No page horizontal overflow');
       assert.ok(values.outbound.rect.left >= -1 && values.outbound.rect.right <= values.viewportWidth + 1, 'Outgoing message stays on screen');
@@ -169,8 +169,8 @@ try {
         probe.remove();
         return report;
       });
-      assert.equal(visual.systemBackground, 'rgba(0, 0, 0, 0)', 'Timeline event must not be a grey capsule');
-      assert.equal(visual.systemBorder, '0px', 'Timeline event has no heavy borders');
+      assert.equal(visual.systemBackground, 'rgb(255, 255, 255)', 'Timeline event keeps the newer white activity marker');
+      assert.equal(visual.systemBorder, '1px', 'Timeline event keeps its subtle one-pixel border');
       assert.ok(visual.systemFont >= 12.5, 'Timeline event stays legible');
       assert.equal(visual.bubbleOutline, 'none', 'Failed delivery must not draw harsh red outlines');
       assert.ok(visual.bubbleFont >= 16, 'Failed message retains normal message typography');

@@ -144,3 +144,11 @@ Baseline retained: PR14 HEAD `48c476478579f20f0e928ec65d02161db1b67883`, verifie
 - Real PostgreSQL CI44047653153: all four reliability HTTP groups PASS. The new SLA recovery test FAILED because its synthetic tenant had no inbox_settings row; fixture corrected to upsert settings. No production acceptance claimed for that failed run.
 - Existing complete local API suite239/239 PASS with isolated environment configuration. Browser additions cover actual PNG upload/render, >100 history, offline reconnect and reload in AR/EN390/1366; acceptance pending workflow result. Prior AR/EN five-width Inbox checks remain unchanged.
 - Session acceptance extended with foreign session revocation denial, own session revocation, refresh rotation/replay and logout. This is additional acceptance, not replacement of previous tests.
+
+### Accepted baseline batch and next acceptance — 2026-11-17
+
+- `4db58a2`: all seven associated workflows PASS, including actual PostgreSQL enterprise CI44048029812 and platform500-case smoke CI44048029774. API deployment5ce949b1-6433-4e08-a472-7c60d6e4b2e9 SUCCESS; Web133125ea-f1d2-49db-b2e1-b99fd3e7ecd5 SUCCESS. These are deployment states; new live acceptance is tracked separately.
+- `191122c`: dependency/session PostgreSQL CI44137798373 PASS. Inbox browser44137798268 FAILED on stale pre-refinement color expectations; preserved owner-requested newer canvas/activity styling, updated those exact expectations and raised undersized operational event labels to13px/time12px. No contrast, overflow, AR/EN or five-width assertions removed.
+- Local patched API suite240/240 PASS. All31 supported node draft contracts survive API/database roundtrip; actual published variable→condition→random→attribute→tag→private note→split→business hours→message/end chain PASS locally with the real outbox worker enabled. Local SQL here is PGlite; PostgreSQL acceptance for this extended matrix remains pending.
+- Added multi-tenant graded100/500/1000unique-message CI acceptance with concurrency8, actual API process replacement, replay dedupe after restart, retained histories and report inbound/conversation/new-contact counts. Test harness added to existing disposable PostgreSQL job; measurements pending. No stress on Railway.
+- Program continuation: P1 and P2 tracked in their dedicated docs. No stage is marked DONE merely because a subset passes.

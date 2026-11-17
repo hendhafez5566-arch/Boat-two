@@ -11,3 +11,5 @@ Continuation baseline: PR14 `4db58a233afb29734546a8cff3259d58983ebc17`. Verified
 |P1-05|Business reports|NOT STARTED|No new report accuracy certification|Audit actual SQL metrics against known timestamped synthetic conversations; never estimate time/revenue savings|
 
 No new paid infrastructure, database or provider account is authorized. Acceptance scripts must target disposable loopback CI services. Any new build is evidence of compilation only. Next: finish pending P0 reliability/session/browser tests, deploy accepted source, run graded synthetic PostgreSQL load and verify report definitions against persisted events.
+
+Added graded2-company/4-conversation100→500→1000message acceptance, concurrency8, p50/p95 and throughput recording. Existing PostgreSQL runner now actually terminates/restarts the API before verifying histories, deduplication and report counts. Pending CI; never present CI capacity as a Railway SLA. Existing owner-requested Inbox colors retained; operational event typography increased to13px/time12px while preserving AA/AAA contrast/overflow assertions and all AR/EN width journeys.

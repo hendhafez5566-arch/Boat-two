@@ -23,10 +23,23 @@ with open('/tmp/boat-enterprise-postgres-api.log', 'w') as log:
                 time.sleep(.2)
         else:
             raise RuntimeError('Real PostgreSQL app did not become healthy')
-        for script in ['qa-p0-reliability.mjs', 'qa-p0-policy-recovery.mjs', 'qa-channel-management-api.mjs', 'qa-flow-builder-api-resume.mjs', 'qa-channel-signature.mjs', 'acceptance-parity-api.mjs', 'qa-assignment-http.mjs', 'qa-auth-rate-limit.mjs', 'smoke-billing-catalog.mjs']:
+        for script in ['qa-p0-node-matrix.mjs', 'qa-p0-reliability.mjs', 'qa-p0-policy-recovery.mjs', 'qa-p1-load-recovery.mjs', 'qa-channel-management-api.mjs', 'qa-flow-builder-api-resume.mjs', 'qa-channel-signature.mjs', 'acceptance-parity-api.mjs', 'qa-assignment-http.mjs', 'qa-auth-rate-limit.mjs', 'smoke-billing-catalog.mjs']:
             result = subprocess.run(['node', 'scripts/'+script], env=dict(os.environ, BOAT_QA_EXISTING_API='true', QA_RESUME_HTTP='true', SMOKE_API_URL='http://localhost:4000'))
             if result.returncode:
                 raise SystemExit(result.returncode)
+        # Verify database-backed history and dedupe after a real process replacement.
+        server.terminate()
+        server.wait(timeout=10)
+        server = subprocess.Popen(['node', 'apps/api/dist/main.js'], stdout=log, stderr=log)
+        for _ in range(150):
+            try:
+                urllib.request.urlopen('http://localhost:4000/health', timeout=1)
+                break
+            except Exception:
+                time.sleep(.2)
+        else:
+            raise RuntimeError('Restarted PostgreSQL API did not recover')
+        subprocess.run(['node','scripts/qa-p1-load-recovery.mjs','--verify-restart'],check=True)
     finally:
         server.terminate()
         try:
