@@ -1,8 +1,9 @@
 import TemplatesPanel from '../../../../../components/workspace/TemplatesPanel';
-export default function Page({ params }: { params: { id: string } }) {
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const route = await params;
   return (
     <main>
-      <TemplatesPanel params={params} />
+      <TemplatesPanel params={route} />
     </main>
   );
 }

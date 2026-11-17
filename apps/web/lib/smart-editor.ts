@@ -1,7 +1,7 @@
 /* Pure editor operations. Persisted schemas and stable branch handles are unchanged. */
 import { NodeType } from './flow-types';
 export type Choice = { id: string; title: string; description?: string; [key: string]: unknown };
-export type ChoiceData = { buttons?: Choice[]; list?: { buttonText?: string; sections: { title?: string; rows: Choice[] }[]; [key: string]: unknown }; [key: string]: any };
+export type ChoiceData = { text?: string; footer?: string; saveReplyAs?: string; header?: { type: 'text' | 'image'; text?: string; url?: string }; media?: { kind: string; url: string; caption?: string }; delivery?: { delaySeconds?: number; typingSeconds?: number; [key: string]: unknown }; buttons?: Choice[]; list?: { buttonText?: string; sections: { title?: string; rows: Choice[] }[]; [key: string]: unknown }; [key: string]: unknown };
 export const ACTION_TYPES: NodeType[] = ['message', 'question', 'condition', 'handoff', 'tag', 'delay', 'end', 'cta_url'];
 export function convertChoices(data: ChoiceData, mode: 'none' | 'buttons' | 'list'): ChoiceData {
   const choices = data.list?.sections.flatMap(s => s.rows) ?? data.buttons ?? [];

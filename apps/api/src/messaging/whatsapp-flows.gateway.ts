@@ -78,7 +78,7 @@ export class WhatsAppFlowsGateway {
       'flow.json',
     );
     return z
-      .object({ success: z.literal(true), validation_errors: z.array(z.record(z.unknown())) })
+      .object({ success: z.literal(true), validation_errors: z.array(z.record(z.string(), z.unknown())) })
       .parse(await this.request(`${id}/assets`, token, 'POST', body));
   }
   async transition(id: string, token: string, action: 'publish' | 'deprecate') {

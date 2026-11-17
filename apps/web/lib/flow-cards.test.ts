@@ -10,7 +10,7 @@ import {
   buttonNodeId,
 } from './flow-types';
 
-const g: any = {
+const g: Graph = {
   startNodeId: 'i',
   nodes: [
     {
@@ -73,7 +73,7 @@ test('rtl default offset goes left; list-only and plain messages get no cards', 
 });
 
 test('list rows become cards too and keep their option edges and layout', () => {
-  const lg: any = {
+  const lg: Graph = {
     startNodeId: 'l',
     nodes: [
       {

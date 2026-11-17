@@ -2,7 +2,7 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 export default async function Home() {
-  const host = headers().get('x-boat-custom-host');
+  const host = (await headers()).get('x-boat-custom-host');
   if (host && process.env.CUSTOM_DOMAINS_ENABLED === 'true') {
     const response = await fetch(
       (process.env.INTERNAL_API_URL ?? 'http://localhost:4000') +

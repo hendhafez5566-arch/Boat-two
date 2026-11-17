@@ -1,4 +1,5 @@
 'use client';
+import { useParams } from 'next/navigation';
 import EditorErrorBoundary from '../../../../components/flow/EditorErrorBoundary';
 import { flowIssues } from '../../../../lib/flow-issues';
 import {
@@ -2738,7 +2739,8 @@ function Editor({ id }: { id: string }) {
   );
 }
 
-export default function Page({ params }: { params: { id: string } }) {
+export default function Page() {
+  const params = useParams<{ id: string }>();
   return (
     <EditorErrorBoundary key={params.id} flowId={params.id}>
       <ReactFlowProvider>

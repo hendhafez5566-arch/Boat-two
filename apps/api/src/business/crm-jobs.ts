@@ -203,7 +203,7 @@ export class CrmJobsController {
         z.object({ kind: z.literal('import'), contacts: z.array(contactSchema).min(1).max(10000) }),
         z.object({
           kind: z.literal('export'),
-          filters: filtersSchema.default({}),
+          filters: filtersSchema.prefault({}),
           asOf: z.string().datetime().optional(),
         }),
       ]),

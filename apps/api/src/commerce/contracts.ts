@@ -41,7 +41,7 @@ export const serviceSchema = z.object({
   durationMinutes: z.number().int().min(5).max(1440),
   timezone: z.string().refine(isValidTimezone),
   schedule: z
-    .record(
+    .partialRecord(
       z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']),
       z.array(z.tuple([time, time])).max(6),
     )

@@ -15,7 +15,14 @@ if os.environ.get('GITHUB_ACTIONS') != 'true':
 restored = urlunparse(u._replace(path='/boat_restore_qa'))
 
 def run(*args):
-    return subprocess.run(args, check=True, capture_output=True, text=True).stdout.strip()
+    # Match the server's major client version when the CI image provides it.
+    binary = Path('/usr/lib/postgresql/16/bin') / args[0]
+    command = (str(binary), *args[1:]) if binary.is_file() else args
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode:
+        detail = result.stderr.replace(admin, '[source]').replace(restored, '[restore]')
+        raise RuntimeError(f'{args[0]} failed: {detail[-3000:]}')
+    return result.stdout.strip()
 
 def sql(url, query):
     return run('psql', url, '-X', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-c', query)

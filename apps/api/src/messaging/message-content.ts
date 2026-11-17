@@ -11,11 +11,11 @@ export const contentSchema = z
   .object({
     typingSeconds:z.number().int().min(0).max(5).optional(),
     telegramSender:z.object({id:z.string().max(30),name:z.string().max(200)}).optional(),
-    flowReply:z.record(z.unknown()).optional(),
+    flowReply:z.record(z.string(), z.unknown()).optional(),
     order:z.object({catalogId:z.string(),items:z.array(z.object({retailerId:z.string(),quantity:z.number().int().positive(),price:z.string(),currency:z.string()})).max(30)}).optional(),
     product:z.object({catalogId:z.string().min(1).max(200),retailerId:z.string().min(1).max(200)}).optional(),
     productList:z.object({catalogId:z.string().min(1).max(200),sections:z.array(z.object({title:z.string().min(1).max(24),retailerIds:z.array(z.string().min(1).max(200)).min(1).max(30)})).min(1).max(10)}).optional(),
-    whatsappFlow:z.object({flowId:z.string().regex(/^\d+$/),token:z.string().min(1).max(200),cta:z.string().min(1).max(20),screen:z.string().min(1).max(80),data:z.record(z.unknown()).optional()}).optional(),
+    whatsappFlow:z.object({flowId:z.string().regex(/^\d+$/),token:z.string().min(1).max(200),cta:z.string().min(1).max(20),screen:z.string().min(1).max(80),data:z.record(z.string(), z.unknown()).optional()}).optional(),
     header: z.discriminatedUnion('type',[z.object({type:z.literal('text'),text:z.string().min(1).max(60)}),z.object({type:z.literal('image'),url:z.string().url().max(2000)})]).optional(),
     footer: z.string().max(60).optional(),
     template: z

@@ -20,7 +20,7 @@ export const flowDefinitionSchema = z
           .object({
             id: z.string().min(1).max(80),
             title: z.string().max(100).optional(),
-            layout: z.record(z.unknown()),
+            layout: z.record(z.string(), z.unknown()),
           })
           .passthrough(),
       )
@@ -53,7 +53,7 @@ export const providerFlowSchema = z.object({
   name: z.string(),
   categories: z.array(z.string()),
   status: z.string(),
-  validation_errors: z.array(z.record(z.unknown())).default([]),
+  validation_errors: z.array(z.record(z.string(), z.unknown())).default([]),
   whatsapp_business_account: z.object({ id: z.string() }).optional(),
   preview: z.object({ preview_url: z.string(), expires_at: z.string() }).optional(),
 });

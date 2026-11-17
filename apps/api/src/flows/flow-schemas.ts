@@ -569,7 +569,7 @@ export const updateFlowSchema = z.object({
 export const testFlowSchema = z.object({
   contactAttributes: z
     .record(
-      z.union([
+      z.string(), z.union([
         z.string().max(2000),
         z.number(),
         z.boolean(),

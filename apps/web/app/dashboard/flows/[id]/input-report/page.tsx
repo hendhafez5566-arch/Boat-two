@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { api } from '../../../../../lib/api';
 import { useLocale } from '../../../../../components/product/locale';
 import { channelHref } from '../../../../../lib/channel-context';
@@ -29,7 +29,8 @@ function valueText(value: unknown) {
   return String(value);
 }
 
-export default function InputFlowReportPage({ params }: { params: { id: string } }) {
+export default function InputFlowReportPage() {
+  const params = useParams<{ id: string }>();
   const { t, language } = useLocale();
   const searchParams = useSearchParams();
   const channelId = searchParams.get('channelId');

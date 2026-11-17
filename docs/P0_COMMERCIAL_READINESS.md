@@ -46,3 +46,17 @@ Starting PR #14 HEAD: d84844a3639b2b558fa25474d1dae05ba741717a. Preserve newer w
 
 ## Rollback
 No migration added in this batch. Revert only this batch's source changes in a new commit if tests expose regression. For deployed application rollback use the prior accepted API/Web builds above after checking source compatibility; never reset the shared branch, delete data, or roll back schema blindly. Preview database was not modified by this work. Production activation and destructive migrations remain unauthorized.
+
+## Batch 1 checkpoint — 927a43fbf1641ff7a9cd12f3f6874d856b9a8d98
+- Platform CI44034877616 PASS:500 route/language/viewport cases, tablet commerce overflow closed.
+- Channel44034877519, editor44034877577, contact44034877732, work44034877575 and seven-action44034877611 PASS.
+- PostgreSQL44034877571 passed production migrations and actual HTTP channel/flow/CRM/assignment acceptance. New restore step failed at pg_restore; no restore acceptance claimed. Improved sanitized error reporting and selected PostgreSQL16 client when installed; retest pending.
+- Product44034877698 exposed a test race: API asserted category deletion before its async request completed. Added explicit successful deletion observation. Responsive script updated for current searchable category dropdown and disabled nonempty deletion controls, preserving scale/search/empty deletion/persistence assertions.
+
+## Security dependency batch — pending acceptance
+- Initial registry audit:3 critical,20 high,22 moderate,4 low advisory records. These are dependency alerts, not proof every path is exploitable.
+- Upgraded Next.js to15.5.28, Zod to4.6.6, and locked transitive Multer2.5.0/body-parser1.20.9/PostCSS8.5.33. Fresh production dependency audit now0 critical,0 high,8 moderate,0 low. Remaining moderate alerts: file-type, Nest core, uuid and qs; full security certification is not claimed.
+- Migrated asynchronous Next headers/route parameters; retained React18 supported peer range. Existing editor lint errors exposed by Next15 were repaired with explicit field types/comments, rather than disabling build checks.
+- Migrated Zod record calls, optional enum-key record behavior and generic parser output inference. Input defaults for filters/conditions use prefault to retain prior parsing/default semantics.
+- Local API237/237 PASS after dependency migration; API build PASS. Next15 Web build and CI acceptance are required before deployment. pnpm9 frozen-lockfile install PASS, matching the declared packageManager and Railway builder.
+- Source references: https://github.com/advisories/GHSA-2464-fhr4-w9xw ; https://github.com/expressjs/multer/releases/tag/v2.5.0 ; https://nextjs.org/docs/app/guides/upgrading/version-15 .

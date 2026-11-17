@@ -29,7 +29,7 @@ import { filtersSchema, pagination } from './schemas';
 const schema = z.object({
   name: z.string().min(1).max(120),
   channelId: z.string().uuid(),
-  filters: filtersSchema.default({}),
+  filters: filtersSchema.prefault({}),
   content: contentSchema,
   frequencyHours: z.number().int().min(1).max(720).default(24),
 });

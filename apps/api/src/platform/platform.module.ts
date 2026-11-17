@@ -697,8 +697,8 @@ class PlatformController {
       z.object({
         name: z.string().min(1).max(100),
         enabled: z.boolean(),
-        limits: z.record(z.number().int().min(-1).max(1000000000)),
-        features: z.record(z.boolean()),
+        limits: z.record(z.string(), z.number().int().min(-1).max(1000000000)),
+        features: z.record(z.string(), z.boolean()),
         reason: z.string().trim().min(10).max(1000),
       }),
       body,

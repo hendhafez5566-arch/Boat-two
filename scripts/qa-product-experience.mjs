@@ -363,6 +363,7 @@ try {
       const categoryDialog = page.getByRole('dialog').filter({ hasText: emptyCategory.name });
       await categoryDialog.getByRole('checkbox').check();
       await categoryDialog.getByRole('button', { name: t('حذف نهائيًا', 'Delete permanently') }).click();
+      await page.getByText(t('تم حذف القسم الفارغ.', 'Empty category deleted.'), { exact: true }).waitFor();
       assert.equal((await api('/commerce/categories', token))
         .some((item) => item.id === emptyCategory.id), false);
       results.push({
