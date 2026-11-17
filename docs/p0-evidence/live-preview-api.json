@@ -1,0 +1,17 @@
+{
+  "status": "PASS",
+  "scope": "existing Railway Preview API/Webchat runtime only; not browser or official provider acceptance",
+  "createdAt": "2026-11-17T07:29:39.237Z",
+  "tenantId": "0a635cb2-7282-44e6-b5ea-06592fceda6c",
+  "flowId": "c4e9a373-0b2f-4b21-8936-1e8a3652bd93",
+  "channelId": "b216f4bb-bf9e-41b7-aacf-c87771cfb161",
+  "checks": [
+    "Company registration/onboarding; Webchat settings retain allowed origins after partial update",
+    "Published flow asks for name, saves CRM identity and transfers to human",
+    "Human reply arrives in widget; internal note stays private; duplicate visitor delivery is idempotent; takeover remains human",
+    "Separate synthetic company cannot read the flow or conversation"
+  ],
+  "realProviderCalls": false,
+  "realPayments": false,
+  "deletedRecords": false
+}

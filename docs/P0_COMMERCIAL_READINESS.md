@@ -89,3 +89,10 @@ No migration added in this batch. Revert only this batch's source changes in a n
 - Independent PostgreSQL CI44038297841 SUCCESS: channel/flow/signature/parity/assignment journeys,105queued conversations,24concurrent login attempts, synthetic billing price/grace/reconciliation and actual dump/restore comparing data/RLS/ownership. Restore remains CI-only; productionBackupTested=false.
 - Product core UI journeys PASS at this SHA. Responsive script advanced through scoped navigation after its fix, then found stale product form label selectors. Updated exact labels to current name/price/SKU labels; no assertions or journey steps removed. Full responsive result pending.
 - API deployment e3b1a5e5-68cd-4fd7-97b4-e87fb477bdf8 started on existing Preview; terminal status not yet observed. Web remains prior version until responsive acceptance passes.
+
+## Live API acceptance — 2026-11-17
+- Existing Preview API deployment e3b1a5e5-68cd-4fd7-97b4-e87fb477bdf8 observed SUCCESS; /health status=ok,db=up.
+- scripts/qa-live-p0-preview.mjs PASS on Railway: synthetic company registration/onboarding, sparse widget origins persistence, published question flow, CRM name save, human handoff, staff reply to visitor, internal note privacy, duplicate visitor delivery and foreign-tenant flow/conversation rejection. See p0-evidence/live-preview-api.json.
+- Two explicitly synthetic workspaces remain; no real customer data changed/deleted, no provider messages, no financial charges, no plan changes. Credential values were never logged or saved.
+- Current official-provider acceptance remains external-blocked; browser authenticated acceptance remains unavailable without secure test-account login.
+- Responsive run44038832233 progressed through the first viewport and then hit an unstable test selector expecting category product count0 on a category reused across widths. Selector now uses the actual stable category ID, while retaining100category scale, option count, editing/deletion/price/reopen/simulator assertions. Complete ten-viewport result pending.

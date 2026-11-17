@@ -19,6 +19,8 @@ const token = session.accessToken;
 const channel = await api('/channels', token, { type: 'web', name: 'Isolated UX channel' });
 await api('/workspace/onboarding/complete', token, {});
 for (let n = 0; n < 100; n++) await api('/commerce/categories', token, { name: 'Scale category ' + String(n).padStart(3, '0') });
+const scaleCategory = (await api('/commerce/categories', token)).find(category => category.name === 'Scale category 099');
+assert.ok(scaleCategory);
 const browser = await chromium.launch({ executablePath: process.env.BOAT_CHROMIUM || '/usr/bin/google-chrome', args: ['--no-sandbox'] });
 const results = [];
 let page;
@@ -39,7 +41,7 @@ for (const language of ['ar', 'en']) for (const width of [320,390,768,1366,1920]
   await categories.getByRole('option',{name:/^Scale category 099/}).waitFor({state:'attached'});
   await page.getByRole('searchbox', {name:t('البحث في الأقسام','Find category'),exact:true}).fill('099');
   assert.equal(await categories.getByRole('option').count(),3);
-  await categories.selectOption({label:'Scale category 099 (0)'});
+  await categories.selectOption(scaleCategory.id);
   await page.getByRole('button',{name:t('إضافة منتج','Add product'),exact:true}).click();
   const editor = page.getByRole('dialog',{name:t('منتج جديد','New product'),exact:true});
   await editor.waitFor();
