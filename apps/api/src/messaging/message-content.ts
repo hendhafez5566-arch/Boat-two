@@ -1,6 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
 import { z } from 'zod';
 
+const httpUrl = z.string().url().max(2048).refine(value=>{
+  const url=new URL(value);return ['http:','https:'].includes(url.protocol)&&!url.username&&!url.password;
+},'Only HTTP/HTTPS URLs without embedded credentials are allowed');
+
 const row = z.object({
   id: z.string().min(1).max(200),
   title: z.string().min(1).max(24),
@@ -16,7 +20,7 @@ export const contentSchema = z
     product:z.object({catalogId:z.string().min(1).max(200),retailerId:z.string().min(1).max(200)}).optional(),
     productList:z.object({catalogId:z.string().min(1).max(200),sections:z.array(z.object({title:z.string().min(1).max(24),retailerIds:z.array(z.string().min(1).max(200)).min(1).max(30)})).min(1).max(10)}).optional(),
     whatsappFlow:z.object({flowId:z.string().regex(/^\d+$/),token:z.string().min(1).max(200),cta:z.string().min(1).max(20),screen:z.string().min(1).max(80),data:z.record(z.string(), z.unknown()).optional()}).optional(),
-    header: z.discriminatedUnion('type',[z.object({type:z.literal('text'),text:z.string().min(1).max(60)}),z.object({type:z.literal('image'),url:z.string().url().max(2000)})]).optional(),
+    header: z.discriminatedUnion('type',[z.object({type:z.literal('text'),text:z.string().min(1).max(60)}),z.object({type:z.literal('image'),url:httpUrl})]).optional(),
     footer: z.string().max(60).optional(),
     template: z
       .object({
@@ -29,7 +33,7 @@ export const contentSchema = z
             z
               .object({
                 type: z.enum(['image', 'video', 'document']),
-                url: z.string().url().max(2048),
+                url: httpUrl,
                 filename: z.string().min(1).max(200).optional(),
               })
               .strict(),
@@ -54,7 +58,7 @@ export const contentSchema = z
     media: z
       .object({
         kind: z.enum(['image', 'video', 'audio', 'file']),
-        url: z.string().url().optional(),
+        url: httpUrl.optional(),
         providerMediaId: z.string().optional(),
         caption: z.string().max(1024).optional(),
         filename: z.string().max(200).optional(),
@@ -79,7 +83,7 @@ export const contentSchema = z
     cta: z
       .object({
         text: z.string().min(1).max(20),
-        url: z.string().url().max(2000),
+        url: httpUrl,
       })
       .optional(),
     reply: z.object({ id: z.string(), title: z.string() }).optional(),
@@ -107,6 +111,7 @@ export function messageTypeOf(c: MessageContent): string {
 
 /** قواعد الرسائل الصادرة (حدود واتساب هي الأضيق، فنلتزم بها لكل القنوات) */
 export function validateOutbound(c: MessageContent) {
+  for(const url of [c.media?.url,c.header?.type==='image'?c.header.url:undefined,c.cta?.url,c.template?.header&&c.template.header.type!=='text'?c.template.header.url:undefined])if(url&&!httpUrl.safeParse(url).success)throw new BadRequestException('Unsafe message URL');
   if((c.text?.length??0)>4096)throw new BadRequestException('Message text exceeds 4096 characters after formatting');
   if((c.media?.caption?.length??0)>1024)throw new BadRequestException('Media caption exceeds 1024 characters after formatting');
   if(c.telegramSender||c.flowReply||c.order)throw new BadRequestException('Form replies and orders are inbound-only');

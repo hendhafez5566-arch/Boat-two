@@ -36,6 +36,9 @@ jobs:
         run: corepack enable && pnpm install --frozen-lockfile
       - name: Build actual API and Web
         run: pnpm --filter api build && pnpm --filter web build
+      - name: Check legacy media URL rendering policy
+        working-directory: apps/api
+        run: node --import tsx --test ../../apps/web/lib/media-url.test.ts
       - name: Install isolated Chromium browser test driver
         run: npm install --prefix "$RUNNER_TEMP/boat-playwright" playwright@1.56.1 --ignore-scripts
       - name: Verify 10 AR/EN populated Inbox journeys, readable text, high contrast and single-pane mobile layout

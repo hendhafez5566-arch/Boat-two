@@ -4,6 +4,7 @@ import { DisclosureSummary } from '../product/DisclosureSummary';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from 'react';
 import { useLocale } from '../product/locale';
+import {safeMediaUrl} from '../../lib/media-url';
 import { apiBlob } from '../../lib/api';
 
 function ProviderMedia({
@@ -94,6 +95,7 @@ export default function MessageBubble({
 }) {
   const { t, language } = useLocale();
   const c = m.content ?? {};
+  const mediaUrl=safeMediaUrl(c.media?.url),headerUrl=safeMediaUrl(c.header?.url);
   const messageDate = new Date(m.created_at ?? m.createdAt);
   const time = messageDate.toLocaleTimeString(language === 'ar' ? 'ar-EG' : 'en-US', {
     hour: '2-digit',
@@ -154,25 +156,25 @@ export default function MessageBubble({
         >
           {c.telegramSender && <small className="block">{c.telegramSender.name}</small>}
           {c.header?.type === 'text' && <strong className="block">{c.header.text}</strong>}
-          {c.header?.type === 'image' && (
-            <img src={c.header.url} alt="" className="mb-1 max-h-64 rounded" />
+          {c.header?.type === 'image' && headerUrl && (
+            <img src={headerUrl} alt="" className="mb-1 max-h-64 rounded" />
           )}
           {c.media &&
-            (c.media.url ? (
+            (mediaUrl ? (
               c.media.kind === 'image' ? (
-                <a href={c.media.url} target="_blank" rel="noreferrer">
-                  <img src={c.media.url} alt="" className="mb-1 max-h-64 rounded" />
+                <a href={mediaUrl} target="_blank" rel="noreferrer">
+                  <img src={mediaUrl} alt="" className="mb-1 max-h-64 rounded" />
                 </a>
               ) : c.media.kind === 'video' ? (
-                <video src={c.media.url} controls className="mb-1 max-h-64 rounded" />
+                <video src={mediaUrl} controls className="mb-1 max-h-64 rounded" />
               ) : c.media.kind === 'audio' ? (
-                <audio src={c.media.url} controls className="mb-1" />
+                <audio src={mediaUrl} controls className="mb-1" />
               ) : (
-                <a href={c.media.url} target="_blank" rel="noreferrer" className="msg-file">
+                <a href={mediaUrl} target="_blank" rel="noreferrer" className="msg-file">
                   📎 {c.media.filename ?? 'ملف'}
                 </a>
               )
-            ) : c.media.providerMediaId ? (
+            ) : c.media.url ? <span>{t('رابط مرفق غير آمن — تم منعه','Unsafe attachment link blocked')}</span> : c.media.providerMediaId ? (
               <ProviderMedia conversationId={conversationId} messageId={m.id} kind={c.media.kind} />
             ) : null)}
           {c.media?.caption && <div className="whitespace-pre-wrap">{c.media.caption}</div>}

@@ -20,6 +20,7 @@ await api('/uploads/'+file.name,token,null,'DELETE');assert.equal((await fetch(f
 const cv=await conversation(token),other=await conversation(b.accessToken);
 await api('/conversations/'+cv.id+'/messages',token,{media:{kind:'image',url:file.url,filename:'Synthetic.png'}});
 assert.equal((await call('/conversations/'+other.id+'/messages',b.accessToken,{media:{kind:'image',url:file.url}})).status,400);
+for(const url of ['javascript:alert(1)','data:text/html,unsafe','file:///etc/passwd','https://user:password@example.test/f'])assert.equal((await call('/conversations/'+cv.id+'/messages',token,{media:{kind:'file',url}})).status,400);
 const linked=await call('/uploads/'+file.name,token,null,'DELETE');assert.equal(linked.status,409);assert.equal(linked.data.code,'ATTACHMENT_IN_USE');
 assert.equal((await call('/uploads/'+file.name+'/revoke',token,{confirm:false})).status,400);await api('/uploads/'+file.name+'/revoke',token,{confirm:true});assert.equal((await fetch(file.url)).status,404);
 assert.equal((await fetch(base+'/uploads/'+file.name+'/content',{headers:{authorization:'Bearer '+token}})).status,200,'Revoked public sharing does not erase authorized internal access');
