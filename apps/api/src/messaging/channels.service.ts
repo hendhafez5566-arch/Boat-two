@@ -1,3 +1,4 @@
+import { sparsePatch } from '../common/zod';
 import {
   BadRequestException,
   ConflictException,
@@ -82,7 +83,7 @@ export const createChannelSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('web'),
     name: z.string().min(1).max(80),
-    settings: widgetSettingsSchema.partial().optional(),
+    settings: sparsePatch(widgetSettingsSchema.partial()).optional(),
   }),
   z.object({
     type: z.literal('whatsapp'),
@@ -109,9 +110,9 @@ export type CreateChannelInput = z.infer<typeof createChannelSchema>;
 export const updateChannelSchema = z.object({
   name: z.string().min(1).max(80).optional(),
   status: z.enum(['active', 'disabled']).optional(),
-  settings: widgetSettingsSchema
+  settings: sparsePatch(widgetSettingsSchema
     .partial()
-    .extend({ telegramAllowGroups: z.boolean().optional() })
+    .extend({ telegramAllowGroups: z.boolean().optional() }))
     .optional(),
 });
 

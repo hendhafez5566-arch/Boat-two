@@ -121,7 +121,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
                 {t(ar, en)}
               </button>
             ))}
-          {initialTab !== 'products' && (
+          {(initialTab !== 'products' || !!channelId) && (
             <Link className="btn" href={channelHref('/dashboard/flows?section=bot_reply', channelId)}>
               {t('العودة إلى مدير البوت', 'Back to bot manager')}
             </Link>

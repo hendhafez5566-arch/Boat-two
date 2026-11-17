@@ -149,7 +149,7 @@ try {
     });
     await req('/team/me/availability', members[0].accessToken, { available: false }, 'PATCH');
     const visitors = await Promise.all(
-      Array.from({ length: 3 }, () => req('/widget/' + channel.external_id + '/session', null, {})),
+      Array.from({ length: 105 }, () => req('/widget/' + channel.external_id + '/session', null, {})),
     );
     for (const v of visitors) {
       const response = await fetch(
@@ -165,11 +165,19 @@ try {
       );
       assert.equal(response.status, 201);
     }
-    const rows = (await req('/conversations?limit=100', token)).items;
+    const rows = [];
+    let cursor = '';
+    do {
+      const batch = await req('/conversations?limit=100' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''), token);
+      rows.push(...batch.items);
+      cursor = batch.nextCursor || '';
+    } while (cursor);
+    assert.equal(rows.length, 105);
+    assert.equal(new Set(rows.map(row=>row.id)).size,105);
     for (const cv of rows)
       await req('/conversations/' + cv.id + '/auto-assign', token, {}, 'POST', 400);
     const waiting = await req('/crm/sales/assignment-queue', token);
-    assert.equal(waiting.total, 3);
+    assert.equal(waiting.total, 105);
     const oldest = waiting.items[0];
     await req('/conversations/' + oldest.id, token, { handledBy: 'human' }, 'PATCH');
     const resumed = await req(
@@ -180,7 +188,7 @@ try {
     );
     assert.equal(resumed.available, true);
     assert.equal(resumed.reassigned, 1);
-    assert.equal((await req('/crm/sales/assignment-queue', token)).total, 2);
+    assert.equal((await req('/crm/sales/assignment-queue', token)).total, 104);
     checks.push(
       'HTTP availability return automatically assigns oldest queued conversation up to capacity',
     );
@@ -193,10 +201,20 @@ try {
         .reassigned,
       0,
     );
-    assert.equal((await req('/crm/sales/assignment-queue', token)).total, 2);
+    assert.equal((await req('/crm/sales/assignment-queue', token)).total, 104);
     checks.push(
       'repeated availability return cannot exceed capacity or replace existing assignment',
     );
+    current = await req('/crm/sales/settings', token);
+    await req('/crm/sales/settings', token, { ...current, assignment: { ...current.assignment, maxOpenPerAgent: 200 }, expected: current });
+    const drain1=await req('/team/me/availability',members[0].accessToken,{available:true},'PATCH');
+    assert.equal(drain1.reassigned,100);
+    assert.equal((await req('/crm/sales/assignment-queue',token)).total,4);
+    const drain2=await req('/team/me/availability',members[0].accessToken,{available:true},'PATCH');
+    assert.equal(drain2.reassigned,4);
+    assert.equal((await req('/crm/sales/assignment-queue',token)).total,0);
+    for (const cv of rows) assert.equal((await req('/conversations/'+cv.id,token)).assigned_to,members[0].id);
+    checks.push('105 queued conversations survive pagination and drain in bounded batches of 100 then 4 without loss or ineligible assignments');
   }
   writeFileSync(
     process.env.QA_RESUME_HTTP

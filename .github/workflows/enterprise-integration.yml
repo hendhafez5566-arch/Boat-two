@@ -8,6 +8,7 @@ on:
       - 'scripts/qa-assignment-http.mjs'
       - 'scripts/acceptance-parity-api.mjs'
       - 'scripts/qa-backup-restore.py'
+      - 'scripts/qa-auth-rate-limit.mjs'
       - '.github/workflows/enterprise-integration.yml'
   workflow_dispatch:
 permissions:

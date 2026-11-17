@@ -2,7 +2,7 @@ import { Body, ConflictException, Controller, Delete, Get, NotFoundException, Pa
 import { z } from 'zod';
 import { Roles } from '../auth/decorators';
 import { AuthedRequest } from '../common/types';
-import { parse } from '../common/zod';
+import { parse, sparsePatch } from '../common/zod';
 import { DatabaseService } from '../database/database.service';
 
 const createSchema = z.object({
@@ -10,7 +10,7 @@ const createSchema = z.object({
   title: z.string().min(1).max(80),
   content: z.string().min(1).max(4000),
 });
-const updateSchema = createSchema.partial();
+const updateSchema = sparsePatch(createSchema.partial());
 
 @Controller('canned-replies')
 export class CannedRepliesController {

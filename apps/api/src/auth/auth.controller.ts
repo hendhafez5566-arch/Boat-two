@@ -1,3 +1,5 @@
+import type { Request } from 'express';
+import { AuthRateLimit } from './auth-rate-limit';
 import { accountProfileSchema } from './account-profile';
 import { Body, Controller, Get, HttpCode, Patch, Post, Req } from '@nestjs/common';
 import { z } from 'zod';
@@ -25,7 +27,7 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   brandHostname,
   email: z.string().email(),
-  password: z.string().min(1),
+  password: z.string().min(1).max(128),
   tenantId: z.string().uuid().optional(),
 });
 const refreshSchema = z.object({ refreshToken: z.string().min(10) });
@@ -39,26 +41,32 @@ const acceptSchema = z.object({
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(private readonly auth: AuthService, private readonly limits: AuthRateLimit) {}
 
   @Public()
   @Post('register')
-  register(@Body() body: unknown) {
-    return this.auth.register(parse(registerSchema, body));
+  async register(@Req() req: Request, @Body() body: unknown) {
+    const input = parse(registerSchema, body);
+    await this.limits.consume('register', input.email, req, 3);
+    return this.auth.register(input);
   }
 
   @Public()
   @Post('login')
   @HttpCode(200)
-  login(@Body() body: unknown) {
-    return this.auth.login(parse(loginSchema, body));
+  async login(@Req() req: Request, @Body() body: unknown) {
+    const input = parse(loginSchema, body);
+    await this.limits.consume('login', input.email, req, 15);
+    return this.auth.login(input);
   }
 
   @Public()
   @Post('refresh')
   @HttpCode(200)
-  refresh(@Body() body: unknown) {
-    return this.auth.refresh(parse(refreshSchema, body).refreshToken);
+  async refresh(@Req() req: Request, @Body() body: unknown) {
+    const input = parse(refreshSchema, body);
+    await this.limits.consume('refresh', input.refreshToken, req, 60);
+    return this.auth.refresh(input.refreshToken);
   }
 
   @Public()
@@ -70,8 +78,10 @@ export class AuthController {
 
   @Public()
   @Post('accept-invitation')
-  accept(@Body() body: unknown) {
-    return this.auth.acceptInvitation(parse(acceptSchema, body));
+  async accept(@Req() req: Request, @Body() body: unknown) {
+    const input = parse(acceptSchema, body);
+    await this.limits.consume('accept', input.token, req, 5);
+    return this.auth.acceptInvitation(input);
   }
 
   @Post('switch-tenant')

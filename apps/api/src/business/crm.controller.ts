@@ -17,7 +17,7 @@ import {
 import { z } from 'zod';
 import { Roles } from '../auth/decorators';
 import { AuthedRequest } from '../common/types';
-import { parse } from '../common/zod';
+import { parse, sparsePatch } from '../common/zod';
 import { crmDate, overviewSchema } from './crm-overview';
 import { CrmService } from './crm.service';
 import { contactSchema, filtersSchema, pagination } from './schemas';
@@ -48,10 +48,10 @@ export class CrmController {
     @Body() body: unknown,
   ) {
     const patch = parse(
-      contactSchema
+      sparsePatch(contactSchema
         .omit({ allowDuplicate: true })
         .partial()
-        .extend({ expectedUpdatedAt: z.string().datetime() }),
+        .extend({ expectedUpdatedAt: z.string().datetime() })),
       body,
     );
     return this.crm.patchProfile(r.user.tenantId, id, patch);

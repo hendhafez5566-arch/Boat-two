@@ -60,3 +60,16 @@ No migration added in this batch. Revert only this batch's source changes in a n
 - Migrated Zod record calls, optional enum-key record behavior and generic parser output inference. Input defaults for filters/conditions use prefault to retain prior parsing/default semantics.
 - Local API237/237 PASS after dependency migration; API build PASS. Next15 Web build and CI acceptance are required before deployment. pnpm9 frozen-lockfile install PASS, matching the declared packageManager and Railway builder.
 - Source references: https://github.com/advisories/GHSA-2464-fhr4-w9xw ; https://github.com/expressjs/multer/releases/tag/v2.5.0 ; https://nextjs.org/docs/app/guides/upgrading/version-15 .
+
+## Batch 2 checkpoint — 497748ae06c75718661e7f706327d7dbcb2b2e34
+- Next15 build and API build succeeded locally; frozen pnpm9 CI-mode install completed (initial invocation only showed an interactive reinstall prompt, so the actual verification used CI=true).
+- CI caught a Zod4 compatibility regression before deployment: PATCH widget settings inserted defaults for omitted fields, resetting allowedOrigins. Corrected with sparsePatch validation for widget settings, CRM contact profile and integration configuration (canned reply patches use the same explicit contract). Unknown keys remain stripped; supplied invalid values remain rejected. Fresh regression verifies omitted keys and explicit false/empty values.
+- Product responsive acceptance also exposed missing channel-context return navigation; restored the existing Back to bot manager action for channel-scoped catalog and assert its current accessible label.
+- No failed dependency build was released. Prior accepted Preview deployments remain unchanged.
+
+## Authentication and queue acceptance batch — pending CI
+- Added additive migration108_auth_rate_limits.sql. Shared atomic PostgreSQL counters apply to login, registration, refresh and invitation acceptance; transport counter ignores untrusted forwarding headers. Stores only hashes and bounded counts; expires after5minutes; application role cannot read/reset counters directly. Login password input bounded to128characters before hashing.
+- Local database test covers30 parallel counter calls, exactly15allowed, separate identities, expiry recovery, capped counters and denied direct-table access. Added real HTTP test for24concurrent invalid logins:15authentication checks and9HTTP429, plus independent identity. No actual user accounts used.
+- Expanded independent assignment acceptance to105queued conversations, paginated persistence, unavailable staff, capacity1, human ownership retention, repeated availability safety, then two bounded drains100+4 and per-conversation eligible owner verification. No load on Railway.
+- Fresh local suite239/239 PASS, API build PASS, Web Next15 build PASS. Current independent PostgreSQL, restore and responsive acceptance must still pass.
+- Rollback for migration108: additive operational counters only, no customer rows changed. Roll back application to previous compatible release and retain counters/schema; do not drop tables or reverse customer data.

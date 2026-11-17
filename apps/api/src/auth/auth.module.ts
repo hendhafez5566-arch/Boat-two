@@ -1,3 +1,4 @@
+import { AuthRateLimit } from './auth-rate-limit';
 import { SessionsController } from './sessions.controller';
 import { Global, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
@@ -17,7 +18,7 @@ import { AuthService } from './auth.service';
     }),
   ],
   controllers: [AuthController, SessionsController],
-  providers: [AuthService, { provide: APP_GUARD, useClass: AuthGuard }],
+  providers: [AuthRateLimit, AuthService, { provide: APP_GUARD, useClass: AuthGuard }],
   exports: [AuthService],
 })
 export class AuthModule {}
