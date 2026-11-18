@@ -134,25 +134,32 @@
     for (var i = 0; i < all.length; i++) all[i].disabled = true;
   }
 
+  function safeMediaUrl(value) {
+    try { var url = new URL(value); return /^https?:$/.test(url.protocol) && !url.username && !url.password ? url.href : null; } catch { return null; }
+  }
   function addBubble(who, content) {
     // Replaying history must consume earlier choices just like a live reply.
     if (who === 'me') disableChips();
     var b = h('div', 'm ' + who);
     content = content || {};
     if (content.media) {
-      var u = content.media.url;
-      if (u && /^https?:\/\//i.test(u)) {
+      var u = safeMediaUrl(content.media.url);
+      if (u) {
         if (content.media.kind === 'image') {
           var img = h('img'); img.src = u; b.appendChild(img);
+        } else if (content.media.kind === 'audio' || content.media.kind === 'video') {
+          var player = h(content.media.kind); player.src = u; player.controls = true; player.preload = 'metadata'; player.style.maxWidth = '100%';
+          player.setAttribute('aria-label', content.media.filename || content.media.kind); b.appendChild(player);
+          player.onerror = function () { if (!b.querySelector('.media-error')) b.appendChild(h('span','media-error',st.cfg && st.cfg.direction === 'ltr' ? 'Attachment unavailable. Ask the team to restore access.' : 'المرفق غير متاح. اطلب من الفريق استعادة الوصول.')); };
         } else {
-          var a = h('a', '', content.media.filename || u); a.href = u; a.target = '_blank'; a.rel = 'noopener';
+          var a = h('a', '', content.media.filename || u); a.href = u; a.target = '_blank'; a.rel = 'noopener noreferrer';
           b.appendChild(a);
         }
       }
       if (content.media.caption) b.appendChild(document.createTextNode(content.media.caption));
     }
     if (content.header && content.header.type === 'text') b.appendChild(h('strong', '', content.header.text));
-    if (content.header && content.header.type === 'image' && /^https:\/\//i.test(content.header.url)) { var headerImage = h('img'); headerImage.src = content.header.url; b.appendChild(headerImage); }
+    if (content.header && content.header.type === 'image' && safeMediaUrl(content.header.url)) { var headerImage = h('img'); headerImage.src = safeMediaUrl(content.header.url); b.appendChild(headerImage); }
     if (content.text) b.appendChild(document.createTextNode(content.text));
     if (content.footer) b.appendChild(h('small', '', content.footer));
     if (content.location) b.appendChild(document.createTextNode('\uD83D\uDCCD ' + (content.location.name || 'Location')));

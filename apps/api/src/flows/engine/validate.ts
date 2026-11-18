@@ -2,6 +2,7 @@
 import { nodeSchema } from '../flow-schemas';
 import { isValidTimezone } from './hours';
 import { parseSheetUrl } from './sheet';
+import { normalizeDigits } from './text';
 import { FlowGraph, handlesFor, optionsOf } from './types';
 
 export interface Issue {
@@ -25,6 +26,16 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
   for (const n of graph.nodes) {
     const d = n.data ?? {};
     const handles = new Set(handlesFor(n));
+    // Static URLs must be usable before publication. Interpolated values are checked
+    // again by the outbound/HTTP boundary after expansion during actual execution.
+    const urls = [d.media?.url,d.header?.type==='image'?d.header.url:undefined,
+      ['image','audio','video','file','cta_url','http_request'].includes(n.type)?d.url:undefined,
+      n.type==='cta_url'?d.imageUrl:undefined,n.type==='template'?d.header?.url:undefined];
+    for(const value of urls){
+      if(typeof value!=='string'||!value.trim()||value.includes('{{'))continue;
+      try{const url=new URL(value);if(!['http:','https:'].includes(url.protocol)||url.username||url.password)throw new Error();}
+      catch{errors.push({nodeId:n.id,message:'URL must use HTTP/HTTPS without embedded credentials'});}
+    }
 
     for (const [h, target] of Object.entries(n.edges ?? {})) {
       if (!handles.has(h)) errors.push({ nodeId: n.id, message: `Unknown output "${h}"` });
@@ -98,6 +109,11 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
       case 'location':
         if (!d.lat || !d.lng)
           errors.push({ nodeId: n.id, message: 'Latitude and longitude are required' });
+        for(const [key,max] of [['lat',90],['lng',180]] as const){
+          const value=String(d[key]??'').trim();
+          if(value&&!value.includes('{{')&&(!Number.isFinite(Number(normalizeDigits(value)))||Math.abs(Number(normalizeDigits(value)))>max))
+            errors.push({nodeId:n.id,message:'Location coordinates are outside their valid range'});
+        }
         break;
       case 'cta_url':
         if (!d.text) errors.push({ nodeId: n.id, message: 'CTA message text is required' });
