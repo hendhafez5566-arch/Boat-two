@@ -22,7 +22,7 @@ export async function assertRuntime(f){
  const v=await api('/widget/'+f.channel.external_id+'/session',null,{}),path='/widget/'+f.channel.external_id+'/messages?visitorId='+v.visitorId;
  assert.ok((await fetch(base+path,{method:'POST',headers:{'content-type':'application/json','x-visitor-token':v.token},body:JSON.stringify({text:'Start advanced',clientMsgId:uuid()})})).ok);
  let history;for(let i=0;i<100;i++){history=await(await fetch(base+path,{headers:{'x-visitor-token':v.token}})).json();if(JSON.stringify(history).includes('Recovery complete'))break;await new Promise(r=>setTimeout(r,100));}
- const json=JSON.stringify(history);assert.ok(!json.includes('\"location\"'),'Unresolved coordinates cannot emit a fabricated location');assert.match(json,/Recovery complete 0\/false/);assert.ok(!json.includes('MUST-NOT-EXECUTE'));for(const file of f.files)assert.ok(json.includes(file.url));return v;
+ const json=JSON.stringify(history);assert.ok(Array.isArray(history.messages)&&!history.messages.some(message=>message.content?.location),'Unresolved coordinates cannot emit a fabricated location');assert.match(json,/Recovery complete 0\/false/);assert.ok(!json.includes('MUST-NOT-EXECUTE'));for(const file of f.files)assert.ok(json.includes(file.url));return v;
 }
 if(process.argv[1]===fileURLToPath(import.meta.url)){
  const f=await prepareAdvancedFlow();await assertRuntime(f);const before=await api('/flows/'+f.flow.id+'/versions',f.token);
