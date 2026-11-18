@@ -2,10 +2,10 @@
   display: grid;
   gap: 22px;
   min-width: 0;
-  color: #303a47;
-  font:
-    400 13px/1.6 Arial,
-    sans-serif;
+  color: #243446;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.65;
 }
 .heading {
   display: flex;
@@ -19,8 +19,8 @@
   margin: 0;
 }
 .heading p {
-  font-size: 12px;
-  color: #82909e;
+  font-size: 14px;
+  color: #4d6273;
   margin: 5px 0 0;
 }
 .formats {
@@ -42,21 +42,25 @@
 }
 .formats h2 {
   font-size: 19px;
-  font-weight: 500;
+  font-weight: 600;
   margin: 0;
 }
 .formats p {
   margin: 0;
   min-height: 46px;
-  color: #87919f;
-  font-size: 13px;
+  color: #4d6273;
+  font-size: 14px;
 }
 .formats strong {
-  border: 1px solid #e3ddfc;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  border: 1px solid #cfc5f5;
   border-radius: 7px;
   padding: 8px 20px;
-  color: #6954e5;
-  font-size: 12px;
+  color: #4936bf;
+  font-size: 14px;
   font-weight: 500;
 }
 .formatIcon {
@@ -64,7 +68,7 @@
   height: 52px;
   border-radius: 14px;
   background: #f0edff;
-  color: #8b7bec;
+  color: #624acb;
   display: grid;
   place-items: center;
 }
@@ -256,3 +260,9 @@
     width: 100%;
   }
 }
+
+.formats > a:focus-visible { outline: 3px solid #2764dd; outline-offset: 3px; }
+.formats > a:hover { border-color: #c9c4ef; }
+.cardArrow { display: inline-flex; width: 18px; height: 18px; transform: rotate(-90deg); }
+.cardArrow svg { width: 18px; height: 18px; }
+:global([dir='rtl']) .cardArrow { transform: rotate(90deg); }

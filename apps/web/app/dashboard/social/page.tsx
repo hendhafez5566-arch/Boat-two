@@ -29,7 +29,7 @@ export default function Page() {
               </span>
               <h2>{t(f.ar, f.en)}</h2>
               <p>{t(f.descriptionAr, f.descriptionEn)}</p>
-              <strong>{t('فتح', 'Open')} ›</strong>
+              <strong>{t('فتح', 'Open')} <span className={styles.cardArrow}><NavIcon name="chevron" /></span></strong>
             </Link>
           );
         })}

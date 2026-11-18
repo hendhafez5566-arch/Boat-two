@@ -6,6 +6,7 @@ on:
       - 'apps/web/components/product/ExternalDeliveryNotice.tsx'
       - 'apps/web/app/dashboard/campaigns/page.tsx'
       - 'apps/web/app/dashboard/social/page.tsx'
+      - 'apps/web/app/dashboard/social/social.module.css'
       - 'apps/web/app/dashboard/billing/page.tsx'
       - 'scripts/qa-optional-readiness-browser.mjs'
       - 'scripts/run-optional-readiness-qa.py'
