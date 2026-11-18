@@ -1,0 +1,62 @@
+[
+  {
+    "language": "ar",
+    "width": 390,
+    "status": "PASS",
+    "checks": [
+      "subflow component selection edited/saved/reopened",
+      "appointment service/start edited/saved/reopened",
+      "sequence selection edited/saved/reopened with eligibility guidance",
+      "UI publication",
+      "actual selected component and booking persisted from visitor",
+      "unlinked provider sequence safely skipped",
+      "human handoff"
+    ],
+    "scope": "Synthetic isolated UI/HTTP/PGlite; real sequence enrollment and concurrency separately verified on PostgreSQL; no official provider acceptance or full onboarding claim"
+  },
+  {
+    "language": "ar",
+    "width": 1366,
+    "status": "PASS",
+    "checks": [
+      "subflow component selection edited/saved/reopened",
+      "appointment service/start edited/saved/reopened",
+      "sequence selection edited/saved/reopened with eligibility guidance",
+      "UI publication",
+      "actual selected component and booking persisted from visitor",
+      "unlinked provider sequence safely skipped",
+      "human handoff"
+    ],
+    "scope": "Synthetic isolated UI/HTTP/PGlite; real sequence enrollment and concurrency separately verified on PostgreSQL; no official provider acceptance or full onboarding claim"
+  },
+  {
+    "language": "en",
+    "width": 390,
+    "status": "PASS",
+    "checks": [
+      "subflow component selection edited/saved/reopened",
+      "appointment service/start edited/saved/reopened",
+      "sequence selection edited/saved/reopened with eligibility guidance",
+      "UI publication",
+      "actual selected component and booking persisted from visitor",
+      "unlinked provider sequence safely skipped",
+      "human handoff"
+    ],
+    "scope": "Synthetic isolated UI/HTTP/PGlite; real sequence enrollment and concurrency separately verified on PostgreSQL; no official provider acceptance or full onboarding claim"
+  },
+  {
+    "language": "en",
+    "width": 1366,
+    "status": "PASS",
+    "checks": [
+      "subflow component selection edited/saved/reopened",
+      "appointment service/start edited/saved/reopened",
+      "sequence selection edited/saved/reopened with eligibility guidance",
+      "UI publication",
+      "actual selected component and booking persisted from visitor",
+      "unlinked provider sequence safely skipped",
+      "human handoff"
+    ],
+    "scope": "Synthetic isolated UI/HTTP/PGlite; real sequence enrollment and concurrency separately verified on PostgreSQL; no official provider acceptance or full onboarding claim"
+  }
+]
