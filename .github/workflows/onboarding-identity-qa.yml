@@ -1,0 +1,44 @@
+name: Company identity and team onboarding acceptance
+on:
+  push:
+    branches: [feat/flow-builder-fidelity-20261107]
+    paths:
+      - 'scripts/qa-onboarding-identity-browser.mjs'
+      - 'apps/web/components/product/AuthExperience.tsx'
+      - 'apps/web/app/dashboard/team/**'
+      - 'apps/web/app/dashboard/onboarding/**'
+      - '.github/workflows/onboarding-identity-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: onboarding-identity-pr14
+  cancel-in-progress: true
+jobs:
+  browser-identity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install and build actual application
+        run: corepack enable && pnpm install --frozen-lockfile && pnpm --filter api build && pnpm --filter web build
+      - name: Install isolated browser driver
+        run: npm install --prefix "$RUNNER_TEMP/boat-playwright" playwright@1.56.1 --ignore-scripts
+      - name: AR and EN registration, invitations, login and roles
+        env:
+          BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
+          BOAT_QA_BROWSER_SCRIPT: scripts/qa-onboarding-identity-browser.mjs
+          BOAT_CHROMIUM: /usr/bin/google-chrome
+          BOAT_CLOUD_REVIEW: 'true'
+        run: python3 scripts/run-connect-browser-qa.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: onboarding-identity-browser-evidence
+          path: |
+            docs/p0-evidence/onboarding-identity-browser/
+            /tmp/boat-journeys-api.log
+            /tmp/boat-journeys-web.log
