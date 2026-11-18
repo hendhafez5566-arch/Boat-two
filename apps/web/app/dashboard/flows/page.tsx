@@ -63,6 +63,7 @@ export default function BotManager() {
   const flows = useData<Flow[]>('/flows', []);
   const workspace = useData<{ role: string }>('/workspace', { role: '' });
   const canManage = ['owner', 'admin'].includes(workspace.data.role);
+  const canOpenSection = (key: string) => canManage || ['bot_reply', 'entry_points'].includes(key);
   function managementLink(href: string, label: string, icon: string, title: string) {
     return canManage ? (
       <Link className="btn" href={href} aria-label={label} title={title}>
@@ -402,6 +403,7 @@ export default function BotManager() {
             <button
               type="button"
               key={group.key}
+              disabled={!group.sections.some(canOpenSection)}
               aria-pressed={activeGroup?.key === group.key}
               onClick={() => selectSection(group.sections[0])}
             >
@@ -416,6 +418,7 @@ export default function BotManager() {
               <button
                 type="button"
                 key={key}
+                disabled={!canOpenSection(key)}
                 aria-pressed={section === key}
                 onClick={() => selectSection(key)}
               >
@@ -433,7 +436,7 @@ export default function BotManager() {
           </p>
         )}
         <AccountWorkspaceContext.Provider value={true}>
-          {!isFlowList && (
+          {!isFlowList && canManage && (
             <fieldset disabled={!canManage} className={styles.panelSurface}>
               {section === 'settings' ? (
                 <ManagerSettings key={channelId} channelId={channelId} canManage={canManage} />

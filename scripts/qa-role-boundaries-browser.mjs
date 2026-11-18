@@ -31,7 +31,16 @@ try{
    await p.goto('http://localhost:3000/dashboard/flows?channelId='+fixture.channelId);
    const edit=p.getByRole(role==='agent'?'button':'link',{name:t('تعديل','Edit')+': Protected HTTP configuration',exact:true});
    await edit.waitFor();
-   if(role==='agent')assert.ok(await edit.isDisabled());else assert.ok(await edit.isEnabled());
+   if(role==='agent'){
+    assert.ok(await edit.isDisabled());
+    assert.ok(await p.getByRole('button',{name:t('الذكاء الاصطناعي','AI'),exact:true}).isDisabled());
+    assert.ok(await p.getByRole('button',{name:t('الإجراءات السريعة','Quick Actions'),exact:true}).isDisabled());
+    let privateSettingsReads=0;
+    p.on('request',r=>{if(new URL(r.url()).pathname==='/channels/'+fixture.channelId+'/bot-settings')privateSettingsReads++;});
+    await p.goto('http://localhost:3000/dashboard/flows?channelId='+fixture.channelId+'&section=settings');
+    await p.getByText(t('عرض للقراءة فقط. إدارة البوت متاحة للمالك والمسؤول.','Read-only view. Bot management is available to owners and admins.'),{exact:true}).waitFor();
+    assert.equal(privateSettingsReads,0,'disabled administrative panel must not mount and fetch private settings');
+   }else assert.ok(await edit.isEnabled());
    await p.goto('http://localhost:3000/dashboard/flows/'+fixture.flowId+'?channelId='+fixture.channelId);
    if(role==='agent'){
     await p.getByRole('heading',{name:t('هذه الصفحة تحتاج صلاحيات إدارية','This page requires management access'),exact:true}).waitFor();
