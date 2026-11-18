@@ -23,3 +23,9 @@ No owner input above substitutes for an actual acceptance test. A supplied accou
 ## Immediate next-release prerequisite
 
 The next API deployment is blocked on preserving existing ephemeral attachment bytes, not only on future Production hosting. Follow STORAGE_SAFE_RELEASE.md: protected complete byte inventory/backup/verified restore and approved persistent storage/migration access before replacing the current API container. No new infrastructure or cost was enabled.
+
+### Storage decision is now concrete, but live inventory is not yet accessible
+
+Review [STORAGE_OPTIONS_APPROVAL.md](STORAGE_OPTIONS_APPROVAL.md): published unit prices, compatibility, private backup/restore, Sleep and scaling considerations, and staged approval steps. A volume on the existing API requires the least application change; a private S3-compatible bucket requires an adapter retaining the DB lifecycle gate. No capacity or total bill can be approved accurately until live bytes/headroom are measured. No resource was created.
+
+Immediate input: make an authorized Railway CLI/SSH session to the existing deployment available through a secure mechanism; the current connector only exposes redacted configuration/metadata. Inventory itself is already requested, but access is absent. Any new SSH access/key registration requires its own approval. Next decisions are protected backup destination/key escrow and customer-byte copy/freeze permission, followed by exact measured capacity/recurring cost/mount/path/replacement approval. The ready snapshot tool passed synthetic real-PostgreSQL restore acceptance44310490967; it has not copied any current customer file. Preserve current69c57c8 until the complete live backup/restore and approved durable-store cutover are proven.

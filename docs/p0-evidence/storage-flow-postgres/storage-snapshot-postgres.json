@@ -1,0 +1,21 @@
+{
+  "status": "PASS",
+  "database": "real isolated PostgreSQL",
+  "companies": 2,
+  "records": 4,
+  "checks": [
+    "global read-only metadata inventory including every state",
+    "non-bypass RLS role cannot give a false global inventory",
+    "encrypted AES-256-GCM archive",
+    "separate process restore",
+    "full byte/hash/metadata equality",
+    "revoked and deleted flags including overlap retained",
+    "no database mutation",
+    "missing original bytes separately reported"
+  ],
+  "limitations": [
+    "Synthetic fixtures only; no live customer bytes acquired",
+    "Operator-declared quiescence is not an automatic upload freeze",
+    "No storage resource or API container replacement tested; cutoverReady remains false"
+  ]
+}
