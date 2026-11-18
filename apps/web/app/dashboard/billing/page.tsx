@@ -87,6 +87,9 @@ export default function Billing() {
           {error}
         </p>
       )}
+      {status.data?.configured === false && <p className="notice" role="status" aria-label={t('حالة الدفع الإلكتروني','Online payment availability')}>
+        {t('الدفع الإلكتروني غير مفعّل في هذه البيئة. يمكنك مراجعة الباقات والاستخدام؛ عرض السعر لا يعني وجود اشتراك مدفوع أو تنفيذ خصم.','Online payment is not configured in this environment. You can review plans and usage; a displayed price does not mean a paid subscription or charge has been activated.')}
+      </p>}
       <section
         className={styles.summary}
         aria-label={t('ملخص الاشتراك', 'Account package statistics')}

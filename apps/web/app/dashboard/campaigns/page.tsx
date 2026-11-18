@@ -1,4 +1,5 @@
 'use client';
+import {ExternalDeliveryNotice} from '../../../components/product/ExternalDeliveryNotice';
 import { NavIcon } from '../../../components/product/NavIcon';
 import ConfigurationPanel from '../../../components/flow/ConfigurationPanel';
 import { Dialog } from '../../../components/product/ProductUI';
@@ -284,6 +285,7 @@ export default function Campaigns() {
   }
   return (
     <main className={styles.page}>
+      <ExternalDeliveryNotice />
       <header className={styles.heading}>
         <div>
           <h1>{t('مركز البث', 'Broadcast Center')}</h1>
