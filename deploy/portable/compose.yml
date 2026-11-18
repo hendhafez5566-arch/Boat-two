@@ -78,6 +78,11 @@ services:
     environment:
       NODE_ENV: production
     ports: ['127.0.0.1:3000:3000']
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/login').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
     depends_on:
       api: {condition: service_healthy}
 volumes:

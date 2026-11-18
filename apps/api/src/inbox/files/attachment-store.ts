@@ -59,7 +59,7 @@ export class S3AttachmentStore implements AttachmentStore {
   async get(name: string) {
     try {
       const result = await this.client.send(new GetObjectCommand(this.input(name)));
-      if (!result.Body || (result.ContentLength ?? MAX + 1) > MAX) return unavailable();
+      if (!result.Body || (result.ContentLength ?? MAX + 1) > MAX) { (result.Body as any)?.destroy?.(); return unavailable(); }
       let size = 0; const chunks: Buffer[] = [];
       for await (const chunk of result.Body as AsyncIterable<Uint8Array>) {
         size += chunk.length;

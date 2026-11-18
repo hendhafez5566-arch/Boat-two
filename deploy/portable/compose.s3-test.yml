@@ -1,7 +1,9 @@
 # Local S3-compatible acceptance ONLY; no external account or paid resource.
 services:
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    build:
+      context: ../..
+      dockerfile: deploy/portable/S3-test.Dockerfile
     command: ['server', '/data']
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID}

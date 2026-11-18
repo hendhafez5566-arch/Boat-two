@@ -33,5 +33,11 @@ if(!s3){
 // Replace actual application container, then database/cache containers, retaining their named volumes.
 compose('up','-d','--no-deps','--force-recreate','api');await ready();
 compose('up','-d','--no-deps','--force-recreate','postgres','redis');await ready();
+if(s3){
+ compose('up','-d','--no-deps','--force-recreate','minio');
+ compose('exec','-T','api','node','-e',"(async()=>{for(let i=0;i<60;i++){try{if((await fetch('http://minio:9000/minio/health/live')).ok)return;}catch{}await new Promise(r=>setTimeout(r,500));}process.exit(1);})();");
+ const state=JSON.parse(readFileSync('/tmp/boat-portable-storage-state.json','utf8'));
+ compose('exec','-T','api','node','-e',"fetch('http://minio:9000/boat-attachments/attachments/"+state.files[0].name+"').then(r=>{if(r.status!==403)process.exit(1)}).catch(()=>process.exit(1));");
+}
 node('scripts/qa-portable-storage.mjs','verify');
 console.log('PASS independent '+(s3?'S3-compatible':'filesystem')+' stack replacement and persistence');
