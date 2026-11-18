@@ -1601,3 +1601,13 @@ test('dynamic catalog empty results follow existing next edge without waiting', 
   assert.equal(r.status, 'completed');
   assert.equal(h.sent[0].text, 'No current items');
 });
+
+
+test('location with unresolved variables does not send an invented zero coordinate', async () => {
+  for(const lat of ['{{missing}}','   ']){
+    const h=harness({startNodeId:'loc',nodes:[node('loc','location',{lat,lng:'31'},{next:'end'}),node('end','end',{})]});
+    assert.equal((await h.engine.start(h.ctx,newState())).status,'completed');assert.equal(h.sent.length,0);
+  }
+  const h=harness({startNodeId:'loc',nodes:[node('loc','location',{lat:'0',lng:'0'},{next:'end'}),node('end','end',{})]});
+  assert.equal((await h.engine.start(h.ctx,newState())).status,'completed');assert.deepEqual(h.sent[0].location,{lat:0,lng:0});
+});

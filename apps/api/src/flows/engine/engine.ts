@@ -754,8 +754,12 @@ export class FlowEngine {
       }
 
       case 'location': {
-        const lat = Number(normalizeDigits(String(interpolateValue(String(d.lat ?? ''), r) ?? '')));
-        const lng = Number(normalizeDigits(String(interpolateValue(String(d.lng ?? ''), r) ?? '')));
+        const latText = normalizeDigits(String(interpolateValue(String(d.lat ?? ''), r) ?? '')).trim();
+        const lngText = normalizeDigits(String(interpolateValue(String(d.lng ?? ''), r) ?? '')).trim();
+        // Missing variables must not silently become the real coordinate zero.
+        if (!latText || !lngText) return { kind: 'goto', handle: 'next' };
+        const lat = Number(latText);
+        const lng = Number(lngText);
         if (
           !Number.isFinite(lat) ||
           !Number.isFinite(lng) ||
