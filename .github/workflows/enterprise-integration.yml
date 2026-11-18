@@ -14,6 +14,8 @@ on:
       - 'scripts/qa-assignment-fairness.mjs'
       - 'scripts/qa-advanced-node-runtime.mjs'
       - 'scripts/qa-report-dimensions.mjs'
+      - 'scripts/qa-upload-formats.mjs'
+      - 'scripts/fixtures/upload-formats.json'
       - 'scripts/fixtures/media-acceptance.json'
       - 'scripts/qa-p1-report-response.mjs'
       - 'scripts/qa-p2-business-journeys.mjs'
