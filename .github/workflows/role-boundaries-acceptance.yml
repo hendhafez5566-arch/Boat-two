@@ -75,4 +75,5 @@ jobs:
         if: always()
         with:
           name: role-boundaries-ui-evidence
-          path: docs/p0-evidence/role-boundaries-browser/
+          path: docs/p0-evidence/role-boundaries/
+          if-no-files-found: error
