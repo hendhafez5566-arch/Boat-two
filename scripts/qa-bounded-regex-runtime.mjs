@@ -9,6 +9,7 @@ async function api(path,token,body,method=body?'POST':'GET'){
 }
 const owner=await api('/auth/register',null,{email:uuid()+'@example.test',password:'Synthetic-'+uuid(),fullName:'Bounded runtime',workspaceName:'Isolated bounded runtime'});
 const token=owner.accessToken,ch=await api('/channels',token,{type:'web',name:'Bounded regex runtime'});
+await api('/workspace/onboarding/complete',token,{});
 let flow=await api('/flows',token,{name:'Bounded regex question and routing',channelIds:[ch.id]});
 const node=(id,type,data,edges={})=>({id,type,data,edges});
 flow=await api('/flows/'+flow.id,token,{expectedUpdatedAt:flow.updated_at,graph:{startNodeId:'ask',nodes:[
@@ -30,5 +31,5 @@ for(const kind of ['question','condition']){
  assert.equal(rejected.status,400,'malformed '+kind+' pattern cannot publish');
  assert.deepEqual(await api('/flows/'+flow.id+'/versions',token),versionsBefore,'failed publication preserves accepted version');
 }
-const fixturePath=process.env.BOAT_ROLE_BROWSER_FIXTURE;if(fixturePath){const fixture=JSON.parse(readFileSync(fixturePath));fixture.regexWidgetId=ch.external_id;fixture.regexFlowId=flow.id;writeFileSync(fixturePath,JSON.stringify(fixture),{mode:0o600});}
+const fixturePath=process.env.BOAT_ROLE_BROWSER_FIXTURE;if(fixturePath){const fixture=JSON.parse(readFileSync(fixturePath));fixture.regexWidgetId=ch.external_id;fixture.regexFlowId=flow.id;fixture.regexOwner=owner;writeFileSync(fixturePath,JSON.stringify(fixture),{mode:0o600});}
 writeFileSync('docs/p0-evidence/role-boundaries/regex-runtime.json',JSON.stringify({status:'PASS',database:process.env.BOAT_REAL_POSTGRES==='true'?'real PostgreSQL':'local reproduction only',checks:['published question over-budget regex follows fail output','published condition over-budget regex follows else output','history persists safe fallback','API remains responsive','invalid question and condition regex publication rejected without replacing published version'],notClaimed:['official provider','whole flow matrix']},null,2)+'\n');console.log('PASS published bounded-regex question and condition fallback');

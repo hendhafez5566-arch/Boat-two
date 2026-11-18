@@ -43,6 +43,9 @@ try{
     await p.reload();await p.locator('.react-flow__node-flowNode').first().waitFor();
    }
    if(role==='owner'){
+    // This runtime fixture belongs to a different synthetic company. Its own
+    // owner is required; using the role-matrix owner's token correctly yields404.
+    await p.evaluate(session=>localStorage.setItem('session',JSON.stringify(session)),fixture.regexOwner);
     await p.goto('http://localhost:3000/dashboard/flows/'+fixture.regexFlowId);
     await p.locator('.react-flow__node-flowNode').first().waitFor();
     await p.getByRole('button',{name:t('المزيد من الأدوات','More tools'),exact:true}).click();
