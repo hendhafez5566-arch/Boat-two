@@ -6,6 +6,8 @@ on:
       - 'scripts/qa-connected-company-browser.mjs'
       - 'scripts/run-connected-company-qa.py'
       - 'apps/web/public/widget-demo.html'
+      - 'apps/web/app/dashboard/page.tsx'
+      - 'apps/api/src/workspace/dashboard-summary.ts'
       - '.github/workflows/connected-company-acceptance.yml'
   workflow_dispatch:
 permissions:

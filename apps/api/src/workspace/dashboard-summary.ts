@@ -2,7 +2,7 @@ import type { PoolClient } from 'pg';
 import { z } from 'zod';
 
 export const dashboardChannelSchema = z
-  .enum(['whatsapp', 'telegram', 'facebook'])
+  .enum(['all', 'web', 'whatsapp', 'telegram', 'facebook', 'instagram'])
   .default('whatsapp');
 
 export async function dashboardSummary(
@@ -24,7 +24,7 @@ export async function dashboardSummary(
     ), first_subscription AS (
       SELECT cc.contact_id, min(cc.created_at) AS created_at
       FROM contact_channels cc JOIN channels ch ON ch.id=cc.channel_id AND ch.tenant_id=cc.tenant_id
-      WHERE ch.type=$1 GROUP BY cc.contact_id
+      WHERE ($1='all' OR ch.type=$1) GROUP BY cc.contact_id
     )
     SELECT day::date::text AS day,
       (SELECT count(*)::int FROM first_subscription s
@@ -32,7 +32,7 @@ export async function dashboardSummary(
          AND s.created_at < (day + interval '1 day') AT TIME ZONE 'UTC') AS gain,
       (SELECT count(DISTINCT h.contact_id)::int FROM consent_history h
        JOIN channels ch ON ch.id=h.channel_id AND ch.tenant_id=h.tenant_id
-       WHERE ch.type=$1 AND h.status='opted_out'
+       WHERE ($1='all' OR ch.type=$1) AND h.status='opted_out'
          AND h.created_at >= day AT TIME ZONE 'UTC'
          AND h.created_at < (day + interval '1 day') AT TIME ZONE 'UTC') AS drop
     FROM days ORDER BY day
