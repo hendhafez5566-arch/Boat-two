@@ -13,6 +13,7 @@ on:
       - 'scripts/qa-assignment-crash-recovery.mjs'
       - 'scripts/qa-assignment-fairness.mjs'
       - 'scripts/qa-advanced-node-runtime.mjs'
+      - 'scripts/qa-report-dimensions.mjs'
       - 'scripts/fixtures/media-acceptance.json'
       - 'scripts/qa-p1-report-response.mjs'
       - 'scripts/qa-p2-business-journeys.mjs'

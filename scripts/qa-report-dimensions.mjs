@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import {randomUUID as uuid} from 'node:crypto';
+import {createRequire} from 'node:module';
+import {writeFileSync} from 'node:fs';
+for(const key of ['DATABASE_URL','DATABASE_ADMIN_URL'])assert.ok(['localhost','127.0.0.1'].includes(new URL(process.env[key]).hostname));assert.equal(process.env.EXTERNAL_DELIVERY_ENABLED,'false');
+const {Pool}=createRequire(new URL('../apps/api/package.json',import.meta.url))('pg'),db=new Pool({connectionString:process.env.DATABASE_ADMIN_URL});
+async function api(path,token,body){const r=await fetch('http://localhost:4000'+path,{method:body?'POST':'GET',headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});assert.ok(r.ok,path+' '+r.status);return r.json();}
+try{for(let i=0;i<2;i++){
+ const owner=await api('/auth/register',null,{email:uuid()+'@example.test',password:'Synthetic-'+uuid(),fullName:'Report dimension '+i,workspaceName:'Isolated report dimensions'}),tid=owner.tenantId,token=owner.accessToken,ch=await api('/channels',token,{type:'web',name:'Dimensions '+i}),user=(await db.query('SELECT user_id FROM memberships WHERE tenant_id=$1',[tid])).rows[0].user_id;
+ const contact=(await db.query('INSERT INTO contacts(tenant_id,name) VALUES($1,$2) RETURNING id',[tid,'Known report contact'])).rows[0].id,cv=(await db.query("INSERT INTO conversations(tenant_id,channel_id,contact_id,handled_by) VALUES($1,$2,$3,'human') RETURNING id",[tid,ch.id,contact])).rows[0].id;
+ for(const [status,internal] of [['sent',false],['failed',false],['queued',false],['sent',true]])await db.query("INSERT INTO messages(tenant_id,conversation_id,channel_id,direction,sender_type,sender_user_id,type,content,status,is_internal) VALUES($1,$2,$3,'out','agent',$4,'text','{\"text\":\"Synthetic report event\"}',$5,$6)",[tid,cv,ch.id,user,status,internal]);
+ const pipeline=(await db.query("INSERT INTO crm_pipelines(tenant_id,name,stages) VALUES($1,'Known pipeline','[\"new\"]') RETURNING id",[tid])).rows[0].id;
+ for(const [currency,value] of [['EGP','12345'],['USD','999']])await db.query("INSERT INTO crm_deals(tenant_id,contact_id,pipeline_id,title,stage,value_cents,currency) VALUES($1,$2,$3,'Known deal','new',$4,$5)",[tid,contact,pipeline,value,currency]);
+ for(const [status,offset] of [['open',-3600],['open',3600],['done',-3600]])await db.query("INSERT INTO crm_tasks(tenant_id,contact_id,title,due_at,status) VALUES($1,$2,'Known task',now()+$3*interval '1 second',$4)",[tid,contact,offset,status]);
+ const query='?from='+encodeURIComponent(new Date(Date.now()-86400000).toISOString())+'&to='+encodeURIComponent(new Date(Date.now()+86400000).toISOString()),report=await api('/reports'+query,token);
+ assert.deepEqual(report.employees,[{full_name:'Report dimension '+i,outbound_messages:3,sent_messages:1,failed_messages:1,queued_messages:1,conversations:1}]);assert.equal(report.channels.find(c=>c.name==='Dimensions '+i).messages,3,'internal notes are not customer messages');
+ assert.deepEqual(report.sales.map(x=>[x.currency,x.value_cents]).sort(),[['EGP','12345'],['USD','999']]);assert.equal(report.followups.find(r=>r.status==='open').tasks,2);assert.equal(report.followups.find(r=>r.status==='open').overdue,1);assert.equal(report.followups.find(r=>r.status==='done').overdue,0);
+ assert.equal(report.lifecycle.reduce((n,r)=>n+r.contacts,0),1);assert.equal(report.conversations.reduce((n,r)=>n+r.count,0),1);assert.equal((await api('/reports?from=2000-01-01T00:00:00Z&to=2000-01-02T00:00:00Z',token)).employees.length,0);
+ }
+ writeFileSync('docs/p0-evidence/report-dimensions.json',JSON.stringify({status:'PASS',database:'real PostgreSQL',companies:2,checks:['staff sent/failed/queued attempts separated','notes excluded from channel totals and staff attempts','exact amounts remain split by currency','open overdue tasks exclude future and completed tasks','contact/conversation counts tenant scoped','empty period has no staff rows'],limitations:['No inferred bot resolution, handling duration or time-saving rate','Fixture events are synthetic, not measured company performance']},null,2)+'\n');console.log('PASS actual PostgreSQL report dimensions and precise status/currency boundaries');
+}finally{await db.end();}

@@ -2,6 +2,7 @@ type Translate = (ar:string,en:string)=>string;
 const columns: Record<string,[string,string]> = {
   day:['اليوم','Day'],name:['الاسم','Name'],type:['نوع القناة','Channel type'],full_name:['اسم الموظف','Employee'],
   inbound:['رسائل واردة','Inbound'],outbound:['رسائل صادرة','Outbound'],failed:['فشل','Failed'],messages:['الرسائل','Messages'],
+  sent_messages:['رسائل موظف أُرسلت','Sent staff messages'],failed_messages:['محاولات موظف فاشلة','Failed staff attempts'],queued_messages:['رسائل موظف في الطابور','Queued staff messages'],
   outbound_messages:['رسائل الموظف','Employee messages'],conversations:['المحادثات','Conversations'],status:['الحالة','Status'],handled_by:['مسؤول المحادثة','Handled by'],count:['العدد','Count'],
   pipeline:['مسار المبيعات','Sales pipeline'],stage:['مرحلة الصفقة','Deal stage'],currency:['العملة','Currency'],deals:['الصفقات','Deals'],value_cents:['قيمة الصفقات (بالعملة الرئيسية)','Deal value (major currency units)'],
   lifecycle:['مرحلة العميل','Customer stage'],contacts:['العملاء','Contacts'],id:['مرجع السجل','Record reference'],recipients:['الجمهور','Recipients'],skipped:['مستبعدون','Excluded'],sent:['أُرسلت','Sent'],delivered:['تم التسليم','Delivered'],read:['مقروءة','Read'],
@@ -25,7 +26,7 @@ export function reportValue(key:string,value:string|number|null,row:Record<strin
   if (key==='estimated_cost_microusd') return scaledAmount(value,6,locale,'USD');
   if (key==='day' && /^\d{4}-\d{2}-\d{2}$/.test(String(value))) return new Intl.DateTimeFormat(locale,{dateStyle:'medium',timeZone:'UTC'}).format(new Date(String(value)+'T00:00:00Z'));
   if (/^-?\d+$/.test(String(value)) && key!=='id') return new Intl.NumberFormat(locale).format(BigInt(value));
-  if (key==='handled_by') return value==='agent'?t('موظف','Staff'):value==='bot'?t('البوت','Bot'):value==='ai'?t('مساعد ذكي','AI assistant'):String(value);
+  if (key==='handled_by') return (value==='agent'||value==='human')?t('موظف','Staff'):value==='bot'?t('البوت','Bot'):value==='ai'?t('مساعد ذكي','AI assistant'):String(value);
   if (key==='type') return ({web:t('الموقع','Website'),whatsapp:t('واتساب','WhatsApp'),facebook:t('ماسنجر','Messenger'),instagram:t('إنستغرام','Instagram')} as Record<string,string>)[String(value)] || String(value);
   return String(value);
 }
