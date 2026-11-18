@@ -1,0 +1,77 @@
+{
+  "status": "PASS",
+  "database": "real PostgreSQL",
+  "results": [
+    {
+      "name": "image.jpg",
+      "mime": "image/jpeg",
+      "status": "PASS"
+    },
+    {
+      "name": "image.webp",
+      "mime": "image/webp",
+      "status": "PASS"
+    },
+    {
+      "name": "image.gif",
+      "mime": "image/gif",
+      "status": "PASS"
+    },
+    {
+      "name": "document.pdf",
+      "mime": "application/pdf",
+      "status": "PASS"
+    },
+    {
+      "name": "tone.mp3",
+      "mime": "audio/mpeg",
+      "status": "PASS"
+    },
+    {
+      "name": "tone.ogg",
+      "mime": "audio/ogg",
+      "status": "PASS"
+    },
+    {
+      "name": "tone.aac",
+      "mime": "audio/aac",
+      "status": "PASS"
+    },
+    {
+      "name": "tone.m4a",
+      "mime": "audio/mp4",
+      "status": "PASS"
+    },
+    {
+      "name": "clip.mp4",
+      "mime": "video/mp4",
+      "status": "PASS"
+    },
+    {
+      "name": "document.txt",
+      "mime": "text/plain",
+      "status": "PASS"
+    },
+    {
+      "name": "document.csv",
+      "mime": "text/csv",
+      "status": "PASS"
+    },
+    {
+      "name": "document.docx",
+      "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "status": "PASS"
+    },
+    {
+      "name": "document.xlsx",
+      "mime": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "status": "PASS"
+    }
+  ],
+  "scope": "Thirteen remaining declared formats: actual valid generated files upload, kind/MIME, byte-identical retrieval, no-store, forged content rejection. PNG lifecycle/browser acceptance already retained.",
+  "limitations": [
+    "Signature/container checks are not antivirus or comprehensive codec/document validation",
+    "Playback browser certification is scoped to generated MP3/MP4/PNG and document link",
+    "Persistent file bytes across container replacement still require approved storage"
+  ]
+}

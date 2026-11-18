@@ -1,0 +1,35 @@
+name: Pending enterprise release live acceptance — run after safe deployment
+on:
+  push:
+    branches: [feat/flow-builder-fidelity-20261107]
+    paths:
+      - 'scripts/qa-live-enterprise-release-browser.mjs'
+      - '.github/workflows/live-enterprise-release-acceptance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: live-enterprise-preview-pr14
+  cancel-in-progress: true
+jobs:
+  live-preview:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[verify-enterprise-release]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser driver
+        run: npm install --prefix "$RUNNER_TEMP/boat-playwright" playwright@1.56.1 --ignore-scripts
+      - name: Verify actual deployed Inbox and reports with synthetic accounts only
+        env:
+          BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
+          BOAT_CHROMIUM: /usr/bin/google-chrome
+        run: node scripts/qa-live-enterprise-release-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-enterprise-runtime-evidence
+          path: docs/p0-evidence/live-runtime-browser/

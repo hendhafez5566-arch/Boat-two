@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "database": "real PostgreSQL",
+  "checks": [
+    "actual four-media upload and byte retrieval",
+    "published four-media execution",
+    "unresolved location variable skips invented coordinate",
+    "blocked loopback HTTP takes error route without egress",
+    "missing private sheet account takes error route",
+    "unsafe publication denied without version changes",
+    "previous publication still executes"
+  ],
+  "scope": "Media, HTTP SSRF error and missing sheet dependency; no official provider acceptance"
+}

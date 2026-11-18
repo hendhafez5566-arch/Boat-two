@@ -1,0 +1,70 @@
+[
+  {
+    "language": "ar",
+    "width": 390,
+    "status": "PASS",
+    "checks": [
+      "register from UI",
+      "onboarding page persists company",
+      "admin and agent invitations created in UI",
+      "invitation failure preserves form and actual retry succeeds",
+      "UI invitation acceptance",
+      "reuse rejected",
+      "agent UI and API management denial",
+      "invalid login then successful fresh login",
+      "team persisted after reload"
+    ],
+    "scope": "Identity/team entry of onboarding, not complete channel/bot/CRM authoring journey; 503 is a controlled transport failure"
+  },
+  {
+    "language": "ar",
+    "width": 1366,
+    "status": "PASS",
+    "checks": [
+      "register from UI",
+      "onboarding page persists company",
+      "admin and agent invitations created in UI",
+      "invitation failure preserves form and actual retry succeeds",
+      "UI invitation acceptance",
+      "reuse rejected",
+      "agent UI and API management denial",
+      "invalid login then successful fresh login",
+      "team persisted after reload"
+    ],
+    "scope": "Identity/team entry of onboarding, not complete channel/bot/CRM authoring journey; 503 is a controlled transport failure"
+  },
+  {
+    "language": "en",
+    "width": 390,
+    "status": "PASS",
+    "checks": [
+      "register from UI",
+      "onboarding page persists company",
+      "admin and agent invitations created in UI",
+      "invitation failure preserves form and actual retry succeeds",
+      "UI invitation acceptance",
+      "reuse rejected",
+      "agent UI and API management denial",
+      "invalid login then successful fresh login",
+      "team persisted after reload"
+    ],
+    "scope": "Identity/team entry of onboarding, not complete channel/bot/CRM authoring journey; 503 is a controlled transport failure"
+  },
+  {
+    "language": "en",
+    "width": 1366,
+    "status": "PASS",
+    "checks": [
+      "register from UI",
+      "onboarding page persists company",
+      "admin and agent invitations created in UI",
+      "invitation failure preserves form and actual retry succeeds",
+      "UI invitation acceptance",
+      "reuse rejected",
+      "agent UI and API management denial",
+      "invalid login then successful fresh login",
+      "team persisted after reload"
+    ],
+    "scope": "Identity/team entry of onboarding, not complete channel/bot/CRM authoring journey; 503 is a controlled transport failure"
+  }
+]

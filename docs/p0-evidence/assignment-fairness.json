@@ -1,0 +1,45 @@
+{
+  "status": "PASS",
+  "database": "real PostgreSQL",
+  "companies": 12,
+  "queueSizes": [
+    105,
+    2,
+    3,
+    1,
+    2,
+    3,
+    1,
+    2,
+    3,
+    1,
+    2,
+    3
+  ],
+  "observedAssignedPerPass": [
+    0,
+    2,
+    3,
+    1,
+    2,
+    3,
+    1,
+    2,
+    3,
+    1,
+    2,
+    3,
+    100,
+    5
+  ],
+  "checks": [
+    "10-tenant keyset bound",
+    "locked large tenant does not block smaller companies",
+    "next scanner page reaches remaining companies",
+    "100-conversation drain bound",
+    "concurrent independent workers",
+    "every queued conversation assigned exactly once",
+    "human ownership mode retained"
+  ],
+  "scope": "Synthetic recovery scheduling fairness, not a weighted commercial priority SLA"
+}

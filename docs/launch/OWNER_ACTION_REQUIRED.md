@@ -19,3 +19,7 @@ Status of every item below: **BLOCKED — EXTERNAL**. No secrets belong in chat,
 - **Full multi-channel commercial SaaS: NOT READY.** Requires applicable provider/AI/payment gates plus all operational, legal and technical launch gates.
 
 No owner input above substitutes for an actual acceptance test. A supplied account or approved cost moves the item to testing, not automatically to DONE. Do not repeatedly probe existing customer secrets or assume test traffic permission.
+
+## Immediate next-release prerequisite
+
+The next API deployment is blocked on preserving existing ephemeral attachment bytes, not only on future Production hosting. Follow STORAGE_SAFE_RELEASE.md: protected complete byte inventory/backup/verified restore and approved persistent storage/migration access before replacing the current API container. No new infrastructure or cost was enabled.
