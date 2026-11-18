@@ -16,3 +16,7 @@ Filesystem remains the backward-compatible default: ATTACHMENT_STORAGE=filesyste
 For isolated object-store acceptance only, add `-f deploy/portable/compose.s3-test.yml`; initialize the private local bucket using the acceptance workflow. This profile is not an approved production storage recommendation. Switching a driver does not migrate bytes. Existing live uploads must be inventoried, copied, verified and approved using STORAGE_SAFE_RELEASE.md before any driver/path/container change.
 
 Public demo hosting needs owner-selected TLS/domain, secure secret provision and access policy. External messaging, email, AI and subscription changes are disabled here. Real accounts/payments and operational guarantees are not advertised by this demo.
+
+## Repeatable synthetic demo account
+
+After starting this independent stack, the continuous browser script `scripts/qa-connected-company-browser.mjs` creates synthetic AR/EN companies, invited staff, a Webchat/bot/customer/follow-up/report through UI only. It requires Playwright1.56.1 and Chromium (set BOAT_PLAYWRIGHT_MODULE and BOAT_CHROMIUM), and explicit BOAT_PORTABLE_ACCEPTANCE=true. Successful credentials are written0600 to the OS temporary directory as boat-demo-credentials.json; never commit, publish or upload that file. Accounts persist only while this separate stack's DB volume is retained. CI intentionally destroys its own disposable stack, so CI credentials are not a hosted public demo. See workflow evidence for accepted steps; an unfinished run is not a working full demo.

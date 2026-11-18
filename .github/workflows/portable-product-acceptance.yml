@@ -11,6 +11,7 @@ on:
       - 'apps/api/package.json'
       - 'pnpm-lock.yaml'
       - 'scripts/qa-portable-*.mjs'
+      - 'scripts/qa-connected-company-browser.mjs'
       - '.github/workflows/portable-product-acceptance.yml'
   workflow_dispatch:
 permissions:
@@ -43,11 +44,22 @@ jobs:
           docker compose --env-file deploy/portable/.env -f deploy/portable/compose.yml "${EXTRA[@]}" up -d --build --wait --wait-timeout 240
       - name: Real files, tenant gates, replacement and restore acceptance
         run: node scripts/qa-portable-run.mjs
+      - name: Install browser for continuous company acceptance
+        if: matrix.storage == 'filesystem'
+        run: npm install --prefix "$RUNNER_TEMP/boat-playwright" playwright@1.56.1 --ignore-scripts
+      - name: Complete AR and EN company journeys on real PostgreSQL
+        if: matrix.storage == 'filesystem'
+        env:
+          BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
+          BOAT_CHROMIUM: /usr/bin/google-chrome
+        run: node scripts/qa-connected-company-browser.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: portable-${{ matrix.storage }}-evidence
-          path: docs/p0-evidence/portable/
+          path: |
+            docs/p0-evidence/portable/
+            docs/p0-evidence/connected-company-browser/
       - name: Remove disposable stack
         if: always()
         run: |
