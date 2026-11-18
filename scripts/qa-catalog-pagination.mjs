@@ -19,6 +19,7 @@ try {
     const t = (ar, en) => language === 'ar' ? ar : en;
     const session = await api('/auth/register', null, { email: randomUUID() + '@example.test', password: 'Synthetic-' + randomUUID(), fullName: 'Pagination QA', workspaceName: 'Isolated catalog pagination' });
     const token = session.accessToken;
+    await api('/channels', token, {type: 'web', name: 'Isolated pagination website'});
     await api('/workspace/onboarding/complete', token, {});
     const category = await api('/commerce/categories', token, {name: '23 products'});
     const empty = await api('/commerce/categories', token, {name: 'Empty category'});
