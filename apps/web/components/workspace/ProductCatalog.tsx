@@ -1,6 +1,6 @@
 'use client';
 import { Dialog } from '../product/ProductUI';
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../../lib/api';
 import { productDecimal, productMinorUnits, productPrice } from '../../lib/product-money';
 import { useData } from '../business/useData';
@@ -74,6 +74,8 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
     }
   };
   const [category, setCategory] = useState('all');
+  const [page, setPage] = useState(1);
+  const listStart = useRef<HTMLDivElement>(null);
   const [categorySearch, setCategorySearch] = useState('');
   const [categoryEditing, setCategoryEditing] = useState('');
   const [copyingCategory, setCopyingCategory] = useState(false);
@@ -142,6 +144,12 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [success, setSuccess] = useState('');
+  useEffect(() => {
+    if (!success) return;
+    const timeout = window.setTimeout(() => setSuccess(''), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [success]);
+  useEffect(() => setPage(1), [category]);
   const lock = useRef(false);
   const resetFilters = () => {
     setCategory('all');
@@ -153,6 +161,22 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
         category === 'all' || (category === 'none' ? !p.category_id : p.category_id === category),
     )
     .sort((a, b) => a.name.localeCompare(b.name));
+  const pageSize = 10;
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const firstRow = (currentPage - 1) * pageSize;
+  const visibleRows = rows.slice(firstRow, firstRow + pageSize);
+  useEffect(() => setPage((value) => Math.min(value, pageCount)), [pageCount]);
+  const pageNumbers = Array.from(
+    new Set([1, currentPage - 1, currentPage, currentPage + 1, pageCount]),
+  )
+    .filter((value) => value >= 1 && value <= pageCount)
+    .sort((a, b) => a - b);
+  function changePage(value: number) {
+    setPage(value);
+    listStart.current?.scrollIntoView({ block: 'start' });
+    listStart.current?.focus({ preventScroll: true });
+  }
   async function save(form: HTMLFormElement) {
     if (lock.current) return;
     lock.current = true;
@@ -199,6 +223,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
     lock.current = true;
     setBusy(true);
     setError('');
+    setSuccess('');
     try {
       const f = new FormData(form);
       const saved = await api<{ id: string }>(
@@ -236,6 +261,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
     lock.current = true;
     setBusy(true);
     setError('');
+    setSuccess('');
     try {
       await api(`/commerce/products/${deleteProduct.id}${action === 'archive' ? '/archive' : ''}`, {
         method: action === 'archive' ? 'POST' : 'DELETE',
@@ -307,9 +333,19 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
             </div>
           </div>
           {success && (
-            <p className="notice" role="status">
-              {success}
-            </p>
+            <div className={styles.successToast} role="status" aria-live="polite">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="9" />
+                <path d="m8 12 3 3 5-6" />
+              </svg>
+              <span>{success}</span>
+            </div>
           )}
           {(products.error ||
             (error && editing === undefined && !categoriesOpen && !deleteCategory && !preview)) && (
@@ -325,11 +361,26 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
             aria-label={t('أقسام المنتجات', 'Product categories')}
           >
             <div className={styles.categoryHeading}>
-              <h3>{t('الأقسام', 'Categories')}</h3>
+              <h3>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="3" width="7" height="7" rx="2" />
+                  <rect x="14" y="3" width="7" height="7" rx="2" />
+                  <rect x="3" y="14" width="7" height="7" rx="2" />
+                  <rect x="14" y="14" width="7" height="7" rx="2" />
+                </svg>
+                {t('الأقسام', 'Categories')}
+              </h3>
               <label className={styles.categorySearch}>
                 <span>{t('البحث في الأقسام', 'Find category')}</span>
                 <input
                   type="search"
+                  aria-label={t('البحث في الأقسام', 'Find category')}
                   value={categorySearch}
                   onChange={(e) => setCategorySearch(e.target.value)}
                   placeholder={t('اسم القسم…', 'Category name…')}
@@ -562,55 +613,109 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
           {products.loading ? (
             <p role="status">{t('جارٍ تحميل المنتجات…', 'Loading products…')}</p>
           ) : rows.length ? (
-            <div className={styles.grid} data-view="list">
-              {rows.map((p) => (
-                <article className={styles.card} key={p.id}>
-                  <ProductImage key={p.image_url} product={p} />
-                  <div className={styles.body}>
-                    <div className={styles.productHeading}>
-                      <div>
-                        <h3>{p.name}</h3>
-                        <small>
-                          {categories.data.find((c) => c.id === p.category_id)?.name ??
-                            t('دون قسم', 'Uncategorized')}
-                          {' · SKU: '}
-                          {p.sku}
-                        </small>
-                      </div>
-                      <span className="semantic-state" data-tone={p.archived ? 'danger' : 'active'}>
-                        {p.archived ? t('مؤرشف', 'Archived') : t('نشط', 'Active')}
-                      </span>
-                    </div>
-                    <p>{p.description || t('بدون وصف', 'No description')}</p>
-                    <div className={styles.productFooter}>
-                      <div className={styles.productPrice}>
-                        <strong dir="ltr">{productPrice(p.price_cents, p.currency)}</strong>
-                        {!!p.options?.length && (
+            <>
+              <div
+                className={styles.grid}
+                data-view="list"
+                ref={listStart}
+                tabIndex={-1}
+                aria-label={t('قائمة المنتجات', 'Product list')}
+              >
+                {visibleRows.map((p) => (
+                  <article className={styles.card} key={p.id}>
+                    <ProductImage key={p.image_url} product={p} />
+                    <div className={styles.body}>
+                      <div className={styles.productHeading}>
+                        <div>
+                          <h3>{p.name}</h3>
                           <small>
-                            {p.options.length} {t('خيارات إضافية', 'priced options')}
+                            {categories.data.find((c) => c.id === p.category_id)?.name ??
+                              t('دون قسم', 'Uncategorized')}
+                            {' · SKU: '}
+                            {p.sku}
                           </small>
-                        )}
-                      </div>
-                      <div className={styles.productActions}>
-                        <button type="button" className="btn" onClick={() => openEditor(p)}>
-                          {t('تعديل', 'Edit')}
-                        </button>
-                        <button type="button" className="btn" onClick={() => void previewSaved(p)}>
-                          {t('معاينة', 'Preview')}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-danger"
-                          onClick={() => requestProductDelete(p)}
+                        </div>
+                        <span
+                          className="semantic-state"
+                          data-tone={p.archived ? 'danger' : 'active'}
                         >
-                          {t('حذف', 'Delete')}
-                        </button>
+                          {p.archived ? t('مؤرشف', 'Archived') : t('نشط', 'Active')}
+                        </span>
+                      </div>
+                      <p>{p.description || t('بدون وصف', 'No description')}</p>
+                      <div className={styles.productFooter}>
+                        <div className={styles.productPrice}>
+                          <strong dir="ltr">{productPrice(p.price_cents, p.currency)}</strong>
+                          {!!p.options?.length && (
+                            <small>
+                              {p.options.length} {t('خيارات إضافية', 'priced options')}
+                            </small>
+                          )}
+                        </div>
+                        <div className={styles.productActions}>
+                          <button type="button" className="btn" onClick={() => openEditor(p)}>
+                            {t('تعديل', 'Edit')}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={() => void previewSaved(p)}
+                          >
+                            {t('معاينة', 'Preview')}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-danger"
+                            onClick={() => requestProductDelete(p)}
+                          >
+                            {t('حذف', 'Delete')}
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </article>
-              ))}
-            </div>
+                  </article>
+                ))}
+              </div>
+              <nav className={styles.pagination} aria-label={t('صفحات المنتجات', 'Product pages')}>
+                <span className={styles.pageRange} role="status">
+                  {firstRow + 1}–{Math.min(firstRow + pageSize, rows.length)} {t('من', 'of')}{' '}
+                  {rows.length} {t('منتج', 'products')}
+                </span>
+                <div className={styles.pageButtons}>
+                  <button
+                    type="button"
+                    disabled={currentPage === 1}
+                    onClick={() => changePage(currentPage - 1)}
+                  >
+                    {t('السابق', 'Previous')}
+                  </button>
+                  {pageNumbers.map((value, index) => (
+                    <span key={value} className={styles.pageNumber}>
+                      {index > 0 && value - pageNumbers[index - 1] > 1 && (
+                        <span className={styles.pageGap} aria-hidden="true">
+                          …
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        aria-label={t('الصفحة ', 'Page ') + value}
+                        aria-current={value === currentPage ? 'page' : undefined}
+                        onClick={() => changePage(value)}
+                      >
+                        {value}
+                      </button>
+                    </span>
+                  ))}
+                  <button
+                    type="button"
+                    disabled={currentPage === pageCount}
+                    onClick={() => changePage(currentPage + 1)}
+                  >
+                    {t('التالي', 'Next')}
+                  </button>
+                </div>
+              </nav>
+            </>
           ) : (
             <div className={styles.empty}>
               <h3>
