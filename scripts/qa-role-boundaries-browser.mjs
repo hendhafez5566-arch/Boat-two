@@ -43,14 +43,18 @@ try{
     await p.reload();await p.locator('.react-flow__node-flowNode').first().waitFor();
    }
    if(role==='owner'){
-    // This runtime fixture belongs to a different synthetic company. Its own
-    // owner is required; using the role-matrix owner's token correctly yields404.
-    await p.evaluate(session=>localStorage.setItem('session',JSON.stringify(session)),fixture.regexOwner);
-    await p.goto('http://localhost:3000/dashboard/flows/'+fixture.regexFlowId);
-    await p.locator('.react-flow__node-flowNode').first().waitFor();
-    await p.getByRole('button',{name:t('المزيد من الأدوات','More tools'),exact:true}).click();
-    await p.getByRole('button',{name:t('فحص التدفق','Validate flow'),exact:true}).click();
-    await p.getByRole('region',{name:t('نتيجة فحص البوت','Bot check result'),exact:true}).getByText(t('نمط المطابقة في الشرط غير صالح. صحّح النمط قبل النشر.','Condition regex pattern is invalid'),{exact:true}).waitFor();
+    // Separate context prevents the role fixture init script from restoring its
+    // own company's session during navigation to this other company's draft.
+    const rc=await browser.newContext({viewport:{width,height:1000}});
+    await rc.addInitScript(({session,language})=>{localStorage.setItem('session',JSON.stringify(session));localStorage.setItem('boat-language',language);},{session:fixture.regexOwner,language});
+    await rc.route('**/*',r=>['localhost','127.0.0.1'].includes(new URL(r.request().url()).hostname)?r.continue():r.abort());
+    const rp=await rc.newPage();rp.setDefaultTimeout(25000);
+    await rp.goto('http://localhost:3000/dashboard/flows/'+fixture.regexFlowId);
+    await rp.locator('.react-flow__node-flowNode').first().waitFor();
+    await rp.getByRole('button',{name:t('المزيد من الأدوات','More tools'),exact:true}).click();
+    await rp.getByRole('button',{name:t('فحص التدفق','Validate flow'),exact:true}).click();
+    await rp.getByRole('region',{name:t('نتيجة فحص البوت','Bot check result'),exact:true}).getByText(t('نمط المطابقة في الشرط غير صالح. صحّح النمط قبل النشر.','Condition regex pattern is invalid'),{exact:true}).waitFor();
+    await rp.screenshot({path:`docs/p0-evidence/role-boundaries/invalid-${language}-${width}.png`});await rc.close();
    }
    // Channel setup is administrative; agents use channel metadata in Inbox.
    if(role==='agent'){
