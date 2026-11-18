@@ -24,6 +24,7 @@ const links = [
 const controlKeys = ['settings', 'packages', 'team', 'billing'];
 const primaryKeys = ['', 'inbox', 'channels', 'flows', 'crm', 'campaigns', 'social'];
 const restrictedForAgents = [
+  'channels',
   'social',
   'packages',
   'commerce',

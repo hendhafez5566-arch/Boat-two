@@ -31,8 +31,16 @@ try{
     await p.locator('.react-flow__node-flowNode').first().waitFor();assert.ok(graphReads>0);
     await p.reload();await p.locator('.react-flow__node-flowNode').first().waitFor();
    }
+   // Channel setup is administrative; agents use channel metadata in Inbox.
+   if(role==='agent'){
+    for(const route of ['/dashboard/channels','/dashboard/channels/connect/web']){
+     await p.goto('http://localhost:3000'+route);
+     await p.getByRole('heading',{name:t('هذه الصفحة تحتاج صلاحيات إدارية','This page requires management access'),exact:true}).waitFor();
+     assert.equal(await p.getByRole('button',{name:t('إنشاء ويدجت محادثة مباشرة','Create Live Chat Widget'),exact:true}).count(),0);
+    }
+   }
    await p.screenshot({path:`docs/p0-evidence/role-boundaries/${role}-${language}-${width}.png`});
-   results.push({role,language,width,status:'PASS',scope:'private editor access, safe list controls and reload'});await c.close();
+   results.push({role,language,width,status:'PASS',scope:'private editor access, safe list controls, reload and agent channel configuration guard'});await c.close();
   }
  }
 }finally{await browser.close();writeFileSync('docs/p0-evidence/role-boundaries/browser.json',JSON.stringify(results,null,2)+'\n');}
