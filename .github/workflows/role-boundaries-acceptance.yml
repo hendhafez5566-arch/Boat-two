@@ -6,6 +6,7 @@ on:
       - 'scripts/qa-role-boundaries-browser.mjs'
       - 'scripts/run-role-boundaries-qa.py'
       - 'scripts/qa-role-boundaries.mjs'
+      - 'scripts/qa-bounded-regex-runtime.mjs'
       - 'apps/web/app/dashboard/layout.tsx'
       - 'apps/web/app/dashboard/flows/**'
       - 'apps/api/src/flows/**'

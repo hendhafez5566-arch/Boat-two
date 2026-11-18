@@ -25,6 +25,7 @@ try:
     with tempfile.TemporaryDirectory(prefix='boat-role-') as private:
         environment['BOAT_ROLE_BROWSER_FIXTURE']=private+'/fixture.json'
         subprocess.run(['node','scripts/qa-role-boundaries.mjs'],env=environment,check=True)
+        subprocess.run(['node','scripts/qa-bounded-regex-runtime.mjs'],env=environment,check=True)
         subprocess.run(['node','scripts/qa-role-boundaries-browser.mjs'],env=environment,check=True)
 finally:
     for p in procs:

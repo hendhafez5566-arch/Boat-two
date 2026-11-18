@@ -1,3 +1,4 @@
+import { boundedRegexTest, RegexBudget } from './bounded-regex';
 import { randomUUID } from 'node:crypto';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { evaluateRule, Operands } from './conditions';
@@ -40,6 +41,8 @@ class RunError extends Error {}
 export class FlowEngine {
   private readonly nodes: Map<string, FlowNode>;
   private httpCalls = 0;
+  // Shared across question validation and branches in this engine invocation.
+  private readonly regexBudget: RegexBudget = { remainingMs: 100 };
   private deliveryReady?: string;
 
   constructor(
@@ -204,6 +207,7 @@ export class FlowEngine {
 
   private operands(ctx: FlowContext, state: FlowState): Operands {
     return {
+      regexBudget: this.regexBudget,
       vars: state.vars,
       contact: ctx.contact,
       channelType: ctx.channel.type,
@@ -547,6 +551,7 @@ export class FlowEngine {
       d.answerType ?? 'text',
       d.pattern,
       ctx.lastMessage.media,
+      this.regexBudget,
     );
 
     if (parsed.ok) {
@@ -1115,6 +1120,7 @@ export function parseAnswer(
     | 'video',
   pattern?: string,
   media?: FlowContext['lastMessage']['media'],
+  regexBudget?: RegexBudget,
 ): { ok: true; value: string | number } | { ok: false } {
   if (['file', 'image', 'video'].includes(type)) {
     if (media?.kind !== type) return { ok: false };
@@ -1172,13 +1178,9 @@ export function parseAnswer(
     }
     case 'regex': {
       if (!pattern || pattern.length > 200) return { ok: false };
-      try {
-        return new RegExp(pattern, 'i').test(text.slice(0, 1000))
-          ? { ok: true, value: text }
-          : { ok: false };
-      } catch {
-        return { ok: false };
-      }
+      return boundedRegexTest(pattern, text, regexBudget)
+        ? { ok: true, value: text }
+        : { ok: false };
     }
     default:
       return { ok: true, value: text };

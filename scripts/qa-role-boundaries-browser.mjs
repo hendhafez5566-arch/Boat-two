@@ -11,6 +11,17 @@ const results=[];
 try{
  for(const language of ['ar','en'])for(const width of [390,1366]){
   const t=(ar,en)=>language==='ar'?ar:en;
+  const visitor=await browser.newContext({viewport:{width,height:1000}});
+  await visitor.route('**/*',r=>['localhost','127.0.0.1'].includes(new URL(r.request().url()).hostname)?r.continue():r.abort());
+  const customer=await visitor.newPage();customer.setDefaultTimeout(25000);
+  await customer.goto('http://localhost:3000/widget-demo.html?key='+fixture.regexWidgetId+'&lang='+language);
+  await customer.locator('.launcher').click();
+  await customer.locator('input[aria-label]').fill('Start');await customer.locator('.send').click();
+  await customer.getByText('Regex safety question',{exact:true}).waitFor();
+  await customer.locator('input[aria-label]').fill('a'.repeat(100)+'!');await customer.locator('.send').click();
+  await customer.getByText('Safe fallback reached',{exact:true}).waitFor();
+  await customer.reload();await customer.locator('.launcher').click();await customer.getByText('Safe fallback reached',{exact:true}).waitFor();
+  results.push({language,width,status:'PASS',scope:'published configurable regex question fail and condition else through real widget, history after reload'});await visitor.close();
   for(const role of ['agent','owner','admin']){
    const c=await browser.newContext({viewport:{width,height:1000}});
    await c.addInitScript(({session,language})=>{localStorage.setItem('session',JSON.stringify(session));localStorage.setItem('boat-language',language);},{session:fixture[role],language});

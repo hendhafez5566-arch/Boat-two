@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { boundedRegexTest, RegexBudget } from './bounded-regex';
 import { getPath, interpolate, normalizeDigits, normalizeText, Resolver } from './text';
 
 export type Operator =
@@ -28,6 +29,7 @@ export interface Rule {
 }
 
 export interface Operands {
+  regexBudget?: RegexBudget;
   vars: Record<string, unknown>;
   contact: { name?: string | null; phone?: string | null; email?: string | null; attributes: Record<string, unknown>; tags?: string[] };
   channelType: string;
@@ -110,12 +112,7 @@ export function evaluateCondition(c: Condition, o: Operands): boolean {
     case 'less_than':
       return isSet(a) && num(a) < num(bRaw);
     case 'matches_regex': {
-      if (bRaw.length > 200) return false;
-      try {
-        return new RegExp(bRaw, 'i').test(str(a).slice(0, 1000));
-      } catch {
-        return false;
-      }
+      return boundedRegexTest(bRaw, str(a), o.regexBudget);
     }
     default:
       return false;
