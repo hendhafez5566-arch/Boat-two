@@ -1,0 +1,17 @@
+{
+  "status": "PASS",
+  "scope": "Disposable Docker Compose, real PostgreSQL/Redis/API/Web",
+  "checks": [
+    "bytes survive API container replacement",
+    "revoked and deleted states persist",
+    "revoked/deleted public URLs denied",
+    "foreign tenant download denied",
+    "authorized restoration retains exact bytes",
+    "no-store headers retained"
+  ],
+  "notClaimed": [
+    "live customer migration",
+    "production acceptance",
+    "official cloud storage account"
+  ]
+}

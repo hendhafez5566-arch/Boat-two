@@ -1,0 +1,54 @@
+[
+  {
+    "language": "ar",
+    "width": 390,
+    "status": "PASS",
+    "checks": [
+      "real disabled external-delivery flag visible for campaigns",
+      "failed status lookup never claims delivery is enabled; reload recovers",
+      "social draft preparation explicitly separated from real publishing; readable14px/4.5:1 descriptions and44px SVG action",
+      "unconfigured billing clearly disclosed",
+      "AI provider calls disabled visibly"
+    ],
+    "scope": "Actual API/Web/PostgreSQL synthetic fixture; one controlled capability-lookup503 tests UI failure only; no provider, subscription, charge or delivery acceptance"
+  },
+  {
+    "language": "ar",
+    "width": 1366,
+    "status": "PASS",
+    "checks": [
+      "real disabled external-delivery flag visible for campaigns",
+      "failed status lookup never claims delivery is enabled; reload recovers",
+      "social draft preparation explicitly separated from real publishing; readable14px/4.5:1 descriptions and44px SVG action",
+      "unconfigured billing clearly disclosed",
+      "AI provider calls disabled visibly"
+    ],
+    "scope": "Actual API/Web/PostgreSQL synthetic fixture; one controlled capability-lookup503 tests UI failure only; no provider, subscription, charge or delivery acceptance"
+  },
+  {
+    "language": "en",
+    "width": 390,
+    "status": "PASS",
+    "checks": [
+      "real disabled external-delivery flag visible for campaigns",
+      "failed status lookup never claims delivery is enabled; reload recovers",
+      "social draft preparation explicitly separated from real publishing; readable14px/4.5:1 descriptions and44px SVG action",
+      "unconfigured billing clearly disclosed",
+      "AI provider calls disabled visibly"
+    ],
+    "scope": "Actual API/Web/PostgreSQL synthetic fixture; one controlled capability-lookup503 tests UI failure only; no provider, subscription, charge or delivery acceptance"
+  },
+  {
+    "language": "en",
+    "width": 1366,
+    "status": "PASS",
+    "checks": [
+      "real disabled external-delivery flag visible for campaigns",
+      "failed status lookup never claims delivery is enabled; reload recovers",
+      "social draft preparation explicitly separated from real publishing; readable14px/4.5:1 descriptions and44px SVG action",
+      "unconfigured billing clearly disclosed",
+      "AI provider calls disabled visibly"
+    ],
+    "scope": "Actual API/Web/PostgreSQL synthetic fixture; one controlled capability-lookup503 tests UI failure only; no provider, subscription, charge or delivery acceptance"
+  }
+]
