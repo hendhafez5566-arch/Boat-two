@@ -1279,3 +1279,59 @@
   box-shadow: 0 8px 28px #253b4b24;
   font-size: 14px;
 }
+
+
+/* Bot preview: a focused conversation window, not an editor-sized overlay.
+   Keep the message area flexible while advanced tools remain accessible. */
+.previewDialog {
+  width: min(640px, calc(100vw - 32px));
+  height: min(680px, calc(100dvh - 52px));
+  max-height: calc(100dvh - 32px);
+  border-radius: 16px;
+}
+.previewDialog > :global(.dialog-body) {
+  max-height: none;
+  padding: 8px 12px 12px;
+}
+.previewDialog :global(.smart-review-label) {
+  margin-bottom: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.simulatorBody :global(.tp) {
+  min-height: 0;
+}
+.simulatorBody :global(.tp-chat) {
+  flex: 1 1 auto;
+  min-height: 140px;
+}
+.simulatorBody :global(.tp-note) {
+  font-size: 12px;
+  line-height: 1.45;
+}
+.simulatorBody :global(.tp-adv) {
+  flex: 0 1 auto;
+  max-height: min(35%, 240px);
+  overflow-y: auto;
+  font-size: 13px;
+}
+.simulatorBody :global(.tp-adv) > button {
+  min-height: 42px;
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+@media (max-width: 700px) {
+  .previewDialog {
+    width: calc(100vw - 12px);
+    height: calc(100dvh - 12px);
+    max-height: calc(100dvh - 12px);
+    border-radius: 12px;
+  }
+  .previewDialog > :global(.dialog-body) {
+    padding: 4px 8px 8px;
+  }
+  .simulatorBody :global(.tp-chat) {
+    min-height: 96px;
+  }
+}
