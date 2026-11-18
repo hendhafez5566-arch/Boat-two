@@ -47,7 +47,7 @@ try{
     await p.locator('.react-flow__node-flowNode').first().waitFor();
     await p.getByRole('button',{name:t('المزيد من الأدوات','More tools'),exact:true}).click();
     await p.getByRole('button',{name:t('فحص التدفق','Validate flow'),exact:true}).click();
-    await p.getByText(t('نمط المطابقة في الشرط غير صالح. صحّح النمط قبل النشر.','Condition regex pattern is invalid'),{exact:true}).waitFor();
+    await p.getByRole('region',{name:t('نتيجة فحص البوت','Bot check result'),exact:true}).getByText(t('نمط المطابقة في الشرط غير صالح. صحّح النمط قبل النشر.','Condition regex pattern is invalid'),{exact:true}).waitFor();
    }
    // Channel setup is administrative; agents use channel metadata in Inbox.
    if(role==='agent'){

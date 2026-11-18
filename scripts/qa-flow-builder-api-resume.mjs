@@ -107,7 +107,14 @@ for (const role of ['admin', 'agent'])
       fullName: 'QA ' + role,
     });
     roleTokens[role] = member.accessToken;
-    const f = await api('/flows/' + flow.id, null, member.accessToken);
+    // Draft configuration is administrative; the agent keeps only safe list metadata.
+    if (role === 'agent') {
+      await api('/flows/' + flow.id, null, member.accessToken, 'GET', 403);
+      const safeList = await api('/flows', null, member.accessToken);
+      assert.ok(safeList.some((item) => item.id === flow.id));
+      assert.ok(safeList.every((item) => !Object.hasOwn(item, 'draft_graph')));
+    }
+    const f = await api('/flows/' + flow.id, null, role === 'admin' ? member.accessToken : token);
     await api(
       '/flows/' + flow.id,
       { name: f.name, expectedUpdatedAt: f.updated_at },
