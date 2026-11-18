@@ -1,6 +1,6 @@
 'use client';
 import { Dialog } from '../product/ProductUI';
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { api } from '../../lib/api';
 import { productDecimal, productMinorUnits, productPrice } from '../../lib/product-money';
 import { useData } from '../business/useData';
@@ -35,8 +35,20 @@ export function ProductImage({ product }: { product: Pick<CatalogProduct, 'image
       referrerPolicy="no-referrer"
     />
   ) : (
-    <div className={styles.placeholder} role="img" aria-label={t('لا توجد صورة للمنتج', 'No product image')}>
-      <svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <div
+      className={styles.placeholder}
+      role="img"
+      aria-label={t('لا توجد صورة للمنتج', 'No product image')}
+    >
+      <svg
+        viewBox="0 0 32 32"
+        aria-hidden="true"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <rect x="3" y="5" width="26" height="22" rx="3" />
         <circle cx="11" cy="12" r="2.4" />
         <path d="M5 24l8-8 6 5 4-4 6 6" />
@@ -45,7 +57,7 @@ export function ProductImage({ product }: { product: Pick<CatalogProduct, 'image
     </div>
   );
 }
-export default function ProductCatalog() {
+export default function ProductCatalog({ navigation }: { navigation?: ReactNode } = {}) {
   const { t } = useLocale();
   const categories = useData<{ id: string; name: string }[]>('/commerce/categories', []);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
@@ -62,11 +74,10 @@ export default function ProductCatalog() {
     }
   };
   const [category, setCategory] = useState('all');
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [categorySearch, setCategorySearch] = useState('');
   const [categoryEditing, setCategoryEditing] = useState('');
   const [copyingCategory, setCopyingCategory] = useState(false);
-  const [deleteCategory, setDeleteCategory] = useState<{id: string; name: string} | null>(null);
+  const [deleteCategory, setDeleteCategory] = useState<{ id: string; name: string } | null>(null);
   const [categoryDeleteConfirmed, setCategoryDeleteConfirmed] = useState(false);
   const [deleteProduct, setDeleteProduct] = useState<CatalogProduct | null>(null);
   const [productDeleteConfirmed, setProductDeleteConfirmed] = useState(false);
@@ -126,44 +137,22 @@ export default function ProductCatalog() {
   const categoryProductCount = deleteCategory
     ? products.data.filter((product) => product.category_id === deleteCategory.id).length
     : 0;
-  const [query, setQuery] = useState(''),
-    [status, setStatus] = useState('active'),
-    [sort, setSort] = useState('name');
   const [editing, setEditing] = useState<CatalogProduct | null | undefined>(undefined);
   const [preview, setPreview] = useState<CatalogProduct | null>(null);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [success, setSuccess] = useState('');
   const lock = useRef(false);
-  const activeProducts = products.data.filter((product) => !product.archived).length;
-  const archivedProducts = products.data.length - activeProducts;
-  const normalizedQuery = query.trim().toLocaleLowerCase();
   const resetFilters = () => {
     setCategory('all');
     setCategorySearch('');
-    setStatus('all');
-    setQuery('');
   };
   const rows = products.data
     .filter(
       (p) =>
-        (category === 'all' ||
-          (category === 'none' ? !p.category_id : p.category_id === category)) &&
-        (status === 'all' || p.archived === (status === 'archived')) &&
-        `${p.name} ${p.sku} ${p.description}`
-          .toLocaleLowerCase()
-          .includes(normalizedQuery),
+        category === 'all' || (category === 'none' ? !p.category_id : p.category_id === category),
     )
-    .sort((a, b) =>
-      sort === 'name'
-        ? a.name.localeCompare(b.name)
-        : a.currency.localeCompare(b.currency) ||
-          (BigInt(a.price_cents) < BigInt(b.price_cents)
-            ? -1
-            : BigInt(a.price_cents) > BigInt(b.price_cents)
-              ? 1
-              : 0),
-    );
+    .sort((a, b) => a.name.localeCompare(b.name));
   async function save(form: HTMLFormElement) {
     if (lock.current) return;
     lock.current = true;
@@ -223,8 +212,6 @@ export default function ProductCatalog() {
       );
       await Promise.all([categories.reload(), copyingCategory && products.reload()]);
       setCategory(saved.id);
-      setQuery('');
-      if (copyingCategory) setStatus('all');
       setCategoriesOpen(false);
       setSuccess(
         copyingCategory
@@ -250,14 +237,19 @@ export default function ProductCatalog() {
     setBusy(true);
     setError('');
     try {
-      await api(
-        `/commerce/products/${deleteProduct.id}${action === 'archive' ? '/archive' : ''}`,
-        { method: action === 'archive' ? 'POST' : 'DELETE', body: JSON.stringify({ confirm: true }) },
-      );
+      await api(`/commerce/products/${deleteProduct.id}${action === 'archive' ? '/archive' : ''}`, {
+        method: action === 'archive' ? 'POST' : 'DELETE',
+        body: JSON.stringify({ confirm: true }),
+      });
       await products.reload();
-      setSuccess(action === 'archive'
-        ? t('تمت أرشفة المنتج، ولم تعد البوتات تستخدمه.', 'Product archived and unavailable to bots.')
-        : t('تم حذف المنتج نهائيًا.', 'Product permanently deleted.'));
+      setSuccess(
+        action === 'archive'
+          ? t(
+              'تمت أرشفة المنتج، ولم تعد البوتات تستخدمه.',
+              'Product archived and unavailable to bots.',
+            )
+          : t('تم حذف المنتج نهائيًا.', 'Product permanently deleted.'),
+      );
       setDeleteProduct(null);
       setProductDeleteConfirmed(false);
     } catch (e) {
@@ -303,46 +295,24 @@ export default function ProductCatalog() {
     <section className={styles.root} aria-label={t('إدارة المنتجات', 'Product management')}>
       {editing === undefined && (
         <>
-          <header className={styles.catalogHeader}>
-            <div>
-              <h2>{t('المنتجات', 'Products')}</h2>
-              <p>
-                {t(
-                  'أضف منتجاتك ونظّمها في أقسام، ثم اختر ما يحتاجه البوت داخل مصمم التدفقات.',
-                  'Create and organize products here, then select them inside the flow builder.',
-                )}
-              </p>
-            </div>
+          <div className={styles.compactActions}>
+            {navigation}
             <div className={styles.headerActions}>
               <button type="button" className="btn btn-primary" onClick={() => openEditor(null)}>
                 {t('+ إضافة منتج', '+ Add product')}
               </button>
+              <button type="button" className="btn" onClick={() => openCategory()}>
+                {t('إضافة قسم', 'Add category')}
+              </button>
             </div>
-          </header>
-          <div className={styles.catalogSummary} aria-label={t('ملخص المنتجات', 'Product summary')}>
-            <span>
-              <strong>{products.data.length}</strong>
-              {t('إجمالي المنتجات', 'Total products')}
-            </span>
-            <span>
-              <strong>{activeProducts}</strong>
-              {t('منتجات نشطة', 'Active products')}
-            </span>
-            <span>
-              <strong>{archivedProducts}</strong>
-              {t('منتجات مؤرشفة', 'Archived products')}
-            </span>
-            <span>
-              <strong>{categories.data.length}</strong>
-              {t('أقسام', 'Categories')}
-            </span>
           </div>
           {success && (
             <p className="notice" role="status">
               {success}
             </p>
           )}
-          {(products.error || (error && editing === undefined && !categoriesOpen && !deleteCategory && !preview)) && (
+          {(products.error ||
+            (error && editing === undefined && !categoriesOpen && !deleteCategory && !preview)) && (
             <p className="notice error" role="alert">
               {products.error || error}
               <button type="button" className="btn" onClick={() => void products.reload()}>
@@ -350,7 +320,10 @@ export default function ProductCatalog() {
               </button>
             </p>
           )}
-          <section className={styles.categoriesPanel} aria-label={t('أقسام المنتجات', 'Product categories')}>
+          <section
+            className={styles.categoriesPanel}
+            aria-label={t('أقسام المنتجات', 'Product categories')}
+          >
             <div className={styles.categoryHeading}>
               <h3>{t('الأقسام', 'Categories')}</h3>
               <label className={styles.categorySearch}>
@@ -376,33 +349,47 @@ export default function ProductCatalog() {
                     { id: 'none', name: t('دون قسم', 'Uncategorized') },
                     ...categories.data,
                   ]
-                    .filter((item) =>
-                      item.id === 'all' ||
-                      item.id === 'none' ||
-                      item.id === category ||
-                      item.name.toLocaleLowerCase().includes(categorySearch.trim().toLocaleLowerCase()),
+                    .filter(
+                      (item) =>
+                        item.id === 'all' ||
+                        item.id === 'none' ||
+                        item.id === category ||
+                        item.name
+                          .toLocaleLowerCase()
+                          .includes(categorySearch.trim().toLocaleLowerCase()),
                     )
                     .map((item) => (
                       <option key={item.id} value={item.id}>
-                        {item.name} ({products.data.filter((product) =>
-                          item.id === 'all' ||
-                          (item.id === 'none'
-                            ? !product.category_id
-                            : product.category_id === item.id)).length})
+                        {item.name} (
+                        {
+                          products.data.filter(
+                            (product) =>
+                              item.id === 'all' ||
+                              (item.id === 'none'
+                                ? !product.category_id
+                                : product.category_id === item.id),
+                          ).length
+                        }
+                        )
                       </option>
                     ))}
                 </select>
               </label>
               <div className={styles.categoryActions}>
-                <button type="button" className="btn" onClick={() => openCategory()}>
-                  {t('إضافة قسم', 'Add category')}
-                </button>
                 {selectedCategory && (
                   <>
-                    <button type="button" className="btn" onClick={() => openCategory(selectedCategory.id)}>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => openCategory(selectedCategory.id)}
+                    >
                       {t('تعديل الاسم', 'Rename')}
                     </button>
-                    <button type="button" className="btn" onClick={() => openCategory(selectedCategory.id, true)}>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => openCategory(selectedCategory.id, true)}
+                    >
                       {t('نسخ القسم', 'Duplicate')}
                     </button>
                     <button
@@ -420,12 +407,6 @@ export default function ProductCatalog() {
                 )}
               </div>
             </div>
-            <p className={styles.categoryHint}>
-              {t(
-                'الأقسام تظهر في قائمة واحدة حتى لو كان لديك مئات الأقسام؛ ابحث بالاسم للوصول للقسم المطلوب.',
-                'Categories stay in one dropdown, even for hundreds of categories. Search by name to find one.',
-              )}
-            </p>
             {categories.error && <p role="alert">{categories.error}</p>}
           </section>
           <Dialog
@@ -450,11 +431,20 @@ export default function ProductCatalog() {
                 </p>
                 <p className={categoryProductCount ? styles.blockedDeletion : styles.safeDeletion}>
                   {categoryProductCount
-                    ? t(`القسم يحتوي على ${categoryProductCount} منتج. انقل كل المنتجات لقسم آخر أولًا.`,
-                        `This category has ${categoryProductCount} products. Move them first.`)
-                    : t('القسم فارغ ويمكن حذفه بعد التأكيد.', 'The category is empty and can be deleted after confirmation.')}
+                    ? t(
+                        `القسم يحتوي على ${categoryProductCount} منتج. انقل كل المنتجات لقسم آخر أولًا.`,
+                        `This category has ${categoryProductCount} products. Move them first.`,
+                      )
+                    : t(
+                        'القسم فارغ ويمكن حذفه بعد التأكيد.',
+                        'The category is empty and can be deleted after confirmation.',
+                      )}
                 </p>
-                {error && <p className="notice error" role="alert">{error}</p>}
+                {error && (
+                  <p className="notice error" role="alert">
+                    {error}
+                  </p>
+                )}
                 <label className={styles.confirmCheckbox}>
                   <input
                     type="checkbox"
@@ -462,19 +452,33 @@ export default function ProductCatalog() {
                     onChange={(event) => setCategoryDeleteConfirmed(event.target.checked)}
                     disabled={busy || categoryProductCount > 0}
                   />
-                  {t('أؤكد الحذف النهائي لهذا القسم', 'I confirm permanent deletion of this category')}
+                  {t(
+                    'أؤكد الحذف النهائي لهذا القسم',
+                    'I confirm permanent deletion of this category',
+                  )}
                 </label>
                 <div className="form-actions">
-                  <button type="button" className="btn" disabled={busy} onClick={() => {
-                    setDeleteCategory(null);
-                    setCategoryDeleteConfirmed(false);
-                    setError('');
-                  }}>{t('إلغاء', 'Cancel')}</button>
-                  <button type="button" className="btn btn-danger"
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={busy}
+                    onClick={() => {
+                      setDeleteCategory(null);
+                      setCategoryDeleteConfirmed(false);
+                      setError('');
+                    }}
+                  >
+                    {t('إلغاء', 'Cancel')}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger"
                     disabled={busy || !categoryDeleteConfirmed || categoryProductCount > 0}
                     onClick={async () => {
                       if (!deleteCategory || lock.current) return;
-                      lock.current = true; setBusy(true); setError('');
+                      lock.current = true;
+                      setBusy(true);
+                      setError('');
                       try {
                         await api('/commerce/categories/' + deleteCategory.id, {
                           method: 'DELETE',
@@ -492,7 +496,9 @@ export default function ProductCatalog() {
                         setBusy(false);
                       }
                     }}
-                  >{busy ? t('جارٍ الحذف…', 'Deleting…') : t('حذف نهائيًا', 'Delete permanently')}</button>
+                  >
+                    {busy ? t('جارٍ الحذف…', 'Deleting…') : t('حذف نهائيًا', 'Delete permanently')}
+                  </button>
                 </div>
               </div>
             )}
@@ -553,47 +559,10 @@ export default function ProductCatalog() {
               </button>
             </form>
           </Dialog>
-          <div className={styles.toolbar}>
-            <label className="field">
-              {t('البحث في المنتجات', 'Search products')}
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={t('اسم المنتج أو الكود أو الوصف', 'Name, code, or description')}
-              />
-            </label>
-            <label className="field">
-              {t('الحالة', 'Status')}
-              <select aria-label={t('الحالة', 'Status')} value={status} onChange={(e) => setStatus(e.target.value)}>
-                <option value="active">{t('النشطة', 'Active')}</option>
-                <option value="archived">{t('المؤرشفة', 'Archived')}</option>
-                <option value="all">{t('كل الحالات', 'All statuses')}</option>
-              </select>
-            </label>
-            <label className="field">
-              {t('الترتيب', 'Sort')}
-              <select aria-label={t('الترتيب', 'Sort')} value={sort} onChange={(e) => setSort(e.target.value)}>
-                <option value="name">{t('حسب الاسم', 'By name')}</option>
-                <option value="price">{t('العملة ثم السعر', 'Currency, then price')}</option>
-              </select>
-            </label>
-            <div className={styles.viewToggle} role="group" aria-label={t('طريقة عرض المنتجات', 'Product view')}>
-              <button type="button" aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')}>
-                {t('قائمة', 'List')}
-              </button>
-              <button type="button" aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')}>
-                {t('بطاقات', 'Cards')}
-              </button>
-            </div>
-            <span className={styles.resultCount} role="status">
-              {rows.length} {t('منتج', 'products')}
-            </span>
-          </div>
           {products.loading ? (
             <p role="status">{t('جارٍ تحميل المنتجات…', 'Loading products…')}</p>
           ) : rows.length ? (
-            <div className={styles.grid} data-view={viewMode}>
+            <div className={styles.grid} data-view="list">
               {rows.map((p) => (
                 <article className={styles.card} key={p.id}>
                   <ProductImage key={p.image_url} product={p} />
@@ -604,7 +573,8 @@ export default function ProductCatalog() {
                         <small>
                           {categories.data.find((c) => c.id === p.category_id)?.name ??
                             t('دون قسم', 'Uncategorized')}
-                          {' · SKU: '}{p.sku}
+                          {' · SKU: '}
+                          {p.sku}
                         </small>
                       </div>
                       <span className="semantic-state" data-tone={p.archived ? 'danger' : 'active'}>
@@ -650,23 +620,35 @@ export default function ProductCatalog() {
               </h3>
               <p>
                 {products.data.length
-                  ? t('جرّب تغيير القسم أو البحث أو حالة المنتج.', 'Change the category, search, or status.')
-                  : t('أنشئ منتجًا يدويًا أو استخدم تبويب مصادر البيانات للاستيراد.', 'Create a product or use Data sources to import products.')}
+                  ? t(
+                      'اختر قسمًا آخر لعرض منتجاته.',
+                      'Choose another category to see its products.',
+                    )
+                  : t(
+                      'أنشئ منتجًا يدويًا أو استخدم تبويب مصادر البيانات للاستيراد.',
+                      'Create a product or use Data sources to import products.',
+                    )}
               </p>
               <button
                 type="button"
                 className="btn btn-primary"
                 onClick={products.data.length ? resetFilters : () => openEditor(null)}
               >
-                {products.data.length ? t('مسح الفلاتر', 'Clear filters') : t('إضافة منتج', 'Add product')}
+                {products.data.length
+                  ? t('مسح الفلاتر', 'Clear filters')
+                  : t('إضافة منتج', 'Add product')}
               </button>
             </div>
           )}
         </>
       )}
       {editing !== undefined && (
-        <Dialog open onClose={closeEditor} className={styles.editorDialog}
-          title={editing ? t('تعديل المنتج', 'Edit product') : t('منتج جديد', 'New product')}>
+        <Dialog
+          open
+          onClose={closeEditor}
+          className={styles.editorDialog}
+          title={editing ? t('تعديل المنتج', 'Edit product') : t('منتج جديد', 'New product')}
+        >
           <form
             className={styles.productForm}
             onChange={() => setEditorDirty(true)}
@@ -677,263 +659,301 @@ export default function ProductCatalog() {
             }}
           >
             <div className={styles.editorFields}>
-            {error && (
-              <p role="alert" className="notice error">
-                {error}
-              </p>
-            )}
-            <div className={styles.editorGuide}>
-              <strong>{editing ? t('تعديل بيانات المنتج', 'Edit product details') : t('إضافة منتج جديد', 'Create a product')}</strong>
-              <p>{t(
-                'املأ الاسم والقسم والسعر. باقي الحقول اختيارية ويمكن إضافتها لاحقًا.',
-                'Enter a name, category and price. Other details can be added later.',
-              )}</p>
-            </div>
-            <fieldset className={styles.editorBlock}>
-              <legend>{t('المعلومات الأساسية', 'Basic information')}</legend>
-              <div className={styles.editorTwoColumns}>
-                <label className="field">
-                  {t('اسم المنتج *', 'Product name *')}
-                  <input
-                    autoFocus
-                    name="name"
-                    required
-                    maxLength={120}
-                    defaultValue={editing?.name}
-                    placeholder={t('مثال: رحلة عمرة 5 أيام', 'e.g. Five-day travel package')}
-                  />
-                </label>
-                <label className="field">
-                  {t('القسم', 'Category')}
-                  <select
-                    aria-label={t('قسم المنتج', 'Product category')}
-                    name="category"
-                    defaultValue={editing ? (editing.category_id ?? '') : (selectedCategory?.id ?? '')}
+              {error && (
+                <p role="alert" className="notice error">
+                  {error}
+                </p>
+              )}
+              <div className={styles.editorGuide}>
+                <strong>
+                  {editing
+                    ? t('تعديل بيانات المنتج', 'Edit product details')
+                    : t('إضافة منتج جديد', 'Create a product')}
+                </strong>
+                <p>
+                  {t(
+                    'املأ الاسم والقسم والسعر. باقي الحقول اختيارية ويمكن إضافتها لاحقًا.',
+                    'Enter a name, category and price. Other details can be added later.',
+                  )}
+                </p>
+              </div>
+              <fieldset className={styles.editorBlock}>
+                <legend>{t('المعلومات الأساسية', 'Basic information')}</legend>
+                <div className={styles.editorTwoColumns}>
+                  <label className="field">
+                    {t('اسم المنتج *', 'Product name *')}
+                    <input
+                      autoFocus
+                      name="name"
+                      required
+                      maxLength={120}
+                      defaultValue={editing?.name}
+                      placeholder={t('مثال: رحلة عمرة 5 أيام', 'e.g. Five-day travel package')}
+                    />
+                  </label>
+                  <label className="field">
+                    {t('القسم', 'Category')}
+                    <select
+                      aria-label={t('قسم المنتج', 'Product category')}
+                      name="category"
+                      defaultValue={
+                        editing ? (editing.category_id ?? '') : (selectedCategory?.id ?? '')
+                      }
+                    >
+                      <option value="">{t('دون قسم', 'Uncategorized')}</option>
+                      {categories.data.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    {t('السعر *', 'Price *')}
+                    <input
+                      name="price"
+                      inputMode="decimal"
+                      pattern="[0-9]{1,13}([.][0-9]{1,2})?"
+                      required
+                      defaultValue={editing ? productDecimal(editing.price_cents) : ''}
+                      placeholder="150.00"
+                      dir="ltr"
+                    />
+                  </label>
+                  <label className="field">
+                    {t('العملة *', 'Currency *')}
+                    <input
+                      name="currency"
+                      pattern="[A-Z]{3}"
+                      maxLength={3}
+                      required
+                      defaultValue={editing?.currency ?? 'EGP'}
+                      dir="ltr"
+                      placeholder="EGP"
+                    />
+                  </label>
+                </div>
+                <div className={styles.editorSkuRow}>
+                  <label className="field">
+                    {t('كود المنتج SKU *', 'Product code (SKU) *')}
+                    <input
+                      name="sku"
+                      required
+                      maxLength={80}
+                      value={skuDraft}
+                      onChange={(event) => setSkuDraft(event.target.value)}
+                      dir="ltr"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      setSkuDraft(`SKU-${crypto.randomUUID().slice(0, 8).toUpperCase()}`);
+                      setEditorDirty(true);
+                    }}
                   >
-                    <option value="">{t('دون قسم', 'Uncategorized')}</option>
-                    {categories.data.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </label>
+                    {t('توليد كود', 'Generate code')}
+                  </button>
+                </div>
                 <label className="field">
-                  {t('السعر *', 'Price *')}
-                  <input
-                    name="price"
-                    inputMode="decimal"
-                    pattern="[0-9]{1,13}([.][0-9]{1,2})?"
-                    required
-                    defaultValue={editing ? productDecimal(editing.price_cents) : ''}
-                    placeholder="150.00"
-                    dir="ltr"
+                  {t('وصف المنتج (اختياري)', 'Description (optional)')}
+                  <textarea
+                    name="description"
+                    rows={3}
+                    maxLength={1000}
+                    defaultValue={editing?.description}
+                    placeholder={t(
+                      'اكتب وصفًا مختصرًا يفهمه العميل والبوت.',
+                      'Describe the product for customers and your bot.',
+                    )}
                   />
                 </label>
-                <label className="field">
-                  {t('العملة *', 'Currency *')}
-                  <input
-                    name="currency"
-                    pattern="[A-Z]{3}"
-                    maxLength={3}
-                    required
-                    defaultValue={editing?.currency ?? 'EGP'}
-                    dir="ltr"
-                    placeholder="EGP"
-                  />
-                </label>
-              </div>
-              <div className={styles.editorSkuRow}>
-                <label className="field">
-                  {t('كود المنتج SKU *', 'Product code (SKU) *')}
-                  <input
-                    name="sku"
-                    required
-                    maxLength={80}
-                    value={skuDraft}
-                    onChange={(event) => setSkuDraft(event.target.value)}
-                    dir="ltr"
-                  />
-                </label>
-                <button type="button" className="btn" onClick={() => {
-                  setSkuDraft(`SKU-${crypto.randomUUID().slice(0, 8).toUpperCase()}`);
-                  setEditorDirty(true);
-                }}>{t('توليد كود', 'Generate code')}</button>
-              </div>
-              <label className="field">
-                {t('وصف المنتج (اختياري)', 'Description (optional)')}
-                <textarea
-                  name="description"
-                  rows={3}
-                  maxLength={1000}
-                  defaultValue={editing?.description}
-                  placeholder={t('اكتب وصفًا مختصرًا يفهمه العميل والبوت.', 'Describe the product for customers and your bot.')}
-                />
-              </label>
-            </fieldset>
-            {(['specification', 'option'] as const).map((kind) => (
+              </fieldset>
+              {(['specification', 'option'] as const).map((kind) => (
+                <details
+                  className={styles.editorDisclosure}
+                  key={kind}
+                  open={expandedSections[kind]}
+                  onToggle={(event) => {
+                    const isOpen = event.currentTarget.open;
+                    setExpandedSections((current) =>
+                      current[kind] === isOpen ? current : { ...current, [kind]: isOpen },
+                    );
+                  }}
+                >
+                  <summary>
+                    {kind === 'specification'
+                      ? t('المواصفات الإضافية', 'Additional specifications')
+                      : t('خيارات المنتج وأسعارها', 'Product options and prices')}
+                    <span>{details.filter((item) => item.kind === kind).length}</span>
+                  </summary>
+                  <div className={styles.editorDisclosureBody}>
+                    {details
+                      .filter((item) => item.kind === kind)
+                      .map((item) => (
+                        <div className={styles.detailRow} key={item.id}>
+                          <label className="field">
+                            {kind === 'specification'
+                              ? t('اسم المواصفة', 'Specification name')
+                              : t('اسم الخيار', 'Option name')}
+                            <input
+                              required
+                              maxLength={kind === 'specification' ? 80 : 120}
+                              value={item.name}
+                              onChange={(e) =>
+                                setDetails((rows) =>
+                                  rows.map((row) =>
+                                    row.id === item.id ? { ...row, name: e.target.value } : row,
+                                  ),
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="field">
+                            {kind === 'specification'
+                              ? t('القيمة', 'Value')
+                              : t('السعر بعملة المنتج', 'Price in product currency')}
+                            <input
+                              required
+                              maxLength={kind === 'specification' ? 200 : 16}
+                              inputMode={kind === 'option' ? 'decimal' : 'text'}
+                              pattern={
+                                kind === 'option' ? '[0-9]{1,13}(\\.[0-9]{1,2})?' : undefined
+                              }
+                              value={item.value}
+                              onChange={(e) =>
+                                setDetails((rows) =>
+                                  rows.map((row) =>
+                                    row.id === item.id ? { ...row, value: e.target.value } : row,
+                                  ),
+                                )
+                              }
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            className="btn"
+                            aria-label={t('إزالة السطر', 'Remove row')}
+                            onClick={() => {
+                              setEditorDirty(true);
+                              setDetails((rows) => rows.filter((row) => row.id !== item.id));
+                            }}
+                          >
+                            {t('إزالة', 'Remove')}
+                          </button>
+                        </div>
+                      ))}
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={details.filter((row) => row.kind === kind).length >= 100}
+                      onClick={() => {
+                        const id = nextDetail.current++;
+                        setDetails((rows) => [...rows, { id, name: '', value: '', kind }]);
+                        setEditorDirty(true);
+                      }}
+                    >
+                      {kind === 'specification'
+                        ? t('+ إضافة مواصفة', '+ Add specification')
+                        : t('+ إضافة خيار بسعر', '+ Add priced option')}
+                    </button>
+                  </div>
+                </details>
+              ))}
               <details
                 className={styles.editorDisclosure}
-                key={kind}
-                open={expandedSections[kind]}
+                open={expandedSections.media}
                 onToggle={(event) => {
                   const isOpen = event.currentTarget.open;
                   setExpandedSections((current) =>
-                    current[kind] === isOpen ? current : { ...current, [kind]: isOpen },
+                    current.media === isOpen ? current : { ...current, media: isOpen },
                   );
                 }}
               >
                 <summary>
-                  {kind === 'specification'
-                    ? t('المواصفات الإضافية', 'Additional specifications')
-                    : t('خيارات المنتج وأسعارها', 'Product options and prices')}
-                  <span>{details.filter((item) => item.kind === kind).length}</span>
+                  {t('صورة المنتج والروابط (اختياري)', 'Product image and links (optional)')}
                 </summary>
                 <div className={styles.editorDisclosureBody}>
-                {details
-                  .filter((item) => item.kind === kind)
-                  .map((item) => (
-                    <div className={styles.detailRow} key={item.id}>
-                      <label className="field">
-                        {kind === 'specification'
-                          ? t('اسم المواصفة', 'Specification name')
-                          : t('اسم الخيار', 'Option name')}
-                        <input
-                          required
-                          maxLength={kind === 'specification' ? 80 : 120}
-                          value={item.name}
-                          onChange={(e) =>
-                            setDetails((rows) =>
-                              rows.map((row) =>
-                                row.id === item.id ? { ...row, name: e.target.value } : row,
-                              ),
-                            )
-                          }
-                        />
-                      </label>
-                      <label className="field">
-                        {kind === 'specification'
-                          ? t('القيمة', 'Value')
-                          : t('السعر بعملة المنتج', 'Price in product currency')}
-                        <input
-                          required
-                          maxLength={kind === 'specification' ? 200 : 16}
-                          inputMode={kind === 'option' ? 'decimal' : 'text'}
-                          pattern={kind === 'option' ? '[0-9]{1,13}(\\.[0-9]{1,2})?' : undefined}
-                          value={item.value}
-                          onChange={(e) =>
-                            setDetails((rows) =>
-                              rows.map((row) =>
-                                row.id === item.id ? { ...row, value: e.target.value } : row,
-                              ),
-                            )
-                          }
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        className="btn"
-                        aria-label={t('إزالة السطر', 'Remove row')}
-                        onClick={() => {
-                          setEditorDirty(true);
-                          setDetails((rows) => rows.filter((row) => row.id !== item.id));
-                        }}
-                      >
-                        {t('إزالة', 'Remove')}
-                      </button>
-                    </div>
-                  ))}
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={details.filter((row) => row.kind === kind).length >= 100}
-                  onClick={() => {
-                    const id = nextDetail.current++;
-                    setDetails((rows) => [...rows, { id, name: '', value: '', kind }]);
-                    setEditorDirty(true);
-                  }}
-                >
-                  {kind === 'specification'
-                    ? t('+ إضافة مواصفة', '+ Add specification')
-                    : t('+ إضافة خيار بسعر', '+ Add priced option')}
-                </button>
+                  <label className="field">
+                    {t('رابط الصورة', 'Image URL')}
+                    <input
+                      name="image"
+                      type="url"
+                      onChange={(e) => setDraftImage(e.target.value || null)}
+                      defaultValue={editing?.image_url ?? ''}
+                      dir="ltr"
+                    />
+                  </label>
+                  <p>
+                    {t(
+                      'أدخل رابط صورة مستضافة؛ رفع الملفات غير متاح هنا.',
+                      'Use a hosted image URL. File uploads are unavailable here.',
+                    )}
+                  </p>
+                  <label className="field">
+                    {t('رابط المنتج', 'Product URL')}
+                    <input
+                      name="link"
+                      type="url"
+                      defaultValue={editing?.link_url ?? ''}
+                      dir="ltr"
+                    />
+                  </label>
                 </div>
               </details>
-            ))}
-            <details className={styles.editorDisclosure} open={expandedSections.media}
-              onToggle={(event) => {
-                const isOpen = event.currentTarget.open;
-                setExpandedSections((current) =>
-                  current.media === isOpen ? current : { ...current, media: isOpen },
-                );
-              }}>
-              <summary>{t('صورة المنتج والروابط (اختياري)', 'Product image and links (optional)')}</summary>
-              <div className={styles.editorDisclosureBody}>
-              <label className="field">
-                {t('رابط الصورة', 'Image URL')}
-                <input
-                  name="image"
-                  type="url"
-                  onChange={(e) => setDraftImage(e.target.value || null)}
-                  defaultValue={editing?.image_url ?? ''}
-                  dir="ltr"
-                />
+              {draftImage && (
+                <div className={styles.preview}>
+                  <ProductImage
+                    key={draftImage}
+                    product={{ name: t('معاينة الصورة', 'Image preview'), image_url: draftImage }}
+                  />
+                </div>
+              )}
+              <details
+                className={styles.editorDisclosure}
+                open={expandedSections.meta}
+                onToggle={(event) => {
+                  const isOpen = event.currentTarget.open;
+                  setExpandedSections((current) =>
+                    current.meta === isOpen ? current : { ...current, meta: isOpen },
+                  );
+                }}
+              >
+                <summary>
+                  {t('تكامل كتالوج Meta (متقدم)', 'Meta catalog integration (advanced)')}
+                </summary>
+                <div className={styles.editorDisclosureBody}>
+                  <p>
+                    {t(
+                      'هذه معرّفات المزود وليست تصنيفات محلية. المنتجات الأصلية تتطلب كتالوجًا معتمدًا.',
+                      'These are provider IDs, not local categories. Native products require an approved catalog.',
+                    )}
+                  </p>
+                  <div className="form-grid">
+                    <label className="field">
+                      Catalog ID
+                      <input name="catalog" defaultValue={editing?.catalog_id ?? ''} />
+                    </label>
+                    <label className="field">
+                      Retailer ID
+                      <input name="retailer" defaultValue={editing?.retailer_id ?? ''} />
+                    </label>
+                  </div>
+                </div>
+              </details>
+              <label className={styles.archiveField}>
+                <input type="checkbox" name="archived" defaultChecked={editing?.archived} />
+                <span>
+                  <strong>{t('أرشفة المنتج', 'Archive product')}</strong>
+                  <small>
+                    {t(
+                      'المنتج المؤرشف لا يمكن استخدامه في البوت؛ راجع ارتباطاته أولًا.',
+                      'Archived products are unavailable to bots. Check dependencies first.',
+                    )}
+                  </small>
+                </span>
               </label>
-              <p>
-                {t(
-                  'أدخل رابط صورة مستضافة؛ رفع الملفات غير متاح هنا.',
-                  'Use a hosted image URL. File uploads are unavailable here.',
-                )}
-              </p>
-              <label className="field">
-                {t('رابط المنتج', 'Product URL')}
-                <input name="link" type="url" defaultValue={editing?.link_url ?? ''} dir="ltr" />
-              </label>
-              </div>
-            </details>
-            {draftImage && (
-              <div className={styles.preview}>
-                <ProductImage
-                  key={draftImage}
-                  product={{ name: t('معاينة الصورة', 'Image preview'), image_url: draftImage }}
-                />
-              </div>
-            )}
-            <details className={styles.editorDisclosure} open={expandedSections.meta}
-              onToggle={(event) => {
-                const isOpen = event.currentTarget.open;
-                setExpandedSections((current) =>
-                  current.meta === isOpen ? current : { ...current, meta: isOpen },
-                );
-              }}>
-              <summary>
-                {t('تكامل كتالوج Meta (متقدم)', 'Meta catalog integration (advanced)')}
-              </summary>
-              <div className={styles.editorDisclosureBody}>
-              <p>
-                {t(
-                  'هذه معرّفات المزود وليست تصنيفات محلية. المنتجات الأصلية تتطلب كتالوجًا معتمدًا.',
-                  'These are provider IDs, not local categories. Native products require an approved catalog.',
-                )}
-              </p>
-              <div className="form-grid">
-                <label className="field">
-                  Catalog ID
-                  <input name="catalog" defaultValue={editing?.catalog_id ?? ''} />
-                </label>
-                <label className="field">
-                  Retailer ID
-                  <input name="retailer" defaultValue={editing?.retailer_id ?? ''} />
-                </label>
-              </div>
-              </div>
-            </details>
-            <label className={styles.archiveField}>
-              <input type="checkbox" name="archived" defaultChecked={editing?.archived} />
-              <span>
-                <strong>{t('أرشفة المنتج', 'Archive product')}</strong>
-                <small>{t(
-                  'المنتج المؤرشف لا يمكن استخدامه في البوت؛ راجع ارتباطاته أولًا.',
-                  'Archived products are unavailable to bots. Check dependencies first.',
-                )}</small>
-              </span>
-            </label>
             </div>
             <div className="form-actions">
               <button className="btn btn-primary" disabled={busy}>
@@ -960,14 +980,20 @@ export default function ProductCatalog() {
         {deleteProduct && (
           <div className={styles.deleteDialog}>
             <strong>{deleteProduct.name}</strong>
-            <p className={styles.deleteSku} dir="ltr">SKU: {deleteProduct.sku}</p>
+            <p className={styles.deleteSku} dir="ltr">
+              SKU: {deleteProduct.sku}
+            </p>
             <p>
               {t(
                 'الحذف النهائي يزيل المنتج من قائمة Boat Two ولا يمكن التراجع عنه. الأرشفة تحتفظ بالمنتج لكنها توقف إتاحته للبوت. في الحالتين سيتم منع العملية إذا كان المنتج مرتبطًا بتدفق أو جلسة.',
                 'Permanent deletion cannot be undone. Archiving keeps the product but makes it unavailable to bots. Both actions are blocked when the product is referenced by a flow or session.',
               )}
             </p>
-            {error && <p className="notice error" role="alert">{error}</p>}
+            {error && (
+              <p className="notice error" role="alert">
+                {error}
+              </p>
+            )}
             <label className={styles.confirmCheckbox}>
               <input
                 type="checkbox"
@@ -979,26 +1005,35 @@ export default function ProductCatalog() {
             </label>
             <div className={styles.deleteActions}>
               <button
-                type="button" className="btn"
+                type="button"
+                className="btn"
                 disabled={busy}
                 onClick={() => {
                   setDeleteProduct(null);
                   setProductDeleteConfirmed(false);
                   setError('');
                 }}
-              >{t('إلغاء', 'Cancel')}</button>
+              >
+                {t('إلغاء', 'Cancel')}
+              </button>
               {!deleteProduct.archived && (
                 <button
-                  type="button" className="btn"
+                  type="button"
+                  className="btn"
                   disabled={busy || !productDeleteConfirmed}
                   onClick={() => void removeOrArchiveProduct('archive')}
-                >{t('أرشفة المنتج', 'Archive product')}</button>
+                >
+                  {t('أرشفة المنتج', 'Archive product')}
+                </button>
               )}
               <button
-                type="button" className="btn btn-danger"
+                type="button"
+                className="btn btn-danger"
                 disabled={busy || !productDeleteConfirmed}
                 onClick={() => void removeOrArchiveProduct('delete')}
-              >{busy ? t('جارٍ التنفيذ…', 'Working…') : t('حذف نهائيًا', 'Delete permanently')}</button>
+              >
+                {busy ? t('جارٍ التنفيذ…', 'Working…') : t('حذف نهائيًا', 'Delete permanently')}
+              </button>
             </div>
           </div>
         )}
@@ -1049,7 +1084,11 @@ export default function ProductCatalog() {
               </section>
             )}
             {previewLoading && <p role="status">{t('جارٍ تجهيز المعاينة…', 'Loading preview…')}</p>}
-            {error && <p role="alert" className="notice error">{error}</p>}
+            {error && (
+              <p role="alert" className="notice error">
+                {error}
+              </p>
+            )}
             {serverPreview && <p className={styles.previewResponse}>{serverPreview}</p>}
             <p className={styles.previewDisclaimer}>
               {t(
@@ -1061,11 +1100,15 @@ export default function ProductCatalog() {
               <button type="button" className="btn" onClick={closePreview}>
                 {t('إغلاق', 'Close')}
               </button>
-              <button type="button" className="btn btn-primary" onClick={() => {
-                const selected = preview;
-                closePreview();
-                openEditor(selected);
-              }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  const selected = preview;
+                  closePreview();
+                  openEditor(selected);
+                }}
+              >
                 {t('تعديل المنتج', 'Edit product')}
               </button>
             </div>

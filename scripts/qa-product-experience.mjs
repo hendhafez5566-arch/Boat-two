@@ -94,11 +94,16 @@ try {
       const p = (await api('/commerce/products', token)).find((p) => p.name === name);
       assert.equal(String(p.price_cents), '15029');
       assert.equal(p.category_id, cat.id);
+      assert.equal(await page.getByLabel(t('البحث في المنتجات', 'Search products'), { exact: true }).count(), 0);
+      assert.equal(await page.getByLabel(t('الحالة', 'Status'), { exact: true }).count(), 0);
+      assert.equal(await page.getByLabel(t('ملخص المنتجات', 'Product summary'), { exact: true }).count(), 0);
+      const actions = page.locator('[class*=compactActions]');
+      assert.equal(await actions.getByRole('button', { name: t('+ إضافة منتج', '+ Add product'), exact: true }).count(), 1);
+      assert.equal(await actions.getByRole('button', { name: t('إضافة قسم', 'Add category'), exact: true }).count(), 1);
       const chooser = page.getByLabel(t('اختر قسم المنتجات', 'Choose product category'), { exact: true });
       await chooser.selectOption(cat.id);
       assert.equal(await chooser.inputValue(), cat.id);
 
-      await page.getByLabel(t('البحث في المنتجات', 'Search products'), { exact: true }).fill(name);
       const card = page
         .locator('article')
         .filter({ has: page.getByRole('heading', { name, exact: true }) });
@@ -119,7 +124,6 @@ try {
       await page.getByText(t('تم حفظ المنتج.', 'Product saved.'), { exact: true }).waitFor();
       await page.reload();
       await page.getByRole('button', { name: t('إدارة المنتجات', 'Manage products'), exact: true }).click();
-      await page.getByLabel(t('البحث في المنتجات', 'Search products'), { exact: true }).fill(name);
       await page.getByRole('heading', { name: name + ' edited', exact: true }).waitFor();
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
       await page.screenshot({ path: `${out}/${language}-${width}.png`, fullPage: true });
@@ -347,7 +351,6 @@ try {
       });
       await page.goto('http://localhost:3000/dashboard/commerce');
       await page.getByRole('button', { name: t('إدارة المنتجات', 'Manage products'), exact: true }).click();
-      await page.getByLabel(t('البحث في المنتجات', 'Search products'), { exact: true }).fill(temporaryName);
       const removableCard = page.locator('article').filter({
         has: page.getByRole('heading', { name: temporaryName, exact: true }),
       });
