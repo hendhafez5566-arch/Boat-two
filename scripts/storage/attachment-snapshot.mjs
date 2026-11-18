@@ -1,7 +1,7 @@
 // Operational tooling only. Never called by application startup or migrations.
 import {constants,createReadStream,createWriteStream} from 'node:fs';
 import * as fs from 'node:fs/promises';
-import {resolve,join,dirname,relative,sep,isAbsolute} from 'node:path';
+import {resolve,join,dirname,relative,sep,isAbsolute,basename} from 'node:path';
 import {createHash,createCipheriv,createDecipheriv,randomBytes} from 'node:crypto';
 import {pipeline} from 'node:stream/promises';
 import {createInterface} from 'node:readline';
@@ -19,11 +19,11 @@ export async function inventory(root,records){
  const byName=new Map(files.map(f=>[f.name,f])),known=new Set(records.map(r=>r.name));const missing=records.filter(r=>!byName.has(r.name)).map(r=>r.name),sizeMismatch=records.filter(r=>byName.has(r.name)&&byName.get(r.name).size!==r.size).map(r=>r.name);
  return {version:1,records,files,missing,sizeMismatch,metadataDigest:digest(records),summary:{recordCount:records.length,fileCount:files.length,totalBytes:files.reduce((n,f)=>n+f.size,0),revokedRecords:records.filter(r=>r.revoked_at).length,deletedRecords:records.filter(r=>r.deleted_at).length,missingCount:missing.length,sizeMismatchCount:sizeMismatch.length,orphanCount:files.filter(f=>!known.has(f.name)).length,snapshotComplete:!missing.length&&!sizeMismatch.length,cutoverReady:false}};
 }
-async function outsideGit(path){let at=dirname(resolve(path));while(true){try{await fs.lstat(join(at,'.git'));throw Error('Protected byte output cannot be inside a Git checkout');}catch(e){if(e.code!=='ENOENT')throw e;}const parent=dirname(at);if(parent===at)break;at=parent;}}
+async function outsideGit(path){let at=await fs.realpath(dirname(resolve(path)));while(true){try{await fs.lstat(join(at,'.git'));throw Error('Protected byte output cannot be inside a Git checkout');}catch(e){if(e.code!=='ENOENT')throw e;}const parent=dirname(at);if(parent===at)break;at=parent;}}
 function keyBytes(key){if(!/^[a-fA-F0-9]{64}$/.test(key||''))throw Error('A protected 32-byte hex backup key is required');return Buffer.from(key,'hex');}
 async function writeAll(h,buf){let at=0;while(at<buf.length){const r=await h.write(buf,at,buf.length-at);at+=r.bytesWritten;}}
 export async function backup(root,records,archive,key,{getRecords=async()=>records,uploadsQuiesced=false}={}){
- if(!uploadsQuiesced)throw Error('Approved upload quiescence must be declared before backup');root=resolve(root);archive=resolve(archive);const rel=relative(root,archive);if(!(rel==='..'||rel.startsWith('..'+sep)||isAbsolute(rel)))throw Error('Backup cannot be placed inside upload root');
+ if(!uploadsQuiesced)throw Error('Approved upload quiescence must be declared before backup');root=resolve(root);archive=join(await fs.realpath(dirname(resolve(archive))),basename(archive));const rel=relative(await fs.realpath(root),archive);if(!(rel==='..'||rel.startsWith('..'+sep)||isAbsolute(rel)))throw Error('Backup cannot be placed inside upload root');
  await outsideGit(archive);const iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',keyBytes(key),iv),snapshot=await inventory(root,records);let out,created=false;
  try{
   out=await fs.open(archive,'wx',0o600);created=true;await writeAll(out,Buffer.concat([MAGIC,iv]));const line=async x=>writeAll(out,cipher.update(Buffer.from(JSON.stringify(x)+'\n')));
@@ -36,7 +36,7 @@ export async function backup(root,records,archive,key,{getRecords=async()=>recor
   }
   const after=await inventory(root,await getRecords());if(JSON.stringify(after)!==JSON.stringify(snapshot))throw Error('Files or lifecycle metadata changed during backup');
   await line({type:'footer',missing:snapshot.missing,sizeMismatch:snapshot.sizeMismatch});await writeAll(out,cipher.final());await writeAll(out,cipher.getAuthTag());await out.sync();await out.close();out=null;
-  return {...snapshot.summary,encrypted:true,metadataDigest:snapshot.metadataDigest,consistency:'caller-declared quiescence; metadata and bytes observed stable'};
+  return {...snapshot.summary,archiveBytes:(await fs.stat(archive)).size,encrypted:true,metadataDigest:snapshot.metadataDigest,consistency:'caller-declared quiescence; metadata and bytes observed stable'};
  }catch(e){if(out)await out.close().catch(()=>{});if(created)await fs.unlink(archive).catch(()=>{});throw e;}
 }
 export async function restore(archive,destination,key){

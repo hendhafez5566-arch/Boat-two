@@ -4,6 +4,7 @@ on:
     branches: [feat/flow-builder-fidelity-20261107]
     paths:
       - 'scripts/storage/**'
+      - 'apps/api/src/commerce/commerce.service.ts'
       - 'scripts/qa-storage-snapshot-postgres.mjs'
       - 'scripts/qa-component-booking-runtime.mjs'
       - 'scripts/run-storage-flow-qa.py'

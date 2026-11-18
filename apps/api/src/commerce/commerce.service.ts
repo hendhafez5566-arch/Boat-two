@@ -428,11 +428,11 @@ export class CommerceService {
     });
   }
   cancel(tenant: string, id: string) {
-    return this.db.withTenant(tenant, (c) =>
-      c
-        .query("UPDATE appointments SET status='cancelled' WHERE id=$1 RETURNING *", [id])
-        .then((r) => r.rows[0]),
-    );
+    return this.db.withTenant(tenant, async (c) => {
+      const result = await c.query("UPDATE appointments SET status='cancelled' WHERE id=$1 RETURNING *", [id]);
+      if (!result.rows[0]) throw new NotFoundException('Appointment unavailable');
+      return result.rows[0];
+    });
   }
   async syncCalendar(tenant: string, id: string) {
     const row = await this.db.withTenant(

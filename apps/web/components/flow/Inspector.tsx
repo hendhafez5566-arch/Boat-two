@@ -698,8 +698,8 @@ export default function Inspector({
           <F
             label={t('التسلسل', 'Sequence')}
             hint={t(
-              'يُضاف العميل فقط لو وافق على الرسائل التسويقية، وإلا يكمل الـ flow بدون إضافة.',
-              'The contact is added only if opted in to marketing; otherwise the flow continues.',
+              'يتطلب قناة واتساب أو ماسنجر أو إنستجرام مرتبطة بالعميل. تُفحص الموافقة التسويقية قبل الإرسال؛ إذا تعذر الاشتراك يكمل البوت المسار.',
+              'Requires a WhatsApp, Messenger or Instagram identity linked to the contact. Marketing consent is checked before delivery; if enrollment is unavailable, the bot continues.',
             )}
           >
             <Sel

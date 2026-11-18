@@ -26,3 +26,12 @@ test('changed lifecycle state aborts backup and removes only newly created parti
 test('symlinks, traversal records, duplicate records and unapproved quiescence are refused',()=>run(async f=>{
  await assert.rejects(backup(f.root,f.records,f.archive,f.key));await assert.rejects(inventory(f.root,[{...f.records[0],name:'../escape'}]));await assert.rejects(inventory(f.root,[...f.records,f.records[0]]));await fs.symlink('/etc/passwd',join(f.root,'linked'));await assert.rejects(inventory(f.root,f.records));
 }));
+
+test('protected byte output cannot enter a Git checkout through a parent alias',()=>run(async f=>{
+ const repo=join(f.base,'repo');await fs.mkdir(repo);await fs.mkdir(join(repo,'.git'));const alias=join(f.base,'alias');await fs.symlink(repo,alias);
+ await assert.rejects(backup(f.root,f.records,join(alias,'bytes.backup'),f.key,{uploadsQuiesced:true}),/Git checkout/);
+ await backup(f.root,f.records,f.archive,f.key,{uploadsQuiesced:true});await assert.rejects(restore(f.archive,join(alias,'restored'),f.key),/Git checkout/);assert.deepEqual(await fs.readdir(repo),['.git']);
+}));
+test('changing file bytes during backup cannot leave a successful archive',()=>run(async f=>{
+ await assert.rejects(backup(f.root,f.records,f.archive,f.key,{uploadsQuiesced:true,getRecords:async()=>{await fs.writeFile(join(f.root,f.records[0].name),'changed synthetic fixture');return f.records;}}));await assert.rejects(fs.access(f.archive));
+}));
