@@ -1,4 +1,6 @@
 const messages: Record<string, string> = {
+  'Regex pattern is invalid': 'نمط التحقق غير صالح. صحّح النمط أو اختر نوع تحقق آخر.',
+  'Condition regex pattern is invalid': 'نمط المطابقة في الشرط غير صالح. صحّح النمط قبل النشر.',
   'Header/footer require interactive choices': 'أضف أزرارًا أو قائمة لاستخدام عنوان الرسالة وتذييلها، أو أزلهما.',
   'Choose either an explicit header or media': 'اختر عنوان الرسالة أو المرفق؛ لا تجمعهما في نفس الرسالة.',
   'Interactive body supports at most 1024 characters': 'قلّل نص الرسالة التفاعلية إلى ١٠٢٤ حرفًا بحد أقصى.',

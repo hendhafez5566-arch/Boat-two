@@ -30,5 +30,5 @@ for(const kind of ['question','condition']){
  assert.equal(rejected.status,400,'malformed '+kind+' pattern cannot publish');
  assert.deepEqual(await api('/flows/'+flow.id+'/versions',token),versionsBefore,'failed publication preserves accepted version');
 }
-const fixturePath=process.env.BOAT_ROLE_BROWSER_FIXTURE;if(fixturePath){const fixture=JSON.parse(readFileSync(fixturePath));fixture.regexWidgetId=ch.external_id;writeFileSync(fixturePath,JSON.stringify(fixture),{mode:0o600});}
+const fixturePath=process.env.BOAT_ROLE_BROWSER_FIXTURE;if(fixturePath){const fixture=JSON.parse(readFileSync(fixturePath));fixture.regexWidgetId=ch.external_id;fixture.regexFlowId=flow.id;writeFileSync(fixturePath,JSON.stringify(fixture),{mode:0o600});}
 writeFileSync('docs/p0-evidence/role-boundaries/regex-runtime.json',JSON.stringify({status:'PASS',database:process.env.BOAT_REAL_POSTGRES==='true'?'real PostgreSQL':'local reproduction only',checks:['published question over-budget regex follows fail output','published condition over-budget regex follows else output','history persists safe fallback','API remains responsive','invalid question and condition regex publication rejected without replacing published version'],notClaimed:['official provider','whole flow matrix']},null,2)+'\n');console.log('PASS published bounded-regex question and condition fallback');

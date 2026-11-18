@@ -42,6 +42,13 @@ try{
     await p.locator('.react-flow__node-flowNode').first().waitFor();assert.ok(graphReads>0);
     await p.reload();await p.locator('.react-flow__node-flowNode').first().waitFor();
    }
+   if(role==='owner'){
+    await p.goto('http://localhost:3000/dashboard/flows/'+fixture.regexFlowId);
+    await p.locator('.react-flow__node-flowNode').first().waitFor();
+    await p.getByRole('button',{name:t('المزيد من الأدوات','More tools'),exact:true}).click();
+    await p.getByRole('button',{name:t('فحص التدفق','Validate flow'),exact:true}).click();
+    await p.getByText(t('نمط المطابقة في الشرط غير صالح. صحّح النمط قبل النشر.','Condition regex pattern is invalid'),{exact:true}).waitFor();
+   }
    // Channel setup is administrative; agents use channel metadata in Inbox.
    if(role==='agent'){
     for(const route of ['/dashboard/channels','/dashboard/channels/connect/web']){
