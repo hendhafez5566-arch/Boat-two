@@ -1362,3 +1362,17 @@
   .pageRange { text-align: center; width: 100%; }
   .pageButtons { justify-content: center; }
 }
+
+/* Fill both category columns; keep mobile products as compact thumbnail rows. */
+.root .categoryChooser { grid-template-columns: minmax(0, 1fr); justify-content: stretch; width: 100%; }
+@media (max-width: 600px) {
+  .root .grid[data-view='list'] .card { grid-template-columns: 72px minmax(0, 1fr); }
+  .root .grid[data-view='list'] .card > .image,
+  .root .grid[data-view='list'] .card > .placeholder { width: 72px; height: 100%; min-height: 138px; }
+  .root .grid[data-view='list'] .card .body { padding: 11px; gap: 7px; }
+  .root .body h3 { font-size: 14px; }
+  .root .body p { font-size: 12px; -webkit-line-clamp: 2; }
+  .root .body small { font-size: 11px; }
+  .root .productActions { gap: 5px; }
+  .root .productActions :global(.btn) { padding-inline: 9px; font-size: 12px; }
+}
