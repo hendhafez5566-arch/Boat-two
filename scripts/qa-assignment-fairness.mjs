@@ -8,7 +8,8 @@ assert.equal(process.env.EXTERNAL_DELIVERY_ENABLED,'false');
 const require=createRequire(new URL('../apps/api/package.json',import.meta.url));
 const {Pool}=require('pg'),{DatabaseService}=require('./dist/database/database.service.js'),{AssignmentService}=require('./dist/inbox/assignment.service.js'),{AssignmentRecoveryService}=require('./dist/inbox/assignment-recovery.service.js'),{EventEmitter2}=require('@nestjs/event-emitter');
 const admin=new Pool({connectionString:process.env.DATABASE_ADMIN_URL}),db=new DatabaseService(),svc=new AssignmentService(db,new EventEmitter2()),worker=new AssignmentRecoveryService(db,svc);
-const companies=[];let locked;
+const companies=[],passes=[],recoveryErrors=[];let locked;
+const retry=svc.retryWaiting.bind(svc);svc.retryWaiting=async(...args)=>{try{const n=await retry(...args);assert.ok(n>=0&&n<=100,'each actual drain remains bounded');passes.push(n);return n;}catch(e){recoveryErrors.push(e.code||e.name);throw e;}};
 async function api(path,token,body){const r=await fetch('http://localhost:4000'+path,{method:body?'POST':'GET',headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});assert.ok(r.ok,path+' '+r.status);return r.json();}
 try{
  for(let i=0;i<12;i++){
@@ -38,13 +39,17 @@ try{
  for(const f of companies.slice(1))assert.equal((await admin.query('SELECT count(*)::int n FROM conversations WHERE tenant_id=$1 AND assigned_to=$2',[f.tenant,f.member])).rows[0].n,f.size,'small company cannot starve behind busy large queue');
  assert.equal((await admin.query('SELECT count(*)::int n FROM conversations WHERE tenant_id=$1 AND assigned_to IS NOT NULL',[companies[0].tenant])).rows[0].n,0);
  await locked.query('ROLLBACK');locked.release();locked=null;
- for(let i=0;i<3;i++)await worker.tick();
- const big=companies[0];const n=(await admin.query('SELECT count(*)::int n FROM conversations WHERE tenant_id=$1 AND assigned_to=$2',[big.tenant,big.member])).rows[0].n;assert.equal(n,100,'one tenant pass remains bounded');
+ const big=companies[0];let n=0;
+ // The real API's periodic worker may also hold the tenant lock. Await persisted
+ // progress instead of assuming three immediate SKIP LOCKED attempts must win it.
+ for(let i=0;i<50&&n<100;i++){await worker.tick();await new Promise(r=>setTimeout(r,20));n=(await admin.query('SELECT count(*)::int n FROM conversations WHERE tenant_id=$1 AND assigned_to=$2',[big.tenant,big.member])).rows[0].n;}
+ assert.ok(n>=100&&n<=105,'large queue eventually resumes after its lock is released');
  // Concurrent independent worker instances safely finish the final five rows once.
- const other=new AssignmentRecoveryService(db,svc);for(let i=0;i<4;i++)await Promise.all([worker.tick(),other.tick()]);
+ const other=new AssignmentRecoveryService(db,svc);for(let i=0;i<10;i++){await Promise.all([worker.tick(),other.tick()]);await new Promise(r=>setTimeout(r,20));}
+ assert.deepEqual(recoveryErrors,[],'recovery cannot hide transaction failures');assert.ok(passes.length>0);
  for(const f of companies){
   const rows=(await admin.query('SELECT assigned_to,handled_by FROM conversations WHERE tenant_id=$1',[f.tenant])).rows;assert.equal(rows.length,f.size);assert.ok(rows.every(r=>r.assigned_to===f.member&&r.handled_by==='human'));
   assert.equal((await admin.query("SELECT count(*)::int n FROM messages WHERE tenant_id=$1 AND content->>'event'='assigned'",[f.tenant])).rows[0].n,f.size,'exactly one assignment event per conversation');
  }
- writeFileSync('docs/p0-evidence/assignment-fairness.json',JSON.stringify({status:'PASS',database:'real PostgreSQL',companies:12,queueSizes:companies.map(f=>f.size),checks:['10-tenant keyset bound','locked large tenant does not block smaller companies','next scanner page reaches remaining companies','100-conversation drain bound','concurrent independent workers','every queued conversation assigned exactly once','human ownership mode retained'],scope:'Synthetic recovery scheduling fairness, not a weighted commercial priority SLA'},null,2)+'\n');console.log('PASS real PostgreSQL 12-company bounded/locked/concurrent recovery fairness');
+ writeFileSync('docs/p0-evidence/assignment-fairness.json',JSON.stringify({status:'PASS',database:'real PostgreSQL',companies:12,queueSizes:companies.map(f=>f.size),observedAssignedPerPass:passes,checks:['10-tenant keyset bound','locked large tenant does not block smaller companies','next scanner page reaches remaining companies','100-conversation drain bound','concurrent independent workers','every queued conversation assigned exactly once','human ownership mode retained'],scope:'Synthetic recovery scheduling fairness, not a weighted commercial priority SLA'},null,2)+'\n');console.log('PASS real PostgreSQL 12-company bounded/locked/concurrent recovery fairness');
 }finally{if(locked){await locked.query('ROLLBACK');locked.release();}await db.onModuleDestroy();await admin.end();}
