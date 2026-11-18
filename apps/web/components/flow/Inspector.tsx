@@ -594,6 +594,7 @@ export default function Inspector({
           <label>
             {t('الخدمة', 'Service')}
             <select
+              aria-label={t('الخدمة', 'Service')}
               value={data.serviceId ?? ''}
               onChange={(e) => set({ serviceId: e.target.value })}
             >
