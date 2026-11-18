@@ -9,6 +9,8 @@ on:
       - 'scripts/qa-p0-policy-recovery.mjs'
       - 'scripts/qa-p1-load-recovery.mjs'
       - 'scripts/qa-p0-node-matrix.mjs'
+      - 'scripts/qa-flow-builder-api-resume.mjs'
+      - 'scripts/qa-channel-management-api.mjs'
       - 'scripts/qa-attachment-lifecycle.mjs'
       - 'scripts/qa-assignment-crash-recovery.mjs'
       - 'scripts/qa-assignment-fairness.mjs'
