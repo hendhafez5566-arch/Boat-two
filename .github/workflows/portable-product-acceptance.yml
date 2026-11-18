@@ -8,6 +8,7 @@ on:
       - 'apps/api/src/inbox/files/**'
       - 'apps/api/src/inbox/inbox.module.ts'
       - 'apps/api/src/config/env.ts'
+      - 'apps/api/src/database/database.service.ts'
       - 'apps/api/package.json'
       - 'pnpm-lock.yaml'
       - 'scripts/qa-portable-*.mjs'
