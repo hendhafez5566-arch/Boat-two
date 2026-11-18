@@ -8,3 +8,7 @@ uploads
 # Next.js generated declarations and TypeScript incremental cache
 apps/web/next-env.d.ts
 *.tsbuildinfo
+
+# Private portable demo configuration and credentials
+deploy/portable/.env
+.portable-demo-credentials.json

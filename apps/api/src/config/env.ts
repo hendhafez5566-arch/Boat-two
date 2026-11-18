@@ -44,6 +44,14 @@ const schema = z.object({
   META_APP_SECRET: z.string().optional(),
   META_VERIFY_TOKEN: z.string().optional(),
   UPLOAD_DIR: z.string().default('./uploads'),
+  ATTACHMENT_STORAGE: z.enum(['filesystem', 's3']).default('filesystem'),
+  S3_ENDPOINT: z.string().url().optional(),
+  S3_REGION: z.string().default('us-east-1'),
+  S3_BUCKET: z.string().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
+  S3_PREFIX: z.string().default(''),
+  S3_ALLOW_HTTP: z.enum(['true', 'false']).default('false'),
   ANTHROPIC_API_KEY: z.string().optional(),
   AI_MODEL: z.string().default('claude-haiku-5-5'),
   EMBEDDING_API_KEY: z.string().optional(),
@@ -52,6 +60,11 @@ const schema = z.object({
   EMBEDDING_MODEL: z.string().default('text-embedding-3-small'),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
+}).superRefine((settings, ctx) => {
+  if (settings.ATTACHMENT_STORAGE === 's3') {
+    for (const key of ['S3_ENDPOINT', 'S3_BUCKET', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const)
+      if (!settings[key]) ctx.addIssue({code: 'custom', path: [key], message: 'Required for S3 attachment storage'});
+  }
 });
 
 export type Env = z.infer<typeof schema>;

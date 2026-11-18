@@ -1,8 +1,7 @@
 import {BadRequestException,ConflictException,Controller,Delete,ForbiddenException,Get,NotFoundException,Param,Post,Req,Res,UploadedFile,UseInterceptors,Body,Query} from '@nestjs/common';
 import {FileInterceptor} from '@nestjs/platform-express';
 import type {Response} from 'express';
-import {access,mkdir,readFile,unlink,writeFile} from 'node:fs/promises';
-import {join,resolve} from 'node:path';
+import {AttachmentStorage,AttachmentMissing} from './attachment-store';
 import {z} from 'zod';
 import {Public,Roles} from '../../auth/decorators';
 import {parse} from '../../common/zod';
@@ -10,10 +9,10 @@ import {AuthedRequest} from '../../common/types';
 import {env} from '../../config/env';
 import {DatabaseService} from '../../database/database.service';
 import {ALLOWED_MIME,isStoredName,kindFromMime,mimeFromStoredName,newStoredName,sniffMatches} from './storage';
-const DIR=resolve(env.UPLOAD_DIR),INLINE=/^(image\/|video\/|audio\/|application\/pdf$)/;
+const INLINE=/^(image\/|video\/|audio\/|application\/pdf$)/;
 @Controller()
 export class FilesController{
- constructor(private readonly db:DatabaseService){}
+ constructor(private readonly db:DatabaseService,private readonly store:AttachmentStorage){}
  @Post('uploads')
  @UseInterceptors(FileInterceptor('file',{limits:{fileSize:10*1024*1024,files:1}}))
  async upload(@Req() req:AuthedRequest,@UploadedFile() file:{originalname:string;mimetype:string;buffer:Buffer;size:number}|undefined){
@@ -21,9 +20,9 @@ export class FilesController{
   if(!ALLOWED_MIME[file.mimetype])throw new BadRequestException('Unsupported file type');
   if(!sniffMatches(file.mimetype,file.buffer))throw new BadRequestException('File content does not match its type');
   const name=newStoredName(file.mimetype)!;
-  await mkdir(DIR,{recursive:true});await writeFile(join(DIR,name),file.buffer,{flag:'wx'});
+  await this.store.put(name,file.buffer,file.mimetype);
   try{await this.db.withTenant(req.user.tenantId,c=>c.query('INSERT INTO files(tenant_id,name,original_name,mime,size,created_by) VALUES($1,$2,$3,$4,$5,$6)',[req.user.tenantId,name,file.originalname.slice(0,200),file.mimetype,file.size,req.user.userId]));}
-  catch(e){await unlink(join(DIR,name)).catch(()=>{});throw e;}
+  catch(e){await this.store.removeOrphan(name).catch(()=>{});throw e;}
   return {name,url:`${env.PUBLIC_API_URL}/files/${name}`,kind:kindFromMime(file.mimetype),filename:file.originalname.slice(0,200),mime:file.mimetype,size:file.size};
  }
  private valid(name:string){if(!isStoredName(name)||!mimeFromStoredName(name))throw new NotFoundException();}
@@ -62,7 +61,7 @@ export class FilesController{
     await c.query('UPDATE files SET deleted_at=COALESCE(deleted_at,now()) WHERE name=$1',[name]);
    }else if(action==='revoke')await c.query('UPDATE files SET revoked_at=COALESCE(revoked_at,now()) WHERE name=$1',[name]);
    else{
-    try{await access(join(DIR,name));}catch{throw new ConflictException({code:'ATTACHMENT_BYTES_MISSING',message:'Attachment bytes are unavailable; restore storage from backup first'});}
+    if(!(await this.store.has(name))){throw new ConflictException({code:'ATTACHMENT_BYTES_MISSING',message:'Attachment bytes are unavailable; restore storage from backup first'});}
     await c.query('UPDATE files SET deleted_at=NULL,revoked_at=NULL WHERE name=$1',[name]);
    }
    await c.query('INSERT INTO audit_logs(tenant_id,actor_id,action,resource_type,resource_id) VALUES($1,$2,$3,$4,$5)',[req.user.tenantId,req.user.userId,'attachment.'+action,'files',row.id]);
@@ -76,7 +75,7 @@ export class FilesController{
   return this.respond(name,res);
  }
  private async respond(name:string,res:Response){
-  let buf:Buffer;try{buf=await readFile(join(DIR,name));}catch{throw new NotFoundException();}
+  let buf:Buffer;try{buf=await this.store.get(name);}catch(e){if(e instanceof AttachmentMissing)throw new NotFoundException();throw e;}
   const mime=mimeFromStoredName(name)!;
   res.set({'Content-Type':mime,'X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; sandbox",'Cache-Control':'private, no-store','Content-Disposition':INLINE.test(mime)?'inline':'attachment','Cross-Origin-Resource-Policy':'cross-origin'});res.send(buf);
  }
