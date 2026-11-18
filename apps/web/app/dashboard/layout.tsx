@@ -220,7 +220,8 @@ function Shell({ children }: { children: ReactNode }) {
   const forbidden =
     role === 'agent' &&
     (restrictedForAgents.includes(path.split('/')[2] ?? '') ||
-      path.startsWith('/dashboard/inbox/settings'));
+      path.startsWith('/dashboard/inbox/settings') ||
+      path.startsWith('/dashboard/flows/'));
   const isInbox = path === '/dashboard/inbox';
   useEffect(() => {
     const show = () => setOpen((value) => !value);

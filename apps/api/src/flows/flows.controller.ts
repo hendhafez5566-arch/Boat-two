@@ -89,6 +89,8 @@ export class FlowsController {
     );
   }
 
+  // Draft graphs may contain private integration credentials.
+  @Roles('owner', 'admin')
   @Get(':id')
   get(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.flows.get(req.user.tenantId, id);

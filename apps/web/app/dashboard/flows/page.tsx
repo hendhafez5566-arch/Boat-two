@@ -63,6 +63,17 @@ export default function BotManager() {
   const flows = useData<Flow[]>('/flows', []);
   const workspace = useData<{ role: string }>('/workspace', { role: '' });
   const canManage = ['owner', 'admin'].includes(workspace.data.role);
+  function managementLink(href: string, label: string, icon: string, title: string) {
+    return canManage ? (
+      <Link className="btn" href={href} aria-label={label} title={title}>
+        <NavIcon name={icon} />
+      </Link>
+    ) : (
+      <button type="button" className="btn" disabled aria-label={label} title={title}>
+        <NavIcon name={icon} />
+      </button>
+    );
+  }
   const [channelId, setChannelId] = useChannelContext();
   const [section, setSection] = useState('bot_reply');
   useEffect(() => {
@@ -633,17 +644,10 @@ export default function BotManager() {
                             <div className={styles.actions}>
                               {section === 'entry_points' ? (
                                 <>
-                                  <Link
-                                    className="btn"
-                                    href={channelHref(
+                                  {managementLink(channelHref(
                                       `/dashboard/flows/${f.id}/input-report?section=entry_points`,
                                       channelId,
-                                    )}
-                                    aria-label={`${t('التقرير', 'Report')}: ${f.name}`}
-                                    title={t('التقرير', 'Report')}
-                                  >
-                                    <NavIcon name="eye" />
-                                  </Link>
+                                    ), `${t('التقرير', 'Report')}: ${f.name}`, "eye", t('التقرير', 'Report'))}
                                   <button
                                     type="button"
                                     className="btn"
@@ -654,17 +658,10 @@ export default function BotManager() {
                                   >
                                     <NavIcon name="export" />
                                   </button>
-                                  <Link
-                                    className="btn"
-                                    href={channelHref(
+                                  {managementLink(channelHref(
                                       `/dashboard/flows/${f.id}?section=entry_points`,
                                       channelId,
-                                    )}
-                                    aria-label={`${t('تعديل', 'Edit')}: ${f.name}`}
-                                    title={t('تعديل', 'Edit')}
-                                  >
-                                    <NavIcon name="edit" />
-                                  </Link>
+                                    ), `${t('تعديل', 'Edit')}: ${f.name}`, "edit", t('تعديل', 'Edit'))}
                                 </>
                               ) : (
                                 <>
@@ -707,14 +704,7 @@ export default function BotManager() {
                               >
                                 <NavIcon name="export" />
                               </button>
-                              <Link
-                                className="btn"
-                                href={channelHref(`/dashboard/flows/${f.id}`, channelId)}
-                                aria-label={`${t('تعديل', 'Edit')}: ${f.name}`}
-                                title={t('تعديل', 'Edit')}
-                              >
-                                <NavIcon name="edit" />
-                              </Link>
+                              {managementLink(channelHref(`/dashboard/flows/${f.id}`, channelId), `${t('تعديل', 'Edit')}: ${f.name}`, "edit", t('تعديل', 'Edit'))}
                               <button
                                 type="button"
                                 className="btn"
