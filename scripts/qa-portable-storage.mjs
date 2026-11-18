@@ -2,7 +2,8 @@
 import assert from 'node:assert/strict';
 import {randomUUID,randomBytes,createHash} from 'node:crypto';
 import {writeFileSync,readFileSync,mkdirSync} from 'node:fs';
-const mode=process.argv[2],state='/tmp/boat-portable-storage-state.json',base='http://localhost:4000';
+const mode=process.argv[2],state=process.env.BOAT_PORTABLE_STATE,base='http://localhost:4000';
+if(!state)throw Error('Private acceptance state path required');
 if(process.env.BOAT_PORTABLE_ACCEPTANCE!=='true')throw Error('Disposable portable acceptance opt-in required');
 async function call(path,token,body,method=body?'POST':'GET'){
  const r=await fetch(base+path,{method,headers:{...(token?{authorization:'Bearer '+token}:{}),...(body?{'content-type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});assert.ok(r.ok,path+' '+r.status);return r.json();
@@ -17,7 +18,7 @@ if(mode==='seed'){
   if(status==='deleted')await call('/uploads/'+file.name,owner.accessToken,null,'DELETE');
   files.push({...file,status});
  }
- writeFileSync(state,JSON.stringify({owner,foreign,files,hash:hash(bytes)}),{mode:0o600});console.log('PASS portable synthetic files seeded; credentials remain private');
+ writeFileSync(state,JSON.stringify({owner,foreign,files,hash:hash(bytes)}),{flag:'wx',mode:0o600});console.log('PASS portable synthetic files seeded; credentials remain private');
 }else if(mode==='verify'){
  const {owner,foreign,files,hash:expected}=JSON.parse(readFileSync(state));
  for(const file of files){

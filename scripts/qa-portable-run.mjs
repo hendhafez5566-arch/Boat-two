@@ -15,8 +15,8 @@ if(s3){
  const js="const {S3Client,CreateBucketCommand}=require('@aws-sdk/client-s3');const c=new S3Client({endpoint:process.env.S3_ENDPOINT,region:process.env.S3_REGION,forcePathStyle:true,credentials:{accessKeyId:process.env.S3_ACCESS_KEY_ID,secretAccessKey:process.env.S3_SECRET_ACCESS_KEY}});(async()=>{for(let i=0;i<60;i++){try{await c.send(new CreateBucketCommand({Bucket:process.env.S3_BUCKET}));return;}catch(e){if(e.name==='BucketAlreadyOwnedByYou')return;if(i===59)throw e;await new Promise(r=>setTimeout(r,500));}}})().catch(()=>process.exit(1));";
  compose('exec','-T','api','node','-e',js);
 }
+const privateDir=mkdtempSync(join(tmpdir(),'boat-portable-backup-'));chmodSync(privateDir,0o700);process.env.BOAT_PORTABLE_STATE=join(privateDir,'storage-state.json');
 node('scripts/qa-portable-storage.mjs','seed');
-const privateDir=mkdtempSync(join(tmpdir(),'boat-portable-backup-'));chmodSync(privateDir,0o700);
 if(!s3){
  const key=randomBytes(32).toString('hex'),admin='postgres://postgres:'+env.POSTGRES_PASSWORD+'@postgres:5432/boat';
  const summary=JSON.parse(compose('exec','-T','-e','DATABASE_ADMIN_URL='+admin,'-e','BOAT_BACKUP_KEY='+key,'-e','BOAT_UPLOADS_QUIESCED=true','api','node','/app/scripts/storage/attachment-snapshot.mjs','backup','--root','/data/uploads','--archive','/tmp/attachments.backup'));
@@ -36,7 +36,7 @@ compose('up','-d','--no-deps','--force-recreate','postgres','redis');await ready
 if(s3){
  compose('up','-d','--no-deps','--force-recreate','minio');
  compose('exec','-T','api','node','-e',"(async()=>{for(let i=0;i<60;i++){try{if((await fetch('http://minio:9000/minio/health/live')).ok)return;}catch{}await new Promise(r=>setTimeout(r,500));}process.exit(1);})();");
- const state=JSON.parse(readFileSync('/tmp/boat-portable-storage-state.json','utf8'));
+ const state=JSON.parse(readFileSync(process.env.BOAT_PORTABLE_STATE,'utf8'));
  compose('exec','-T','api','node','-e',"fetch('http://minio:9000/boat-attachments/attachments/"+state.files[0].name+"').then(r=>{if(r.status!==403)process.exit(1)}).catch(()=>process.exit(1));");
 }
 node('scripts/qa-portable-storage.mjs','verify');
