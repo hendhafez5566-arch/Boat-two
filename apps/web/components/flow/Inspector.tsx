@@ -79,18 +79,20 @@ const In = ({
   ph,
   dir,
   maxLength,
+  ariaLabel,
 }: {
   v?: string | number;
   on: (s: string) => void;
   ph?: string;
   dir?: string;
   maxLength?: number;
+  ariaLabel?: string;
 }) => {
   const { language, t } = useLocale();
   const field = useContext(FieldContext);
   return (
     <input
-      aria-label={ph ? editorLabel(ph, language) : field.label || t('القيمة', 'Value')}
+      aria-label={ariaLabel ?? (ph ? editorLabel(ph, language) : field.label || t('القيمة', 'Value'))}
       aria-describedby={field.description}
       className={inp}
       value={v ?? ''}
@@ -1241,7 +1243,7 @@ export default function Inspector({
                 'Direct https link. Variables are allowed.',
               )}
             >
-              <In v={data.url} on={(url) => set({ url })} ph="https://…" dir="ltr" />
+              <In v={data.url} on={(url) => set({ url })} ph="https://…" dir="ltr" ariaLabel={t('رابط الملف', 'Media URL')} />
             </F>
             {type !== 'audio' && (
               <F label={t('تعليق', 'Caption')}>

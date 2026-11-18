@@ -7,6 +7,9 @@ on:
       - 'scripts/qa-advanced-node-runtime.mjs'
       - 'scripts/fixtures/media-acceptance.json'
       - 'apps/api/assets/widget.js'
+      - 'apps/api/src/flows/engine/validate.ts'
+      - 'apps/api/src/inbox/files/**'
+      - 'apps/web/components/flow/**'
       - '.github/workflows/advanced-media-qa.yml'
   workflow_dispatch:
 permissions:
