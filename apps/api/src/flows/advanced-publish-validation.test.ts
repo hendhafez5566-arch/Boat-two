@@ -16,3 +16,12 @@ test('publish rejects invalid literal coordinates but preserves zero, Arabic dig
  for(const data of [{lat:'91',lng:'0'},{lat:'0',lng:'181'},{lat:'NaN',lng:'31'}])assert.ok(errors('location',data).length);
  for(const data of [{lat:'0',lng:'0'},{lat:'٣٠',lng:'٣١'},{lat:'{{latitude}}',lng:'31'}])assert.equal(errors('location',data).length,0);
 });
+
+test('publish rejects malformed question and literal condition regex without blocking dynamic values',()=>{
+ assert.ok(errors('question',{text:'Code',saveAs:'code',answerType:'regex',pattern:'('}).length);
+ assert.equal(errors('question',{text:'Code',saveAs:'code',answerType:'regex',pattern:'^[A-Z]+$'}).length,0);
+ for(const [pattern,invalid] of [['(',true],['',true],['^الق',false],['{{pattern}}',false]] as const){
+  const result=errors('condition',{rules:[{id:'r',conditions:[{source:'last_message',operator:'matches_regex',value:pattern}]}]});
+  assert.equal(result.length>0,invalid);
+ }
+});

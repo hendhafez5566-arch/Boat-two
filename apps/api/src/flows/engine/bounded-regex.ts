@@ -18,3 +18,11 @@ export function boundedRegexTest(pattern: string, value: string, budget?: RegexB
     if (budget) budget.remainingMs -= performance.now() - started;
   }
 }
+
+export function isValidRegexPattern(pattern: string): boolean {
+  if (!pattern || pattern.length > 200) return false;
+  try {
+    return runInNewContext("new RegExp(pattern, 'i'); true", {pattern},
+      {timeout:25,contextCodeGeneration:{strings:false,wasm:false}}) === true;
+  } catch { return false; }
+}

@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { isValidRegexPattern } from './bounded-regex';
 import { nodeSchema } from '../flow-schemas';
 import { isValidTimezone } from './hours';
 import { parseSheetUrl } from './sheet';
@@ -105,6 +106,8 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
           errors.push({ nodeId: n.id, message: 'saveAs must be a valid variable name' });
         if (d.answerType === 'regex' && !d.pattern)
           errors.push({ nodeId: n.id, message: 'Regex pattern is required' });
+        else if (d.answerType === 'regex' && !isValidRegexPattern(String(d.pattern)))
+          errors.push({ nodeId: n.id, message: 'Regex pattern is invalid' });
         break;
       case 'location':
         if (!d.lat || !d.lng)
@@ -131,6 +134,11 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
       case 'condition':
         if (!(d.rules ?? []).length)
           errors.push({ nodeId: n.id, message: 'Add at least one rule' });
+        for (const rule of d.rules ?? []) for (const condition of rule.conditions ?? []) {
+          const pattern = String(condition.value ?? '');
+          if (condition.operator === 'matches_regex' && !pattern.includes('{{') && !isValidRegexPattern(pattern))
+            errors.push({ nodeId: n.id, message: 'Condition regex pattern is invalid' });
+        }
         break;
       case 'delay':
         if (!(Number(d.amount) > 0))
