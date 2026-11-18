@@ -63,6 +63,12 @@ try{
     await rp.getByRole('button',{name:t('المزيد من الأدوات','More tools'),exact:true}).click();
     await rp.getByRole('button',{name:t('فحص التدفق','Validate flow'),exact:true}).click();
     await rp.getByRole('region',{name:t('نتيجة فحص البوت','Bot check result'),exact:true}).getByText(t('نمط المطابقة في الشرط غير صالح. صحّح النمط قبل النشر.','Condition regex pattern is invalid'),{exact:true}).waitFor();
+    const detail=rp.getByRole('region',{name:t('نتيجة فحص البوت','Bot check result'),exact:true}).locator('li[data-kind=error] > span').first();
+    for(const screenWidth of [320,390,768,1366,1920]){
+     await rp.setViewportSize({width:screenWidth,height:1000});
+     assert.ok(await detail.evaluate(el=>{const r=el.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return r.x>=0&&r.y>=0&&r.right<=innerWidth&&r.bottom<=innerHeight&&!!hit&&(el.contains(hit)||hit.contains(el));}),'validation detail must be inside viewport and above canvas');
+    }
+    await rp.setViewportSize({width,height:1000});
     await rp.screenshot({path:`docs/p0-evidence/role-boundaries/invalid-${language}-${width}.png`});await rc.close();
    }
    // Channel setup is administrative; agents use channel metadata in Inbox.
