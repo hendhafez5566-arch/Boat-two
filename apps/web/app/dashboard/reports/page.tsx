@@ -162,7 +162,7 @@ export default function Reports() {
                     <thead>
                       <tr>
                         {headers.map((h) => (
-                          <th key={h}>{reportColumn(h,t)}</th>
+                          <th key={h} scope="col" role="columnheader">{reportColumn(h,t)}</th>
                         ))}
                       </tr>
                     </thead>
