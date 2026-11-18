@@ -118,7 +118,7 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
       case 'cta_url':
         if (!d.text) errors.push({ nodeId: n.id, message: 'CTA message text is required' });
         if (!d.buttonText) errors.push({ nodeId: n.id, message: 'Button label is required' });
-        if (!/^https?:\/\//i.test(d.url ?? '') && !String(d.url ?? '').includes('{{'))
+        if (!String(d.url ?? '').trim())
           errors.push({ nodeId: n.id, message: 'URL must start with http:// or https://' });
         break;
       case 'sequence':
@@ -137,7 +137,7 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
           errors.push({ nodeId: n.id, message: 'Delay amount must be positive' });
         break;
       case 'http_request':
-        if (!/^https?:\/\//i.test(d.url ?? '') && !String(d.url ?? '').includes('{{'))
+        if (!String(d.url ?? '').trim())
           errors.push({ nodeId: n.id, message: 'URL must start with http:// or https://' });
         break;
       case 'sheet_fetch':
