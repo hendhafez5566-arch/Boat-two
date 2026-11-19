@@ -1,0 +1,43 @@
+name: Flow draft restore and live version browser acceptance
+on:
+  push:
+    branches: [feat/flow-builder-fidelity-20261107]
+    paths:
+      - 'scripts/qa-flow-version-browser.mjs'
+      - 'apps/api/src/flows/flows.service.ts'
+      - 'apps/web/app/dashboard/flows/[id]/page.tsx'
+      - '.github/workflows/flow-version-browser.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: flow-version-pr14
+  cancel-in-progress: true
+jobs:
+  version-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install and build actual application
+        run: corepack enable && pnpm install --frozen-lockfile && pnpm --filter api build && pnpm --filter web build
+      - name: Install isolated browser driver
+        run: npm install --prefix "$RUNNER_TEMP/boat-playwright" playwright@1.56.1 --ignore-scripts
+      - name: AR and EN saved draft, restoration and live version journeys
+        env:
+          BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
+          BOAT_QA_BROWSER_SCRIPT: scripts/qa-flow-version-browser.mjs
+          BOAT_CHROMIUM: /usr/bin/google-chrome
+          BOAT_CLOUD_REVIEW: 'true'
+        run: python3 scripts/run-connect-browser-qa.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flow-version-browser-evidence
+          path: |
+            docs/p0-evidence/flow-version-browser/
+            /tmp/boat-journeys-api.log
+            /tmp/boat-journeys-web.log
