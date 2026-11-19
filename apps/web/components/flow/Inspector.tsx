@@ -1678,10 +1678,11 @@ export default function Inspector({
                 </F>
               )}
             </ConfigDisclosure>
-            <F label="حفظ من الرد" hint="مثال: المسار data.price ← المتغيّر price">
+            <F label="حفظ من الرد" hint={t('مثال: data.price إلى price. تُمسح القيم السابقة في كل محاولة؛ وصّل مخرج الخطأ برسالة بديلة.', 'Example: data.price into price. Previous outputs are cleared on every attempt; connect the error output to a fallback.')} >
               {(data.saveAs ?? []).map((m: any, i: number) => (
                 <div key={i} className="mb-1 flex gap-1">
                   <In
+                    ariaLabel={t('مسار القيمة في الرد', 'Response value path')}
                     v={m.path}
                     on={(path) =>
                       set({
@@ -1694,6 +1695,7 @@ export default function Inspector({
                     dir="ltr"
                   />
                   <In
+                    ariaLabel={t('اسم المتغير', 'Variable name')}
                     v={m.variable}
                     on={(variable) =>
                       set({
@@ -1765,7 +1767,7 @@ export default function Inspector({
                 ph="https://docs.google.com/spreadsheets/d/…"
               />
             </F>
-            <F label="عمود البحث" hint="لو تركت عمود البحث فاضي بيرجع أول صف.">
+            <F label="عمود البحث" hint={t('اترك العمود فارغًا لإرجاع أول صف. عند اختيار عمود، لن تطابق قيمة البحث الفارغة أي صف.', 'Leave the column empty to return the first row. With a lookup column, an empty lookup value matches no row.')} >
               <In v={data.lookupColumn} on={(lookupColumn) => set({ lookupColumn })} ph="phone" />
             </F>
             <F label="قيمة البحث">
@@ -1776,10 +1778,11 @@ export default function Inspector({
                 dir="ltr"
               />
             </F>
-            <F label="حفظ أعمدة في متغيّرات" hint="اسم العمود ← اسم المتغيّر">
+            <F label="حفظ أعمدة في متغيّرات" hint={t('اسم العمود إلى اسم المتغير. تُمسح القيم السابقة إذا لم يُعثر على صف أو فشلت القراءة.', 'Column name into variable name. Previous outputs are cleared when no row matches or reading fails.')} >
               {(data.saveAs ?? []).map((m: any, i: number) => (
                 <div key={i} className="mb-1 flex gap-1">
                   <In
+                    ariaLabel={t('اسم عمود الشيت', 'Sheet column name')}
                     v={m.column}
                     on={(column) =>
                       set({
@@ -1791,6 +1794,7 @@ export default function Inspector({
                     ph="plan"
                   />
                   <In
+                    ariaLabel={t('اسم المتغير', 'Variable name')}
                     v={m.variable}
                     on={(variable) =>
                       set({
