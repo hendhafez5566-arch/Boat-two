@@ -25,7 +25,7 @@ export class InboxPolicyService implements OnModuleInit,OnModuleDestroy{
        await c.query("UPDATE conversations SET handled_by='bot',assigned_to=NULL WHERE id=$1",[item.id]);
        event='human_session_expired';assignedTo=null;
       } else if(row.handled_by==='human'&&row.sla_escalation_enabled&&row.sla_minutes>0&&row.last_inbound_at&&new Date(row.last_inbound_at).getTime()+row.sla_minutes*60000<Date.now()&&(!row.sla_escalated_at||new Date(row.sla_escalated_at)<new Date(row.last_inbound_at))) {
-       if((await c.query("SELECT 1 FROM messages WHERE conversation_id=$1 AND sender_type='agent' AND NOT is_internal AND created_at>=$2 LIMIT 1",[item.id,row.last_inbound_at])).rowCount)return;
+       if((await c.query("SELECT 1 FROM messages WHERE conversation_id=$1 AND sender_type='agent' AND direction='out' AND status IN ('sent','delivered','read') AND NOT is_internal AND created_at>=$2 LIMIT 1",[item.id,row.last_inbound_at])).rowCount)return;
        const target=row.escalation_user_id&&(await c.query('SELECT 1 FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.user_id=$1 AND u.disabled_at IS NULL',[row.escalation_user_id])).rowCount?row.escalation_user_id:null;
        await c.query("UPDATE conversations SET assigned_to=COALESCE($2::uuid,assigned_to),sla_escalated_at=now() WHERE id=$1",[item.id,target]);
        event='sla_escalated';assignedTo=target??row.assigned_to;

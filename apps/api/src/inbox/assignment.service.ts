@@ -55,11 +55,11 @@ export class AssignmentService {
       );
       await this.db.withTenant(tenantId, async (c) => {
         if (
-          m.escalation_user_id &&
-          !(await c.query('SELECT 1 FROM memberships WHERE user_id=$1', [m.escalation_user_id]))
+          s.escalation_user_id &&
+          !(await c.query('SELECT 1 FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.user_id=$1 AND u.disabled_at IS NULL FOR SHARE OF m,u', [s.escalation_user_id]))
             .rowCount
         )
-          throw new BadRequestException('Escalation employee is not in this workspace');
+          throw new BadRequestException('Escalation employee must be an active member of this workspace');
         await c.query(
           'UPDATE inbox_settings SET signature_enabled=$1,signature_template=$2,human_session_minutes=$3,delivery_error_tag=$4,sla_escalation_enabled=$5,escalation_user_id=$6,updated_at=now()',
           [

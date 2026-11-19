@@ -7,6 +7,7 @@ on:
       - 'scripts/run-enterprise-postgres-qa.py'
       - 'scripts/qa-p0-reliability.mjs'
       - 'scripts/qa-p0-policy-recovery.mjs'
+      - 'scripts/qa-sla-role-matrix.mjs'
       - 'scripts/qa-p1-load-recovery.mjs'
       - 'scripts/qa-p0-node-matrix.mjs'
       - 'scripts/qa-flow-builder-api-resume.mjs'

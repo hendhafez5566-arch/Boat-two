@@ -542,9 +542,9 @@ export class InboxController {
             p.departmentId,
           ]);
         if (p.assignedTo) {
-          const m = await c.query('SELECT 1 FROM memberships WHERE user_id = $1', [p.assignedTo]);
+          const m = await c.query('SELECT 1 FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.user_id=$1 AND u.disabled_at IS NULL FOR SHARE OF m,u', [p.assignedTo]);
           if (!m.rowCount)
-            throw new BadRequestException('Assignee is not a member of this workspace');
+            throw new BadRequestException('Assignee must be an active member of this workspace');
         }
         const r = await c.query(
           `UPDATE conversations SET status = COALESCE($2, status), handled_by = COALESCE($3, handled_by),
