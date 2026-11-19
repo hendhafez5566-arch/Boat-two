@@ -5,7 +5,8 @@ on:
     paths:
       - 'scripts/qa-flow-version-browser.mjs'
       - 'apps/api/src/flows/flows.service.ts'
-      - 'apps/web/app/dashboard/flows/[id]/page.tsx'
+      - 'apps/web/app/dashboard/flows/**'
+      - 'apps/web/components/flow/editor-shell.module.css'
       - '.github/workflows/flow-version-browser.yml'
   workflow_dispatch:
 permissions:
