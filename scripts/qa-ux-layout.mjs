@@ -121,7 +121,13 @@ for (const language of ['ar', 'en']) for (const width of [320,390,768,1366,1920]
   await reply.fill('QA visitor'); await simulator.getByRole('button',{name:t('إرسال','Send'),exact:true}).click();
   await simulator.getByText('Hello QA visitor',{exact:true}).waitFor();
   assert.ok(await reply.evaluate(el=>{const r=el.getBoundingClientRect();return r.top>=0 && r.bottom<=innerHeight;}), 'chat input remains visible');
-  assert.ok(await simulator.evaluate(el=>{const r=el.getBoundingClientRect();return r.width>=Math.min(1000,innerWidth-30) && r.bottom<=innerHeight && r.top>=0;}),'simulator uses available screen');
+  assert.ok(await simulator.evaluate(el=>{
+    const r=el.getBoundingClientRect();
+    const expectedWidth=innerWidth<=700?innerWidth-12:Math.min(640,innerWidth-32);
+    const expectedHeight=innerWidth<=700?innerHeight-12:Math.min(680,innerHeight-52);
+    return Math.abs(r.width-expectedWidth)<=2 && Math.abs(r.height-expectedHeight)<=2 && r.left>=0 && r.right<=innerWidth && r.top>=0 && r.bottom<=innerHeight;
+  }),'simulator matches the owner-requested compact desktop and full mobile contract');
+  assert.ok(await simulator.locator('.tp-chat').evaluate(el=>{const r=el.getBoundingClientRect();return r.height>=96 && r.top>=0 && r.bottom<=innerHeight;}),'compact preview retains a visible conversation area');
   await page.screenshot({path:`${out}/simulator-${language}-${width}.png`});
   await simulator.getByRole('button',{name:'Close / إغلاق',exact:true}).click();
   assert.deepEqual(errors,[]);

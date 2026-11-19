@@ -34,6 +34,9 @@ export class DatabaseService implements OnModuleDestroy {
   }
   async conversation<T>(tenantId: string, id: string, fn: () => Promise<T>) {
     return this.withTenant(tenantId, async (c) => {
+      // Assignment and outbound publication both lock the tenant first. Taking
+      // a conversation lock before that lock can deadlock an agent reply.
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
       await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [id]);
       return fn();
     });
