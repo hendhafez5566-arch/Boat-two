@@ -10,6 +10,7 @@ for key in ['DATABASE_URL', 'DATABASE_ADMIN_URL', 'REDIS_URL']:
         raise RuntimeError('Enterprise acceptance only permits loopback test services')
 if os.environ.get('EXTERNAL_DELIVERY_ENABLED') != 'false':
     raise RuntimeError('External delivery must be disabled')
+subprocess.run(['node', 'scripts/qa-event-lock-order.mjs'], check=True)
 with open('/tmp/boat-enterprise-postgres-api.log', 'w') as log:
     server = subprocess.Popen(['node', 'apps/api/dist/main.js'], stdout=log, stderr=log)
     try:
