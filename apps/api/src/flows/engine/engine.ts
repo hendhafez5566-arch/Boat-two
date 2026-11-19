@@ -189,6 +189,12 @@ export class FlowEngine {
 
   // ---------------------------------------------------------------- helpers
 
+  private clearMappedOutputs(mappings: { variable?: string }[] | undefined, state: FlowState) {
+    for (const mapping of mappings ?? [])
+      if (mapping.variable && /^[A-Za-z_][\w]{0,40}$/.test(mapping.variable))
+        delete state.vars[mapping.variable];
+  }
+
   private resolver(ctx: FlowContext, state: FlowState): Resolver {
     return (path: string) => {
       if (path.startsWith('contact.')) {
@@ -971,6 +977,8 @@ export class FlowEngine {
           body: d.body && method !== 'GET' ? interpolate(String(d.body), r, 'json') : undefined,
           timeoutMs: Math.min(Number(d.timeoutMs) || 8000, 15000),
         };
+        // Resolve request inputs first: an output may also be an input variable.
+        this.clearMappedOutputs(d.saveAs, state);
         try {
           const res = await this.deps.http(spec);
           state.vars.http = { status: res.status, ok: res.ok };
@@ -989,6 +997,8 @@ export class FlowEngine {
       }
 
       case 'sheet_fetch': {
+        const lookupValue = interpolate(String(d.lookupValue ?? ''), r);
+        this.clearMappedOutputs(d.saveAs, state);
         const ref = parseSheetUrl(String(d.url ?? ''));
         if (!ref && !d.connectionId) {
           state.vars.sheet = { found: false, error: 'Invalid Google Sheet link' };
@@ -1021,7 +1031,7 @@ export class FlowEngine {
           const found = lookupRow(
             parseCsv(text),
             String(d.lookupColumn ?? ''),
-            interpolate(String(d.lookupValue ?? ''), r),
+            lookupValue,
           );
           if (!found.row) {
             state.vars.sheet = { found: false, total: found.total };

@@ -23,7 +23,7 @@ with open('/tmp/boat-enterprise-postgres-api.log', 'w') as log:
                 time.sleep(.2)
         else:
             raise RuntimeError('Real PostgreSQL app did not become healthy')
-        for script in ['qa-sequence-error-runtime.mjs', 'qa-conversation-lock-order.mjs', 'qa-sla-role-matrix.mjs', 'qa-assignment-fairness.mjs', 'qa-advanced-node-runtime.mjs', 'qa-report-dimensions.mjs', 'qa-upload-formats.mjs', 'qa-attachment-lifecycle.mjs', 'qa-assignment-crash-recovery.mjs', 'qa-p0-node-matrix.mjs', 'qa-p0-reliability.mjs', 'qa-p0-policy-recovery.mjs', 'qa-p1-load-recovery.mjs', 'qa-p2-business-journeys.mjs', 'qa-channel-management-api.mjs', 'qa-flow-builder-api-resume.mjs', 'qa-channel-signature.mjs', 'acceptance-parity-api.mjs', 'qa-assignment-http.mjs', 'qa-auth-rate-limit.mjs', 'smoke-billing-catalog.mjs']:
+        for script in ['qa-integration-output-runtime.mjs', 'qa-sequence-error-runtime.mjs', 'qa-conversation-lock-order.mjs', 'qa-sla-role-matrix.mjs', 'qa-assignment-fairness.mjs', 'qa-advanced-node-runtime.mjs', 'qa-report-dimensions.mjs', 'qa-upload-formats.mjs', 'qa-attachment-lifecycle.mjs', 'qa-assignment-crash-recovery.mjs', 'qa-p0-node-matrix.mjs', 'qa-p0-reliability.mjs', 'qa-p0-policy-recovery.mjs', 'qa-p1-load-recovery.mjs', 'qa-p2-business-journeys.mjs', 'qa-channel-management-api.mjs', 'qa-flow-builder-api-resume.mjs', 'qa-channel-signature.mjs', 'acceptance-parity-api.mjs', 'qa-assignment-http.mjs', 'qa-auth-rate-limit.mjs', 'smoke-billing-catalog.mjs']:
             result = subprocess.run(['node', 'scripts/'+script], env=dict(os.environ, BOAT_QA_EXISTING_API='true', QA_RESUME_HTTP='true', SMOKE_API_URL='http://localhost:4000'))
             if result.returncode:
                 raise SystemExit(result.returncode)

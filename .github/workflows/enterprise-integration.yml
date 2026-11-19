@@ -10,6 +10,7 @@ on:
       - 'scripts/qa-sla-role-matrix.mjs'
       - 'scripts/qa-conversation-lock-order.mjs'
       - 'scripts/qa-sequence-error-runtime.mjs'
+      - 'scripts/qa-integration-output-runtime.mjs'
       - 'scripts/qa-p1-load-recovery.mjs'
       - 'scripts/qa-p0-node-matrix.mjs'
       - 'scripts/qa-flow-builder-api-resume.mjs'
