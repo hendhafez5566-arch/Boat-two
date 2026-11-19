@@ -1,0 +1,33 @@
+{
+  "environment": "local full Nest/PGlite; synthetic records; external sends disabled",
+  "results": [
+    {
+      "name": "Saving a signature draft and reopening does not activate outgoing signatures",
+      "status": "PASS"
+    },
+    {
+      "name": "Activation applies the signature through actual Inbox persistence and preserves CRM/handoff",
+      "status": "PASS"
+    },
+    {
+      "name": "Other channel and workspace settings are unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "Stale activation fails; draft edits do not replace the active signature until reactivation",
+      "status": "PASS"
+    },
+    {
+      "name": "Cross-tenant settings and activation are denied",
+      "status": "PASS"
+    },
+    {
+      "name": "admin server authorization for settings/save/activate",
+      "status": "PASS"
+    },
+    {
+      "name": "agent server authorization for settings/save/activate",
+      "status": "PASS"
+    }
+  ]
+}

@@ -99,6 +99,18 @@ export class WidgetController {
       welcomeMessage: s.welcomeMessage,
       direction: s.direction,
       position: s.position,
+      verticalPosition: s.verticalPosition,
+      offsetX: s.offsetX,
+      offsetY: s.offsetY,
+      loadingDelay: s.loadingDelay,
+      startup: s.startup,
+      themeBackground: ch.settings.themeBackground ? s.themeBackground : undefined,
+      themeText: ch.settings.themeText ? s.themeText : undefined,
+      bubbleBackground: s.bubbleBackground,
+      bubbleText: s.bubbleText,
+      wallpaper: ch.settings.wallpaper ? s.wallpaper : undefined,
+      font: s.font,
+      logoUrl: s.logoUrl,
     };
   }
 
@@ -147,7 +159,7 @@ export class WidgetController {
   ) {
     const ch = await this.channel(key, req);
     this.checkToken(ch, visitorId, given);
-    const afterSeq = Math.max(0, Number(after) || 0);
+    const afterSeq = parse(z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).default(0), after);
 
     return this.db.withTenant(ch.tenant_id, async (c) => {
       const r = await c.query(
@@ -159,11 +171,12 @@ export class WidgetController {
                  WHERE cv.channel_id = $1 AND cc.external_id = $2
                  ORDER BY cv.created_at DESC LIMIT 1)
            AND m.seq > $3 AND m.sender_type <> 'system' AND m.is_internal = false
-         ORDER BY m.seq LIMIT 100`,
+         ORDER BY m.seq LIMIT 101`,
         [ch.id, visitorId, afterSeq],
       );
       return {
-        messages: r.rows.map((m) => ({
+        hasMore: r.rows.length > 100,
+        messages: r.rows.slice(0, 100).map((m) => ({
           id: m.id,
           seq: Number(m.seq),
           senderType: m.sender_type,

@@ -1,0 +1,88 @@
+{
+  "results": [
+    {
+      "name": "Reference included in initial viewport; measured card and toolbar",
+      "status": "FAIL",
+      "error": "locator.waitFor: Timeout 8000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.react-flow__node-reference') to be visible\u001b[22m\n\u001b[2m    18 × locator resolved to hidden <div tabindex=\"0\" role=\"button\" data-id=\"__boat_flow_reference\" aria-describedby=\"react-flow__node-desc-1\" data-testid=\"rf__node-__boat_flow_reference\" class=\"react-flow__node react-flow__node-reference\">…</div>\u001b[22m\n"
+    },
+    {
+      "name": "Canvas and palette en 320",
+      "status": "PASS"
+    },
+    {
+      "name": "Canvas and palette en 390",
+      "status": "PASS"
+    },
+    {
+      "name": "Canvas and palette en 768",
+      "status": "PASS"
+    },
+    {
+      "name": "Canvas and palette en 1366",
+      "status": "PASS"
+    },
+    {
+      "name": "Canvas and palette en 1920",
+      "status": "PASS"
+    },
+    {
+      "name": "Canvas and palette ar 320",
+      "status": "FAIL",
+      "error": "locator.click: Timeout 8000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'توسيع أدوات العقد', exact: true })\u001b[22m\n"
+    },
+    {
+      "name": "Canvas and palette ar 390",
+      "status": "FAIL",
+      "error": "locator.click: Timeout 8000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'توسيع أدوات العقد', exact: true })\u001b[22m\n"
+    },
+    {
+      "name": "Canvas and palette ar 768",
+      "status": "FAIL",
+      "error": "locator.click: Timeout 8000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'توسيع أدوات العقد', exact: true })\u001b[22m\n"
+    },
+    {
+      "name": "Canvas and palette ar 1366",
+      "status": "FAIL",
+      "error": "locator.click: Timeout 8000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'توسيع أدوات العقد', exact: true })\u001b[22m\n"
+    },
+    {
+      "name": "Canvas and palette ar 1920",
+      "status": "FAIL",
+      "error": "locator.click: Timeout 8000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'توسيع أدوات العقد', exact: true })\u001b[22m\n"
+    },
+    {
+      "name": "Name edit and explicit draft save persist; autosave defaults off",
+      "status": "FAIL",
+      "error": "locator.click: Timeout 8000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'More tools', exact: true })\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" aria-expanded=\"true\" aria-label=\"More tools\" class=\"editor-shell_toolButton__wDPI3\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <button type=\"button\" aria-label=\"Close tools menu\" class=\"editor-shell_menuScrim__MT_ql\"></button> intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <button type=\"button\" aria-label=\"Close tools menu\" class=\"editor-shell_menuScrim__MT_ql\"></button> intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    15 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <button type=\"button\" aria-label=\"Close tools menu\" class=\"editor-shell_menuScrim__MT_ql\"></button> intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n"
+    },
+    {
+      "name": "Double-click node opens real configuration and cancel closes",
+      "status": "PASS"
+    },
+    {
+      "name": "Additional blocks remain available on demand",
+      "status": "PASS"
+    },
+    {
+      "name": "Preview calls real simulator",
+      "status": "FAIL",
+      "error": "locator.click: Timeout 8000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('dialog').getByRole('button', { name: 'Close', exact: true })\u001b[22m\n"
+    },
+    {
+      "name": "Graph coordinates and connections survive reopen",
+      "status": "PASS"
+    },
+    {
+      "name": "Publish persists real version; edit and republish create another",
+      "status": "FAIL",
+      "error": "Expected \"actual\" to be strictly unequal to:\n\nundefined"
+    },
+    {
+      "name": "Tenant isolation rejects another workspace reading graph",
+      "status": "PASS"
+    }
+  ],
+  "errors": [],
+  "passed": 9,
+  "failed": 9
+}

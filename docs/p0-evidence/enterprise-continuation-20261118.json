@@ -1,0 +1,44 @@
+{
+  "date": "2026-11-18",
+  "applicationCode": "510979c011d837cc360dfdb3f06176308ac017eb",
+  "acceptanceHead": "fb31965a343096ce42fe29f86147585339362bc8",
+  "ci": {
+    "postgres": {
+      "run": 44254906612,
+      "artifact": 14406255485,
+      "apiTests": 248,
+      "status": "PASS"
+    },
+    "advancedMediaBrowser": {
+      "run": 44254216010,
+      "artifact": 14404907496,
+      "contexts": 4,
+      "status": "PASS"
+    },
+    "identityBrowser": {
+      "run": 44251452816,
+      "artifact": 14403439408,
+      "contexts": 4,
+      "status": "PASS"
+    },
+    "reportInboxBrowser": {
+      "run": 44253425469,
+      "artifact": 14404324964,
+      "status": "PASS"
+    }
+  },
+  "newDeployment": null,
+  "newLiveAcceptance": null,
+  "deploymentStatus": "BLOCKED — EXTERNAL",
+  "reason": "No mounted API volume and no verified complete byte backup/restore/migration before replacing ephemeral container",
+  "retainedPreview": {
+    "apiSha": "69c57c8e9faf99723e05ff2a782c2cd2905e5300",
+    "apiDeployment": "db67a55a-70be-4677-aa8f-4e6e6884dcd2",
+    "webSha": "69c57c8e9faf99723e05ff2a782c2cd2905e5300",
+    "webDeployment": "0011f966-d6e2-4aba-b34a-6132a18623f8",
+    "sleepPreserved": true
+  },
+  "technicalCompletion": "PARTIAL",
+  "webchatCustomerPilot": "NOT READY",
+  "fullCommercialLaunch": "NOT READY"
+}

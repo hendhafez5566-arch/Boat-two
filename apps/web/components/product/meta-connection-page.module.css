@@ -1,0 +1,146 @@
+.page {
+  min-width: 0;
+}
+.page nav {
+  font-size: 13px;
+  color: #637286;
+}
+.statistics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  background: white;
+  border: 1px solid #eef1f5;
+  border-radius: 16px;
+  padding: 24px 0;
+  box-shadow: 0 4px 14px #0f172a05;
+}
+.statistics > div {
+  padding: 0 24px;
+  display: grid;
+  gap: 6px;
+  border-inline-end: 1px solid #eef1f5;
+}
+.statistics > div:last-child {
+  border: 0;
+}
+.statistics span {
+  font-size: 13px;
+  color: #637286;
+}
+.statistics strong {
+  font-size: 24px;
+}
+.another {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 24px;
+}
+.another h2,
+.business h2 {
+  font-size: 16px;
+  margin: 0 0 6px;
+}
+.another p,
+.business header > p {
+  font-size: 13px;
+  color: #637286;
+  margin: 0;
+}
+.business {
+  border: 1px solid #eef1f5;
+  border-radius: 16px;
+  background: #fafbfc;
+  padding: 20px;
+  scroll-margin-top: 24px;
+  display: grid;
+  gap: 24px;
+}
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.filters label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  min-width: 0;
+}
+.table {
+  overflow: auto;
+}
+.table table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+}
+.table th,
+.table td {
+  text-align: start;
+  border-bottom: 1px solid #eef1f5;
+  padding: 16px;
+}
+.table small {
+  display: block;
+  margin-top: 6px;
+  color: #637286;
+}
+.table td:last-child {
+  min-width: 160px;
+}
+.table td:last-child a {
+  margin-inline-end: 8px;
+}
+@media (max-width: 767px) {
+  .statistics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+  }
+  .statistics > div {
+    padding: 0 16px;
+  }
+  .another {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .business {
+    padding: 12px;
+  }
+  .filters label {
+    flex: 1 1 160px;
+  }
+}
+
+.page {
+  margin-inline-end: 20px;
+  background: #f8f9fd;
+  box-shadow: 0 0 0 32px #f8f9fd;
+}
+.page nav {
+  line-height: 18px;
+}
+.page :global(.page-heading) {
+  margin-top: -8px;
+  margin-bottom: 0;
+}
+.page :global(.page-heading) h1 {
+  font-size: 20px;
+  line-height: 30px;
+  margin: 0 0 8px;
+}
+.page :global(.page-heading) p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 21px;
+}
+@media (max-width: 767px) {
+  .page {
+    margin-inline-end: 0;
+    box-shadow: 0 0 0 16px #f8f9fd;
+  }
+  .table table {
+    min-width: 620px;
+  }
+}

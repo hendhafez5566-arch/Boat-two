@@ -61,8 +61,8 @@ const quick = [
 ];
 export default function Dashboard() {
   const { t } = useLocale();
-  const [selected, setSelected] = useState('whatsapp');
-  const [channel, setChannel] = useState('whatsapp');
+  const [selected, setSelected] = useState('all');
+  const [channel, setChannel] = useState('all');
   const summary = useData<Summary | null>('/workspace/dashboard?channel=' + channel, null);
   // Do not present the previous platform's values while the next filter is loading or failed.
   const data =
@@ -110,9 +110,12 @@ export default function Dashboard() {
           value={selected}
           onChange={(e) => setSelected(e.target.value)}
         >
+          <option value="all">{t('جميع القنوات', 'All channels')}</option>
+          <option value="web">Webchat</option>
           <option value="whatsapp">WhatsApp</option>
           <option value="telegram">Telegram</option>
           <option value="facebook">Facebook</option>
+          <option value="instagram">Instagram</option>
         </select>
         <button type="button" disabled={summary.loading} onClick={filter}>
           <NavIcon name="filter" />
@@ -140,18 +143,18 @@ export default function Dashboard() {
       </nav>
       <section className={styles.card} aria-busy={summary.loading}>
         <h2>
-          {t('نمو المشتركين', 'Subscriber Growth')} <span>{t('(30 يومًا)', '(30 days)')}</span>
+          {t('نمو جهات الاتصال', 'Contact growth')} <span>{t('(30 يومًا)', '(30 days)')}</span>
         </h2>
         <div className={styles.growth}>
           <div className={styles.distribution}>
-            <small>{t('آخر 30 يومًا', 'LAST 30 DAYS')}</small>
-            <p>{t('الاشتراكات مقابل الإلغاء', 'Gain vs drop')}</p>
+            <small>{t('آخر 30 يومًا — UTC', 'LAST 30 DAYS — UTC')}</small>
+            <p>{t('جهات اتصال جديدة مقابل إلغاء التسويق', 'New contacts vs marketing opt-outs')}</p>
             {data ? (
               <>
                 <div
                   className={styles.donut}
                   role="img"
-                  aria-label={`${t('اشتراك', 'Gain')}: ${gain}, ${t('إلغاء', 'Drop')}: ${drop}`}
+                  aria-label={`${t('عملاء جدد', 'New contacts')}: ${gain}, ${t('إلغاء التسويق', 'Opt-outs')}: ${drop}`}
                   style={{
                     background: total
                       ? `conic-gradient(#22c55e 0 ${(gain / total) * 100}%, #ef6c83 ${(gain / total) * 100}% 100%)`
@@ -160,17 +163,17 @@ export default function Dashboard() {
                 >
                   <span>
                     <strong>{total}</strong>
-                    <small>{t('الإجمالي', 'TOTAL')}</small>
+                    <small>{t('إجمالي النشاط', 'TOTAL ACTIVITY')}</small>
                   </span>
                 </div>
                 <ul className={styles.legend}>
                   <li>
                     <i />
-                    {t('اشتراك', 'Gain')} {gain}
+                    {t('عملاء جدد', 'New contacts')} {gain}
                   </li>
                   <li>
                     <i />
-                    {t('إلغاء', 'Drop')} {drop}
+                    {t('إلغاء التسويق', 'Opt-outs')} {drop}
                   </li>
                 </ul>
               </>
@@ -180,13 +183,13 @@ export default function Dashboard() {
           </div>
           <div className={styles.trend}>
             <small>{t('الاتجاه اليومي', 'DAILY TREND')}</small>
-            <p>{t('المشتركون الجدد خلال آخر 30 يومًا', 'New subscribers in the last 30 days')}</p>
+            <p>{t('جهات الاتصال الجديدة للقنوات المحددة خلال آخر 30 يومًا', 'New contacts for selected channels in the last 30 days')}</p>
             <div className={styles.plot}>
               {data ? (
                 <svg
                   viewBox="0 0 660 230"
                   role="img"
-                  aria-label={t('المشتركون الجدد يوميًا', 'Daily new subscribers')}
+                  aria-label={t('جهات الاتصال الجديدة يوميًا', 'Daily new contacts')}
                 >
                   {[0, 1, 2, 3, 4].map((n) => (
                     <g key={n}>

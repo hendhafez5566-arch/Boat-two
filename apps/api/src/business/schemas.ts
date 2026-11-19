@@ -38,7 +38,7 @@ export const contactSchema = z.object({
   lifecycle: z.enum(['lead', 'qualified', 'customer', 'inactive']).default('lead'),
   tags: z.array(z.string().trim().min(1).max(50)).max(30).default([]),
   attributes: z
-    .record(z.union([z.string().max(2000), z.number().finite(), z.boolean(), z.null()]))
+    .record(z.string(), z.union([z.string().max(2000), z.number().finite(), z.boolean(), z.null()]))
     .default({}),
   ownerId: z.string().uuid().nullable().optional(),
   allowDuplicate: z.boolean().default(false),
@@ -73,7 +73,7 @@ function boundedTree(keys: string[], maxDepth = 4, maxNodes = 80) {
     }
   });
 }
-const conditionTree: z.ZodType<Conditions, z.ZodTypeDef, unknown> = z.lazy(() =>
+const conditionTree: z.ZodType<Conditions, unknown> = z.lazy(() =>
   filtersSchema.extend({
     allOf: z.array(conditionTree).max(10).default([]),
     anyOf: z.array(conditionTree).max(10).default([]),
@@ -148,7 +148,7 @@ export type AutomationAction =
     }
   | { type: 'http'; secretId?: string; url: string; body: string; headers?: Record<string, string> }
   | { type: 'delay'; delayMinutes: number; actions: AutomationAction[] };
-const actionTree: z.ZodType<AutomationAction, z.ZodTypeDef, unknown> = z.lazy(() =>
+const actionTree: z.ZodType<AutomationAction, unknown> = z.lazy(() =>
   z.union([
     baseActionSchema,
     z.object({
@@ -161,7 +161,7 @@ const actionTree: z.ZodType<AutomationAction, z.ZodTypeDef, unknown> = z.lazy(()
       type: z.literal('http'),
       secretId: z.string().uuid().optional(),
       headers: z
-        .record(
+        .partialRecord(
           z.enum(['Accept', 'Content-Language', 'X-Request-Source', 'X-Correlation-Id']),
           z
             .string()
@@ -207,7 +207,7 @@ export const ruleSchema = z.object({
     'crm.deal.stage_changed',
     'crm.deal.closed',
   ]),
-  conditions: conditionsSchema.default({}),
+  conditions: conditionsSchema.prefault({}),
   actions: z.array(actionSchema).min(1).max(10),
 });
 export type Filters = z.infer<typeof filtersSchema>;

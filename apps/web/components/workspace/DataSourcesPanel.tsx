@@ -1,4 +1,6 @@
 'use client';
+import styles from './commerce-wizard.module.css';
+import ImportSummary, { ImportCounts } from './ImportSummary';
 import { DisclosureSummary } from '../product/DisclosureSummary';
 
 import { useEffect, useState } from 'react';
@@ -30,6 +32,7 @@ type Item = {
 };
 type Preview = {
   valid: boolean;
+  summary?: ImportCounts;
   previewId?: string;
   items: Item[];
   total: number;
@@ -59,6 +62,9 @@ export default function DataSourcesPanel({
   onDraftStateChange?: (state: { dirty: boolean; busy: boolean }) => void;
 } = {}) {
   const { t, language } = useLocale();
+  const [step, setStep] = useState(0);
+  const [appliedCount, setAppliedCount] = useState(0);
+  const [appliedSummary, setAppliedSummary] = useState<ImportCounts | null>(null);
   const [sources, setSources] = useState<Source[]>([]),
     [editing, setEditing] = useState<Source | null>(null),
     [name, setName] = useState(''),
@@ -87,7 +93,7 @@ export default function DataSourcesPanel({
     [categories, setCategories] = useState<{ name: string; count: number }[]>([]),
     [query, setQuery] = useState(''),
     [runs, setRuns] = useState<
-      { status: string; item_count: number; error?: string; created_at: string }[]
+      { status: string; item_count: number; error?: string; created_at: string; summary?: Partial<ImportCounts> }[]
     >([]);
   const dirty =
     !!editing &&
@@ -148,6 +154,7 @@ export default function DataSourcesPanel({
       )
     )
       return;
+    setStep(0);
     setEditing(s);
     setName(s?.name ?? '');
     setKind(s?.kind ?? 'file');
@@ -178,6 +185,7 @@ export default function DataSourcesPanel({
     setAuto(s?.auto_sync ?? false);
     setAi(s?.ai_enabled ?? false);
     setPreview(null);
+    setAppliedSummary(null);
     setItems([]);
     setFile(null);
     setSample([]);
@@ -294,18 +302,57 @@ export default function DataSourcesPanel({
     ['image', 'رابط الصورة', 'Image link'],
     ['link', 'رابط التفاصيل', 'Details link'],
   ];
+  const mapColumns = (columns: typeof labels) => (
+    <div className="form-grid">
+      {columns.map(([key, ar, en]) => (
+        <label key={key}>
+          {t(ar, en)}
+          <select
+            aria-label={t(ar, en)}
+            value={mapping[key] ?? ''}
+            onChange={(e) => {
+              setMapping({ ...mapping, [key]: e.target.value || undefined });
+              setPreview(null);
+            }}
+          >
+            <option value="">{t('اختر عمودًا', 'Choose a column')}</option>
+            {headers.map((h) => (
+              <option key={h}>{h}</option>
+            ))}
+          </select>
+          {mapping[key] && <small className={styles.hint}>
+            {t('مثال من الملف:', 'File sample:')}{' '}
+            {sample.slice(0, 2).map((row) => row[headers.indexOf(mapping[key] ?? '')] || '—').join(' · ')}
+          </small>}
+        </label>
+      ))}
+    </div>
+  );
   return (
-    <section dir={language === 'ar' ? 'rtl' : 'ltr'} className="panel" style={{ minWidth: 0 }}>
+    <section
+      dir={language === 'ar' ? 'rtl' : 'ltr'}
+      className={`panel ${styles.root}`}
+      style={{ minWidth: 0 }}
+    >
       <h2>{t('مصادر البيانات والكتالوج الديناميكي', 'Data sources and dynamic catalog')}</h2>
-      <ol className="catalog-steps" aria-label={t('خطوات إعداد الكتالوج', 'Catalog setup steps')}>
-        <li>{t('١. ارفع ملفًا أو اربط شيت', '1. Upload a file or connect a sheet')}</li>
-        <li>{t('٢. راجع الأعمدة ومعاينة العميل', '2. Review columns and customer preview')}</li>
-        <li>{t('٣. طبّق التحديث واستخدمه في البوت', '3. Apply and use in your bot')}</li>
+      <ol className={styles.steps} aria-label={t('خطوات الاستيراد', 'Import steps')}>
+        {[
+          t('رفع الملف', 'Upload'),
+          t('مطابقة الأعمدة', 'Map columns'),
+          t('المعاينة', 'Preview'),
+          t('الاستيراد', 'Import'),
+          t('النتيجة', 'Result'),
+        ].map((label, i) => (
+          <li key={i} aria-current={step === i ? 'step' : undefined} data-active={step === i}>
+            <span>{i + 1}</span>
+            {label}
+          </li>
+        ))}
       </ol>
-      <p>
+      <p className={styles.hint}>
         {t(
-          'صمّم البوت مرة واحدة وحدّث المحتوى من هنا. الملفات المحلية تتطلب رفع نسخة أحدث.',
-          'Design your bot once and update its content here. Local files require a newer upload.',
+          'خطوة واحدة في كل مرة. لن تتغير بيانات الكتالوج حتى تؤكد الاستيراد.',
+          'One step at a time. Catalog items change only after you confirm the import.',
         )}
       </p>
       {error && (
@@ -348,200 +395,217 @@ export default function DataSourcesPanel({
               )}
         </p>
       )}
-      <div className="form-grid">
-        <label>
-          {t('اسم المصدر', 'Source name')}
-          <input value={name} onChange={(e) => setName(e.target.value)} />
-        </label>
-        <label>
-          {t('نوع المصدر', 'Source type')}
-          <select
-            value={kind}
-            onChange={(e) => {
-              setKind(e.target.value as 'file' | 'google');
-              setPreview(null);
-            }}
-          >
-            <option value="file">Excel / CSV</option>
-            <option value="google">Google Sheets</option>
-          </select>
-        </label>
-      </div>
-      {kind === 'file' ? (
+      {step === 0 && (
         <>
-          <label>
-            {t('رفع ملف .xlsx أو .csv — حتى 5 MB', 'Upload .xlsx or .csv — up to 5 MB')}
-            <input
-              disabled={busy}
-              type="file"
-              accept=".xlsx,.csv"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void act(() => upload(f));
-              }}
-            />
-          </label>
-          {sheets.length > 0 && (
+          <div className="form-grid">
             <label>
-              {t('ورقة العمل', 'Worksheet')}
+              {t('اسم المصدر', 'Source name')}
+              <input value={name} onChange={(e) => setName(e.target.value)} />
+            </label>
+            <label>
+              {t('نوع المصدر', 'Source type')}
               <select
-                value={sheet}
+                value={kind}
                 onChange={(e) => {
-                  setSheet(e.target.value);
-                  if (file) void act(() => upload(file, e.target.value));
+                  setKind(e.target.value as 'file' | 'google');
+                  setPreview(null);
                 }}
               >
-                {sheets.map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
+                <option value="file">Excel / CSV</option>
+                <option value="google">Google Sheets</option>
               </select>
             </label>
-          )}
-        </>
-      ) : (
-        <>
-          <button
-            className="btn"
-            disabled={busy}
-            onClick={() => {
-              // Open before awaiting OAuth so popup blockers do not discard it;
-              // keep the editor and its unsaved draft in the original tab.
-              const authWindow = window.open('about:blank', '_blank');
-              if (!authWindow) {
-                setError(
-                  t(
-                    'اسمح بفتح نافذة الربط ثم حاول مجددًا',
-                    'Allow the connection popup and try again',
-                  ),
-                );
-                return;
-              }
-              authWindow.opener = null;
-              void act(async () => {
-                try {
-                  const r = await api<{ authorizeUrl: string }>('/integrations/google/start', {
-                    method: 'POST',
-                    body: JSON.stringify({ purposes: ['sheets_read'] }),
+          </div>
+          {kind === 'file' ? (
+            <>
+              <label className={styles.uploadZone}>
+                <strong>{t('اختر ملف المنتجات', 'Choose your product file')}</strong>
+                {t('رفع ملف .xlsx أو .csv — حتى 5 MB', 'Upload .xlsx or .csv — up to 5 MB')}
+                <input
+                  disabled={busy}
+                  type="file"
+                  accept=".xlsx,.csv"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void act(() => upload(f));
+                  }}
+                />
+              </label>
+              {sheets.length > 0 && (
+                <label>
+                  {t('ورقة العمل', 'Worksheet')}
+                  <select
+                    value={sheet}
+                    onChange={(e) => {
+                      setSheet(e.target.value);
+                      if (file) void act(() => upload(file, e.target.value));
+                    }}
+                  >
+                    {sheets.map((s) => (
+                      <option key={s}>{s}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </>
+          ) : (
+            <>
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() => {
+                  // Open before awaiting OAuth so popup blockers do not discard it;
+                  // keep the editor and its unsaved draft in the original tab.
+                  const authWindow = window.open('about:blank', '_blank');
+                  if (!authWindow) {
+                    setError(
+                      t(
+                        'اسمح بفتح نافذة الربط ثم حاول مجددًا',
+                        'Allow the connection popup and try again',
+                      ),
+                    );
+                    return;
+                  }
+                  authWindow.opener = null;
+                  void act(async () => {
+                    try {
+                      const r = await api<{ authorizeUrl: string }>('/integrations/google/start', {
+                        method: 'POST',
+                        body: JSON.stringify({ purposes: ['sheets_read'] }),
+                      });
+                      authWindow.location.href = r.authorizeUrl;
+                    } catch (e) {
+                      authWindow.close();
+                      throw e;
+                    }
                   });
-                  authWindow.location.href = r.authorizeUrl;
-                } catch (e) {
-                  authWindow.close();
-                  throw e;
-                }
-              });
-            }}
-          >
-            {t('ربط Google للقراءة فقط', 'Connect Google read only')}
-          </button>
-          <button
-            type="button"
-            className="btn"
-            disabled={busy}
-            onClick={() =>
-              void act(async () => {
-                setConnections(await api<typeof connections>('/integrations'));
-              })
-            }
-          >
-            {t('تحديث الحسابات بعد الربط', 'Refresh accounts after connecting')}
-          </button>
-          <label>
-            {t('حساب Google', 'Google account')}
-            <select value={connection} onChange={(e) => setConnection(e.target.value)}>
-              <option value="">{t('اختر الحساب', 'Choose account')}</option>
-              {connections
-                .filter((c) => c.provider === 'google')
-                .map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-            </select>
-          </label>
-          <button
-            className="btn"
-            disabled={busy || !connection}
-            onClick={() =>
-              void act(async () => {
-                const r = await google({ operation: 'sheet_files' });
-                setFiles((r.data.files ?? []) as typeof files);
-              })
-            }
-          >
-            {t('اختيار ملف من Google', 'Choose a Google file')}
-          </button>
-          {files.length > 0 && (
-            <label>
-              {t('ملف Google Sheets', 'Google spreadsheet')}
-              <select
-                value={spreadsheet}
-                onChange={(e) => {
-                  setSpreadsheet(e.target.value);
-                  setSheets([]);
-                  setSheet('');
                 }}
               >
-                <option value="">{t('اختر الملف', 'Choose file')}</option>
-                {files.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+                {t('ربط Google للقراءة فقط', 'Connect Google read only')}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={() =>
+                  void act(async () => {
+                    setConnections(await api<typeof connections>('/integrations'));
+                  })
+                }
+              >
+                {t('تحديث الحسابات بعد الربط', 'Refresh accounts after connecting')}
+              </button>
+              <label>
+                {t('حساب Google', 'Google account')}
+                <select value={connection} onChange={(e) => setConnection(e.target.value)}>
+                  <option value="">{t('اختر الحساب', 'Choose account')}</option>
+                  {connections
+                    .filter((c) => c.provider === 'google')
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <button
+                className="btn"
+                disabled={busy || !connection}
+                onClick={() =>
+                  void act(async () => {
+                    const r = await google({ operation: 'sheet_files' });
+                    setFiles((r.data.files ?? []) as typeof files);
+                  })
+                }
+              >
+                {t('اختيار ملف من Google', 'Choose a Google file')}
+              </button>
+              {files.length > 0 && (
+                <label>
+                  {t('ملف Google Sheets', 'Google spreadsheet')}
+                  <select
+                    value={spreadsheet}
+                    onChange={(e) => {
+                      setSpreadsheet(e.target.value);
+                      setSheets([]);
+                      setSheet('');
+                    }}
+                  >
+                    <option value="">{t('اختر الملف', 'Choose file')}</option>
+                    {files.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <label>
+                {t('أو الصق رابط الشيت الخاص', 'Or paste your private sheet link')}
+                <input
+                  placeholder="https://docs.google.com/spreadsheets/d/…"
+                  onChange={(e) => {
+                    const match = e.target.value.match(/\/spreadsheets\/d\/([\w-]+)/);
+                    if (match) setSpreadsheet(match[1]);
+                  }}
+                />
+              </label>
+              <button
+                className="btn"
+                disabled={busy || !spreadsheet || !connection}
+                onClick={() =>
+                  void act(async () => {
+                    const r = await google({
+                      operation: 'sheet_metadata',
+                      spreadsheetId: spreadsheet,
+                    });
+                    const names = (r.data.sheets as { properties: { title: string } }[]).map(
+                      (s) => s.properties.title,
+                    );
+                    setSheets(names);
+                    setSheet(names[0] ? "'" + names[0].replace(/'/g, "''") + "'" : '');
+                  })
+                }
+              >
+                {t('عرض أوراق العمل', 'Show worksheets')}
+              </button>
+              <label>
+                {t('ورقة العمل أو النطاق', 'Worksheet or range')}
+                <input
+                  list="data-worksheets"
+                  value={sheet}
+                  onChange={(e) => setSheet(e.target.value)}
+                />
+                <datalist id="data-worksheets">
+                  {sheets.map((s) => (
+                    <option key={s} value={"'" + s.replace(/'/g, "''") + "'"} />
+                  ))}
+                </datalist>
+              </label>
+              <button className="btn" disabled={busy || !sheet} onClick={() => void act(readSheet)}>
+                {t('معاينة الأعمدة', 'Preview columns')}
+              </button>
+              <label>
+                <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
+                {t(
+                  'مزامنة كل 15 دقيقة — لا تؤرشف الصفوف المفقودة تلقائيًا',
+                  'Sync every 15 minutes — never auto archive missing rows',
+                )}
+              </label>
+            </>
           )}
-          <label>
-            {t('أو الصق رابط الشيت الخاص', 'Or paste your private sheet link')}
-            <input
-              placeholder="https://docs.google.com/spreadsheets/d/…"
-              onChange={(e) => {
-                const match = e.target.value.match(/\/spreadsheets\/d\/([\w-]+)/);
-                if (match) setSpreadsheet(match[1]);
-              }}
-            />
-          </label>
-          <button
-            className="btn"
-            disabled={busy || !spreadsheet || !connection}
-            onClick={() =>
-              void act(async () => {
-                const r = await google({ operation: 'sheet_metadata', spreadsheetId: spreadsheet });
-                const names = (r.data.sheets as { properties: { title: string } }[]).map(
-                  (s) => s.properties.title,
-                );
-                setSheets(names);
-                setSheet(names[0] ? "'" + names[0].replace(/'/g, "''") + "'" : '');
-              })
-            }
-          >
-            {t('عرض أوراق العمل', 'Show worksheets')}
-          </button>
-          <label>
-            {t('ورقة العمل أو النطاق', 'Worksheet or range')}
-            <input
-              list="data-worksheets"
-              value={sheet}
-              onChange={(e) => setSheet(e.target.value)}
-            />
-            <datalist id="data-worksheets">
-              {sheets.map((s) => (
-                <option key={s} value={"'" + s.replace(/'/g, "''") + "'"} />
-              ))}
-            </datalist>
-          </label>
-          <button className="btn" disabled={busy || !sheet} onClick={() => void act(readSheet)}>
-            {t('معاينة الأعمدة', 'Preview columns')}
-          </button>
-          <label>
-            <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
-            {t(
-              'مزامنة كل 15 دقيقة — لا تؤرشف الصفوف المفقودة تلقائيًا',
-              'Sync every 15 minutes — never auto archive missing rows',
-            )}
-          </label>
+          <div className={styles.actions}>
+            <button
+              className="btn primary"
+              disabled={busy || !name.trim() || !headers.length}
+              onClick={() => setStep(1)}
+            >
+              {t('التالي: مطابقة الأعمدة', 'Next: map columns')}
+            </button>
+          </div>
         </>
       )}
-      {headers.length > 0 && (
+      {step === 1 && headers.length > 0 && (
         <>
           <h3>{t('راجع الأعمدة المقترحة', 'Review suggested columns')}</h3>
           <p>
@@ -550,33 +614,29 @@ export default function DataSourcesPanel({
               'Check the stable key and name. Extra columns are shown only when you select them.',
             )}
           </p>
-          <div className="form-grid">
-            {labels.map(([key, ar, en]) => (
-              <label key={key}>
-                {t(ar, en)}
-                <select
-                  aria-label={t(ar, en)}
-                  value={mapping[key] ?? ''}
-                  onChange={(e) => {
-                    setMapping({ ...mapping, [key]: e.target.value || undefined });
-                    setPreview(null);
-                  }}
-                >
-                  <option value="">{t('اختر عمودًا', 'Choose a column')}</option>
-                  {headers.map((h) => (
-                    <option key={h}>{h}</option>
-                  ))}
-                </select>
-              </label>
-            ))}
-          </div>
+          {mapColumns(labels.slice(0, 2))}
+          <details className={styles.optionalMapping}>
+            <DisclosureSummary>
+              {t(
+                'مطابقة اختيارية: الوصف والأقسام والصور والترتيب',
+                'Optional mapping: descriptions, categories, images and sorting',
+              )}
+            </DisclosureSummary>
+            <p>
+              {t(
+                'تُحفظ المطابقة المقترحة حتى إن أبقيت هذا الجزء مغلقًا. افتحه لتعديل الأعمدة الإضافية.',
+                'Suggested mappings are kept when this section is closed. Open it to change additional columns.',
+              )}
+            </p>
+            {mapColumns(labels.slice(2))}
+          </details>
           <h3>{t('الحقول والأسعار التي تريد عرضها', 'Fields and prices to display')}</h3>
           {headers
             .filter((h) => h !== mapping.id && h !== mapping.name)
             .map((h) => {
               const f = mapping.fields.find((f) => f.column === h);
               return (
-                <div key={h} className="form-actions">
+                <div key={h} className={styles.mappingRow}>
                   <label>
                     <input
                       type="checkbox"
@@ -666,19 +726,21 @@ export default function DataSourcesPanel({
           )}
         </>
       )}
-      <details>
-        <DisclosureSummary>
-          {t('إعدادات متقدمة للمساعد', 'Advanced assistant settings')}
-        </DisclosureSummary>
-        <label>
-          <input type="checkbox" checked={ai} onChange={(e) => setAi(e.target.checked)} />
-          {t(
-            'اعتماد الكتالوج لردود المساعد: الإجابات من بياناته الحالية فقط، والتحويل للموظف للمعلومات الناقصة',
-            'Use this catalog for assistant replies: current catalog data only, with staff handoff for missing information',
-          )}
-        </label>
-      </details>
-      {dirty && (
+      {step === 1 && (
+        <details>
+          <DisclosureSummary>
+            {t('إعدادات متقدمة للمساعد', 'Advanced assistant settings')}
+          </DisclosureSummary>
+          <label>
+            <input type="checkbox" checked={ai} onChange={(e) => setAi(e.target.checked)} />
+            {t(
+              'اعتماد الكتالوج لردود المساعد: الإجابات من بياناته الحالية فقط، والتحويل للموظف للمعلومات الناقصة',
+              'Use this catalog for assistant replies: current catalog data only, with staff handoff for missing information',
+            )}
+          </label>
+        </details>
+      )}
+      {step === 1 && dirty && (
         <p role="status">
           {t(
             'احفظ تغييرات الربط قبل معاينة المزامنة',
@@ -686,69 +748,83 @@ export default function DataSourcesPanel({
           )}
         </p>
       )}
-      <div className="form-actions">
-        <button
-          className="btn primary"
-          disabled={busy || !name || !mapping.id || !mapping.name || (kind === 'file' && !file)}
-          onClick={() =>
-            void act(async () => {
-              const source = !editing || dirty ? await save() : editing;
-              await makePreview(source);
-            })
-          }
-        >
-          {t('مراجعة معاينة العميل', 'Review customer preview')}
-        </button>
-        <button
-          disabled={busy || !name || !mapping.id || !mapping.name}
-          className="btn primary"
-          onClick={() => void act(save)}
-        >
-          {t('حفظ الربط والإعدادات', 'Save source settings')}
-        </button>
-        <button
-          disabled={busy || !editing || dirty}
-          className="btn"
-          onClick={() => void act(() => makePreview())}
-        >
-          {t('مزامنة الآن ومعاينة التحديث', 'Sync now and preview update')}
-        </button>
-        <button
-          disabled={busy || !editing}
-          className="btn"
-          onClick={() => void act(() => browse(0))}
-        >
-          {t('معاينة ما يراه العميل والسجل', 'Preview customer catalog and history')}
-        </button>
-      </div>
-      {preview && (
+      {step === 1 && (
+        <div className={styles.actions}>
+          <button className="btn" disabled={busy} onClick={() => setStep(0)}>
+            {t('السابق', 'Back')}
+          </button>
+          <button
+            className="btn primary"
+            disabled={
+              busy || !name.trim() || !mapping.id || !mapping.name || (kind === 'file' && !file)
+            }
+            onClick={() =>
+              void act(async () => {
+                const source = !editing || dirty ? await save() : editing;
+                await makePreview(source);
+                setStep(2);
+              })
+            }
+          >
+            {busy
+              ? t('جارٍ تجهيز المعاينة…', 'Preparing preview…')
+              : t('التالي: معاينة البيانات', 'Next: preview data')}
+          </button>
+        </div>
+      )}
+      {preview && (step === 2 || step === 3) && (
         <section aria-label={t('معاينة التحديث', 'Update preview')}>
           <h3>
             {t('معاينة التحديث', 'Update preview')} — {preview.total}
             {hiddenCount > 0 && ` · ${hiddenCount} ${t('عنصر مخفي', 'hidden item(s)')}`}
           </h3>
+          <ImportSummary counts={preview.summary} />
+          {!preview.valid && <p role="alert">{t('لم يتم استيراد أي صف. أصلح الأخطاء ثم أعد المعاينة.', 'No rows were imported. Fix the errors and preview again.')}</p>}
+          {!!preview.errors.length && <button type="button" className="btn" onClick={() => {
+            const url = URL.createObjectURL(new Blob([JSON.stringify({source: editing?.name, errors: preview.errors}, null, 2)], {type: 'application/json'}));
+            const link = document.createElement('a'); link.href = url; link.download = 'import-errors.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+          }}>{t('تنزيل تقرير الأخطاء', 'Download error report')}</button>}
           {preview.errors.map((e, i) => (
             <p role="alert" key={i}>
               {t('صف ', 'Row ')}
               {e.row}: {e.message}
             </p>
           ))}
-          {preview.items.map((p, i) => (
-            <article className="card" key={i}>
-              <strong>{p.name}</strong>
-              <p>{p.description}</p>
-              <p>
-                {p.category} {p.visible === false ? t('مخفي', 'Hidden') : ''}
-              </p>
-              {p.fields?.map((f) => (
-                <p key={f.label}>
-                  {f.label}: {f.value}
-                </p>
-              ))}
-            </article>
-          ))}
-          {preview.valid && (
+          {step === 2 && (
+            <div className={styles.previewTable} tabIndex={0} role="region" aria-label={t('جدول معاينة المنتجات', 'Product preview table')}>
+              <table><thead><tr>
+                <th>{t('الاسم', 'Name')}</th><th>{t('الوصف', 'Description')}</th>
+                <th>{t('القسم', 'Category')}</th><th>{t('البيانات الإضافية', 'Extra data')}</th>
+              </tr></thead><tbody>
+              {preview.items.map((p, i) => <tr key={i}>
+                <td>{p.name}{p.visible === false && <small> · {t('مخفي', 'Hidden')}</small>}</td>
+                <td>{p.description || '—'}</td><td>{p.category || t('دون قسم', 'Uncategorized')}</td>
+                <td>{p.fields?.map((f) => <div key={f.label}>{f.label}: {f.value}</div>)}</td>
+              </tr>)}
+              </tbody></table>
+            </div>
+          )}
+          {step === 2 && (
+            <div className={styles.actions}>
+              <button className="btn" disabled={busy} onClick={() => setStep(1)}>
+                {t('تعديل المطابقة', 'Edit mapping')}
+              </button>
+              <button
+                className="btn primary"
+                disabled={busy || !preview.valid}
+                onClick={() => setStep(3)}
+              >
+                {t('التالي: تأكيد الاستيراد', 'Next: confirm import')}
+              </button>
+            </div>
+          )}
+          {step === 3 && preview.valid && (
             <>
+              <p><strong>{t('مصدر الاستيراد:', 'Import destination:')} {editing?.name}</strong></p>
+              <p>{t('سيتم تطبيق المعاينة التي راجعتها فقط:', 'Only the reviewed preview will be applied:')} {preview.total} {t('عنصر', 'items')}</p>
+              <button type="button" className="btn" disabled={busy} onClick={() => setStep(2)}>
+                {t('العودة للمعاينة', 'Back to preview')}
+              </button>
               <p>
                 {t('صفوف مفقودة من النسخة الجديدة: ', 'Rows missing from this update: ')}
                 {preview.missing}
@@ -782,20 +858,22 @@ export default function DataSourcesPanel({
                 disabled={busy || (hiddenCount > 0 && !visibilityConfirmed)}
                 onClick={() =>
                   void act(async () => {
-                    await api('/commerce/sources/' + editing!.id + '/apply', {
+                    const applied = await api<ImportCounts & {processed: number}>('/commerce/sources/' + editing!.id + '/apply', {
                       method: 'POST',
                       body: JSON.stringify({
                         previewId: preview.previewId,
                         archiveMissing: archive,
                       }),
                     });
+                    setAppliedCount(applied.processed);
+                    setAppliedSummary(applied);
+                    setStep(4);
                     setPreview(null);
                     setFile(null);
                     await refresh();
                     const latest = await api<Source[]>('/commerce/sources');
                     setEditing(latest.find((s) => s.id === editing!.id) ?? null);
                     await browse(0);
-                    onApplied?.(editing!.id);
                   })
                 }
               >
@@ -805,7 +883,37 @@ export default function DataSourcesPanel({
           )}
         </section>
       )}
-      {editing && (
+      {step === 4 && (
+        <section className={styles.result} role="status">
+          <h3>{t('اكتمل الاستيراد', 'Import complete')}</h3>
+          <p><strong>{editing?.name}</strong></p>
+          <p>
+            {appliedCount}{' '}
+            {t(
+              'عنصر في التحديث المقبول. يمكنك مراجعة الكتالوج أدناه.',
+              'items in the accepted update. Review your catalog below.',
+            )}
+          </p>
+          <ImportSummary counts={appliedSummary} />
+          {onApplied && editing && (
+            <button
+              type="button"
+              className="btn primary"
+              disabled={busy}
+              onClick={() => onApplied(editing.id)}
+            >
+              {t('استخدام المصدر في البوت', 'Use source in bot')}
+            </button>
+          )}
+          <button className="btn" onClick={() => setStep(0)}>
+            {t('إدارة هذا المصدر', 'Manage this source')}
+          </button>
+          <button className="btn" onClick={() => select(null)}>
+            {t('استيراد ملف آخر', 'Import another file')}
+          </button>
+        </section>
+      )}
+      {editing && (step === 0 || step === 4) && (
         <>
           <div className="form-actions">
             <label>
@@ -816,11 +924,13 @@ export default function DataSourcesPanel({
               {t('القسم', 'Category')}
               <select value={category} onChange={(e) => setCategory(e.target.value)}>
                 <option value="">{t('كل الأقسام', 'All categories')}</option>
-                {categories.map((c) => (
-                  <option key={c.name} value={c.name}>
-                    {c.name} ({c.count})
-                  </option>
-                ))}
+                {categories
+                  .filter((c) => c.name.trim())
+                  .map((c) => (
+                    <option key={c.name} value={c.name}>
+                      {c.name} ({c.count})
+                    </option>
+                  ))}
               </select>
             </label>
             <button className="btn" disabled={busy} onClick={() => void act(() => browse(0))}>
@@ -830,7 +940,7 @@ export default function DataSourcesPanel({
           {items.map((p, i) => (
             <article className="card" key={i}>
               <strong>{p.name}</strong>
-              <p>{p.category_path}</p>
+              <p>{p.category_path || t('دون قسم', 'Uncategorized')}</p>
               <p>{p.description}</p>
               {p.dynamic_fields?.map((f) => (
                 <p key={f.label}>
@@ -864,13 +974,16 @@ export default function DataSourcesPanel({
             <details>
               <DisclosureSummary>{t('سجل المزامنة', 'Sync history')}</DisclosureSummary>
               {runs.map((r, i) => (
-                <p key={i}>
+                <section key={i}>
+                <p>
                   {new Date(r.created_at).toLocaleString(language)} —{' '}
                   {r.status === 'success' ? t('نجاح', 'Success') : t('فشل', 'Failed')} —{' '}
                   {r.item_count}{' '}
                   {r.error &&
                     t('النسخة السليمة السابقة محفوظة', 'Last successful version retained')}
                 </p>
+                <ImportSummary counts={r.summary} />
+                </section>
               ))}
             </details>
           )}

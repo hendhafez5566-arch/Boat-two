@@ -1,0 +1,2 @@
+PASS: 31 node icons and 4 analytics icons render independently of text fonts without focus targets
+PASS: selected adjacent and unrelated nodes preserve measured connection color and opacity

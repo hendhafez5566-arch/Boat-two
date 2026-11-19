@@ -1,4 +1,5 @@
 'use client';
+import { catchUpMessages } from '../../../lib/inbox-catchup';
 import { InboxConversationMenu } from '../../../components/inbox/InboxConversationMenu';
 import { InboxFilters, EMPTY_INBOX_FILTERS } from '../../../components/inbox/InboxFilters';
 import { InboxFollowupDialog } from '../../../components/inbox/InboxFollowupDialog';
@@ -7,7 +8,7 @@ import { InboxCustomerPanel } from '../../../components/inbox/InboxCustomerPanel
 import styles from './inbox.module.css';
 import { useChannelContext } from '../../../components/product/useChannelContext';
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ConversationDrafts, sameConversationDraft } from '../../../lib/conversation-drafts';
 import { useLocale } from '../../../components/product/locale';
@@ -66,17 +67,34 @@ export default function Inbox() {
   const [showContext, setShowContext] = useState(false);
   const [followupOpen, setFollowupOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<'name' | 'email' | null>(null);
+  const [notesVersion, setNotesVersion] = useState(0);
   const [profileRefresh, setProfileRefresh] = useState(0);
-  const [actionsOpen, setActionsOpen] = useState(true);
+  const [actionsOpen, setActionsOpen] = useState(false);
   const [tab, setTab] = useState<Tab>('active');
   useEffect(() => {
     const routeParams = new URLSearchParams(window.location.search);
     setNeedsReply(routeParams.get('needsReply') === 'true');
     if (routeParams.get('assignee'))
       setFilters((f) => ({ ...f, assignee: routeParams.get('assignee') || '' }));
-    const key = routeParams.get('tab');
-    if (key && key in TAB_QUERY) setTab(key as Tab);
+    const restoreTab = () => {
+      const value = new URLSearchParams(window.location.search).get('tab');
+      setTab(
+        value && Object.prototype.hasOwnProperty.call(TAB_QUERY, value) ? (value as Tab) : 'active',
+      );
+    };
+    restoreTab();
+    window.addEventListener('popstate', restoreTab);
+    return () => window.removeEventListener('popstate', restoreTab);
   }, []);
+  function selectTab(next: Tab) {
+    const url = new URL(window.location.href);
+    if (next === 'active') url.searchParams.delete('tab');
+    else url.searchParams.set('tab', next);
+    if (url.href !== window.location.href) {
+      window.history.pushState(window.history.state, '', url);
+    }
+    setTab(next);
+  }
   const [q, setQ] = useState('');
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState(EMPTY_INBOX_FILTERS);
@@ -295,7 +313,7 @@ export default function Inbox() {
       const id = selRef.current;
       if (id) {
         const last = msgsRef.current.reduce((n, x) => Math.max(n, Number(x.seq) || 0), 0);
-        api<any>(`/conversations/${id}/messages?afterSeq=${last}&limit=200`)
+        catchUpMessages<any>(last, after => api(`/conversations/${id}/messages?afterSeq=${after}&limit=200`)).then(items => ({ items }))
           .then((r) => {
             if (selRef.current === id)
               setMsgs((cur) => [
@@ -358,6 +376,7 @@ export default function Inbox() {
     if (e.type === 'message') {
       const m = e.message;
       if (e.conversationId === cur) {
+        if (m.isInternal && m.type === 'note') setNotesVersion((value) => value + 1);
         setMsgs((list) =>
           list.some((x) => x.id === m.id)
             ? list
@@ -387,6 +406,12 @@ export default function Inbox() {
         });
       }
       refreshSoon();
+    } else if (e.type === 'note_changed' && e.conversationId === cur) {
+      if (e.source === 'contact') setProfileRefresh((value) => value + 1);
+      else {
+        setNotesVersion((value) => value + 1);
+        updateThreadNote(e.noteId, e.text);
+      }
     } else if (e.type === 'message_status') {
       if (e.conversationId === cur)
         setMsgs((list) =>
@@ -403,7 +428,7 @@ export default function Inbox() {
           })
           .catch(() => {});
         const last = msgsRef.current.reduce((n, x) => Math.max(n, Number(x.seq) || 0), 0);
-        api<any>(`/conversations/${cur}/messages?afterSeq=${last}`)
+        catchUpMessages<any>(last, after => api(`/conversations/${cur}/messages?afterSeq=${after}&limit=200`)).then(items => ({ items }))
           .then((r) => {
             if (selRef.current === cur)
               setMsgs((list) => [
@@ -475,9 +500,9 @@ export default function Inbox() {
       return;
     const sendingId = selId;
     const sentDraft = { ...composerState.current };
-    const t = text.trim();
+    const draftText = text.trim();
     // Internal notes require non-empty text, even when a reply attachment was selected earlier.
-    if (!t && (internal || !attach)) return;
+    if (!draftText && (internal || !attach)) return;
     sendLock.current = true;
     setBusy(true);
     setError('');
@@ -485,7 +510,7 @@ export default function Inbox() {
       if (internal)
         await api(`/conversations/${selId}/notes`, {
           method: 'POST',
-          body: JSON.stringify({ text: t }),
+          body: JSON.stringify({ text: draftText }),
         });
       else if (attach)
         await api(`/conversations/${selId}/messages`, {
@@ -495,14 +520,14 @@ export default function Inbox() {
               kind: attach.kind,
               url: attach.url,
               filename: attach.filename,
-              ...(t ? { caption: t } : {}),
+              ...(draftText ? { caption: draftText } : {}),
             },
           }),
         });
       else
         await api(`/conversations/${selId}/messages`, {
           method: 'POST',
-          body: JSON.stringify({ text: t }),
+          body: JSON.stringify({ text: draftText }),
         });
       drafts.current.clearSent(sendingId, sentDraft);
       if (selRef.current === sendingId && sameConversationDraft(composerState.current, sentDraft)) {
@@ -510,7 +535,7 @@ export default function Inbox() {
         setAttach(null);
       }
     } catch (e: any) {
-      if (selRef.current === sendingId) setError(e.details?.message ?? e.message);
+      if (selRef.current === sendingId) setError(e.details?.code === 'CONVERSATION_OWNED' ? t('المحادثة مسندة لموظف آخر. اطلب إعادة توزيعها قبل الرد.', 'This conversation belongs to another teammate. Request reassignment before replying.') : e.details?.message ?? e.message);
     } finally {
       sendLock.current = false;
       setBusy(false);
@@ -521,8 +546,9 @@ export default function Inbox() {
     detail?.channel_type === 'whatsapp' &&
     (!detail?.whatsapp_window_expires_at ||
       new Date(detail.whatsapp_window_expires_at) <= new Date());
+  const replyUnavailable = windowExpired || Boolean(detail?.blocked);
   const suggestions =
-    text.startsWith('/') && !internal
+    text.startsWith('/') && !internal && !replyUnavailable
       ? canned
           .filter(
             (c) =>
@@ -534,13 +560,21 @@ export default function Inbox() {
     setText(c.content.replace(/\{\{\s*(contact\.)?name\s*\}\}/g, detail?.contact_name ?? ''));
   const title = (c: any) => c.contact_name || c.contact_phone || t('زائر', 'Visitor');
 
+  function updateThreadNote(id: string, text?: string) {
+    setMsgs((list) =>
+      text === undefined
+        ? list.filter((note) => note.id !== id)
+        : list.map((note) =>
+            note.id === id ? { ...note, content: { ...note.content, text } } : note,
+          ),
+    );
+  }
+
   const customerPanel = detail && selId && (
     <InboxCustomerPanel
       key={detail.id}
       detail={detail}
-      notes={msgs.filter(
-        (m) => (m.is_internal ?? m.isInternal) && (m.sender_type ?? m.senderType) !== 'system',
-      )}
+      notesVersion={notesVersion}
       team={team}
       acting={acting}
       canManage={workspaceRole !== 'agent'}
@@ -548,9 +582,13 @@ export default function Inbox() {
       refreshToken={profileRefresh}
       onFollowup={() => setFollowupOpen(true)}
       onEditEmail={() => setEditingContact('email')}
-      onNote={() => {
-        setInternal(true);
-        setShowContext(false);
+      onNoteChanged={(source, id, text) => {
+        if (selRef.current !== detail.id) return;
+        if (source === 'contact') setProfileRefresh((value) => value + 1);
+        else {
+          setNotesVersion((value) => value + 1);
+          if (id) updateThreadNote(id, text);
+        }
       }}
       onRefresh={async () => {
         const id = selRef.current;
@@ -564,7 +602,7 @@ export default function Inbox() {
   );
 
   return (
-    <div className={`premium-inbox ${styles.inbox}`}>
+    <div className={`premium-inbox ${styles.inbox} ${selId ? styles.threadActive : ''}`}>
       <nav className={styles.rail} aria-label={t('تصفية المحادثات', 'Filter conversations')}>
         <button
           type="button"
@@ -600,7 +638,7 @@ export default function Inbox() {
                 aria-pressed={tab === key}
                 aria-label={label}
                 title={`${label}${typeof counts[definition[2]] === 'number' ? ` (${counts[definition[2]]})` : ''}`}
-                onClick={() => setTab(key)}
+                onClick={() => selectTab(key)}
               >
                 <NavIcon
                   name={
@@ -638,8 +676,9 @@ export default function Inbox() {
         <div className="flex min-h-0 flex-1">
           {/* ---------- القائمة ---------- */}
           <aside
-            className={`${selId ? 'hidden md:flex' : 'flex'} inbox-list w-full flex-col border-l bg-white md:w-80`}
+            className={`${selId ? 'hidden lg:flex' : 'flex'} inbox-list w-full flex-col border-l bg-white lg:w-80`}
           >
+            <h1 className={styles.listTitle}>{t('المحادثات', 'Conversations')}</h1>
             {needsReply && (
               <button className="btn" onClick={() => setNeedsReply(false)}>
                 <NavIcon name="filter" />
@@ -821,7 +860,7 @@ export default function Inbox() {
                           setSearch('');
                           setFilters(EMPTY_INBOX_FILTERS);
                           setChannelId('');
-                          setTab('active');
+                          selectTab('active');
                         }}
                       >
                         {t('مسح البحث والفلاتر', 'Clear search and filters')}
@@ -832,7 +871,7 @@ export default function Inbox() {
                           onClick={() => {
                             setQ('');
                             setChannelId('');
-                            setTab('closed');
+                            selectTab('closed');
                           }}
                         >
                           {t('عرض المحادثات المغلقة', 'View closed conversations')}
@@ -865,7 +904,7 @@ export default function Inbox() {
           </aside>
 
           {/* ---------- الخيط ---------- */}
-          <section className={`${selId ? 'flex' : 'hidden md:flex'} min-w-0 flex-1 flex-col`}>
+          <section className={`${selId ? 'flex' : 'hidden lg:flex'} min-w-0 flex-1 flex-col`}>
             {detailLoading ? (
               <div className={styles.empty} role="status">
                 {t('جارٍ تحميل المحادثة…', 'Loading conversation…')}
@@ -941,8 +980,10 @@ export default function Inbox() {
                     </button>
                     <button
                       type="button"
+                      className={styles.threadActionTrigger}
                       aria-label={t('إجراءات المحادثة', 'Chat actions')}
-                      aria-expanded={actionsOpen}
+                      title={t('فتح إجراءات المحادثة وبيانات العميل', 'Open chat actions and customer details')}
+                      aria-expanded={actionsOpen || showContext}
                       onClick={() => {
                         if (window.matchMedia('(min-width: 1024px)').matches)
                           setActionsOpen((value) => !value);
@@ -950,6 +991,7 @@ export default function Inbox() {
                       }}
                     >
                       <NavIcon name="moreVertical" />
+                      <span aria-hidden="true" className={styles.actionLabel}>{t('إجراءات', 'Actions')}</span>
                     </button>
                     <button
                       type="button"
@@ -1040,9 +1082,28 @@ export default function Inbox() {
                           .toLocaleLowerCase()
                           .includes(messageSearch.trim().toLocaleLowerCase()),
                     )
-                    .map((m) => (
-                      <MessageBubble key={m.id} m={m} conversationId={selId} name={nameOf} />
-                    ))}
+                    .map((m, index, visibleMessages) => {
+                      const created = new Date(m.created_at ?? m.createdAt);
+                      const previous = index > 0
+                        ? new Date(visibleMessages[index - 1].created_at ?? visibleMessages[index - 1].createdAt)
+                        : null;
+                      const startsDay = !previous || created.toDateString() !== previous.toDateString();
+                      return (
+                        <Fragment key={m.id}>
+                          {startsDay && (
+                            <div className="msg-day-separator" role="separator">
+                              {created.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', {
+                                weekday: 'short',
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </div>
+                          )}
+                          <MessageBubble m={m} conversationId={selId} name={nameOf} />
+                        </Fragment>
+                      );
+                    })}
                   <div ref={bottom} />
                 </div>
 
@@ -1082,13 +1143,23 @@ export default function Inbox() {
                       {error}
                     </p>
                   )}
-                  {windowExpired && !internal && (
-                    <p className="mb-1 rounded bg-amber-50 p-2 text-xs text-amber-800">
-                      {t(
-                        'انتهت نافذة واتساب. الرد الحر معطّل؛ يمكنك كتابة ملاحظة داخلية أو استخدام قالب معتمد من مسار الحملات.',
-                        'The WhatsApp window has expired. Free-form replies are disabled; add an internal note or use an approved template through campaigns.',
-                      )}
-                    </p>
+                  {replyUnavailable && !internal && (
+                    <div className="mb-1 rounded bg-amber-50 p-2 text-xs text-amber-800">
+                      <p role="status">
+                        {detail.blocked
+                          ? t(
+                              'المحادثة محظورة. يمكنك إضافة ملاحظة داخلية.',
+                              'This conversation is blocked. You can add an internal note.',
+                            )
+                          : t(
+                              'انتهت نافذة واتساب. الرد الحر معطّل؛ يمكنك كتابة ملاحظة داخلية أو استخدام قالب معتمد من مسار الحملات.',
+                              'The WhatsApp window has expired. Free-form replies are disabled; add an internal note or use an approved template through campaigns.',
+                            )}
+                      </p>
+                      <button type="button" className="btn mt-2" onClick={() => setInternal(true)}>
+                        {t('إضافة ملاحظة داخلية', 'Add internal note')}
+                      </button>
+                    </div>
                   )}
                   {detail.handled_by === 'bot' && !internal && (
                     <p className="sr-only" id="inbox-takeover-hint">
@@ -1126,7 +1197,7 @@ export default function Inbox() {
                       </button>
                     </div>
                   )}
-                  <div className="composer-row">
+                  <div className="composer-row" hidden={replyUnavailable && !internal}>
                     <textarea
                       ref={composerInput}
                       aria-label={t('محرر الرد', 'Reply composer')}
@@ -1288,13 +1359,15 @@ export default function Inbox() {
           )}
           {/* ---------- تفاصيل العميل ---------- */}
           <div className="hidden lg:contents">{actionsOpen && !showContext && customerPanel}</div>
-          <Dialog
-            open={showContext && !!detail}
-            onClose={() => setShowContext(false)}
-            title={t('ملف العميل', 'Customer profile')}
-          >
-            {customerPanel}
-          </Dialog>
+          {showContext && !!detail && (
+            <Dialog
+              open={true}
+              onClose={() => setShowContext(false)}
+              title={t('ملف العميل', 'Customer profile')}
+            >
+              {customerPanel}
+            </Dialog>
+          )}
         </div>
       </div>
     </div>

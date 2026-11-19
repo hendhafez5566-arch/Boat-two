@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { isValidRegexPattern } from './bounded-regex';
 import { nodeSchema } from '../flow-schemas';
 import { isValidTimezone } from './hours';
 import { parseSheetUrl } from './sheet';
+import { normalizeDigits } from './text';
 import { FlowGraph, handlesFor, optionsOf } from './types';
 
 export interface Issue {
@@ -25,6 +27,16 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
   for (const n of graph.nodes) {
     const d = n.data ?? {};
     const handles = new Set(handlesFor(n));
+    // Static URLs must be usable before publication. Interpolated values are checked
+    // again by the outbound/HTTP boundary after expansion during actual execution.
+    const urls = [d.media?.url,d.header?.type==='image'?d.header.url:undefined,
+      ['image','audio','video','file','cta_url','http_request'].includes(n.type)?d.url:undefined,
+      n.type==='cta_url'?d.imageUrl:undefined,n.type==='template'?d.header?.url:undefined];
+    for(const value of urls){
+      if(typeof value!=='string'||!value.trim()||value.includes('{{'))continue;
+      try{const url=new URL(value);if(!['http:','https:'].includes(url.protocol)||url.username||url.password)throw new Error();}
+      catch{errors.push({nodeId:n.id,message:'URL must use HTTP/HTTPS without embedded credentials'});}
+    }
 
     for (const [h, target] of Object.entries(n.edges ?? {})) {
       if (!handles.has(h)) errors.push({ nodeId: n.id, message: `Unknown output "${h}"` });
@@ -94,19 +106,27 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
           errors.push({ nodeId: n.id, message: 'saveAs must be a valid variable name' });
         if (d.answerType === 'regex' && !d.pattern)
           errors.push({ nodeId: n.id, message: 'Regex pattern is required' });
+        else if (d.answerType === 'regex' && !isValidRegexPattern(String(d.pattern)))
+          errors.push({ nodeId: n.id, message: 'Regex pattern is invalid' });
         break;
       case 'location':
         if (!d.lat || !d.lng)
           errors.push({ nodeId: n.id, message: 'Latitude and longitude are required' });
+        for(const [key,max] of [['lat',90],['lng',180]] as const){
+          const value=String(d[key]??'').trim();
+          if(value&&!value.includes('{{')&&(!Number.isFinite(Number(normalizeDigits(value)))||Math.abs(Number(normalizeDigits(value)))>max))
+            errors.push({nodeId:n.id,message:'Location coordinates are outside their valid range'});
+        }
         break;
       case 'cta_url':
         if (!d.text) errors.push({ nodeId: n.id, message: 'CTA message text is required' });
         if (!d.buttonText) errors.push({ nodeId: n.id, message: 'Button label is required' });
-        if (!/^https?:\/\//i.test(d.url ?? '') && !String(d.url ?? '').includes('{{'))
+        if (!String(d.url ?? '').trim())
           errors.push({ nodeId: n.id, message: 'URL must start with http:// or https://' });
         break;
       case 'sequence':
         if (!d.sequenceId) errors.push({ nodeId: n.id, message: 'Choose a sequence' });
+        if (!n.edges?.error) warnings.push({ nodeId: n.id, message: 'Connect the sequence error output to handle unavailable enrollment' });
         break;
       case 'template':
         if (!/^[a-z0-9_]{1,512}$/.test(d.name ?? ''))
@@ -115,13 +135,18 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
       case 'condition':
         if (!(d.rules ?? []).length)
           errors.push({ nodeId: n.id, message: 'Add at least one rule' });
+        for (const rule of d.rules ?? []) for (const condition of rule.conditions ?? []) {
+          const pattern = String(condition.value ?? '');
+          if (condition.operator === 'matches_regex' && !pattern.includes('{{') && !isValidRegexPattern(pattern))
+            errors.push({ nodeId: n.id, message: 'Condition regex pattern is invalid' });
+        }
         break;
       case 'delay':
         if (!(Number(d.amount) > 0))
           errors.push({ nodeId: n.id, message: 'Delay amount must be positive' });
         break;
       case 'http_request':
-        if (!/^https?:\/\//i.test(d.url ?? '') && !String(d.url ?? '').includes('{{'))
+        if (!String(d.url ?? '').trim())
           errors.push({ nodeId: n.id, message: 'URL must start with http:// or https://' });
         break;
       case 'sheet_fetch':

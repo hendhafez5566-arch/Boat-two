@@ -38,7 +38,17 @@ export function sniffMatches(mime: string, buf: Buffer): boolean {
     case 'image/gif': return starts(0x47, 0x49, 0x46, 0x38);
     case 'image/webp': return buf.length > 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP';
     case 'application/pdf': return buf.toString('ascii', 0, 5) === '%PDF-';
-    default: return true;
+    case 'audio/mpeg': return starts(0x49,0x44,0x33) || (buf.length>1 && buf[0]===0xff && (buf[1]&0xe0)===0xe0 && (buf[1]&0x06)!==0);
+    case 'audio/ogg': return buf.toString('ascii',0,4)==='OggS';
+    case 'audio/aac': return buf.length>1 && buf[0]===0xff && (buf[1]&0xf6)===0xf0;
+    case 'video/mp4':
+    case 'audio/mp4': return buf.length>=12 && buf.toString('ascii',4,8)==='ftyp';
+    case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+    case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': return starts(0x50,0x4b,0x03,0x04);
+    case 'text/plain':
+    case 'text/csv':
+      try { const text=new TextDecoder('utf-8',{fatal:true}).decode(buf);return !/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(text); } catch { return false; }
+    default: return false;
   }
 }
 

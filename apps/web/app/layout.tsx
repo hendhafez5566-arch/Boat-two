@@ -15,7 +15,7 @@ export const viewport: Viewport = { width: 'device-width', initialScale: 1, view
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   let brand: PublicBrand | null = null;
-  const host = headers().get('x-boat-custom-host');
+  const host = (await headers()).get('x-boat-custom-host');
   if (host && process.env.CUSTOM_DOMAINS_ENABLED === 'true') {
     const response = await fetch(
       (process.env.INTERNAL_API_URL ?? 'http://localhost:4000') +

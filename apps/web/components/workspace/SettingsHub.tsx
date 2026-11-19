@@ -1,4 +1,6 @@
 'use client';
+import Link from 'next/link';
+import {api} from '../../lib/api';
 import { useEffect, useState } from 'react';
 import { useLocale } from '../product/locale';
 import { NavIcon } from '../product/NavIcon';
@@ -10,9 +12,11 @@ import { AccountWorkspaceContext } from '../product/AccountWorkspaceContext';
 import styles from './settings-hub.module.css';
 export default function SettingsHub() {
   const { t } = useLocale();
+  const [canManageFiles,setCanManageFiles]=useState(false);
   const [tab, setTab] = useState('security');
   const [security, setSecurity] = useState('devices');
   useEffect(() => {
+    void api<{role:string}>('/workspace').then(w=>setCanManageFiles(['owner','admin'].includes(w.role))).catch(()=>{});
     const read = () => {
       const query = new URLSearchParams(window.location.search);
       const value = query.get('tab') || query.get('action');
@@ -47,6 +51,7 @@ export default function SettingsHub() {
       <header className={styles.heading}>
         <h1>{t('الإعدادات والتكاملات', 'Settings & Integration')}</h1>
         <p>{t('الإعدادات وتكاملات API', 'Settings and API Integration')}</p>
+        {canManageFiles&&<Link className="btn" href="/dashboard/settings/attachments">{t('إدارة المرفقات','Attachment management')}</Link>}
       </header>
       <div className={styles.layout}>
         <nav

@@ -3,12 +3,16 @@
 @tailwind utilities;
 
 :root {
-  --ink: #172b3c;
-  --muted: #64748b;
+  /* Fallback values match design-system.css; tenant branding still controls --primary. */
+  --ink: #1f2d3d;
+  --muted: #5f7285;
   --primary: #0f766e;
-  --line: #e2e8ee;
-  --surface: #fff;
-  --canvas: #f4f7fa;
+  --line: #dfe7f0;
+  --line-strong: #cfd9e5;
+  --surface: #ffffff;
+  --surface-muted: #f3f6fa;
+  --surface-soft: #eef3f8;
+  --canvas: #f7fafc;
 }
 * {
   box-sizing: border-box;

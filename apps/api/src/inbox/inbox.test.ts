@@ -60,7 +60,7 @@ test('storage: names, kinds, sniffing, download names', () => {
   assert.equal(sniffMatches('application/pdf', Buffer.from('%PDF-1.7')), true);
   assert.equal(sniffMatches('application/pdf', Buffer.from('MZ....')), false);
   assert.equal(sniffMatches('image/webp', Buffer.from('RIFF1234WEBPxxxx')), true);
-  assert.equal(sniffMatches('audio/mpeg', Buffer.from('anything')), true);
+  assert.equal(sniffMatches('audio/mpeg', Buffer.from('anything')), false);
 
   const dn = safeDownloadName('../../x"y\n.pdf');
   assert.equal(dn, '_.._x_y_.pdf');

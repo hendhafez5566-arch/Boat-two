@@ -296,6 +296,8 @@ export function handlesFor(node: Pick<FlowNode, 'type' | 'data'>): string[] {
       return ['ok', 'fail'];
     case 'condition':
       return [...(d.rules ?? []).map((r: { id: string }) => `rule:${r.id}`), 'else'];
+    case 'sequence':
+      return ['next', 'error'];
     case 'http_request':
       return ['success', 'error'];
     case 'sheet_fetch':

@@ -19,7 +19,7 @@ const entry = z
 export const systemActionsSchema = z
   .object({
     revision: z.number().int().min(0).default(0),
-    actions: z.record(z.enum(SYSTEM_ACTION_KEYS), entry).default({}),
+    actions: z.partialRecord(z.enum(SYSTEM_ACTION_KEYS), entry).default({}),
   })
   .superRefine((config, ctx) => {
     const seen = new Set<string>();

@@ -1,4 +1,5 @@
 'use client';
+import {ExternalDeliveryNotice} from '../../../components/product/ExternalDeliveryNotice';
 import Link from 'next/link';
 import { useLocale } from '../../../components/product/locale';
 import { NavIcon } from '../../../components/product/NavIcon';
@@ -8,12 +9,13 @@ export default function Page() {
   const { t } = useLocale();
   return (
     <main className={styles.page}>
+      <ExternalDeliveryNotice publishing />
       <header className={styles.heading}>
         <h1>{t('النشر على Facebook وInstagram', 'Facebook & Instagram Poster')}</h1>
         <p>
           {t(
-            'جدول وشارك محتواك بسهولة عبر Facebook وInstagram',
-            'Effortlessly Schedule and Share Your Content Across Facebook and Instagram',
+            'جهّز محتواك ومسوداتك، واربط الحسابات المصرح بها قبل النشر.',
+            'Prepare content and drafts, and connect authorized accounts before publishing.',
           )}
         </p>
       </header>
@@ -27,7 +29,7 @@ export default function Page() {
               </span>
               <h2>{t(f.ar, f.en)}</h2>
               <p>{t(f.descriptionAr, f.descriptionEn)}</p>
-              <strong>{t('فتح', 'Open')} ›</strong>
+              <strong>{t('فتح', 'Open')} <span className={styles.cardArrow}><NavIcon name="chevron" /></span></strong>
             </Link>
           );
         })}

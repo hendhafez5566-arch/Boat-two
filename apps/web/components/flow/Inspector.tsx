@@ -1,4 +1,6 @@
 'use client';
+import ProductPicker from './ProductPicker';
+import type { CatalogProduct } from '../workspace/ProductCatalog';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import DynamicCatalogSettings from './DynamicCatalogSettings';
 import configStyles from './automation-config.module.css';
@@ -12,7 +14,8 @@ import { STEP_GUIDANCE } from '../../lib/step-guidance';
 import { ConfigDisclosure, ConfigSummary } from './ConfigDisclosure';
 import MessageEditor, { EditorSection, ChatBubble } from './MessageEditor';
 import ButtonActionsEditor from './ButtonActionsEditor';
-import UserInputPreview, { UIQuestion } from './UserInputPreview';
+import type { UIQuestion } from './UserInputPreview';
+import userInputStyles from './user-input-settings.module.css';
 import ConditionModal, {
   CondGroup,
   LabelOption,
@@ -75,20 +78,25 @@ const In = ({
   on,
   ph,
   dir,
+  maxLength,
+  ariaLabel,
 }: {
   v?: string | number;
   on: (s: string) => void;
   ph?: string;
   dir?: string;
+  maxLength?: number;
+  ariaLabel?: string;
 }) => {
   const { language, t } = useLocale();
   const field = useContext(FieldContext);
   return (
     <input
-      aria-label={ph ? editorLabel(ph, language) : field.label || t('القيمة', 'Value')}
+      aria-label={ariaLabel ?? (ph ? editorLabel(ph, language) : field.label || t('القيمة', 'Value'))}
       aria-describedby={field.description}
       className={inp}
       value={v ?? ''}
+      maxLength={maxLength}
       placeholder={ph ? editorLabel(ph, language) : undefined}
       dir={dir}
       onChange={(e) => on(e.target.value)}
@@ -128,24 +136,32 @@ const Btn = ({
   on,
   children,
   danger,
+  disabled = false,
+  ariaLabel,
+  confirmMessage,
 }: {
   on: () => void;
   children: ReactNode;
   danger?: boolean;
+  disabled?: boolean;
+  ariaLabel?: string;
+  confirmMessage?: string;
 }) => {
   const { language, t } = useLocale();
   const button = (
     <button
-      aria-label={children === '×' ? t('حذف العنصر', 'Remove item') : undefined}
+      aria-label={ariaLabel ?? (children === '×' ? t('حذف العنصر', 'Remove item') : undefined)}
+      disabled={disabled}
       type="button"
       onClick={() => {
         if (
           !danger ||
           confirm(
-            t(
-              'حذف هذا العنصر ووصلاته إن وجدت؟ يمكنك التراجع.',
-              'Delete this item and any links? You can undo.',
-            ),
+            confirmMessage ??
+              t(
+                'حذف هذا العنصر ووصلاته إن وجدت؟ يمكنك التراجع.',
+                'Delete this item and any links? You can undo.',
+              ),
           )
         )
           on();
@@ -386,15 +402,21 @@ export default function Inspector({
         )
         .catch(() => {});
   }, [type]);
-  const [products, setProducts] = useState<{ id: string; name: string; archived: boolean }[]>([]);
+  const [products, setProducts] = useState<CatalogProduct[]>([]);
+  const [productError, setProductError] = useState('');
+  const [productsLoading, setProductsLoading] = useState(false);
   const [appointmentServices, setAppointmentServices] = useState<
     { id: string; name: string; enabled: boolean }[]
   >([]);
   useEffect(() => {
-    if (['product', 'catalog'].includes(type))
+    if (['product', 'catalog'].includes(type)) {
+      setProductsLoading(true);
+      setProductError('');
       api<typeof products>('/commerce/products')
         .then(setProducts)
-        .catch(() => {});
+        .catch((e) => setProductError((e as Error).message))
+        .finally(() => setProductsLoading(false));
+    }
     if (type === 'appointment')
       api<typeof appointmentServices>('/commerce/services')
         .then(setAppointmentServices)
@@ -455,6 +477,7 @@ export default function Inspector({
   const [activeQuestion, setActiveQuestion] = useState<string | null>(null);
   const [condRule, setCondRule] = useState<number | null>(null);
   const set = (patch: any) => onChange({ ...data, ...patch });
+  const inputQuestions: UIQuestion[] = Array.isArray(data.questions) ? data.questions : [];
   const { language, t } = useLocale();
 
   return (
@@ -462,8 +485,15 @@ export default function Inspector({
       dir={language === 'ar' ? 'rtl' : 'ltr'}
       className={`flow-inspector-content ${configStyles.form}`}
     >
-      {type !== 'message' && type !== 'interactive' && (
-        <p className="smart-step-intro">{t(...STEP_GUIDANCE[type])}</p>
+      {type !== 'message' && type !== 'interactive' && type !== 'user_input' && (
+        <p className="smart-step-intro">
+          {type === 'catalog' && !data.native && !data.sourceId
+            ? t(
+                'اختر منتجاتك المحلية ورتّبها. كتالوج Meta الأصلي له إعداد مستقل.',
+                'Select and order your local products. Native Meta catalogs use a separate setting.',
+              )
+            : t(...STEP_GUIDANCE[type])}
+        </p>
       )}
       {type === 'subflow' && (
         <F label="المكوّن المنشور" hint="تُثبت نسخة المكوّن عند نشر البوت الرئيسي.">
@@ -485,31 +515,22 @@ export default function Inspector({
           {type === 'catalog' && <DynamicCatalogSettings data={data} set={set} />}
           {!data.sourceId && (
             <>
-              <label>
-                {t('اختر المنتج أو صفوف القسم', 'Choose product or section rows')}
-                <select
-                  multiple={type === 'catalog'}
-                  value={type === 'catalog' ? (data.productIds ?? []) : (data.productId ?? '')}
-                  onChange={(e) =>
-                    set(
-                      type === 'catalog'
-                        ? { productIds: Array.from(e.target.selectedOptions).map((o) => o.value) }
-                        : { productId: e.target.value },
-                    )
-                  }
-                >
-                  <option value="" disabled>
-                    {t('اختر', 'Choose')}
-                  </option>
-                  {products
-                    .filter((p) => !p.archived)
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                </select>
-              </label>
+              <ProductPicker
+                products={products}
+                loading={productsLoading}
+                error={productError}
+                multiple={type === 'catalog'}
+                selected={
+                  type === 'catalog'
+                    ? (data.productIds ?? [])
+                    : data.productId
+                      ? [data.productId]
+                      : []
+                }
+                onChange={(ids) =>
+                  set(type === 'catalog' ? { productIds: ids } : { productId: ids[0] ?? '' })
+                }
+              />
               {type === 'catalog' && (
                 <>
                   <label>
@@ -573,6 +594,7 @@ export default function Inspector({
           <label>
             {t('الخدمة', 'Service')}
             <select
+              aria-label={t('الخدمة', 'Service')}
               value={data.serviceId ?? ''}
               onChange={(e) => set({ serviceId: e.target.value })}
             >
@@ -677,8 +699,8 @@ export default function Inspector({
           <F
             label={t('التسلسل', 'Sequence')}
             hint={t(
-              'يُضاف العميل فقط لو وافق على الرسائل التسويقية، وإلا يكمل الـ flow بدون إضافة.',
-              'The contact is added only if opted in to marketing; otherwise the flow continues.',
+              'يتطلب قناة واتساب أو ماسنجر أو إنستجرام مرتبطة بالعميل. تُفحص الموافقة التسويقية قبل الإرسال. وصّل مخرج الخطأ برسالة بديلة أو تحويل لموظف إذا تعذر الاشتراك.',
+              'Requires a WhatsApp, Messenger or Instagram identity linked to the contact. Marketing consent is checked before delivery. Connect the error output to a fallback message or handoff if enrollment fails.',
             )}
           >
             <Sel
@@ -1222,7 +1244,7 @@ export default function Inspector({
                 'Direct https link. Variables are allowed.',
               )}
             >
-              <In v={data.url} on={(url) => set({ url })} ph="https://…" dir="ltr" />
+              <In v={data.url} on={(url) => set({ url })} ph="https://…" dir="ltr" ariaLabel={t('رابط الملف', 'Media URL')} />
             </F>
             {type !== 'audio' && (
               <F label={t('تعليق', 'Caption')}>
@@ -1246,266 +1268,313 @@ export default function Inspector({
         )}
 
         {type === 'user_input' && (
-          <>
+          <div className={userInputStyles.root}>
             <F label={t('اسم الحملة', 'Campaign name')}>
               <In v={data.name} on={(name) => set({ name })} />
             </F>
-            {(data.questions as UIQuestion[]).map((q, qi, all) => {
-              const upq = (patch: Partial<UIQuestion>) =>
-                set({ questions: all.map((x, k) => (k === qi ? { ...x, ...patch } : x)) });
-              return (
-                <div key={q.id} className="mb-3 rounded border p-2">
-                  <button
-                    type="button"
-                    className="smart-question-heading"
-                    aria-expanded={(activeQuestion ?? all[0]?.id) === q.id}
-                    onClick={() => setActiveQuestion(q.id)}
-                  >
-                    {qi + 1}. {q.text || t('سؤال جديد', 'New question')}
-                  </button>
-                  {(activeQuestion ?? all[0]?.id) === q.id && (
-                    <>
-                      <div className="mb-1 flex items-center justify-between text-xs">
-                        <strong>
-                          {t('سؤال', 'Question')} {qi + 1}
-                        </strong>
-                        <span className="flex gap-1">
-                          <Btn
-                            on={() =>
-                              qi > 0 &&
-                              set({
-                                questions: all.map((x, k) =>
-                                  k === qi - 1 ? all[qi] : k === qi ? all[qi - 1] : x,
-                                ),
-                              })
-                            }
-                          >
-                            ↑
-                          </Btn>
-                          <Btn
-                            on={() =>
-                              qi < all.length - 1 &&
-                              set({
-                                questions: all.map((x, k) =>
-                                  k === qi + 1 ? all[qi] : k === qi ? all[qi + 1] : x,
-                                ),
-                              })
-                            }
-                          >
-                            ↓
-                          </Btn>
-                          <Btn
-                            danger
-                            on={() => {
-                              set({ questions: all.filter((_, k) => k !== qi) });
-                              setActiveQuestion(null);
-                            }}
-                          >
-                            ×
-                          </Btn>
-                        </span>
-                      </div>
-                      <F label={t('نص السؤال', 'Question text')}>
-                        <Txt v={q.text} on={(text) => upq({ text })} rows={3} />
-                      </F>
-                      <ChatBubble
-                        text={q.text}
-                        choices={
-                          q.kind === 'choice' ? (q.options ?? []).map((o) => o.title) : undefined
+            <div className={userInputStyles.questionList}>
+              <h3>{t('الأسئلة', 'Questions')}</h3>
+              {inputQuestions.map((q, qi, all) => {
+                const upq = (patch: Partial<UIQuestion>) =>
+                  set({ questions: all.map((x, k) => (k === qi ? { ...x, ...patch } : x)) });
+                return (
+                  <section key={q.id} className={userInputStyles.question}>
+                    <div className={userInputStyles.questionHead}>
+                      <button
+                        type="button"
+                        className={userInputStyles.questionTitle}
+                        aria-expanded={(activeQuestion ?? all[0]?.id) === q.id}
+                        onClick={() =>
+                          setActiveQuestion((activeQuestion ?? all[0]?.id) === q.id ? null : q.id)
                         }
-                        list={(q.options ?? []).length > 3}
-                      />
-                      <p className="qa-label">{t('نوع الإجابة', 'Answer type')}</p>
-                      <AnswerTypeSelector
-                        t={t}
-                        value={q.kind}
-                        kinds={[
-                          ['text', 'نص', 'Text'],
-                          ['number', 'رقم', 'Number'],
-                          ['phone', 'هاتف', 'Phone'],
-                          ['email', 'إيميل', 'Email'],
-                          ['url', 'رابط', 'URL'],
-                          ['file', 'ملف', 'File'],
-                          ['image', 'صورة', 'Image'],
-                          ['video', 'فيديو', 'Video'],
-                          ['date', 'تاريخ', 'Date'],
-                          ['time', 'وقت', 'Time'],
-                          ['datetime', 'تاريخ ووقت', 'Datetime'],
-                          ['choice', 'اختيار', 'Choice'],
-                        ]}
-                        onChange={(kind) =>
-                          upq({
-                            kind: kind as UIQuestion['kind'],
-                            options:
-                              kind === 'choice' && !(q.options ?? []).length
-                                ? [
-                                    { id: uid(), title: '' },
-                                    { id: uid(), title: '' },
-                                  ]
-                                : q.options,
-                          })
-                        }
-                      />
-                      <p className="qa-hint">{answerHint(q.kind, t)}</p>
-                      {q.kind === 'choice' && (
-                        <F
-                          label={t('الاختيارات', 'Options')}
-                          hint={t(
-                            'حتى 3 اختيارات تظهر كأزرار، ومن 4 إلى 10 تظهر كقائمة. الحد 24 حرف.',
-                            'Up to 3 show as buttons, 4–10 as a list. Max 24 characters.',
-                          )}
-                        >
-                          {(q.options ?? []).map((o, oi) => (
-                            <div key={o.id} className="mb-1 flex gap-1">
-                              <In
-                                v={o.title}
-                                on={(title) =>
-                                  upq({
-                                    options: (q.options ?? []).map((x, k) =>
-                                      k === oi ? { ...x, title: title.slice(0, 24) } : x,
-                                    ),
-                                  })
-                                }
-                                ph={`${t('اختيار', 'Option')} ${oi + 1}`}
-                              />
-                              <Btn
-                                danger
-                                on={() =>
-                                  upq({ options: (q.options ?? []).filter((_, k) => k !== oi) })
-                                }
-                              >
-                                ×
-                              </Btn>
-                            </div>
-                          ))}
-                          {(q.options ?? []).length < 10 && (
-                            <Btn
-                              on={() =>
-                                upq({ options: [...(q.options ?? []), { id: uid(), title: '' }] })
-                              }
-                            >
-                              {t('+ اختيار', '+ Option')}
-                            </Btn>
-                          )}
-                        </F>
-                      )}
-                      <AnswerDestination
-                        value={q.saveAs}
-                        onChange={(saveAs) => upq({ saveAs })}
-                        variables={variables}
-                      />
-                      <label>
-                        {t(
-                          'وجهة النظام (فارغة للحقل المخصص)',
-                          'System destination (empty for custom field)',
-                        )}
-                        <select
-                          value={q.saveToSystem ?? ''}
-                          onChange={(e) =>
-                            upq({
-                              saveToSystem: (e.target.value || undefined) as
-                                'name' | 'email' | 'phone' | undefined,
+                      >
+                        <span>{t('سؤال جديد', 'New Question')}</span>
+                        <small>{qi + 1}</small>
+                        <strong>{q.text || t('سؤال بلا عنوان', 'Untitled question')}</strong>
+                      </button>
+                      <div className={userInputStyles.reorder}>
+                        <Btn
+                          aria-label={t('نقل السؤال لأعلى', 'Move question up')}
+                          disabled={qi === 0}
+                          on={() =>
+                            qi > 0 &&
+                            set({
+                              questions: all.map((x, k) =>
+                                k === qi - 1 ? all[qi] : k === qi ? all[qi - 1] : x,
+                              ),
                             })
                           }
                         >
-                          <option value="">{t('حقل مخصص', 'Custom field')}</option>
-                          {['name', 'email', 'phone'].map((v) => (
-                            <option key={v} value={v}>
-                              {
-                                (
-                                  {
-                                    name: t('اسم العميل', 'Customer name'),
-                                    email: t('بريد العميل', 'Customer email'),
-                                    phone: t('هاتف العميل', 'Customer phone'),
-                                  } as Record<string, string>
-                                )[v]
-                              }{' '}
-                              ({v})
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      {q.kind !== 'choice' && (
-                        <F
-                          label={t(
-                            'رسالة الخطأ عند إجابة غير صحيحة',
-                            'Error message for an invalid answer',
-                          )}
-                          hint={t(
-                            'لو تُركت فارغة يُعاد السؤال نفسه',
-                            'If empty, the same question is repeated',
-                          )}
+                          ↑
+                        </Btn>
+                        <Btn
+                          aria-label={t('نقل السؤال لأسفل', 'Move question down')}
+                          disabled={qi === all.length - 1}
+                          on={() =>
+                            qi < all.length - 1 &&
+                            set({
+                              questions: all.map((x, k) =>
+                                k === qi + 1 ? all[qi] : k === qi ? all[qi + 1] : x,
+                              ),
+                            })
+                          }
                         >
-                          <In v={q.errorText} on={(errorText) => upq({ errorText })} />
+                          ↓
+                        </Btn>
+                        <Btn
+                          danger
+                          aria-label={t('حذف السؤال', 'Delete question')}
+                          disabled={all.length <= 1}
+                          confirmMessage={t(
+                            'حذف هذا السؤال من التدفق؟',
+                            'Remove this question from the flow?',
+                          )}
+                          on={() => {
+                            const next = all.filter((_, k) => k !== qi);
+                            set({ questions: next });
+                            setActiveQuestion(next[0]?.id ?? null);
+                          }}
+                        >
+                          ×
+                        </Btn>
+                      </div>
+                    </div>
+                    {(activeQuestion ?? all[0]?.id) === q.id && (
+                      <div className={userInputStyles.questionBody}>
+                        <div
+                          className={userInputStyles.typeCards}
+                          role="group"
+                          aria-label={t('نوع السؤال', 'Question type')}
+                        >
+                          <button
+                            type="button"
+                            aria-pressed={q.kind !== 'choice'}
+                            className={q.kind !== 'choice' ? userInputStyles.selectedType : ''}
+                            onClick={() => upq({ kind: 'text' })}
+                          >
+                            <strong>{t('إدخال من لوحة المفاتيح', 'Free keyboard input')}</strong>
+                            <span>{t('يكتب العميل إجابته.', 'The customer types a reply.')}</span>
+                          </button>
+                          <button
+                            type="button"
+                            aria-pressed={q.kind === 'choice'}
+                            className={q.kind === 'choice' ? userInputStyles.selectedType : ''}
+                            onClick={() =>
+                              upq({
+                                kind: 'choice',
+                                options:
+                                  (q.options ?? []).length >= 2
+                                    ? q.options
+                                    : [
+                                        ...(q.options ?? []),
+                                        ...Array.from(
+                                          { length: 2 - (q.options ?? []).length },
+                                          () => ({ id: uid(), title: '' }),
+                                        ),
+                                      ],
+                              })
+                            }
+                          >
+                            <strong>{t('اختيار متعدد', 'Multiple choice')}</strong>
+                            <span>
+                              {t(
+                                'يختار العميل من إجابات محددة.',
+                                'The customer selects a predefined answer.',
+                              )}
+                            </span>
+                          </button>
+                        </div>
+                        <F label={t('نص السؤال', 'Text for question')}>
+                          <MessageEditor
+                            data={{ text: q.text }}
+                            onChange={(next) => upq({ text: next.text ?? '' })}
+                            variables={variables}
+                          />
                         </F>
-                      )}
-                      <ConfigDisclosure className="mt-3">
-                        <ConfigSummary>{t('خيارات متقدمة', 'Advanced options')}</ConfigSummary>
-                        <label>
-                          <input
-                            type="checkbox"
-                            checked={!!q.allowSkip}
-                            onChange={(e) => upq({ allowSkip: e.target.checked })}
-                          />{' '}
-                          {t('السماح بالتخطي', 'Allow skipping')}
-                        </label>
-                        {q.allowSkip && (
-                          <F label={t('نص التخطي', 'Skip label')}>
-                            <In
-                              v={q.skipText || '/skip'}
-                              on={(skipText) =>
-                                upq({ skipText: skipText.slice(0, 20) || undefined })
-                              }
+                        {q.kind !== 'choice' && (
+                          <F label={t('التحقق من الرد', 'Reply Validation')}>
+                            <Sel
+                              v={q.kind}
+                              on={(kind) => upq({ kind: kind as UIQuestion['kind'] })}
+                              opts={[
+                                ['text', t('نص', 'Text')],
+                                ['email', t('بريد إلكتروني', 'Email')],
+                                ['phone', t('هاتف', 'Phone')],
+                                ['number', t('رقم', 'Number')],
+                                ['url', t('رابط', 'URL')],
+                                ['file', t('ملف', 'File')],
+                                ['image', t('صورة', 'Image')],
+                                ['video', t('فيديو', 'Video')],
+                                ['date', t('تاريخ', 'Date')],
+                                ['time', t('وقت', 'Time')],
+                                ['datetime', t('تاريخ ووقت', 'Datetime')],
+                              ]}
                             />
                           </F>
                         )}
-                      </ConfigDisclosure>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-            {data.questions.length < 20 && (
+                        {q.kind === 'choice' && (
+                          <>
+                            <F
+                              label={t(
+                                'عنوان زر الاختيارات (20)',
+                                'Multiple Choice option button label (20)',
+                              )}
+                            >
+                              <In
+                                v={q.buttonText ?? ''}
+                                on={(buttonText) => upq({ buttonText: buttonText.slice(0, 20) })}
+                                ph={t('اختر', 'Choose')}
+                                maxLength={20}
+                              />
+                            </F>
+                            <F
+                              label={t('الإجابات', 'Answer options')}
+                              hint={t(
+                                'حتى 3 اختيارات كأزرار، وحتى 10 كقائمة.',
+                                'Up to 3 replies appear as buttons, up to 10 as a list.',
+                              )}
+                            >
+                              {(q.options ?? []).map((o, oi) => (
+                                <div key={o.id} className={userInputStyles.optionRow}>
+                                  <In
+                                    v={o.title}
+                                    on={(title) =>
+                                      upq({
+                                        options: (q.options ?? []).map((x, k) =>
+                                          k === oi ? { ...x, title: title.slice(0, 20) } : x,
+                                        ),
+                                      })
+                                    }
+                                    ph={`${t('اختيار', 'Option')} ${oi + 1}`}
+                                    maxLength={20}
+                                  />
+                                  <Btn
+                                    danger
+                                    aria-label={`${t('حذف الاختيار', 'Remove option')} ${oi + 1}`}
+                                    disabled={(q.options ?? []).length <= 2}
+                                    on={() =>
+                                      upq({ options: (q.options ?? []).filter((_, k) => k !== oi) })
+                                    }
+                                  >
+                                    ×
+                                  </Btn>
+                                </div>
+                              ))}
+                              {(q.options ?? []).length < 10 && (
+                                <Btn
+                                  on={() =>
+                                    upq({
+                                      options: [...(q.options ?? []), { id: uid(), title: '' }],
+                                    })
+                                  }
+                                >
+                                  {t('إضافة المزيد', 'Add more')}
+                                </Btn>
+                              )}
+                            </F>
+                          </>
+                        )}
+                        <F label={t('حفظ الرد', 'Save Response')}>
+                          <AnswerDestination
+                            value={q.saveAs}
+                            onChange={(saveAs) => upq({ saveAs })}
+                            variables={variables}
+                          />
+                          <label className={userInputStyles.systemField}>
+                            {t('حقل العميل', 'Contact field')}
+                            <select
+                              value={q.saveToSystem ?? ''}
+                              onChange={(e) =>
+                                upq({
+                                  saveToSystem: (e.target.value || undefined) as
+                                    'name' | 'email' | 'phone' | undefined,
+                                })
+                              }
+                            >
+                              <option value="">{t('حقل مخصص', 'Custom field')}</option>
+                              <option value="name">{t('الاسم', 'Name')}</option>
+                              <option value="email">{t('البريد الإلكتروني', 'Email')}</option>
+                              <option value="phone">{t('الهاتف', 'Phone')}</option>
+                            </select>
+                          </label>
+                        </F>
+                        <ConfigDisclosure className={userInputStyles.additionalOptions}>
+                          <ConfigSummary>{t('خيارات إضافية', 'Additional Options')}</ConfigSummary>
+                          <label className={userInputStyles.skipToggle}>
+                            <input
+                              type="checkbox"
+                              checked={!!q.allowSkip}
+                              onChange={(e) => upq({ allowSkip: e.target.checked })}
+                            />
+                            {t('إظهار زر التخطي', 'Show skip button')}
+                          </label>
+                          {q.allowSkip && (
+                            <F label={t('نص زر التخطي', 'Skip button text')}>
+                              <In
+                                v={q.skipText || '/skip'}
+                                on={(skipText) =>
+                                  upq({ skipText: skipText.slice(0, 20) || undefined })
+                                }
+                              />
+                            </F>
+                          )}
+                          {q.kind !== 'choice' && (
+                            <>
+                              <F label={t('رسالة الإجابة غير الصحيحة', 'Invalid answer message')}>
+                                <In v={q.errorText} on={(errorText) => upq({ errorText })} />
+                              </F>
+                              <F label={t('عدد مرات إعادة المحاولة', 'Retry count')}>
+                                <In
+                                  v={q.retries ?? 2}
+                                  on={(retries) =>
+                                    upq({ retries: Math.max(0, Math.min(5, Number(retries) || 0)) })
+                                  }
+                                />
+                              </F>
+                            </>
+                          )}
+                        </ConfigDisclosure>
+                      </div>
+                    )}
+                  </section>
+                );
+              })}
+            </div>
+            {inputQuestions.length < 20 && (
               <Btn
-                on={() =>
+                on={() => {
+                  const question = {
+                    id: uid(),
+                    text: '',
+                    kind: 'text' as const,
+                    saveAs: `field_${inputQuestions.length + 1}`,
+                  };
+                  setActiveQuestion(question.id);
                   set({
-                    questions: [
-                      ...data.questions,
-                      {
-                        id: uid(),
-                        text: '',
-                        kind: 'text',
-                        saveAs: `field_${data.questions.length + 1}`,
-                      },
-                    ],
-                  })
-                }
+                    questions: [...inputQuestions, question],
+                  });
+                }}
               >
                 {t('+ سؤال', '+ Question')}
               </Btn>
             )}
-            <F
-              label={t('رسالة الشكر بعد آخر سؤال', 'Thank-you message after the last question')}
-              hint={t(
-                'يمكن استخدام {{اسم_الحقل}} و {{contact.name}}.',
-                'You can use {{field_key}} and {{contact.name}}.',
-              )}
-            >
-              <Txt v={data.doneText} on={(doneText) => set({ doneText })} rows={3} />
-            </F>
-            <p className="mb-1 mt-3 text-xs font-semibold text-gray-600">
-              {t('معاينة السلسلة', 'Chain preview')}
-            </p>
-            <ButtonActionsEditor
-              value={data.completionActions}
-              onChange={(completionActions) => set({ completionActions })}
-            />
-            <UserInputPreview
-              name={data.name}
-              questions={data.questions}
-              doneText={data.doneText}
-            />
-          </>
+            <ConfigDisclosure className={userInputStyles.afterQuestions}>
+              <ConfigSummary>{t('بعد اكتمال الأسئلة', 'After the questions')}</ConfigSummary>
+              <F
+                label={t('رسالة الشكر', 'Thank-you message')}
+                hint={t(
+                  'يمكن استخدام {{اسم_الحقل}} و {{contact.name}}.',
+                  'You can use {{field_key}} and {{contact.name}}.',
+                )}
+              >
+                <Txt v={data.doneText} on={(doneText) => set({ doneText })} rows={3} />
+              </F>
+              <ButtonActionsEditor
+                value={data.completionActions}
+                onChange={(completionActions) => set({ completionActions })}
+              />
+            </ConfigDisclosure>
+          </div>
         )}
 
         {type === 'note' && (
@@ -1609,10 +1678,11 @@ export default function Inspector({
                 </F>
               )}
             </ConfigDisclosure>
-            <F label="حفظ من الرد" hint="مثال: المسار data.price ← المتغيّر price">
+            <F label="حفظ من الرد" hint={t('مثال: data.price إلى price. تُمسح القيم السابقة في كل محاولة؛ وصّل مخرج الخطأ برسالة بديلة.', 'Example: data.price into price. Previous outputs are cleared on every attempt; connect the error output to a fallback.')} >
               {(data.saveAs ?? []).map((m: any, i: number) => (
                 <div key={i} className="mb-1 flex gap-1">
                   <In
+                    ariaLabel={t('مسار القيمة في الرد', 'Response value path')}
                     v={m.path}
                     on={(path) =>
                       set({
@@ -1625,6 +1695,7 @@ export default function Inspector({
                     dir="ltr"
                   />
                   <In
+                    ariaLabel={t('اسم المتغير', 'Variable name')}
                     v={m.variable}
                     on={(variable) =>
                       set({
@@ -1660,6 +1731,11 @@ export default function Inspector({
                 onChange={(e) => set({ connectionId: e.target.value || undefined })}
               >
                 <option value="">{t('رابط عام', 'Public link')}</option>
+                {data.connectionId && !googleConnections.some((c) => c.id === data.connectionId) && (
+                  <option value={data.connectionId} disabled>
+                    {t('حساب غير متاح — أعد الربط', 'Unavailable account — reconnect')}
+                  </option>
+                )}
                 {googleConnections.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -1667,6 +1743,11 @@ export default function Inspector({
                 ))}
               </select>
             </label>
+            {data.connectionId && !googleConnections.some((c) => c.id === data.connectionId) && (
+              <p role="status">
+                {t('الحساب الخاص المحفوظ غير متاح. أعد ربطه أو اختر حسابًا آخر.', 'The saved private account is unavailable. Reconnect it or choose another account.')}
+              </p>
+            )}
             {!data.connectionId && (
               <p role="note">
                 {t(
@@ -1685,6 +1766,7 @@ export default function Inspector({
                 </F>
               </>
             )}
+            {!data.connectionId && (
             <F
               label="رابط الشيت"
               hint="الشيت لازم يكون متاح لأي شخص معه الرابط (Anyone with the link). الصف الأول عناوين الأعمدة."
@@ -1696,7 +1778,8 @@ export default function Inspector({
                 ph="https://docs.google.com/spreadsheets/d/…"
               />
             </F>
-            <F label="عمود البحث" hint="لو تركت عمود البحث فاضي بيرجع أول صف.">
+            )}
+            <F label="عمود البحث" hint={t('اترك العمود فارغًا لإرجاع أول صف. عند اختيار عمود، لن تطابق قيمة البحث الفارغة أي صف.', 'Leave the column empty to return the first row. With a lookup column, an empty lookup value matches no row.')} >
               <In v={data.lookupColumn} on={(lookupColumn) => set({ lookupColumn })} ph="phone" />
             </F>
             <F label="قيمة البحث">
@@ -1707,10 +1790,11 @@ export default function Inspector({
                 dir="ltr"
               />
             </F>
-            <F label="حفظ أعمدة في متغيّرات" hint="اسم العمود ← اسم المتغيّر">
+            <F label="حفظ أعمدة في متغيّرات" hint={t('اسم العمود إلى اسم المتغير. تُمسح القيم السابقة إذا لم يُعثر على صف أو فشلت القراءة.', 'Column name into variable name. Previous outputs are cleared when no row matches or reading fails.')} >
               {(data.saveAs ?? []).map((m: any, i: number) => (
                 <div key={i} className="mb-1 flex gap-1">
                   <In
+                    ariaLabel={t('اسم عمود الشيت', 'Sheet column name')}
                     v={m.column}
                     on={(column) =>
                       set({
@@ -1722,6 +1806,7 @@ export default function Inspector({
                     ph="plan"
                   />
                   <In
+                    ariaLabel={t('اسم المتغير', 'Variable name')}
                     v={m.variable}
                     on={(variable) =>
                       set({

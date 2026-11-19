@@ -1,0 +1,45 @@
+// Run only after the accepted enterprise release is safely deployed. Current69c57c8 does not satisfy these new report/media assertions.
+// Explicitly authorized Preview-only synthetic acceptance. No external channel or paid calls.
+import assert from 'node:assert/strict';
+import {randomUUID as uuid} from 'node:crypto';
+import {createRequire} from 'node:module';
+import {mkdirSync,writeFileSync,readFileSync} from 'node:fs';
+const web='https://boat-preview-web-preview.up.railway.app',base='https://boat-preview-api-preview.up.railway.app';
+const {chromium}=createRequire(import.meta.url)(process.env.BOAT_PLAYWRIGHT_MODULE||'playwright');
+async function api(path,token,body){const r=await fetch(base+path,{method:body?'POST':'GET',headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(60000)});assert.ok(r.ok,path+' HTTP'+r.status);return r.json();}
+const session=await api('/auth/register',null,{email:'qa-preview-'+uuid()+'@example.test',password:'Synthetic-'+uuid(),fullName:'Synthetic release QA',workspaceName:'QA isolated P0-P1 release'}),token=session.accessToken;
+const channel=await api('/channels',token,{type:'web',name:'QA release webchat'}),visitor=await api('/widget/'+channel.external_id+'/session',null,{});
+const route='/widget/'+channel.external_id+'/messages?visitorId='+visitor.visitorId;
+async function inbound(id){const r=await fetch(base+route,{method:'POST',headers:{'content-type':'application/json','x-visitor-token':visitor.token},body:JSON.stringify({text:'Synthetic live customer سؤال العميل',clientMsgId:id}),signal:AbortSignal.timeout(60000)});assert.ok(r.ok);return r.json();}
+const msgId=uuid();await inbound(msgId);assert.equal((await inbound(msgId)).duplicate,true);
+await api('/workspace/onboarding/complete',token,{});
+const cv=(await api('/conversations',token)).items[0];await api('/conversations/'+cv.id+'/takeover',token,{});await api('/conversations/'+cv.id+'/notes',token,{text:'PRIVATE LIVE ACCEPTANCE'});
+for(let i=0;i<5;i++)await api('/conversations/'+cv.id+'/messages',token,{text:'Live staff reply '+i+' رد الموظف'});
+assert.equal((await api('/conversations/'+cv.id+'/messages?afterSeq=0&limit=2',token)).hasMore,true);
+for(const f of JSON.parse(readFileSync(new URL('./fixtures/media-acceptance.json',import.meta.url))).filter(f=>['audio','video'].includes(f.kind))){const form=new FormData();form.append('file',new Blob([Buffer.from(f.base64,'base64')],{type:f.mime}),f.name);const upload=await fetch(base+'/uploads',{method:'POST',headers:{authorization:'Bearer '+token},body:form});assert.equal(upload.status,201);const file=await upload.json();await api('/conversations/'+cv.id+'/messages',token,{media:{kind:file.kind,url:file.url,filename:file.filename}});}
+
+const browser=await chromium.launch({executablePath:process.env.BOAT_CHROMIUM||'/usr/bin/google-chrome',args:['--no-sandbox']}),results=[],out='docs/p0-evidence/live-runtime-browser';mkdirSync(out,{recursive:true});
+try{for(const language of ['ar','en'])for(const width of [390,1366]){
+ assert.ok((await fetch(base+'/channels/'+channel.id,{method:'PATCH',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({settings:{direction:language==='ar'?'rtl':'ltr'}})})).ok);
+ const context=await browser.newContext({viewport:{width,height:900}});await context.addInitScript(({session,language})=>{localStorage.setItem('session',JSON.stringify(session));localStorage.setItem('boat-language',language);},{session,language});
+ const page=await context.newPage();page.on('dialog',d=>d.accept());page.setDefaultTimeout(30000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/*',r=>[new URL(web).hostname,new URL(base).hostname].includes(new URL(r.request().url()).hostname)?r.continue():r.abort());
+ await page.goto(web+'/dashboard/inbox?conversation='+cv.id);await page.locator('.thread-msgs').getByText('Live staff reply 4 رد الموظف',{exact:true}).waitFor();
+ const recovered='Live reconnect '+language+' '+width;await context.setOffline(true);await api('/conversations/'+cv.id+'/messages',token,{text:recovered});await context.setOffline(false);await page.locator('.thread-msgs').getByText(recovered,{exact:true}).waitFor({timeout:30000});
+ await page.reload();await page.locator('.thread-msgs').getByText(recovered,{exact:true}).waitFor();assert.equal(await page.locator('.thread-msgs').getByText(recovered,{exact:true}).count(),1);
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:`${out}/inbox-${language}-${width}.png`});
+ await page.goto(web+'/dashboard/reports');await page.getByRole('button',{name:language==='ar'?'عرض التقارير':'View reports',exact:true}).click();const region=page.getByRole('region',{name:language==='ar'?'وقت أول رد بشري':'First human response time'});await region.waitFor();assert.ok((await region.textContent()).includes(language==='ar'?'ثانية':'seconds'));for(const label of language==='ar'?['رسائل موظف أُرسلت','محاولات موظف فاشلة','رسائل موظف في الطابور']:['Sent staff messages','Failed staff attempts','Queued staff messages'])await page.locator('#report-employees').getByRole('columnheader',{name:label,exact:true}).waitFor();await region.scrollIntoViewIfNeeded();await page.screenshot({path:`${out}/reports-${language}-${width}.png`});
+ const t=(ar,en)=>language==='ar'?ar:en;
+ await page.goto(web+'/dashboard/settings/attachments');await page.getByRole('heading',{name:t('إدارة المرفقات','Attachment management'),exact:true}).waitFor();
+ const filename='Preview-'+language+'-'+width+'.png';await page.getByLabel(t('رفع مرفق','Upload attachment'),{exact:true}).setInputFiles({name:filename,mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jz1sAAAAASUVORK5CYII=','base64')});
+ const card=page.getByRole('article',{name:filename,exact:true});await card.waitFor();const file=(await api('/uploads',token)).items.find(f=>f.original_name===filename);assert.ok(file,'uploaded metadata persisted');
+ await card.getByRole('button',{name:t('إيقاف الرابط','Revoke link'),exact:true}).click();await card.getByText(t('الرابط موقوف','Link revoked'),{exact:false}).waitFor();const denied=await fetch(base+'/files/'+file.name);assert.equal(denied.status,404);
+ await page.reload();await card.getByText(t('الرابط موقوف','Link revoked'),{exact:false}).waitFor();await card.getByRole('button',{name:t('استعادة وإتاحة الرابط','Restore and enable link'),exact:true}).click();await card.getByRole('button',{name:t('إيقاف الرابط','Revoke link'),exact:true}).waitFor();const restored=await fetch(base+'/files/'+file.name);assert.equal(restored.status,200);assert.match(restored.headers.get('cache-control')||'',/no-store/);
+ const downloadPromise=page.waitForEvent('download');await card.getByRole('button',{name:t('تنزيل مصرح','Authorized download'),exact:true}).click();assert.equal((await downloadPromise).suggestedFilename(),filename);
+ await page.screenshot({path:`${out}/attachments-${language}-${width}.png`});await page.goto(web+'/dashboard/support');await page.getByRole('searchbox',{name:t('ابحث في المساعدة','Search help')}).fill(t('المرفقات','attachments'));await page.getByText(t('إدارة المرفقات وإيقاف روابطها','Manage attachments and revoke links'),{exact:true}).click();await page.getByRole('link',{name:t('إدارة المرفقات','Attachment management'),exact:true}).waitFor();
+ await context.addInitScript(({key,id})=>localStorage.setItem('cb_visitor_'+key,id),{key:channel.external_id,id:visitor.visitorId});await page.route(base+'/acceptance-widget',r=>r.fulfill({contentType:'text/html',body:`<!doctype html><html><body><script src="${base}/widget.js" data-key="${channel.external_id}"></script></body></html>`}));await page.goto(base+'/acceptance-widget');await page.locator('.launcher').click();await page.waitForFunction(()=>Array.from(document.querySelectorAll('body > div')).some(h=>h.shadowRoot?.querySelector('audio')?.readyState>=1&&h.shadowRoot?.querySelector('video')?.readyState>=1));assert.equal(await page.getByText('PRIVATE LIVE ACCEPTANCE',{exact:true}).count(),0);await page.screenshot({path:`${out}/media-${language}-${width}.png`});
+ assert.deepEqual(errors,[]);results.push({language,width,status:'PASS',checks:['deployed Inbox persisted replies','offline reconnect','reload without duplicates','measured response report','deployed attachment upload/revoke/reload/restore/download','searchable help','actual deployed widget audio/video metadata decoded']});await context.close();
+}
+const r=await fetch(base+route,{headers:{'x-visitor-token':visitor.token}});const history=await r.json();assert.ok(!JSON.stringify(history).includes('PRIVATE LIVE ACCEPTANCE'));
+writeFileSync(out+'/results.json',JSON.stringify({status:'PASS',realPreview:true,syntheticTenant:true,externalMessages:false,deletedRecords:false,results,createdAt:new Date().toISOString()},null,2)+'\n');console.log('PASS live Preview runtime browser',results.length);
+}finally{await browser.close();}

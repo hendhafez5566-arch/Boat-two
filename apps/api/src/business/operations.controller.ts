@@ -102,7 +102,7 @@ export class OperationsController {
           expectedRevision: z.number().int().min(1).optional(),
           canvasPositions: z
             .record(
-              z.object({
+              z.string(), z.object({
                 x: z.number().finite().min(-100000).max(100000),
                 y: z.number().finite().min(-100000).max(100000),
               }),

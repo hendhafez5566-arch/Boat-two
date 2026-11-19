@@ -1,4 +1,6 @@
 const messages: Record<string, string> = {
+  'Regex pattern is invalid': 'نمط التحقق غير صالح. صحّح النمط أو اختر نوع تحقق آخر.',
+  'Condition regex pattern is invalid': 'نمط المطابقة في الشرط غير صالح. صحّح النمط قبل النشر.',
   'Header/footer require interactive choices': 'أضف أزرارًا أو قائمة لاستخدام عنوان الرسالة وتذييلها، أو أزلهما.',
   'Choose either an explicit header or media': 'اختر عنوان الرسالة أو المرفق؛ لا تجمعهما في نفس الرسالة.',
   'Interactive body supports at most 1024 characters': 'قلّل نص الرسالة التفاعلية إلى ١٠٢٤ حرفًا بحد أقصى.',
@@ -19,6 +21,7 @@ const messages: Record<string, string> = {
   "CTA message text is required": "أدخل نص الرسالة التي تحتوي على زر الرابط.",
   "Button label is required": "أدخل اسمًا واضحًا للزر.",
   "URL must start with http:// or https://": "أدخل رابطًا كاملاً يبدأ بـ https:// أو http://.",
+  "Connect the sequence error output to handle unavailable enrollment": "وصّل مخرج الخطأ برسالة بديلة أو تحويل لموظف عند تعذر الاشتراك في التسلسل.",
   "Choose a sequence": "اختر التسلسل المطلوب تشغيله في هذه الخطوة.",
   "Template name is invalid": "اختر قالبًا صالحًا؛ اسم القالب يستخدم حروفًا إنجليزية صغيرة وأرقامًا وشرطة سفلية.",
   "Add at least one rule": "أضف شرطًا واحدًا على الأقل لهذه الخطوة.",

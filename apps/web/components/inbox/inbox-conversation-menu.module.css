@@ -4,63 +4,116 @@
   margin-inline-start: auto;
 }
 .trigger {
-  width: 24px;
-  height: 20px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
   display: grid;
   place-items: center;
   padding: 0;
-  border: 0;
-  background: transparent;
-  color: #9ca3af;
+  border: 1px solid #dce4ed;
+  border-radius: 10px;
+  background: #fff;
+  color: #475569;
   cursor: pointer;
 }
+.trigger:hover,
+.trigger[aria-expanded='true'] {
+  background: #eef1fc;
+  color: #4057b2;
+  border-color: #c2cdec;
+}
+.trigger:focus-visible {
+  outline: 2px solid #495bb5;
+  outline-offset: 2px;
+}
 .trigger svg {
-  width: 16px;
-  height: 16px;
+  width: 19px;
+  height: 19px;
 }
 .menu {
   position: fixed;
   z-index: 50;
   display: grid;
-  gap: 2px;
-  width: 212px;
-  padding: 7px;
-  border: 1px solid #e9eaf0;
-  border-radius: 6px;
+  gap: 4px;
+  width: 230px;
+  padding: 10px;
+  border: 1px solid #dce3ec;
+  border-radius: 14px;
   background: white;
-  box-shadow: 0 8px 25px #2022331a;
+  box-shadow: 0 14px 40px #202c3f24, 0 3px 9px #202c3f12;
 }
 .menu button {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 11px;
+  min-height: 43px;
   width: 100%;
-  padding: 9px 8px;
+  padding: 10px 11px;
   text-align: start;
   border: 0;
-  border-radius: 4px;
+  border-radius: 9px;
   background: transparent;
-  color: #4b5563;
+  color: #334155;
   font: inherit;
-  font-size: 12px;
+  font-size: 13.5px;
+  font-weight: 650;
+  line-height: 1.4;
   cursor: pointer;
 }
-.menu button:hover {
-  background: #f5f2ff;
-  color: #6a49f2;
+.menu button:hover,
+.menu button:focus-visible {
+  background: #f1f4fb;
+  color: #4057b2;
+}
+.menu button:focus-visible {
+  outline: 2px solid #495bb5;
+  outline-offset: -2px;
 }
 .menu button:disabled {
-  opacity: 0.5;
+  opacity: .5;
   cursor: not-allowed;
 }
+.menu button:last-child:not(:disabled) {
+  color: #a13d40;
+}
+.menu button:last-child:not(:disabled):hover {
+  background: #fff0ef;
+}
 .menu svg {
-  width: 15px;
-  height: 15px;
+  width: 19px;
+  height: 19px;
   flex: none;
+  color: #60718a;
 }
 .menu p {
-  color: #b91c1c;
-  font-size: 12px;
-  padding: 6px;
+  color: #9a3535;
+  font-size: 13px;
+  padding: 8px 10px;
   margin: 0;
+  background: #fff0ef;
+  border-radius: 9px;
 }
+@media (max-width: 390px) {
+  .menu {
+    width: min(230px, calc(100vw - 20px));
+  }
+}
+
+
+/* WhatsApp Web light — conversation menu */
+.trigger { color: #54656f; border-color: #e9edef; }
+.trigger:hover, .trigger[aria-expanded='true'] {
+  background: #f0f2f5;
+  color: #008069;
+  border-color: #cedbd8;
+}
+.trigger:focus-visible, .menu button:focus-visible {
+  outline-color: #008069;
+}
+.menu { border-color: #e9edef; background: #fff; }
+.menu button { color: #111b21; }
+.menu button:hover, .menu button:focus-visible {
+  background: #f5f6f6;
+  color: #008069;
+}
+.menu svg { color: #54656f; }

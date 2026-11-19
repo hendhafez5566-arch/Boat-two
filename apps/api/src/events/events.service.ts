@@ -70,6 +70,9 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       for (const item of due.rows) {
         try {
           await this.db.withTenant(item.tenant_id, async (c) => {
+            // Event handlers can publish outbound messages and acquire the tenant
+            // lock. Match agent/assignment order before taking event/aggregate locks.
+            await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
             const row = (
               await c.query(
                 "SELECT * FROM domain_events WHERE id=$1 AND status='pending' AND available_at<=now() FOR UPDATE SKIP LOCKED",

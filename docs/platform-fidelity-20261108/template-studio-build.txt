@@ -1,0 +1,80 @@
+  ▲ Next.js 14.2.35
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/50) ...
+   Generating static pages (12/50) 
+   Generating static pages (24/50) 
+   Generating static pages (37/50) 
+ ✓ Generating static pages (50/50)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+┌ ƒ /                                    178 B          96.9 kB
+├ ƒ /_not-found                          875 B          88.9 kB
+├ ƒ /accept-invitation                   143 B           104 kB
+├ ○ /api/widget-config                   0 B                0 B
+├ ƒ /dashboard                           7.49 kB         104 kB
+├ ƒ /dashboard/account                   8.03 kB         105 kB
+├ ƒ /dashboard/agents                    12.7 kB         101 kB
+├ ƒ /dashboard/ai                        4.63 kB         101 kB
+├ ƒ /dashboard/audit                     178 B          93.1 kB
+├ ƒ /dashboard/automations               18.2 kB         153 kB
+├ ƒ /dashboard/billing                   182 B           106 kB
+├ ƒ /dashboard/branding                  7.81 kB        95.9 kB
+├ ƒ /dashboard/campaigns                 17.2 kB         143 kB
+├ ƒ /dashboard/channels                  13.9 kB         121 kB
+├ ƒ /dashboard/channels/[id]/templates   3.98 kB          97 kB
+├ ƒ /dashboard/commerce                  7.08 kB         111 kB
+├ ƒ /dashboard/crm                       154 B           141 kB
+├ ƒ /dashboard/crm/advanced              154 B           141 kB
+├ ƒ /dashboard/crm/lists                 3.5 kB          100 kB
+├ ƒ /dashboard/crm/notifications         182 B           105 kB
+├ ƒ /dashboard/crm/overview              148 B           108 kB
+├ ƒ /dashboard/crm/pipeline              186 B           109 kB
+├ ƒ /dashboard/crm/reports               148 B           108 kB
+├ ƒ /dashboard/crm/sales                 8 kB            116 kB
+├ ƒ /dashboard/crm/segments              8.21 kB         105 kB
+├ ƒ /dashboard/crm/tasks                 186 B           109 kB
+├ ƒ /dashboard/crm/work                  6.14 kB         103 kB
+├ ƒ /dashboard/delivery                  6.75 kB        94.8 kB
+├ ƒ /dashboard/departments               4.62 kB        92.7 kB
+├ ƒ /dashboard/developer                 1.36 kB        98.1 kB
+├ ƒ /dashboard/flows                     24.9 kB         137 kB
+├ ƒ /dashboard/flows/[id]                59 kB           228 kB
+├ ƒ /dashboard/flows/[id]/input-report   3.81 kB         101 kB
+├ ƒ /dashboard/flows/[id]/workspace      156 B          88.2 kB
+├ ƒ /dashboard/flows/new                 156 B          88.2 kB
+├ ƒ /dashboard/inbox                     28.6 kB         125 kB
+├ ƒ /dashboard/inbox/settings            7.89 kB         105 kB
+├ ƒ /dashboard/integrations              156 B          88.2 kB
+├ ƒ /dashboard/knowledge                 8.98 kB          97 kB
+├ ƒ /dashboard/onboarding                6.9 kB          104 kB
+├ ƒ /dashboard/packages                  182 B           106 kB
+├ ƒ /dashboard/pricing                   3.66 kB         100 kB
+├ ƒ /dashboard/reports                   7.84 kB        95.9 kB
+├ ƒ /dashboard/sequences                 6.91 kB         119 kB
+├ ƒ /dashboard/sessions                  156 B          88.2 kB
+├ ƒ /dashboard/settings                  10.6 kB         112 kB
+├ ƒ /dashboard/social                    4.19 kB         101 kB
+├ ƒ /dashboard/social/[format]           148 B           107 kB
+├ ƒ /dashboard/social/[format]/create    148 B           107 kB
+├ ƒ /dashboard/support                   1.41 kB        98.2 kB
+├ ƒ /dashboard/team                      5.65 kB        93.7 kB
+├ ƒ /login                               143 B           104 kB
+├ ƒ /platform                            10.7 kB        98.7 kB
+└ ƒ /register                            143 B           104 kB
++ First Load JS shared by all            88.1 kB
+  ├ chunks/2749-074463654f3f39dc.js      31.7 kB
+  ├ chunks/5b8f0dd8-5c1d69f4aee295bd.js  53.6 kB
+  └ other shared chunks (total)          2.7 kB
+
+
+ƒ Middleware                             26.8 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

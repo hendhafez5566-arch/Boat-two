@@ -19,7 +19,7 @@ test('publish/unpublish revisions allow subsequent saves and reject stale editor
     await pg.exec(`CREATE TABLE channels(id uuid PRIMARY KEY, settings jsonb DEFAULT '{}'); CREATE TABLE flows (
       id text primary key, name text, description text, status text, priority int,
       triggers jsonb, channel_ids uuid[], published_version_id text, created_at timestamptz,
-      updated_at timestamptz, folder_name text, draft_graph jsonb
+      updated_at timestamptz, folder_name text, draft_graph jsonb, is_component boolean DEFAULT false
     ); CREATE TABLE flow_versions (
       id text default 'version-id', tenant_id text, flow_id text, version int,
       graph jsonb, triggers jsonb, channel_ids uuid[], created_by text
@@ -65,6 +65,23 @@ test('publish/unpublish revisions allow subsequent saves and reject stale editor
       (await pg.query<{ settings: { activeBotFlowId: string } }>('SELECT settings FROM channels'))
         .rows[0].settings.activeBotFlowId,
       'flow',
+    );
+    await pg.query(
+      `INSERT INTO flows (id,name,status,priority,triggers,channel_ids,updated_at,draft_graph,is_component)
+       VALUES ('component','Reusable helper','draft',0,'[{"type":"first_message"}]','{}',now(),$1,true)`,
+      [JSON.stringify(initialFlowGraph('ar'))],
+    );
+    const component = await service.publish('tenant', 'owner', 'component');
+    assert.equal(component.activatedChannelCount, 0);
+    assert.equal(
+      (await pg.query<{ settings: { activeBotFlowId: string } }>('SELECT settings FROM channels'))
+        .rows[0].settings.activeBotFlowId,
+      'flow',
+    );
+    assert.equal(
+      (await pg.query<{ handled_by: string }>('SELECT handled_by FROM conversations')).rows[0]
+        .handled_by,
+      'human',
     );
     const revision = new Date(published.updated_at).toISOString();
     assert.notEqual(revision, before);

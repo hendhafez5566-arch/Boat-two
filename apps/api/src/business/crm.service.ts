@@ -120,9 +120,9 @@ export class CrmService {
           throw new BadRequestException('Invalid pipeline or stage');
         if (
           d.ownerId &&
-          !(await c.query('SELECT 1 FROM memberships WHERE user_id=$1', [d.ownerId])).rowCount
+          !(await c.query('SELECT 1 FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.user_id=$1 AND u.disabled_at IS NULL FOR SHARE OF m,u', [d.ownerId])).rowCount
         )
-          throw new BadRequestException('Owner must be a workspace member');
+          throw new BadRequestException('Owner must be an active workspace member');
       }
       const current = (
         await c.query(
@@ -209,13 +209,13 @@ export class CrmService {
   async save(tenant: string, input: z.infer<typeof contactSchema>, id?: string) {
     return this.db.withTenant(tenant, async (c) => {
       await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
-      if (id && (await this.get(tenant, id)).merged_into_id)
-        throw new ConflictException('Contact has been merged');
+      const current = id ? await this.get(tenant, id) : undefined;
+      if (current?.merged_into_id) throw new ConflictException('Contact has been merged');
       if (
-        input.ownerId &&
-        !(await c.query('SELECT 1 FROM memberships WHERE user_id=$1', [input.ownerId])).rowCount
+        input.ownerId && input.ownerId !== current?.owner_id &&
+        !(await c.query('SELECT 1 FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.user_id=$1 AND u.disabled_at IS NULL FOR SHARE OF m,u', [input.ownerId])).rowCount
       )
-        throw new BadRequestException('Owner must be a workspace member');
+        throw new BadRequestException('Owner must be an active workspace member');
       if (!input.allowDuplicate && (input.email || input.phone)) {
         const dup = await c.query(
           'SELECT id FROM contacts WHERE merged_into_id IS NULL AND ($3::uuid IS NULL OR id<>$3) AND (($1::text IS NOT NULL AND lower(email)=lower($1)) OR ($2::text IS NOT NULL AND normalize_contact_phone(phone)=normalize_contact_phone($2))) LIMIT 1',

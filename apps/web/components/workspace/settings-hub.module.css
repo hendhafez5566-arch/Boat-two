@@ -128,7 +128,7 @@
   font-size: 12px;
 }
 .table th {
-  background: #f8fafc;
+  background: var(--surface-muted, #f3f6fa);
   color: #5e6b7c;
   font-weight: 500;
   padding: 16px;

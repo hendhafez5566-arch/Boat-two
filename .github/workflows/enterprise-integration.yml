@@ -1,0 +1,117 @@
+name: Enterprise PostgreSQL integration
+on:
+  push:
+    branches: [feat/flow-builder-fidelity-20261107]
+    paths:
+      - 'apps/api/**'
+      - 'scripts/run-enterprise-postgres-qa.py'
+      - 'scripts/qa-p0-reliability.mjs'
+      - 'scripts/qa-p0-policy-recovery.mjs'
+      - 'scripts/qa-sla-role-matrix.mjs'
+      - 'scripts/qa-conversation-lock-order.mjs'
+      - 'scripts/qa-sequence-error-runtime.mjs'
+      - 'scripts/qa-integration-output-runtime.mjs'
+      - 'scripts/qa-flow-lifecycle.mjs'
+      - 'scripts/qa-event-lock-order.mjs'
+      - 'scripts/qa-p1-load-recovery.mjs'
+      - 'scripts/qa-p0-node-matrix.mjs'
+      - 'scripts/qa-flow-builder-api-resume.mjs'
+      - 'scripts/qa-channel-management-api.mjs'
+      - 'scripts/qa-attachment-lifecycle.mjs'
+      - 'scripts/qa-assignment-crash-recovery.mjs'
+      - 'scripts/qa-assignment-fairness.mjs'
+      - 'scripts/qa-advanced-node-runtime.mjs'
+      - 'scripts/qa-report-dimensions.mjs'
+      - 'scripts/qa-upload-formats.mjs'
+      - 'scripts/fixtures/upload-formats.json'
+      - 'scripts/fixtures/media-acceptance.json'
+      - 'scripts/qa-p1-report-response.mjs'
+      - 'scripts/qa-p2-business-journeys.mjs'
+      - 'scripts/qa-p0-delay-restart.mjs'
+      - 'scripts/qa-assignment-http.mjs'
+      - 'scripts/acceptance-parity-api.mjs'
+      - 'scripts/qa-backup-restore.py'
+      - 'scripts/qa-auth-rate-limit.mjs'
+      - 'scripts/smoke-billing-catalog.mjs'
+      - '.github/workflows/enterprise-integration.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: enterprise-pg-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  real-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: isolated-ci-admin
+          POSTGRES_DB: boat_qa
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d boat_qa"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:8.2
+        ports: ['6379:6379']
+    env:
+      NODE_ENV: production
+      DATABASE_ADMIN_URL: postgres://postgres:isolated-ci-admin@localhost:5432/boat_qa
+      DATABASE_URL: postgres://app_user:isolated-ci-app@localhost:5432/boat_qa
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: isolated-ci-secret-never-used-outside-this-job
+      ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
+      APP_URL: http://localhost:3000
+      PUBLIC_API_URL: http://localhost:4000
+      BOAT_PREVIEW_ONLY: 'true'
+      EXTERNAL_DELIVERY_ENABLED: 'false'
+      EMAIL_DELIVERY_ENABLED: 'false'
+      AI_PROVIDER_CALLS_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install frozen dependencies and build API
+        run: corepack enable && pnpm install --frozen-lockfile && pnpm --filter api build
+        env:
+          NODE_ENV: development
+      - name: Complete API regression after runtime dependency patches
+        working-directory: apps/api
+        env:
+          NODE_ENV: test
+        run: node --import tsx --test --test-concurrency=1 'src/**/*.test.ts'
+      - name: Check scoped WhatsApp agent handoff and outbound error states
+        working-directory: apps/api
+        env:
+          NODE_ENV: test
+          EXTERNAL_DELIVERY_ENABLED: 'false'
+        run: node --import tsx --test src/messaging/preview-bot-delivery.test.ts src/messaging/meta-outbound.test.ts
+      - name: Initialize unprivileged isolated application role
+        env:
+          PGPASSWORD: isolated-ci-admin
+        run: psql -h localhost -U postgres -d boat_qa -v ON_ERROR_STOP=1 -c "CREATE ROLE app_user LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD 'isolated-ci-app'"
+      - name: Apply actual production migrations
+        working-directory: apps/api
+        run: node --import tsx src/database/migrate.ts
+      - name: Real PostgreSQL tenant, flow, CRM and Inbox acceptance
+        run: python3 scripts/run-enterprise-postgres-qa.py
+      - name: Restore disposable PostgreSQL backup and verify data and RLS
+        env:
+          BOAT_QA_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: python3 scripts/qa-backup-restore.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: enterprise-postgres-evidence
+          path: |
+            /tmp/boat-enterprise-postgres-api.log
+            docs/platform-fidelity-20261108/channels-http.json
+            docs/platform-fidelity-20261108/*http*.json
+            docs/flow-builder-20261107/
+            docs/acceptance/
+            /tmp/boat-parity-api-results.json
+            docs/p0-evidence/

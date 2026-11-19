@@ -1,28 +1,18 @@
 'use client';
 import { DisclosureSummary } from '../product/DisclosureSummary';
+import ProductCatalog from './ProductCatalog';
+import catalogStyles from './product-catalog.module.css';
 
 import DataSourcesPanel from './DataSourcesPanel';
 import ChannelScope from '../product/ChannelScope';
 import { useChannelContext } from '../product/useChannelContext';
+import { channelHref } from '../../lib/channel-context';
 
 import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useData } from '../business/useData';
 import { useLocale } from '../product/locale';
 import { api } from '../../lib/api';
-type Product = {
-  id: string;
-  sku: string;
-  name: string;
-  description: string;
-  price_cents: string;
-  currency: string;
-  image_url: string | null;
-  link_url: string | null;
-  catalog_id: string | null;
-  retailer_id: string | null;
-  archived: boolean;
-};
 type Service = {
   id: string;
   name: string;
@@ -44,13 +34,11 @@ type Booking = {
 export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
   const { t } = useLocale();
   const [channelId, setChannelId] = useChannelContext();
-  const [tab, setTab] = useState(initialTab === 'products' ? 'sources' : (initialTab ?? 'sources')),
+  const [tab, setTab] = useState(initialTab ?? 'products'),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
-    [result, setResult] = useState(''),
-    [editing, setEditing] = useState<Product | null>(null);
-  const products = useData<Product[]>('/commerce/products', []),
-    services = useData<Service[]>('/commerce/services', []),
+    [result, setResult] = useState('');
+  const services = useData<Service[]>('/commerce/services', []),
     bookings = useData<Booking[]>('/commerce/appointments', []),
     channels = useData<{ id: string; name: string; type: string }[]>('/channels', []),
     contacts = useData<{ items: { id: string; name: string; email: string | null }[] }>(
@@ -84,7 +72,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
                 : '')
           : response?.content?.text || t('تم تنفيذ الإجراء.', 'Action completed.'),
       );
-      await Promise.all([products.reload(), services.reload(), bookings.reload()]);
+      await Promise.all([services.reload(), bookings.reload()]);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -92,14 +80,61 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
       setBusy(false);
     }
   }
+  const catalogNavigation = (
+    <nav
+      className={catalogStyles.catalogNavigation}
+      aria-label={t('التنقل بين المنتجات ومصادرها', 'Product sections')}
+    >
+      {[
+        ['products', 'إدارة المنتجات', 'Manage products'],
+        ['sources', 'الاستيراد والمزامنة', 'Import & sync'],
+        ['appointments', 'المواعيد', 'Appointments'],
+      ]
+        .filter(([id]) => !initialTab || id !== 'appointments')
+        .map(([id, ar, en]) => (
+          <button className="btn" key={id} aria-pressed={tab === id} onClick={() => setTab(id)}>
+            {t(ar, en)}
+          </button>
+        ))}
+      {(initialTab !== 'products' || !!channelId) && (
+        <Link className="btn" href={channelHref('/dashboard/flows?section=bot_reply', channelId)}>
+          {t('العودة إلى مدير البوت', 'Back to bot manager')}
+        </Link>
+      )}
+      {initialTab === 'products' && (
+        <Link className="btn" href={channelHref('/dashboard/flows?section=bot_reply', channelId)}>
+          {t('الانتقال إلى ردود البوت', 'Go to bot replies')}
+        </Link>
+      )}
+      {tab === 'appointments' && (
+        <Link className="btn" href="/dashboard/integrations">
+          {t('تفويض Calendar والتكاملات', 'Calendar authorization and integrations')}
+        </Link>
+      )}
+    </nav>
+  );
   return (
     <section className="stack commerce-page">
-      <ChannelScope
-        value={channelId}
-        onChange={setChannelId}
-        channels={channels.data}
-        workspaceWide
-      />
+      {initialTab === 'products' ? null : initialTab ? (
+        <ChannelScope
+          value={channelId}
+          onChange={setChannelId}
+          channels={channels.data}
+          workspaceWide
+        />
+      ) : (
+        <details className="card">
+          <DisclosureSummary>
+            {t('سياق القناة والتنقل بين الأقسام', 'Channel context and workspace navigation')}
+          </DisclosureSummary>
+          <ChannelScope
+            value={channelId}
+            onChange={setChannelId}
+            channels={channels.data}
+            workspaceWide
+          />
+        </details>
+      )}
       <h1>
         {initialTab === 'appointments'
           ? t('حجز المواعيد', 'Appointment Booking')
@@ -107,165 +142,14 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
             ? t('كتالوج المنتجات', 'Product Catalog')
             : t('التجارة والمواعيد', 'Commerce and appointments')}
       </h1>
-      {initialTab !== 'appointments' && (
-        <nav className="form-actions">
-          {[
-            ['products', 'المنتجات', 'Products'],
-            ['sources', 'مصادر البيانات', 'Data sources'],
-            ['appointments', 'المواعيد', 'Appointments'],
-          ]
-            .filter(([id]) => !initialTab || id !== 'appointments')
-            .map(([id, ar, en]) => (
-              <button className="btn" key={id} aria-pressed={tab === id} onClick={() => setTab(id)}>
-                {t(ar, en)}
-              </button>
-            ))}
-          <Link className="btn" href="/dashboard/flows">
-            {t('مدير البوت', 'Bot manager')}
-          </Link>
-          <Link className="btn" href="/dashboard/integrations">
-            {t('تفويض Calendar والتكاملات', 'Calendar authorization and integrations')}
-          </Link>
-        </nav>
-      )}
-      {(error || products.error || services.error) && (
+      {initialTab !== 'appointments' && tab !== 'products' && catalogNavigation}
+      {(error || services.error) && (
         <p className="notice error" role="alert">
-          {error || products.error || services.error}
+          {error || services.error}
         </p>
       )}
       {tab === 'sources' && <DataSourcesPanel />}
-      {tab === 'products' && !initialTab && (
-        <button className="btn" onClick={() => setTab('sources')}>
-          {t('مصادر البيانات والكتالوج الديناميكي', 'Data sources and dynamic catalog')}
-        </button>
-      )}
-      {tab === 'products' && (
-        <>
-          <form
-            key={editing?.id ?? 'new'}
-            className="card stack"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const f = new FormData(e.currentTarget);
-              void act(() =>
-                api('/commerce/products' + (editing ? '/' + editing.id : ''), {
-                  method: editing ? 'PATCH' : 'POST',
-                  body: JSON.stringify({
-                    sku: f.get('sku'),
-                    name: f.get('name'),
-                    description: f.get('description'),
-                    priceCents: f.get('price'),
-                    currency: f.get('currency'),
-                    ...(f.get('image') ? { imageUrl: f.get('image') } : {}),
-                    ...(f.get('link') ? { linkUrl: f.get('link') } : {}),
-                    ...(f.get('catalog') ? { catalogId: f.get('catalog') } : {}),
-                    ...(f.get('retailer') ? { retailerId: f.get('retailer') } : {}),
-                    archived: f.get('archived') === 'on',
-                  }),
-                }),
-              );
-            }}
-          >
-            <h2>{editing ? t('تعديل المنتج', 'Edit product') : t('منتج جديد', 'New product')}</h2>
-            <div className="form-grid">
-              <label className="field">
-                SKU
-                <input name="sku" required defaultValue={editing?.sku} />
-              </label>
-              <label className="field">
-                {t('اسم المنتج', 'Product name')}
-                <input name="name" required maxLength={120} defaultValue={editing?.name} />
-              </label>
-              <label className="field">
-                {t('السعر بأصغر وحدة (100 = 1.00)', 'Price in minor units (100 = 1.00)')}
-                <input
-                  name="price"
-                  pattern="[0-9]{1,15}"
-                  required
-                  defaultValue={editing?.price_cents ?? '0'}
-                />
-              </label>
-              <label className="field">
-                {t('العملة', 'Currency')}
-                <input
-                  name="currency"
-                  pattern="[A-Z]{3}"
-                  defaultValue={editing?.currency ?? 'EGP'}
-                  required
-                />
-              </label>
-            </div>
-            <label className="field">
-              {t('الوصف', 'Description')}
-              <textarea name="description" maxLength={1000} defaultValue={editing?.description} />
-            </label>
-            <label className="field">
-              {t('صورة مستضافة HTTPS', 'Hosted image URL')}
-              <input type="url" name="image" defaultValue={editing?.image_url ?? ''} />
-            </label>
-            <label className="field">
-              {t('رابط المنتج', 'Product URL')}
-              <input type="url" name="link" defaultValue={editing?.link_url ?? ''} />
-            </label>
-            <details>
-              <DisclosureSummary>
-                {t('معرفات كتالوج WhatsApp المعتمد', 'Approved WhatsApp catalog IDs')}
-              </DisclosureSummary>
-              <label className="field">
-                Catalog ID
-                <input name="catalog" defaultValue={editing?.catalog_id ?? ''} />
-              </label>
-              <label className="field">
-                Retailer ID
-                <input name="retailer" defaultValue={editing?.retailer_id ?? ''} />
-              </label>
-              <p>
-                {t(
-                  'الكتالوج الأصلي يتطلب اعتماد Meta؛ السعر الفعلي في المزود هو المرجع. بطاقة الرابط تستخدم السعر المحلي.',
-                  'Native catalogs require Meta approval; provider pricing is authoritative. Link cards use the local price.',
-                )}
-              </p>
-            </details>
-            <label>
-              <input type="checkbox" name="archived" defaultChecked={editing?.archived} />
-              {t('مؤرشف', 'Archived')}
-            </label>
-            <div className="form-actions">
-              <button className="btn btn-primary" disabled={busy}>
-                {t('حفظ المنتج', 'Save product')}
-              </button>
-              {editing && (
-                <button type="button" className="btn" onClick={() => setEditing(null)}>
-                  {t('منتج جديد', 'New product')}
-                </button>
-              )}
-            </div>
-          </form>
-          <section className="card stack">
-            {products.data.map((p) => (
-              <article className="form-actions" key={p.id}>
-                <strong>{p.name}</strong>
-                <span>
-                  {p.price_cents} {p.currency} {t('وحدة صغرى', 'minor units')}
-                </span>
-                <span>{p.archived ? t('مؤرشف', 'Archived') : p.sku}</span>
-                <button className="btn" onClick={() => setEditing(p)}>
-                  {t('تعديل', 'Edit')}
-                </button>
-                <button
-                  className="btn"
-                  disabled={busy}
-                  onClick={() =>
-                    void act(() => api(`/commerce/products/${p.id}/preview`, { method: 'POST' }))
-                  }
-                >
-                  {t('معاينة دون إرسال', 'Preview without sending')}
-                </button>
-              </article>
-            ))}
-          </section>
-        </>
-      )}
+      {tab === 'products' && <ProductCatalog navigation={catalogNavigation} />}
       {tab === 'appointments' && (
         <>
           <form

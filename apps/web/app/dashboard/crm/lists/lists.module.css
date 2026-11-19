@@ -1,0 +1,24 @@
+.page { min-width: 0; }
+.backLink { display: inline-flex; align-self: flex-start; color: var(--primary); font-weight: 650; font-size: .875rem; }
+.workspace { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.3fr); gap: 20px; align-items: start; }
+.createCard, .manageCard { display: grid; gap: 20px; min-width: 0; }
+.sectionHeading { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.sectionHeading h2 { margin: 0 0 4px; font-size: 1.05rem; }
+.sectionHeading p { margin: 0; color: var(--muted); font-size: .875rem; line-height: 1.65; }
+.step { flex: 0 0 34px; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 11px; background: var(--primary-soft); color: var(--primary-deep); font-weight: 750; }
+.createForm { display: grid; gap: 14px; }
+.createForm button, .searchGroup button { justify-self: start; min-height: 44px; }
+.selectedHeading, .memberHeading { display: flex; gap: 10px; align-items: baseline; justify-content: space-between; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+.selectedHeading h3, .memberHeading h3 { margin: 0; font-size: .95rem; }
+.selectedHeading span, .memberHeading span { font-size: .8rem; color: var(--muted); }
+.searchGroup { display: grid; gap: 12px; border: 1px solid var(--line); border-radius: 14px; padding: 16px; background: var(--surface-muted); min-width: 0; }
+.searchGroup h3 { font-size: .95rem; margin: 0; }
+.searchGroup input, .searchGroup select, .createForm input { max-width: 100%; min-width: 0; width: 100%; }
+.memberList { display: grid; gap: 8px; padding: 0; margin: 0; list-style: none; max-height: 450px; overflow-y: auto; }
+.memberRow { display: flex; justify-content: space-between; gap: 12px; align-items: center; min-width: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; }
+.memberRow > div { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.memberRow strong { font-size: .88rem; }
+.memberRow small { color: var(--muted); font-size: .8rem; }
+.memberRow button { flex: 0 0 auto; min-height: 44px; }
+@media (max-width: 900px) { .workspace { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 440px) { .createCard, .manageCard { padding: 16px; } .memberRow { align-items: flex-start; flex-wrap: wrap; } .memberRow button { margin-inline-start: auto; } }

@@ -1,7 +1,9 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { channelHref, selectedChannel } from '../../lib/channel-context';
 export function useChannelContext(): [string, (value: string) => void] {
+  const searchQuery = useSearchParams().toString();
   const [channelId, setChannelId] = useState('');
   useEffect(() => {
     const read = () => setChannelId(selectedChannel(window.location.search));
@@ -12,7 +14,7 @@ export function useChannelContext(): [string, (value: string) => void] {
       window.removeEventListener('popstate', read);
       window.removeEventListener('boat:channel-context', read);
     };
-  }, []);
+  }, [searchQuery]);
   const select = useCallback((value: string) => {
     window.history.replaceState(
       window.history.state,

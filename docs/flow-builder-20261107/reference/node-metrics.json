@@ -1,0 +1,178 @@
+[
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 163,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "Start Bot Flow",
+    "width": 264
+  },
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 221,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "Image",
+    "width": 264
+  },
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 221,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "Text",
+    "width": 264
+  },
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 221,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "Audio",
+    "width": 264
+  },
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 221,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "Video",
+    "width": 264
+  },
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 221,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "File",
+    "width": 264
+  },
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 221,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "Location",
+    "width": 264
+  },
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 221,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "AI Reply",
+    "width": 264
+  },
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 221,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "User Input Flow",
+    "width": 264
+  },
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 221,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "Whatsapp Flows",
+    "width": 264
+  },
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 163,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "Appointment",
+    "width": 264
+  },
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 296,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "Interactive Message",
+    "width": 264
+  },
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 221,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "Template Message",
+    "width": 264
+  },
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 221,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "CTA URL Button",
+    "width": 264
+  },
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 188,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "Condition",
+    "width": 264
+  },
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 163,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "New Sequence Campaign",
+    "width": 287.609375
+  },
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 163,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "Send Message After",
+    "width": 264
+  },
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 163,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "Send Message After",
+    "width": 264
+  },
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 163,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "Send Message After",
+    "width": 264
+  },
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 163,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "Label Assign",
+    "width": 264
+  },
+  {
+    "border": "2px solid rgba(222, 227, 230, 0.42)",
+    "height": 163,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "Notify Contact",
+    "width": 264
+  },
+  {
+    "border": "2px solid rgb(13, 139, 241)",
+    "height": 163,
+    "radius": "12px",
+    "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+    "type": "Random Number Generator",
+    "width": 264
+  }
+]

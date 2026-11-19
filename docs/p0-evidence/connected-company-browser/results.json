@@ -1,0 +1,74 @@
+[
+  {
+    "language": "ar",
+    "width": 390,
+    "status": "PASS",
+    "checks": [
+      "UI company registration and persisted industry/timezone",
+      "UI agent invitation and acceptance",
+      "UI agent availability",
+      "UI Webchat creation",
+      "UI new bot, question/contact field, staff selection and connections",
+      "save/reopen/simulator/UI publish",
+      "visitor data collection/handoff",
+      "agent UI reply and visitor reload; demo page/widget bounds at 320/390/768/1366/1920",
+      "UI follow-up persisted in CRM",
+      "Dashboard actual Webchat customer, empty WhatsApp and all-channel filters; five viewport widths; measured report UI"
+    ],
+    "scope": "One continuous synthetic company journey with actual API/Web/PostgreSQL/Redis and real demo page; no provider or commercial hosting acceptance"
+  },
+  {
+    "language": "ar",
+    "width": 1366,
+    "status": "PASS",
+    "checks": [
+      "UI company registration and persisted industry/timezone",
+      "UI agent invitation and acceptance",
+      "UI agent availability",
+      "UI Webchat creation",
+      "UI new bot, question/contact field, staff selection and connections",
+      "save/reopen/simulator/UI publish",
+      "visitor data collection/handoff",
+      "agent UI reply and visitor reload; demo page/widget bounds at 320/390/768/1366/1920",
+      "UI follow-up persisted in CRM",
+      "Dashboard actual Webchat customer, empty WhatsApp and all-channel filters; five viewport widths; measured report UI"
+    ],
+    "scope": "One continuous synthetic company journey with actual API/Web/PostgreSQL/Redis and real demo page; no provider or commercial hosting acceptance"
+  },
+  {
+    "language": "en",
+    "width": 390,
+    "status": "PASS",
+    "checks": [
+      "UI company registration and persisted industry/timezone",
+      "UI agent invitation and acceptance",
+      "UI agent availability",
+      "UI Webchat creation",
+      "UI new bot, question/contact field, staff selection and connections",
+      "save/reopen/simulator/UI publish",
+      "visitor data collection/handoff",
+      "agent UI reply and visitor reload; demo page/widget bounds at 320/390/768/1366/1920",
+      "UI follow-up persisted in CRM",
+      "Dashboard actual Webchat customer, empty WhatsApp and all-channel filters; five viewport widths; measured report UI"
+    ],
+    "scope": "One continuous synthetic company journey with actual API/Web/PostgreSQL/Redis and real demo page; no provider or commercial hosting acceptance"
+  },
+  {
+    "language": "en",
+    "width": 1366,
+    "status": "PASS",
+    "checks": [
+      "UI company registration and persisted industry/timezone",
+      "UI agent invitation and acceptance",
+      "UI agent availability",
+      "UI Webchat creation",
+      "UI new bot, question/contact field, staff selection and connections",
+      "save/reopen/simulator/UI publish",
+      "visitor data collection/handoff",
+      "agent UI reply and visitor reload; demo page/widget bounds at 320/390/768/1366/1920",
+      "UI follow-up persisted in CRM",
+      "Dashboard actual Webchat customer, empty WhatsApp and all-channel filters; five viewport widths; measured report UI"
+    ],
+    "scope": "One continuous synthetic company journey with actual API/Web/PostgreSQL/Redis and real demo page; no provider or commercial hosting acceptance"
+  }
+]

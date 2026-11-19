@@ -1,3 +1,4 @@
+import { FIRST_RESPONSE_SQL } from './first-response.sql';
 import { Controller, Get, Query, Req } from '@nestjs/common';
 import { z } from 'zod';
 import { Roles } from '../auth/decorators';
@@ -30,10 +31,10 @@ export class ReportsController {
         `SELECT date_trunc('day',created_at AT TIME ZONE $3)::date::text AS day,count(*) FILTER(WHERE direction='in')::int AS inbound,count(*) FILTER(WHERE direction='out' AND NOT is_internal)::int AS outbound,count(*) FILTER(WHERE status='failed')::int AS failed FROM messages WHERE created_at >= $1 AND created_at < $2 GROUP BY 1 ORDER BY 1`, [...params, timezone],
       )).rows;
       const channels = await rows(
-        `SELECT ch.name,ch.type,count(m.id)::int AS messages,count(m.id) FILTER(WHERE m.direction='in')::int AS inbound,count(m.id) FILTER(WHERE m.direction='out' AND NOT m.is_internal)::int AS outbound,count(m.id) FILTER(WHERE m.status='failed')::int AS failed FROM channels ch LEFT JOIN messages m ON m.channel_id=ch.id AND m.created_at >= $1 AND m.created_at < $2 GROUP BY ch.id ORDER BY messages DESC`,
+        `SELECT ch.name,ch.type,count(m.id) FILTER(WHERE NOT m.is_internal)::int AS messages,count(m.id) FILTER(WHERE m.direction='in')::int AS inbound,count(m.id) FILTER(WHERE m.direction='out' AND NOT m.is_internal)::int AS outbound,count(m.id) FILTER(WHERE m.status='failed')::int AS failed FROM channels ch LEFT JOIN messages m ON m.channel_id=ch.id AND m.created_at >= $1 AND m.created_at < $2 GROUP BY ch.id ORDER BY messages DESC`,
       );
       const employees = await rows(
-        `SELECT u.full_name,count(m.id)::int AS outbound_messages,count(DISTINCT m.conversation_id)::int AS conversations FROM messages m JOIN users u ON u.id=m.sender_user_id WHERE m.sender_type='agent' AND NOT m.is_internal AND m.created_at >= $1 AND m.created_at < $2 GROUP BY u.id ORDER BY outbound_messages DESC`,
+        `SELECT u.full_name,count(m.id)::int AS outbound_messages,count(m.id) FILTER(WHERE m.status IN ('sent','delivered','read'))::int AS sent_messages,count(m.id) FILTER(WHERE m.status='failed')::int AS failed_messages,count(m.id) FILTER(WHERE m.status='queued')::int AS queued_messages,count(DISTINCT m.conversation_id)::int AS conversations FROM messages m JOIN users u ON u.id=m.sender_user_id WHERE m.direction='out' AND m.sender_type='agent' AND NOT m.is_internal AND m.created_at >= $1 AND m.created_at < $2 GROUP BY u.id ORDER BY outbound_messages DESC`,
       );
       const conversations = await rows(
         `SELECT status,handled_by,count(*)::int AS count FROM conversations WHERE created_at >= $1 AND created_at < $2 GROUP BY status,handled_by`,
@@ -59,7 +60,9 @@ export class ReportsController {
       const followups = await rows(
         `SELECT status,count(*)::int AS tasks,count(*) FILTER(WHERE status='open' AND due_at<now())::int AS overdue FROM crm_tasks WHERE due_at >= $1 AND due_at < $2 GROUP BY status`,
       );
+      const firstResponse=(await c.query(FIRST_RESPONSE_SQL,params)).rows[0];
       return {
+        firstResponse,
         range: input,
         timezone,
         daily,

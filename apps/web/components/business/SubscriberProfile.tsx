@@ -13,6 +13,7 @@ import { CrmScore } from './CrmScoring';
 import premium from './crm-workspace.module.css';
 import { CrmWork } from './CrmWork';
 import { ContactActivityExport } from './ContactActivityExport';
+import design from './crm-design.module.css';
 import styles from './subscribers.module.css';
 
 type Contact = {
@@ -84,12 +85,10 @@ const tabs = [
 export default function SubscriberProfile({
   contactId,
   canManage,
-  onClose,
   onChanged,
 }: {
   contactId: string;
   canManage: boolean;
-  onClose: () => void;
   onChanged: () => void;
 }) {
   const { t, language } = useLocale();
@@ -154,7 +153,10 @@ export default function SubscriberProfile({
     });
   }
   return (
-    <aside className={styles.profile} aria-label={t('ملف المشترك', 'Subscriber profile')}>
+    <aside
+      className={`${styles.profile} ${design.profile}`}
+      aria-label={t('ملف المشترك', 'Subscriber profile')}
+    >
       <header className={styles.profileHeader}>
         <span className={styles.avatar}>{contact?.name?.slice(0, 2) || '?'}</span>
         <div>
@@ -174,14 +176,6 @@ export default function SubscriberProfile({
             <NavIcon name="edit" />
           </button>
         )}
-        <button
-          type="button"
-          className="btn"
-          onClick={onClose}
-          aria-label={t('إغلاق ملف المشترك', 'Close subscriber profile')}
-        >
-          <NavIcon name="close" />
-        </button>
       </header>
       {data.loading && <p role="status">{t('جارٍ تحميل الملف…', 'Loading profile…')}</p>}
       {(error || data.error) && (

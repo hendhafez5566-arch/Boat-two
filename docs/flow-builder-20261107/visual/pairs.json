@@ -1,0 +1,402 @@
+[
+  {
+    "kind": "builder",
+    "locale": "en",
+    "width": 320,
+    "state": "canvas",
+    "before": "before-en-320-canvas.png",
+    "after": "after-en-320-canvas.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "en",
+    "width": 320,
+    "state": "palette",
+    "before": "before-en-320-palette.png",
+    "after": "after-en-320-palette.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "en",
+    "width": 320,
+    "state": "properties",
+    "before": "before-en-320-properties.png",
+    "after": "after-en-320-properties.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "en",
+    "width": 390,
+    "state": "canvas",
+    "before": "before-en-390-canvas.png",
+    "after": "after-en-390-canvas.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "en",
+    "width": 390,
+    "state": "palette",
+    "before": "before-en-390-palette.png",
+    "after": "after-en-390-palette.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "en",
+    "width": 390,
+    "state": "properties",
+    "before": "before-en-390-properties.png",
+    "after": "after-en-390-properties.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "en",
+    "width": 768,
+    "state": "canvas",
+    "before": "before-en-768-canvas.png",
+    "after": "after-en-768-canvas.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "en",
+    "width": 768,
+    "state": "palette",
+    "before": "before-en-768-palette.png",
+    "after": "after-en-768-palette.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "en",
+    "width": 768,
+    "state": "properties",
+    "before": "before-en-768-properties.png",
+    "after": "after-en-768-properties.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "en",
+    "width": 1366,
+    "state": "canvas",
+    "before": "before-en-1366-canvas.png",
+    "after": "after-en-1366-canvas.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "en",
+    "width": 1366,
+    "state": "palette",
+    "before": "before-en-1366-palette.png",
+    "after": "after-en-1366-palette.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "en",
+    "width": 1366,
+    "state": "properties",
+    "before": "before-en-1366-properties.png",
+    "after": "after-en-1366-properties.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "en",
+    "width": 1920,
+    "state": "canvas",
+    "before": "before-en-1920-canvas.png",
+    "after": "after-en-1920-canvas.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "en",
+    "width": 1920,
+    "state": "palette",
+    "before": "before-en-1920-palette.png",
+    "after": "after-en-1920-palette.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "en",
+    "width": 1920,
+    "state": "properties",
+    "before": "before-en-1920-properties.png",
+    "after": "after-en-1920-properties.png"
+  },
+  {
+    "kind": "protected",
+    "route": "",
+    "locale": "en",
+    "width": 1366,
+    "before": "protected-before-en-dashboard.png",
+    "after": "protected-after-en-dashboard.png"
+  },
+  {
+    "kind": "protected",
+    "route": "inbox",
+    "locale": "en",
+    "width": 1366,
+    "before": "protected-before-en-inbox.png",
+    "after": "protected-after-en-inbox.png"
+  },
+  {
+    "kind": "protected",
+    "route": "crm/overview",
+    "locale": "en",
+    "width": 1366,
+    "before": "protected-before-en-crm-overview.png",
+    "after": "protected-after-en-crm-overview.png"
+  },
+  {
+    "kind": "protected",
+    "route": "crm/sales",
+    "locale": "en",
+    "width": 1366,
+    "before": "protected-before-en-crm-sales.png",
+    "after": "protected-after-en-crm-sales.png"
+  },
+  {
+    "kind": "protected",
+    "route": "channels",
+    "locale": "en",
+    "width": 1366,
+    "before": "protected-before-en-channels.png",
+    "after": "protected-after-en-channels.png"
+  },
+  {
+    "kind": "protected",
+    "route": "automations",
+    "locale": "en",
+    "width": 1366,
+    "before": "protected-before-en-automations.png",
+    "after": "protected-after-en-automations.png"
+  },
+  {
+    "kind": "protected",
+    "route": "team",
+    "locale": "en",
+    "width": 1366,
+    "before": "protected-before-en-team.png",
+    "after": "protected-after-en-team.png"
+  },
+  {
+    "kind": "protected",
+    "route": "settings",
+    "locale": "en",
+    "width": 1366,
+    "before": "protected-before-en-settings.png",
+    "after": "protected-after-en-settings.png"
+  },
+  {
+    "kind": "protected",
+    "route": "billing",
+    "locale": "en",
+    "width": 1366,
+    "before": "protected-before-en-billing.png",
+    "after": "protected-after-en-billing.png"
+  },
+  {
+    "kind": "protected",
+    "route": "campaigns",
+    "locale": "en",
+    "width": 1366,
+    "before": "protected-before-en-campaigns.png",
+    "after": "protected-after-en-campaigns.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "ar",
+    "width": 320,
+    "state": "canvas",
+    "before": "before-ar-320-canvas.png",
+    "after": "after-ar-320-canvas.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "ar",
+    "width": 320,
+    "state": "palette",
+    "before": "before-ar-320-palette.png",
+    "after": "after-ar-320-palette.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "ar",
+    "width": 320,
+    "state": "properties",
+    "before": "before-ar-320-properties.png",
+    "after": "after-ar-320-properties.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "ar",
+    "width": 390,
+    "state": "canvas",
+    "before": "before-ar-390-canvas.png",
+    "after": "after-ar-390-canvas.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "ar",
+    "width": 390,
+    "state": "palette",
+    "before": "before-ar-390-palette.png",
+    "after": "after-ar-390-palette.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "ar",
+    "width": 390,
+    "state": "properties",
+    "before": "before-ar-390-properties.png",
+    "after": "after-ar-390-properties.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "ar",
+    "width": 768,
+    "state": "canvas",
+    "before": "before-ar-768-canvas.png",
+    "after": "after-ar-768-canvas.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "ar",
+    "width": 768,
+    "state": "palette",
+    "before": "before-ar-768-palette.png",
+    "after": "after-ar-768-palette.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "ar",
+    "width": 768,
+    "state": "properties",
+    "before": "before-ar-768-properties.png",
+    "after": "after-ar-768-properties.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "ar",
+    "width": 1366,
+    "state": "canvas",
+    "before": "before-ar-1366-canvas.png",
+    "after": "after-ar-1366-canvas.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "ar",
+    "width": 1366,
+    "state": "palette",
+    "before": "before-ar-1366-palette.png",
+    "after": "after-ar-1366-palette.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "ar",
+    "width": 1366,
+    "state": "properties",
+    "before": "before-ar-1366-properties.png",
+    "after": "after-ar-1366-properties.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "ar",
+    "width": 1920,
+    "state": "canvas",
+    "before": "before-ar-1920-canvas.png",
+    "after": "after-ar-1920-canvas.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "ar",
+    "width": 1920,
+    "state": "palette",
+    "before": "before-ar-1920-palette.png",
+    "after": "after-ar-1920-palette.png"
+  },
+  {
+    "kind": "builder",
+    "locale": "ar",
+    "width": 1920,
+    "state": "properties",
+    "before": "before-ar-1920-properties.png",
+    "after": "after-ar-1920-properties.png"
+  },
+  {
+    "kind": "protected",
+    "route": "",
+    "locale": "ar",
+    "width": 1366,
+    "before": "protected-before-ar-dashboard.png",
+    "after": "protected-after-ar-dashboard.png"
+  },
+  {
+    "kind": "protected",
+    "route": "inbox",
+    "locale": "ar",
+    "width": 1366,
+    "before": "protected-before-ar-inbox.png",
+    "after": "protected-after-ar-inbox.png"
+  },
+  {
+    "kind": "protected",
+    "route": "crm/overview",
+    "locale": "ar",
+    "width": 1366,
+    "before": "protected-before-ar-crm-overview.png",
+    "after": "protected-after-ar-crm-overview.png"
+  },
+  {
+    "kind": "protected",
+    "route": "crm/sales",
+    "locale": "ar",
+    "width": 1366,
+    "before": "protected-before-ar-crm-sales.png",
+    "after": "protected-after-ar-crm-sales.png"
+  },
+  {
+    "kind": "protected",
+    "route": "channels",
+    "locale": "ar",
+    "width": 1366,
+    "before": "protected-before-ar-channels.png",
+    "after": "protected-after-ar-channels.png"
+  },
+  {
+    "kind": "protected",
+    "route": "automations",
+    "locale": "ar",
+    "width": 1366,
+    "before": "protected-before-ar-automations.png",
+    "after": "protected-after-ar-automations.png"
+  },
+  {
+    "kind": "protected",
+    "route": "team",
+    "locale": "ar",
+    "width": 1366,
+    "before": "protected-before-ar-team.png",
+    "after": "protected-after-ar-team.png"
+  },
+  {
+    "kind": "protected",
+    "route": "settings",
+    "locale": "ar",
+    "width": 1366,
+    "before": "protected-before-ar-settings.png",
+    "after": "protected-after-ar-settings.png"
+  },
+  {
+    "kind": "protected",
+    "route": "billing",
+    "locale": "ar",
+    "width": 1366,
+    "before": "protected-before-ar-billing.png",
+    "after": "protected-after-ar-billing.png"
+  },
+  {
+    "kind": "protected",
+    "route": "campaigns",
+    "locale": "ar",
+    "width": 1366,
+    "before": "protected-before-ar-campaigns.png",
+    "after": "protected-after-ar-campaigns.png"
+  }
+]

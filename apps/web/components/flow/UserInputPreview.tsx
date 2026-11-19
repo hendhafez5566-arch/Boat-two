@@ -1,5 +1,4 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useLocale } from '../product/locale';
 
 export type UIQuestion = {
@@ -19,6 +18,7 @@ export type UIQuestion = {
     | 'image'
     | 'video';
   options?: { id: string; title: string }[];
+  buttonText?: string;
   saveAs: string;
   saveToSystem?: 'name' | 'email' | 'phone';
   allowSkip?: boolean;

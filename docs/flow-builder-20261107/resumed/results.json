@@ -1,0 +1,108 @@
+{
+  "productCommit": "fbfa99835e99d4800f95c714cdb7f29b267940f9",
+  "webDeployment": "5aad01a2-9359-4812-89e2-7bb45b2573da",
+  "apiDeploymentUnchanged": "1b75418b-378d-4a3c-b1fa-16c40baf5795",
+  "scope": "resumed incremental batches; not full acceptance",
+  "checks": [
+    {
+      "name": "Build Web/API, TypeScript, scoped ESLint",
+      "status": "PASS"
+    },
+    {
+      "name": "Recursive API suite",
+      "status": "PASS",
+      "passed": 216,
+      "failed": 0
+    },
+    {
+      "name": "Node and analytics SVG rendering",
+      "status": "PASS",
+      "nodeIcons": 31,
+      "statIcons": 4
+    },
+    {
+      "name": "Selected-node connection presentation",
+      "status": "PASS",
+      "cases": 2
+    },
+    {
+      "name": "Graph/card round trips including authored overlaps",
+      "status": "PASS",
+      "passed": 4
+    },
+    {
+      "name": "Isolated full-app HTTP journeys",
+      "status": "PASS",
+      "passed": 6,
+      "failed": 0,
+      "evidence": "api-journey.json"
+    },
+    {
+      "name": "Live Arabic and English editor inspection",
+      "status": "PASS",
+      "width": 1363,
+      "height": 936,
+      "scope": "sampled nodes/panel/open-close/metrics; no live graph Save/Publish"
+    },
+    {
+      "name": "Open saved graph without relayout or false Unsaved",
+      "status": "PASS",
+      "evidence": "saved-open-evidence.json"
+    },
+    {
+      "name": "Previous 33 UI checks rerun",
+      "status": "BLOCKED",
+      "reason": "Local Chromium setup rejected by automatic approval under prior Cloud Browser instruction; no workaround used."
+    },
+    {
+      "name": "Five requested widths and protected-route pixel comparisons rerun",
+      "status": "BLOCKED",
+      "reason": "Current Cloud Browser fixed at1363x936; historical evidence retained only."
+    },
+    {
+      "name": "Complete BotSailor parity",
+      "status": "FAIL",
+      "reason": "Distinct Notify Contact/Row/Section, character generation and other documented gaps remain."
+    }
+  ],
+  "liveMetrics": {
+    "cards": [
+      {
+        "border": "rgb(13, 139, 241)",
+        "screenWidth": 264,
+        "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+        "width": "264px"
+      },
+      {
+        "border": "rgba(222, 227, 230, 0.42)",
+        "screenWidth": 264,
+        "shadow": "rgba(139, 141, 141, 0.15) 0px 4px 8px 0px",
+        "width": "264px"
+      }
+    ],
+    "direction": "rtl",
+    "edges": [
+      {
+        "opacity": "1",
+        "stroke": "rgb(119, 130, 146)",
+        "width": "2px"
+      },
+      {
+        "opacity": "1",
+        "stroke": "rgb(119, 130, 146)",
+        "width": "2px"
+      }
+    ],
+    "statIconCount": 4,
+    "stats": [
+      "0",
+      "0",
+      "0",
+      "0"
+    ],
+    "viewport": {
+      "height": 936,
+      "width": 1363
+    }
+  }
+}

@@ -166,7 +166,7 @@ export function CrmJobs() {
                     const result = await api<{ imported: number }>('/crm/contacts/import', {
                       method: 'POST',
                       body: JSON.stringify({
-                        contacts: contacts.map((r: any) => ({
+                        contacts: contacts.map((r: Record<string, unknown>) => ({
                           ...r,
                           email: r.email || null,
                           phone: r.phone || null,

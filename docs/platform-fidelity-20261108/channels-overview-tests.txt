@@ -1,0 +1,1 @@
+PASS: verified/expiring/disabled/unknown channel states, combined platform/status/name/identifier filters, non-mutating counts, and both six-provider catalog variants. Browser acceptance remains separate.

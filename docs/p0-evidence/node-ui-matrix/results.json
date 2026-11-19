@@ -1,0 +1,38 @@
+[
+  {
+    "language": "ar",
+    "width": 390,
+    "status": "PASS",
+    "nodeConfigurations": 31,
+    "editedAndReopenedConnections": 29,
+    "endCloseSetting": true,
+    "scope": "Every supported node inspector and routing UI/save/reopen; not every node property or external-provider execution certification"
+  },
+  {
+    "language": "ar",
+    "width": 1366,
+    "status": "PASS",
+    "nodeConfigurations": 31,
+    "editedAndReopenedConnections": 29,
+    "endCloseSetting": true,
+    "scope": "Every supported node inspector and routing UI/save/reopen; not every node property or external-provider execution certification"
+  },
+  {
+    "language": "en",
+    "width": 390,
+    "status": "PASS",
+    "nodeConfigurations": 31,
+    "editedAndReopenedConnections": 29,
+    "endCloseSetting": true,
+    "scope": "Every supported node inspector and routing UI/save/reopen; not every node property or external-provider execution certification"
+  },
+  {
+    "language": "en",
+    "width": 1366,
+    "status": "PASS",
+    "nodeConfigurations": 31,
+    "editedAndReopenedConnections": 29,
+    "endCloseSetting": true,
+    "scope": "Every supported node inspector and routing UI/save/reopen; not every node property or external-provider execution certification"
+  }
+]

@@ -1,3 +1,4 @@
+import { boundedRegexTest, RegexBudget } from './bounded-regex';
 import { randomUUID } from 'node:crypto';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { evaluateRule, Operands } from './conditions';
@@ -40,6 +41,8 @@ class RunError extends Error {}
 export class FlowEngine {
   private readonly nodes: Map<string, FlowNode>;
   private httpCalls = 0;
+  // Shared across question validation and branches in this engine invocation.
+  private readonly regexBudget: RegexBudget = { remainingMs: 100 };
   private deliveryReady?: string;
 
   constructor(
@@ -186,6 +189,12 @@ export class FlowEngine {
 
   // ---------------------------------------------------------------- helpers
 
+  private clearMappedOutputs(mappings: { variable?: string }[] | undefined, state: FlowState) {
+    for (const mapping of mappings ?? [])
+      if (mapping.variable && /^[A-Za-z_][\w]{0,40}$/.test(mapping.variable))
+        delete state.vars[mapping.variable];
+  }
+
   private resolver(ctx: FlowContext, state: FlowState): Resolver {
     return (path: string) => {
       if (path.startsWith('contact.')) {
@@ -204,6 +213,7 @@ export class FlowEngine {
 
   private operands(ctx: FlowContext, state: FlowState): Operands {
     return {
+      regexBudget: this.regexBudget,
       vars: state.vars,
       contact: ctx.contact,
       channelType: ctx.channel.type,
@@ -363,7 +373,7 @@ export class FlowEngine {
         ...(o.length > 3
           ? {
               list: {
-                buttonText: 'اختر',
+                buttonText: q.buttonText || 'اختر',
                 sections: [{ rows: o.map((x) => ({ id: x.id, title: x.title })) }],
               },
             }
@@ -547,6 +557,7 @@ export class FlowEngine {
       d.answerType ?? 'text',
       d.pattern,
       ctx.lastMessage.media,
+      this.regexBudget,
     );
 
     if (parsed.ok) {
@@ -700,7 +711,12 @@ export class FlowEngine {
         return { kind: 'goto', handle: 'next' };
       }
       case 'appointment': {
-        if (!this.deps.bookAppointment) throw new RunError('Appointment adapter unavailable');
+        delete state.vars[d.saveAs || 'appointment'];
+        delete state.vars.appointment_error;
+        if (!this.deps.bookAppointment) {
+          state.vars.appointment_error = 'Appointment adapter unavailable';
+          return { kind: 'goto', handle: 'error' };
+        }
         try {
           state.vars[d.saveAs || 'appointment'] = await this.deps.bookAppointment(
             d.serviceId,
@@ -754,8 +770,12 @@ export class FlowEngine {
       }
 
       case 'location': {
-        const lat = Number(normalizeDigits(String(interpolateValue(String(d.lat ?? ''), r) ?? '')));
-        const lng = Number(normalizeDigits(String(interpolateValue(String(d.lng ?? ''), r) ?? '')));
+        const latText = normalizeDigits(String(interpolateValue(String(d.lat ?? ''), r) ?? '')).trim();
+        const lngText = normalizeDigits(String(interpolateValue(String(d.lng ?? ''), r) ?? '')).trim();
+        // Missing variables must not silently become the real coordinate zero.
+        if (!latText || !lngText) return { kind: 'goto', handle: 'next' };
+        const lat = Number(latText);
+        const lng = Number(lngText);
         if (
           !Number.isFinite(lat) ||
           !Number.isFinite(lng) ||
@@ -809,14 +829,17 @@ export class FlowEngine {
       }
 
       case 'sequence': {
-        if (d.sequenceId && this.deps.enrollSequence) {
-          try {
-            await this.deps.enrollSequence(String(d.sequenceId));
-          } catch {
-            /* لا نوقف المحادثة إذا فشل التسجيل (مثلاً بدون موافقة تسويقية) */
-          }
+        try {
+          if (!d.sequenceId || !this.deps.enrollSequence)
+            throw new RunError('Sequence enrollment unavailable');
+          // enrolled:false means the contact is already active, not a failure.
+          await this.deps.enrollSequence(String(d.sequenceId));
+          return { kind: 'goto', handle: 'next' };
+        } catch {
+          if (node.edges.error) return { kind: 'goto', handle: 'error' };
+          // Do not claim successful enrollment or expose provider diagnostics.
+          throw new RunError('Sequence enrollment failed; connect the error output');
         }
-        return { kind: 'goto', handle: 'next' };
       }
 
       case 'image':
@@ -954,6 +977,8 @@ export class FlowEngine {
           body: d.body && method !== 'GET' ? interpolate(String(d.body), r, 'json') : undefined,
           timeoutMs: Math.min(Number(d.timeoutMs) || 8000, 15000),
         };
+        // Resolve request inputs first: an output may also be an input variable.
+        this.clearMappedOutputs(d.saveAs, state);
         try {
           const res = await this.deps.http(spec);
           state.vars.http = { status: res.status, ok: res.ok };
@@ -972,6 +997,8 @@ export class FlowEngine {
       }
 
       case 'sheet_fetch': {
+        const lookupValue = interpolate(String(d.lookupValue ?? ''), r);
+        this.clearMappedOutputs(d.saveAs, state);
         const ref = parseSheetUrl(String(d.url ?? ''));
         if (!ref && !d.connectionId) {
           state.vars.sheet = { found: false, error: 'Invalid Google Sheet link' };
@@ -1004,7 +1031,7 @@ export class FlowEngine {
           const found = lookupRow(
             parseCsv(text),
             String(d.lookupColumn ?? ''),
-            interpolate(String(d.lookupValue ?? ''), r),
+            lookupValue,
           );
           if (!found.row) {
             state.vars.sheet = { found: false, total: found.total };
@@ -1111,6 +1138,7 @@ export function parseAnswer(
     | 'video',
   pattern?: string,
   media?: FlowContext['lastMessage']['media'],
+  regexBudget?: RegexBudget,
 ): { ok: true; value: string | number } | { ok: false } {
   if (['file', 'image', 'video'].includes(type)) {
     if (media?.kind !== type) return { ok: false };
@@ -1168,13 +1196,9 @@ export function parseAnswer(
     }
     case 'regex': {
       if (!pattern || pattern.length > 200) return { ok: false };
-      try {
-        return new RegExp(pattern, 'i').test(text.slice(0, 1000))
-          ? { ok: true, value: text }
-          : { ok: false };
-      } catch {
-        return { ok: false };
-      }
+      return boundedRegexTest(pattern, text, regexBudget)
+        ? { ok: true, value: text }
+        : { ok: false };
     }
     default:
       return { ok: true, value: text };

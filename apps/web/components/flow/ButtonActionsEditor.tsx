@@ -1,8 +1,10 @@
 'use client';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
+import { ConfigDisclosure, ConfigSummary } from './ConfigDisclosure';
 import { useLocale } from '../product/locale';
 import styles from './automation-config.module.css';
+import { NavIcon } from '../product/NavIcon';
 
 export type ButtonAction =
   | { type: 'integration'; connectionId: string; payload: string }
@@ -61,10 +63,13 @@ function IntegrationOperation({
     !['calendar_event', 'sheet_append'].includes(String(payload.operation))
   )
     return (
-      <label>
-        {t('بيانات العملية JSON', 'Operation JSON')}
-        <textarea dir="ltr" rows={7} value={value} onChange={(e) => onChange(e.target.value)} />
-      </label>
+      <ConfigDisclosure>
+        <ConfigSummary>{t('الإعدادات التقنية للربط', 'Advanced integration payload')}</ConfigSummary>
+        <label>
+          {t('بيانات العملية JSON', 'Operation JSON')}
+          <textarea dir="ltr" rows={7} value={value} onChange={(e) => onChange(e.target.value)} />
+        </label>
+      </ConfigDisclosure>
     );
   const update = (key: string, next: unknown) =>
     onChange(JSON.stringify({ ...payload, [key]: next }, null, 2));
@@ -180,7 +185,6 @@ export default function ButtonActionsEditor({
   onChange: (v: ButtonAction[]) => void;
 }) {
   const { t } = useLocale();
-  const fieldListId = useId();
   const [lists, setLists] = useState<{ id: string; name: string }[]>([]);
   const [sequences, setSequences] = useState<{ id: string; name: string; status: string }[]>([]);
   const [departments, setDepartments] = useState<{ id: string; name: string; members: string[] }[]>(
@@ -188,6 +192,7 @@ export default function ButtonActionsEditor({
   );
   const [staff, setStaff] = useState<{ user_id: string; full_name: string; email: string }[]>([]);
   const [failed, setFailed] = useState(false);
+  const [expandedAction, setExpandedAction] = useState<number | null>(null);
   const [fields, setFields] = useState<{ key: string; label: string }[]>([]);
   useEffect(() => {
     let active = true;
@@ -229,13 +234,52 @@ export default function ButtonActionsEditor({
     };
   }, []);
   const labels = {
-    integration: t('Google Sheets / Calendar / مزود خارجي', 'Google Sheets / Calendar / provider'),
+    integration: t('تحديث جدول أو حجز موعد', 'Update a sheet or book an appointment'),
     set_field: t('حفظ حقل مخصص', 'Save custom field'),
     tag: t('إضافة / إزالة وسوم', 'Add / remove labels'),
     list: t('إضافة / إزالة من قائمة', 'Add / remove list membership'),
     sequence: t('اشتراك / إلغاء تسلسل', 'Subscribe / unsubscribe sequence'),
     assign: t('تحويل لموظف أو قسم', 'Assign employee or department'),
-    webhook: t('إرسال Webhook', 'Send webhook'),
+    webhook: t('إرسال البيانات لنظام خارجي', 'Send data to another system'),
+  };
+  const actionIcons: Record<ButtonAction['type'], string> = {
+    integration: 'integrations',
+    set_field: 'edit',
+    tag: 'flag',
+    list: 'crm',
+    sequence: 'sequences',
+    assign: 'team',
+    webhook: 'globe',
+  };
+  const descriptions = {
+    integration: t(
+      'سجّل البيانات في جدول أو احجز موعدًا في التقويم.',
+      'Write data to a sheet or book a calendar event.',
+    ),
+    set_field: t(
+      'احفظ معلومة مثل المدينة في ملف العميل.',
+      'Save a detail such as the city in the customer profile.',
+    ),
+    tag: t(
+      'صنّف العميل بوسم مثل «مهتم بالعمرة».',
+      'Label the customer, for example as interested in Umrah.',
+    ),
+    list: t(
+      'أضف العميل إلى قائمة جمهور أو أزله منها.',
+      'Add the customer to an audience list or remove them.',
+    ),
+    sequence: t(
+      'ابدأ أو أوقف سلسلة رسائل مجدولة للعميل.',
+      'Start or stop scheduled messages for this customer.',
+    ),
+    assign: t(
+      'حوّل المحادثة إلى الموظف أو الفريق المسؤول.',
+      'Hand the conversation to an employee or team.',
+    ),
+    webhook: t(
+      'أرسل بيانات الاختيار إلى نظام خارجي مرتبط.',
+      'Send the reply data to a connected external system.',
+    ),
   };
   const patch = (i: number, action: ButtonAction) =>
     onChange(value.map((a, j) => (j === i ? action : a)));
@@ -284,15 +328,44 @@ export default function ButtonActionsEditor({
     assign: { type: 'assign' },
     webhook: { type: 'webhook', url: 'https://', body: '{}' },
   };
-  const add = (type: ButtonAction['type']) => onChange([...value, defaults[type]]);
+  const add = (type: ButtonAction['type']) => {
+    if (value.length >= 20) return;
+    setExpandedAction(value.length);
+    onChange([...value, defaults[type]]);
+  };
+  const needsSetup = (a: ButtonAction) =>
+    (a.type === 'integration' && !a.connectionId) ||
+    (a.type === 'set_field' && !a.key.trim()) ||
+    (a.type === 'tag' && !a.add.length && !a.remove.length) ||
+    (a.type === 'list' && !a.listId) ||
+    (a.type === 'sequence' && !a.sequenceId) ||
+    (a.type === 'webhook' && !/^https:\/\/.+/.test(a.url));
+  const summary = (a: ButtonAction) => {
+    switch (a.type) {
+      case 'set_field':
+        return a.key ? `${fields.find((f) => f.key === a.key)?.label ?? a.key} · ${a.value || t('قيمة فارغة', 'Empty value')}` : t('اختر معلومة للحفظ', 'Choose a field to save');
+      case 'tag':
+        return [...a.add, ...a.remove].join('، ') || t('اختر الوسوم', 'Choose labels');
+      case 'list':
+        return lists.find((l) => l.id === a.listId)?.name ?? t('اختر القائمة', 'Choose a list');
+      case 'sequence':
+        return sequences.find((q) => q.id === a.sequenceId)?.name ?? t('اختر التسلسل', 'Choose a sequence');
+      case 'assign':
+        return staff.find((u) => u.user_id === a.userId)?.full_name ||
+          departments.find((d) => d.id === a.departmentId)?.name ||
+          t('حسب قواعد التوزيع الحالية', 'Using current routing rules');
+      case 'integration':
+        return connections.find((c) => c.id === a.connectionId)?.name ?? t('اختر الربط', 'Choose a connection');
+      case 'webhook':
+        return a.url === 'https://' ? t('أدخل رابط النظام', 'Enter the destination URL') : a.url;
+    }
+  };
   return (
-    <div className={styles.form}>
-      <p className={styles.note}>
-        {t(
-          'اختر إعداد الأتمتة المطلوب. تُنفذ الإعدادات المحفوظة بالترتيب الموضح قبل الخطوة التالية.',
-          'Choose the automation settings you need. Saved actions run in the numbered order before the next step.',
-        )}
-      </p>
+    <div className={`${styles.form} ${styles.automationRoot}`}>
+      <div className={styles.automationIntro}>
+        <h3>{t('ماذا تريد أن يحدث تلقائيًا عندما يختار العميل هذا الرد؟', 'What should happen automatically when the customer chooses this reply?')}</h3>
+        <p>{t('أضف إجراءً واحدًا أو أكثر. ستظهر تفاصيل كل إجراء عند فتحه، وتُنفذ الإجراءات بالترتيب الموضح.', 'Add one or more actions. Open an action to configure it; actions run in the order shown.')}</p>
+      </div>
       {failed && (
         <p role="status">
           {t(
@@ -301,24 +374,69 @@ export default function ButtonActionsEditor({
           )}
         </p>
       )}
-      <div className={styles.grid}>
-        {(Object.keys(labels) as ButtonAction['type'][]).map((type) => (
-          <button
-            type="button"
-            className={styles.button}
-            key={type}
-            disabled={value.length >= 20}
-            onClick={() => add(type)}
-          >
-            ＋ {labels[type]}
-          </button>
-        ))}
+      {([
+        { title: t('بيانات العميل وتصنيفه', 'Customer data and organization'), types: ['set_field', 'tag', 'list'], open: true },
+        { title: t('المتابعة وتحويل المحادثة', 'Follow-up and conversation routing'), types: ['sequence', 'assign'], open: false },
+        { title: t('الربط مع أنظمة أخرى', 'Connected systems'), types: ['integration', 'webhook'], open: false },
+      ] as { title: string; types: ButtonAction['type'][]; open: boolean }[]).map((group) => (
+        <ConfigDisclosure key={group.title} open={group.open}>
+          <ConfigSummary>{group.title}</ConfigSummary>
+          <div className={`${styles.grid} ${styles.actionGrid}`}>
+            {group.types.map((type) => (
+              <button
+                type="button"
+                className={`${styles.button} ${styles.actionChoice}`}
+                key={type}
+                aria-label={`${t('إضافة', 'Add')} ${labels[type]}`}
+                disabled={value.length >= 20}
+                onClick={() => add(type)}
+              >
+                <span className={styles.actionIcon}><NavIcon name={actionIcons[type]} /></span>
+                <span className={styles.actionChoiceText}>
+                  <strong>{labels[type]}</strong>
+                  <small>{descriptions[type]}</small>
+                </span>
+                <span className={styles.addAction} aria-hidden="true"><NavIcon name="plus" /></span>
+              </button>
+            ))}
+          </div>
+          {group.types.includes('integration') && !connections.some((c) => c.enabled && c.provider !== 'webhook') && (
+            <p className={styles.note}>
+              {t('لتحديث الجداول أو التقويم، اربط حسابًا أولًا من إعدادات التكاملات.', 'To update sheets or calendars, connect an account in integration settings first.')}{' '}
+              <a href="/dashboard/integrations" target="_blank" rel="noopener noreferrer">{t('إعداد الربط', 'Set up connection')}</a>
+            </p>
+          )}
+          {group.types.includes('sequence') && !sequences.some((s) => s.status === 'active') && (
+            <p className={styles.note}>{t('ابدأ بإنشاء تسلسل متابعة نشط قبل الاشتراك فيه.', 'Create an active follow-up sequence before subscribing a customer.')}</p>
+          )}
+        </ConfigDisclosure>
+      ))}
+      <div className={styles.actionListHeading}>
+        <h3>{t('الإجراءات التي ستُنفذ بالترتيب', 'Actions in execution order')}</h3>
+        <span>{value.length}/20</span>
       </div>
+      {value.length === 0 && (
+        <p className={styles.empty}>{t('لم تُضف إجراءات بعد. اختر إجراءً من المجموعات بالأعلى.', 'No actions added yet. Choose one of the actions above.')}</p>
+      )}
       {value.map((a, i) => (
-        <fieldset className={styles.section} key={i}>
-          <legend>
-            {i + 1}. {labels[a.type]}
-          </legend>
+        <ConfigDisclosure
+          key={i}
+          className={styles.actionItem}
+          expanded={expandedAction === i}
+          onExpandedChange={(next) => setExpandedAction(next ? i : null)}
+        >
+          <ConfigSummary>
+            <span className={styles.actionSummary}>
+              <span className={styles.actionOrder}>{i + 1}</span>
+              <span className={styles.actionIcon}><NavIcon name={actionIcons[a.type]} /></span>
+              <span className={styles.actionSummaryText}>
+                <strong>{labels[a.type]}</strong>
+                <small title={summary(a)}>{summary(a)}</small>
+              </span>
+              {needsSetup(a) && <span className={styles.needsSetup}>{t('يحتاج إعدادًا', 'Needs setup')}</span>}
+            </span>
+          </ConfigSummary>
+          <div className={styles.actionContent}>
           {a.type === 'integration' && (
             <>
               <label>
@@ -350,23 +468,28 @@ export default function ButtonActionsEditor({
           {a.type === 'set_field' && (
             <>
               <label>
-                {t('اسم الحقل', 'Field key')}
-                <input
-                  list={`${fieldListId}-${i}`}
-                  dir="ltr"
-                  value={a.key}
-                  pattern="[A-Za-z_][A-Za-z0-9_]{0,40}"
-                  maxLength={41}
+                {t('اختر معلومة موجودة عن العميل', 'Choose an existing customer field')}
+                <select
+                  value={fields.some((f) => f.key === a.key) ? a.key : ''}
                   onChange={(e) => patch(i, { ...a, key: e.target.value })}
-                />
-                <datalist id={`${fieldListId}-${i}`}>
-                  {fields.map((field) => (
-                    <option key={field.key} value={field.key}>
-                      {field.label}
-                    </option>
-                  ))}
-                </datalist>
+                >
+                  <option value="">{t('اختر الحقل', 'Choose a field')}</option>
+                  {fields.map((field) => <option key={field.key} value={field.key}>{field.label}</option>)}
+                </select>
               </label>
+              <ConfigDisclosure open={!!a.key && !fields.some((f) => f.key === a.key)}>
+                <ConfigSummary>{t('اسم حقل جديد أو إعداد متقدم', 'New field name or advanced setting')}</ConfigSummary>
+                <label>
+                  {t('اسم الحقل التقني', 'Technical field key')}
+                  <input
+                    dir="ltr"
+                    value={a.key}
+                    pattern="[A-Za-z_][A-Za-z0-9_]{0,40}"
+                    maxLength={41}
+                    onChange={(e) => patch(i, { ...a, key: e.target.value })}
+                  />
+                </label>
+              </ConfigDisclosure>
               <label>
                 {t('القيمة (تدعم المتغيرات)', 'Value (supports variables)')}
                 <input
@@ -488,34 +611,41 @@ export default function ButtonActionsEditor({
               </label>
             </>
           )}
-          <div className="form-actions">
-            <button
+          <div className={styles.actionControls}>
+            <button className={styles.orderButton}
               type="button"
               disabled={i === 0}
               onClick={() => {
                 const next = [...value];
                 [next[i - 1], next[i]] = [next[i], next[i - 1]];
                 onChange(next);
+                setExpandedAction(i - 1);
               }}
             >
               {t('لأعلى', 'Move up')}
             </button>
             <button
+              className={styles.orderButton}
               type="button"
               disabled={i === value.length - 1}
               onClick={() => {
                 const next = [...value];
                 [next[i + 1], next[i]] = [next[i], next[i + 1]];
                 onChange(next);
+                setExpandedAction(i + 1);
               }}
             >
               {t('لأسفل', 'Move down')}
             </button>
-            <button type="button" onClick={() => onChange(value.filter((_, j) => j !== i))}>
-              {t('إزالة الفعل', 'Remove action')}
+            <button className={styles.removeButton} type="button" onClick={() => {
+              onChange(value.filter((_, j) => j !== i));
+              setExpandedAction(null);
+            }}>
+              <NavIcon name="trash" /> {t('إزالة الإجراء', 'Remove action')}
             </button>
           </div>
-        </fieldset>
+          </div>
+        </ConfigDisclosure>
       ))}
     </div>
   );

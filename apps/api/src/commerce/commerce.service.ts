@@ -19,6 +19,66 @@ export class CommerceService {
     private google: GoogleService,
     private effects: ExternalEffects,
   ) {}
+  categories(tenant: string) {
+    return this.db.withTenant(
+      tenant,
+      async (c) => (await c.query('SELECT id,name FROM product_categories ORDER BY name')).rows,
+    );
+  }
+  saveCategory(tenant: string, name: string, id?: string) {
+    return this.db.withTenant(tenant, async (c) => {
+      const result = id
+        ? await c.query('UPDATE product_categories SET name=$2 WHERE id=$1 RETURNING id,name', [
+            id,
+            name,
+          ])
+        : await c.query(
+            'INSERT INTO product_categories(tenant_id,name) VALUES($1,$2) RETURNING id,name',
+            [tenant, name],
+          );
+      if (!result.rows[0]) throw new NotFoundException('Category unavailable');
+      return result.rows[0];
+    });
+  }
+  async removeCategory(tenant: string, id: string) {
+    return this.db.withTenant(tenant, async (c) => {
+      // The composite foreign key also protects against a concurrent product insert.
+      const category = await c.query('SELECT id FROM product_categories WHERE id=$1 FOR UPDATE', [id]);
+      if (!category.rows[0]) throw new NotFoundException('Category unavailable');
+      const products = await c.query('SELECT 1 FROM catalog_products WHERE category_id=$1 LIMIT 1', [id]);
+      if (products.rows.length)
+        throw new ConflictException('Move all products, including archived products, before deleting this category');
+      await c.query('DELETE FROM product_categories WHERE id=$1', [id]);
+      return { deleted: true };
+    });
+  }
+  async duplicateCategory(tenant: string, sourceId: string, name: string) {
+    return this.db.withTenant(tenant, async (c) => {
+      const result = await c.query(
+        `WITH new_category AS (
+           INSERT INTO product_categories (tenant_id, name)
+           SELECT tenant_id, $3 FROM product_categories WHERE tenant_id = $1 AND id = $2
+           RETURNING id, tenant_id, name
+         ), copied AS (
+           INSERT INTO catalog_products
+             (tenant_id, category_id, sku, name, description, price_cents, currency,
+              image_url, link_url, archived, specifications, options)
+           SELECT destination.tenant_id, destination.id, 'COPY-' || gen_random_uuid()::text,
+                  product.name, product.description, product.price_cents, product.currency,
+                  product.image_url, product.link_url, product.archived,
+                  product.specifications, product.options
+           FROM new_category destination
+           JOIN catalog_products product ON product.tenant_id = destination.tenant_id
+           WHERE product.category_id = $2 AND product.source_id IS NULL
+           RETURNING id
+         )
+         SELECT id, name, (SELECT count(*)::int FROM copied) AS product_count FROM new_category`,
+        [tenant, sourceId, name],
+      );
+      if (!result.rows[0]) throw new NotFoundException('Category unavailable');
+      return result.rows[0];
+    });
+  }
   products(tenant: string) {
     return this.db.withTenant(
       tenant,
@@ -31,29 +91,122 @@ export class CommerceService {
     );
   }
   saveProduct(tenant: string, input: z.infer<typeof productSchema>, id?: string) {
-    return this.db.withTenant(
-      tenant,
-      async (c) =>
-        (
-          await c.query(
-            `INSERT INTO catalog_products(id,tenant_id,sku,name,description,price_cents,currency,image_url,link_url,catalog_id,retailer_id,archived) VALUES(COALESCE($1::uuid,gen_random_uuid()),$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(id) DO UPDATE SET sku=EXCLUDED.sku,name=EXCLUDED.name,description=EXCLUDED.description,price_cents=EXCLUDED.price_cents,currency=EXCLUDED.currency,image_url=EXCLUDED.image_url,link_url=EXCLUDED.link_url,catalog_id=EXCLUDED.catalog_id,retailer_id=EXCLUDED.retailer_id,archived=EXCLUDED.archived,updated_at=now() WHERE catalog_products.source_id IS NULL RETURNING *`,
-            [
-              id ?? null,
-              tenant,
-              input.sku,
-              input.name,
-              input.description,
-              input.priceCents,
-              input.currency,
-              input.imageUrl ?? null,
-              input.linkUrl ?? null,
-              input.catalogId ?? null,
-              input.retailerId ?? null,
-              input.archived,
-            ],
-          )
-        ).rows[0],
-    );
+    return this.db.withTenant(tenant, async (c) => {
+      // Editing the Archived checkbox must protect active bot references too;
+      // otherwise it would bypass the dedicated guarded archive endpoint.
+      if (id && input.archived) {
+        const current = await c.query(
+          'SELECT archived FROM catalog_products WHERE tenant_id=$1 AND id=$2 FOR UPDATE',
+          [tenant, id],
+        );
+        if (current.rows[0] && !current.rows[0].archived) {
+          const token = `%${id}%`;
+          const draft = await c.query(
+            'SELECT 1 FROM flows WHERE tenant_id=$1 AND draft_graph::text LIKE $2 LIMIT 1',
+            [tenant, token],
+          );
+          const versions = await c.query(
+            'SELECT 1 FROM flow_versions WHERE tenant_id=$1 AND graph::text LIKE $2 LIMIT 1',
+            [tenant, token],
+          );
+          const sessions = await c.query(
+            'SELECT 1 FROM flow_sessions WHERE tenant_id=$1 AND state::text LIKE $2 LIMIT 1',
+            [tenant, token],
+          );
+          if (draft.rows.length || versions.rows.length || sessions.rows.length) {
+            throw new ConflictException(
+              'Product is used in a bot draft, published version or session. Remove the reference before archiving it.',
+            );
+          }
+        }
+      }
+      const result = await c.query(
+        `INSERT INTO catalog_products(id,tenant_id,sku,name,description,price_cents,currency,image_url,link_url,catalog_id,retailer_id,archived,category_id,specifications,options) VALUES(COALESCE($1::uuid,gen_random_uuid()),$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,COALESCE($15::jsonb,'[]'),COALESCE($16::jsonb,'[]')) ON CONFLICT(id) DO UPDATE SET sku=EXCLUDED.sku,name=EXCLUDED.name,description=EXCLUDED.description,price_cents=EXCLUDED.price_cents,currency=EXCLUDED.currency,image_url=EXCLUDED.image_url,link_url=EXCLUDED.link_url,catalog_id=EXCLUDED.catalog_id,retailer_id=EXCLUDED.retailer_id,archived=EXCLUDED.archived,category_id=CASE WHEN $14 THEN EXCLUDED.category_id ELSE catalog_products.category_id END,specifications=COALESCE($15::jsonb,catalog_products.specifications),options=COALESCE($16::jsonb,catalog_products.options),updated_at=now() WHERE catalog_products.source_id IS NULL RETURNING *`,
+        [
+          id ?? null,
+          tenant,
+          input.sku,
+          input.name,
+          input.description,
+          input.priceCents,
+          input.currency,
+          input.imageUrl ?? null,
+          input.linkUrl ?? null,
+          input.catalogId ?? null,
+          input.retailerId ?? null,
+          input.archived,
+          input.categoryId ?? null,
+          input.categoryId !== undefined,
+          input.specifications === undefined ? null : JSON.stringify(input.specifications),
+          input.options === undefined ? null : JSON.stringify(input.options),
+        ],
+      );
+      return result.rows[0];
+    });
+  }
+  async archiveProduct(tenant: string, id: string) {
+    return this.changeLocalProduct(tenant, id, 'archive');
+  }
+  async removeProduct(tenant: string, id: string) {
+    return this.changeLocalProduct(tenant, id, 'delete');
+  }
+  private async changeLocalProduct(tenant: string, id: string, action: 'archive' | 'delete') {
+    return this.db.withTenant(tenant, async (c) => {
+      // Lock the local product before deciding what can be removed. Imported source data
+      // is managed through its source workflow, never from this local-product endpoint.
+      const product = await c.query(
+        'SELECT id FROM catalog_products WHERE tenant_id=$1 AND id=$2 AND source_id IS NULL FOR UPDATE',
+        [tenant, id],
+      );
+      if (!product.rows[0]) throw new NotFoundException('Product unavailable');
+      // Product identifiers live in JSON graphs rather than foreign key columns.
+      // Preserve draft graphs, every published version and running session state.
+      // This intentionally fails closed for historical versions that can be restored.
+      const token = `%${id}%`;
+      const referencedInDraft = await c.query(
+        'SELECT 1 FROM flows WHERE tenant_id=$1 AND draft_graph::text LIKE $2 LIMIT 1',
+        [tenant, token],
+      );
+      const referencedInVersions = await c.query(
+        'SELECT 1 FROM flow_versions WHERE tenant_id=$1 AND graph::text LIKE $2 LIMIT 1',
+        [tenant, token],
+      );
+      const referencedInSessions = await c.query(
+        'SELECT 1 FROM flow_sessions WHERE tenant_id=$1 AND state::text LIKE $2 LIMIT 1',
+        [tenant, token],
+      );
+      if (
+        referencedInDraft.rows.length ||
+        referencedInVersions.rows.length ||
+        referencedInSessions.rows.length
+      ) {
+        throw new ConflictException(
+          'Product is used in a bot draft, published version or session. Remove the reference before deleting or archiving it.',
+        );
+      }
+      if (action === 'archive') {
+        const archived = await c.query(
+          'UPDATE catalog_products SET archived=true, updated_at=now() WHERE tenant_id=$1 AND id=$2 RETURNING id, archived',
+          [tenant, id],
+        );
+        return archived.rows[0];
+      }
+      try {
+        const removed = await c.query(
+          'DELETE FROM catalog_products WHERE tenant_id=$1 AND id=$2 RETURNING id',
+          [tenant, id],
+        );
+        if (!removed.rows[0]) throw new NotFoundException('Product unavailable');
+        return { deleted: true, id };
+      } catch (error) {
+        if ((error as { code?: string }).code === '23503') {
+          throw new ConflictException(
+            'Product is referenced by existing records. Keep it until dependencies are removed.',
+          );
+        }
+        throw error;
+      }
+    });
   }
   async productContent(tenant: string, id: string, native: boolean): Promise<OutContent> {
     const p = await this.db.withTenant(
@@ -110,7 +263,12 @@ export class CommerceService {
         text,
         productList: {
           catalogId: rows[0].catalog_id,
-          sections: [{ title: 'Products', retailerIds: rows.map((p) => p.retailer_id) }],
+          sections: [
+            {
+              title: 'Products',
+              retailerIds: ids.map((id) => rows.find((p) => p.id === id)!.retailer_id),
+            },
+          ],
         },
       };
     }
@@ -270,11 +428,11 @@ export class CommerceService {
     });
   }
   cancel(tenant: string, id: string) {
-    return this.db.withTenant(tenant, (c) =>
-      c
-        .query("UPDATE appointments SET status='cancelled' WHERE id=$1 RETURNING *", [id])
-        .then((r) => r.rows[0]),
-    );
+    return this.db.withTenant(tenant, async (c) => {
+      const result = await c.query("UPDATE appointments SET status='cancelled' WHERE id=$1 RETURNING *", [id]);
+      if (!result.rows[0]) throw new NotFoundException('Appointment unavailable');
+      return result.rows[0];
+    });
   }
   async syncCalendar(tenant: string, id: string) {
     const row = await this.db.withTenant(

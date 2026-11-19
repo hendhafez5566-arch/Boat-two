@@ -1,4 +1,13 @@
 'use client';
+import { useParams } from 'next/navigation';
+import EditorErrorBoundary from '../../../../components/flow/EditorErrorBoundary';
+import { flowIssues } from '../../../../lib/flow-issues';
+import {
+  readFlowRecovery,
+  writeFlowRecovery,
+  downloadFlowRecovery,
+  type FlowRecovery,
+} from '../../../../lib/flow-recovery';
 import { ConfigDisclosure, ConfigSummary } from '../../../../components/flow/ConfigDisclosure';
 import { FlowStatsAvailabilityContext } from '../../../../components/flow/stats-context';
 import BotPolicyEditor from '../../../../components/flow/BotPolicyEditor';
@@ -7,11 +16,9 @@ import type { BotPolicy } from '../../../../lib/flow-types';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactFlow, {
   addEdge,
-  Background,
   Connection,
   ConnectionLineType,
   MiniMap,
-  Panel,
   MarkerType,
   Node,
   NodeChange,
@@ -20,6 +27,7 @@ import ReactFlow, {
   useEdgesState,
   useNodesState,
   useReactFlow,
+  useNodesInitialized,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useLocale } from '../../../../components/product/locale';
@@ -46,7 +54,6 @@ import FlowButtonNode from '../../../../components/flow/FlowButtonNode';
 import { validationMessage } from '../../../../lib/validation-message';
 import UnsavedChangesGuard from '../../../../components/flow/UnsavedChangesGuard';
 import { convertChoices } from '../../../../lib/smart-editor';
-import { STEP_GUIDANCE } from '../../../../lib/step-guidance';
 import ConfigurationPanel from '../../../../components/flow/ConfigurationPanel';
 import Inspector from '../../../../components/flow/Inspector';
 import type { ConditionVariable } from '../../../../components/business/ConditionModal';
@@ -78,12 +85,22 @@ const nodeTypes = {
 };
 const edgeTypes = { smoothstep: FlowEdge, buttonLink: ButtonLinkEdge };
 
+const INITIAL_CANVAS_MIN_ZOOM = 0.5;
+
 type Issue = { nodeId?: string; message: string };
 
 function Editor({ id }: { id: string }) {
   const rf = useReactFlow();
+  const nodesInitialized = useNodesInitialized();
+  const initialViewportReady = useRef(false);
+  useEffect(() => {
+    if (!nodesInitialized || initialViewportReady.current) return;
+    initialViewportReady.current = true;
+    void rf.fitView({ padding: 0.25, minZoom: INITIAL_CANVAS_MIN_ZOOM, maxZoom: 1 });
+  }, [nodesInitialized, rf]);
   const { t, language } = useLocale();
   const [nodeSearch, setNodeSearch] = useState('');
+  const [contextGroup, setContextGroup] = useState<string | null>(null);
   const [findNode, setFindNode] = useState('');
   const [findOpen, setFindOpen] = useState(false);
   const [accountContext, setAccountContext] = useState('');
@@ -130,14 +147,32 @@ function Editor({ id }: { id: string }) {
   const [dropMenu, setDropMenu] = useState<{
     x: number;
     y: number;
-    source: string;
-    handle: string | null;
+    source?: string;
+    handle?: string | null;
     edgeId?: string;
   } | null>(null);
   const [toast, setToast] = useState<{ text: string; undo: boolean } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [connecting, setConnecting] = useState(false);
   const connectFrom = useRef<{ source: string; handle: string | null } | null>(null);
+  useEffect(() => {
+    if (!connecting) return;
+    const cancel = () => {
+      setConnecting(false);
+      connectFrom.current = null;
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') cancel();
+    };
+    window.addEventListener('blur', cancel);
+    window.addEventListener('pointercancel', cancel);
+    window.addEventListener('keydown', escape);
+    return () => {
+      window.removeEventListener('blur', cancel);
+      window.removeEventListener('pointercancel', cancel);
+      window.removeEventListener('keydown', escape);
+    };
+  }, [connecting]);
   const [nodes, setNodes, onNodesChange] = useNodesState<RFData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [startId, setStartId] = useState('');
@@ -183,12 +218,20 @@ function Editor({ id }: { id: string }) {
   const savedContent = useRef('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  // Only terminal success notices disappear; validation, recovery and conflict notices stay.
+  useEffect(() => {
+    if (!/^(تم الحفظ$|All changes saved$|تم النشر v\d+$|Published v\d+$)/.test(msg)) return;
+    const timer = setTimeout(() => setMsg(''), 1800);
+    return () => clearTimeout(timer);
+  }, [msg]);
   const [confirmPublish, setConfirmPublish] = useState(false);
   const [publishOutcome, setPublishOutcome] = useState<{
     kind: 'success' | 'error';
     text: string;
   } | null>(null);
   const [updatedAt, setUpdatedAt] = useState('');
+  const [recovery, setRecovery] = useState<FlowRecovery | null>(null);
+  const [recoveryWarning, setRecoveryWarning] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [nodeStats, setNodeStats] = useState<Record<string, NodeStats>>({});
   const [buttonStats, setButtonStats] = useState<Record<string, ButtonStats>>({});
@@ -259,7 +302,7 @@ function Editor({ id }: { id: string }) {
       clearInterval(timer);
     };
   }, [id]);
-  const [autoSave, setAutoSave] = useState(true);
+  const [autoSave, setAutoSave] = useState(false);
   const [versions, setVersions] = useState<{ id: string; version: number; created_at: string }[]>(
     [],
   );
@@ -279,19 +322,20 @@ function Editor({ id }: { id: string }) {
     (async () => {
       const f = await api<any>(`/flows/${id}`);
       const g = toFlow(f.draft_graph);
+      const localDraft = readFlowRecovery(id);
+      const remoteContent = JSON.stringify({
+        graph: f.draft_graph,
+        name: f.name,
+        priority: f.priority,
+        triggers: f.triggers,
+        channelIds: f.channel_ids ?? [],
+      });
+      if (localDraft && (localDraft.content !== remoteContent || localDraft.inspectorDraft))
+        setRecovery(localDraft);
       setUpdatedAt(f.updated_at);
       setLoaded(true);
-      const spots = new Set(
-        g.nodes.map((n) => `${Math.round(n.position.x / 40)},${Math.round(n.position.y / 40)}`),
-      );
-      if (
-        g.nodes.length > 1 &&
-        (spots.size < g.nodes.length || hasLayoutOverlap(g.nodes, language === 'ar'))
-      ) {
-        const pos = computeLayout(g.nodes, g.edges, f.draft_graph.startNodeId, language === 'ar');
-        g.nodes = g.nodes.map((n) => ({ ...n, position: pos[n.id] ?? n.position }));
-        setDirty(true);
-      }
+      // Opening a saved graph must preserve author positions, including overlaps.
+      // Rearrangement is an explicit toolbar action and may mark the graph dirty.
       setNodes(g.nodes);
       setEdges(g.edges);
       setStartId(f.draft_graph.startNodeId);
@@ -318,7 +362,9 @@ function Editor({ id }: { id: string }) {
             ),
           );
         });
-    })().catch((e) => setMsg(e.message));
+    })().catch(() =>
+      setMsg(t('تعذّر تحميل التدفق. أعد المحاولة.', 'Could not load the flow. Please retry.')),
+    );
   }, [id, setNodes, setEdges]);
 
   // Stable handler: an inline onSelectionChange makes React Flow re-fire it on every
@@ -439,11 +485,14 @@ function Editor({ id }: { id: string }) {
           {
             id: reference.id,
             type: 'reference',
+            width: 264,
+            height: 163,
+            style: { width: 264, height: 163 },
             position: reference.position,
             draggable: false,
             deletable: false,
             selectable: false,
-            connectable: false,
+            connectable: true,
             data: {
               summary:
                 meta.triggers
@@ -527,25 +576,32 @@ function Editor({ id }: { id: string }) {
   const notify = (text: string, undo = false) => {
     setToast({ text, undo });
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 6000);
+    toastTimer.current = undo ? null : setTimeout(() => setToast(null), 1800);
   };
 
   // A connection is valid only between two different, existing steps and from a real output.
   const isValidConnection = useCallback(
     (c: Connection) => {
       if (!c.source || !c.target) return false;
+      if (c.source === reference?.id)
+        return c.sourceHandle === 'start' && nodes.some((node) => node.id === c.target);
       const real = toReal(c.source, c.sourceHandle);
       if (real.source === c.target) return false;
       const from = nodes.find((n) => n.id === real.source);
       if (!from || !nodes.some((n) => n.id === c.target)) return false;
       return handlesFor(from.data.type, from.data.data).some((h) => h.id === real.handle);
     },
-    [nodes, toReal],
+    [nodes, toReal, reference?.id],
   );
 
   const onConnect = useCallback(
     (raw: Connection) => {
       if (!isValidConnection(raw)) return;
+      if (raw.source === reference?.id && raw.target) {
+        setStartId(raw.target);
+        setDirty(true);
+        return;
+      }
       const r = toReal(raw.source, raw.sourceHandle);
       const c: Connection = { ...raw, source: r.source, sourceHandle: r.handle };
       const previous = edges.find(
@@ -568,7 +624,7 @@ function Editor({ id }: { id: string }) {
         );
       setDirty(true);
     },
-    [setEdges, edges, isValidConnection, toReal],
+    [setEdges, edges, isValidConnection, toReal, reference?.id],
   );
 
   const onEdgeUpdate = useCallback(
@@ -631,7 +687,9 @@ function Editor({ id }: { id: string }) {
         data: { type, data: NODE_META[type].defaults(), isStart: false },
       },
     ]);
-    if (from) {
+    if (from?.source === reference?.id) {
+      setStartId(nid);
+    } else if (from) {
       // Same replacement rule as onConnect: one outgoing edge per source handle.
       setEdges((es) =>
         addEdge(
@@ -767,7 +825,7 @@ function Editor({ id }: { id: string }) {
     setPreviewOpen(false);
     setInspectorOpen(true);
     setTab('node');
-    rf.fitView({ nodes: [{ id: nid }], padding: 1.2, maxZoom: 1.1, duration: 300 });
+    // Opening settings preserves the viewport so nearby steps stay visible.
   };
 
   const openReview = () => {
@@ -846,6 +904,54 @@ function Editor({ id }: { id: string }) {
           el.isContentEditable)
       )
         return;
+      if (
+        e.key === 'Enter' &&
+        el?.classList.contains('react-flow__node') &&
+        !inspectorOpen &&
+        !previewOpen
+      ) {
+        const nodeId = el.getAttribute('data-id');
+        if (nodeId === reference?.id) {
+          e.preventDefault();
+          openSettings();
+          return;
+        }
+        const realId = nodeId ? (btnIndexRef.current[nodeId]?.parentId ?? nodeId) : null;
+        if (realId && nodes.some((node) => node.id === realId)) {
+          e.preventDefault();
+          focusNode(realId);
+          return;
+        }
+      }
+      if (
+        !e.ctrlKey &&
+        !e.metaKey &&
+        ['Delete', 'Backspace'].includes(e.key) &&
+        !inspectorOpen &&
+        !previewOpen &&
+        !confirmPublish &&
+        !showVersions &&
+        !moreOpen
+      ) {
+        const chosen = new Set(nodes.filter((node) => node.selected).map((node) => node.id));
+        if (!chosen.size && selRef.current && nodes.some((node) => node.id === selRef.current))
+          chosen.add(selRef.current);
+        if (chosen.size) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          const remaining = nodes.filter((node) => !chosen.has(node.id));
+          setNodes(remaining);
+          setEdges((links) =>
+            links.filter((link) => !chosen.has(link.source) && !chosen.has(link.target)),
+          );
+          if (chosen.has(startId)) setStartId(remaining[0]?.id ?? '');
+          setSelected(null);
+          selRef.current = null;
+          setDirty(true);
+          notify(t('حُذفت الخطوة وتوصيلاتها.', 'Step and its links deleted.'), true);
+          return;
+        }
+      }
       if (!(e.ctrlKey || e.metaKey)) return;
       const k = e.key.toLowerCase();
       if (k === 'c') {
@@ -968,6 +1074,58 @@ function Editor({ id }: { id: string }) {
     channelIds: meta.channelIds,
   });
   latest.current = content;
+  const recoveryRef = useRef<FlowRecovery | null>(null);
+  useEffect(() => {
+    if (!loaded || recovery) return;
+    const record: FlowRecovery | null =
+      dirty || inspectorDraft
+        ? {
+            version: 1,
+            content,
+            baseUpdatedAt: updatedAt,
+            savedAt: new Date().toISOString(),
+            inspectorDraft,
+          }
+        : null;
+    recoveryRef.current = record;
+    const flush = () => setRecoveryWarning(!writeFlowRecovery(id, recoveryRef.current));
+    const timer = setTimeout(flush, 250);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('pagehide', flush);
+      writeFlowRecovery(id, recoveryRef.current);
+    };
+  }, [id, loaded, recovery, content, dirty, inspectorDraft, updatedAt]);
+  function restoreLocalDraft() {
+    if (!recovery) return;
+    const snapshot = JSON.parse(recovery.content),
+      flow = toFlow(snapshot.graph);
+    setNodes(flow.nodes.map((n) => ({ ...n, selected: n.id === recovery.inspectorDraft?.id })));
+    setEdges(flow.edges);
+    setStartId(snapshot.graph.startNodeId);
+    setMeta((m) => ({
+      ...m,
+      name: snapshot.name,
+      priority: snapshot.priority,
+      triggers: snapshot.triggers,
+      channelIds: snapshot.channelIds,
+      policy: snapshot.graph.policy,
+    }));
+    // Keep the original revision: restoring never silently overwrites newer server changes.
+    setUpdatedAt(recovery.baseUpdatedAt);
+    const pending = recovery.inspectorDraft;
+    if (pending && flow.nodes.some((n) => n.id === pending.id)) {
+      setSelected(pending.id);
+      selRef.current = pending.id;
+      setInspectorDraft(pending);
+      setInspectorOpen(true);
+      setTab('node');
+    }
+    setDirty(true);
+    setRecovery(null);
+  }
+
   useEffect(() => {
     if (validationSnapshot.current && validationSnapshot.current !== content) {
       validationRequest.current++;
@@ -1075,8 +1233,8 @@ function Editor({ id }: { id: string }) {
       });
       if (request !== validationRequest.current || latest.current !== submitted) return;
       setValidationState('current');
-      setIssues(r.errors);
-      setWarnings(r.warnings);
+      setIssues(flowIssues(r.errors));
+      setWarnings(flowIssues(r.warnings));
       setMsg(
         `${r.errors.length} ${t('أخطاء', 'errors')}، ${r.warnings.length} ${t('تحذيرات', 'warnings')}` +
           (!r.errors.length && r.warnings.length
@@ -1116,7 +1274,7 @@ function Editor({ id }: { id: string }) {
       setUpdatedAt(r.updated_at);
       setMeta((m) => ({ ...m, status: 'published', version: r.version }));
       setIssues([]);
-      setWarnings(latest.current === submitted ? (r.warnings ?? []) : []);
+      setWarnings(latest.current === submitted ? flowIssues(r.warnings) : []);
       setValidationState(latest.current === submitted ? 'current' : 'stale');
       setMsg(`${t('تم النشر', 'Published')} v${r.version}`);
       setPublishOutcome({
@@ -1136,8 +1294,13 @@ function Editor({ id }: { id: string }) {
     } catch (e: any) {
       if (latest.current === submitted && e.details?.errors) {
         setValidationState('current');
-        setIssues(e.details.errors);
-        setWarnings(e.details.warnings ?? []);
+        setIssues(
+          flowIssues(
+            e.details.issues ?? e.details.errors,
+            nodes.map((n) => n.id),
+          ),
+        );
+        setWarnings(flowIssues(e.details.warnings));
         setMsg(t('لا يمكن النشر: صحّح الأخطاء', 'Fix validation errors before publishing'));
         setPublishOutcome({
           kind: 'error',
@@ -1232,39 +1395,58 @@ function Editor({ id }: { id: string }) {
     const excerpt = String(node.data.data?.text || node.data.note || '').slice(0, 55);
     return `${nodeLabel(node.data.type, language)} ${index + 1}${excerpt ? ` — ${excerpt}` : ''}`;
   };
-  const stepItems = (onPick: (type: NodeType) => void) =>
-    NODE_GROUPS.map((group) => {
-      const types = group.types.filter((type) =>
-        nodeLabel(type, language).toLowerCase().includes(nodeSearch.toLowerCase()),
-      );
-      return types.length ? (
-        <section key={group.id} role="group" aria-label={t(group.ar, group.en)}>
-          <h3 className="px-3 py-2 text-xs font-semibold">{t(group.ar, group.en)}</h3>
-          {types.map((type) => (
+  const stepItems = (onPick: (type: NodeType) => void) => {
+    const item = (type: NodeType) => (
+      <button type="button" role="menuitem" key={type} onClick={() => onPick(type)}>
+        <span style={{ color: NODE_META[type].color }}>
+          <NodeIcon type={type} />
+        </span>
+        {nodeLabel(type, language)}
+      </button>
+    );
+    const matches = (type: NodeType) =>
+      nodeLabel(type, language).toLocaleLowerCase().includes(nodeSearch.trim().toLocaleLowerCase());
+    if (nodeSearch.trim())
+      return NODE_GROUPS.flatMap((group) => group.types)
+        .filter(matches)
+        .map(item);
+    return (
+      <>
+        {NODE_GROUPS.filter((group) =>
+          ['messages', 'data', 'interactive', 'control'].includes(group.id),
+        ).map((group) => (
+          <section
+            key={group.id}
+            className={styles.contextGroup}
+            onMouseEnter={() => setContextGroup(group.id)}
+          >
             <button
               type="button"
               role="menuitem"
-              key={type}
-              className="add-step-item"
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData('application/boat-node', type);
-                e.dataTransfer.effectAllowed = 'move';
-              }}
-              onClick={() => onPick(type)}
+              aria-haspopup="menu"
+              aria-expanded={contextGroup === group.id}
+              onClick={() => setContextGroup(contextGroup === group.id ? null : group.id)}
             >
-              <span className="add-step-icon" style={{ background: NODE_META[type].color }}>
-                <NodeIcon type={type} />
-              </span>
-              <span>
-                {nodeLabel(type, language)}
-                <small className="smart-step-hint">{t(...STEP_GUIDANCE[type])}</small>
-              </span>
+              {t(group.ar, group.en)}
+              <span aria-hidden="true">›</span>
             </button>
-          ))}
-        </section>
-      ) : null;
-    });
+            {contextGroup === group.id && (
+              <div role="menu" aria-label={t(group.ar, group.en)} className={styles.contextSubmenu}>
+                {group.types.map(item)}
+              </div>
+            )}
+          </section>
+        ))}
+        {(['product', 'catalog'] as NodeType[]).map(item)}
+        <details className={styles.contextExtras}>
+          <summary>{t('أدوات Boat Two الإضافية', 'Additional Boat Two blocks')}</summary>
+          {NODE_GROUPS.filter((group) => ['advanced', 'integrations'].includes(group.id))
+            .flatMap((group) => group.types)
+            .map(item)}
+        </details>
+      </>
+    );
+  };
   const setTriggers = (triggers: Trigger[]) => {
     setMeta((m) => ({ ...m, triggers }));
     setDirty(true);
@@ -1274,28 +1456,19 @@ function Editor({ id }: { id: string }) {
     <div
       ref={builderRef}
       data-focus={focused}
+      aria-busy={!loaded || busy}
       className={`premium-builder ${styles.editor}`}
       dir={language === 'ar' ? 'rtl' : 'ltr'}
     >
       <header className={styles.toolbar} aria-label={t('أدوات مصمم البوت', 'Flow editor toolbar')}>
         <a
-          className={styles.toolButton}
+          className={`${styles.toolButton} ${styles.exitButton}`}
           href={channelHref('/dashboard/flows', accountContext)}
-          title={t('رجوع لمدير البوت', 'Back to Bot Manager')}
-          aria-label={t('رجوع لمدير البوت', 'Back to Bot Manager')}
+          title={t('الخروج من محرر البوت', 'Exit bot editor')}
+          aria-label={t('الخروج من محرر البوت', 'Exit bot editor')}
         >
-          <NavIcon name="undo" />
+          <span aria-hidden="true">✕</span>
         </a>
-        <input
-          className={styles.title}
-          disabled={!loaded}
-          aria-label={t('اسم التدفق', 'Flow name')}
-          value={meta.name}
-          onChange={(event) => {
-            setMeta({ ...meta, name: event.target.value });
-            setDirty(true);
-          }}
-        />
         {staleChannelIds.length > 0 && (
           <button
             type="button"
@@ -1309,28 +1482,6 @@ function Editor({ id }: { id: string }) {
             {t('القناة القديمة غير موجودة — تصحيح الربط', 'Missing channel — fix link')}
           </button>
         )}
-        {meta.channelIds.length === 1 && (
-          <span className={styles.channelBadge}>
-            {channels.find((channel) => channel.id === meta.channelIds[0])?.name ??
-              t('حساب مرتبط', 'Linked account')}
-          </span>
-        )}
-        <span
-          className={styles.saveState}
-          data-state={saveState === 'error' ? 'error' : dirty ? 'dirty' : 'saved'}
-          role="status"
-          aria-live="polite"
-        >
-          {!loaded
-            ? t('جارٍ التحميل…', 'Loading…')
-            : saveState === 'saving'
-              ? t('جارٍ الحفظ…', 'Saving…')
-              : saveState === 'error'
-                ? t('فشل الحفظ', 'Save failed')
-                : dirty
-                  ? t('غير محفوظ', 'Unsaved')
-                  : t('محفوظ', 'Saved')}
-        </span>
         <button
           type="button"
           className={styles.toolButton}
@@ -1340,48 +1491,32 @@ function Editor({ id }: { id: string }) {
         >
           <NavIcon name="flows" />
         </button>
-        <button
-          type="button"
-          className={styles.toolButton}
-          aria-pressed={previewOpen}
-          onClick={() => {
-            if (previewOpen) closeReview();
-            else openReview();
-          }}
-          title={t('تجربة البوت', 'Preview')}
-          aria-label={t('تجربة البوت', 'Preview')}
-        >
-          <NavIcon name="play" />
-        </button>
-        <button
-          type="button"
-          className={styles.toolButton}
-          onClick={openSettings}
-          title={t('إعداد البداية والقنوات', 'Reference and channels')}
-          aria-label={t('إعداد البداية والقنوات', 'Reference and channels')}
-        >
-          <NavIcon name="settings" />
-        </button>
+        {meta.channelIds.length === 1 && (
+          <span className={styles.channelBadge}>
+            <NavIcon name="channels" />
+            <span>{t('القناة الحالية:', 'Current channel:')}{' '}
+            {channels.find((channel) => channel.id === meta.channelIds[0])?.name ??
+              t('حساب مرتبط', 'Linked account')}</span>
+          </span>
+        )}
         <button
           type="button"
           className={styles.saveButton}
           disabled={!loaded || busy}
           onClick={() => save().catch(() => {})}
         >
-          {t('حفظ', 'Save')}
-        </button>
-        <button
-          type="button"
-          className={styles.publishButton}
-          disabled={!loaded || busy}
-          onClick={() => {
-            setPublishOutcome(null);
-            setConfirmPublish(true);
-          }}
-        >
-          {meta.status === 'published'
-            ? t('نشر التحديث', 'Publish update')
-            : t('نشر البوت', 'Publish bot')}
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden="true"
+          >
+            <path d="M4 3h13l3 3v15H4V3ZM8 3v6h8V3M8 21v-8h9v8" />
+          </svg>{' '}
+          {saveState === 'saving' ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ', 'Save')}
         </button>
         <div className={styles.more} ref={moreRef}>
           <button
@@ -1402,6 +1537,90 @@ function Editor({ id }: { id: string }) {
                 onClick={() => setMoreOpen(false)}
               />
               <div className={styles.toolsMenu} onClick={() => setMoreOpen(false)}>
+                <div className={styles.menuMeta} onClick={(event) => event.stopPropagation()}>
+                  <input
+                    className={styles.title}
+                    disabled={!loaded}
+                    aria-label={t('اسم التدفق', 'Flow name')}
+                    value={meta.name}
+                    onChange={(event) => {
+                      setMeta({ ...meta, name: event.target.value });
+                      setDirty(true);
+                    }}
+                  />
+                  <span
+                    className={styles.saveState}
+                    data-state={saveState === 'error' ? 'error' : dirty ? 'dirty' : 'saved'}
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {!loaded
+                      ? t('جارٍ التحميل…', 'Loading…')
+                      : saveState === 'saving'
+                        ? t('جارٍ الحفظ…', 'Saving…')
+                        : saveState === 'error'
+                          ? t('فشل الحفظ', 'Save failed')
+                          : dirty
+                            ? t('غير محفوظ', 'Unsaved')
+                            : t('محفوظ', 'Saved')}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className={styles.toolButton}
+                  aria-pressed={previewOpen}
+                  onClick={() => {
+                    if (previewOpen) closeReview();
+                    else openReview();
+                  }}
+                  title={t('تجربة البوت', 'Preview')}
+                  aria-label={t('تجربة البوت', 'Preview')}
+                >
+                  <NavIcon name="play" /> <span>{t('تجربة البوت', 'Preview')}</span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.toolButton}
+                  onClick={openSettings}
+                  title={t('إعداد البداية والقنوات', 'Reference and channels')}
+                  aria-label={t('إعداد البداية والقنوات', 'Reference and channels')}
+                >
+                  <NavIcon name="settings" />{' '}
+                  <span>{t('إعداد البداية والقنوات', 'Reference and channels')}</span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.publishButton}
+                  disabled={!loaded || busy}
+                  onClick={() => {
+                    setPublishOutcome(null);
+                    setConfirmPublish(true);
+                  }}
+                >
+                  {meta.status === 'published'
+                    ? t('نشر التحديث', 'Publish update')
+                    : t('نشر البوت', 'Publish bot')}
+                </button>
+                <div className={styles.menuZoom} onClick={(event) => event.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={() => rf.zoomOut({ duration: 200 })}
+                    aria-label={t('تصغير', 'Zoom out')}
+                  >
+                    −
+                  </button>
+                  <output>{zoomPercent}%</output>
+                  <button
+                    type="button"
+                    onClick={() => rf.zoomIn({ duration: 200 })}
+                    aria-label={t('تكبير', 'Zoom in')}
+                  >
+                    +
+                  </button>
+                  <button type="button" onClick={fitAllSteps}>
+                    {t('إظهار كل الخطوات', 'Fit all steps')}
+                  </button>
+                </div>
                 <button
                   type="button"
                   disabled={busy || cursor.current <= 0}
@@ -1469,15 +1688,82 @@ function Editor({ id }: { id: string }) {
         </div>
       </header>
       <UnsavedChangesGuard
-        dirty={dirty}
+        dirty={dirty || !!inspectorDraft}
+        onDiscard={() => {
+          recoveryRef.current = null;
+          writeFlowRecovery(id, null);
+        }}
         save={async () => {
+          if (inspectorDraft) return false;
           await save();
           return savedContent.current === latest.current;
         }}
       />
+      {recovery && (
+        <Dialog
+          open
+          onClose={() => {}}
+          className="flow-recovery-dialog"
+          title={t('توجد مسودة محلية غير محفوظة', 'Unsaved local draft found')}
+        >
+          <p>
+            {t(
+              'استعدها لمتابعة عملك. لو تغيرت نسخة الخادم، سيظل فحص تعارض الحفظ فعالًا.',
+              'Restore to continue your work. Server revision conflicts remain protected.',
+            )}
+          </p>
+          <div className="form-actions">
+            <button className="btn" onClick={restoreLocalDraft}>
+              {t('استعادة المسودة', 'Restore draft')}
+            </button>
+            <button className="btn" onClick={() => downloadFlowRecovery(recovery, id)}>
+              {t('تنزيل نسخة', 'Download copy')}
+            </button>
+            <button
+              className="btn"
+              onClick={() => {
+                writeFlowRecovery(id, null);
+                setRecovery(null);
+              }}
+            >
+              {t('استخدام نسخة الخادم', 'Use server version')}
+            </button>
+          </div>
+        </Dialog>
+      )}
+      {recoveryWarning && (
+        <div className={styles.recoveryWarning} role="alert">
+          <p>
+            {t(
+              'تعذّر حفظ نسخة الاسترجاع في هذا المتصفح. احفظ على الخادم أو نزّل نسخة قبل المغادرة.',
+              'Browser recovery storage is unavailable. Save to the server or download a copy before leaving.',
+            )}
+          </p>
+          {recoveryRef.current && (
+            <button
+              className="btn"
+              onClick={() => {
+                if (recoveryRef.current) downloadFlowRecovery(recoveryRef.current, id);
+              }}
+            >
+              {t('تنزيل نسخة الاسترجاع', 'Download recovery copy')}
+            </button>
+          )}
+        </div>
+      )}
+      {!loaded && !msg && (
+        <p className={styles.loading} role="status">
+          {t('جارٍ تحميل التدفق…', 'Loading flow…')}
+        </p>
+      )}
       {msg && (
-        <p className={styles.feedback} role="status">
-          {msg}
+        <p className={styles.feedback} role={!loaded ? 'alert' : 'status'}>
+          <span>{msg}</span>
+          {!loaded && (
+            <button type="button" onClick={() => window.location.reload()}>
+              {t('إعادة المحاولة', 'Retry')}
+            </button>
+          )}
           <button type="button" aria-label={t('إغلاق', 'Close')} onClick={() => setMsg('')}>
             ×
           </button>
@@ -1489,29 +1775,47 @@ function Editor({ id }: { id: string }) {
         onClose={() => setShowVersions(false)}
         title={t('الإصدارات المنشورة', 'Published versions')}
       >
-        <div className="border-b bg-white p-3 text-sm flex flex-wrap items-center gap-3">
-          <strong>{t('الإصدارات المنشورة', 'Published versions')}</strong>
-          {!versions.length && (
-            <span>{t('لا توجد إصدارات منشورة بعد.', 'No published versions yet.')}</span>
-          )}
-          {versions.map((v) => (
-            <button
-              className="rounded border px-2 py-1"
-              key={v.id}
-              disabled={busy}
-              onClick={() => restoreVersion(v.id)}
-            >
-              {t('استعادة', 'Restore')} v{v.version} {t('إلى المسودة', 'to draft')} ·{' '}
-              {new Date(v.created_at).toLocaleDateString(language === 'ar' ? 'ar' : 'en')}
-            </button>
-          ))}
-          <button onClick={() => setShowVersions(false)}>{t('إغلاق', 'Close')} ×</button>
-          <small>
+        <div className={styles.versionsPanel}>
+          <p className={styles.versionHint}>
             {t(
               'الاستعادة لا تغيّر الإصدار المنشور حتى تضغط نشر.',
               'Restoring changes the draft; publish to replace the live version.',
             )}
-          </small>
+          </p>
+          {!versions.length && (
+            <p className={styles.versionHint}>
+              {t('لا توجد إصدارات منشورة بعد.', 'No published versions yet.')}
+            </p>
+          )}
+          <ol className={styles.versionList}>
+            {versions.map((v) => (
+              <li className={styles.versionItem} key={v.id}>
+                <div className={styles.versionIdentity}>
+                  <div className={styles.versionHeading}>
+                    <strong dir="ltr">v{v.version}</strong>
+                    {v.version === meta.version && (
+                      <span className={styles.liveVersion}>
+                        {t('الإصدار المنشور حاليًا', 'Current live version')}
+                      </span>
+                    )}
+                  </div>
+                  <time dateTime={v.created_at}>
+                    {new Date(v.created_at).toLocaleString(language === 'ar' ? 'ar' : 'en', {
+                      dateStyle: 'medium', timeStyle: 'short',
+                    })}
+                  </time>
+                </div>
+                <button
+                  type="button"
+                  className={styles.versionRestore}
+                  disabled={busy}
+                  onClick={() => restoreVersion(v.id)}
+                >
+                  {t('استعادة', 'Restore')} v{v.version} {t('إلى المسودة', 'to draft')}
+                </button>
+              </li>
+            ))}
+          </ol>
         </div>
       </Dialog>
       <Dialog
@@ -1680,9 +1984,15 @@ function Editor({ id }: { id: string }) {
         >
           {dropMenu && (
             <>
-              <div className="drop-menu-scrim" onClick={() => setDropMenu(null)} />
+              <div className={styles.contextScrim} onClick={() => setDropMenu(null)} />
               <div
-                className="add-step-menu drop-menu"
+                className={styles.contextMenu}
+                data-searching={!!nodeSearch.trim()}
+                data-flip={
+                  language === 'ar'
+                    ? dropMenu.x < 280
+                    : dropMenu.x > (builderRef.current?.clientWidth ?? 1000) - 500
+                }
                 role="menu"
                 style={{ left: dropMenu.x, top: dropMenu.y }}
                 onKeyDown={(e) => {
@@ -1706,7 +2016,7 @@ function Editor({ id }: { id: string }) {
                   addNode(
                     type,
                     { x: m.x + r.left, y: m.y + r.top },
-                    { source: m.source, handle: m.handle },
+                    m.source ? { source: m.source, handle: m.handle ?? null } : undefined,
                     oldEdge ? { target: oldEdge.target } : undefined,
                   );
                 })}
@@ -1787,6 +2097,16 @@ function Editor({ id }: { id: string }) {
                         );
                         if (c.some((x) => x.type === 'remove')) setDirty(true);
                       }}
+                      onPaneContextMenu={(event) => {
+                        event.preventDefault();
+                        const box = event.currentTarget.getBoundingClientRect();
+                        setNodeSearch('');
+                        setContextGroup(null);
+                        setDropMenu({
+                          x: Math.max(8, Math.min(event.clientX - box.left, box.width - 236)),
+                          y: Math.max(8, Math.min(event.clientY - box.top, box.height - 400)),
+                        });
+                      }}
                       onMove={(_, viewport) => setZoomPercent(Math.round(viewport.zoom * 100))}
                       onConnect={onConnect}
                       onConnectStart={(_, p) => {
@@ -1853,11 +2173,10 @@ function Editor({ id }: { id: string }) {
                       onEdgeUpdate={onEdgeUpdate}
                       connectionRadius={24}
                       zoomOnDoubleClick={false}
-                      connectionLineType={ConnectionLineType.SmoothStep}
+                      connectionLineType={ConnectionLineType.Bezier}
                       connectionLineStyle={{
                         stroke: 'var(--primary)',
-                        strokeWidth: 3,
-                        strokeDasharray: '6 4',
+                        strokeWidth: 2,
                       }}
                       elevateEdgesOnSelect
                       onEdgesDelete={() => notify(t('قُطع التوصيل.', 'Link removed.'), true)}
@@ -1873,10 +2192,10 @@ function Editor({ id }: { id: string }) {
                       }
                       defaultEdgeOptions={{
                         type: 'smoothstep',
-                        style: { stroke: '#64748b', strokeWidth: 2.5 },
+                        style: { stroke: '#778292', strokeWidth: 2 },
                         markerEnd: {
                           type: MarkerType.ArrowClosed,
-                          color: '#64748b',
+                          color: '#778292',
                           width: 18,
                           height: 18,
                         },
@@ -1887,44 +2206,7 @@ function Editor({ id }: { id: string }) {
                       multiSelectionKeyCode={['Shift', 'Meta', 'Control']}
                       minZoom={0.05}
                       maxZoom={2}
-                      fitView
-                      fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
                     >
-                      <Panel position="bottom-center">
-                        <div
-                          className="canvas-zoombar"
-                          role="group"
-                          aria-label={t('التحكم في العرض', 'View controls')}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => rf.zoomOut({ duration: 200 })}
-                            aria-label={t('تصغير', 'Zoom out')}
-                          >
-                            −
-                          </button>
-                          <span dir="ltr" aria-live="off">
-                            {zoomPercent}%
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => rf.zoomIn({ duration: 200 })}
-                            aria-label={t('تكبير', 'Zoom in')}
-                          >
-                            +
-                          </button>
-                          <button type="button" className="canvas-fit" onClick={fitAllSteps}>
-                            {t('إظهار كل الخطوات', 'Fit all steps')}
-                          </button>
-                          <small className="canvas-hint">
-                            {t(
-                              'اسحب الخلفية للتحريك • العجلة للتكبير',
-                              'Drag to pan • scroll to zoom',
-                            )}
-                          </small>
-                        </div>
-                      </Panel>
-                      <Background color="#dce4ec" gap={24} size={0.6} />
                       {showMap && !previewOpen && (
                         <MiniMap
                           pannable
@@ -1972,9 +2254,7 @@ function Editor({ id }: { id: string }) {
           <p className="smart-review-label">
             {t('محاكاة المنطق — بدون إرسال واتساب', 'Logic simulator — no WhatsApp delivery')}
           </p>
-          <div className="phone-frame">
-            <div className="phone-notch" />
-            <div className="phone-screen">
+          <div className={styles.simulatorBody}>
               <TestPanel
                 flowId={id}
                 onProgress={onPreviewProgress}
@@ -1984,11 +2264,11 @@ function Editor({ id }: { id: string }) {
                 }}
                 onTestSuccess={() => setTestedSnapshot(pendingTestSnapshot.current)}
               />
-            </div>
           </div>
         </Dialog>
 
         <ConfigurationPanel
+          referenceType={tab === 'settings' ? 'reference' : sel?.data.type}
           open={inspectorOpen && !previewOpen && (tab === 'settings' || !!sel)}
           onClose={() => {
             setInspectorDraft(null);
@@ -2027,7 +2307,9 @@ function Editor({ id }: { id: string }) {
                   ? sel.data.data.list
                     ? t('إعداد القائمة', 'Configure List Message')
                     : t('إعداد الأزرار', 'Configure Buttons')
-                  : `${t('إعداد', 'Configure')} ${nodeLabel(sel.data.type === 'message' && optionsOf(sel.data.data).length ? 'interactive' : sel.data.type, language)}`
+                  : sel.data.type === 'message' && !optionsOf(sel.data.data).length
+                    ? t('إعداد الرسالة النصية', 'Configure Text Message')
+                    : `${t('إعداد', 'Configure')} ${nodeLabel(sel.data.type === 'message' && optionsOf(sel.data.data).length ? 'interactive' : sel.data.type, language)}`
               : t('إعداد بداية التدفق', 'Configure Reference')
           }
         >
@@ -2062,54 +2344,77 @@ function Editor({ id }: { id: string }) {
                     data={inspectorDraft?.id === sel.id ? inspectorDraft.data : sel.data.data}
                     onChange={(data) => setInspectorDraft({ id: sel.id, data })}
                   />
-                  <ConfigDisclosure className="smart-section">
+                  <ConfigDisclosure
+                    open={choiceSelection?.parentId === sel.id}
+                    key={choiceSelection?.id ?? sel.id}
+                    className="smart-section"
+                  >
                     <ConfigSummary>{t('الخطوات التالية', 'Next steps')}</ConfigSummary>
                     <p className="muted">
                       {t(
-                        'اختر وجهة كل مسار بدل سحب التوصيلات. تغيير الوجهة يحدّث المسودة.',
-                        'Choose each path destination without dragging. Changing a destination updates the draft.',
+                        'بعد تنفيذ إجراءات الأتمتة، ينتقل العميل إلى الخطوة المحددة هنا.',
+                        'After the automation actions run, the customer moves to the step selected here.',
                       )}
                     </p>
-                    {handlesFor(sel.data.type, sel.data.data).map((handle) => (
-                      <label className="field" key={handle.id}>
-                        {editorLabel(handle.label, language)}
-                        <select
-                          aria-label={`${t('الخطوة التالية', 'Next step')} — ${editorLabel(handle.label, language)}`}
-                          value={
-                            edges.find(
-                              (edge) => edge.source === sel.id && edge.sourceHandle === handle.id,
-                            )?.target ?? ''
-                          }
-                          onChange={(event) => {
-                            if (event.target.value)
-                              onConnect({
-                                source: sel.id,
-                                sourceHandle: handle.id,
-                                target: event.target.value,
-                                targetHandle: null,
-                              });
-                            else {
-                              setEdges((links) =>
-                                links.filter(
-                                  (edge) =>
-                                    edge.source !== sel.id || edge.sourceHandle !== handle.id,
-                                ),
-                              );
-                              setDirty(true);
-                            }
-                          }}
-                        >
-                          <option value="">{t('بدون توصيل', 'Not connected')}</option>
-                          {nodes
-                            .filter((node) => node.id !== sel.id)
-                            .map((node) => (
-                              <option key={node.id} value={node.id}>
-                                {stepCaption(node.id)}
-                              </option>
-                            ))}
-                        </select>
-                      </label>
-                    ))}
+                    {handlesFor(
+                      sel.data.type,
+                      inspectorDraft?.id === sel.id ? inspectorDraft.data : sel.data.data,
+                    )
+                      .filter(
+                        (handle) =>
+                          choiceSelection?.parentId !== sel.id ||
+                          handle.id === `option:${choiceSelection.id}`,
+                      )
+                      .map((handle) => {
+                        const target =
+                          edges.find(
+                            (edge) => edge.source === sel.id && edge.sourceHandle === handle.id,
+                          )?.target ?? '';
+                        return (
+                          <label className="field" key={handle.id}>
+                            <span>
+                              {editorLabel(handle.label, language)}{' '}
+                              <small
+                                className="semantic-state"
+                                data-tone={target ? 'active' : 'danger'}
+                              >
+                                {target ? t('متصل', 'Connected') : t('غير متصل', 'Not connected')}
+                              </small>
+                            </span>
+                            <select
+                              aria-label={`${t('الخطوة التالية', 'Next step')} — ${editorLabel(handle.label, language)}`}
+                              value={target}
+                              onChange={(event) => {
+                                if (event.target.value)
+                                  onConnect({
+                                    source: sel.id,
+                                    sourceHandle: handle.id,
+                                    target: event.target.value,
+                                    targetHandle: null,
+                                  });
+                                else {
+                                  setEdges((links) =>
+                                    links.filter(
+                                      (edge) =>
+                                        edge.source !== sel.id || edge.sourceHandle !== handle.id,
+                                    ),
+                                  );
+                                  setDirty(true);
+                                }
+                              }}
+                            >
+                              <option value="">{t('بدون توصيل', 'Not connected')}</option>
+                              {nodes
+                                .filter((node) => node.id !== sel.id)
+                                .map((node) => (
+                                  <option key={node.id} value={node.id}>
+                                    {stepCaption(node.id)}
+                                  </option>
+                                ))}
+                            </select>
+                          </label>
+                        );
+                      })}
                   </ConfigDisclosure>
                 </div>
               ) : (
@@ -2452,10 +2757,13 @@ function Editor({ id }: { id: string }) {
   );
 }
 
-export default function Page({ params }: { params: { id: string } }) {
+export default function Page() {
+  const params = useParams<{ id: string }>();
   return (
-    <ReactFlowProvider>
-      <Editor id={params.id} />
-    </ReactFlowProvider>
+    <EditorErrorBoundary key={params.id} flowId={params.id}>
+      <ReactFlowProvider>
+        <Editor id={params.id} />
+      </ReactFlowProvider>
+    </EditorErrorBoundary>
   );
 }

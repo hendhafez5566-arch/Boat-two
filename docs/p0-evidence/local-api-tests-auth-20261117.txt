@@ -1,0 +1,12 @@
+  ✔ review snapshots eligible marketing contacts and rechecks consent before assignment (22.792501ms)
+  ✔ new contacts enter once, while changed/expired sequence reviews cannot be applied (40.569909ms)
+✔ sequence center and reviewed bulk enrollment execute PostgreSQL with RLS and no provider calls (2713.356253ms)
+✔ dashboard uses thirty UTC days, platform scoping, distinct subscriptions and tenant RLS (2523.304159ms)
+ℹ tests 239
+ℹ suites 0
+ℹ pass 239
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 20066.219666

@@ -1,0 +1,74 @@
+[
+  {
+    "language": "ar",
+    "width": 390,
+    "status": "PASS",
+    "checks": [
+      "four media URL property edits in inspector",
+      "save/reload persisted",
+      "publish from UI",
+      "actual published widget media execution",
+      "decoded audio/video metadata and image",
+      "document retrieval",
+      "HTTP/sheet failure continuation",
+      "reload without duplicate",
+      "five viewport widths",
+      "revoked audio visibly fails then restored bytes decode after reload"
+    ],
+    "scope": "Actual UI/HTTP with isolated PGlite; real PostgreSQL execution is separate"
+  },
+  {
+    "language": "ar",
+    "width": 1366,
+    "status": "PASS",
+    "checks": [
+      "four media URL property edits in inspector",
+      "save/reload persisted",
+      "publish from UI",
+      "actual published widget media execution",
+      "decoded audio/video metadata and image",
+      "document retrieval",
+      "HTTP/sheet failure continuation",
+      "reload without duplicate",
+      "five viewport widths",
+      "revoked audio visibly fails then restored bytes decode after reload"
+    ],
+    "scope": "Actual UI/HTTP with isolated PGlite; real PostgreSQL execution is separate"
+  },
+  {
+    "language": "en",
+    "width": 390,
+    "status": "PASS",
+    "checks": [
+      "four media URL property edits in inspector",
+      "save/reload persisted",
+      "publish from UI",
+      "actual published widget media execution",
+      "decoded audio/video metadata and image",
+      "document retrieval",
+      "HTTP/sheet failure continuation",
+      "reload without duplicate",
+      "five viewport widths",
+      "revoked audio visibly fails then restored bytes decode after reload"
+    ],
+    "scope": "Actual UI/HTTP with isolated PGlite; real PostgreSQL execution is separate"
+  },
+  {
+    "language": "en",
+    "width": 1366,
+    "status": "PASS",
+    "checks": [
+      "four media URL property edits in inspector",
+      "save/reload persisted",
+      "publish from UI",
+      "actual published widget media execution",
+      "decoded audio/video metadata and image",
+      "document retrieval",
+      "HTTP/sheet failure continuation",
+      "reload without duplicate",
+      "five viewport widths",
+      "revoked audio visibly fails then restored bytes decode after reload"
+    ],
+    "scope": "Actual UI/HTTP with isolated PGlite; real PostgreSQL execution is separate"
+  }
+]

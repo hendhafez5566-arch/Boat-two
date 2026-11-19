@@ -74,6 +74,7 @@ test('smart catalog real PostgreSQL RLS, source lifecycle and business acceptanc
  CREATE FUNCTION audit_core_change() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;`);
     await pg.exec(readFileSync('src/database/migrations/086_commerce.sql', 'utf8'));
     await pg.exec(readFileSync('src/database/migrations/095_smart_data_sources.sql', 'utf8'));
+    await pg.exec(readFileSync('src/database/migrations/107_import_statistics.sql', 'utf8'));
     await pg.query('INSERT INTO tenants VALUES($1),($2)', [tenant, other]);
     const source = await service.save(
       tenant,
@@ -116,7 +117,9 @@ test('smart catalog real PostgreSQL RLS, source lifecycle and business acceptanc
       async () => {
         let p: any = await service.preview(tenant, source.id, rows);
         assert.equal(p.valid, true);
-        await service.apply(tenant, source.id, p.previewId);
+        assert.equal(p.summary.added, 2);
+        const first = await service.apply(tenant, source.id, p.previewId);
+        assert.equal(first.added, 2); assert.equal(first.updated, 0);
         let r = await service.items(tenant, source.id);
         assert.equal(r.total, 2);
         selectedId = r.items.find((p) => p.name === 'عمرة اقتصادية')!.id;
@@ -125,7 +128,12 @@ test('smart catalog real PostgreSQL RLS, source lifecycle and business acceptanc
           /12500 جنيه/,
         );
         p = await service.preview(tenant, source.id, rows);
-        await service.apply(tenant, source.id, p.previewId);
+        assert.equal(p.summary.unchanged, 2);
+        const before = await db.withTenant(tenant, async (c: any) => (await c.query('SELECT id,updated_at FROM catalog_products WHERE source_id=$1 ORDER BY id',[source.id])).rows);
+        const repeated = await service.apply(tenant, source.id, p.previewId);
+        assert.equal(repeated.unchanged, 2); assert.equal(repeated.updated, 0);
+        const after = await db.withTenant(tenant, async (c: any) => (await c.query('SELECT id,updated_at FROM catalog_products WHERE source_id=$1 ORDER BY id',[source.id])).rows);
+        assert.deepEqual(after, before, 'unchanged rows keep their last modification time');
         r = await service.items(tenant, source.id);
         assert.equal(r.total, 2);
         assert.equal(r.items.find((p) => p.name === 'عمرة اقتصادية')!.id, selectedId);
@@ -136,7 +144,10 @@ test('smart catalog real PostgreSQL RLS, source lifecycle and business acceptanc
       updated[1][4] = '13500 جنيه';
       updated.push(['u3', 'عمرة جديدة', 'سياحة/عمرة', 'true', '17000 جنيه', '']);
       const p: any = await service.preview(tenant, source.id, updated);
-      await service.apply(tenant, source.id, p.previewId);
+      assert.equal(p.summary.added, 1); assert.equal(p.summary.updated, 1); assert.equal(p.summary.unchanged, 1);
+      const applied = await service.apply(tenant, source.id, p.previewId);
+      assert.equal(applied.added, 1); assert.equal(applied.updated, 1); assert.equal(applied.unchanged, 1);
+      assert.deepEqual((await service.runs(tenant, source.id))[0].summary, p.summary);
       assert.equal((await service.items(tenant, source.id)).total, 3);
       assert.match((await service.item(tenant, source.id, selectedId)).content.text!, /13500 جنيه/);
     });
@@ -175,8 +186,9 @@ test('smart catalog real PostgreSQL RLS, source lifecycle and business acceptanc
       'failed/partial/duplicate/changed-column updates retain last good catalog',
       async () => {
         await assert.rejects(() => service.preview(tenant, source.id, [rows[0]]));
-        const p: any = await service.preview(tenant, source.id, [...rows, rows[1]]);
+        const p: any = await service.preview(tenant, source.id, [...rows, rows[1], ['missing-name', '', 'General', 'true', '100', '']]);
         assert.equal(p.valid, false);
+        assert.equal(p.summary.rejected, 2); assert.equal(p.summary.duplicates, 1); assert.equal(p.summary.missingRequired, 1);
         assert.match(p.errors[0].message, /Duplicate/);
         await assert.rejects(() => service.preview(tenant, source.id, [['renamed'], ['x']]));
         await assert.rejects(() =>

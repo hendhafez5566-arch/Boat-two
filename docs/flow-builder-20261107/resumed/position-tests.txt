@@ -1,0 +1,12 @@
+✔ cards derive, re-source edges and keep the saved graph identical (2.371541ms)
+✔ rtl default offset goes left; list-only and plain messages get no cards (0.379442ms)
+✔ list rows become cards too and keep their option edges and layout (0.46647ms)
+✔ opening and round-tripping authored overlaps preserves exact coordinates in either direction (0.41894ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 218.040736

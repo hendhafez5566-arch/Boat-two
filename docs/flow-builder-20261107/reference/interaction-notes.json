@@ -1,0 +1,12 @@
+{
+  "configuredTemporaryText": true,
+  "referenceToTextConnection": true,
+  "connectOpensTargetDialog": true,
+  "cloneAndDeleteUnsavedNode": true,
+  "undoNodeCountBefore": 22,
+  "undoNodeCountAfter": 23,
+  "redoNodeCountAfter": 22,
+  "panAndWheelExercised": true,
+  "globalSaveExecuted": false,
+  "savedAuditGraphReadBack": "Original travel test graph, not temporary inspection nodes; updated timestamp changed for unknown reason"
+}

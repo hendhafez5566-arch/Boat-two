@@ -1,5 +1,11 @@
+import { createHash } from 'node:crypto';
 import { BadRequestException } from '@nestjs/common';
 import { FlowGraph, FlowNode, handlesFor } from './engine';
+function scopedId(prefix: string, id: string): string {
+  const full = prefix + id;
+  return full.length <= 60 ? full : 'expanded_' + createHash('sha256').update(full).digest('hex').slice(0, 48);
+}
+
 // Freeze reusable published graphs into the parent version; running sessions never follow a moving draft.
 export async function expandSubflows(
   graph: FlowGraph,
@@ -12,8 +18,8 @@ export async function expandSubflows(
   for (const source of graph.nodes) {
     const node: FlowNode = {
       ...structuredClone(source),
-      id: prefix + source.id,
-      edges: Object.fromEntries(Object.entries(source.edges).map(([k, v]) => [k, prefix + v])),
+      id: scopedId(prefix, source.id),
+      edges: Object.fromEntries(Object.entries(source.edges).map(([k, v]) => [k, scopedId(prefix, v)])),
     };
     if (source.type !== 'subflow') {
       output.push(node);
@@ -22,7 +28,7 @@ export async function expandSubflows(
     const id = String(source.data.flowId);
     if (path.includes(id)) throw new BadRequestException('Recursive subflow reference');
     const child = await expandSubflows(await resolve(id), resolve, [...path, id], node.id + '__');
-    const next = node.edges.next || node.id + '__return';
+    const next = node.edges.next || scopedId('', node.id + '__return');
     output.push({
       ...node,
       type: 'set_variable',
@@ -48,5 +54,6 @@ export async function expandSubflows(
     if (!node.edges.next) output.push({ id: next, type: 'end', data: {}, edges: {} });
     if (output.length > 300) throw new BadRequestException('Expanded flow exceeds 300 nodes');
   }
-  return { startNodeId: prefix + graph.startNodeId, nodes: output, ...(!prefix && graph.policy ? { policy: structuredClone(graph.policy) } : {}) };
+  if (output.length > 300) throw new BadRequestException('Expanded flow exceeds 300 nodes');
+  return { startNodeId: scopedId(prefix, graph.startNodeId), nodes: output, ...(!prefix && graph.policy ? { policy: structuredClone(graph.policy) } : {}) };
 }

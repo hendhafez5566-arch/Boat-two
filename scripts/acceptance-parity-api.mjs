@@ -107,10 +107,11 @@ try{
   const next=await post('/flows/'+bot.id+'/test',token,{text:'رحلة اختبار',replyId:'product:'+product.id,state:JSON.parse(JSON.stringify(first.state))});assert.equal(next.status,'completed');assert.equal(next.state.vars.product,product.id);
  });
  await check('published off-hours bot keeps its immutable alternate after the alternate is republished',async()=>{
-  const alternate=await post('/flows',token,{name:'Off-hours alternate'});const makeGraph=text=>({startNodeId:'message',nodes:[{id:'message',type:'message',data:{text},edges:{}}]});
+  const alternate=await post('/flows',token,{name:'Off-hours alternate',isComponent:true});const makeGraph=text=>({startNodeId:'message',nodes:[{id:'message',type:'message',data:{text},edges:{}}]});
   await req('/flows/'+alternate.id,token,'PATCH',{graph:makeGraph('Original off-hours')});await post('/flows/'+alternate.id+'/publish',token,{});
   const parent=await post('/flows',token,{name:'Parent frozen off-hours'});await req('/flows/'+parent.id,token,'PATCH',{priority:50,channelIds:[channel.id],graph:{...makeGraph('Normal hours'),policy:{businessHours:{enabled:true,timezone:'UTC',schedule:{[['sun','mon','tue','wed','thu','fri','sat'][(new Date().getUTCDay()+1)%7]]:[['09:00','17:00']]},offHoursFlowId:alternate.id}}}});await post('/flows/'+parent.id+'/publish',token,{});
   await req('/flows/'+alternate.id,token,'PATCH',{graph:makeGraph('Changed off-hours')});await post('/flows/'+alternate.id+'/publish',token,{});
+  assert.equal((await req('/channels',token)).find(c=>c.id===channel.id).settings.activeBotFlowId,parent.id,'republishing a reusable helper cannot replace the active parent bot');
   const version=await db.withTenant(a.tenantId,async c=>(await c.query('SELECT v.graph FROM flows f JOIN flow_versions v ON v.id=f.published_version_id WHERE f.id=$1',[parent.id])).rows[0]);assert.equal(version.graph.policy.businessHours.offHoursGraph.nodes[0].data.text,'Original off-hours');
   const v=await post(`/widget/${channel.external_id}/session`,null,{}),h={'x-visitor-token':v.token},p=`/widget/${channel.external_id}/messages?visitorId=${v.visitorId}`;await post(p,null,{clientMsgId:randomUUID(),text:'After hours'},201,h);await wait(async()=>(await req(p,null,'GET',undefined,200,h)).messages.some(m=>m.content.text==='Original off-hours'));
  });

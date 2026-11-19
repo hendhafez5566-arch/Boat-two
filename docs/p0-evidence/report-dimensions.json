@@ -1,0 +1,17 @@
+{
+  "status": "PASS",
+  "database": "real PostgreSQL",
+  "companies": 2,
+  "checks": [
+    "staff sent/failed/queued attempts separated",
+    "notes excluded from channel totals and staff attempts",
+    "exact amounts remain split by currency",
+    "open overdue tasks exclude future and completed tasks",
+    "contact/conversation counts tenant scoped",
+    "empty period has no staff rows"
+  ],
+  "limitations": [
+    "No inferred bot resolution, handling duration or time-saving rate",
+    "Fixture events are synthetic, not measured company performance"
+  ]
+}

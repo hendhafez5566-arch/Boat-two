@@ -7,7 +7,7 @@ export type ActiveBotSettings = {
     schedule: { day: string; start: string; end: string }[];
     disableBotDuringHours: boolean;
   };
-  sharedInbox?: { inputFlowSessionExpiryMinutes?: number | null };
+  sharedInbox?: { inputFlowSessionExpiryMinutes?: number | null; signatureEnabled?: boolean; humanSessionExpiryMinutes?: number | null };
 };
 export function activeBotSettings(settings: unknown): ActiveBotSettings {
   return (settings as { botManagerActive?: ActiveBotSettings } | null)?.botManagerActive ?? {};
@@ -35,4 +35,12 @@ export function duringBusinessHours(config: ActiveBotSettings['businessHour'], n
     const next = days[(days.indexOf(r.day) + 1) % 7];
     return (r.day === day && minute >= start) || (next === day && minute < end);
   });
+}
+
+/** Null/absent keeps the existing workspace policy; zero semantics are not adopted. */
+export function humanSessionMinutes(settings: unknown, workspaceMinutes: number): number {
+  const value = activeBotSettings(settings).sharedInbox?.humanSessionExpiryMinutes;
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 && value <= 525600
+    ? value
+    : workspaceMinutes;
 }

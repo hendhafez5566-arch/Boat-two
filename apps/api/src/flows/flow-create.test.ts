@@ -49,6 +49,24 @@ test('creating from an account validates the tenant-visible channel and inserts 
     false,
   );
 });
+
+test('creating a User Input Flow reuses the requested flow name as its campaign name', async () => {
+  const { service, calls } = setup(0);
+  await service.create(
+    'tenant-a',
+    'owner',
+    createFlowSchema.parse({
+      name: 'Travel lead intake',
+      initialNodeType: 'user_input',
+      language: 'en',
+    }),
+  );
+  const insert = calls.find((call) => call.sql.includes('INSERT INTO flows'));
+  assert.ok(insert);
+  const graph = JSON.parse(String(insert.args[3]));
+  assert.equal(graph.nodes[0].type, 'user_input');
+  assert.equal(graph.nodes[0].data.name, 'Travel lead intake');
+});
 test('foreign or missing channels reject creation before inserting a flow', async () => {
   const { service, calls } = setup(0);
   await assert.rejects(

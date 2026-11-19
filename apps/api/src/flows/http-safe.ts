@@ -10,7 +10,8 @@ const MAX_BODY = 1024 * 1024;
 /** عناوين داخلية/محجوزة يُمنع الاتصال بها (حماية من SSRF) */
 export function isBlockedIp(ip: string): boolean {
   if (net.isIPv6(ip)) {
-    const v = ip.toLowerCase();
+    // Canonicalize expanded forms before prefix checks (including mapped IPv4).
+    const v = new URL(`http://[${ip}]/`).hostname.slice(1, -1).toLowerCase();
     if (v === '::' || v === '::1') return true;
     if (v.startsWith('::ffff:')) {
       const rest = v.slice(7);
@@ -22,7 +23,10 @@ export function isBlockedIp(ip: string): boolean {
       }
       return true;
     }
-    return /^f[cd]/.test(v) || /^fe[89ab]/.test(v) || v.startsWith('ff') || v.startsWith('64:ff9b');
+    // Only ordinary global unicast destinations. Reject translation/tunnel and
+    // documentation ranges too: they can encode an otherwise blocked IPv4 host.
+    return !/^[23]/.test(v) || v.startsWith('2002:') ||
+      v.startsWith('2001:db8:') || v.startsWith('2001:0:') || v.startsWith('2001::');
   }
   if (!net.isIPv4(ip)) return true;
   const [a, b] = ip.split('.').map(Number);
@@ -54,6 +58,7 @@ export function safeHttpRequest(spec: HttpRequestSpec): Promise<HttpResult> {
       return reject(new Error('Invalid URL'));
     }
     if (u.protocol !== 'http:' && u.protocol !== 'https:') return reject(new Error('Only http/https allowed'));
+    if (u.username || u.password) return reject(new Error('URL must not contain embedded credentials'));
     const host = u.hostname.replace(/^\[|\]$/g, '');
     if (net.isIP(host) && isBlockedIp(host)) return reject(new Error('Blocked address'));
 
@@ -76,12 +81,23 @@ export function safeHttpRequest(spec: HttpRequestSpec): Promise<HttpResult> {
       (res) => {
         const chunks: Buffer[] = [];
         let size = 0;
+        let interrupted = false;
+        res.on('error', (error) => { interrupted = true; reject(error); });
+        res.on('aborted', () => { interrupted = true; reject(new Error('Response interrupted')); });
         res.on('data', (c: Buffer) => {
           size += c.length;
-          if (size > MAX_BODY) return req.destroy(new Error('Response too large'));
+          if (interrupted) return;
+          if (size > MAX_BODY) {
+            interrupted = true;
+            const error = new Error('Response too large');
+            reject(error);
+            req.destroy(error);
+            return;
+          }
           chunks.push(c);
         });
         res.on('end', () => {
+          if (interrupted) return;
           const text = Buffer.concat(chunks).toString('utf8');
           let body: unknown = text;
           try {

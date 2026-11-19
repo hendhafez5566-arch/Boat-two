@@ -8,7 +8,7 @@
   font-weight: 600;
 }
 .bs-shell .product-topbar.bs-topbar {
-  background: linear-gradient(100deg, #fafdff, #edf7fc);
+  background: var(--surface, #ffffff);
 }
 
 /* The flow palette owns navigation in the editor: avoid two adjacent icon rails. */

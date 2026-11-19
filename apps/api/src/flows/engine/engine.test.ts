@@ -574,6 +574,12 @@ test('isBlockedIp blocks internal ranges (SSRF)', () => {
     '100.64.0.1',
     '224.0.0.1',
     '::1',
+    '0:0:0:0:0:0:0:1',
+    '0:0:0:0:0:ffff:7f00:1',
+    '2002:7f00:1::',
+    '2001:db8::1',
+    '2001::7f00:1',
+    '64:ff9b::7f00:1',
     '::',
     'fd00::1',
     'fe80::1',
@@ -856,7 +862,7 @@ test('validate: new nodes require their key fields', () => {
   assert.equal(errors.length, 3);
 });
 
-test('sequence node enrolls the contact and continues; failures do not stop the flow', async () => {
+test('sequence node does not continue to success after unhandled enrollment failure', async () => {
   const g: FlowGraph = {
     startNodeId: 'a',
     nodes: [
@@ -871,9 +877,9 @@ test('sequence node enrolls the contact and continues; failures do not stop the 
     throw new Error('no consent');
   };
   const res = await h.engine.start(h.ctx, newState());
-  assert.equal(res.status, 'completed');
+  assert.equal(res.status, 'error');
   assert.deepEqual(enrolled, ['11111111-1111-1111-1111-111111111111']);
-  assert.equal(h.sent[0].text, 'done');
+  assert.deepEqual(h.sent, []);
 });
 
 // ------------------------------------------------------------- user input flow (chain of questions)
@@ -902,6 +908,7 @@ test('user_input: asks questions in order, saves custom fields, then thank-you a
               id: 'q2',
               text: 'Mood?',
               kind: 'choice',
+              buttonText: 'Choose service',
               saveAs: 'billing_agent',
               options: [
                 { id: 'b', title: 'Burgers' },
@@ -942,6 +949,7 @@ test('user_input: asks questions in order, saves custom fields, then thank-you a
   r = await h.engine.resume(h.ctx, state);
   assert.equal(h.attrs.ai_agent, 'Order Food');
   assert.equal(h.sent[2].list?.sections[0].rows.length, 4); // أكتر من 3 اختيارات → قائمة
+  assert.equal(h.sent[2].list?.buttonText, 'Choose service');
 
   h.say('Pizza', 'p');
   r = await h.engine.resume(h.ctx, state);
@@ -1592,4 +1600,14 @@ test('dynamic catalog empty results follow existing next edge without waiting', 
   const r = await h.engine.start(h.ctx, newState());
   assert.equal(r.status, 'completed');
   assert.equal(h.sent[0].text, 'No current items');
+});
+
+
+test('location with unresolved variables does not send an invented zero coordinate', async () => {
+  for(const lat of ['{{missing}}','   ']){
+    const h=harness({startNodeId:'loc',nodes:[node('loc','location',{lat,lng:'31'},{next:'end'}),node('end','end',{})]});
+    assert.equal((await h.engine.start(h.ctx,newState())).status,'completed');assert.equal(h.sent.length,0);
+  }
+  const h=harness({startNodeId:'loc',nodes:[node('loc','location',{lat:'0',lng:'0'},{next:'end'}),node('end','end',{})]});
+  assert.equal((await h.engine.start(h.ctx,newState())).status,'completed');assert.deepEqual(h.sent[0].location,{lat:0,lng:0});
 });

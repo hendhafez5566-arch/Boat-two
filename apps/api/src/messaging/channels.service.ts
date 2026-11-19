@@ -1,3 +1,4 @@
+import { sparsePatch } from '../common/zod';
 import {
   BadRequestException,
   ConflictException,
@@ -43,6 +44,33 @@ export const widgetSettingsSchema = z.object({
   welcomeMessage: z.string().max(500).default('أهلًا بك! كيف يمكننا مساعدتك؟'),
   direction: z.enum(['ltr', 'rtl']).default('rtl'),
   position: z.enum(['left', 'right']).default('right'),
+  verticalPosition: z.enum(['top', 'bottom']).default('bottom'),
+  offsetX: z.number().int().min(0).max(200).default(20),
+  offsetY: z.number().int().min(0).max(200).default(20),
+  loadingDelay: z.number().int().min(0).max(30).default(0),
+  startup: z.enum(['open', 'closed']).default('closed'),
+  themeBackground: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .default('#fbfbfc'),
+  themeText: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .default('#000000'),
+  bubbleBackground: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .default('#ffffff'),
+  bubbleText: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .default('#19181a'),
+  wallpaper: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .default('#ffffff'),
+  font: z.enum(['system-ui', 'Arial', 'Tahoma']).default('system-ui'),
+  logoUrl: z.string().url().startsWith('https://').max(2000).or(z.literal('')).default(''),
   allowedOrigins: z.array(z.string().url()).max(20).default([]),
 });
 
@@ -55,7 +83,7 @@ export const createChannelSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('web'),
     name: z.string().min(1).max(80),
-    settings: widgetSettingsSchema.partial().optional(),
+    settings: sparsePatch(widgetSettingsSchema.partial()).optional(),
   }),
   z.object({
     type: z.literal('whatsapp'),
@@ -82,9 +110,9 @@ export type CreateChannelInput = z.infer<typeof createChannelSchema>;
 export const updateChannelSchema = z.object({
   name: z.string().min(1).max(80).optional(),
   status: z.enum(['active', 'disabled']).optional(),
-  settings: widgetSettingsSchema
+  settings: sparsePatch(widgetSettingsSchema
     .partial()
-    .extend({ telegramAllowGroups: z.boolean().optional() })
+    .extend({ telegramAllowGroups: z.boolean().optional() }))
     .optional(),
 });
 
@@ -226,12 +254,18 @@ export class ChannelsService {
         // Do not mark a phone-readable token as able to send messages.
       } else if (row.type === 'telegram') {
         const account = await telegramCall(credentials.botToken, 'getMe');
-        health = {
-          state: String(account.id) === row.external_id ? 'connected' : 'needs_action',
-          checkedAt,
-          reason:
-            String(account.id) === row.external_id ? 'provider_verified' : 'provider_rejected',
-        };
+        if (account.is_bot !== true || String(account.id) !== row.external_id) {
+          health = { state: 'needs_action', checkedAt, reason: 'provider_rejected' };
+        } else {
+          const webhook = await telegramCall(credentials.botToken, 'getWebhookInfo');
+          const expectedUrl = `${env.PUBLIC_API_URL.replace(/\/$/, '')}/webhooks/telegram/${row.external_id}`;
+          const configured = webhook.url === expectedUrl;
+          health = {
+            state: configured ? 'connected' : 'needs_action',
+            checkedAt,
+            reason: configured ? 'telegram_webhook_verified' : 'telegram_webhook_not_configured',
+          };
+        }
       } else {
         const response = await fetch(`${GRAPH}/${encodeURIComponent(row.external_id)}?fields=id`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -424,6 +458,30 @@ export class ChannelsService {
     });
   }
 
+  /** Token-only onboarding: verify identity before storing any channel data. */
+  async connectTelegram(tenantId: string, botToken: string) {
+    if (env.EXTERNAL_DELIVERY_ENABLED !== 'true')
+      throw new BadRequestException('External access is disabled');
+    if (!env.PUBLIC_API_URL.startsWith('https://'))
+      throw new BadRequestException('Telegram requires a public HTTPS webhook URL');
+    const account = await telegramCall(botToken, 'getMe');
+    if (account.is_bot !== true || String(account.id) !== botToken.split(':')[0])
+      throw new BadRequestException('Telegram bot identity mismatch');
+    const channel = await this.create(tenantId, {
+      type: 'telegram',
+      name: String(account.first_name || account.username || 'Telegram Bot').slice(0, 80),
+      credentials: { botToken },
+    });
+    try {
+      await this.setupTelegram(tenantId, channel.id);
+      const health = await this.verify(tenantId, channel.id);
+      return { id: channel.id, webhookReady: health.state === 'connected' };
+    } catch {
+      // Keep the saved identity recoverable without falsely reporting a working connection.
+      return { id: channel.id, webhookReady: false };
+    }
+  }
+
   async create(tenantId: string, input: CreateChannelInput) {
     let externalId: string;
     let credentialsEnc: string | null = null;
@@ -525,7 +583,10 @@ export class ChannelsService {
       const current = row.settings ?? {};
       if (!isDeepStrictEqual(botManagerSettingsSchema.parse(current.botManager ?? {}), expected))
         throw new ConflictException('Settings changed. Reload before activating.');
-      if (expected.sharedInbox?.inputFlowSessionExpiryMinutes === 0)
+      if (
+        expected.sharedInbox?.inputFlowSessionExpiryMinutes === 0 ||
+        expected.sharedInbox?.humanSessionExpiryMinutes === 0
+      )
         throw new BadRequestException('Expiry must be positive; zero semantics are not verified');
       const actions = readSystemActions(current).actions;
       for (const [key, enabled] of [
@@ -553,6 +614,8 @@ export class ChannelsService {
           getStartedEnabled: expected.general?.getStartedEnabled,
         },
         sharedInbox: {
+          signatureEnabled: expected.sharedInbox?.signatureEnabled,
+          humanSessionExpiryMinutes: expected.sharedInbox?.humanSessionExpiryMinutes,
           inputFlowSessionExpiryMinutes: expected.sharedInbox?.inputFlowSessionExpiryMinutes,
         },
       };
@@ -600,6 +663,8 @@ export class ChannelsService {
           'general.getStartedEnabled',
           'businessHour.disableBotDuringHours',
           'sharedInbox.inputFlowSessionExpiryMinutes',
+          'sharedInbox.signatureEnabled',
+          'sharedInbox.humanSessionExpiryMinutes',
         ],
       };
     });

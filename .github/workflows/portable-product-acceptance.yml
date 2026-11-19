@@ -1,0 +1,59 @@
+name: Portable product storage and recovery acceptance
+on:
+  push:
+    branches: [feat/flow-builder-fidelity-20261107]
+    paths:
+      - 'deploy/portable/**'
+      - '.dockerignore'
+      - 'apps/api/src/inbox/files/**'
+      - 'apps/api/src/inbox/inbox.module.ts'
+      - 'apps/api/src/config/env.ts'
+      - 'apps/api/src/database/database.service.ts'
+      - 'apps/api/package.json'
+      - 'pnpm-lock.yaml'
+      - 'scripts/qa-portable-*.mjs'
+      - '.github/workflows/portable-product-acceptance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: portable-product-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        storage: [filesystem, s3]
+    env:
+      BOAT_PORTABLE_ACCEPTANCE: 'true'
+      BOAT_STORAGE_CASE: ${{ matrix.storage }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate private disposable configuration
+        run: node deploy/portable/configure.mjs
+      - name: Build and start independent full stack
+        run: |
+          EXTRA=()
+          if [ "$BOAT_STORAGE_CASE" = s3 ]; then EXTRA=(-f deploy/portable/compose.s3-test.yml); fi
+          docker compose --env-file deploy/portable/.env -f deploy/portable/compose.yml "${EXTRA[@]}" up -d --build --wait --wait-timeout 240
+      - name: Real files, tenant gates, replacement and restore acceptance
+        run: node scripts/qa-portable-run.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: portable-${{ matrix.storage }}-evidence
+          path: |
+            docs/p0-evidence/portable/
+            docs/p0-evidence/connected-company-browser/
+      - name: Remove disposable stack
+        if: always()
+        run: |
+          EXTRA=()
+          if [ "$BOAT_STORAGE_CASE" = s3 ]; then EXTRA=(-f deploy/portable/compose.s3-test.yml); fi
+          docker compose --env-file deploy/portable/.env -f deploy/portable/compose.yml "${EXTRA[@]}" down -v

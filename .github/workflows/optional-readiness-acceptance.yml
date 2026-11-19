@@ -1,0 +1,78 @@
+name: Optional feature availability UI acceptance
+on:
+  push:
+    branches: [feat/flow-builder-fidelity-20261107]
+    paths:
+      - 'apps/web/components/product/ExternalDeliveryNotice.tsx'
+      - 'apps/web/app/dashboard/campaigns/page.tsx'
+      - 'apps/web/app/dashboard/social/page.tsx'
+      - 'apps/web/app/dashboard/social/social.module.css'
+      - 'apps/web/app/dashboard/billing/page.tsx'
+      - 'scripts/qa-optional-readiness-browser.mjs'
+      - 'scripts/run-optional-readiness-qa.py'
+      - '.github/workflows/optional-readiness-acceptance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: optional-readiness-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  full-journey:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: isolated-ci-admin
+          POSTGRES_DB: boat_qa
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d boat_qa"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:8.2
+        ports: ['6379:6379']
+    env:
+      NODE_ENV: production
+      DATABASE_ADMIN_URL: postgres://postgres:isolated-ci-admin@localhost:5432/boat_qa
+      DATABASE_URL: postgres://app_user:isolated-ci-app@localhost:5432/boat_qa
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: isolated-ci-secret-never-used-outside-this-job
+      ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
+      APP_URL: http://localhost:3000
+      PUBLIC_API_URL: http://localhost:4000
+      BOAT_PREVIEW_ONLY: 'true'
+      EXTERNAL_DELIVERY_ENABLED: 'false'
+      EMAIL_DELIVERY_ENABLED: 'false'
+      AI_PROVIDER_CALLS_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build real API and Web
+        env:
+          NODE_ENV: development
+        run: corepack enable && pnpm install --frozen-lockfile && pnpm --filter api build && NODE_ENV=production pnpm --filter web build
+      - name: Initialize isolated database role
+        env:
+          PGPASSWORD: isolated-ci-admin
+        run: psql -h localhost -U postgres -d boat_qa -v ON_ERROR_STOP=1 -c "CREATE ROLE app_user LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD 'isolated-ci-app'"
+      - name: Actual migrations
+        working-directory: apps/api
+        run: node --import tsx src/database/migrate.ts
+      - name: Install browser driver
+        run: npm install --prefix "$RUNNER_TEMP/boat-playwright" playwright@1.56.1 --ignore-scripts
+      - name: Readiness disclosure and error recovery
+        env:
+          BOAT_PORTABLE_ACCEPTANCE: 'true'
+          BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
+          BOAT_CHROMIUM: /usr/bin/google-chrome
+        run: python3 scripts/run-optional-readiness-qa.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: optional-readiness-ui-evidence
+          path: docs/p0-evidence/optional-readiness-browser/

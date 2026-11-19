@@ -1,0 +1,497 @@
+> CRM redesign (2026-11-19): [implementation and acceptance](docs/launch/CRM_REDESIGN_20261119.md). Customers now use cards, compact navigation and on-demand filters; opportunities, follow-ups, profiles and editors share a responsive visual system. Four real isolated AR/EN browser journeys and contact editor regression pass. Source b174e69; no Railway deployment or main merge.
+
+> Latest closeout (2026-11-19): [flow lifecycle accepted scope](docs/launch/FLOW_LIFECYCLE_CLOSEOUT_20261119.md). Component/bot clone semantics, active/inactive deletion, post-expansion node budget, long-ID restore/save and version restore/publish UI accepted. 286 API tests, real PostgreSQL lifecycle/roles and four AR/EN responsive version journeys pass. Final executable/test source ba68d1a. No deployment or main merge; current customer-file gate remains open.
+
+> Latest continuation (2026-11-19): [integration output safety and event lock fix](docs/launch/INTEGRATION_OUTPUTS_20261119.md). Stale API/sheet outputs, wrong sheet lookups, actual event-worker deadlock and unavailable-account presentation repaired. 284 API tests, real PostgreSQL runtime/lock/recovery and four AR/EN integration browser journeys pass. Application source ba82fba; no deployment/main merge; current customer-file gate remains open.
+
+> Latest continuation (2026-11-19): [advanced flow fixes and accepted execution](docs/launch/ADVANCED_FLOW_20261119.md). Sequence failure routing, finite numeric conditions and stale appointment outcomes repaired; real PostgreSQL and four AR/EN browser journeys pass. Source 30ad961; no deployment or main merge. Customer-file release gate remains open.
+
+> Current checkpoint (2026-11-19): [verified implementation and acceptance](docs/launch/IMPLEMENTATION_20261119.md). New SLA/CRM/HTTP/locking repairs passed real PostgreSQL acceptance. Live catalog accepted; new API remains undeployed pending current-file inventory/backup. Older versions below are historical; full software/pilot/commercial readiness is not declared.
+
+# Accepted PR #14 UX delivery — 2026-11-15, completed real Preview verification
+
+## Guided interactive-reply automation — ACCEPTED
+
+- Accepted application Web commit: `4adfc37f583e2cee2dcfd26081204bb318c84bd0`. Preserves seven existing action schemas, action order, max count, save and existing runtime.
+- Functional defect fixed: only one added action editor expands at a time, preventing form pile-up; advanced integration JSON collapsed, accessible task-first cards and summaries; missing plus glyph replaced with shared SVG.
+- New `button-actions-qa.yml`, `qa-button-actions-ux.mjs`, `flow-actions-seven.test.ts`: API and Web builds, isolated actual service execution with mocked outbound connectors, idempotent receipts and tenant isolation pass 3/3. Add/configure/save/reopen all seven types and ten AR/EN viewports (320/390/768/1366/1920) pass; screenshots manually inspected. GitHub run: https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43755194606
+- Live browser accessed **deployed Railway Web**, using a distinct *synthetic tenant*, demonstrated task-first UI, saved a field action and reloaded/reopened; AR/EN at 390 and 1366 screenshots inspected. GitHub run: https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43756095269 . Test fixtures remain unpublished; no real customer messages sent.
+- Initial accepted live Web deployment: `48245f2c-266b-4dda-898f-a4e5a54bfe0d` SUCCESS. Superseded by the second accepted release below.
+
+## CRM subscriber lists task-oriented redesign — ACCEPTED
+
+- Application source commit: `ceade845623e50d888a53f24db914d77e258b808`. Scope `/dashboard/crm/lists`; grouped into create/manage tasks with shared `Button`, `Feedback`, `EmptyState`, localized error/success and empty-member guidance, responsive component-scoped layout and confirmation before membership removal. Same existing tenant-scoped API contracts; no schema/migration changes.
+- Isolated browser tests create list, search/add/remove contact and assert empty state at AR/EN × 320/390/768/1366/1920, 10/10 PASS, screenshots inspected. GitHub run https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43756718467 .
+- **Live deployed Preview** verification in separate synthetic QA tenant: 4/4 AR/EN × 390/1366 real browser create/add/remove journeys PASS; screenshots visually inspected. GitHub run https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43757657027 .
+- Current accepted Railway Web deployment: `56c24da1-576c-4d89-854c-aac2acafce21` SUCCESS, source pinned to `e4c3115766bb9cbb0283f3a31c0f51d871d8fde8`. Current API remains pinned to `1d23067acad94f4fb0712e2d5bfb6755a82e6be9`; all 4 existing services healthy; Sleep preserved; no pending staged changes; same project/environment/domains/volumes; no main merge or new infrastructure.
+
+## Source/deployment distinction and next work
+
+- Latest PR HEAD after adding live verification workflow is `b7bc92d8411e9b3499e670ab963a65634d1a40fb` (this checkpoint commit will advance it); later commits contain *test/workflow and documentation only*, so deployed Web still correctly pins `e4c31157`.
+- Work completed beyond the first automation batch: **one additional real functional section, CRM subscriber lists, redesigned, tested and deployed**. This is **not** a claim of platform-wide UX completion or full live parity with BotSailor.
+- Continue remaining sections through shared components (CRM other screens, Inbox, Team & Permissions, Campaigns, Commerce/Products, Reports, Settings) with explicit visual and functional acceptance in isolated tenants, then staged Preview-only deployments. Continue older PARTIAL issues (safe permanent product deletion, remaining selection advanced settings, every external integration acceptance, quota-limited live simulator, unaccepted campaign patch); preserve UX01/UX05/UX07 and accepted releases.
+- No customer account or current bot was changed; live verification created clearly labeled isolated synthetic QA tenants and records only. No outbound messaging, plan modification or resource creation.
+
+---
+
+# UX design-system reconstruction checkpoint — 2026-11-15 19:27 UTC
+
+PR #14 current work continues on `feat/flow-builder-fidelity-20261107`. UX01, UX05 and UX07 preserved. New implementation commit `806ba1f4a9d2886e83c825b41644645a9aca0176` makes the interactive-reply automation action editor task-oriented: question-first onboarding, full-size icon cards, saved-action accordions with contextual summaries and required-setup hints, existing/custom CRM field selection, technical Google provider JSON behind advanced disclosure, 44px reorder/removal controls. Existing action payload shapes, callbacks, execute order and 20-action limit were preserved. Only `ButtonActionsEditor.tsx` and its existing CSS module changed. This is a focused first batch, **not** a platform-wide DONE claim. Review action-specific prerequisites and executed outcomes separately.
+
+Latest pre-batch live deployment: Web `99e6b67` SLEEPING, API `1d23067` SUCCESS. Railway has the same four existing services, no staged changes, PostgreSQL/Redis volumes unchanged and Sleep enabled. **Do not deploy 806ba1f before CI passes and visual QA.** GitHub push started six workflows: 43752515185, 43752515255, 43752515146, 43752515166, 43752515237, 43752515205. Workflows were in progress at checkpoint. Previous `1d23067` workflows were successful. Browser extension is not accessible from the current chat context; live signed-in visual verification is NOT claimed.
+
+Next: inspect these six workflow results, resolve any failures, conduct targeted automation action configure/save/reopen/execute and responsive visual QA, then move to shared-component migration across other sections in discrete tested batches. Product deletion safety, import statistics live Web parity, picker advanced settings, isolated simulator live quota and campaign patch remain independent unfinished items. Keep PR draft and preserve main, resources and data.
+
+---
+
+# Continuation batch — backend import statistics
+
+In progress on the existing PR branch, baseline f65b4d7 / deployed 99e6b67. UX01, UX05 and UX07 are unchanged.
+
+Implemented actual added/updated/unchanged/rejected, duplicate/missing-required/missing/archived counts from stored source rows. Preview and apply calculate server-side outcomes; unchanged rows are not rewritten. Migration 107 persists outcome summaries in sync history. UI renders returned counts, names the destination, and downloads row errors. Focused database and browser assertions cover first import, repeat import, changes and errors. Continue remaining product deletion, guided sidebar, action acceptance, isolated simulator and campaign patch; do not stop after this batch.
+
+---
+
+# Accepted release and exact resume point — 2026-11-15 18:30 UTC
+
+Application release: **99e6b6738c578ce2659bf8d90b8e53f61a246a02**, PR #14 only. Both existing Railway services are pinned to this accepted commit; later documentation/checkpoint commits do not auto-deploy. Do not merge main.
+
+| Requirement | Acceptance | Evidence / exact remaining work |
+|---|---|---|
+| UX01 product editor | DONE | Scrollable modal with reserved actions; exact 1500 / 150.5 / 150.05; 10 isolated combinations and actual live save/edit/refresh/reopen |
+| UX02 catalog/categories | PARTIAL | Search at 100-category scale, counts, rename/copy preserved; confirmed empty deletion rejects foreign tenant and active/archived contents. Permanent product deletion with historical/published references remains |
+| UX03 import wizard | PARTIAL | Five stages, styled upload, required/optional mapping with samples, real table/counts, named destination and manage-source action; CSV/XLSX acceptance passes. Added/updated/unchanged/rejected breakdown still needs real backend statistics |
+| UX04 product sidebar | PARTIAL | Guide, filter/search, numbered selected cards, local preview, order persistence/reopen at 10 combinations; manual/dynamic source retention also passes existing suite. Full progressive advanced-settings/text-variable arrangement still needs further UX work |
+| UX05 save notices | DONE | Terminal saved/published notices dismiss at 1.8s; recovery/conflict/error/undo decisions stay. Success timing and save failure/recovery journeys pass |
+| UX06 automation actions | PARTIAL | Customer data / routing-follow-up / connected-system groups and prerequisite guidance implemented. Every action's actual configured/prerequisite/error journey still needs separate acceptance |
+| UX07 toolbar | DONE | Explicit red exit X, current-channel label/icon and retained unsaved-change guard. Actual pointer regression fixed mobile menu under palette |
+| UX08 simulator | PARTIAL | Large responsive dialog, independent chat/input, 10 actual question/reply journeys pass and screenshots inspected. New live isolated bot creation was BLOCKED by workspace plan bot quota; no existing bot or plan changed |
+
+## Passed checks
+
+All six browser workflows at 99e6b67 are successful:
+- Products/import and 10 responsive catalog/product/picker/simulator journeys: https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43745940900
+- Editor crash/recovery/token refresh/connection: https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43745940971
+- Contact/Inbox: https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43745940978
+- Work/segments: https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43745940937
+- Channels: https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43745940977
+- Platform responsive/runtime inventory: https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43745940895
+
+PostgreSQL integration passes at a217c22 (API tree identical to 99e6b67): https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43745471622 . Focused category/money tests 4/4 pass; API/Web production builds and TypeScript pass. Inventory is not a claim of full state-by-state whole-platform acceptance.
+
+## Delivered Railway state
+
+Existing project boat-two-ui-preview / preview only. Web **41662585-dc53-41f5-80b9-1a70d7ff831f SUCCESS**; API **2e913862-4e2d-4435-8f66-3bb24eaea983 SUCCESS**. Both source pins are 99e6b67; Sleep remains true on both. Four original services online, zero issues, no staged/pending changes. PostgreSQL/Redis resources/domains were not changed and no resource created.
+
+## Live verification and test data
+
+Cloud Browser verified Sources -> Bot Manager now opens keyword replies and retains the QA channel. Created synthetic product SKU **QA-UX-LIVE-20261115-1825**, saved at 150.05, refreshed/reopened, edited to 150.5 and archived, refreshed/reopened again. Verified save action visible and unobscured. Inspected category deletion confirmation then canceled; no live permanent deletion. The synthetic product is archived and unavailable to bots. Existing customer records and existing bot graphs/publications were not changed.
+
+New live bot name attempt “QA UX 20261115 — فحص المحاكي فقط” was rejected by the normal workspace bot quota; no bot was created, subscription changed or existing bot deleted. Existing original local bot recovery drafts remain untouched. Simulator acceptance is proven in isolated CI, not claimed as a completed new live bot journey.
+
+## Safe continuation
+
+Continue the PARTIAL items above; inspect current HEAD/deployments again first. API permanent product deletion must protect published versions/history and concurrent reference creation; do not add a blind DELETE. Do not fabricate import change counts in the frontend. Keep test fixtures separate from out-of-band graph updates to respect recovery decisions.
+
+Earlier unaccepted campaign guidance work is now preserved as **docs/enterprise-20261115/pending-campaign-guidance.patch** in this PR, in addition to local checkpoint branch 1bc2c30. It is unapplied and excluded from the published application; review against current source and add isolated campaign acceptance before applying it.
+
+The evidence bundle includes 46 isolated screenshots, two result files, and a live saved-product screenshot; no runtime logs, secrets, customer data or database dump. GitHub artifact: https://github.com/hendhafez5566-arch/Boat-two/actions/runs/43745940900/artifacts/14174372401 .
+
+---
+
+## Historical work notes (superseded by the accepted state above)
+
+Visual reinspection of the real 320px CI screenshots found mixed Arabic/Latin selected-product titles and prices running together. Selected cards now isolate bidirectional names/numbers, put prices on a separate line and use compact labeled action icons; the selected list has room for two cards. Product modal and interactive simulator screenshots were inspected, not inferred from assertions.
+
+Category deletion acceptance found duplicate error rendering in the dialog and underlying page. Modal errors now stay in their action context and clear on cancel; rejection assertion is scoped to the confirmation dialog. The nonempty-delete API correctly returned a conflict and retained products.
+
+## Live navigation defect reproduced
+
+Cloud Browser: from embedded Commerce → Data sources, clicking Bot manager changed the URL but left Data sources on screen. The manager's local section state survived client navigation on the same route. Return now uses an explicit account-scoped automation URL and a document navigation, so the manager initializes the requested section. New isolated AR/EN × five-width regression checks the destination heading and retained channel ID.
+
+Import confirmation and result now identify the destination source; the result has a real Manage this source action returning to its saved configuration. Added/updated/unchanged breakdown remains pending backend statistics and is not fabricated in the UI.
+
+## Safe category management batch
+
+Added explicit confirmed deletion for empty local categories only. Backend locks the category and blocks deletion when any active or archived product remains; the existing composite foreign key guards concurrent inserts. Owner/admin route permissions and tenant RLS remain in effect. Local database test passes: foreign tenant rejection, missing category, empty deletion and nonempty rejection. Isolated browser script now checks blocked nonempty deletion and confirmed empty deletion at all ten combinations.
+
+94774ea responsive suite completed its first 320px Arabic product/picker/reopen/success/conversation journey, then exposed a test-fixture assumption: category 099 no longer has zero products on the next iteration. Locator now accepts its real numeric count; count filtering and all persistence assertions remain. No application behavior bypassed.
+
+Product permanent deletion with historical/published references is deliberately not implemented by this category endpoint; it remains a separate required item. No real data is deleted in acceptance.
+
+## Mobile tool-menu defect found by real pointer acceptance — 0681c64
+
+At 320px the palette (z-index 30) intercepted the actual Preview button inside the toolbar menu (toolbar stacking context 25). Raised the toolbar stacking context above the palette; no forced clicks or test bypasses. Rerun all impacted browser workflows before acceptance. Catalog ordering/reopen and success dismissal passed before reaching this mobile obstruction.
+
+## Acceptance fixture correction — b1e8f59
+
+The extended catalog journey successfully selected two products, reordered them, previewed the exact price, saved and reopened the graph. The next test overwrote that same server graph out of band while its inspector recovery snapshot existed; the editor correctly displayed its recovery decision instead of accepting a blind save. The conversation test now uses a separate isolated flow, preserving the recovery guard and all original assertions. Product/import journeys and editor reliability checks pass; rerun the extended suite before deployment.
+
+# Boat Two UX rebuild — resume point 2026-11-15
+
+Target: PR #14, `feat/flow-builder-fidelity-20261107`. Never merge main.
+Baseline rechecked: 385820bf06d3b59d8985be4c7384677f0fcc0c29 (newer catalog/specification/option work preserved).
+
+| Item | Current state | Remaining acceptance |
+|---|---|---|
+| UX01 product editor | Implemented modal with independent field scroll and reserved action row; exact integer/fraction money display | CI 10 language/viewport combinations + live published visual inspection |
+| UX02 catalog/categories | Searchable bounded category shelf; explicit Bot Manager destination | Safe referenced product/category delete design and backend tests remain; 100-category responsive CI pending |
+| UX03 import | Styled accessible file selector; required/optional mapping with samples; table preview and actual error/missing counts | Existing XLSX/CSV journey CI; backend added/updated/unchanged statistics and complete result redesign remain |
+| UX04 bot catalog picker | Existing browse/selected/reorder preserved | Guided journey redesign and full selection/save/reopen acceptance remain |
+| UX05 notices | Terminal saved/published notices dismiss after 1.8s; errors/conflicts/recovery remain; undo decisions stay until dismissed | Isolated timeout and error retention acceptance + live check |
+| UX06 automation actions | Latest baseline improvements preserved | Grouped prerequisite-aware action journeys remain |
+| UX07 toolbar | Red explicit exit X retains guarded navigation; current-channel informational label/icon | AR/EN responsive/unsaved guard acceptance |
+| UX08 simulator | Large responsive dialog; independent chat with reserved input; removed constraining phone frame | Interactive simulator at all 10 combinations + live inspection; rich product presentation still to review |
+
+Second coherent batch: product fields start with basic details before price; catalog picker has a task guide, numbered selected order, exact prices and a local product preview; automation choices grouped into customer data, follow-up/routing and connected systems with prerequisite guidance. Mobile current-channel badge gets a dedicated row.
+
+CI at 6da3aee: existing product/category/XLSX/CSV journeys PASS; editor crash/recovery/refresh/connection PASS; contacts PASS; work/segments PASS; channel connection PASS. New responsive script failed locating a success paragraph whose close button was included in its exact text; success text is now a dedicated span. No test assertion removed. The extended test also persists/reopens/reorders two chosen products before testing the actual question/reply conversation.
+
+Local build passed and exact money tests 3/3 passed. Browser/CI results must be recorded after execution, not inferred from compilation.
+New isolated acceptance script: `scripts/qa-ux-layout.mjs`, 100 categories, product create/edit exact cents, visible save controls, success dismissal, actual question/reply simulator, 320/390/768/1366/1920 in Arabic/English.
+Existing category acceptance selectors updated to current baseline add-category dialog behavior (removed obsolete auto-closed dialog close).
+
+Unaccepted campaign guidance work is retained in local branch `checkpoint/campaign-guidance-20261115` at 1bc2c30; excluded from this UX release until its isolated journey passes.
+
+Railway: existing project `boat-two-ui-preview`, environment `preview`; preserve PostgreSQL, Redis, API, Web and Sleep. Deploy accepted commit only after necessary checks; verify terminal deployment state and live UI. No customer data or real channel authorizations used in isolated tests.
+
+---
+
+## Previous recorded checkpoints (retained)
+
+# Flow Builder fidelity — 2026-11-07
+
+Branch: feat/flow-builder-fidelity-20261107. Base is the verified deployed source `559fa8c034a76a0f1a08842610f5a5d35caf268e`, preserving PR #12 product changes and PR #13. PR #12's later documentation-only checkpoint is not an ancestor; its existing branch remains untouched.
+
+## Milestone A — in progress
+- Verified Railway web deployment abc3b343-d032-4c4d-bba3-57a795fc0a55 (sleeping) and API 1b75418b-378d-4a3c-b1fa-16c40baf5795 (success), both source 559fa8c.
+- Web Sleep Application remains enabled; source pinned to phase2a, not the new branch. No Railway mutations/resources created.
+- Signed-in live BotSailor inspected; Create opens a new, unsaved flow editor. No existing reference bot modified or saved.
+- Measured palette 56 px collapsed / 264 expanded, cards 264 px, reference card 163 px high, connector 15 px, left configuration drawer 576 px.
+- Inspected Reference and Image configuration. Reference shows Back/Rearrange/channel/Save; no visible Publish or undo/redo controls yet. Further inspection required before any completeness claim.
+- Last edited: FLOW_BUILDER_REFERENCE_INVENTORY.md. No product code changed or tests claimed yet.
+
+## Next
+Complete reference interactions, archive safe screenshots/measurements; compare current Boat Two. Implement scoped shell then nodes and interactions in small pushed batches. Run isolated create/save/reopen/preview/publish/runtime + tenant/roles and regression before any deployment. PLAN_LIMIT must stay enforced; live create may remain BLOCKED.
+
+## Milestone B — shell implementation checkpoint
+- Last changed: editor page, BlockPalette, editor-shell.module.css. Toolbar now prioritizes Back/Rearrange/channel/Save with measured 40px controls. Name/status/Preview/Publish/settings and zoom remain functional under More; essential Boat-specific publishing is an explicitly retained exception.
+- Removed default dot grid and bottom zoom/hint chrome; extra block groups are collapsed behind Additional Boat Two blocks. No node types or saved graph data removed.
+- Autosave now defaults OFF to match explicit Save workflow and prevent incidental changes; opt-in remains available.
+- TypeScript `tsc --noEmit` passed; build/UI interaction checks pending. No deploy authorized by this checkpoint.
+- Live Boat Two login verified, existing QA draft opened read-only. No live flow edited or saved.
+
+## Milestone C — WIP node/connection checkpoint
+- Scoped 264px node cards, 48px headers, footer ports and 15px sockets; independent SVG block icons. Start decoration now fits initial viewport after measurement.
+- Message statistics use actual API statistics (unavailable stays —); blank cards show an independent configuration gesture icon, while validation errors remain available.
+- Connections use 2px Bezier curves; sockets move to opposing footer sides and mirror in RTL. Reference-output reconnection updates the actual startNodeId, never saves a decorative node/edge.
+- Clone/Delete retained on node contextual toolbar; editing via double-click and original editor forms retained.
+- TypeScript check passed again. Production web/API build passed on the preceding shell checkpoint. Current node changes await fresh build and UI/runtime acceptance; no deploy.
+- Reference context menu additionally exposes Product, Product Section, Row, Section. Nested reference actions remain incomplete; no full parity claim.
+- Code and sanitized text observations are pushed. Screenshot binary upload has not succeeded; images retained locally pending durable attachment.
+
+## First UI run — failures retained, fixes in progress
+- First run: 9 failed checks. Product defect: decorative reference dimensions were discarded, leaving it hidden. Fixed by supplying its measured264×163 dimensions explicitly; retest required.
+- Test harness defects: locale initializer overwrote Arabic on reload; preview close accessible name and published_version field assertions corrected. These were not claimed as product fixes.
+- First API suite:210 passed,2 test modules could not initialize without required environment variables. Rerun with isolated dummy configuration pending.
+- Initial failing JSON retained; no deployment. Next: rebuild/retest, then full node interaction and protected-flow acceptance.
+
+## Property panel checkpoint
+- Flow Builder opts into reference-sized drawer variant; campaign uses of the shared component keep the existing default.
+- Template/condition drawers640px, label drawer520px, others576px; text input200px and footer follows content like the measured reference.
+- Removed header close icon in this variant; footer Close and Escape retained. Clone icon is independent SVG; node tools only show on hover/selection/focus.
+- API suite rerun with isolated required config:216 pass/0 fail/0 skip. Current UI retest pending; no Railway mutation.
+
+## Milestone D — contextual interactions checkpoint
+- Added measured220px right-click menu, four grouped block menus, search and existing product/catalog entries. Additional supported Boat blocks retained under a collapsed section. Unsupported reference Row/Section/Notify Contact are not replaced with fake actions.
+- Fixed real More-toggle defect: menu scrim covered the toggle; trigger now remains operable above its scrim.
+- Second UI run: initial reference visible and ten AR/EN width cases passed; preview, persistence, real publish/republish and tenant isolation passed. Three remaining failures: menu-toggle defect above, and property close test selector caused a subsequent blocked action; corrections pending retest.
+- Reference undo/redo verified on temporary clone deletion (22→23→22 nodes); pan/wheel and Back tested. Existing saved audit-only graph read back and contained original travel test content, no new inspection nodes/text. Its updated date changed during the session; cause not established, so unchanged timestamp is not asserted. Global reference Save was never invoked.
+- Last changed: editor page / editor-shell.module.css / QA script. Typecheck passed before edge-clamping CSS; fresh build/UI checks pending. No deploy.
+
+## Acceptance checkpoint — 2026-11-07
+- Latest isolated run26 pass/1 fail: actual UI creation, mouse connections, save/reopen, UI publish/edit/republish, all31 block configuration forms, Admin/Agent API permissions, tenant isolation and Webchat→CRM→human handoff passed. Intermittent keyboard Delete after undo/redo was isolated and editor-owned deletion added; fresh retest pending.
+- Enter now opens a focused node's configuration; underlying native input shortcuts stay untouched. Rearrange uses measured column envelopes horizontally, mirrored in RTL. Existing40-node/cycle/disconnected/button-envelope layout checks passed.
+- Visual capture:50 before/after pairs (30 builder state pairs across five widths × two languages;20 protected-route pairs). Protected routes20/20 pixel-identical at1366×936. Ten responsive drawer checks passed, no browser page errors. This does not establish BotSailor pixel parity.
+- Reference viewport is1363×936; requested alternate reference viewports have not been established. Some reference settings/actions remain gaps, including random-character generation versus numeric range, reference notification action, row/section nodes and sequence campaign composition.
+- Last product files: editor page and flow-layout.ts. Source checkpoints pushed to PR14; fresh build/retest pending. No Railway changes or new resources.
+
+## Loading/error and touch acceptance checkpoint
+- Added explicit localized Loading flow state, error Retry, and disabled Save until a real graph loads. No fake success or placeholder graph introduced.
+- Full UI journey now uses the same manager-created flow through add/configure/connect/save/reopen/preview/publish/edit/republish. Fresh run pending on current source.
+- Live Preview creation retried only on the named QA Webchat account and was BLOCKED by PLAN_LIMIT. No record was created; no billing/plan changes attempted.
+- Last changed: editor page, editor-shell.module.css, QA script. Previous checkpoints are remote; current source must rebuild/retest before deployment.
+
+## Latest completed acceptance run
+- Current product source36aa37418e7638109889ac356acda9119813d81d built successfully. Run r8:31 checks PASS,0 FAIL,0 browser errors, including all31 supported block configuration dialogs counted within that suite.
+- Same UI-created flow completed create→add/configure/connect→save→reopen→server preview→publish→edit→republish. Keyboard deletion after undo/redo and Enter/Escape now passed. Arabic touch drawer and real load error/retry passed.
+- Two focused start-socket/edge-disconnect tests added next; not yet claimed passed. Source remains undeployed. Latest code and results must stay in PR14.
+
+## Final functional checkpoint
+- Acceptance r10 completed:33 PASS/0 FAIL/0 page errors. Includes31 supported node configuration dialogs and same-flow UI creation-to-republish, root reconnection, edge delete/undo, keyboard and touch, roles/tenant isolation, live local outbox→CRM→human handoff.
+- Final visual rerun on36aa374:50 pairs;20/20 protected pages pixel-identical;10/10 responsive drawer bounds passed. API216/216 passed.
+- Scoped lint identified two unused imports left by removed chrome; removed only those imports. Rebuilding and rerunning scoped lint/typecheck; no runtime behavior changed after the passing UI suite.
+- RELEASE BLOCKED: full reference parity remains incomplete (see inventory). Live Preview create independently BLOCKED by PLAN_LIMIT. No Railway deploy, main merge, resource/configuration/secret changes. Both existing Web/API still pinned559fa8c with Sleep enabled.
+
+## Resumed checkpoint — 2026-11-07 (PR #14)
+- Verified GitHub HEAD10f1df82 before checkout; all six requested checkpoint files read. Existing work retained.
+- Baseline rebuild: Web/API build, web TypeScript and scoped ESLint passed; recursive API suite216/216 passed. An initial one-directory shell glob ran154 tests; the explicit recursive run is the authoritative result.
+- Live BotSailor new unsaved canvas and Image configuration inspected again; no global Save. Existing Boat QA draft opened read-only after secure login.
+- First scoped visual batch: replace font-dependent analytics glyphs with independent SVG symbols; use the existing node-type SVG in the configuration header. Data, routing, analytics counts, and campaign/default panel fallback remain intact.
+- This checkpoint is pushed before the fresh UI acceptance rerun. No parity claim or deployment for this batch. Node dimensions, missing node concepts and Random Character semantics remain unresolved.
+- Railway current Web deployment6dcc4257-e623-4821-ad87-9f7aeb3bf5df and API1b75418b-378d-4a3c-b1fa-16c40baf5795 observed; original log's undeployed Web assertion is historical. No resource, variable, Sleep or source mutations in this continuation.
+
+### First resumed batch validation
+- Remote source e04731bd confirmed on PR14 (draft). Shell git push had no GitHub credential; the same file batch was pushed using the authenticated GitHub connector, without changing branch/base.
+- New Web production build, TypeScript and scoped ESLint passed. Independent SSR contract test renders all31 supported node icons and4 analytics icons, checks actual SVG paths, no font text or focus targets. Recursive API216/216 still passes.
+- Original33 UI checks are historical, not rerun: automatic approval rejected local Chromium package setup due the earlier Cloud Browser instruction. Cloud Browser is signed into both sites; existing QA draft is inspected without Save/Publish.
+- Proposed release is Web-only icon presentation; no API/schema/runtime changes. Current before screenshot retained privately at1363×936; post-release inspection must verify exact same graph/counts and property-panel close/cancel. No full BotSailor parity claim.
+
+### Connector selection batch
+- Live reference: connected temporary Start→Image; target settings opened automatically. With Image selected, DOM-measured connection stroke rgb(119,130,146),2px. Global reference Save not invoked.
+- Boat source changed connected edges to primary purple and dimmed unrelated edges on node selection. Removed these visual overrides; hover/selection disconnect tools, hit target, Bezier geometry and actual graph editing stay intact.
+- Fresh SSR selection regression covers adjacent/unrelated selected nodes; fresh build/typecheck/lint and live post-deploy check pending at this checkpoint.
+- First resumed batch deployed Web1798fe65-9e1b-43dc-9b81-563cc432a610 at source01852f2. Cloud confirmed4 SVG analytics icons, same four counts0/0/0/0, same286×63.8 displayed stats bounds at1363×936; configuration opens normally.
+- Isolated HTTP journey6/6 passed. Initial5/6 result retained: the first runner omitted the actual internal outbox worker. Rerun enabled the existing test-only worker; no production logic changed for that harness issue.
+
+### Measured selected-card finish
+- Existing node-metrics.json fixes selected border rgb(13,139,241), and card shadow rgba(139,141,141,.15)0px4px8px. Previous source still used#1993ce and0px3px7px#243b4b12. Applied exact recorded values to reference/card selectors only. No geometry or runtime modifications.
+- Fresh production build and live computed-style confirmation are required before accepting this finish.
+
+### Node-focus zoom correction
+- New and fit-all viewports already cap automatic zoom at1, but focusNode used1.1. Opening the existing QA step enlarged its264px card to290.4px versus reference264px. Capped only automatic node focus at1; manual zoom range remains unchanged. Fresh source checks and live width confirmation pending.
+
+### Preserve authored positions on opening
+- Live QA More showed Unsaved before any author edit; source investigation found the loader automatically ran computeLayout for overlaps/nearby coordinates and marked dirty. Removed that loader-only rewrite. Explicit Rearrange and add-node collision handling remain.
+- Added round-trip coverage for negative/fractional overlapping authored positions in RTL/LTR, including unchanged saved data/edges. Fresh tests/build and live Saved-state check required before release.
+
+- Position batch validation:4/4 graph conversion/derived-card round-trip tests passed; web TypeScript, scoped ESLint and production build passed. A missing type-only import in the new test fixture was corrected before push/deploy. API/runtime unchanged.
+
+## Latest resumed release and acceptance checkpoint
+- Product source fbfa99835e99d4800f95c714cdb7f29b267940f9 deployed to existing boat-preview-web only:5aad01a2-9359-4812-89e2-7bb45b2573da SUCCESS. API stays1b75418b-378d-4a3c-b1fa-16c40baf5795. No new Railway resources, variables, domains, volumes, Sleep changes or main merge.
+- Live Cloud Browser: Arabic/English at1363×936; selected card264px screen width; border rgb(13,139,241); shadow rgba(139,141,141,.15)0px4px8px; both connections rgb(119,130,146),2px,opacity1; four stats retain0/0/0/0. Header uses type icon; open/Close work.
+- Reopening the same QA draft now shows Saved without Save; before the loader fix it showed Unsaved due automatic repositioning. No existing live graph saved/published during this continuation.
+- Evidence: resumed/RESULTS_AR.md,216 API tests,31+4 SVG renders,2 selection renders,4 graph conversion cases,6/6 real isolated HTTP journeys, before/after screenshots and actual DOM measurements. Initial HTTP5/6 harness failure is retained with its worker correction.
+- Previous33 UI suite,50 local pairs and20/20 protected comparisons remain historical. Full rerun across320/390/768/1366/1920 is BLOCKED here: local Chromium setup was rejected by automatic approval under the earlier Cloud Browser instruction; Cloud exposes the fixed1363 viewport used for this run. No workaround/download was used after rejection.
+- PR14 remains Draft. Distinct Notify Contact/Row/Section, character-generator semantics, full sequence composition/provider commerce and complete window-by-window parity are still gaps. No full completion/parity claim.
+
+- Final English rerun also used released fbfa9983:264px cards, reference selected border, grey connections and576px left drawer at1363×936. Arabic RTL uses576px right drawer. Restored Arabic preference after the test. Screenshots and DOM measures are retained in resumed/.
+
+## User Input Flow — isolated management/report batch (in progress)
+- Working tree resumes from remote HEAD `4ca0111eaa06486fc0943cfaa03c7acd1e1e87e2` on the existing PR14 branch. No new branch or project created.
+- Live reference and Boat were previously inspected at1363×936. Reference list exposes Report / Export Flow Data / Edit, while Boat previously misclassified regular `question` automations as User Input Flows and showed extra Duplicate / Copy / JSON / Delete / Folder / Status / Refresh controls. A specialized User Input editor is still a separate remaining batch.
+- Current code now classifies only `user_input` node graphs for this section; creation reuses the requested flow name as campaign name. Added tenant-scoped Owner/Admin-only answer report API over saved flow session versions, and a read-only report page plus real CSV export of configured answers. Report omits phone numbers and arbitrary flow variables. Existing extra actions remain available in the general automation section.
+- Isolated validation: all75 Flow API tests passed; API TypeScript build passed; Web TypeScript passed; scoped ESLint passed; Web production build passed. Full isolated HTTP harness passed9/9, including User Input create/reopen/empty report, real Webchat question order, invalid email rejection, valid email, CRM custom attribute/system email storage, handoff state, Owner/Admin/Agent permissions, and cross-tenant report isolation. Only synthetic test records were used in PGlite; no provider sends.
+- Visual acceptance for the changed UI has not yet occurred: Railway remains on the previous Web source `fbfa99835e99d4800f95c714cdb7f29b267940f9`; no deploy, screenshots, alternate viewport, or live data writes in this batch. Do not call this UI parity or release-ready. Next: implement the reference-shaped question editor, then push this batch and run same-size Cloud Browser comparisons before any deployment.
+- First batch commit `d72228f7ebb6cabceaaccd7faa1fdb9b12f6dfc4` is on the existing PR14 branch.
+- Question-editor batch adds the reference's Free keyboard / Multiple choice modes, all11 supported reply-validation formats, CRM custom/system destination, Additional Options, and a configurable 20-character multiple-choice list button label backed by the real runtime. Existing question ordering, retries, skip, thank-you and completion actions remain available. This remains the existing `user_input` execution model; no parallel runtime or data migration was introduced.
+- Fresh validation after that batch: all76 Flow API tests PASS; API build PASS; Web production build PASS; post-build Web TypeScript PASS; scoped ESLint PASS. The isolated HTTP journey is9/9 PASS, now including a four-option Webchat list and its saved button label, invalid email retry, real CRM custom attribute/system email, report contents, handoff, roles and tenant isolation. Automated UI/browser acceptance and live screenshots are still pending; no Railway deployment yet.
+
+## Platform fidelity continuation — 2026-11-08
+- User Input Flow is closed by owner scope. PR14 remains Draft at verified starting head d5116324. Live Boat and BotSailor sessions are authenticated.
+- Started Bot Manager Settings: reference General inspected without Save/Publish. Current activation contract ignores getStartedFrequency, so its editor is disabled with a bilingual explanation while preserving saved values. Time-field accessible day names now use the active locale. No runtime/data/schema change.
+- New PLATFORM_FIDELITY_PROGRESS.md records all remaining areas and next steps. Web TypeScript and scoped ESLint passed; current-change browser/visual/roles/tenant acceptance not run. No deploy or parity claim. Existing API release remains blocked by the recorded mise download failure; no repeated deployment attempted.
+
+## Channel signature runtime batch — 2026-11-08
+- Linked explicit per-channel activated signatureEnabled to MessagingService's real agent outbound text/media formatting. Drafts do not affect delivery; legacy/workspace behavior remains the fallback. Existing workspace template reused; no schema/provider/new engine change.
+- Actual full Nest/PGlite HTTP7/7 PASS verifies save/reopen/activate/deactivate/stale draft, Inbox persisted messages, CRM identity and handoff preservation, second channel/workspace preservation, roles and tenant isolation. API source225/225 PASS, API/Web builds, web TypeScript and scoped lint PASS. Initial fixture/runner failures retained in PLATFORM_FIDELITY_PROGRESS.md.
+- Shared Inbox reference inspected live without save/publish. Message Template Mixed creation inspected without saving. Visual acceptance for new code remains BLOCKED; no current-source browser PASS/deploy/full-fidelity claim.
+
+## Channel human-session expiry batch — 2026-11-08
+- Existing Inbox policy worker and due SQL extended with activated per-channel positive expiry; absent/null preserves workspace behavior. Migration104 is additive CREATE OR REPLACE, preserves SLA and function grants. Zero activation denied pending verified reference semantics.
+- PostgreSQL test executes real migration twice and worker under tenant RLS across two tenants/eight channels, verifies active vs draft/legacy/malformed, internal expiry event and no duplicate event. API227/227 PASS and full Nest/PGlite HTTP7/7 PASS after schema104, including active expiry receipt, roles/isolation/CRM/handoff. API build, scoped lint and web TypeScript passed. No new browser/visual parity claim.
+- API-only deployment attempt of preceding f24379f2 was cancelled by Railway tool approval; no new deployment. Staged source restored to original d511, but a no-op source patch remains visible (documented in PLATFORM_FIDELITY_PROGRESS.md); no discard tool exposed. No main/resource/variable/Sleep changes.
+
+## Message Template studio continuation — 2026-11-08
+- Verified remote9812afbe and live reference Mixed Template. Captured sanitized DOM measurements and locale choices; no reference save/sync/submit. Manager create/edit now renders inline using a scoped variant of the existing shared form; ordered cards and side preview, connected supported category/header choices,71 valid locales and real draft save / save-to-review-confirmation. Existing template API and provider gates retained.
+- HTTP7/7 PASS in full isolated Nest/PGlite,20 populated default/manager renders PASS,71 locale contracts PASS, scoped ESLint and TypeScript PASS; build log and detailed limitations in docs/platform-fidelity-20261108/. Browser/visual acceptance on modified source and real provider acceptance remain BLOCKED. No deploy/main/new resources. Section remains IN PROGRESS; do not claim full parity.
+
+## Connected accounts reference batch — 2026-11-08
+- Verified remote2cdcb945 and live reference Connect Account DOM metrics. Channels now uses a compact account/status/platform/check/MM/actions table, truthful API-backed expiring state, search/status/platform filters and statistics; existing full account actions remain under Manage. Large onboarding guide moved behind disclosure; ChannelCatalog has a scoped connections variant with its original variant retained.
+- Isolated channel HTTP6/6 PASS; full Flow/Webchat/CRM/Handoff/roles/tenant regression HTTP9/9 PASS after schema104; filter/state/catalog tests, TypeScript/scoped ESLint and web production build PASS. Visual/browser acceptance of modified source not yet claimed. Details and pending provider/Google/MM/last-sync/disconnect semantics in docs/platform-fidelity-20261108/CHANNELS_AR.md.
+- User requested existing Preview deployment; source checkpoint first, then API-before-Web compatibility and terminal deployment verification. No resource/config/Sleep/main changes authorized beyond existing service source pins.
+
+### Channels release checkpoint
+Product source1f249b6b pushed/verified. API-before-Web deploy staged on the same existing Preview API only; accept-deploy cancelled explicitly because tool approval was not granted. No new deployment/build; Web not staged or deployed. Pending patch ae600b07-b326-42c8-9aaf-d5e0efdca76d pins API to1f249b6b when/if approved. Do not deploy Web before successful API/schema104 compatibility and do not claim current-source visual acceptance.
+
+## Connect Account continuation — 2026-11-14, first batch
+- Resolved workspace blocker with a direct single-branch Git clone; verified starting HEAD b20dbe19. Frozen-lockfile dependency installation succeeded.
+- Reused authenticated live reference observations. Connection Guide, statistics, filters, MM Status and account table are present in BotSailor and are not indiscriminately removed.
+- Removed the extra first-customer journey, website-test shortcut and three bot preparation/test cards from the guide. Retained a concise bilingual connection explanation and removed unused step styles. Existing channel/OAuth/provider/diagnostic/data actions are unchanged.
+- Fresh Web production build PASS; scoped ESLint PASS; existing channel-overview/catalog contract checks PASS. This is a saved first batch, not full UI/provider acceptance.
+- Remaining: inspect reference details and actual Boat UI, align provider-specific launch surfaces, test AR/EN at requested widths, isolated provider/role/tenant journeys and visual before/after evidence. No deployment or full-parity claim for this batch.
+
+## Channel connection journeys — 2026-11-14
+- Owner requested skipping Facebook login. WhatsApp embedded journey actually opens Catalog/Without Catalog choices before Meta. Facebook human verification and all downstream provider choices remain BLOCKED; no permission granted or production link changed. Detailed observed steps are in docs/channel-connections-20261114/WHATSAPP.md.
+- Telegram has a dedicated connection page with Bot Token only; backend verifies bot identity before persistence, derives provider name, registers the existing webhook, checks connectivity and reports incomplete setup without false success. Duplicate guard and existing endpoints are preserved. Details in TELEGRAM.md.
+- Fresh API and Web production builds PASS; scoped lint PASS; nine isolated tests PASS. The tsx CLI IPC limitation was resolved with the supported node --import tsx test runner. No live provider acceptance, visual parity or deployment claim.
+- Current remaining scope includes WhatsApp manual/embedded UI, Facebook/Instagram pre-auth surfaces, Webchat/Google, provider post-auth states, full UI/HTTP regression and final release. Facebook login stays skipped per owner.
+- Follow-up acceptance: real full Nest HTTP server with all104 migrations and PostgreSQL tenant RLS passed token-only onboarding, unauthenticated401, agent403/admin success, malformed400, same/foreign-tenant duplicate409, provider-derived name, token redaction and webhook failure recovery. Only synthetic provider responses; the QA provider fixture denies non-loopback external traffic except its strict synthetic Telegram allowlist.
+- First HTTP attempt from a separate command could not reach the isolated server (ECONNREFUSED). Launching server and HTTP client under one subprocess runner passed; no production/environment change. New endpoint requires API-before-Web deployment; do not release Web against the old API.
+
+## WhatsApp / Meta connection entry rebuild — 2026-11-14
+- Dedicated WhatsApp, Facebook and Instagram pages now replace catalog-to-generic-dialog navigation. WhatsApp presents the two observed method cards, Embedded launch then With/Without Catalog choices, and an inline API form with WABA ID then access token. Legacy cloud-number mode remains secondary in advanced options.
+- Added a real manual WABA sync endpoint: validates messaging/management permission, reads bounded paginated phone identities, reauthorizes existing local identities or creates new ones in one database transaction, rejects foreign tenant identities and reports subscription/verification results. Sanitized account metadata returns WABA IDs, never credentials.
+- Catalog requires the separate optional META_EMBEDDED_CATALOG_CONFIG_ID. Missing configuration is visibly disabled and server-rejected before creating a signup state. No operator variables changed. Live Catalog authorization and all post-Meta reference screens remain BLOCKED; the existing non-Catalog config is retained.
+- Fresh Web production build PASS (54 routes), API build PASS, scoped lint PASS and ten focused tests PASS, including PostgreSQL two-phone sync, identity preservation, redaction, cross-tenant rejection, permission rejection and transaction rollback on plan failure.
+- Test corrections retained: initial nested PGlite lookup stalled; identity reads were moved ahead of the write transaction while unique constraints still guard concurrent writes. An initial inferred-array TypeScript error was corrected before passing build. Initial standalone browser script ESM resolution failed; using the project's configured createRequire module loading is the next correction.
+- CUA current-source localhost review returned ERR_CONNECTION_REFUSED. Continue with the repository's existing isolated Chromium test mode; no visual parity or deployment claim at this checkpoint.
+- Remaining: configured browser QA and full HTTP regression, Webchat/Google, main account actions, visual comparison and release. No live account changes, Meta login retry, deployment, Sleep or Railway resource changes.
+- Scripted visual acceptance found a real runtime blocker: installed Chromium cannot create its singleton socket (EPERM). No local browser workaround or privilege escalation attempted. Added a branch-only read-permission GitHub Actions job to run the same isolated AR/EN viewport checks and upload synthetic screenshots; CI results are pending, not PASS.
+- Main Connected Accounts now exposes Get Embed Code for real Webchat snippets via one code dialog. Account removal from this page is replaced with explicit local disconnect (PATCH disabled), preserving conversations and channel data; dialog explains that provider permissions are not revoked. Provider disconnect semantics remain unobserved and are not claimed equivalent.
+
+### Visual acceptance checkpoint — 2026-11-14
+- Branch CI run 43585204291 PASS: real isolated Web/API, AR/EN across 320/390/768/1366/1920 widths; 70 screenshots saved in workflow artifact 14110730279. Provider start/config fixtures are explicit and all external browser requests blocked; no live OAuth acceptance claimed.
+- Reviewed desktop WhatsApp, mobile manual form and Facebook screenshots. Corrected scoped heading size, WhatsApp method artwork using independent SVG, green embedded/purple API launch buttons, advanced option placement and mobile table overflow. Re-capture pending for these corrections.
+- Fresh Web build and scoped lint PASS. Full recursive API suite with bounded test concurrency PASS: 229/229. Initial no-env run failed two config imports; simultaneous unbounded run lost one test process; supplied test-only environment and concurrency=4 passed all files without source changes.
+- Reference Webchat setup includes several unsupported current widget capabilities; Google pre-auth is one sign-in action. Remaining source work and provider BLOCKED states are not treated as complete parity. No deployment yet.
+
+### Remaining connection entry points — 2026-11-14
+- Pushed and verified visual correction checkpoint b1920a6a; CI43586431415 PASS; reviewed corrected desktop WhatsApp and mobile API screenshots (artifact14110258900).
+- Added dedicated Google pre-auth entry with one real OAuth action, same observed Calendar/Contacts service family using narrower existing supported scopes. Existing callback/data source behavior is retained; post-sign-in remains BLOCKED. Stats derive stored granted scopes.
+- Added dedicated Webchat list/setup modal. Theme/bubble colors, HTTPS logo URL, wallpaper color, font allowlist, four placements, startup state, offsets and delay now persist and affect the real shadow-DOM widget. Existing legacy header/wallpaper behavior is retained when new keys are absent. No visitor upload/help tabs or fake controls; these reference gaps remain explicit.
+- Main cards gain observed WhatsApp recommendation and secure footer; catalog navigates directly to channel-specific surfaces. Expanded isolated browser checks capture main/Google/Webchat setup, saved row and actual widget runtime, asserting saved settings, provider-start errors and viewport containment. Results pending CI.
+- Fresh Web/API builds, scoped lint and all229 API tests PASS after runtime/schema changes. No live connection, production messages, deployment, new infrastructure or Sleep mutation.
+
+### Connect Account continuation
+
+Inspected the signed-in BotSailor overview and Facebook, Instagram, Google, and Webchat entry pages in the cloud browser. Added separate social setup and benefits panels, Google account search and scope details, and persistent Webchat settings editing alongside its separate creation and widget-list sections. Live provider authorization and acceptance of this branch on Railway remain pending. Next action is to verify this exact commit with CI and inspect the build on the existing preview before acceptance.
+
+GitHub Actions run 43595935535 timed out selecting Webchat Position. Commit 8f9bc80 adds explicit select names and covers editing a persisted widget. Run 43597026420 advanced through the earlier English browser cases and then caught overview overflow at 768 px. The overview now applies its tablet layout at 768 px. Next action: open the Channel connection acceptance workflow for this HEAD, inspect any failing browser log, then deploy only a passing SHA to the existing Railway preview and repeat the browser acceptance there.
+
+## Enterprise platform expansion — 2026-11-14
+- Owner expanded scope to the full platform. Fetched and switched cleanly to actual remote HEAD c87162ad; retained all newer flow/channel changes. Latest channel CI43603729491 SUCCESS. Existing Railway Web c87162ad SUCCESS; API49bd6167 SUCCESS. No infrastructure changes.
+- Cloud browser reference action denied by automatic approval review because Work usage limit was reached. No browser workaround attempted. Independent source/CI work continues.
+- Added complete source-route inventory and prioritized defect/acceptance backlog, with no unverified page marked DONE. Added full static-dashboard plus synthetic-flow runtime/responsive sweep across AR/EN and five widths, recording actual button/field/link inventory, headings, overflow culprits, runtime errors,5xx and desktop/failure screenshots. This is smoke coverage, not all-button functional acceptance.
+- New branch-only CI uses existing isolated API/PGlite and Web; all non-loopback browser requests blocked. Sweep results pending.
+
+### Shared interface batch
+- Introduced reusable page/body/dialog typography tokens; shared page headings now20px rather than variable23.2–30.4px. Dedicated editor/node typography remains scoped.
+- Fixed global menu search keyboard behavior: true combobox state, ArrowUp/Down selection, active descendant, selected result on Enter and visible active option. Added actual browser route assertion for keyboard selection.
+- Fresh Web production build and scoped ESLint PASS. Initial platform CI43605901007 stopped before UI because the synthetic onboarding fixture had no channel; added a synthetic Webchat before completing onboarding. No application rule/test assertion weakened. Next run pending.
+
+### Independent PostgreSQL acceptance
+- Added an ephemeral CI-only PostgreSQL16/pgvector + Redis8.2 job using actual migrations, a NOSUPERUSER/NOBYPASSRLS application role and the production Nest entrypoint (no DatabaseService/PGlite transport replacement). Executes existing channel, flow/User Input/handoff/CRM, signature and cross-feature parity HTTP scenarios. Synthetic accounts only, all delivery/AI/email disabled; localhost destinations enforced.
+- Local environment has no postgres/initdb/docker executable; this check must run on CI. Python syntax and diff checks PASS; integration results pending. No Railway database, service, domain, volume or Sleep setting changed.
+
+### Automated defect discovery
+- Platform sweep43606105719 reproduced actual Developer guide document overflow at320/390px; other initial English routes through768px had no reported runtime5xx or document overflow. Shared code examples now have bounded internal scrolling rather than widening the document.
+- Sweep then stopped on an ambiguous test option selector (native dashboard select also has selected options). Scoped the assertion to the global search listbox; did not change application behavior or weaken expected destination.
+- Real PostgreSQL CI43606232322 provisioned disposable test services successfully but migration command targeted a compiled directory without copied SQL. Corrected CI to run the existing source migrator with tsx, preserving actual migration files and production code. Functional PostgreSQL acceptance not yet claimed.
+
+### Enterprise regression results and root-cause fix
+- Platform CI43606451370 SUCCESS:500 route/language/width cases, no document overflow, page runtime errors or5xx observed. Includes synthetic flow routes and desktop keyboard search selection. This is smoke/inventory coverage, not all interactions or BotSailor parity. Channel CI status checked separately. All230 recursive API tests PASS before next fix.
+- Independent PostgreSQL CI43606451319 applied all actual migrations and passed6 channel +9 Flow/User Input +7 signature groups, then9 cross-feature parity groups. Off-hours snapshot scenario exposed selection semantics: publishing an unscoped alternate replaces channel active bots. Investigating this also confirmed a real P1: reusable component publication incorrectly selected the component as active bot, which runtime refuses to execute standalone.
+- Fixed publish to select is_component and leave channel active bots unchanged for reusable components. Added DB regression preserving existing active bot and human ownership; focused test PASS. Updated off-hours acceptance to use an explicitly reusable helper, assert that republishing cannot replace its parent, and still require the original immutable off-hours response. Regular standalone-bot publication semantics are retained.
+- Added existing API mode to assignment acceptance so real PostgreSQL job also exercises multiple employees, eligibility, queue and availability resume through actual Nest HTTP. Retest pending; no production data repair or active-bot reassignment attempted.
+
+### Product experience transformation — 2026-11-14
+- Began from verified remote HEAD bf8a9f7c. Existing Railway Web source c87162ad has a pre-existing staged source update to bf8a9f7c; did not accept that patch.
+- Cloud reference inspected signed-in BotSailor Bot Manager → Commerce → catalog management and integration fields. Boat preview authenticated through secure browser auth.
+- First implementation checkpoint: direct Products entry, dedicated product grid/search/status/sort, exact decimal-to-hundredths conversion, grouped edit/create form, archive editing, local saved-data preview, shared image/price component and visual searchable bot product picker preserving stored product IDs. Dynamic sources and approved Meta identifiers remain distinct.
+- Fresh production Web build and scoped ESLint PASS; money round-trip and invalid precision tests 2/2 PASS using node --import tsx. tsx CLI IPC is unavailable here; no escalation used.
+- Not accepted yet: full CRUD browser journey, categories, draft image preview, actual channel-specific simulator evidence, picker order controls, independent role/tenant coverage, before/after screenshots and live deployment. Existing endpoint preview capability must remain available before release. Whole-platform transformation remains in progress.
+
+### Persisted local categories and product selection
+- Saved first checkpoint through GitHub connector as71305e5 (terminal push lacked credentials; local checkout aligned to identical saved tree).
+- Added migration105 for tenant-scoped local categories, composite tenant/category FK, RLS and owner/admin endpoints. Product updates from older API clients preserve existing category when categoryId is omitted; explicit null removes the category. Added real SQL regression for rename/persistence/cross-tenant rejection.
+- Product interface supports actual category create/rename/filter/assignment, hosted image draft preview and retained server-side no-send preview. Picker supports category filters and explicit ordering; native Meta output now follows authored ID order too.
+- Scoped lint, API build, Web typecheck and4 focused price/catalog/category tests PASS. New isolated product browser acceptance workflow covers AR/EN desktop/mobile CRUD, search, edit/reload, category persistence, actual flow simulator and cross-tenant isolation; CI result still pending. No deployment or complete-product acceptance claimed.
+
+### Product acceptance and first live release
+- Product CI43614673790 SUCCESS: AR/EN×390/1366 real isolated UI category/product creation, exact price, search, edit/reload, two-product selection/reorder inside node configuration, Save Changes→Save flow→reopen→actual simulator. Artifact14121349096 contains8 screenshots and4 successful journey records. Earlier runs exposed one missing accessible label, then two harness issues (PGlite bigint JSON number vs PostgreSQL string; wrong close control rather than actual Save Changes). Preserved those failed runs and corrected without weakening value/persistence assertions.
+- API231/231 recursive tests PASS with valid test-only environment. Initial runs lacked valid JWT configuration; those failures were environmental. Independent PostgreSQL workflow43613902642 SUCCESS; platform sweep43614144924 SUCCESS500 cases0 failed; channel workflow43614144861 SUCCESS.
+- Existing Railway preview API deployment5d2b176f-3c40-4225-9b59-f985f734c645 and Web deploymentb31a25e8-5677-444f-8ff3-e15b95f1250d observed SUCCESS at product source28cd99f. API health status ok/db up. No resources, domains, sleep or provider credentials changed. Pre-existing staged Web downgrade was replaced by a no-op source patch to the same deployed SHA; no accept-deploy called.
+- Cloud preview reloaded and verified current product cards, decimals and active Products tab. Created explicitly marked QA category and product for live acceptance; cleanup is archive-only, no customer products edited.
+- Visual review prompted another small UI batch: local product guidance now distinguishes approved Meta catalogs; category/status/sort controls have explicit accessible names and picker reports category loading errors. Standalone Commerce opens Products with contextual navigation disclosed on demand; redundant data-source button removed and Calendar integration link remains under Appointments. Verification/deployment of this follow-up pending.
+- Remaining platform scope is not marked DONE. Channel-specific native provider delivery, category images (unsupported), category-wide dynamic inclusion and all remaining platform UX transformations are not claimed complete.
+
+## P0→P1→P2 continuation — 2026-11-17
+
+Preserved verified rollback3cdb26b and baseline48c4764/4db58a2. Implemented conversation ownership409guards, true Inbox/widget catch-up paging, durable SLA notifications, SSE field validation, seven compatible advisory patches, first-human-response reporting and localized activity/media states. Added actual PostgreSQL all31node draft contract/public runtime chain, concurrent save/publish/restore, sessions,1000-message two-tenant staged load, real process replacement, frozen delayed-version resumption, report precision and tourism/store/services journeys. Existing test suites remain. All scope/status/CI/deployment records are in docs/P0_COMMERCIAL_READINESS.md, P1_RELIABILITY_UX.md and P2_COMMERCIAL_LAUNCH.md.
+
+Accepted application4e058e0: PostgreSQL44141540059 SUCCESS;18browser journeys44141540075 SUCCESS; API b0cd6a5a-450d-4614-a2ab-ddb0d57706eb SUCCESS; Web b47cc51d-96b3-47ba-9186-d2953a9dc2d5 SUCCESS. Owner-triggered visual review led to2c67736 localization follow-up, awaiting its browser run/deploy. Live Preview API synthetic acceptance passed before report release; final live browser acceptance is being added. No main merge/new resources/real customer edits/provider changes/paid calls/Sleep changes.
+
+### Final accepted checkpoint for continuation
+
+API4e058e0 deploymentb0cd6a5a-450d-4614-a2ab-ddb0d57706eb SUCCESS; Web2c67736 deployment66ec62ad-9a85-4d53-a2e7-537d044c0197 SUCCESS. Both pinned and Sleep=true. Localization browser44142442945 and all seven related workflows passed. Live Railway four-journey AR/EN Inbox/reconnect/reload/measured-report acceptance44143748624 SUCCESS; artifact14355163261. Preserved and corrected initial live locator collision44143464316 by scoping to thread, not lowering expectations. Latest test checkpointf2d1d57531cdec3b5a208eb6b1c196105ac13041; subsequent commits are evidence/docs only. Use actual GitHub HEAD next, preserve original rollback3cdb26b, and follow P0 'Next execution point'. P0/P1/P2 NOT globally complete; all remaining independent and external blockers are explicitly recorded. No background continuation is promised.
+
+## Security and recovery release — 2026-11-17
+
+Application commit69c57c8e9faf99723e05ff2a782c2cd2905e5300 accepted by all eight applicable workflows. Actual PostgreSQL44154027940 passed243/243 API tests, additive migrations109/110, attachment tenant/role/lifecycle/send-delete race and worker SIGKILL/rollback/recovery suites, plus disposable DB backup/restore/RLS checks. This does not restore attachment file bytes or establish persistent media storage.
+
+Editor44154027850 accepted all31 inspector/routing save/reopen configurations in AR/EN390/1366. Inbox/browser44154028003 accepted22 scoped contexts including four attachment owner/agent/help journeys and the controlled legacy executable-link rendering probe. Earlier recovery44150302692 and editor44150302652 remain valid in their scopes. Three-business browser44152172456 accepted12 seeded tourism/store/services visitor→data collection→handoff→employee UI reply/private note→CRM journeys; full company signup/invite/bot-authoring browser acceptance remains separate.
+
+Deployed existing Preview API first:db67a55a-70be-4677-aa8f-4e6e6884dcd2 SUCCESS, then Web0011f966-d6e2-4aba-b34a-6132a18623f8 SUCCESS, both pinned69c57c8, both Sleep=true. Health returned200/db up. Live functional acceptance is tracked separately below. No main merge/new resource/real-customer mutation/provider send/paid call.
+
+Security rollback is mandatory: retain migrations109/110 and file records, and retain the DB-authoritative public-file lifecycle gate plus message URL validation/rendering guards in any rollback build. Do not repin the old3cdb26b/4e058e0 API unchanged after revocation. Keep accepted images/history for investigation, but prefer a forward fix or a compatibility rollback build preserving these boundaries. No migration-down/drop or file purge is authorized.
+
+Remaining independent work: advanced node property/runtime/provider-error combinations; multi-tenant assignment fairness and all-role UI interactions; every media variant and sensitive endpoint audit; complete registration/invitation/authoring UI journey; full reports attribution and every-section interaction UX. External requirements are enumerated in docs/launch/EXTERNAL_ACCEPTANCE.md. Persistent storage, provider identities/permissions, authorized AI budget, official payment sandbox, Production architecture/cost, and legal/support owner approvals stay BLOCKED — EXTERNAL. Overall P0/P1/P2 remain PARTIAL; verdict NOT READY for broad commercial launch.
+
+### Live deployed acceptance and exact continuation
+
+Live Preview CI44165829215 SUCCESS at test commitfd409936ce29427e176964fcb616de100b0ab4e5, artifact14365137911. Four AR/EN390/1366 real deployed browser journeys passed Inbox offline catch-up/reload without duplicates, measured first-response report, real upload→revoke→public404→reload still revoked→restore/public200 with no-store→authorized download, and help search/navigation. Evidence:docs/p0-evidence/live-runtime-browser/results.json. Synthetic company only; no external provider or financial delivery. Reviewed live Arabic390 attachment screenshot; no horizontal overflow. This certifies the scoped deployed operations, not durable attachment storage across application replacement.
+
+Application pin remains69c57c8 on API/Web deployments recorded above; later commits contain tests/evidence only. Preserve accepted baseline tests and existing resources/Sleep. Next independent execution point: advanced node property/invalid/runtime/error matrix, multi-company recovery fairness/all-role interactions, full signup/invitation/authoring UI, reports attribution and remaining endpoint/media audit. Read actual PR14 HEAD before editing. Whole requirements retain PARTIAL; no outside-session continuation promised.
+
+
+### Final CI checkpoint — 2026-11-18
+
+Source application changes through510979c011d837cc360dfdb3f06176308ac017eb; final targeted acceptance headfb31965a343096ce42fe29f86147585339362bc8. PostgreSQL44254906612 **SUCCESS**, artifact14406255485:248/248 API tests,12companies/128queued conversations (largest105; observed drain100then5), exact-once recovery events, real media/failure/failed-publish preservation, missing-location structural check,13remaining valid upload formats/forged MIME denial,2tenant report dimensions, retained old suites and disposable DB restore/RLS checks. This is CI acceptance, not new Preview or Production acceptance.
+
+Advanced-media browser44254216010 **SUCCESS**, artifact14404907496:4AR/EN390/1366property-edit/save/reopen/UI-publish/actual-widget runtime contexts, decoded MP3/MP4 metadata/PNG/document, HTTP/sheet error continuation, five widget widths and revoked audio failing visibly then decoding after restoration/reload. Registration/team UI44251452816 **SUCCESS**, artifact14403439408:4AR/ENcontexts. Report/Inbox/attachment browser44253425469 **SUCCESS**, artifact14404324964 includes exact localized report header/accessibility checks and retained22 scoped contexts. All relevant application workflows at510979c were checked; final strict fairness correction was a test timing fix, not a changed assignment algorithm.
+
+Failures retained: first publication validation produced duplicate CTA errors (corrected39b4f4); media browser44250508219 exposed missing accessible media URL name (corrected69ca33f); stale post-publication fixture revision caused409 (corrected0633854, preserving conflict protection); report browser44252067174/44252837865 failed header accessibility query (explicit column semantics corrected e35ee9a, then44253425469 passed). A fairness rerun44254216011 assumed three immediate SKIP LOCKED scans must acquire a lock; fb31965 now awaits committed state under the actual background worker, records real bounded drain results, rejects hidden transaction errors, and still requires every assignment/audit exactly once. Text MIME test now checks media type and UTF-8 charset separately, preserving the actual content contract.
+
+**No new deployment or live acceptance is claimed.** Readback retained original API69c57c8 deploymentdb67a55a-70be-4677-aa8f-4e6e6884dcd2 and Web69c57c8 deployment0011f966-d6e2-4aba-b34a-6132a18623f8; Sleep=true. API has no mounted volumes. Replacing its container without a complete protected attachment-byte backup/verified restore/migration could lose existing bytes; no such operation was performed. Follow docs/launch/STORAGE_SAFE_RELEASE.md and OWNER_ACTION_REQUIRED.md. The explicitly gated live-enterprise-release-acceptance.yml and qa-live-enterprise-release-browser.mjs are prepared for AFTER a safe deployment; the old live44165829215 remains unchanged and valid only for69c57c8's scope.
+
+Next independent code/acceptance work: advanced non-media subflow/sequence/interactive/booking/provider-node paths; complete sensitive-route and all-role/SLA recipient matrix; uninterrupted UI company/channel/bot/customer/follow-up/report journeys; remaining report event attribution; every-page interaction audit and optional-feature readiness gates. Do not repeat accepted media/format/identity/fairness/report subcases unless affected. Next deployment work is BLOCKED — EXTERNAL on byte-preserving storage/migration access, not on missing Meta/AI/payment alone. Do not merge main, create resources, change Sleep, use customers, enable provider traffic/costs, or roll back away file/URL/upload security. P0/P1/P2 remain PARTIAL; customer pilot and full launch remain NOT READY. No background continuation is promised.
+
+## Protected-storage and advanced-runtime batch — 2026-11-18
+
+Read latest PR14 HEAD80d3726 before changes; retained every previous accepted scope. Application fixes atdbd5f21889705e2e1cf2c5004a3e824ccb119bfa: appointment cancellation now returns404 for absent/foreign IDs instead of a misleading201 with no row; RLS already prevented the foreign write. Owner/admin success and agent403 remain. Inspector sequence guidance now states actual linked-channel eligibility and safe continuation; Webchat sequence creation remains rejected. Accessible appointment-service name fixed at8c2cdd5d0b6464f07dd6c97fed52b53bacee816f.
+
+|Requirement|Actual gap|Fix/acceptance|CI evidence|Live evidence|Status|Remaining|
+|---|---|---|---|---|---|---|
+|P0-05/08 protected preservation tool|No verified byte backup/restore tool independent of API deployment|Read-only whole-record inventory; AES-256-GCM archive; authenticated separate-process restore; exact SHA256/full metadata; orphan/missing/size distinction; unsafe path/overwrite/drift rejection; bypass-RLS scope check|44310490967 at81ec8cb;8 unit tests plus actual PostgreSQL2companies/4records; artifact14429937375 and docs/p0-evidence/storage-flow-postgres|No current customer bytes acquired|DONE — VERIFIED|Tool/synthetic acceptance only; cutoverReady=false; actual freeze not implemented by a caller flag|
+|P0-03 component/interactive/appointment/sequence runtime|Inspector persistence alone did not prove advanced execution|Published child v1/v2 frozen by parent version, explicit parent republish, variable/contact-attribute propagation, invalid interactive fallback/retry/tag effects, concurrent same-slot one-success/one-unavailable, duplicate message suppression, human handoff|44310490967; component-booking-runtime.json|Not deployed|DONE — VERIFIED|Scoped real PG synthetic execution; linked-channel identity/consent fixture is not provider acceptance; full node/property matrix remains|
+|P0-07 appointment isolation outcome|Foreign cancellation could report success despite no authorized row|404 with original foreign appointment unchanged; own admin cancellation succeeds; agent publish/cancel403; foreign component publish400 leaves versions unchanged|44310490967; broad affected API regression44309714558 SUCCESS248tests|Not deployed|DONE — VERIFIED|This closes specified route outcomes, not complete sensitive-endpoint/all-role/SLA audit|
+|P0-05/08 live inventory and safe release|API has no mounted volume; connector has no authorized SQL/SSH and redacts values|Kept current API/Web and prepared STORAGE_OPTIONS_APPROVAL.md with measured-capacity-first approval sequence and official unit prices|Synthetic preservation tooling above; no live totals inferred|Current API69c57c8 deploymentdb67a55a-70be-4677-aa8f-4e6e6884dcd2; Web69c57c8 deployment0011f966-d6e2-4aba-b34a-6132a18623f8 retained|BLOCKED — EXTERNAL|Secure existing-runtime access; global metadata/byte inventory; protected copy/restore approval; actual upload freeze; exact durable-store cost/mount/path/replacement approval; post-deploy live acceptance|
+
+8c2cdd5 is a candidate source, not an accepted deployed release. No new Deployment ID exists for this batch. Current absolute UPLOAD_DIR, record count, total bytes, lifecycle-state totals and already-missing files remain NOT VERIFIED, not zero. No mount, restart, runtime variable, new resource, customer file copy/deletion, provider traffic, paid call, main merge or Sleep change was performed. Migrations109/110 and all lifecycle/URL/upload protections remain unchanged and mandatory for any forward fix/compatible rollback. An old image alone does not recover ephemeral bytes.
+
+Failures preserved:44308221855 correctly rejected unsupported Webchat sequence creation; fixture corrected to an explicitly linked eligible synthetic channel without enabling Webchat sequences.44309049873 exposed false foreign-cancel success; production fix above.44310122247 exposed the missing exact accessible Service label; explicit localized aria-label added rather than relaxing the UI assertion. Ten applicable workflows atdbd5 passed after the commerce change; the stricter exact v1/v2/contact-tag assertions passed44310490967.
+
+Independent work still remains: complete per-node advanced invalid/property/runtime matrix beyond accepted scopes; all-role/SLA-recipient and remaining sensitive-route audit; uninterrupted browser signup→invite→channel→authoring→customer→followup→reports for each business; report-event attribution and every-section interaction/optional-feature readiness. Previously accepted media, queue fairness/recovery, identity/team entry, reports and seeded industry journeys are retained, not reclassified as new work. External provider/AI/payment/storage/Production/operations/legal gates remain in OWNER_ACTION_REQUIRED.md. P0/P1/P2 remain PARTIAL; Webchat-first customer pilot and full commercial launch remain NOT READY.
+
+### Final acceptance checkpoint for this batch
+
+Advanced browser44311742316 **SUCCESS** at a9cef34cfee83644f41562880804dae9e56888f8, artifact14430891576: four AR/EN390/1366 actual editor→save→reload→reopen→UI publish→visitor runtime journeys. Selected component B and service B/new start time persist; actual booking row is created; an unlinked provider sequence safely skips without enrollment; human handoff follows. This browser database is isolated PGlite; separate true-PostgreSQL44310490967 establishes concurrent booking, eligible synthetic linked-channel enrollment, version freezing and role/tenant outcomes. Neither run certifies Calendar/Meta transport or a full company onboarding journey. Evidence: docs/p0-evidence/component-node-browser/results.json. Arabic390 appointment editor and English1366 runtime screenshots were visually reviewed; screenshots retained in the CI artifact.
+
+|Requirement|Actual gap|Fix|CI Evidence|Live Evidence|Status|Remaining|
+|---|---|---|---|---|---|---|
+|P0-03/P1 advanced component/appointment/sequence editor acceptance|Old inspector matrix omitted meaningful property changes followed by published execution|Localized exact service accessible name; accurate sequence eligibility guidance; change selection/start, save, reopen and execute selected configuration|44311742316,4contexts; eight other affected UI workflows at8c2cdd5 also SUCCESS|Not deployed|DONE — VERIFIED|CI scope only, not every property/node/failure or a full UX audit|
+
+The intermediate browser44311156096 read select.value before asynchronously fetched options existed; a9cef34 waits for the exact expected option before retaining the same strict persisted-value assertions. No application persistence guard or expected result was relaxed. Existing editor/media/product/channel/contact/followup/button/platform regression runs44311156351/44311156151/44311156455/44311156392/44311156161/44311156369/44311156241/44311156213 all ended SUCCESS for8c2cdd5.
+
+Final read-only Railway readback still lists API deploymentdb67a55a-70be-4677-aa8f-4e6e6884dcd2 SUCCESS and Web0011f966-d6e2-4aba-b34a-6132a18623f8 SLEEPING at accepted69c57c8. No new deployment was attempted and Sleep was not changed. Source througha9cef34 is saved on PR14; following commits only record evidence. Preserve this checkpoint and the approved baseline; do not rerun these cases without a relevant change.
+
+Next release action: obtain secure authorized access to the current existing API/DB for already-requested read-only inventory; then secure owner-approved protected byte copy/restore, actual quiescence and measured durable-store cost/path/mount/replacement decisions in STORAGE_OPTIONS_APPROVAL.md. Next independent engineering: remaining node property/error combinations, all-role/SLA-recipient/sensitive endpoint coverage, uninterrupted per-industry full UI onboarding/followup/report journeys, report attribution and optional-feature readiness. These independent tasks are not falsely marked external or complete.
+
+## Hosting-independent product batch — 2026-11-18
+
+See [PRODUCT_COMPLETION_20261118.md](docs/launch/PRODUCT_COMPLETION_20261118.md) for the granular acceptance matrix and [DEMO_FEATURES.md](docs/launch/DEMO_FEATURES.md) for demonstrable commercial scope. New independent Docker Compose acceptance44356921660 **SUCCESS** for filesystem and private S3-compatible storage: actual API/Web/PostgreSQL/Redis, byte/lifecycle/isolation checks after API/DB/cache replacement, private object read403 and object-container replacement, encrypted file restore and separate synthetic pg_dump/pg_restore clone. Artifacts14452807048/14453207281; summaries in docs/p0-evidence/portable/. This proves an independent synthetic stack, not customer migration or Production.
+
+Changed attachment/database paths passed251 API tests plus actual PostgreSQL44356186664; existing accepted cases were retained. Sourceb3b2f46/92f6791/0ae8a33 adds a private storage transport boundary and fixes idle PostgreSQL connection-loss handling without operation replay. API credentials stay app_user NOBYPASSRLS; private S3 proxy keeps DB revocation/tenant/no-store controls and old URL names. Migrations109/110 unchanged. Dependency audit has zero high/critical and the existing Nest moderate issue remains documented.
+
+New bilingual actual widget-demo.html and connected UI company/simulator journey have now passed the final targeted acceptance recorded below; intermediate fixture failures are not counted as success. No Railway change/deployment or customer-file work performed; live69c57c8 retained. P0/P1/P2 remain PARTIAL for the exact software/external gaps in the linked matrix. No live customer/subscription readiness is claimed from portable demo acceptance.
+
+### Accepted connected demo, Dashboard and availability closure
+
+Connected company44361209742 **SUCCESS** at6e04bc0, artifact14455135882:4AR/EN390/1366 UI-only registration/settings/invitation/availability/channel/canvas authoring/simulator/publish→actual demo visitor→human reply/reload→CRM follow-up→onboarding completion→real Dashboard/report journeys. The new Dashboard fix counts the actual Webchat customer, supports all/Web/Instagram, distinguishes marketing opt-outs and deduplicates across platforms. All/Web show1, empty WhatsApp0; five viewport widths checked. Earlier loading screenshots were explicitly superseded by loaded Dashboard captures. PostgreSQL44361209618 retains251 API tests.
+
+Optional-feature disclosure44362018120 **SUCCESS** atfe648ee, artifact14456496175:4AR/EN390/1366 contexts for actual disabled Campaign/Social flags, unconfigured Billing, existing AI-disabled state, and controlled capability503/reload recovery without claiming a provider connection. Both source-independent storage jobs44356921660 remain accepted unchanged. Full matrix, exact commits, failure history and remaining software scope: docs/launch/PRODUCT_COMPLETION_20261118.md.
+
+Scoped outcomes above are DONE — VERIFIED in isolated acceptance. Runnable local Webchat product demonstration is verified; no hosted public demo/credentials or new Railway release is claimed. Whole P0/P1/P2 remain PARTIAL; real-customer pilot/full subscription operation remain NOT READY. Owner's latest direction: no Railway resources/cost requests; continue remaining independent product gaps from this checkpoint, preserving all prior evidence.
+
+Final source safety checkpointa30cebae9c4884a5b72596237419e8408d3b6985: connected UI44363912952 SUCCESS and independent full-stack filesystem/S3 replacement/restore44363913039 SUCCESS after private unique credential/state output hardening. Social readability/directional SVG acceptance44363398499 SUCCESS ataf2e9ef; computed description contrast≥4.5:1,14px text,44px action,4AR/ENcontexts. P1-04 is now DONE — VERIFIED explicitly for the continuous synthetic Webchat-first onboarding path; other broad P0/P1/P2 scopes remain accurately PARTIAL/external. New Web requires matching API; no partial Railway deployment or customer-byte operation occurred. Evidence-only commits follow; read actual GitHub HEAD next.

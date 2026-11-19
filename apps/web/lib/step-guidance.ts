@@ -24,7 +24,7 @@ export const STEP_GUIDANCE: Record<NodeType,[string,string]> = {
  set_variable:['استخدمها لتخزين قيمة أو تعديلها خلال المسار.','Use to store or update a flow variable.'],
  set_attribute:['استخدمها لحفظ بيان دائم في ملف العميل.','Use to save a persistent contact attribute.'],
  http_request:['استخدمها لطلب بيانات من API وفق القيود الحالية.','Use to request API data within existing restrictions.'],
- sheet_fetch:['استخدمها للبحث في جدول Google منشور برابط.','Use to search a publicly shared Google Sheet.'],
+ sheet_fetch:['استخدمها للبحث في Google Sheet بحساب خاص أو رابط عام.','Use to search a Google Sheet through a private account or public link.'],
  business_hours:['استخدمها لتفريع المسار حسب مواعيد العمل.','Use to branch by business opening hours.'],
  split:['استخدمها لتوزيع العملاء بين مسارات بأوزان محددة.','Use to distribute contacts across weighted paths.'],
  random_number:['استخدمها لتوليد رقم وحفظه في متغيّر.','Use to generate and store a random number.'],

@@ -1,0 +1,2 @@
+PASS 20 populated draft render cases: supported headers/categories preserved in default and manager layouts; busy editing disabled. Browser/visual acceptance remains separate.
+PASS 71 observed supported locale codes satisfy the actual draft API contract.

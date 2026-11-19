@@ -1,0 +1,62 @@
+{
+  "status": "PASS",
+  "realPreview": true,
+  "syntheticTenant": true,
+  "externalMessages": false,
+  "deletedRecords": false,
+  "results": [
+    {
+      "language": "ar",
+      "width": 390,
+      "status": "PASS",
+      "checks": [
+        "deployed Inbox persisted replies",
+        "offline reconnect",
+        "reload without duplicates",
+        "measured response report",
+        "deployed attachment upload/revoke/reload/restore/download",
+        "searchable help"
+      ]
+    },
+    {
+      "language": "ar",
+      "width": 1366,
+      "status": "PASS",
+      "checks": [
+        "deployed Inbox persisted replies",
+        "offline reconnect",
+        "reload without duplicates",
+        "measured response report",
+        "deployed attachment upload/revoke/reload/restore/download",
+        "searchable help"
+      ]
+    },
+    {
+      "language": "en",
+      "width": 390,
+      "status": "PASS",
+      "checks": [
+        "deployed Inbox persisted replies",
+        "offline reconnect",
+        "reload without duplicates",
+        "measured response report",
+        "deployed attachment upload/revoke/reload/restore/download",
+        "searchable help"
+      ]
+    },
+    {
+      "language": "en",
+      "width": 1366,
+      "status": "PASS",
+      "checks": [
+        "deployed Inbox persisted replies",
+        "offline reconnect",
+        "reload without duplicates",
+        "measured response report",
+        "deployed attachment upload/revoke/reload/restore/download",
+        "searchable help"
+      ]
+    }
+  ],
+  "createdAt": "2026-11-17T20:08:32.048Z"
+}

@@ -1,0 +1,217 @@
+.methods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  min-width: 0;
+}
+.method {
+  min-width: 0;
+  border: 1px solid #e8edf3;
+  border-radius: 16px;
+  background: #fff;
+  overflow: hidden;
+}
+.method header {
+  padding: 20px;
+  position: relative;
+  background: #f0f8ff;
+  border-bottom: 2px solid #5b4be7;
+}
+.method header[data-variant='embedded'] {
+  background: #effcf4;
+  border-color: #b9efd4;
+}
+.method h2 {
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 0 0 8px;
+  padding-inline-end: 90px;
+}
+.method header span {
+  position: absolute;
+  inset-inline-end: 16px;
+  top: 20px;
+  font-size: 12px;
+  background: #5b4be7;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 5px;
+}
+.method header[data-variant='embedded'] span {
+  background: #17a76b;
+}
+.method p {
+  margin: 0;
+  line-height: 1.6;
+  font-size: 13px;
+  color: #637286;
+}
+.body {
+  padding: 24px 20px;
+  display: grid;
+  gap: 22px;
+}
+.body ul {
+  margin: 0;
+  padding-inline-start: 22px;
+  line-height: 2;
+  color: #526177;
+  min-height: 96px;
+}
+.body button {
+  width: 100%;
+}
+.choices {
+  display: grid;
+  gap: 12px;
+}
+.callback {
+  overflow-wrap: anywhere;
+  margin-top: 8px !important;
+}
+.meta {
+  padding: 28px;
+}
+.meta ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  padding-inline-start: 20px;
+  color: #526177;
+}
+.meta > button {
+  align-self: start;
+}
+@media (max-width: 767px) {
+  .methods {
+    grid-template-columns: 1fr;
+  }
+  .method h2 {
+    padding-inline-end: 0;
+    padding-top: 26px;
+  }
+  .method header span {
+    top: 12px;
+  }
+  .body {
+    padding: 20px 16px;
+  }
+}
+
+.overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px;
+  align-items: center;
+  gap: 4px;
+  min-height: 220px;
+}
+.overview svg {
+  width: 160px;
+  max-width: 100%;
+  height: 200px;
+}
+.body ul {
+  padding-inline-start: 0;
+  list-style: none;
+  min-height: 0;
+  font-size: 13px;
+}
+.body li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  line-height: 1.8;
+}
+.body li::before {
+  content: '✓';
+  color: #22ad6e;
+  font-weight: 700;
+}
+.embeddedButton {
+  background: #16ad62;
+  border-color: #16ad62;
+  color: white;
+}
+.apiButton {
+  background: #5b4be7;
+  border-color: #5b4be7;
+  color: white;
+}
+@media (max-width: 575px) {
+  .overview {
+    grid-template-columns: minmax(0, 1fr) 100px;
+    min-height: 180px;
+  }
+  .overview svg {
+    width: 100px;
+    height: 160px;
+  }
+}
+
+
+/* Shared WhatsApp method hierarchy: the illustration supports, rather than
+   overwhelms, the connection decision. Keep authorization logic unchanged. */
+.methods {
+  gap: 13px;
+  align-items: stretch;
+}
+.method {
+  display: flex;
+  flex-direction: column;
+  border-radius: 13px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .04);
+}
+.method header {
+  padding: 14px 17px;
+}
+.method h2 {
+  font-size: 14px;
+  line-height: 1.45;
+  margin-bottom: 4px;
+}
+.method p {
+  font-size: 12px;
+}
+.body {
+  flex: 1;
+  padding: 16px;
+  gap: 14px;
+}
+.overview {
+  min-height: 170px;
+  grid-template-columns: minmax(0, 1fr) minmax(92px, 42%);
+  gap: 8px;
+}
+.overview svg {
+  width: 100%;
+  max-height: 165px;
+}
+.body ul {
+  font-size: 12px;
+  line-height: 1.65;
+}
+.body button {
+  min-height: 36px;
+  border-radius: 6px;
+}
+.embeddedButton:hover { background: #139b55; }
+.apiButton:hover { background: #4939d2; }
+@media (max-width: 575px) {
+  .overview { min-height: 160px; grid-template-columns: minmax(0, 1fr) minmax(80px, 36%); }
+  .overview svg { max-height: 145px; }
+  .method header { padding: 14px; }
+  .body { padding: 14px; }
+}
+
+.socialSetup {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+}
+
+@media (max-width: 800px) {
+  .socialSetup {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

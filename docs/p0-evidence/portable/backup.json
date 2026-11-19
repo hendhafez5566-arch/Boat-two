@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "scope": "Synthetic independent Docker stack only",
+  "checks": [
+    "encrypted byte snapshot and isolated authenticated restore",
+    "full byte and lifecycle manifest verification",
+    "real pg_dump/pg_restore clone retains exact file lifecycle rows"
+  ],
+  "customerBackup": false
+}

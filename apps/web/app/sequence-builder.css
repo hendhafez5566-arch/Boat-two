@@ -30,7 +30,7 @@
 .sq-stats div{font-size:.7rem;color:var(--muted)}
 .sq-stats b{display:block;font-size:1rem;color:var(--ink)}
 .sq-stats .is-err b{color:var(--danger)}
-.sq-body{background:#f1f4f9;border-radius:12px;padding:10px 12px}
+.sq-body{background:var(--surface-muted,#f3f6fa);border-radius:12px;padding:10px 12px}
 .sq-body textarea{width:100%;background:transparent;border:0;resize:vertical;font-size:.88rem;color:var(--ink-2);outline:0}
 .sq-layout{display:grid;grid-template-columns:minmax(240px,300px) 1fr;gap:28px;align-items:start}
 .sq-steps{display:grid;gap:18px}
@@ -79,7 +79,7 @@
 .cm-radio.is-on .cm-dot::after{content:"";width:10px;height:10px;border-radius:50%;background:#2f6df6}
 .cm-row{display:grid;grid-template-columns:1fr 1fr 1.2fr auto;gap:10px;align-items:end}
 .cm-row label span{display:block;font-weight:700;font-size:.82rem;color:#0b1a3a;margin-bottom:4px}
-.cm-input{width:100%;height:42px;border:1px solid #dfe6f2;border-radius:10px;padding:0 10px;background:#f8fafd;font-size:.9rem;color:var(--ink)}
+.cm-input{width:100%;height:42px;border:1px solid #dfe6f2;border-radius:10px;padding:0 10px;background:#fff;font-size:.9rem;color:var(--ink)}
 .cm-input:disabled{opacity:.6}
 .cm-del{height:42px;width:38px;border:1px solid #f1c9ce;background:#fff;color:var(--danger);border-radius:10px;cursor:pointer}
 .cm-empty,.cm-hint{font-size:.8rem;color:var(--muted);margin:0}
@@ -134,7 +134,7 @@
 .fn-card .react-flow__handle{width:13px;height:13px;border:2px solid #2563eb;background:#fff}
 .fn-card .flow-node-note{margin-top:8px}
 .fn-condition .flow-node-icon,.fn-tag .flow-node-icon{border-radius:9px}
-.builder-canvas{background-color:#f4f7fc;background-image:radial-gradient(#cfd8e8 1px,transparent 1px);background-size:22px 22px}
+.builder-canvas{background-color:#f8fbfe;background-image:radial-gradient(#dbe7f044 1px,transparent 1px);background-size:22px 22px}
 .palette-step{border-radius:10px}
 .fn-attach{display:flex;align-items:center;gap:10px;margin:10px 12px 0;padding:10px 12px;border-radius:12px;background:#f1f5fb;color:#33445b;font-size:.78rem;min-height:44px;overflow:hidden}
 .fn-attach-icon{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--node-color,#2563eb);color:#fff;font-size:.8rem}

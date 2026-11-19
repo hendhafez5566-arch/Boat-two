@@ -2,6 +2,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { LabelEditor } from '../product/LabelEditor';
+import { collectContactLabels } from '../../lib/contact-labels';
 import { InboxCrmOverview } from './InboxCrmOverview';
 import { InboxFieldDialog } from './InboxFieldDialog';
 import { InboxSequences } from './InboxSequences';
@@ -13,12 +15,12 @@ import { NavIcon } from '../product/NavIcon';
 import styles from './inbox-customer-panel.module.css';
 type Props = {
   detail: any;
-  notes: any[];
+  notesVersion: number;
   team: any[];
   acting: boolean;
   canManage: boolean;
   act: (path: string, method: string, body?: any, notice?: string) => Promise<boolean>;
-  onNote: () => void;
+  onNoteChanged: (source: string, id?: string, text?: string) => void;
   onFollowup: () => void;
   onEditEmail: () => void;
   refreshToken: number;
@@ -27,12 +29,12 @@ type Props = {
 };
 export function InboxCustomerPanel({
   detail,
-  notes,
+  notesVersion,
   team,
   acting,
   canManage,
   act,
-  onNote,
+  onNoteChanged,
   onFollowup,
   onEditEmail,
   refreshToken,
@@ -40,6 +42,20 @@ export function InboxCustomerPanel({
   onError,
 }: Props) {
   const { t, language } = useLocale();
+  function formatNote(body: string) {
+    const prefix = 'Catalog inquiry: ';
+    if (!body.startsWith(prefix)) return body;
+    try {
+      const selection = JSON.parse(body.slice(prefix.length));
+      const name = typeof selection?.name === 'string' ? selection.name : '';
+      const category = typeof selection?.category === 'string' ? selection.category : '';
+      return name
+        ? [t('استفسار عن برنامج', 'Catalog inquiry'), name, category].filter(Boolean).join(' · ')
+        : body;
+    } catch {
+      return body;
+    }
+  }
   const panel = useRef<HTMLElement>(null);
   function jump(target: string) {
     const element = panel.current?.querySelector<HTMLElement>(`[data-inbox-target="${target}"]`);
@@ -62,9 +78,71 @@ export function InboxCustomerPanel({
   const [saving, setSaving] = useState(false);
   const [labels, setLabels] = useState<string[]>(detail.contact_tags || []);
   const [labelText, setLabelText] = useState('');
+  const [labelsDirty, setLabelsDirty] = useState(false);
+  const [labelsVersion, setLabelsVersion] = useState('');
+  const [labelError, setLabelError] = useState('');
+  const [labelNotice, setLabelNotice] = useState('');
   const contact = profile.data?.contact;
   const timeline = profile.data?.timeline;
-  const allNotes = [...notes, ...(timeline?.notes || [])];
+  useEffect(() => {
+    if (!contact || labelsDirty) return;
+    setLabels(contact.tags || []);
+    setLabelsVersion(contact.updated_at);
+  }, [contact, labelsDirty]);
+  const notes = useData<any[]>(`/conversations/${detail.id}/notes`, []);
+  const reloadNotes = notes.reload;
+  useEffect(() => {
+    if (notesVersion) void reloadNotes();
+  }, [notesVersion, reloadNotes]);
+  const allNotes = [
+    ...notes.data.map((note) => ({
+      id: String(note.id),
+      source: 'message',
+      text: note.content?.text || note.text || note.body,
+      date: note.created_at || note.createdAt,
+    })),
+    ...(timeline?.notes || []).map((note: any) => ({
+      id: String(note.id),
+      source: 'contact',
+      text: note.content?.text || note.text || note.body,
+      date: note.created_at || note.createdAt,
+    })),
+  ].sort((a, b) => (Date.parse(b.date) || 0) - (Date.parse(a.date) || 0));
+  const [noteDraft, setNoteDraft] = useState<{ source: string; id: string; text: string } | null>(
+    null,
+  );
+  const [noteBusy, setNoteBusy] = useState(false);
+  const [noteError, setNoteError] = useState('');
+  const notesSection = useRef<HTMLDetailsElement>(null);
+  const addNote = () => {
+    setNoteError('');
+    setNoteDraft({ source: 'message', id: '', text: '' });
+    if (notesSection.current) {
+      notesSection.current.open = true;
+      notesSection.current.scrollIntoView({ block: 'nearest' });
+    }
+  };
+
+  async function changeNote(source: string, id: string, text?: string) {
+    const path = `/conversations/${detail.id}/notes` + (id ? `/${source}/${id}` : '');
+    setNoteBusy(true);
+    setNoteError('');
+    try {
+      await api(path, {
+        method: text === undefined ? 'DELETE' : id ? 'PATCH' : 'POST',
+        body: text === undefined ? undefined : JSON.stringify({ text }),
+      });
+      onNoteChanged(source, id, text);
+      if (text !== undefined || (noteDraft?.id === id && noteDraft.source === source)) {
+        setNoteDraft(null);
+      }
+    } catch (error) {
+      setNoteError((error as Error).message);
+    } finally {
+      setNoteBusy(false);
+    }
+  }
+
   const patch = (body: any, notice: string) =>
     act(`/conversations/${detail.id}`, 'PATCH', body, notice);
   const time = (value: string) =>
@@ -125,20 +203,37 @@ export function InboxCustomerPanel({
     if (!canManage || !contact || saving) return;
 
     setSaving(true);
+    setLabelError('');
+    setLabelNotice('');
     try {
+      const next = collectContactLabels(labels, labelText);
       await api(`/crm/contacts/${detail.contact_id}/profile`, {
         method: 'PATCH',
         body: JSON.stringify({
-          tags: [...new Set([...labels, labelText.trim()].filter(Boolean))],
-          expectedUpdatedAt: contact.updated_at,
+          tags: next,
+          expectedUpdatedAt: labelsVersion,
         }),
       });
-      setLabels([...new Set([...labels, labelText.trim()].filter(Boolean))]);
+      setLabels(next);
       setLabelText('');
+      setLabelsDirty(false);
+      setLabelNotice(t('تم حفظ الوسوم.', 'Labels saved.'));
       await profile.reload();
       await onRefresh();
     } catch (error) {
-      onError((error as Error).message);
+      const code = (error as Error).message;
+      setLabelError(
+        code === 'LABEL_COUNT'
+          ? t('الحد الأقصى 30 وسمًا.', 'Use up to 30 labels.')
+          : code === 'LABEL_LENGTH'
+            ? t('اسم الوسم لا يتجاوز 50 حرفًا.', 'Labels must be 50 characters or fewer.')
+            : code.includes('changed')
+              ? t(
+                  'تغيّرت الوسوم منذ بدء التعديل. أعد تحميلها قبل الحفظ لحماية تعديلات الفريق.',
+                  'Labels changed since you started editing. Reload them before saving to protect your teammates’ changes.',
+                )
+              : code,
+      );
     } finally {
       setSaving(false);
     }
@@ -151,23 +246,149 @@ export function InboxCustomerPanel({
     >
       <header className={styles.heading}>
         <h2>{t('إجراءات المحادثة', 'Chat Actions')}</h2>
-        <Link
-          href="/dashboard/crm/notifications"
-          aria-label={t('تنبيهات CRM', 'CRM notifications')}
-        >
-          <NavIcon name="bell" />
-        </Link>
-        <Link href={`/dashboard/crm?contact=${detail.contact_id}`}>
-          <NavIcon name="user" />
-          {t('مدير المشترك', 'Manager')}
-        </Link>
+        <div className={styles.headingActions}>
+          <Link
+            href="/dashboard/crm/notifications"
+            aria-label={t('تنبيهات CRM', 'CRM notifications')}
+            title={t('تنبيهات CRM', 'CRM notifications')}
+          >
+            <NavIcon name="bell" />
+          </Link>
+          <Link href={`/dashboard/crm?contact=${detail.contact_id}`}>
+            <NavIcon name="user" />
+            {t('فتح ملف العميل', 'Open customer profile')}
+          </Link>
+        </div>
       </header>
       {profile.error && <p role="alert">{profile.error}</p>}
+      <details open ref={notesSection} className={`${styles.card} ${styles.notesCard}`}>
+        <summary>
+          <span>
+            {t('الملاحظات الداخلية', 'Internal notes')}
+            <span className={styles.noteCount}>{allNotes.length}</span>
+          </span>
+          <NavIcon name="chevron" />
+        </summary>
+        <div className={styles.noteControls}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={addNote}
+            disabled={noteBusy || !!noteDraft}
+          >
+            <NavIcon name="plus" />
+            {t('إضافة ملاحظة', 'Add note')}
+          </button>
+        </div>
+        {(notes.error || noteError) && (
+          <p className={styles.noteControls} role="alert">
+            {noteError || notes.error}
+          </p>
+        )}
+        {noteDraft && (
+          <form
+            className={styles.noteEditor}
+            onSubmit={(event) => {
+              event.preventDefault();
+              const text = noteDraft.text.trim();
+              if (text && !noteBusy) void changeNote(noteDraft.source, noteDraft.id, text);
+            }}
+          >
+            <label className="field">
+              {noteDraft.id
+                ? t('تعديل الملاحظة', 'Edit note')
+                : t('ملاحظة للفريق', 'Note for your team')}
+              <textarea
+                autoFocus
+                rows={4}
+                maxLength={2000}
+                value={noteDraft.text}
+                onChange={(event) => setNoteDraft({ ...noteDraft, text: event.target.value })}
+              />
+            </label>
+            <div className={styles.noteActions}>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={noteBusy || !noteDraft.text.trim()}
+              >
+                {t('حفظ الملاحظة', 'Save note')}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={noteBusy}
+                onClick={() => {
+                  setNoteDraft(null);
+                  setNoteError('');
+                }}
+              >
+                {t('إلغاء', 'Cancel')}
+              </button>
+            </div>
+          </form>
+        )}
+        {allNotes.length ? (
+          <ol
+            className={styles.noteList}
+            tabIndex={0}
+            aria-label={t('سجل الملاحظات', 'Note history')}
+          >
+            {allNotes.map((note) => (
+              <li key={note.source + note.id}>
+                <time dateTime={note.date}>{time(note.date)}</time>
+                <p dir="auto">{formatNote(note.text || '')}</p>
+                <div className={styles.noteActions}>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={noteBusy || !!noteDraft}
+                    onClick={() => {
+                      setNoteError('');
+                      setNoteDraft({ source: note.source, id: note.id, text: note.text || '' });
+                      notesSection.current?.scrollIntoView({ block: 'start' });
+                    }}
+                  >
+                    {t('تعديل', 'Edit')}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={noteBusy}
+                    data-tone="danger"
+                    onClick={() => {
+                      if (window.confirm(t('حذف هذه الملاحظة؟', 'Delete this note?'))) {
+                        void changeNote(note.source, note.id);
+                      }
+                    }}
+                  >
+                    {t('حذف', 'Delete')}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className={styles.notesEmpty}>
+            {notes.loading
+              ? t('جارٍ تحميل الملاحظات…', 'Loading notes…')
+              : t('لا توجد ملاحظات بعد', 'No notes yet')}
+          </p>
+        )}
+      </details>
       <section className={styles.card}>
         <h3>{t('إجراءات سريعة', 'Quick Actions')}</h3>
         <div className={styles.quick}>
           <button
             type="button"
+            className={styles.botControl}
+            data-bot-state={detail.handled_by === 'bot' ? 'running' : 'paused'}
+            aria-label={detail.handled_by === 'bot'
+              ? t('إيقاف البوت', 'Pause Bot')
+              : t('استئناف البوت', 'Resume Bot')}
+            title={detail.handled_by === 'bot'
+              ? t('البوت يعمل الآن', 'Bot is running')
+              : t('البوت متوقف', 'Bot is paused')}
             disabled={acting}
             onClick={() =>
               void act(
@@ -178,14 +399,17 @@ export function InboxCustomerPanel({
               )
             }
           >
-            <span className={styles.green}>
-              <NavIcon name="agents" />
+            <span className={styles.botIcon}>
+              <NavIcon name={detail.handled_by === 'bot' ? 'pause' : 'play'} />
             </span>
-            {detail.handled_by === 'bot'
-              ? t('إيقاف البوت', 'Pause Bot')
-              : t('استئناف البوت', 'Resume Bot')}
+            <strong>{detail.handled_by === 'bot'
+              ? t('البوت يعمل', 'Bot running')
+              : t('البوت متوقف', 'Bot paused')}</strong>
+            <small>{detail.handled_by === 'bot'
+              ? t('إيقاف البوت', 'Pause bot')
+              : t('استئناف البوت', 'Resume bot')}</small>
           </button>
-          <button type="button" onClick={onNote}>
+          <button type="button" onClick={addNote} disabled={noteBusy || !!noteDraft}>
             <span>
               <NavIcon name="audit" />
             </span>
@@ -234,7 +458,25 @@ export function InboxCustomerPanel({
         }}
       />
       <section className={styles.card}>
-        <h3>{t('ملخص العميل', 'Customer Snapshot')}</h3>
+        <h3>
+          {t('ملخص العميل', 'Customer Snapshot')}{' '}
+          <span
+            className="semantic-state"
+            data-tone={
+              detail.status === 'open'
+                ? 'active'
+                : detail.status === 'closed'
+                  ? 'danger'
+                  : 'pending'
+            }
+          >
+            {detail.status === 'open'
+              ? t('محادثة مفتوحة', 'Open conversation')
+              : detail.status === 'closed'
+                ? t('محادثة مغلقة', 'Closed conversation')
+                : t('محادثة معلّقة', 'Pending conversation')}
+          </span>
+        </h3>
         <dl className={styles.facts}>
           {[
             [t('البريد الإلكتروني', 'Email'), detail.contact_email || t('غير محدد', 'Not set')],
@@ -314,44 +556,43 @@ export function InboxCustomerPanel({
             </select>
           </label>
           <form onSubmit={saveTags}>
-            <label>
-              {t('الوسوم', 'Labels')}
-              <div className={styles.labelEditor}>
-                {labels.map((label) => (
-                  <span key={label}>
-                    {label}
-                    <button
-                      type="button"
-                      disabled={!canManage || saving}
-                      aria-label={`${t('إزالة الوسم', 'Remove label')} ${label}`}
-                      onClick={() => setLabels(labels.filter((value) => value !== label))}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-                <input
-                  data-inbox-target="labels"
-                  name="tags"
-                  disabled={!canManage || saving || labels.length >= 30}
-                  value={labelText}
-                  onChange={(event) => setLabelText(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
-                    event.preventDefault();
-                    if (!labelText.trim() || labels.length >= 30) return;
-                    setLabels([...new Set([...labels, labelText.trim()])]);
-                    setLabelText('');
-                  }}
-                  placeholder={t(
-                    'اكتب اسمًا واضغط Enter لإضافة وسم',
-                    'Type a name and hit Enter to add a label',
-                  )}
-                  maxLength={50}
-                />
-              </div>
-            </label>
-            <button className={styles.secondary} disabled={!canManage || !contact || saving}>
+            <LabelEditor
+              value={labels}
+              pending={labelText}
+              onPending={(value) => {
+                setLabelText(value);
+                setLabelsDirty(true);
+                setLabelNotice('');
+              }}
+              onChange={(value) => {
+                setLabels(value);
+                setLabelsDirty(true);
+                setLabelNotice('');
+              }}
+              disabled={!canManage || !contact || saving}
+              target="labels"
+            />
+            {labelError && <p role="alert">{labelError}</p>}
+            {labelNotice && <p role="status">{labelNotice}</p>}
+            {labelError && (
+              <button
+                type="button"
+                className={styles.secondary}
+                disabled={saving}
+                onClick={async () => {
+                  await profile.reload();
+                  setLabelsDirty(false);
+                  setLabelText('');
+                  setLabelError('');
+                }}
+              >
+                {t('إعادة تحميل الوسوم', 'Reload labels')}
+              </button>
+            )}
+            <button
+              className={styles.secondary}
+              disabled={!canManage || !contact || saving || !labelsDirty}
+            >
               {saving ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ الوسوم', 'Save labels')}
             </button>
           </form>
@@ -516,26 +757,6 @@ export function InboxCustomerPanel({
           ) : (
             <p>{t('لا توجد متابعات', 'No follow-up history')}</p>
           )}
-        </div>
-      </details>
-      <details open className={styles.card}>
-        <summary>
-          {t('ملاحظات', 'Notes')} ({allNotes.length || 0})<NavIcon name="chevron" />
-        </summary>
-        <div className={styles.fields}>
-          {allNotes.length ? (
-            allNotes.map((note: any) => (
-              <p key={note.id}>
-                {note.content?.text || note.text || note.body}{' '}
-                <small>{time(note.created_at)}</small>
-              </p>
-            ))
-          ) : (
-            <p>{t('لا توجد ملاحظات بعد', 'No notes yet')}</p>
-          )}
-          <button className={styles.secondary} onClick={onNote}>
-            {t('إضافة ملاحظة داخلية', 'Add internal note')}
-          </button>
         </div>
       </details>
       <InboxFieldDialog

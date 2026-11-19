@@ -1,0 +1,36 @@
+name: Live Preview catalog handover acceptance
+on:
+  push:
+    branches: [feat/flow-builder-fidelity-20261107]
+    paths:
+      - 'scripts/qa-live-catalog-handover.mjs'
+      - '.github/workflows/live-catalog-handover.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: live-catalog-handover
+  cancel-in-progress: true
+jobs:
+  catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser driver
+        run: npm install --prefix "$RUNNER_TEMP/boat-playwright" playwright@1.56.1 --ignore-scripts
+      - name: Actual deployed catalog in a fresh synthetic company
+        env:
+          BOAT_APPROVED_LIVE_CATALOG_QA: 'true'
+          BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
+          BOAT_CHROMIUM: /usr/bin/google-chrome
+        run: node scripts/qa-live-catalog-handover.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-catalog-handover
+          path: docs/p0-evidence/live-catalog-handover/
+          if-no-files-found: warn

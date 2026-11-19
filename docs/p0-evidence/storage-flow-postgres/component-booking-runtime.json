@@ -1,0 +1,21 @@
+{
+  "status": "PASS",
+  "database": "real PostgreSQL",
+  "checks": [
+    "subflow variable and contact attribute propagation",
+    "component republish does not change active parent",
+    "parent version freezes child implementation for new and in-flight old sessions",
+    "explicit parent republish captures updated child",
+    "unsupported Webchat sequence creation denied; eligible linked-channel enrollment once per contact",
+    "invalid interactive reply takes fallback and supports retry",
+    "button tag action and concurrent appointment success/unavailable branches",
+    "duplicate webhook cannot duplicate appointment",
+    "owner/admin/agent and foreign cancellation authorization",
+    "foreign component denied without creating a version",
+    "human handoff retains component context"
+  ],
+  "limitations": [
+    "Synthetic Webchat/DB and explicit cross-channel identity/opt-in fixture only; no real Calendar or messaging provider acceptance",
+    "No full UI authoring journey is inferred"
+  ]
+}

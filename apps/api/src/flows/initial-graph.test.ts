@@ -12,6 +12,10 @@ test('section-specific creation produces localized complete input flows and pres
     assert.equal(input.nodes[0].type, 'user_input');
     assert.equal(input.nodes[0].data.questions[0].saveAs, 'customer_name');
     assert.deepEqual(validateGraph(input).errors, []);
+    assert.equal(
+      initialFlowGraph(language, 'user_input', 'Travel Intake').nodes[0].data.name,
+      'Travel Intake',
+    );
     const draft = initialFlowGraph(language, 'whatsapp_flow');
     assert.equal(draft.nodes[0].type, 'whatsapp_flow');
     assert.ok(

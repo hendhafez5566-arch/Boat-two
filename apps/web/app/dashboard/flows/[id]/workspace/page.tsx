@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
-export default function Page({ params }: { params: { id: string } }) {
-  redirect(`/dashboard/flows/${params.id}`);
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const route = await params;
+  redirect(`/dashboard/flows/${route.id}`);
 }

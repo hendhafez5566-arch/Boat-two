@@ -1,0 +1,1 @@
+2026-11-07: pnpm --filter web exec tsc --noEmit: exit 0

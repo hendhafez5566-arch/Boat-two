@@ -2,12 +2,13 @@ import type { FlowGraph } from './engine/types';
 export function initialFlowGraph(
   language: 'ar' | 'en' = 'ar',
   type: 'message' | 'user_input' | 'whatsapp_flow' = 'message',
+  campaignName?: string,
 ): FlowGraph {
   const ar = language === 'ar';
   const data =
     type === 'user_input'
       ? {
-          name: ar ? 'جمع بيانات العميل' : 'Customer details',
+          name: campaignName ?? (ar ? 'جمع بيانات العميل' : 'Customer details'),
           questions: [
             {
               id: 'question_1',

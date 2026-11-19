@@ -1,0 +1,221 @@
+{
+  "advisories": {
+    "1114301": {
+      "findings": [
+        {
+          "version": "20.4.1",
+          "paths": [
+            "apps__api>@nestjs/common>file-type",
+            "apps__api>@nestjs/core>@nestjs/common>file-type",
+            "apps__api>@nestjs/core>@nestjs/platform-express>@nestjs/common>file-type",
+            "apps__api>@nestjs/event-emitter>@nestjs/common>file-type",
+            "apps__api>@nestjs/event-emitter>@nestjs/core>@nestjs/common>file-type",
+            "apps__api>@nestjs/event-emitter>@nestjs/core>@nestjs/platform-express>@nestjs/common>file-type",
+            "apps__api>@nestjs/jwt>@nestjs/common>file-type",
+            "apps__api>@nestjs/platform-express>@nestjs/common>file-type",
+            "apps__api>@nestjs/platform-express>@nestjs/core>@nestjs/common>file-type",
+            "apps__api>nestjs-pino>@nestjs/common>file-type"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1114301,
+      "title": "file-type affected by infinite loop in ASF parser on malformed input with zero-size sub-header",
+      "module_name": "file-type",
+      "vulnerable_versions": ">=13.0.0 <21.3.1",
+      "patched_versions": ">=21.3.1",
+      "severity": "moderate",
+      "cwe": "CWE-835",
+      "github_advisory_id": "GHSA-5v7r-6r5c-r473",
+      "url": "https://github.com/advisories/GHSA-5v7r-6r5c-r473"
+    },
+    "1114726": {
+      "findings": [
+        {
+          "version": "20.4.1",
+          "paths": [
+            "apps__api>@nestjs/common>file-type",
+            "apps__api>@nestjs/core>@nestjs/common>file-type",
+            "apps__api>@nestjs/core>@nestjs/platform-express>@nestjs/common>file-type",
+            "apps__api>@nestjs/event-emitter>@nestjs/common>file-type",
+            "apps__api>@nestjs/event-emitter>@nestjs/core>@nestjs/common>file-type",
+            "apps__api>@nestjs/event-emitter>@nestjs/core>@nestjs/platform-express>@nestjs/common>file-type",
+            "apps__api>@nestjs/jwt>@nestjs/common>file-type",
+            "apps__api>@nestjs/platform-express>@nestjs/common>file-type",
+            "apps__api>@nestjs/platform-express>@nestjs/core>@nestjs/common>file-type",
+            "apps__api>nestjs-pino>@nestjs/common>file-type"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1114726,
+      "title": "file-type: ZIP Decompression Bomb DoS via [Content_Types].xml entry",
+      "module_name": "file-type",
+      "vulnerable_versions": ">=20.0.0 <=21.3.1",
+      "patched_versions": ">=21.3.2",
+      "severity": "moderate",
+      "cwe": "CWE-400, CWE-409",
+      "github_advisory_id": "GHSA-j47w-4g3g-c36v",
+      "url": "https://github.com/advisories/GHSA-j47w-4g3g-c36v"
+    },
+    "1117063": {
+      "findings": [
+        {
+          "version": "10.4.22",
+          "paths": [
+            "apps__api>@nestjs/core",
+            "apps__api>@nestjs/event-emitter>@nestjs/core",
+            "apps__api>@nestjs/platform-express>@nestjs/core"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1117063,
+      "title": "@nestjs/core Improperly Neutralizes Special Elements in Output Used by a Downstream Component ('Injection')",
+      "module_name": "@nestjs/core",
+      "vulnerable_versions": "<=11.1.17",
+      "patched_versions": ">=11.1.18",
+      "severity": "moderate",
+      "cwe": "CWE-74",
+      "github_advisory_id": "GHSA-36xv-jgw5-4q75",
+      "url": "https://github.com/advisories/GHSA-36xv-jgw5-4q75"
+    },
+    "1119441": {
+      "findings": [
+        {
+          "version": "8.3.2",
+          "paths": [
+            "apps__api>exceljs>uuid"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1119441,
+      "title": "uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided",
+      "module_name": "uuid",
+      "vulnerable_versions": "<11.1.1",
+      "patched_versions": ">=11.1.1",
+      "severity": "moderate",
+      "cwe": "CWE-787, CWE-1285",
+      "github_advisory_id": "GHSA-w5hq-g745-h8pq",
+      "url": "https://github.com/advisories/GHSA-w5hq-g745-h8pq"
+    },
+    "1119502": {
+      "findings": [
+        {
+          "version": "6.14.2",
+          "paths": [
+            "apps__api>@nestjs/core>@nestjs/platform-express>express>qs",
+            "apps__api>@nestjs/event-emitter>@nestjs/core>@nestjs/platform-express>express>qs",
+            "apps__api>@nestjs/platform-express>express>qs"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1119502,
+      "title": "qs has a remotely triggerable DoS: qs.stringify crashes with TypeError on null/undefined entries in comma-format arrays when encodeValuesOnly is set",
+      "module_name": "qs",
+      "vulnerable_versions": ">=6.11.1 <=6.15.1",
+      "patched_versions": ">=6.15.2",
+      "severity": "moderate",
+      "cwe": "CWE-476",
+      "github_advisory_id": "GHSA-q8mj-m7cp-5q26",
+      "url": "https://github.com/advisories/GHSA-q8mj-m7cp-5q26"
+    },
+    "1158506": {
+      "findings": [
+        {
+          "version": "6.14.2",
+          "paths": [
+            "apps__api>@nestjs/core>@nestjs/platform-express>express>qs",
+            "apps__api>@nestjs/event-emitter>@nestjs/core>@nestjs/platform-express>express>qs",
+            "apps__api>@nestjs/platform-express>express>qs"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1158506,
+      "title": "qs array-limit bypass via bracket-key comma parsing",
+      "module_name": "qs",
+      "vulnerable_versions": ">=6.14.2 <=6.15.3",
+      "patched_versions": ">=6.15.4",
+      "severity": "moderate",
+      "cwe": "CWE-770",
+      "github_advisory_id": "GHSA-x5fp-wj9c-mxmx",
+      "url": "https://github.com/advisories/GHSA-x5fp-wj9c-mxmx"
+    },
+    "1158507": {
+      "findings": [
+        {
+          "version": "6.14.2",
+          "paths": [
+            "apps__api>@nestjs/core>@nestjs/platform-express>express>qs",
+            "apps__api>@nestjs/event-emitter>@nestjs/core>@nestjs/platform-express>express>qs",
+            "apps__api>@nestjs/platform-express>express>qs"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1158507,
+      "title": "qs: Denial of Service via Attacker Controlled isBuffer",
+      "module_name": "qs",
+      "vulnerable_versions": ">=2.2.5 <6.16.0",
+      "patched_versions": ">=6.16.0",
+      "severity": "moderate",
+      "cwe": "CWE-248, CWE-703",
+      "github_advisory_id": "GHSA-4mjr-xmp4-gh2g",
+      "url": "https://github.com/advisories/GHSA-4mjr-xmp4-gh2g"
+    },
+    "1243687": {
+      "findings": [
+        {
+          "version": "6.14.2",
+          "paths": [
+            "apps__api>@nestjs/core>@nestjs/platform-express>express>qs",
+            "apps__api>@nestjs/event-emitter>@nestjs/core>@nestjs/platform-express>express>qs",
+            "apps__api>@nestjs/platform-express>express>qs"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1243687,
+      "title": "qs : qs.stringify with arrayFormat 'comma' throws an uncaught TypeError on array elements carrying a non-callable own toString (DoS)",
+      "module_name": "qs",
+      "vulnerable_versions": ">=6.7.0 <=6.16.0",
+      "patched_versions": ">=6.16.1",
+      "severity": "moderate",
+      "cwe": "CWE-248, CWE-704",
+      "github_advisory_id": "GHSA-6pq8-jhm2-2vcw",
+      "url": "https://github.com/advisories/GHSA-6pq8-jhm2-2vcw"
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 8,
+      "high": 0,
+      "critical": 0
+    },
+    "dependencies": 391,
+    "devDependencies": 0,
+    "optionalDependencies": 42,
+    "totalDependencies": 433
+  }
+}

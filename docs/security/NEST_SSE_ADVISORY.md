@@ -1,0 +1,7 @@
+# Nest SSE advisory decision — 2026-11-17
+
+GHSA-36xv-jgw5-4q75 (CVE-2026-35515), official advisory https://github.com/advisories/GHSA-36xv-jgw5-4q75, reviewed again2026-11-17. It concerns CR/LF in SSE protocol id/type fields. The advisory lists11.1.18 as the patched package; Boat currently uses Nest10.4.22. Do not describe the package as patched or remove its audit finding.
+
+Disposition: application-layer mitigation, with residual package advisory retained. Our SSE controller emits through`safeRealtimeEvent` only: decimal database IDs, bounded single-line event names, invalid type mapped to generic message, JSON data kept separate. Existing CR/LF security tests and live/session revocation coverage are retained. Source review found one`@Sse` emitter in`inbox/realtime/realtime.controller.ts`; adding another emitter requires the same protocol boundary validation.
+
+Reason for keeping the compatible Nest10 release for this batch: its reachable SSE boundary is constrained, while a Nest11 major upgrade changes the application framework and its companion packages and needs a dedicated compatibility release. This is not an exception to fixing an exploitable high/critical issue and not certification of all endpoints. Reassess when the emitter changes, a compatible upstream patch is published, or a separate Nest11 migration is accepted. Owner commercial security sign-off remains part of launch acceptance.

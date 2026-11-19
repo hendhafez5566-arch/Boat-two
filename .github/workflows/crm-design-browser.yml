@@ -1,0 +1,44 @@
+name: CRM redesigned workspace and editor acceptance
+on:
+  push:
+    branches: [feat/flow-builder-fidelity-20261107]
+    paths:
+      - 'scripts/qa-crm-design.mjs'
+      - 'apps/web/components/business/**'
+      - 'apps/web/app/dashboard/crm/**'
+      - 'apps/web/components/product/NavIcon.tsx'
+      - '.github/workflows/crm-design-browser.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: crm-design-pr14
+  cancel-in-progress: true
+jobs:
+  crm-design-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install and build actual application
+        run: corepack enable && pnpm install --frozen-lockfile && pnpm --filter api build && pnpm --filter web build
+      - name: Install isolated browser driver
+        run: npm install --prefix "$RUNNER_TEMP/boat-playwright" playwright@1.56.1 --ignore-scripts
+      - name: AR and EN CRM workspace, customer and follow-up journeys
+        env:
+          BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
+          BOAT_QA_BROWSER_SCRIPT: scripts/qa-crm-design.mjs
+          BOAT_CHROMIUM: /usr/bin/google-chrome
+          BOAT_CLOUD_REVIEW: 'true'
+        run: python3 scripts/run-connect-browser-qa.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: crm-design-browser-evidence
+          path: |
+            docs/ux-evidence/crm-redesign/
+            /tmp/boat-journeys-api.log
+            /tmp/boat-journeys-web.log

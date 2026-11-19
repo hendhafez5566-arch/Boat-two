@@ -14,7 +14,8 @@ import { MetaAdapter } from './adapters/meta.adapter';
 import { WhatsAppAdapter } from './adapters/whatsapp.adapter';
 import { TelegramAdapter } from './adapters/telegram.adapter';
 import { ProviderError, sendWithTyping } from './adapters/adapter';
-import { previewBotDeliveryAllowed } from './preview-bot-delivery';
+import { previewBotDeliveryAllowed, previewAgentDeliveryAllowed } from './preview-bot-delivery';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 @Injectable()
 export class OutboundService implements OnModuleInit, OnModuleDestroy {
   private timer?: NodeJS.Timeout;
@@ -27,6 +28,7 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
     private whatsapp: WhatsAppAdapter,
     private meta: MetaAdapter,
     private telegram: TelegramAdapter,
+    private readonly events?: EventEmitter2,
   ) {}
   onModuleInit() {
     if (process.env.NODE_ENV !== 'test') {
@@ -118,16 +120,38 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
               return null;
             }
           }
-          const previewBotAllowed = previewBotDeliveryAllowed(message, !!marketing);
+          const previewDeliveryAllowed =
+            previewBotDeliveryAllowed(message, !!marketing) ||
+            previewAgentDeliveryAllowed(message, !!marketing);
           if (
             !message ||
             message.channel_status !== 'active' ||
-            (env.EXTERNAL_DELIVERY_ENABLED !== 'true' && !previewBotAllowed)
+            (env.EXTERNAL_DELIVERY_ENABLED !== 'true' && !previewDeliveryAllowed)
           ) {
+            const reason = !message
+              ? 'RECIPIENT_UNAVAILABLE'
+              : message.channel_status !== 'active'
+                ? 'CHANNEL_INACTIVE'
+                : 'EXTERNAL_DELIVERY_DISABLED';
             await c.query(
-              "UPDATE outbound_jobs SET status='blocked',error='External delivery disabled or channel inactive',updated_at=now() WHERE id=$1",
-              [j.id],
+              "UPDATE outbound_jobs SET status='blocked',error=$2,updated_at=now() WHERE id=$1",
+              [j.id, reason],
             );
+            // The request was accepted into the queue but not sent. Do not
+            // leave it indefinitely displaying as "sending" in the Inbox.
+            if (message) {
+              await c.query(
+                "UPDATE messages SET status='failed',error=$2 WHERE id=$1",
+                [j.message_id, reason],
+              );
+              this.events?.emit('message.status', {
+                tenantId: job.tenant_id,
+                conversationId: message.conversation_id,
+                messageId: j.message_id,
+                status: 'failed',
+                error: reason,
+              });
+            }
             return null;
           }
           if (
@@ -220,6 +244,12 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
               [row.jobId],
             );
           });
+          this.events?.emit('message.status', {
+            tenantId: job.tenant_id,
+            conversationId: row.conversation_id,
+            messageId: row.id,
+            status: 'sent',
+          });
         } catch (e) {
           const known = e instanceof ProviderError;
           const status =
@@ -249,6 +279,14 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
                 (e as Error).message.slice(0, 300),
               ]);
           });
+          if (status === 'failed')
+            this.events?.emit('message.status', {
+              tenantId: job.tenant_id,
+              conversationId: row.conversation_id,
+              messageId: row.id,
+              status: 'failed',
+              error: (e as Error).message.slice(0, 300),
+            });
         }
       }
     } catch (e) {

@@ -1,0 +1,91 @@
+# Independent isolated/demo stack. Never point these volumes or URLs at customer storage.
+x-api-env: &api-env
+  NODE_ENV: production
+  DATABASE_URL: postgres://app_user:${APP_DATABASE_PASSWORD:?Generate portable .env}@postgres:5432/boat
+  REDIS_URL: redis://redis:6379
+  JWT_SECRET: ${JWT_SECRET:?Generate portable .env}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Generate portable .env}
+  APP_URL: ${BOAT_APP_URL:-http://localhost:3000}
+  PUBLIC_API_URL: ${BOAT_PUBLIC_API_URL:-http://localhost:4000}
+  UPLOAD_DIR: /data/uploads
+  ATTACHMENT_STORAGE: filesystem
+  EXTERNAL_DELIVERY_ENABLED: 'false'
+  EMAIL_DELIVERY_ENABLED: 'false'
+  AI_PROVIDER_CALLS_ENABLED: 'false'
+  META_CONNECT_ENABLED: 'false'
+  BILLING_SUBSCRIPTION_CHANGES_ENABLED: 'false'
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: boat
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Generate portable .env}
+      APP_DATABASE_PASSWORD: ${APP_DATABASE_PASSWORD}
+    volumes:
+      - database:/var/lib/postgresql/data
+      - ./init-role.sh:/docker-entrypoint-initdb.d/01-role.sh:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d boat']
+      interval: 3s
+      timeout: 3s
+      retries: 40
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes: ['redis:/data']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 3s
+      timeout: 3s
+      retries: 40
+  migrate:
+    image: boat-portable-api
+    build:
+      context: ../..
+      dockerfile: deploy/portable/Dockerfile
+      target: api
+    environment:
+      <<: *api-env
+      DATABASE_ADMIN_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/boat
+    command: ['node', '--import', 'tsx', 'src/database/migrate.ts']
+    depends_on:
+      postgres: {condition: service_healthy}
+  api:
+    image: boat-portable-api
+    build:
+      context: ../..
+      dockerfile: deploy/portable/Dockerfile
+      target: api
+    environment: *api-env
+    volumes: ['attachments:/data/uploads']
+    ports: ['127.0.0.1:4000:4000']
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:4000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/portable/Dockerfile
+      target: web
+      args:
+        PUBLIC_API_URL: ${BOAT_PUBLIC_API_URL:-http://localhost:4000}
+    environment:
+      NODE_ENV: production
+    ports: ['127.0.0.1:3000:3000']
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/login').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+    depends_on:
+      api: {condition: service_healthy}
+volumes:
+  database:
+  redis:
+  attachments:

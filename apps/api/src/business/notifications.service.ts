@@ -31,8 +31,8 @@ export class NotificationsService {
     // Assigned staff receive their own alerts; unassigned leads reach managers only.
     await c.query(
       `INSERT INTO crm_notifications(tenant_id,user_id,kind,resource_type,resource_id,contact_id,title,priority,dedupe_key)
-      SELECT $1,user_id,$2,$3,$4,$5,$6,$7,$8 FROM memberships
-      WHERE ($9::uuid IS NOT NULL AND user_id=$9 OR $9::uuid IS NULL AND role IN ('owner','admin'))
+      SELECT $1,m.user_id,$2,$3,$4,$5,$6,$7,$8 FROM memberships m JOIN users u ON u.id=m.user_id
+      WHERE u.disabled_at IS NULL AND ($9::uuid IS NOT NULL AND user_id=$9 OR $9::uuid IS NULL AND role IN ('owner','admin'))
       AND (cardinality($10::uuid[])=0 OR user_id=ANY($10::uuid[])) ON CONFLICT DO NOTHING`,
       [
         tenant,
@@ -157,7 +157,7 @@ export class NotificationsService {
         );
       const cvs = (
         await c.query(
-          `SELECT cv.* FROM conversations cv JOIN contacts ct ON ct.id=cv.contact_id WHERE cv.status<>'closed' AND cv.handled_by='human' AND cv.last_inbound_at<now()-make_interval(mins=>$1) AND (cv.assigned_to=$2 OR cv.assigned_to IS NULL) AND ct.archived_at IS NULL AND ct.merged_into_id IS NULL AND NOT EXISTS(SELECT 1 FROM messages m WHERE m.conversation_id=cv.id AND m.sender_type='agent' AND NOT m.is_internal AND m.created_at>=cv.last_inbound_at) ORDER BY cv.last_inbound_at LIMIT 100`,
+          `SELECT cv.* FROM conversations cv JOIN contacts ct ON ct.id=cv.contact_id WHERE cv.status<>'closed' AND cv.handled_by='human' AND cv.last_inbound_at<now()-make_interval(mins=>$1) AND (cv.assigned_to=$2 OR cv.assigned_to IS NULL) AND ct.archived_at IS NULL AND ct.merged_into_id IS NULL AND NOT EXISTS(SELECT 1 FROM messages m WHERE m.conversation_id=cv.id AND m.sender_type='agent' AND m.direction='out' AND m.status IN ('sent','delivered','read') AND NOT m.is_internal AND m.created_at>=cv.last_inbound_at) ORDER BY cv.last_inbound_at LIMIT 100`,
           [s.replyMinutes, user],
         )
       ).rows;

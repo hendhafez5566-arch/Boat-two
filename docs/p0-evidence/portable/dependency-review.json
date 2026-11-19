@@ -1,0 +1,11 @@
+{
+  "scope": "Production dependencies after private S3 SDK addition",
+  "vulnerabilities": {
+    "info": 0,
+    "low": 0,
+    "moderate": 1,
+    "high": 0,
+    "critical": 0
+  },
+  "remaining": "Existing @nestjs/core moderate advisory; retain SSE controls and documented risk review; not a complete application security audit"
+}

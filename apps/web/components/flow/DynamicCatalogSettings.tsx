@@ -19,12 +19,14 @@ export default function DynamicCatalogSettings({
   set: (v: Record<string, unknown>) => void;
 }) {
   const { t } = useLocale();
+  const [sourcesLoading, setSourcesLoading] = useState(true);
   const [manageOpen, setManageOpen] = useState(false);
   const [sourceState, setSourceState] = useState({ dirty: false, busy: false });
   const [sources, setSources] = useState<Source[]>([]),
     [categories, setCategories] = useState<{ name: string; count: number }[]>([]),
     [error, setError] = useState('');
   async function refreshSources() {
+    setSourcesLoading(true);
     setError('');
     try {
       const next = await api<Source[]>('/commerce/sources');
@@ -33,6 +35,8 @@ export default function DynamicCatalogSettings({
     } catch (e) {
       setError((e as Error).message);
       return false;
+    } finally {
+      setSourcesLoading(false);
     }
   }
   useEffect(() => {
@@ -58,6 +62,7 @@ export default function DynamicCatalogSettings({
       <label>
         {t('محتوى الكتالوج', 'Catalog content')}
         <select
+          aria-label={t('محتوى الكتالوج', 'Catalog content')}
           value={data.sourceId ? 'dynamic' : 'manual'}
           onChange={(e) =>
             set(
@@ -68,7 +73,7 @@ export default function DynamicCatalogSettings({
           }
         >
           <option value="manual">{t('منتجات محددة', 'Selected products')}</option>
-          <option value="dynamic" disabled={!sources.length}>
+          <option value="dynamic" disabled={sourcesLoading || !sources.length}>
             {t('قسم ديناميكي من مصدر بيانات', 'Dynamic data source category')}
           </option>
         </select>
@@ -119,7 +124,10 @@ export default function DynamicCatalogSettings({
           <label>
             {t('مصدر البيانات', 'Data source')}
             <select
+              aria-label={t('مصدر البيانات', 'Data source')}
               value={data.sourceId}
+              disabled={sourcesLoading}
+              aria-busy={sourcesLoading}
               onChange={(e) =>
                 set({
                   sourceId: e.target.value,
@@ -130,6 +138,13 @@ export default function DynamicCatalogSettings({
                 })
               }
             >
+              {!sources.some((s) => s.id === data.sourceId) && (
+                <option value={data.sourceId} disabled>
+                  {sourcesLoading
+                    ? t('جارٍ تحميل المصادر…', 'Loading sources…')
+                    : t('المصدر غير متاح', 'Source unavailable')}
+                </option>
+              )}
               {sources.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -143,57 +158,68 @@ export default function DynamicCatalogSettings({
               <option value="">
                 {t('قائمة الأقسام تلقائيًا', 'Browse categories automatically')}
               </option>
-              {categories.map((c) => (
-                <option key={c.name} value={c.name}>
-                  {c.name} ({c.count})
-                </option>
-              ))}
+              {categories
+                .filter((c) => c.name.trim())
+                .map((c) => (
+                  <option key={c.name} value={c.name}>
+                    {c.name} ({c.count})
+                  </option>
+                ))}
             </select>
           </label>
-          <label>
-            {t(
-              'بحث اختياري — يدعم متغيرات المحادثة',
-              'Optional search — supports conversation variables',
-            )}
-            <input
-              value={data.query ?? ''}
-              placeholder="{{search}}"
-              onChange={(e) => set({ query: e.target.value })}
-            />
-          </label>
-          <fieldset>
-            <legend>
+          <details>
+            <summary>{t('خيارات العرض والبحث', 'Display and search options')}</summary>
+            <label>
               {t(
-                'الحقول المسموح عرضها — تركها دون تحديد يعرض كل الحقول المعتمدة',
-                'Allowed fields — leave unchecked to show all approved fields',
+                'بحث اختياري — يدعم متغيرات المحادثة',
+                'Optional search — supports conversation variables',
               )}
-            </legend>
-            {sources
-              .find((s) => s.id === data.sourceId)
-              ?.mapping.fields.map((f) => (
-                <label key={f.label}>
-                  <input
-                    type="checkbox"
-                    checked={data.fields?.includes(f.label) ?? false}
-                    onChange={(e) =>
-                      set({
-                        fields: e.target.checked
-                          ? [...(data.fields ?? []), f.label]
-                          : (data.fields ?? []).filter((v) => v !== f.label),
-                      })
-                    }
-                  />
-                  {f.label}
-                </label>
-              ))}
-          </fieldset>
-          <label>
-            {t('رسالة عدم وجود نتائج', 'No results message')}
-            <input
-              value={data.emptyText ?? ''}
-              onChange={(e) => set({ emptyText: e.target.value })}
-            />
-          </label>
+              <input
+                value={data.query ?? ''}
+                placeholder="{{search}}"
+                onChange={(e) => set({ query: e.target.value })}
+              />
+            </label>
+            <fieldset className="min-w-0 rounded-lg border p-3">
+              <legend className="px-1">
+                {t(
+                  'الحقول المسموح عرضها — تركها دون تحديد يعرض كل الحقول المعتمدة',
+                  'Allowed fields — leave unchecked to show all approved fields',
+                )}
+              </legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {sources
+                  .find((s) => s.id === data.sourceId)
+                  ?.mapping.fields.map((f) => (
+                    <label
+                      key={f.label}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 36 }}
+                    >
+                      <input
+                        type="checkbox"
+                        style={{ width: 16, height: 16, flexShrink: 0, margin: 0 }}
+                        checked={data.fields?.includes(f.label) ?? false}
+                        onChange={(e) =>
+                          set({
+                            fields: e.target.checked
+                              ? [...(data.fields ?? []), f.label]
+                              : (data.fields ?? []).filter((v) => v !== f.label),
+                          })
+                        }
+                      />
+                      {f.label}
+                    </label>
+                  ))}
+              </div>
+            </fieldset>
+            <label>
+              {t('رسالة عدم وجود نتائج', 'No results message')}
+              <input
+                value={data.emptyText ?? ''}
+                onChange={(e) => set({ emptyText: e.target.value })}
+              />
+            </label>
+          </details>
           <p>
             {t(
               'قائمة بصفحات تلقائية. عند الاختيار يعرض التفاصيل ويسجل الاستفسار ثم ينتقل عبر المخرج التالي؛ وصّله بالتحويل للموظف عند الحاجة.',

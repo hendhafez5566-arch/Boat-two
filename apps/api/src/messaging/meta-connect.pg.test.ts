@@ -236,6 +236,104 @@ test('Meta onboarding and token rotation preserve tenant and phone identity in P
       },
     );
     await t.test(
+      'catalog configuration is explicit and manual WABA sync is atomic and tenant-safe',
+      async () => {
+        delete env.META_EMBEDDED_CATALOG_CONFIG_ID;
+        await assert.rejects(
+          controller.start(req, { kind: 'whatsapp', withCatalog: true }),
+          /configuration ID required/,
+        );
+        env.META_EMBEDDED_CATALOG_CONFIG_ID = '701';
+        assert.equal(
+          (await controller.start(req, { kind: 'whatsapp', withCatalog: true })).embeddedConfigId,
+          '701',
+        );
+        assert.equal(
+          (await controller.start(req, { kind: 'whatsapp', withCatalog: false })).embeddedConfigId,
+          '700',
+        );
+        delete env.META_EMBEDDED_CATALOG_CONFIG_ID;
+        valid = true;
+        app = '100';
+        scopes = ['whatsapp_business_messaging', 'whatsapp_business_management'];
+        phones = ['600', '601'];
+        globalThis.fetch = async (input) => {
+          const url = new URL(String(input));
+          assert.equal(url.origin, 'https://graph.facebook.com');
+          if (url.pathname.endsWith('/debug_token'))
+            return Response.json({
+              data: { app_id: app, is_valid: valid, type: 'SYSTEM_USER', scopes, expires_at: 0 },
+            });
+          if (url.pathname.endsWith('/500/phone_numbers'))
+            return Response.json({
+              data: phones.map((id) => ({ id, verified_name: 'Synthetic ' + id })),
+            });
+          if (url.pathname.endsWith('/500/subscribed_apps'))
+            return Response.json({ data: [{ whatsapp_business_api_data: { id: '100' } }] });
+          const id = url.pathname.split('/').pop();
+          if (phones.includes(id || '')) return Response.json({ id });
+          throw new Error('Unexpected synthetic endpoint');
+        };
+        const before = (await pg.query<any>('SELECT * FROM channels')).rows;
+        const result = await controller.manual(req, {
+          wabaId: '500',
+          accessToken: 'synthetic-manual-token',
+        });
+        assert.equal(result.accounts.length, 2);
+        assert.ok(result.accounts.every((a) => a.webhookReady));
+        assert.ok(result.accounts.some((a) => a.id === channel.id));
+        assert.equal(
+          (await pg.query<any>('SELECT * FROM channels')).rows.length,
+          before.length + 1,
+        );
+        assert.ok(!JSON.stringify(result).includes('synthetic-manual-token'));
+        const accounts = await controller.whatsappAccounts(req);
+        assert.ok(accounts.every((a) => a.businessAccountId === '500'));
+        assert.ok(!JSON.stringify(accounts).includes('synthetic-manual-token'));
+        await assert.rejects(
+          controller.manual({ user: { ...req.user, tenantId: other } } as any, {
+            wabaId: '500',
+            accessToken: 'synthetic-manual-token',
+          }),
+          /already connected/,
+        );
+        assert.equal((await channels.list(other)).length, 0);
+        const snapshot = JSON.stringify(
+          (await pg.query<any>('SELECT * FROM channels ORDER BY id')).rows,
+        );
+        valid = false;
+        await assert.rejects(
+          controller.manual(req, { wabaId: '500', accessToken: 'synthetic-manual-token' }),
+          /must grant/,
+        );
+        assert.equal(
+          JSON.stringify((await pg.query<any>('SELECT * FROM channels ORDER BY id')).rows),
+          snapshot,
+        );
+        valid = true;
+        phones = ['700', '701'];
+        const plans = (channels as any).plans;
+        const previous = plans.assertWithinLimit;
+        let checks = 0;
+        plans.assertWithinLimit = async () => {
+          if (++checks === 2) throw new Error('Synthetic plan limit');
+        };
+        try {
+          await assert.rejects(
+            controller.manual(req, { wabaId: '500', accessToken: 'synthetic-manual-token' }),
+            /plan limit/,
+          );
+        } finally {
+          plans.assertWithinLimit = previous;
+        }
+        assert.equal(
+          JSON.stringify((await pg.query<any>('SELECT * FROM channels ORDER BY id')).rows),
+          snapshot,
+        );
+        phones = ['600'];
+      },
+    );
+    await t.test(
       'subscription is idempotent and never overwrites callbacks or registers the phone',
       async () => {
         const calls: string[] = [];

@@ -4,7 +4,14 @@ import { TenantBus } from './tenant-bus';
 
 export type RealtimeEvent =
   | { type: 'message'; conversationId: string; message: Record<string, unknown> }
-  | { type: 'message_status'; conversationId: string; messageId: string; status: string; error?: string }
+  | {
+      type: 'message_status';
+      conversationId: string;
+      messageId: string;
+      status: string;
+      error?: string;
+    }
+  | { type: 'note_changed'; conversationId: string; source: string; noteId: string; text?: string }
   | { type: 'conversation'; conversationId: string; reason: string };
 
 @Injectable()
@@ -13,21 +20,59 @@ export class RealtimeService {
 
   @OnEvent('message.created')
   onMessage(e: { tenantId: string; conversationId: string; message: Record<string, unknown> }) {
-    this.bus.publish(e.tenantId, { type: 'message', conversationId: e.conversationId, message: e.message });
+    this.bus.publish(e.tenantId, {
+      type: 'message',
+      conversationId: e.conversationId,
+      message: e.message,
+    });
+  }
+
+  @OnEvent('inbox.note.changed')
+  onNoteChanged({
+    tenantId,
+    ...event
+  }: {
+    tenantId: string;
+    conversationId: string;
+    source: string;
+    noteId: string;
+    text?: string;
+  }) {
+    this.bus.publish(tenantId, { type: 'note_changed', ...event });
   }
 
   @OnEvent('message.status')
-  onStatus(e: { tenantId: string; conversationId: string; messageId: string; status: string; error?: string }) {
-    this.bus.publish(e.tenantId, { type: 'message_status', conversationId: e.conversationId, messageId: e.messageId, status: e.status, error: e.error });
+  onStatus(e: {
+    tenantId: string;
+    conversationId: string;
+    messageId: string;
+    status: string;
+    error?: string;
+  }) {
+    this.bus.publish(e.tenantId, {
+      type: 'message_status',
+      conversationId: e.conversationId,
+      messageId: e.messageId,
+      status: e.status,
+      error: e.error,
+    });
   }
 
   @OnEvent('conversation.updated')
   onConversation(e: { tenantId: string; conversationId: string; reason: string }) {
-    this.bus.publish(e.tenantId, { type: 'conversation', conversationId: e.conversationId, reason: e.reason });
+    this.bus.publish(e.tenantId, {
+      type: 'conversation',
+      conversationId: e.conversationId,
+      reason: e.reason,
+    });
   }
 
   @OnEvent('conversation.handoff')
   onHandoff(e: { tenantId: string; conversationId: string }) {
-    this.bus.publish(e.tenantId, { type: 'conversation', conversationId: e.conversationId, reason: 'handoff' });
+    this.bus.publish(e.tenantId, {
+      type: 'conversation',
+      conversationId: e.conversationId,
+      reason: 'handoff',
+    });
   }
 }

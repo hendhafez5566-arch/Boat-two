@@ -8,7 +8,7 @@ export default function TimezonePicker({value,onChange}:{value:string;onChange:(
   const supported=(Intl as typeof Intl & {supportedValuesOf?:(key:string)=>string[]}).supportedValuesOf?.('timeZone') || [];
   const zones=Array.from(new Set([value,...Object.keys(cities),...supported]));
   const title=(zone:string)=>cities[zone]?t(...cities[zone]):zone.split('/').join(' — ').replace(/_/g,' ');
-  let clock='';try{clock=new Intl.DateTimeFormat(language==='ar'?'ar-EG':'en-US',{timeZone:value,dateStyle:'medium',timeStyle:'short'}).format(new Date());}catch{}
+  let clock='';try{clock=new Intl.DateTimeFormat(language==='ar'?'ar-EG':'en-US',{timeZone:value,dateStyle:'medium',timeStyle:'short'}).format(new Date());}catch{ /* Invalid timezone uses the visible fallback below. */ }
   return <div className="field">
     <label>{t('ابحث بالمدينة أو المنطقة','Search city or region')}<input type="search" value={search} onChange={e=>setSearch(e.target.value)} /></label>
     <label>{t('المنطقة الزمنية','Timezone')}<select required value={value} onChange={e=>onChange(e.target.value)}>{zones.filter(zone=>zone===value || (title(zone)+' '+zone).toLowerCase().includes(search.toLowerCase())).map(zone=><option key={zone} value={zone}>{title(zone)}</option>)}</select></label>

@@ -5,6 +5,7 @@ import { api } from '../../lib/api';
 import { useData } from './useData';
 import { useLocale } from '../product/locale';
 import { Button } from '../product/ProductUI';
+import { statusLabel } from '../product/status';
 import { NavIcon } from '../product/NavIcon';
 import styles from './crm-workspace.module.css';
 type Condition = {
@@ -29,6 +30,8 @@ export function CrmSegments() {
     items: { id: string; name: string }[];
   } | null>(null);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [resultTitle, setResultTitle] = useState('');
   const [busy, setBusy] = useState(false);
   const list = useData<{ id: string; name: string; filters: Condition }[]>(
     '/crm/workspace/views',
@@ -37,9 +40,12 @@ export function CrmSegments() {
   const conditions = () => ({
     [match]: rules.filter((r) => r.value.trim()).map((r) => ({ [r.field]: r.value.trim() })),
   });
-  async function run(save: boolean, filter?: Condition) {
+  async function run(save: boolean, filter?: Condition, viewName?: string) {
+    if (busy) return;
     setBusy(true);
     setError('');
+    setNotice('');
+    setResult(null);
     try {
       if (save) {
         await api('/crm/workspace/views', {
@@ -47,18 +53,56 @@ export function CrmSegments() {
           body: JSON.stringify({ name, conditions: conditions() }),
         });
         await list.reload();
-      } else
+        setNotice(
+          t(
+            'تم حفظ العرض. ستجده في العروض المحفوظة أدناه.',
+            'View saved. Find it in Saved views below.',
+          ),
+        );
+      } else {
+        setResultTitle(viewName || t('الشروط الحالية', 'Current conditions'));
         setResult(
           await api('/crm/workspace/search', {
             method: 'POST',
             body: JSON.stringify({ conditions: filter || conditions(), limit: 50 }),
           }),
         );
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
     }
+  }
+  function conditionSummary(condition: Condition): string {
+    const parts: string[] = [];
+    if (condition.q) parts.push(t('بحث', 'Search') + ': ' + condition.q);
+    if (condition.tag) parts.push(t('وسم', 'Label') + ': ' + condition.tag);
+    if (condition.source !== undefined)
+      parts.push(t('المصدر', 'Source') + ': ' + (condition.source || t('غير محدد', 'Not set')));
+    if (condition.lifecycle)
+      parts.push(t('المرحلة', 'Lifecycle') + ': ' + statusLabel(condition.lifecycle, t));
+    if (condition.allOf?.length)
+      parts.push(
+        t('كل الشروط', 'All conditions') +
+          ' (' +
+          condition.allOf.map(conditionSummary).join(' · ') +
+          ')',
+      );
+    if (condition.anyOf?.length)
+      parts.push(
+        t('أي شرط', 'Any condition') +
+          ' (' +
+          condition.anyOf.map(conditionSummary).join(' / ') +
+          ')',
+      );
+    return (
+      parts.join(' · ') ||
+      t(
+        'قواعد محفوظة تطبّق على بيانات العملاء الحالية.',
+        'Saved rules applied to current customer data.',
+      )
+    );
   }
   return (
     <section className={styles.panel}>
@@ -86,7 +130,21 @@ export function CrmSegments() {
           </Link>
         ))}
       </div>
-      <div className={styles.form}>
+      <fieldset
+        className={`${styles.form} ${styles.segmentBuilder}`}
+        disabled={busy}
+        onChange={() => {
+          setResult(null);
+          setNotice('');
+        }}
+      >
+        <legend>{t('إنشاء شريحة مخصصة', 'Build a custom segment')}</legend>
+        <p className={styles.hint}>
+          {t(
+            'اختر الشروط، اعرض العملاء المطابقين، ثم احفظ العرض لإعادة استخدامه.',
+            'Choose conditions, preview matching customers, then save a view to reuse it.',
+          )}
+        </p>
         <label>
           {t('طريقة المطابقة', 'Match')}
           <select value={match} onChange={(e) => setMatch(e.target.value)}>
@@ -124,7 +182,9 @@ export function CrmSegments() {
               >
                 <option value="">—</option>
                 {['lead', 'qualified', 'customer', 'inactive'].map((s) => (
-                  <option key={s}>{s}</option>
+                  <option key={s} value={s}>
+                    {statusLabel(s, t)}
+                  </option>
                 ))}
               </select>
             ) : (
@@ -141,7 +201,10 @@ export function CrmSegments() {
             )}
             <Button
               disabled={rules.length === 1}
-              onClick={() => setRules((rs) => rs.filter((_, n) => n !== i))}
+              onClick={() => {
+                setResult(null);
+                setRules((rs) => rs.filter((_, n) => n !== i));
+              }}
             >
               {t('إزالة شرط', 'Remove condition')}
             </Button>
@@ -150,7 +213,10 @@ export function CrmSegments() {
         <div className={styles.actions}>
           <Button
             disabled={rules.length >= 10}
-            onClick={() => setRules([...rules, { field: 'tag', value: '' }])}
+            onClick={() => {
+              setResult(null);
+              setRules([...rules, { field: 'tag', value: '' }]);
+            }}
           >
             {t('إضافة شرط', 'Add condition')}
           </Button>
@@ -168,30 +234,63 @@ export function CrmSegments() {
             {t('حفظ العرض', 'Save view')}
           </Button>
         )}
-      </div>
+      </fieldset>
+      {notice && (
+        <p role="status" className="notice">
+          {notice}
+        </p>
+      )}
       {(error || list.error) && (
         <p role="alert" className="notice error">
           {error || list.error}
         </p>
       )}
-      <div className={styles.actions}>
-        {list.data.map((v) => (
-          <Button key={v.id} busy={busy} onClick={() => void run(false, v.filters)}>
-            {v.name}
-          </Button>
-        ))}
-      </div>
-      {result && (
-        <>
-          <p>
-            {t('العدد الإجمالي — أول 50 نتيجة', 'Total — first 50 results')}: {result.total}
+      <section aria-label={t('العروض المحفوظة', 'Saved views')} className={styles.savedViews}>
+        <h3>{t('العروض المحفوظة', 'Saved views')}</h3>
+        {list.loading && <p role="status">{t('جارٍ تحميل العروض…', 'Loading views…')}</p>}
+        {!list.loading && !list.error && !list.data.length && (
+          <p className={styles.hint}>
+            {t(
+              'لم تحفظ عروضًا بعد. احفظ شروطك لتعود إليها لاحقًا.',
+              'No saved views yet. Save your conditions to return to them later.',
+            )}
           </p>
+        )}
+        <div className={styles.grid}>
+          {list.data.map((v) => (
+            <article className={styles.card} key={v.id}>
+              <h4>{v.name}</h4>
+              <p className={styles.hint}>{conditionSummary(v.filters)}</p>
+              <Button disabled={busy} onClick={() => void run(false, v.filters, v.name)}>
+                {t('عرض العملاء', 'View customers') + ': ' + v.name}
+              </Button>
+            </article>
+          ))}
+        </div>
+      </section>
+      {result && (
+        <section className={styles.savedViews} aria-label={t('نتائج الشريحة', 'Segment results')}>
+          <h3>{t('النتائج', 'Results') + ': ' + resultTitle}</h3>
+          <p role="status">
+            {t('إجمالي العملاء المطابقين', 'Total matching customers')}: {result.total}
+          </p>
+          {result.total > result.items.length && (
+            <p className={styles.hint}>
+              {t(
+                'تُعرض أول 50 نتيجة. ضيّق الشروط للوصول إلى عملاء أكثر تحديدًا.',
+                'Showing the first 50 results. Refine the conditions to narrow your audience.',
+              )}
+            </p>
+          )}
+          {!result.items.length && (
+            <p>{t('لا يوجد عملاء مطابقون لهذه الشروط.', 'No customers match these conditions.')}</p>
+          )}
           {result.items.map((c) => (
             <p key={c.id}>
               <Link href={`/dashboard/crm?contact=${c.id}`}>{c.name}</Link>
             </p>
           ))}
-        </>
+        </section>
       )}
     </section>
   );

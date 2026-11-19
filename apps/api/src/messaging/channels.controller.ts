@@ -44,6 +44,18 @@ export class ChannelsController {
   }
 
   @Roles('owner', 'admin')
+  @Post('telegram/connect')
+  connectTelegram(@Req() req: AuthedRequest, @Body() body: unknown) {
+    const input = parse(
+      z.object({
+        botToken: z.string().regex(/^\d{5,20}:[A-Za-z0-9_-]{20,100}$/),
+      }),
+      body,
+    );
+    return this.channels.connectTelegram(req.user.tenantId, input.botToken);
+  }
+
+  @Roles('owner', 'admin')
   @Patch(':id')
   update(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
     return this.channels.update(req.user.tenantId, id, parse(updateChannelSchema, body));

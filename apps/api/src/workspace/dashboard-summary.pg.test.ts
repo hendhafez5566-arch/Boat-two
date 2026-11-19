@@ -31,6 +31,9 @@ test('dashboard uses thirty UTC days, platform scoping, distinct subscriptions a
       INSERT INTO knowledge_sources VALUES('s','one',null),('archived','one',now()),('foreign','two',null);
       INSERT INTO knowledge_jobs VALUES('s','one','completed','2026-10-20 12:00Z'),('s','one','failed','2026-10-28 12:00Z'),('archived','one','completed','2026-10-27 12:00Z');
       INSERT INTO users VALUES('user','Name'),('other','Other');
+      INSERT INTO channels VALUES('v','one','web'),('i','one','instagram'),('foreign-web','two','web');
+      INSERT INTO contact_channels VALUES('web','one','v','2026-10-28 10:00Z'),('a','one','v','2026-10-28 11:00Z'),('instagram','one','i','2026-10-28 12:00Z'),('foreign-web','two','foreign-web','2026-10-28 12:00Z');
+      INSERT INTO consent_history VALUES('web','one','v','opted_out','2026-10-28 12:00Z'),('foreign-web','two','foreign-web','opted_out','2026-10-28 12:00Z');
       DO $$ DECLARE t text; BEGIN FOREACH t IN ARRAY ARRAY['channels','contact_channels','consent_history','ai_settings','ai_agents','ai_providers','knowledge_sources','knowledge_jobs'] LOOP
         EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY',t);
         EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY',t);
@@ -69,6 +72,14 @@ test('dashboard uses thirty UTC days, platform scoping, distinct subscriptions a
         0,
       );
       assert.equal(telegram.ai.enabled, true);
+      const web = await dashboardSummary(c, 'web', 'user', false, now);
+      assert.equal(web.growth.reduce((n,d)=>n+d.gain,0),2);
+      assert.equal(web.growth.reduce((n,d)=>n+d.drop,0),1);
+      const instagram = await dashboardSummary(c, 'instagram', 'user', false, now);
+      assert.equal(instagram.growth.reduce((n,d)=>n+d.gain,0),1);
+      const all = await dashboardSummary(c, 'all', 'user', false, now);
+      assert.equal(all.growth.reduce((n,d)=>n+d.gain,0),5,'same contact on multiple platforms counts once; foreign/out-of-period contacts stay excluded');
+      assert.equal(all.growth.reduce((n,d)=>n+d.drop,0),2);
     });
     assert.equal(dashboardChannelSchema.parse(undefined), 'whatsapp');
     assert.equal(dashboardChannelSchema.safeParse('anything').success, false);

@@ -1,0 +1,137 @@
+{
+  "status": "PASS",
+  "scope": "selected acceptance only, not complete P0/P1/P2",
+  "source": "GitHub Actions job logs read on 2026-11-17",
+  "checks": [
+    {
+      "runId": 44139220828,
+      "commit": "3a7bede",
+      "database": "actual isolated PostgreSQL16",
+      "accepted": [
+        "31 node draft contracts",
+        "published condition/variable/CRM runtime chain",
+        "5 reliability groups",
+        "SLA notifications",
+        "1000-message multi-tenant load",
+        "actual API process replacement",
+        "message preservation and replay dedupe",
+        "report count consistency",
+        "backup restore rows/RLS/ownership"
+      ],
+      "loadStages": [
+        {
+          "cumulative": 100,
+          "p95Ms": 68,
+          "durationMs": 307
+        },
+        {
+          "cumulative": 500,
+          "p95Ms": 36,
+          "durationMs": 1090
+        },
+        {
+          "cumulative": 1000,
+          "p95Ms": 34,
+          "durationMs": 1203
+        }
+      ]
+    },
+    {
+      "runId": 44139718797,
+      "commit": "e3bdc74",
+      "accepted": [
+        "10 AR/EN five-width Inbox journeys",
+        "4 AR/EN Webchat media/history/offline/reload journeys"
+      ]
+    },
+    {
+      "runId": 44140822768,
+      "commit": "2303332",
+      "database": "actual isolated PostgreSQL16",
+      "accepted": [
+        "241 API tests",
+        "known 120s/30s first-response reports",
+        "empty averages null",
+        "tourism/store/services synthetic journeys"
+      ],
+      "businessDurationMs": {
+        "tourism": 2266,
+        "store": 2006,
+        "services": 1995
+      }
+    },
+    {
+      "runId": 44141540075,
+      "commit": "4e058e0",
+      "accepted": [
+        "10 Inbox browser journeys",
+        "4 Webchat browser journeys",
+        "4 measured-report browser journeys"
+      ]
+    },
+    {
+      "runId": 44141540059,
+      "commit": "4e058e0",
+      "database": "actual isolated PostgreSQL16",
+      "accepted": [
+        "pending delayed flow survives actual API replacement",
+        "republished new bot version does not change pending original version",
+        "resumes one original response only",
+        "241 API tests",
+        "all previous enterprise acceptance and backup restore"
+      ]
+    },
+    {
+      "runId": 44142442945,
+      "commit": "2c67736",
+      "accepted": [
+        "18 AR/EN browser journeys",
+        "selected-language ownership event labels"
+      ]
+    },
+    {
+      "commit": "2c67736",
+      "allAssociatedWorkflows": "7 SUCCESS",
+      "selectedRuns": {
+        "platform500": 44142442776,
+        "inboxWebchatReports18": 44142442945,
+        "products": 44142442836,
+        "editorRecovery": 44142442771
+      }
+    },
+    {
+      "runId": 44143748624,
+      "testCommit": "f2d1d57531cdec3b5a208eb6b1c196105ac13041",
+      "artifactId": 14355163261,
+      "database": "existing Railway Preview PostgreSQL",
+      "accepted": [
+        "4 real Preview AR/EN390/1366 browser journeys",
+        "Inbox persisted replies",
+        "offline reconnect",
+        "reload without duplicates",
+        "measured response reporting",
+        "visitor cannot see private notes"
+      ]
+    }
+  ],
+  "limitations": [
+    "CI timing is not a production capacity guarantee",
+    "Draft node coverage is not all-node UI/provider certification",
+    "Official channels/AI/payment acceptance remains external",
+    "Production infrastructure and persistent attachment storage remain unapproved"
+  ],
+  "deployments": {
+    "api": {
+      "commit": "4e058e0a4082d311788c1df87ac2beb3fab8068f",
+      "id": "b0cd6a5a-450d-4614-a2ab-ddb0d57706eb",
+      "status": "SUCCESS",
+      "sleepApplication": true
+    },
+    "web": {
+      "commit": "2c67736d37a81ea98aedf89a2dc44e5a21c5d4ff",
+      "id": "66ec62ad-9a85-4d53-a2e7-537d044c0197",
+      "status": "SUCCESS",
+      "sleepApplication": true
+    }
+  }
+}

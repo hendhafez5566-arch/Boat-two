@@ -3,6 +3,9 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ConflictException,
+  ForbiddenException,
+  Delete,
   Get,
   NotFoundException,
   Param,
@@ -66,7 +69,7 @@ const patchSchema = z.object({
   handledBy: z.enum(['bot', 'human']).optional(),
   assignedTo: z.string().uuid().nullable().optional(),
 });
-const noteSchema = z.object({ text: z.string().min(1).max(2000) });
+const noteSchema = z.object({ text: z.string().trim().min(1).max(2000) });
 const availabilitySchema = z.object({ available: z.boolean() });
 const settingsSchema = z.object({
   signature_enabled: z.boolean().optional(),
@@ -305,9 +308,9 @@ export class InboxController {
         const r = await c.query(
           `SELECT ${cols} FROM messages m LEFT JOIN users u ON u.id = m.sender_user_id
            WHERE m.conversation_id = $1 AND m.seq > $2 ORDER BY m.seq LIMIT $3`,
-          [id, q.afterSeq, q.limit],
+          [id, q.afterSeq, q.limit + 1],
         );
-        return { items: r.rows, hasMore: false };
+        return { items: r.rows.slice(0, q.limit), hasMore: r.rows.length > q.limit };
       }
       const r = await c.query(
         `SELECT ${cols} FROM messages m LEFT JOIN users u ON u.id = m.sender_user_id
@@ -326,6 +329,7 @@ export class InboxController {
     @Body() body: unknown,
   ) {
     return this.db.conversation(req.user.tenantId, id, async () => {
+      await this.assertConversationOwner(req, id);
       const content = parse(contentSchema, body);
       const result = await this.messaging.sendOutbound({
         tenantId: req.user.tenantId,
@@ -349,6 +353,20 @@ export class InboxController {
       });
       this.changed(req.user.tenantId, id, 'agent_reply');
       return result;
+    });
+  }
+
+  @Get('conversations/:id/notes')
+  listNotes(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.db.withTenant(req.user.tenantId, async (c) => {
+      const result = await c.query(
+        `SELECT id, content, created_at FROM messages
+         WHERE tenant_id = $1 AND conversation_id = $2
+           AND is_internal AND type = 'note' AND sender_type <> 'system'
+         ORDER BY seq DESC`,
+        [req.user.tenantId, id],
+      );
+      return result.rows;
     });
   }
 
@@ -388,6 +406,67 @@ export class InboxController {
     return { id: msg.id, seq: Number(msg.seq) };
   }
 
+  @Patch('conversations/:id/notes/:source/:noteId')
+  async editNote(
+    @Req() req: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('source') source: string,
+    @Param('noteId', ParseUUIDPipe) noteId: string,
+    @Body() body: unknown,
+  ) {
+    if (source !== 'message' && source !== 'contact') throw new NotFoundException('Note not found');
+    const { text } = parse(noteSchema, body);
+    const result = await this.db.withTenant(req.user.tenantId, (c) =>
+      c.query(
+        source === 'contact'
+          ? `UPDATE crm_notes SET body = $4
+             WHERE tenant_id = $1 AND id = $3 AND contact_id =
+               (SELECT contact_id FROM conversations WHERE tenant_id = $1 AND id = $2)`
+          : `UPDATE messages SET content = content || jsonb_build_object('text', $4::text)
+         WHERE tenant_id = $1 AND conversation_id = $2 AND id = $3
+           AND is_internal AND type = 'note' AND sender_type <> 'system'`,
+        [req.user.tenantId, id, noteId, text],
+      ),
+    );
+    if (!result.rowCount) throw new NotFoundException('Note not found');
+    this.events.emit('inbox.note.changed', {
+      tenantId: req.user.tenantId,
+      conversationId: id,
+      source,
+      noteId,
+      text,
+    });
+    return { ok: true };
+  }
+
+  @Delete('conversations/:id/notes/:source/:noteId')
+  async deleteNote(
+    @Req() req: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('source') source: string,
+    @Param('noteId', ParseUUIDPipe) noteId: string,
+  ) {
+    if (source !== 'message' && source !== 'contact') throw new NotFoundException('Note not found');
+    const result = await this.db.withTenant(req.user.tenantId, (c) =>
+      c.query(
+        source === 'contact'
+          ? `DELETE FROM crm_notes WHERE tenant_id = $1 AND id = $3 AND contact_id =
+               (SELECT contact_id FROM conversations WHERE tenant_id = $1 AND id = $2)`
+          : `DELETE FROM messages WHERE tenant_id = $1 AND conversation_id = $2 AND id = $3
+           AND is_internal AND type = 'note' AND sender_type <> 'system'`,
+        [req.user.tenantId, id, noteId],
+      ),
+    );
+    if (!result.rowCount) throw new NotFoundException('Note not found');
+    this.events.emit('inbox.note.changed', {
+      tenantId: req.user.tenantId,
+      conversationId: id,
+      source,
+      noteId,
+    });
+    return { ok: true };
+  }
+
   @Post('conversations/:id/read')
   async read(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     await this.db.withTenant(req.user.tenantId, (c) =>
@@ -399,6 +478,17 @@ export class InboxController {
 
   // ---------------------------------------------------------------- state changes
 
+  private async assertConversationOwner(req: AuthedRequest, id: string, managerOverride = false) {
+    return this.db.withTenant(req.user.tenantId, async (c) => {
+      const row = (await c.query('SELECT assigned_to FROM conversations WHERE id=$1 FOR UPDATE', [id])).rows[0];
+      if (!row) throw new NotFoundException('Conversation not found');
+      if (row.assigned_to && row.assigned_to !== req.user.userId &&
+          !(managerOverride && ['owner', 'admin'].includes(req.user.role))) {
+        throw new ConflictException({ code: 'CONVERSATION_OWNED', message: 'This conversation is owned by another teammate. Request an explicit reassignment before replying.' });
+      }
+    });
+  }
+
   @Patch('conversations/:id')
   async update(
     @Req() req: AuthedRequest,
@@ -407,6 +497,9 @@ export class InboxController {
   ) {
     return this.db.conversation(req.user.tenantId, id, async () => {
       const p = parse(patchSchema, body);
+      await this.assertConversationOwner(req, id, true);
+      if (req.user.role === 'agent' && p.assignedTo && p.assignedTo !== req.user.userId)
+        throw new ForbiddenException('Only managers can assign another teammate');
       const out = await this.db.withTenant(req.user.tenantId, async (c) => {
         const cur = (
           await c.query('SELECT status, handled_by, assigned_to FROM conversations WHERE id = $1', [
@@ -449,9 +542,9 @@ export class InboxController {
             p.departmentId,
           ]);
         if (p.assignedTo) {
-          const m = await c.query('SELECT 1 FROM memberships WHERE user_id = $1', [p.assignedTo]);
+          const m = await c.query('SELECT 1 FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.user_id=$1 AND u.disabled_at IS NULL FOR SHARE OF m,u', [p.assignedTo]);
           if (!m.rowCount)
-            throw new BadRequestException('Assignee is not a member of this workspace');
+            throw new BadRequestException('Assignee must be an active member of this workspace');
         }
         const r = await c.query(
           `UPDATE conversations SET status = COALESCE($2, status), handled_by = COALESCE($3, handled_by),
@@ -494,6 +587,7 @@ export class InboxController {
   @Post('conversations/:id/takeover')
   async takeover(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.db.conversation(req.user.tenantId, id, async () => {
+      await this.assertConversationOwner(req, id, true);
       const out = await this.db.withTenant(req.user.tenantId, async (c) => {
         const r = await c.query(
           "UPDATE conversations SET handled_by = 'human', assigned_to = $2, status = 'open' WHERE id = $1 RETURNING id, status, handled_by, assigned_to",
@@ -512,6 +606,7 @@ export class InboxController {
   @Post('conversations/:id/release')
   async release(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.db.conversation(req.user.tenantId, id, async () => {
+      await this.assertConversationOwner(req, id, true);
       const out = await this.db.withTenant(req.user.tenantId, async (c) => {
         const r = await c.query(
           "UPDATE conversations SET handled_by = 'bot', assigned_to = NULL, status = 'open' WHERE id = $1 RETURNING id, status, handled_by, assigned_to",
