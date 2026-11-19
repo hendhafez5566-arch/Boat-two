@@ -1,3 +1,5 @@
+> Current checkpoint (2026-11-19): [verified implementation and acceptance](launch/IMPLEMENTATION_20261119.md). New SLA/CRM/HTTP/locking repairs passed real PostgreSQL acceptance. Live catalog accepted; new API remains undeployed pending current-file inventory/backup. Older versions below are historical; full software/pilot/commercial readiness is not declared.
+
 # P0 commercial readiness — 2026-11-18
 
 Launch verdict: **NOT READY**. No requirement is fully accepted merely because code or an old test exists.

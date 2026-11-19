@@ -1,3 +1,5 @@
+> Current checkpoint (2026-11-19): [verified implementation and acceptance](launch/IMPLEMENTATION_20261119.md). New SLA/CRM/HTTP/locking repairs passed real PostgreSQL acceptance. Live catalog accepted; new API remains undeployed pending current-file inventory/backup. Older versions below are historical; full software/pilot/commercial readiness is not declared.
+
 # P1 reliability and professional UX
 
 Current independent product source checkpoint: PR14 `a30cebae9c4884a5b72596237419e8408d3b6985`. Accepted live reference remains69c57c8; no new Railway deployment. Historical baseline4db58a2/3cdb26b is not permission to roll back away lifecycle security. See the latest checkpoint below.

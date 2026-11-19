@@ -1,3 +1,5 @@
+> Current checkpoint (2026-11-19): [verified implementation and acceptance](docs/launch/IMPLEMENTATION_20261119.md). New SLA/CRM/HTTP/locking repairs passed real PostgreSQL acceptance. Live catalog accepted; new API remains undeployed pending current-file inventory/backup. Older versions below are historical; full software/pilot/commercial readiness is not declared.
+
 # Accepted PR #14 UX delivery — 2026-11-15, completed real Preview verification
 
 ## Guided interactive-reply automation — ACCEPTED
