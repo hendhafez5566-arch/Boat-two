@@ -1,3 +1,5 @@
+import { normalizeDigits } from './text';
+
 /** Public Google Sheet support: URL parsing, CSV parsing and row lookup. Pure functions, no I/O. */
 
 export interface SheetRef {
@@ -78,8 +80,11 @@ const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
 /** Phone-ish values compare by digits so "+20 100-123" matches "20100123". */
 function same(a: string, b: string): boolean {
   if (norm(a) === norm(b)) return true;
-  const da = a.replace(/\D/g, '');
-  const db = b.replace(/\D/g, '');
+  const phoneA = normalizeDigits(a).trim();
+  const phoneB = normalizeDigits(b).trim();
+  if (!/^[+\d\s().-]+$/.test(phoneA) || !/^[+\d\s().-]+$/.test(phoneB)) return false;
+  const da = phoneA.replace(/\D/g, '');
+  const db = phoneB.replace(/\D/g, '');
   return da.length >= 6 && da === db;
 }
 
@@ -97,6 +102,8 @@ export function lookupRow(rows: string[][], column: string | undefined, value: s
   const data = rows.slice(1);
   const toObj = (r: string[]) => Object.fromEntries(headers.map((h, i) => [h, r[i] ?? '']));
   if (!column?.trim()) return { headers, row: data[0] ? toObj(data[0]) : null, index: data[0] ? 1 : 0, total: data.length };
+  // An unresolved lookup must not select another customer's empty-key row.
+  if (!value.trim()) return { headers, row: null, index: 0, total: data.length };
   const col = headers.findIndex((h) => norm(h) === norm(column));
   if (col < 0) return { headers, row: null, index: 0, total: data.length };
   const at = data.findIndex((r) => same(r[col] ?? '', value));
