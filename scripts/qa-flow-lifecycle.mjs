@@ -23,7 +23,7 @@ const bot=await api('/flows',token,{name:'Lifecycle bot',channelIds:[channel.id]
 await save(bot.id,{startNodeId:'c'.repeat(60),nodes:[node('c'.repeat(60),'subflow',{flowId:component.id},{next:'message'}),node('message','message',{text:'Published lifecycle baseline'})]});await publish(bot.id);assert.equal(await active(),bot.id);
 assert.equal((await call('/flows/'+component.id+'/duplicate',agent.accessToken,{})).status,403);
 assert.equal((await call('/flows/'+component.id+'/duplicate',foreign.accessToken,{})).status,404);
-const copied=await api('/flows/'+component.id+'/duplicate',admin.accessToken,{});
+const copyResult=await api('/flows/'+component.id+'/duplicate',admin.accessToken,{}),copied=await api('/flows/'+copyResult.id,token);
 assert.equal(copied.is_component,true);assert.equal(copied.folder_name,'Synthetic components');assert.equal(copied.status,'draft');assert.equal(copied.published_version_id,null);
 assert.deepEqual((await api('/flows/'+copied.id,token)).draft_graph,(await api('/flows/'+component.id,token)).draft_graph);
 await publish(copied.id,admin.accessToken);assert.equal(await active(),bot.id,'component copy publication cannot replace a live channel bot');
@@ -34,7 +34,7 @@ assert.deepEqual(await api('/flows/'+bot.id+'/versions',token),versions);assert.
 assert.equal((await call('/flows/'+bot.id+'/versions/'+versions[0].id+'/restore',agent.accessToken,{expectedUpdatedAt:dirty.updated_at})).status,403);
 await api('/flows/'+bot.id+'/versions/'+versions[0].id+'/restore',admin.accessToken,{expectedUpdatedAt:dirty.updated_at});
 const restoredGraph=(await api('/flows/'+bot.id,token)).draft_graph;assert.equal(restoredGraph.nodes.find(n=>n.id==='message').data.text,'Published lifecycle baseline');assert.ok(restoredGraph.nodes.every(n=>n.id.length<=60));await save(bot.id,restoredGraph);assert.equal(await active(),bot.id,'restoring and saving draft does not change publication');
-const botCopy=await api('/flows/'+bot.id+'/duplicate',token,{});assert.equal(botCopy.is_component,false);await publish(botCopy.id);assert.equal(await active(),botCopy.id);
+const botCopy=await api('/flows/'+bot.id+'/duplicate',token,{});assert.equal((await api('/flows/'+botCopy.id,token)).is_component,false);await publish(botCopy.id);assert.equal(await active(),botCopy.id);
 assert.equal((await call('/flows/'+botCopy.id,agent.accessToken,undefined,'DELETE')).status,403);
 assert.equal((await call('/flows/'+botCopy.id,foreign.accessToken,undefined,'DELETE')).status,404);assert.equal(await active(),botCopy.id);
 await api('/flows/'+bot.id,token,undefined,'DELETE');assert.equal(await active(),botCopy.id,'deleting inactive bot must preserve another active selection');
