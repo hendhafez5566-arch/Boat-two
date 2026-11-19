@@ -705,7 +705,12 @@ export class FlowEngine {
         return { kind: 'goto', handle: 'next' };
       }
       case 'appointment': {
-        if (!this.deps.bookAppointment) throw new RunError('Appointment adapter unavailable');
+        delete state.vars[d.saveAs || 'appointment'];
+        delete state.vars.appointment_error;
+        if (!this.deps.bookAppointment) {
+          state.vars.appointment_error = 'Appointment adapter unavailable';
+          return { kind: 'goto', handle: 'error' };
+        }
         try {
           state.vars[d.saveAs || 'appointment'] = await this.deps.bookAppointment(
             d.serviceId,
