@@ -11,7 +11,9 @@ async function api(path,token,body,method=body?'POST':'GET'){
 const owner=await api('/auth/register',null,{email:uuid()+'@example.test',password:'Synthetic-'+uuid(),fullName:'Sequence routing QA',workspaceName:'Isolated sequence fallback'});
 const token=owner.accessToken,channel=await api('/channels',token,{type:'web',name:'Sequence routing'});
 const node=(id,type,data,edges={})=>({id,type,data,edges,position:{x:0,y:0}});
-const graph={startNodeId:'sequence',nodes:[
+const graph={startNodeId:'amount',nodes:[
+ node('amount','set_variable',{assignments:[{name:'amount',operation:'set',value:'100'}]},{next:'threshold'}),
+ node('threshold','condition',{rules:[{id:'higher',conditions:[{source:'variable',key:'amount',operator:'greater_than',value:'{{missing_threshold}}'}]}]},{'rule:higher':'bad',else:'sequence'}),
  node('sequence','sequence',{sequenceId:uuid()},{next:'bad',error:'fallback'}),
  node('bad','message',{text:'MUST-NOT-CLAIM-ENROLLMENT'}),
  node('fallback','message',{text:'Sequence unavailable: contact staff'}),
@@ -32,5 +34,5 @@ for(let attempt=0;attempt<100;attempt++){
 }
 assert.equal(history.messages.filter(m=>m.content?.text==='Sequence unavailable: contact staff').length,1);
 assert.ok(!JSON.stringify(history).includes('MUST-NOT-CLAIM-ENROLLMENT'));
-writeFileSync('docs/p0-evidence/sequence-error-runtime.json',JSON.stringify({status:'PASS',checks:['draft save and reopen retain both connectors','published missing sequence triggers actual service failure','exactly one fallback reply','success branch not executed'],scope:'isolated API and published Webchat runtime; no provider delivery or sequence worker acceptance'},null,2)+'\n');
+writeFileSync('docs/p0-evidence/sequence-error-runtime.json',JSON.stringify({status:'PASS',checks:['draft save and reopen retain both connectors','published missing sequence triggers actual service failure','exactly one fallback reply','success branch not executed','unresolved numeric threshold takes else rather than fabricated zero'],scope:'isolated API and published Webchat runtime; no provider delivery or sequence worker acceptance'},null,2)+'\n');
 console.log('PASS sequence draft/reopen/publish and actual enrollment failure fallback');

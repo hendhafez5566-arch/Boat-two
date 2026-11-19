@@ -38,7 +38,11 @@ export interface Operands {
 }
 
 const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
-const num = (v: unknown) => Number(normalizeDigits(str(v)).replace(/,/g, '').trim());
+const num = (v: unknown) => {
+  const text = normalizeDigits(str(v)).replace(/,/g, '').trim();
+  const value = text ? Number(text) : NaN;
+  return Number.isFinite(value) ? value : NaN;
+};
 const isSet = (v: unknown) => v !== null && v !== undefined && str(v) !== '';
 
 function operand(c: Condition, o: Operands): unknown {
