@@ -145,7 +145,7 @@ export function ContactEditor({
           {t('بيانات التواصل', 'Contact information')}
         </legend>
         <div className={styles.grid}>
-          <label>
+          <label data-wide>
             {t('اسم العميل', 'Customer name')}
             <input
               autoFocus

@@ -182,7 +182,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
       active = false;
     };
   }, []);
-  const [viewMode, setViewMode] = useState('list');
+  const [viewMode, setViewMode] = useState('grid');
   const [sort, setSort] = useState('latest');
   const [pageSize, setPageSize] = useState(10);
   const filter = new URLSearchParams({
@@ -621,7 +621,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
           >
             {(
               [
-                ['total', t('إجمالي المشتركين', 'Total Subscribers')],
+                ['total', t('العملاء', 'Customers')],
                 ['retained', t('النشطون', 'Retained')],
                 ['subscribed', t('موافقة تسويق موثقة', 'Marketing Opt-ins')],
                 ['in_sequences', t('في تسلسلات نشطة', 'In Active Sequences')],
@@ -925,12 +925,17 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                         </td>
                         <td>
                           <div className={styles.identity}>
-                            <span className={styles.rowAvatar} aria-hidden="true">
+                            <span
+                              className={styles.rowAvatar}
+                              data-customer-avatar
+                              aria-hidden="true"
+                            >
                               {c.name.slice(0, 2)}
                             </span>
                             <div>
                               <button
                                 className={styles.subscriberName}
+                                data-customer-name
                                 onClick={() => {
                                   setSelected(c);
                                 }}
@@ -941,7 +946,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                                 <small dir="ltr">{c.phone || c.email || '—'}</small>
                               )}
                               {cols.includes('tags') && (
-                                <div className={styles.inlineTags}>
+                                <div className={styles.inlineTags} data-customer-tags>
                                   {c.tags.map((x) => (
                                     <button
                                       type="button"
@@ -962,7 +967,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                           </div>
                         </td>
                         <td>
-                          <div className={styles.statePills}>
+                          <div className={styles.statePills} data-customer-state>
                             <span data-tone={c.archived_at ? 'muted' : 'green'}>
                               {c.archived_at ? t('مؤرشف', 'Archived') : t('نشط', 'Retained')}
                             </span>
@@ -991,7 +996,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                           </div>
                         </td>
                         <td>
-                          <div className={styles.rowActions}>
+                          <div className={styles.rowActions} data-customer-actions>
                             <button
                               type="button"
                               className="btn"
