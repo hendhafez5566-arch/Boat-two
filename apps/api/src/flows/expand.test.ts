@@ -72,3 +72,15 @@ test('expanded node limit applies even when ordinary nodes follow the component'
   assert.equal((await expandSubflows(sized(298),async()=>single)).nodes.length,300);
   await assert.rejects(expandSubflows(sized(299),async()=>single),/exceeds 300 nodes/);
 });
+
+test('expanded component IDs remain valid for export, restore and editor save', async () => {
+  const {graphSchema}=await import('./flow-schemas');
+  const long='n'.repeat(60),childEnd='e'.repeat(60);
+  const expanded=await expandSubflows({startNodeId:long,nodes:[
+    {id:long,type:'subflow',data:{flowId:'child'},edges:{}},
+  ]},async()=>({startNodeId:childEnd,nodes:[{id:childEnd,type:'end',data:{},edges:{}}]}));
+  assert.ok(graphSchema.safeParse(expanded).success,'published graph must remain editable after restore');
+  assert.equal(new Set(expanded.nodes.map(n=>n.id)).size,expanded.nodes.length);
+  assert.equal(validateGraph(expanded).errors.length,0);
+  assert.deepEqual(expanded,await expandSubflows({startNodeId:long,nodes:[{id:long,type:'subflow',data:{flowId:'child'},edges:{}}]},async()=>({startNodeId:childEnd,nodes:[{id:childEnd,type:'end',data:{},edges:{}}]})),'scoped IDs must be deterministic');
+});
