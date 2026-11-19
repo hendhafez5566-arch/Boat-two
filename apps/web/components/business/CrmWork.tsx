@@ -439,12 +439,6 @@ export function CrmWork({
         </div>
       ) : deals && view === 'board' && !allPipelines ? (
         <>
-          <p className={styles.hint}>
-            {t(
-              'اسحب الفرصة بين المراحل أو اختر المرحلة من بطاقتها. تعرض اللوحة الصفحة الحالية فقط.',
-              'Drag opportunities between stages, or use the stage selector. The board displays the current page only.',
-            )}
-          </p>
           <div className={styles.board}>
             {selectedPipeline?.stages.map((stage) => (
               <section
