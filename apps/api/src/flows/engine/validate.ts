@@ -126,6 +126,7 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
         break;
       case 'sequence':
         if (!d.sequenceId) errors.push({ nodeId: n.id, message: 'Choose a sequence' });
+        if (!n.edges?.error) warnings.push({ nodeId: n.id, message: 'Connect the sequence error output to handle unavailable enrollment' });
         break;
       case 'template':
         if (!/^[a-z0-9_]{1,512}$/.test(d.name ?? ''))

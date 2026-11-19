@@ -818,14 +818,17 @@ export class FlowEngine {
       }
 
       case 'sequence': {
-        if (d.sequenceId && this.deps.enrollSequence) {
-          try {
-            await this.deps.enrollSequence(String(d.sequenceId));
-          } catch {
-            /* لا نوقف المحادثة إذا فشل التسجيل (مثلاً بدون موافقة تسويقية) */
-          }
+        try {
+          if (!d.sequenceId || !this.deps.enrollSequence)
+            throw new RunError('Sequence enrollment unavailable');
+          // enrolled:false means the contact is already active, not a failure.
+          await this.deps.enrollSequence(String(d.sequenceId));
+          return { kind: 'goto', handle: 'next' };
+        } catch {
+          if (node.edges.error) return { kind: 'goto', handle: 'error' };
+          // Do not claim successful enrollment or expose provider diagnostics.
+          throw new RunError('Sequence enrollment failed; connect the error output');
         }
-        return { kind: 'goto', handle: 'next' };
       }
 
       case 'image':

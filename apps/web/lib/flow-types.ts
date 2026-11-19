@@ -396,6 +396,11 @@ export function handlesFor(
         })),
         { id: 'else', label: 'غير ذلك' },
       ];
+    case 'sequence':
+      return [
+        { id: 'next', label: 'التالي' },
+        { id: 'error', label: 'خطأ' },
+      ];
     case 'http_request':
       return [
         { id: 'success', label: 'نجاح' },

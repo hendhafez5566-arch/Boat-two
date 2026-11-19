@@ -699,8 +699,8 @@ export default function Inspector({
           <F
             label={t('التسلسل', 'Sequence')}
             hint={t(
-              'يتطلب قناة واتساب أو ماسنجر أو إنستجرام مرتبطة بالعميل. تُفحص الموافقة التسويقية قبل الإرسال؛ إذا تعذر الاشتراك يكمل البوت المسار.',
-              'Requires a WhatsApp, Messenger or Instagram identity linked to the contact. Marketing consent is checked before delivery; if enrollment is unavailable, the bot continues.',
+              'يتطلب قناة واتساب أو ماسنجر أو إنستجرام مرتبطة بالعميل. تُفحص الموافقة التسويقية قبل الإرسال. وصّل مخرج الخطأ برسالة بديلة أو تحويل لموظف إذا تعذر الاشتراك.',
+              'Requires a WhatsApp, Messenger or Instagram identity linked to the contact. Marketing consent is checked before delivery. Connect the error output to a fallback message or handoff if enrollment fails.',
             )}
           >
             <Sel

@@ -862,7 +862,7 @@ test('validate: new nodes require their key fields', () => {
   assert.equal(errors.length, 3);
 });
 
-test('sequence node enrolls the contact and continues; failures do not stop the flow', async () => {
+test('sequence node does not continue to success after unhandled enrollment failure', async () => {
   const g: FlowGraph = {
     startNodeId: 'a',
     nodes: [
@@ -877,9 +877,9 @@ test('sequence node enrolls the contact and continues; failures do not stop the 
     throw new Error('no consent');
   };
   const res = await h.engine.start(h.ctx, newState());
-  assert.equal(res.status, 'completed');
+  assert.equal(res.status, 'error');
   assert.deepEqual(enrolled, ['11111111-1111-1111-1111-111111111111']);
-  assert.equal(h.sent[0].text, 'done');
+  assert.deepEqual(h.sent, []);
 });
 
 // ------------------------------------------------------------- user input flow (chain of questions)
