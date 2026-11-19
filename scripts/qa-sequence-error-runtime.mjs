@@ -21,7 +21,7 @@ const graph={startNodeId:'amount',nodes:[
 let flow=await api('/flows',token,{name:'Sequence unavailable fallback',channelIds:[channel.id]});
 flow=await api('/flows/'+flow.id,token,{graph,expectedUpdatedAt:flow.updated_at},'PATCH');
 const reopened=await api('/flows/'+flow.id,token);
-assert.deepEqual(reopened.graph.nodes.find(n=>n.id==='sequence').edges,{next:'bad',error:'fallback'});
+assert.deepEqual(reopened.draft_graph.nodes.find(n=>n.id==='sequence').edges,{next:'bad',error:'fallback'});
 await api('/flows/'+flow.id+'/publish',token,{expectedUpdatedAt:flow.updated_at});
 const visitor=await api('/widget/'+channel.external_id+'/session',null,{});
 const path='/widget/'+channel.external_id+'/messages?visitorId='+visitor.visitorId;
