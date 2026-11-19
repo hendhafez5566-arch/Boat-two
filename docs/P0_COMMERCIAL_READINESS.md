@@ -1,3 +1,5 @@
+> Latest P0-03 scoped closeout (2026-11-19): [flow lifecycle evidence](launch/FLOW_LIFECYCLE_CLOSEOUT_20261119.md). The specific copy/delete, bounded component expansion, editable long-ID versions and responsive restore/republish acceptance rows are DONE — VERIFIED. Parent P0-03 remains PARTIAL for the separately listed advanced/provider permutations. Do not repeat these accepted rows without a relevant change. Deployment/file-safety gates remain open.
+
 > Current checkpoint (2026-11-19): [verified implementation and acceptance](launch/IMPLEMENTATION_20261119.md). New SLA/CRM/HTTP/locking repairs passed real PostgreSQL acceptance. Live catalog accepted; new API remains undeployed pending current-file inventory/backup. Older versions below are historical; full software/pilot/commercial readiness is not declared.
 
 # P0 commercial readiness — 2026-11-18
