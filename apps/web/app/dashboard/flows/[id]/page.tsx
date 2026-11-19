@@ -1775,29 +1775,47 @@ function Editor({ id }: { id: string }) {
         onClose={() => setShowVersions(false)}
         title={t('الإصدارات المنشورة', 'Published versions')}
       >
-        <div className="border-b bg-white p-3 text-sm flex flex-wrap items-center gap-3">
-          <strong>{t('الإصدارات المنشورة', 'Published versions')}</strong>
-          {!versions.length && (
-            <span>{t('لا توجد إصدارات منشورة بعد.', 'No published versions yet.')}</span>
-          )}
-          {versions.map((v) => (
-            <button
-              className="rounded border px-2 py-1"
-              key={v.id}
-              disabled={busy}
-              onClick={() => restoreVersion(v.id)}
-            >
-              {t('استعادة', 'Restore')} v{v.version} {t('إلى المسودة', 'to draft')} ·{' '}
-              {new Date(v.created_at).toLocaleDateString(language === 'ar' ? 'ar' : 'en')}
-            </button>
-          ))}
-          <button onClick={() => setShowVersions(false)}>{t('إغلاق', 'Close')} ×</button>
-          <small>
+        <div className={styles.versionsPanel}>
+          <p className={styles.versionHint}>
             {t(
               'الاستعادة لا تغيّر الإصدار المنشور حتى تضغط نشر.',
               'Restoring changes the draft; publish to replace the live version.',
             )}
-          </small>
+          </p>
+          {!versions.length && (
+            <p className={styles.versionHint}>
+              {t('لا توجد إصدارات منشورة بعد.', 'No published versions yet.')}
+            </p>
+          )}
+          <ol className={styles.versionList}>
+            {versions.map((v) => (
+              <li className={styles.versionItem} key={v.id}>
+                <div className={styles.versionIdentity}>
+                  <div className={styles.versionHeading}>
+                    <strong dir="ltr">v{v.version}</strong>
+                    {v.version === meta.version && (
+                      <span className={styles.liveVersion}>
+                        {t('الإصدار المنشور حاليًا', 'Current live version')}
+                      </span>
+                    )}
+                  </div>
+                  <time dateTime={v.created_at}>
+                    {new Date(v.created_at).toLocaleString(language === 'ar' ? 'ar' : 'en', {
+                      dateStyle: 'medium', timeStyle: 'short',
+                    })}
+                  </time>
+                </div>
+                <button
+                  type="button"
+                  className={styles.versionRestore}
+                  disabled={busy}
+                  onClick={() => restoreVersion(v.id)}
+                >
+                  {t('استعادة', 'Restore')} v{v.version} {t('إلى المسودة', 'to draft')}
+                </button>
+              </li>
+            ))}
+          </ol>
         </div>
       </Dialog>
       <Dialog

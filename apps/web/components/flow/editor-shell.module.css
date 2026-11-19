@@ -1335,3 +1335,17 @@
     min-height: 96px;
   }
 }
+
+.versionsPanel { padding: 18px 22px 22px; }
+.versionHint { margin: 0 0 16px; color: #46566d; font-size: 14px; line-height: 1.7; }
+.versionList { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.versionItem { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px; border: 1px solid #dce4ef; border-radius: 12px; background: #f9fbfd; }
+.versionIdentity { display: grid; gap: 6px; min-width: 0; }
+.versionIdentity time { color: #53647b; font-size: 13px; line-height: 1.5; }
+.versionHeading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: #1c334e; }
+.liveVersion { padding: 3px 8px; border-radius: 20px; color: #176347; background: #e6f5ed; font-size: 12px; font-weight: 600; }
+.versionRestore { flex-shrink: 0; min-height: 42px; padding: 8px 14px; border: 1px solid #d4dcf3; border-radius: 10px; background: #eef2ff; color: #3846a4; cursor: pointer; font: inherit; font-size: 14px; font-weight: 600; }
+.versionRestore:hover { background: #e3e9ff; }
+.versionRestore:focus-visible { outline: 3px solid #8594ed; outline-offset: 2px; }
+.versionRestore:disabled { cursor: wait; opacity: .65; }
+@media (max-width: 480px) { .versionsPanel { padding: 16px; } .versionItem { align-items: stretch; flex-direction: column; gap: 12px; } .versionRestore { width: 100%; } }
