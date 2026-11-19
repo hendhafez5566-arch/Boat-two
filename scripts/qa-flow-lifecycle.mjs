@@ -24,7 +24,7 @@ await save(bot.id,{startNodeId:'c'.repeat(60),nodes:[node('c'.repeat(60),'subflo
 assert.equal((await call('/flows/'+component.id+'/duplicate',agent.accessToken,{})).status,403);
 assert.equal((await call('/flows/'+component.id+'/duplicate',foreign.accessToken,{})).status,404);
 const copyResult=await api('/flows/'+component.id+'/duplicate',admin.accessToken,{}),copied=await api('/flows/'+copyResult.id,token);
-assert.equal(copied.is_component,true);assert.equal(copied.folder_name,'Synthetic components');assert.equal(copied.status,'draft');assert.equal(copied.published_version_id,null);
+assert.equal(copied.is_component,true);assert.equal(copyResult.folder_name,'Synthetic components');assert.equal(copied.status,'draft');assert.equal(copyResult.published_version_id,null);
 assert.deepEqual((await api('/flows/'+copied.id,token)).draft_graph,(await api('/flows/'+component.id,token)).draft_graph);
 await publish(copied.id,admin.accessToken);assert.equal(await active(),bot.id,'component copy publication cannot replace a live channel bot');
 const versions=await api('/flows/'+bot.id+'/versions',token);
