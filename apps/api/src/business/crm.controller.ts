@@ -84,7 +84,13 @@ export class CrmController {
     });
   }
   @Post('contacts') create(@Req() r: AuthedRequest, @Body() body: unknown) {
-    return this.crm.save(r.user.tenantId, parse(contactSchema, body));
+    const input = parse(contactSchema, body);
+    if (r.user.role === 'agent') {
+      if (input.ownerId && input.ownerId !== r.user.userId)
+        throw new ForbiddenException('Only managers may assign another employee');
+      input.ownerId = r.user.userId;
+    }
+    return this.crm.save(r.user.tenantId, input);
   }
   @Post('contacts/bulk') @Roles('owner', 'admin') bulkContacts(
     @Req() r: AuthedRequest,
@@ -167,7 +173,16 @@ export class CrmController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: unknown,
   ) {
-    return this.crm.save(r.user.tenantId, parse(contactSchema, body), id);
+    const input = parse(contactSchema, body);
+    return this.crm.db.withTenant(r.user.tenantId, async (c) => {
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+      const current = (await c.query('SELECT owner_id FROM contacts WHERE id=$1 FOR UPDATE', [id])).rows[0];
+      if (!current) throw new NotFoundException('Contact not found');
+      if (r.user.role === 'agent' && input.ownerId !== undefined && input.ownerId !== current.owner_id)
+        throw new ForbiddenException('Only managers may reassign a contact');
+      if (input.ownerId === undefined) input.ownerId = current.owner_id;
+      return this.crm.save(r.user.tenantId, input, id);
+    });
   }
   @Patch('contacts/:id/archive') @Roles('owner', 'admin') archive(
     @Req() r: AuthedRequest,

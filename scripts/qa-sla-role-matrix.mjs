@@ -62,6 +62,20 @@ try {
  assert.equal((await adminDb.query('SELECT count(*)::int n FROM crm_notifications WHERE tenant_id=$1 AND user_id=$2',[tenant,disabled.id])).rows[0].n,0);
  // CRM mutations use the same active-member boundary, with no partial updates.
  const pipeline=await request('/crm/pipelines',owner.accessToken,{name:'Synthetic ownership pipeline',stages:['new','done']});
+ const contactVersion=await request('/crm/contacts/'+stale.contact,owner.accessToken);
+ const overviewBody={expectedContactUpdatedAt:contactVersion.updated_at,expectedDealId:null,expectedDealUpdatedAt:null,leadScore:null,source:null,deal:{pipelineId:pipeline.id,stage:'new',title:'MUST NOT CREATE',valueCents:1,currency:'EGP',expectedClose:null,ownerId:disabled.id}};
+ for(const id of [disabled.id,foreignId]){
+  await request('/crm/contacts',owner.accessToken,{name:'MUST NOT CREATE',ownerId:id},'POST',400);
+  await request('/crm/contacts/'+stale.contact+'/profile',owner.accessToken,{ownerId:id,name:'MUST NOT CHANGE',expectedUpdatedAt:contactVersion.updated_at},'PATCH',400);
+  await request('/crm/contacts/'+stale.contact+'/overview',owner.accessToken,{...overviewBody,deal:{...overviewBody.deal,ownerId:id}},'PATCH',400);
+ }
+ const agentContact=await request('/crm/contacts',previous.accessToken,{name:'Agent-created synthetic contact'});
+ assert.equal(agentContact.owner_id,previous.id);
+ await request('/crm/contacts',previous.accessToken,{name:'MUST NOT CREATE',ownerId:target.id},'POST',403);
+ await request('/crm/contacts/'+agentContact.id,previous.accessToken,{name:agentContact.name,ownerId:target.id},'PATCH',403);
+ await request('/crm/contacts/'+agentContact.id,previous.accessToken,{name:agentContact.name,ownerId:null},'PATCH',403);
+ await request('/crm/contacts/'+agentContact.id,previous.accessToken,{name:'Agent rename keeps owner'},'PATCH');
+ assert.equal((await request('/crm/contacts/'+agentContact.id,owner.accessToken)).owner_id,previous.id);
  const taskBody={contactId:stale.contact,title:'Synthetic active task',dueAt:new Date(Date.now()+86400000).toISOString(),assignedTo:target.id};
  const dealBody={contactId:stale.contact,pipelineId:pipeline.id,title:'Synthetic active deal',stage:'new',valueCents:12345,currency:'EGP',ownerId:target.id};
  const task=await request('/crm/tasks',owner.accessToken,taskBody),deal=await request('/crm/deals',owner.accessToken,dealBody);
@@ -86,5 +100,5 @@ try {
  await request('/crm/deals/'+deal.id,previous.accessToken,{ownerId:target.id},'PATCH',403);
  await request('/crm/tasks/'+task.id,foreign.accessToken,{status:'done'},'PATCH',404);
  await request('/crm/deals/'+deal.id,foreign.accessToken,{status:'won'},'PATCH',404);
- mkdirSync('docs/p0-evidence/sla-role-matrix',{recursive:true});writeFileSync('docs/p0-evidence/sla-role-matrix/results.json',JSON.stringify({status:'PASS',database:'real PostgreSQL',roles:['owner','admin','agent'],checks:['failed and queued sends do not suppress SLA or awaiting-reply alerts','internal and inbound events do not count as successful employee replies','sent delivered read suppress escalation','only active tenant managers and current assignee receive SLA alerts','fresh worker deduplicates events and alerts','manual assignment and new escalation target reject disabled or foreign members without mutation','agent assignment restrictions and manager reassignment preserved','stale disabled target falls back to current assignee','generic CRM notifications exclude disabled users','CRM task/deal create and update, bulk contact and pipeline ownership reject disabled or foreign members atomically','active admin reassignment and agent/foreign denial retained'],notClaimed:['full endpoint audit','official provider transport','Production SLA or customer file inventory']},null,2)+'\n');console.log('PASS real PostgreSQL SLA status, recipient and assignment-role matrix');
+ mkdirSync('docs/p0-evidence/sla-role-matrix',{recursive:true});writeFileSync('docs/p0-evidence/sla-role-matrix/results.json',JSON.stringify({status:'PASS',database:'real PostgreSQL',roles:['owner','admin','agent'],checks:['failed and queued sends do not suppress SLA or awaiting-reply alerts','internal and inbound events do not count as successful employee replies','sent delivered read suppress escalation','only active tenant managers and current assignee receive SLA alerts','fresh worker deduplicates events and alerts','manual assignment and new escalation target reject disabled or foreign members without mutation','agent assignment restrictions and manager reassignment preserved','stale disabled target falls back to current assignee','generic CRM notifications exclude disabled users','CRM task/deal create and update, bulk contact and pipeline ownership reject disabled or foreign members atomically','active admin reassignment and agent/foreign denial retained','direct contact creation, profile and overview reject disabled owners','agents cannot bypass contact-owner controls with direct PATCH or clear ownership by omitting fields'],notClaimed:['full endpoint audit','official provider transport','Production SLA or customer file inventory']},null,2)+'\n');console.log('PASS real PostgreSQL SLA status, recipient and assignment-role matrix');
 }finally{await db.onModuleDestroy();await adminDb.end();}
