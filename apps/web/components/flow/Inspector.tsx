@@ -1731,6 +1731,11 @@ export default function Inspector({
                 onChange={(e) => set({ connectionId: e.target.value || undefined })}
               >
                 <option value="">{t('رابط عام', 'Public link')}</option>
+                {data.connectionId && !googleConnections.some((c) => c.id === data.connectionId) && (
+                  <option value={data.connectionId} disabled>
+                    {t('حساب غير متاح — أعد الربط', 'Unavailable account — reconnect')}
+                  </option>
+                )}
                 {googleConnections.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -1738,6 +1743,11 @@ export default function Inspector({
                 ))}
               </select>
             </label>
+            {data.connectionId && !googleConnections.some((c) => c.id === data.connectionId) && (
+              <p role="status">
+                {t('الحساب الخاص المحفوظ غير متاح. أعد ربطه أو اختر حسابًا آخر.', 'The saved private account is unavailable. Reconnect it or choose another account.')}
+              </p>
+            )}
             {!data.connectionId && (
               <p role="note">
                 {t(
@@ -1756,6 +1766,7 @@ export default function Inspector({
                 </F>
               </>
             )}
+            {!data.connectionId && (
             <F
               label="رابط الشيت"
               hint="الشيت لازم يكون متاح لأي شخص معه الرابط (Anyone with the link). الصف الأول عناوين الأعمدة."
@@ -1767,6 +1778,7 @@ export default function Inspector({
                 ph="https://docs.google.com/spreadsheets/d/…"
               />
             </F>
+            )}
             <F label="عمود البحث" hint={t('اترك العمود فارغًا لإرجاع أول صف. عند اختيار عمود، لن تطابق قيمة البحث الفارغة أي صف.', 'Leave the column empty to return the first row. With a lookup column, an empty lookup value matches no row.')} >
               <In v={data.lookupColumn} on={(lookupColumn) => set({ lookupColumn })} ph="phone" />
             </F>
