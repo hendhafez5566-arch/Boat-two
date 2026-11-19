@@ -12,6 +12,7 @@ let pending;
 try{
  const session=await api('/auth/register',null,{email:uuid()+'@example.test',password:'Synthetic-'+uuid(),fullName:'Lock ordering QA',workspaceName:'Isolated lock ordering'}),tid=session.tenantId;
  const channel=await api('/channels',session.accessToken,{type:'web',name:'No external delivery'}),contact=(await admin.query("INSERT INTO contacts(tenant_id,name) VALUES($1,'Synthetic lock contact') RETURNING id",[tid])).rows[0].id;
+ await admin.query('INSERT INTO contact_channels(tenant_id,contact_id,channel_id,external_id) VALUES($1,$2,$3,$4)',[tid,contact,channel.id,'synthetic-lock-'+uuid()]);
  const cv=(await admin.query('INSERT INTO conversations(tenant_id,channel_id,contact_id) VALUES($1,$2,$3) RETURNING id',[tid,channel.id,contact])).rows[0].id;
  const worker=await admin.connect(),text='Exactly one reply '+uuid();
  try{
