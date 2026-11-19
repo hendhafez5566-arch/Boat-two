@@ -62,3 +62,13 @@ test('components cannot silently close the parent conversation', async () => {
     /cannot close/,
   );
 });
+
+test('expanded node limit applies even when ordinary nodes follow the component', async () => {
+  const single: FlowGraph = {startNodeId:'end',nodes:[{id:'end',type:'end',data:{},edges:{}}]};
+  const sized = (trailing:number):FlowGraph => ({startNodeId:'component',nodes:[
+    {id:'component',type:'subflow',data:{flowId:'child'},edges:{next:'node0'}},
+    ...Array.from({length:trailing},(_,i)=>({id:'node'+i,type:'message' as const,data:{text:'Message'},edges:{}})),
+  ]});
+  assert.equal((await expandSubflows(sized(298),async()=>single)).nodes.length,300);
+  await assert.rejects(expandSubflows(sized(299),async()=>single),/exceeds 300 nodes/);
+});

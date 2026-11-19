@@ -518,6 +518,11 @@ export class FlowsService {
     return this.db.withTenant(tenantId, async (c) => {
       const r = await c.query('DELETE FROM flows WHERE id = $1', [id]);
       if (!r.rowCount) throw new NotFoundException('Flow not found');
+      await c.query(
+        `UPDATE channels SET settings=settings-'activeBotFlowId'
+         WHERE settings->>'activeBotFlowId'=$1`,
+        [id],
+      );
       return { removed: true };
     });
   }
@@ -528,8 +533,8 @@ export class FlowsService {
       const n = (await c.query('SELECT count(*)::int AS n FROM flows')).rows[0].n;
       await this.plans.assertWithinLimit(c, 'flows', n);
       const r = await c.query(
-        `INSERT INTO flows (tenant_id, name, description, priority, triggers, channel_ids, draft_graph, created_by)
-         SELECT tenant_id, name || ' (copy)', description, priority, triggers, channel_ids, draft_graph, $2
+        `INSERT INTO flows (tenant_id, name, description, priority, triggers, channel_ids, draft_graph, is_component, folder_name, created_by)
+         SELECT tenant_id, name || ' (copy)', description, priority, triggers, channel_ids, draft_graph, is_component, folder_name, $2
          FROM flows WHERE id = $1 RETURNING ${LIST_COLS}`,
         [id, userId],
       );
