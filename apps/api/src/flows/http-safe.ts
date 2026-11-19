@@ -58,6 +58,7 @@ export function safeHttpRequest(spec: HttpRequestSpec): Promise<HttpResult> {
       return reject(new Error('Invalid URL'));
     }
     if (u.protocol !== 'http:' && u.protocol !== 'https:') return reject(new Error('Only http/https allowed'));
+    if (u.username || u.password) return reject(new Error('URL must not contain embedded credentials'));
     const host = u.hostname.replace(/^\[|\]$/g, '');
     if (net.isIP(host) && isBlockedIp(host)) return reject(new Error('Blocked address'));
 
@@ -80,12 +81,23 @@ export function safeHttpRequest(spec: HttpRequestSpec): Promise<HttpResult> {
       (res) => {
         const chunks: Buffer[] = [];
         let size = 0;
+        let interrupted = false;
+        res.on('error', (error) => { interrupted = true; reject(error); });
+        res.on('aborted', () => { interrupted = true; reject(new Error('Response interrupted')); });
         res.on('data', (c: Buffer) => {
           size += c.length;
-          if (size > MAX_BODY) return req.destroy(new Error('Response too large'));
+          if (interrupted) return;
+          if (size > MAX_BODY) {
+            interrupted = true;
+            const error = new Error('Response too large');
+            reject(error);
+            req.destroy(error);
+            return;
+          }
           chunks.push(c);
         });
         res.on('end', () => {
+          if (interrupted) return;
           const text = Buffer.concat(chunks).toString('utf8');
           let body: unknown = text;
           try {
