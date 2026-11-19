@@ -1,4 +1,6 @@
 const paths: Record<string, string> = {
+  grid: 'M3 3h7v7H3V3Zm11 0h7v7h-7V3ZM3 14h7v7H3v-7Zm11 0h7v7h-7v-7Z',
+  list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
   sort: 'M8 20V4m-4 4 4-4 4 4M16 4v16m-4-4 4 4 4-4',
   circleCheck: 'M8 12l3 3 5-6M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
   circleClose: 'm9 9 6 6M15 9l-6 6M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',

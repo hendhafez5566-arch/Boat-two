@@ -1,0 +1,521 @@
+.workspace {
+  --crm-accent: #5b52c9;
+  --crm-ink: #24334b;
+  --crm-muted: #61718a;
+  min-width: 0;
+  color: var(--crm-ink);
+  font-size: 14px;
+  line-height: 1.65;
+}
+.workspace :global(.btn),
+.editor :global(.btn) {
+  min-height: 42px;
+  border: 1px solid #dde4ef;
+  border-radius: 11px;
+  padding: 9px 14px;
+  background: #fff;
+  color: #43536f;
+  font-size: 14px;
+  font-weight: 650;
+  gap: 8px;
+  box-shadow: 0 2px 4px #22364f05;
+}
+.workspace :global(.btn-primary),
+.editor :global(.btn-primary) {
+  background: #5b52c9;
+  border-color: #5b52c9;
+  color: #fff;
+  box-shadow: 0 4px 10px #5b52c920;
+}
+.workspace :global(.btn:hover),
+.editor :global(.btn:hover) {
+  border-color: #b9b7e0;
+  background: #f5f4fd;
+}
+.workspace :global(.btn-primary:hover),
+.editor :global(.btn-primary:hover) {
+  background: #4b43b4;
+  color: #fff;
+}
+.workspace :is(input, select, textarea),
+.editor :is(input, select, textarea) {
+  accent-color: #5b52c9;
+}
+.workspace :focus-visible,
+.editor :focus-visible,
+.nav :focus-visible {
+  outline: 3px solid #9a98e5;
+  outline-offset: 3px;
+}
+.workspace :global(.btn svg),
+.editor :global(.btn svg) {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.heading {
+  padding: 8px 0 2px !important;
+  align-items: center;
+}
+.heading h1 {
+  display: flex;
+  gap: 13px;
+  align-items: center;
+  font: inherit;
+  font-size: 26px !important;
+  font-weight: 750;
+  margin: 0;
+  color: #25344f;
+}
+.headingIcon {
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  color: #5b52c9;
+  background: #eeecfb;
+  border: 1px solid #e4e0f9;
+}
+.headingIcon svg {
+  width: 24px;
+  height: 24px;
+}
+nav.nav {
+  position: relative;
+  padding: 6px;
+  border: 1px solid #e2e7f0;
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 3px 12px #293a6004;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+  overflow: visible;
+}
+nav.nav > a {
+  padding: 10px 13px;
+  min-height: 44px;
+  color: #5c6b82;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 10px;
+}
+nav.nav > a svg {
+  color: #7b88a1;
+  width: 18px;
+  height: 18px;
+}
+nav.nav > a[aria-current='page'] {
+  color: #5146b3;
+  background: #eeecfb;
+}
+nav.nav > a[aria-current='page'] svg {
+  color: #6255ce;
+}
+.moreNav {
+  position: relative;
+  margin-inline-start: auto;
+}
+.moreNav summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  color: #586983;
+  font-size: 14px;
+  cursor: pointer;
+}
+.moreNav summary::-webkit-details-marker {
+  display: none;
+}
+.moreNav summary svg {
+  width: 18px;
+  height: 18px;
+}
+.moreNav[open] summary {
+  background: #f3f2fb;
+  color: #5146b3;
+}
+.moreLinks {
+  position: absolute;
+  z-index: 55;
+  inset-inline-end: 0;
+  top: calc(100% + 10px);
+  width: 245px;
+  padding: 7px;
+  border: 1px solid #e1e6ef;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 12px 40px #24344d20;
+}
+nav.nav .moreLinks a {
+  white-space: normal;
+  font-size: 14px;
+  padding: 11px 12px;
+  min-height: 44px;
+}
+.searchBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid #e0e6ef;
+  border-radius: 14px;
+}
+.searchBar > svg {
+  width: 20px;
+  height: 20px;
+  color: #7b89a2;
+  flex-shrink: 0;
+}
+.searchBar input {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  border: 0 !important;
+  background: transparent;
+  box-shadow: none;
+  padding: 7px 0;
+  font-size: 14px;
+}
+.searchBar button {
+  flex-shrink: 0;
+}
+.filterPanel {
+  padding: 16px;
+  border: 1px solid #e2e7f0;
+  border-radius: 14px;
+  background: #fff;
+  display: grid;
+  gap: 14px;
+}
+.filterPanel[hidden] {
+  display: none !important;
+}
+.workspace [data-crm-customers] {
+  border: 1px solid #e0e6ef;
+  border-radius: 16px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 5px 18px #2a3e5c04;
+}
+.workspace [data-crm-customers] :global(.product-table) {
+  border-collapse: collapse;
+  width: 100%;
+}
+.workspace [data-crm-customers] :global(.product-table) th {
+  background: #f7f9fd;
+  color: #65748b;
+  font-size: 13px;
+  font-weight: 650;
+  padding: 14px 18px;
+  border-block: 1px solid #e9edf4;
+}
+.workspace [data-crm-customers] :global(.product-table) td {
+  padding: 17px 18px !important;
+  border-bottom: 1px solid #edf0f6;
+}
+.workspace [data-crm-customers] :global(.product-table) tbody tr:hover {
+  background: #fafaff;
+}
+.workspace [data-crm-customers] :global(.product-table) td:first-child {
+  width: 44px;
+}
+.workspace [data-crm-customers] :global(.product-table) td:last-child {
+  width: 205px;
+}
+.workspace [data-crm-customers] :global(.btn) {
+  min-height: 38px !important;
+  padding: 7px 10px !important;
+  font-size: 13px;
+}
+.workspace [data-crm-customers] :global(.btn svg) {
+  width: 16px;
+  height: 16px;
+}
+.workspace [data-crm-customers] input[type='checkbox'] {
+  width: 17px;
+  height: 17px;
+}
+.workCard {
+  position: relative;
+  border: 1px solid #e1e6ef;
+  border-radius: 16px;
+  padding: 19px;
+  background: #fff;
+  box-shadow: 0 4px 14px #24375905;
+}
+.workCard h3 {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #263a55;
+  margin: 12px 0 8px;
+}
+.workCard p {
+  font-size: 13px;
+  color: #63728a;
+}
+.workCard p a {
+  color: #4f5d91;
+  text-decoration: none;
+  font-weight: 600;
+}
+.workCard > strong {
+  padding: 12px 0;
+  font-size: 25px;
+  color: #334a65;
+  font-variant-numeric: tabular-nums;
+}
+.workCard > button:last-child {
+  margin-top: 12px;
+  width: 100%;
+  border-color: #dedcf1;
+  color: #5b52c9;
+  background: #f6f5fd;
+}
+.workCard[data-work-status='done'] > button:last-child {
+  background: #edf8f2;
+  border-color: #d8ece2;
+  color: #247657;
+}
+.workCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.workStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #536baa;
+  background: #eff3fc;
+  border-radius: 7px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 650;
+}
+.workStatus svg {
+  width: 14px;
+  height: 14px;
+}
+.workStatus[data-state='won'],
+.workStatus[data-state='done'] {
+  color: #28775b;
+  background: #e9f6ee;
+}
+.workStatus[data-state='lost'] {
+  color: #a44f59;
+  background: #fff0f1;
+}
+.editor {
+  padding: 3px 0;
+  gap: 20px;
+  color: #30425e;
+  font-size: 14px;
+}
+.editor fieldset {
+  min-width: 0;
+  border: 1px solid #e3e8f2;
+  background: #fbfcff;
+  border-radius: 14px;
+  padding: 17px;
+  margin: 0;
+}
+.editor fieldset legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 7px;
+  color: #4e547f;
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 10px;
+}
+.editor fieldset legend svg {
+  width: 19px;
+  height: 19px;
+  color: #7166ca;
+}
+.editor label {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #52617b;
+  font-weight: 600;
+}
+.editor :is(input:not([type='checkbox']), select, textarea) {
+  min-height: 44px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid #dce3ee;
+  border-radius: 10px;
+  color: #273b56;
+  font: inherit;
+  font-size: 14px;
+  box-shadow: 0 1px 2px #23344a03;
+}
+.editor input::placeholder,
+.editor textarea::placeholder {
+  color: #8290a4;
+}
+.editor footer {
+  gap: 10px;
+  padding: 16px 0 0;
+  border-top: 1px solid #e6ebf3;
+}
+.workFields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px !important;
+}
+.workFields > :is(p, small, div, [data-wide]) {
+  grid-column: 1/-1;
+}
+.profile {
+  background: #fff;
+  font-size: 14px;
+  color: #34445f;
+}
+.profile h2 {
+  font-size: 21px;
+}
+.profile h3 {
+  font-weight: 700 !important;
+}
+.profile :global(.btn) {
+  min-height: 40px;
+  border-radius: 10px;
+  gap: 7px;
+}
+.profile :global(.btn svg) {
+  width: 18px;
+  height: 18px;
+}
+@media (max-width: 760px) {
+  nav.nav {
+    gap: 3px;
+    padding: 6px;
+  }
+  nav.nav > a {
+    flex: 1 0 auto;
+    justify-content: center;
+    padding: 9px;
+    font-size: 13px;
+  }
+  .moreNav {
+    margin-inline-start: 0;
+  }
+  .moreLinks {
+    inset-inline-end: 0;
+    max-width: calc(100vw - 45px);
+  }
+  .heading {
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .heading h1 {
+    font-size: 22px !important;
+  }
+  .headingIcon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+  .workspace [data-crm-customers] :global(.product-table) {
+    min-width: 0 !important;
+    display: block;
+  }
+  .workspace [data-crm-customers] :global(.product-table) thead {
+    display: none;
+  }
+  .workspace [data-crm-customers] :global(.product-table) tbody {
+    display: grid;
+    padding: 10px;
+    gap: 10px;
+  }
+  .workspace [data-crm-customers] :global(.product-table) tr {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 10px;
+    border: 1px solid #e5e9f2;
+    border-radius: 13px;
+    padding: 14px;
+  }
+  .workspace [data-crm-customers] :global(.product-table) td {
+    width: auto !important;
+    padding: 0 !important;
+    border: 0;
+    min-width: 0;
+  }
+  .workspace [data-crm-customers] :global(.product-table) td:not(:first-child) {
+    grid-column: 2;
+  }
+  .workspace [data-crm-customers] :global(.product-table) td:first-child {
+    grid-row: 1;
+  }
+  .workspace [data-crm-customers] :global(.product-table) td:nth-child(2) {
+    grid-row: 1;
+  }
+  .workFields {
+    grid-template-columns: 1fr;
+  }
+  .editor fieldset {
+    padding: 14px;
+  }
+}
+
+.workTabs {
+  padding: 5px;
+  border: 1px solid #e0e6f0;
+  background: #fff;
+  border-radius: 13px;
+  gap: 5px;
+  width: fit-content;
+  max-width: 100%;
+}
+.workTabs button {
+  border: 0;
+  min-height: 42px;
+  border-radius: 9px;
+  font-size: 14px;
+  padding: 10px 16px;
+  color: #65748b;
+}
+.workTabs button[aria-pressed='true'] {
+  background: #5b52c9;
+  color: #fff;
+  box-shadow: 0 3px 8px #5b52c923;
+}
+.workToolbar {
+  padding: 12px;
+  border: 1px solid #e0e6f0;
+  border-radius: 14px;
+  background: #fff;
+  gap: 10px;
+}
+.workToolbar select {
+  font-size: 14px;
+  border-color: #e0e5f0;
+  background: #fafbfe;
+}
+.profile p {
+  font-size: 14px !important;
+  line-height: 1.7;
+}
+.profile small {
+  font-size: 12px !important;
+}
+@media (max-width: 640px) {
+  .workTabs {
+    width: 100%;
+  }
+  .workTabs button {
+    flex: 1 0 auto;
+    padding: 9px 12px;
+  }
+}

@@ -13,6 +13,7 @@ import { CrmScore } from './CrmScoring';
 import premium from './crm-workspace.module.css';
 import { CrmWork } from './CrmWork';
 import { ContactActivityExport } from './ContactActivityExport';
+import design from './crm-design.module.css';
 import styles from './subscribers.module.css';
 
 type Contact = {
@@ -152,7 +153,10 @@ export default function SubscriberProfile({
     });
   }
   return (
-    <aside className={styles.profile} aria-label={t('ملف المشترك', 'Subscriber profile')}>
+    <aside
+      className={`${styles.profile} ${design.profile}`}
+      aria-label={t('ملف المشترك', 'Subscriber profile')}
+    >
       <header className={styles.profileHeader}>
         <span className={styles.avatar}>{contact?.name?.slice(0, 2) || '?'}</span>
         <div>

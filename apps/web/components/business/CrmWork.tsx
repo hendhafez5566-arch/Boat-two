@@ -10,6 +10,7 @@ import { useData } from './useData';
 import { CrmNav } from './CrmNav';
 import { NavIcon } from '../product/NavIcon';
 import styles from './crm-workspace.module.css';
+import design from './crm-design.module.css';
 import editorStyles from '../product/structured-editor.module.css';
 
 type Pipeline = { id: string; name: string; stages: string[] };
@@ -152,7 +153,9 @@ export function CrmWork({
     return (
       <article
         key={row.id}
-        className={styles.card}
+        className={`${styles.card} ${design.workCard}`}
+        data-work-card
+        data-work-status={row.status}
         data-overdue={!deals && row.status === 'open' && new Date(row.due_at) < new Date()}
         data-stale={
           deals && row.status === 'open' && Date.now() - Date.parse(row.updated_at) > 14 * 86400000
@@ -160,6 +163,20 @@ export function CrmWork({
         draggable={deals && !busy && canEdit(row)}
         onDragStart={(e) => e.dataTransfer.setData('text/plain', row.id)}
       >
+        <div className={design.workCardHeader}>
+          <span className={design.workStatus} data-state={row.status}>
+            <NavIcon
+              name={row.status === 'done' || row.status === 'won' ? 'circleCheck' : 'calendar'}
+            />
+            {row.status === 'done'
+              ? t('مكتملة', 'Completed')
+              : row.status === 'won'
+                ? t('ناجحة', 'Won')
+                : row.status === 'lost'
+                  ? t('خاسرة', 'Lost')
+                  : t('مفتوحة', 'Open')}
+          </span>
+        </div>
         <button
           className={styles.linkButton}
           disabled={!canEdit(row)}
@@ -168,6 +185,7 @@ export function CrmWork({
           <h3>{row.title}</h3>
         </button>
         <p>
+          <NavIcon name="user" />
           <Link href={`/dashboard/crm?contact=${row.contact_id}`}>{row.contact_name}</Link>
         </p>
         {!deals && (
@@ -248,24 +266,16 @@ export function CrmWork({
     ? t('فرص البيع', 'Sales pipeline')
     : t('المهام والمتابعات', 'Tasks & follow-ups');
   return (
-    <section className={compact ? undefined : styles.page}>
+    <section className={`${compact ? '' : styles.page} ${design.workspace}`}>
       {!compact && <CrmNav />}
-      <header className={styles.heading}>
+      <header className={`${styles.heading} ${design.heading}`}>
         <div>
-          <h1>{title}</h1>
-          {!compact && (
-            <p>
-              {deals
-                ? t(
-                    'تابع كل فرصة من أول اهتمام حتى إغلاق الصفقة.',
-                    'Follow every opportunity from first interest to closing.',
-                  )
-                : t(
-                    'ابدأ بالمتأخر، ثم المطلوب اليوم، وخطط للمتابعة القادمة.',
-                    'Start with overdue work, focus on today, and plan ahead.',
-                  )}
-            </p>
-          )}
+          <h1>
+            <span className={design.headingIcon}>
+              <NavIcon name={deals ? 'handshake' : 'calendar'} />
+            </span>
+            {title}
+          </h1>
         </div>
         <Button
           variant="primary"
@@ -277,7 +287,7 @@ export function CrmWork({
         </Button>
       </header>
       {!deals && (
-        <div className={styles.quickTabs}>
+        <div className={`${styles.quickTabs} ${design.workTabs}`}>
           {[
             ['today', t('اليوم', 'Today'), 'calendar'],
             ['overdue', t('متأخرة', 'Overdue'), 'userClock'],
@@ -313,7 +323,7 @@ export function CrmWork({
           ))}
         </div>
       )}
-      <div className={styles.toolbar}>
+      <div className={`${styles.toolbar} ${design.workToolbar}`}>
         <input
           aria-label={t('بحث', 'Search work')}
           placeholder={t('ابحث بالعنوان أو العميل', 'Search title or customer')}
@@ -679,20 +689,17 @@ function WorkForm({
     void onSubmit(values);
   }
   return (
-    <form className={`${styles.form} ${editorStyles.form}`} onSubmit={submit} onChange={onDirty}>
-      <p className={editorStyles.intro}>
-        {deals
-          ? t(
-              'حدد العميل وتفاصيل الفرصة، ثم المسؤول عنها.',
-              'Choose a customer, opportunity details and an owner.',
-            )
-          : t(
-              'حدد العميل وسبب المتابعة وموعدها، ثم الموظف المسؤول.',
-              'Choose a customer, the follow-up details, date and assigned employee.',
-            )}
-      </p>
-      <fieldset className={`${editorStyles.section} ${styles.form}`} disabled={busy}>
+    <form
+      className={`${styles.form} ${editorStyles.form} ${design.editor}`}
+      onSubmit={submit}
+      onChange={onDirty}
+    >
+      <fieldset
+        className={`${editorStyles.section} ${styles.form} ${design.workFields}`}
+        disabled={busy}
+      >
         <legend>
+          <NavIcon name={deals ? 'handshake' : 'calendar'} />
           {deals
             ? t('بيانات الفرصة', 'Opportunity details')
             : t('بيانات المتابعة', 'Follow-up details')}
@@ -743,12 +750,7 @@ function WorkForm({
                 )}
               </p>
             )}
-            <small>
-              {t(
-                'تغيير البحث لا يغيّر العميل المختار. اختر اسمًا آخر لتغييره.',
-                'Searching keeps the selected customer. Choose another name to change it.',
-              )}
-            </small>
+
             {contacts.error && <p role="alert">{contacts.error}</p>}
           </>
         )}
@@ -765,7 +767,7 @@ function WorkForm({
             </select>
           </label>
         )}
-        <label>
+        <label data-wide>
           {t('العنوان', 'Title')}
           <input name="title" required maxLength={200} defaultValue={row?.title || ''} />
         </label>
@@ -878,6 +880,12 @@ function WorkForm({
             </label>
           </>
         )}
+      </fieldset>
+      <fieldset className={editorStyles.section} disabled={busy}>
+        <legend>
+          <NavIcon name="team" />
+          {t('المسؤولية', 'Assignment')}
+        </legend>
         <label>
           {t('الموظف المسؤول', 'Assigned employee')}
           <select

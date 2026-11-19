@@ -6,6 +6,8 @@ import { contactAttributes, collectContactLabels } from '../../lib/contact-label
 import { statusLabel } from '../product/status';
 import { parseContactField, type ContactField } from '../../lib/inbox-contact-fields';
 import styles from '../product/structured-editor.module.css';
+import design from './crm-design.module.css';
+import { NavIcon } from '../product/NavIcon';
 type ContactDraft = {
   name: string;
   email: string | null;
@@ -124,7 +126,7 @@ export function ContactEditor({
   }
   return (
     <form
-      className={styles.form}
+      className={`${styles.form} ${design.editor}`}
       onSubmit={(e) => {
         e.preventDefault();
         void save(e.currentTarget);
@@ -132,19 +134,16 @@ export function ContactEditor({
       onChange={onDirty}
       aria-busy={busy}
     >
-      <p className={styles.intro}>
-        {t(
-          'سجّل بيانات التواصل، ثم نظّم العميل بالوسوم والمسؤول. يمكنك استكمال الحقول لاحقًا.',
-          'Start with contact details, then organize the customer with labels and an owner. You can complete other fields later.',
-        )}
-      </p>
       {error && (
         <p className={styles.feedback} role="alert">
           {error}
         </p>
       )}
       <fieldset className={styles.section} disabled={busy}>
-        <legend>{t('بيانات التواصل', 'Contact information')}</legend>
+        <legend>
+          <NavIcon name="user" />
+          {t('بيانات التواصل', 'Contact information')}
+        </legend>
         <div className={styles.grid}>
           <label>
             {t('اسم العميل', 'Customer name')}
@@ -181,7 +180,10 @@ export function ContactEditor({
         </div>
       </fieldset>
       <fieldset className={styles.section} disabled={busy}>
-        <legend>{t('تنظيم العميل', 'Customer organization')}</legend>
+        <legend>
+          <NavIcon name="crm" />
+          {t('تنظيم العميل', 'Customer organization')}
+        </legend>
         <div className={styles.grid}>
           <label>
             {t('مرحلة العميل', 'Lifecycle')}
@@ -229,7 +231,10 @@ export function ContactEditor({
       </fieldset>
       {!!fields.length && (
         <fieldset className={styles.section} disabled={busy}>
-          <legend>{t('الحقول المخصصة', 'Custom fields')}</legend>
+          <legend>
+            <NavIcon name="settings" />
+            {t('الحقول المخصصة', 'Custom fields')}
+          </legend>
           <div className={styles.grid}>
             {fields.map((field) => (
               <label key={field.id}>
