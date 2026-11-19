@@ -1,3 +1,5 @@
+> Follow-on accepted batch: [integration outputs and event-worker concurrency](INTEGRATION_OUTPUTS_20261119.md). Source ba82fba supersedes this source checkpoint; release/file-safety gates remain open.
+
 # Advanced flow continuation — 19 November 2026
 
 Continued from verified PR #14 HEAD `3a7936a15dab8369baf80178c712815aeb4a3ea7`. No completed catalog or earlier SLA/CRM fixes were rebuilt.

@@ -1,0 +1,30 @@
+# Integration output continuation — 19 November 2026
+
+Started at verified PR #14 HEAD de0c1de73da33962f1cd54c3f1d3ef9232fb5471. Earlier accepted sequence/condition/appointment/catalog/security work is preserved.
+
+## Repaired behavior
+
+- `437cc42`: mapped HTTP and Google Sheet outputs are invalidated for every new attempt, including non-2xx response, transport exception, sheet adapter failure, invalid public link and no matching row. Old prices/statuses cannot silently survive into the fallback. Resolve HTTP request URL/headers/body and sheet lookup value before clearing outputs, so a variable intentionally used as both input and output still works. Unmapped variables are retained. No automatic retry or external-effect replay was added.
+- `26a6456`: keyed sheet lookups with empty/unresolved/whitespace values return no row rather than matching another row's empty key. Different alphanumeric IDs such as AB123456 and CD123456 are compared as IDs rather than both reduced to 123456. Phone-only formatting still matches, with Arabic/Persian digit normalization. Explicit first-row mode without a lookup column is preserved.
+- `7cee24a`: distinct accessible names for response path, sheet column and variable fields. Arabic/English configuration guidance explains clearing stale outputs and empty-lookup behavior. Extended actual browser authoring to edit both mappings and sheet lookup settings, persist/reopen, publish and execute provider-unavailable fallback paths.
+
+- `08b5727`: full PostgreSQL run 44524348812 exposed a real event-worker/agent-send lock inversion during 205-message history acceptance. EventsService previously acquired aggregate advisory lock before listener code acquired tenant; agent replies already acquire tenant before aggregate. Worker now takes tenant before event-row/aggregate locks. Added deterministic actual worker contention test before API startup, using unprivileged DatabaseService and PostgreSQL; no replay-based workaround.
+- `ba82fba`: screenshot review revealed missing private Google account displayed as the public-link option despite the saved private ID. Editor now preserves/display-selects an unavailable private-account option and gives reconnect guidance; public-link controls are only shown in explicit public mode. No customer connection is auto-cleared or changed to public.
+
+## Verification
+
+Local regression: 60 engine tests pass, including 11 new focused tests. Five stale-output failures and three wrong sheet-match cases were reproduced before repair. API type-check passed. No external requests or provider credentials were needed for these cases.
+
+First full run 44524348812: FAILED on a real outbound event deadlock; new stale-output published runtime passed before that failure. Do not label the whole run accepted. [Enterprise PostgreSQL run 44525240007](https://github.com/hendhafez5566-arch/Boat-two/actions/runs/44525240007), application source 08b5727: SUCCESS. 284/284 API regression tests plus 8/8 scoped handoff tests pass. New actual event-worker contention test runs before API startup under the unprivileged app role: tenant wait observed, aggregate lock acquired without cycle, one completed event, zero retries and no second-tick replay. Published stale-output failure/deduplication and prior agent-versus-worker lock-order tests pass. The previously failing long Inbox/Webchat history/no-private-note-leak group now passes. Full migrations, attachment lifecycle/races, process recovery, assignment/security/report/billing/load acceptance and disposable PostgreSQL backup restore pass. Latest ba82fba changes editor/browser tests only.
+
+[Advanced UI run 44524657191](https://github.com/hendhafez5566-arch/Boat-two/actions/runs/44524657191), source 7cee24a: SUCCESS, 4/4 AR/EN × 390/1366. HTTP mapping and sheet column/value/output mappings edited in actual inspector, save/reload roundtrip asserted, then UI publication, widget media/HTTP/sheet failure fallback, reload dedupe and protected synthetic audio revoke/restore pass; five viewport widths checked. Evidence JSON and AR desktop/EN mobile sheet-settings screenshots inspected. This review revealed unavailable-account presentation, repaired separately in ba82fba. [Final browser run 44525509055](https://github.com/hendhafez5566-arch/Boat-two/actions/runs/44525509055), source ba82fba: SUCCESS, same 4/4 journeys plus explicit saved private-ID preservation, unavailable-account guidance and absence of public-link input. Final evidence JSON and English mobile settings screenshot inspected. [Component/sequence/booking browser run 44525508959](https://github.com/hendhafez5566-arch/Boat-two/actions/runs/44525508959) also SUCCESS at ba82fba; existing action execution run 44525509339 SUCCESS.
+
+The checkpoint commit also corrects the static sheet step guidance to describe both private authorization and public links. This is a copy-only follow-up after the accepted browser run; no runtime or schema changes after ba82fba.
+
+## Release and readiness
+
+No deployment, main merge, paid infrastructure creation, current customer-file mutation or provider send. Existing Railway API file inventory and verified backup remain unresolved; isolated CI recovery is not evidence of current customer bytes. A combined release must preserve the prior sequence.error editor/API compatibility boundary.
+
+These changes deliberately stop relying on a prior integration result after a failed attempt and reject phone-like normalization for IDs containing letters. Fallback branches should use current attempt status, not prior prices. This does not establish full integration/provider acceptance or all spreadsheet formats/duplicate-header behavior.
+
+DEMO readiness remains scoped to accepted synthetic journeys. SOFTWARE COMPLETE / PILOT READY / COMMERCIAL LAUNCH READY are not established. Continue remaining advanced-node UI/runtime/version failure cases, endpoint/role actions, full sector UI journeys with CRM/follow-up/reports and operational/external gates. Do not repeat accepted sections without a relevant change or newly observed defect.

@@ -1,3 +1,5 @@
+> Latest continuation (2026-11-19): [integration output safety and event lock fix](docs/launch/INTEGRATION_OUTPUTS_20261119.md). Stale API/sheet outputs, wrong sheet lookups, actual event-worker deadlock and unavailable-account presentation repaired. 284 API tests, real PostgreSQL runtime/lock/recovery and four AR/EN integration browser journeys pass. Application source ba82fba; no deployment/main merge; current customer-file gate remains open.
+
 > Latest continuation (2026-11-19): [advanced flow fixes and accepted execution](docs/launch/ADVANCED_FLOW_20261119.md). Sequence failure routing, finite numeric conditions and stale appointment outcomes repaired; real PostgreSQL and four AR/EN browser journeys pass. Source 30ad961; no deployment or main merge. Customer-file release gate remains open.
 
 > Current checkpoint (2026-11-19): [verified implementation and acceptance](docs/launch/IMPLEMENTATION_20261119.md). New SLA/CRM/HTTP/locking repairs passed real PostgreSQL acceptance. Live catalog accepted; new API remains undeployed pending current-file inventory/backup. Older versions below are historical; full software/pilot/commercial readiness is not declared.
