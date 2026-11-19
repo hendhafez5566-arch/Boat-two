@@ -1,3 +1,5 @@
+> Follow-on batch: [advanced flow continuation](ADVANCED_FLOW_20261119.md), accepted source 30ad961, supersedes the source checkpoint below for new sequence/condition/appointment repairs. Deployment/file safety boundary remains unchanged.
+
 # Implementation checkpoint — 19 November 2026
 
 ## Verified scope and release boundary
