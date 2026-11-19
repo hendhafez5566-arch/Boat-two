@@ -123,9 +123,9 @@ export class CrmController {
         throw new NotFoundException('One or more contacts not found');
       if (
         b.ownerId &&
-        !(await c.query('SELECT 1 FROM memberships WHERE user_id=$1', [b.ownerId])).rowCount
+        !(await c.query('SELECT 1 FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.user_id=$1 AND u.disabled_at IS NULL FOR SHARE OF m,u', [b.ownerId])).rowCount
       )
-        throw new BadRequestException('Owner must be a workspace member');
+        throw new BadRequestException('Owner must be an active workspace member');
       if (
         (
           await c.query(
@@ -567,10 +567,10 @@ export class CrmController {
         throw new BadRequestException('Pipeline ownership changed; reload before reassigning');
       if (
         b.ownerId &&
-        !(await c.query('SELECT 1 FROM memberships WHERE user_id=$1 FOR SHARE', [b.ownerId]))
+        !(await c.query('SELECT 1 FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.user_id=$1 AND u.disabled_at IS NULL FOR SHARE OF m,u', [b.ownerId]))
           .rowCount
       )
-        throw new BadRequestException('Owner must be a workspace member');
+        throw new BadRequestException('Owner must be an active workspace member');
       let transferred = 0;
       if (b.transferOpenDeals && b.ownerId !== pipeline.owner_id)
         transferred =
@@ -730,9 +730,9 @@ export class CrmController {
         throw new BadRequestException('Invalid pipeline or stage');
       if (
         b.ownerId &&
-        !(await c.query('SELECT 1 FROM memberships WHERE user_id=$1', [b.ownerId])).rowCount
+        !(await c.query('SELECT 1 FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.user_id=$1 AND u.disabled_at IS NULL FOR SHARE OF m,u', [b.ownerId])).rowCount
       )
-        throw new BadRequestException('Owner must be a workspace member');
+        throw new BadRequestException('Owner must be an active workspace member');
       return (
         await c.query(
           'INSERT INTO crm_deals(tenant_id,contact_id,pipeline_id,title,stage,value_cents,currency,owner_id,expected_close) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',
@@ -801,9 +801,9 @@ export class CrmController {
         throw new BadRequestException('Invalid stage');
       if (
         b.ownerId &&
-        !(await c.query('SELECT 1 FROM memberships WHERE user_id=$1', [b.ownerId])).rowCount
+        !(await c.query('SELECT 1 FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.user_id=$1 AND u.disabled_at IS NULL FOR SHARE OF m,u', [b.ownerId])).rowCount
       )
-        throw new BadRequestException('Owner must be a workspace member');
+        throw new BadRequestException('Owner must be an active workspace member');
       const row = (
         await c.query(
           `UPDATE crm_deals SET stage=COALESCE($2,stage),status=COALESCE($3,status),title=COALESCE($4,title),value_cents=COALESCE($5,value_cents),currency=COALESCE($6,currency),owner_id=CASE WHEN $7 THEN $8::uuid ELSE owner_id END,expected_close=CASE WHEN $10 THEN $11::date ELSE expected_close END,loss_reason=CASE WHEN $12 THEN $13::text ELSE loss_reason END,updated_at=now() WHERE id=$1 AND ($9::timestamptz IS NULL OR date_trunc('milliseconds',updated_at)=$9) RETURNING *`,
@@ -852,9 +852,9 @@ export class CrmController {
       await this.crm.get(r.user.tenantId, b.contactId);
       if (
         b.assignedTo &&
-        !(await c.query('SELECT 1 FROM memberships WHERE user_id=$1', [b.assignedTo])).rowCount
+        !(await c.query('SELECT 1 FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.user_id=$1 AND u.disabled_at IS NULL FOR SHARE OF m,u', [b.assignedTo])).rowCount
       )
-        throw new BadRequestException('Invalid assignee');
+        throw new BadRequestException('Assignee must be an active workspace member');
       if (
         b.dealId &&
         !(
@@ -916,9 +916,9 @@ export class CrmController {
 
       if (
         b.assignedTo &&
-        !(await c.query('SELECT 1 FROM memberships WHERE user_id=$1', [b.assignedTo])).rowCount
+        !(await c.query('SELECT 1 FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.user_id=$1 AND u.disabled_at IS NULL FOR SHARE OF m,u', [b.assignedTo])).rowCount
       )
-        throw new BadRequestException('Assignee must be a workspace member');
+        throw new BadRequestException('Assignee must be an active workspace member');
       const row = (
         await c.query(
           `UPDATE crm_tasks SET status=COALESCE($2,status),title=COALESCE($3,title),due_at=COALESCE($4,due_at),assigned_to=CASE WHEN $5 THEN $6::uuid ELSE assigned_to END,priority=COALESCE($8,priority),updated_at=now() WHERE id=$1 AND ($7::timestamptz IS NULL OR date_trunc('milliseconds',updated_at)=$7) RETURNING *`,

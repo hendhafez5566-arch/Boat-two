@@ -60,5 +60,31 @@ try {
  assert.deepEqual(new Set((await adminDb.query("SELECT user_id FROM crm_notifications WHERE resource_id=$1 AND dedupe_key LIKE 'sla:%'",[stale.id])).rows.map(r=>r.user_id)),new Set([ownerId,manager.id,previous.id]));
  await db.withTenant(tenant,c=>notifications.add(c,tenant,{kind:'new_lead',type:'contact',id:stale.contact,contactId:stale.contact,title:'Synthetic only',key:'disabled:'+uuid(),userId:disabled.id}));
  assert.equal((await adminDb.query('SELECT count(*)::int n FROM crm_notifications WHERE tenant_id=$1 AND user_id=$2',[tenant,disabled.id])).rows[0].n,0);
- mkdirSync('docs/p0-evidence/sla-role-matrix',{recursive:true});writeFileSync('docs/p0-evidence/sla-role-matrix/results.json',JSON.stringify({status:'PASS',database:'real PostgreSQL',roles:['owner','admin','agent'],checks:['failed and queued sends do not suppress SLA or awaiting-reply alerts','internal and inbound events do not count as successful employee replies','sent delivered read suppress escalation','only active tenant managers and current assignee receive SLA alerts','fresh worker deduplicates events and alerts','manual assignment and new escalation target reject disabled or foreign members without mutation','agent assignment restrictions and manager reassignment preserved','stale disabled target falls back to current assignee','generic CRM notifications exclude disabled users'],notClaimed:['full endpoint audit','official provider transport','Production SLA or customer file inventory']},null,2)+'\n');console.log('PASS real PostgreSQL SLA status, recipient and assignment-role matrix');
+ // CRM mutations use the same active-member boundary, with no partial updates.
+ const pipeline=await request('/crm/pipelines',owner.accessToken,{name:'Synthetic ownership pipeline',stages:['new','done']});
+ const taskBody={contactId:stale.contact,title:'Synthetic active task',dueAt:new Date(Date.now()+86400000).toISOString(),assignedTo:target.id};
+ const dealBody={contactId:stale.contact,pipelineId:pipeline.id,title:'Synthetic active deal',stage:'new',valueCents:12345,currency:'EGP',ownerId:target.id};
+ const task=await request('/crm/tasks',owner.accessToken,taskBody),deal=await request('/crm/deals',owner.accessToken,dealBody);
+ for(const id of [disabled.id,foreignId]){
+  await request('/crm/tasks',owner.accessToken,{...taskBody,assignedTo:id},'POST',400);
+  await request('/crm/tasks/'+task.id,owner.accessToken,{assignedTo:id,title:'MUST NOT CHANGE'},'PATCH',400);
+  await request('/crm/deals',owner.accessToken,{...dealBody,ownerId:id},'POST',400);
+  await request('/crm/deals/'+deal.id,owner.accessToken,{ownerId:id,valueCents:1},'PATCH',400);
+  await request('/crm/contacts/bulk',owner.accessToken,{ids:[stale.contact],ownerId:id,lifecycle:'customer'},'POST',400);
+  await request('/crm/pipelines/'+pipeline.id+'/owner',owner.accessToken,{ownerId:id,revision:pipeline.ownership_revision},'PATCH',400);
+ }
+ assert.deepEqual((await adminDb.query('SELECT assigned_to,title FROM crm_tasks WHERE id=$1',[task.id])).rows[0],{assigned_to:target.id,title:taskBody.title});
+ assert.deepEqual((await adminDb.query('SELECT owner_id,value_cents::text FROM crm_deals WHERE id=$1',[deal.id])).rows[0],{owner_id:target.id,value_cents:'12345'});
+ assert.deepEqual((await adminDb.query('SELECT owner_id,lifecycle FROM contacts WHERE id=$1',[stale.contact])).rows[0],{owner_id:null,lifecycle:'lead'});
+ assert.equal((await adminDb.query('SELECT count(*)::int n FROM crm_tasks WHERE tenant_id=$1',[tenant])).rows[0].n,1);
+ assert.equal((await adminDb.query('SELECT count(*)::int n FROM crm_deals WHERE tenant_id=$1',[tenant])).rows[0].n,1);
+ await request('/crm/tasks/'+task.id,manager.accessToken,{assignedTo:previous.id},'PATCH');
+ await request('/crm/deals/'+deal.id,manager.accessToken,{ownerId:previous.id},'PATCH');
+ await request('/crm/contacts/bulk',owner.accessToken,{ids:[stale.contact],ownerId:previous.id});
+ await request('/crm/pipelines/'+pipeline.id+'/owner',owner.accessToken,{ownerId:previous.id,revision:pipeline.ownership_revision},'PATCH');
+ await request('/crm/tasks/'+task.id,previous.accessToken,{assignedTo:target.id},'PATCH',403);
+ await request('/crm/deals/'+deal.id,previous.accessToken,{ownerId:target.id},'PATCH',403);
+ await request('/crm/tasks/'+task.id,foreign.accessToken,{status:'done'},'PATCH',404);
+ await request('/crm/deals/'+deal.id,foreign.accessToken,{status:'won'},'PATCH',404);
+ mkdirSync('docs/p0-evidence/sla-role-matrix',{recursive:true});writeFileSync('docs/p0-evidence/sla-role-matrix/results.json',JSON.stringify({status:'PASS',database:'real PostgreSQL',roles:['owner','admin','agent'],checks:['failed and queued sends do not suppress SLA or awaiting-reply alerts','internal and inbound events do not count as successful employee replies','sent delivered read suppress escalation','only active tenant managers and current assignee receive SLA alerts','fresh worker deduplicates events and alerts','manual assignment and new escalation target reject disabled or foreign members without mutation','agent assignment restrictions and manager reassignment preserved','stale disabled target falls back to current assignee','generic CRM notifications exclude disabled users','CRM task/deal create and update, bulk contact and pipeline ownership reject disabled or foreign members atomically','active admin reassignment and agent/foreign denial retained'],notClaimed:['full endpoint audit','official provider transport','Production SLA or customer file inventory']},null,2)+'\n');console.log('PASS real PostgreSQL SLA status, recipient and assignment-role matrix');
 }finally{await db.onModuleDestroy();await adminDb.end();}
