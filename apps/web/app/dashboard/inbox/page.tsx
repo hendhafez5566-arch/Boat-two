@@ -699,6 +699,11 @@ export default function Inbox() {
                 placeholder={t('ابحث في المحادثات…', 'Search conversations…')}
                 className="inbox-search w-full rounded border p-1.5"
               />
+              {search.trim() && (
+                <button type="submit" aria-label={t('تنفيذ البحث', 'Submit search')}>
+                  <NavIcon name="search" />
+                </button>
+              )}
               <button
                 type="button"
                 className={styles.filterButton}
