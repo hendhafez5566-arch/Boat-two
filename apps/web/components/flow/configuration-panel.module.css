@@ -200,3 +200,30 @@
 .referencePanel[data-reference-type='message'] textarea[aria-label='رسالة الرد'] {
   min-height: 200px;
 }
+
+.panel {
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: var(--shadow-md);
+  color: var(--ink);
+  font-family: inherit;
+}
+.header {
+  background: var(--surface);
+  border-block-end: 1px solid var(--line);
+  margin-block-end: 12px;
+}
+.header .icon {
+  background: var(--primary-soft);
+  color: var(--primary-deep);
+}
+.header h2,
+.header p {
+  font-family: inherit;
+}
+.panel :global(.smart-editor-footer) > :global(.smart-primary) {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-ink);
+  box-shadow: var(--shadow-xs);
+}

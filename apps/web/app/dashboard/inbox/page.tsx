@@ -696,7 +696,7 @@ export default function Inbox() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 aria-label={t('بحث المحادثات', 'Search conversations')}
-                placeholder={t('اكتب واضغط Enter للبحث', 'Type and submit to search')}
+                placeholder={t('ابحث في المحادثات…', 'Search conversations…')}
                 className="inbox-search w-full rounded border p-1.5"
               />
               <button

@@ -1349,3 +1349,38 @@
 .versionRestore:focus-visible { outline: 3px solid #8594ed; outline-offset: 2px; }
 .versionRestore:disabled { cursor: wait; opacity: .65; }
 @media (max-width: 480px) { .versionsPanel { padding: 16px; } .versionItem { align-items: stretch; flex-direction: column; gap: 12px; } .versionRestore { width: 100%; } }
+
+.toolbar {
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: var(--shadow-md);
+}
+.toolbar .saveButton,
+.toolsMenu .publishButton {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-ink);
+}
+.toolbar .toolButton {
+  background: var(--surface-muted);
+  border-color: var(--line);
+}
+.toolbar .toolButton:hover,
+.toolsMenu .toolButton:hover {
+  background: var(--primary-soft);
+  color: var(--primary-deep);
+}
+.toolsMenu {
+  border-color: var(--line);
+  box-shadow: var(--shadow-md);
+}
+@media (pointer: coarse) {
+  .toolbar .toolButton,
+  .toolbar .saveButton,
+  .toolsMenu button {
+    min-height: 44px;
+  }
+  .toolbar .toolButton {
+    min-width: 44px;
+  }
+}

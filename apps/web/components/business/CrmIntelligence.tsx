@@ -237,15 +237,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
       <CrmNav />
       <header className={styles.hero}>
         <div>
-          <span className={styles.eyebrow}>
-            <NavIcon name={report ? 'reports' : 'crm'} />
-            {t('مساحة علاقات العملاء', 'CUSTOMER WORKSPACE')}
-          </span>
-          <h1>
-            {report
-              ? t('رؤية أوضح. قرارات أفضل.', 'Clear insights. Better decisions.')
-              : t('كل فرصة تبدأ بعلاقة.', 'Every opportunity starts with a relationship.')}
-          </h1>
+          <h1>{report ? t('تقارير العملاء', 'CRM reports') : t('نظرة عامة على العملاء', 'CRM overview')}</h1>
           <p>
             {report
               ? t(

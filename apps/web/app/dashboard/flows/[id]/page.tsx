@@ -1482,15 +1482,6 @@ function Editor({ id }: { id: string }) {
             {t('القناة القديمة غير موجودة — تصحيح الربط', 'Missing channel — fix link')}
           </button>
         )}
-        <button
-          type="button"
-          className={styles.toolButton}
-          onClick={autoLayout}
-          title={t('ترتيب العقد', 'Rearrange')}
-          aria-label={t('ترتيب العقد', 'Rearrange')}
-        >
-          <NavIcon name="flows" />
-        </button>
         {meta.channelIds.length === 1 && (
           <span className={styles.channelBadge}>
             <NavIcon name="channels" />
@@ -1577,6 +1568,9 @@ function Editor({ id }: { id: string }) {
                   aria-label={t('تجربة البوت', 'Preview')}
                 >
                   <NavIcon name="play" /> <span>{t('تجربة البوت', 'Preview')}</span>
+                </button>
+                <button type="button" className={styles.toolButton} onClick={autoLayout}>
+                  <NavIcon name="flows" /> {t('ترتيب العقد', 'Rearrange')}
                 </button>
                 <button
                   type="button"

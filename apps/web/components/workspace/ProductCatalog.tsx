@@ -77,6 +77,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
   const [page, setPage] = useState(1);
   const listStart = useRef<HTMLDivElement>(null);
   const [categorySearch, setCategorySearch] = useState('');
+  const [productSearch, setProductSearch] = useState('');
   const [categoryEditing, setCategoryEditing] = useState('');
   const [copyingCategory, setCopyingCategory] = useState(false);
   const [deleteCategory, setDeleteCategory] = useState<{ id: string; name: string } | null>(null);
@@ -149,16 +150,21 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
     const timeout = window.setTimeout(() => setSuccess(''), 3000);
     return () => window.clearTimeout(timeout);
   }, [success]);
-  useEffect(() => setPage(1), [category]);
+  useEffect(() => setPage(1), [category, productSearch]);
   const lock = useRef(false);
   const resetFilters = () => {
     setCategory('all');
     setCategorySearch('');
+    setProductSearch('');
   };
+  const productQuery = productSearch.trim().toLocaleLowerCase();
   const rows = products.data
     .filter(
       (p) =>
         category === 'all' || (category === 'none' ? !p.category_id : p.category_id === category),
+    )
+    .filter((product) =>
+      [product.name, product.sku].some((value) => value?.toLocaleLowerCase().includes(productQuery)),
     )
     .sort((a, b) => a.name.localeCompare(b.name));
   const pageSize = 10;
@@ -610,6 +616,21 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
               </button>
             </form>
           </Dialog>
+          <header className={styles.resultsHeader}>
+            <div>
+              <h2>{selectedCategory?.name ?? (category === 'none' ? t('دون قسم', 'Uncategorized') : t('كل المنتجات', 'All products'))}</h2>
+              {!products.loading && <small role="status">{t(`عدد المنتجات: ${rows.length}`, `Products: ${rows.length}`)}</small>}
+            </div>
+            <label className="field">
+              {t('البحث في المنتجات', 'Search products')}
+              <input
+                type="search"
+                value={productSearch}
+                onChange={(event) => setProductSearch(event.target.value)}
+                placeholder={t('اسم المنتج أو الكود', 'Product name or SKU')}
+              />
+            </label>
+          </header>
           {products.loading ? (
             <p role="status">{t('جارٍ تحميل المنتجات…', 'Loading products…')}</p>
           ) : rows.length ? (
@@ -726,8 +747,8 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
               <p>
                 {products.data.length
                   ? t(
-                      'اختر قسمًا آخر لعرض منتجاته.',
-                      'Choose another category to see its products.',
+                      'غيّر البحث أو اختر قسمًا آخر.',
+                      'Try another search or category.',
                     )
                   : t(
                       'أنشئ منتجًا يدويًا أو استخدم تبويب مصادر البيانات للاستيراد.',

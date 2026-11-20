@@ -1376,3 +1376,30 @@
   .root .productActions { gap: 5px; }
   .root .productActions :global(.btn) { padding-inline: 9px; font-size: 12px; }
 }
+
+.resultsHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding: 12px 0 4px;
+}
+.resultsHeader > div {
+  min-inline-size: 0;
+}
+.resultsHeader h2 {
+  color: var(--ink);
+  font-size: var(--text-dialog);
+  overflow-wrap: anywhere;
+}
+.resultsHeader small {
+  color: var(--muted);
+}
+.resultsHeader label {
+  flex: 0 1 280px;
+  min-inline-size: 0;
+}
+.resultsHeader input {
+  width: 100%;
+}

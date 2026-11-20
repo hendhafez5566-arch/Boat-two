@@ -343,7 +343,7 @@ export default function BotManager() {
         </div>
       </aside>
       <div className={styles.workspace}>
-        <header className={styles.workspaceHeader}>
+        <header className={`${styles.workspaceHeader} workspace-heading`}>
           <span className={styles.avatar} data-channel={selected?.type}>
             <ChannelLogo id={selected?.type || 'web'} />
           </span>
