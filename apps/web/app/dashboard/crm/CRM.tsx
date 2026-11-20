@@ -189,6 +189,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     setEdit(null);
   }
   const [selected, setSelected] = useState<Contact | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<Contact | null>(null);
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('contact');
     if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return;
@@ -1020,6 +1021,19 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                               <NavIcon name="edit" />
                               <span>{t('تعديل', 'Edit')}</span>
                             </button>
+                            {canManage && (
+                              <button
+                                type="button"
+                                className={`btn ${!c.archived_at ? styles.removeAction : ''}`}
+                                aria-label={`${c.archived_at ? t('استعادة', 'Restore') : t('حذف من القائمة', 'Remove from list')}: ${c.name}`}
+                                onClick={() => setArchiveTarget(c)}
+                              >
+                                <NavIcon name={c.archived_at ? 'check' : 'trash'} />
+                                <span>
+                                  {c.archived_at ? t('استعادة', 'Restore') : t('حذف', 'Remove')}
+                                </span>
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1112,6 +1126,48 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
               ))}
             </div>
           </details>
+          <Dialog
+            open={!!archiveTarget}
+            onClose={() => { if (!busy) setArchiveTarget(null); }}
+            title={archiveTarget?.archived_at ? t('استعادة العميل؟', 'Restore customer?') : t('حذف العميل من القائمة؟', 'Remove customer from list?')}
+          >
+            {archiveTarget && (
+              <div className={styles.removeConfirm}>
+                <p>
+                  {archiveTarget.archived_at
+                    ? t('سيعود العميل إلى قائمة العملاء النشطين.', 'The customer will return to the active list.')
+                    : t('سيُنقل العميل إلى الأرشيف ويختفي من قائمة العملاء النشطين. يمكنك استعادته لاحقًا، ولن تُحذف محادثاته أو سجلاته.', 'The customer will move to the archive and disappear from the active list. You can restore the record, and its conversations will be kept.')}
+                </p>
+                <strong>{archiveTarget.name}</strong>
+                {error && <p className="notice error" role="alert">{error}</p>}
+                <div className="form-actions">
+                  <button type="button" className="btn" disabled={busy} onClick={() => setArchiveTarget(null)}>
+                    {t('إلغاء', 'Cancel')}
+                  </button>
+                  <button
+                    type="button"
+                    className={archiveTarget.archived_at ? 'btn btn-primary' : 'btn btn-danger'}
+                    disabled={busy}
+                    onClick={() => {
+                      const row = archiveTarget;
+                      void (async () => {
+                        try {
+                          await act(`/crm/contacts/${row.id}/archive`, { archived: !row.archived_at }, 'PATCH');
+                          setArchiveTarget(null);
+                          if (selected?.id === row.id) setSelected(null);
+                          setPage(1);
+                        } catch {
+                          // The page-level error is also shown in this confirmation dialog.
+                        }
+                      })();
+                    }}
+                  >
+                    {busy ? t('جارٍ التنفيذ…', 'Processing…') : archiveTarget.archived_at ? t('استعادة العميل', 'Restore customer') : t('حذف من القائمة', 'Remove from list')}
+                  </button>
+                </div>
+              </div>
+            )}
+          </Dialog>
           <Dialog
             open={!!selected}
             onClose={() => setSelected(null)}
