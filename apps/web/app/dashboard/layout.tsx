@@ -8,21 +8,49 @@ import Link from 'next/link';
 import { api, getSession, setSession } from '../../lib/api';
 import { useBrand } from '../../components/product/BrandContext';
 import { useLocale } from '../../components/product/locale';
-const links = [
-  ['', '◈', 'لوحة المعلومات', 'Dashboard'],
-  ['inbox', '▤', 'صندوق الوارد المشترك', 'Shared Inbox'],
-  ['crm', '◉', 'إدارة العملاء', 'CRM'],
-  ['flows', '⌘', 'مدير البوت', 'Chatbot Manager'],
-  ['campaigns', '➤', 'البث', 'Broadcasting'],
-  ['social', '▣', 'النشر الاجتماعي', 'Social Posting'],
-  ['channels', '◎', 'ربط الحساب', 'Connect Account'],
-  ['team', '♧', 'مدير المستخدمين', 'User Manager'],
-  ['packages', '◇', 'مدير الباقات', 'Package Manager'],
-  ['billing', '◇', 'الفوترة', 'Billing'],
-  ['settings', '⚙', 'الإعدادات والتكاملات', 'Settings & Integration'],
+const navigation = [
+  {
+    label: ['مساحة العمل', 'Workspace'],
+    links: [
+      ['', 'لوحة المعلومات', 'Dashboard'],
+      ['inbox', 'صندوق الوارد المشترك', 'Shared Inbox'],
+      ['crm', 'إدارة العملاء', 'CRM'],
+      ['commerce', 'المنتجات', 'Products'],
+      ['reports', 'التقارير', 'Reports'],
+    ],
+  },
+  {
+    label: ['البوت والحملات', 'Bots & campaigns'],
+    links: [
+      ['channels', 'قنوات الاتصال', 'Channels'],
+      ['flows', 'مدير البوت', 'Bot Manager'],
+      ['campaigns', 'الحملات', 'Campaigns'],
+      ['sequences', 'التسلسلات', 'Sequences'],
+      ['automations', 'الأتمتة', 'Automations'],
+      ['social', 'النشر الاجتماعي', 'Social Posting'],
+    ],
+  },
+  {
+    label: ['الذكاء الاصطناعي', 'AI workspace'],
+    links: [
+      ['agents', 'المساعدون', 'AI Agents'],
+      ['knowledge', 'قاعدة المعرفة', 'Knowledge Base'],
+    ],
+  },
+  {
+    label: ['الإدارة', 'Administration'],
+    links: [
+      ['team', 'الفريق', 'Team'],
+      ['packages', 'الباقات', 'Packages'],
+      ['billing', 'الفوترة', 'Billing'],
+      ['settings', 'الإعدادات والتكاملات', 'Settings & Integration'],
+      ['onboarding', 'دليل البداية', 'Getting Started'],
+    ],
+  },
 ];
-const controlKeys = ['settings', 'packages', 'team', 'billing'];
-const primaryKeys = ['', 'inbox', 'channels', 'flows', 'crm', 'campaigns', 'social'];
+const links = navigation.flatMap((group) => group.links);
+const destination = (key: string) =>
+  key === 'crm' ? '/dashboard/crm/overview' : `/dashboard${key ? '/' + key : ''}`;
 const restrictedForAgents = [
   'channels',
   'social',
@@ -115,7 +143,6 @@ function Shell({ children }: { children: ReactNode }) {
           }
           return next;
         });
-  const [moreOpen, setMoreOpen] = useState<boolean | null>(null);
   const [acctOpen, setAcctOpen] = useState(false);
   const [q, setQ] = useState('');
   const [searchIndex, setSearchIndex] = useState(0);
@@ -133,7 +160,6 @@ function Shell({ children }: { children: ReactNode }) {
   useEffect(() => {
     setAcctOpen(false);
     setQ('');
-    setMoreOpen(null);
     setOpen(false);
     setWorkspaceExpanded(false);
   }, [path]);
@@ -234,11 +260,11 @@ function Shell({ children }: { children: ReactNode }) {
   const focused = isInbox || /^\/dashboard\/flows\/[^/]+$/.test(path);
   const allowedKey = (key: string) => role !== 'agent' || !restrictedForAgents.includes(key);
   const isActive = (key: string) =>
-    key ? path.startsWith('/dashboard/' + key) : path === '/dashboard';
+    key ? path === destination(key) || path.startsWith('/dashboard/' + key + '/') : path === '/dashboard';
   const searchHits = q.trim()
     ? links
         .filter(
-          ([k, , ar, en]) =>
+          ([k, ar, en]) =>
             allowedKey(k) && (ar + ' ' + en).toLowerCase().includes(q.trim().toLowerCase()),
         )
         .slice(0, 8)
@@ -256,7 +282,7 @@ function Shell({ children }: { children: ReactNode }) {
       className={`product-shell bs-shell ${isInbox ? 'inbox-shell' : ''} ${isFlowEditor ? 'flow-shell' : ''} ${(compactNavigation && !isInbox) || isFlowEditor ? 'nav-collapsed' : 'nav-expanded'}`}
       style={brand ? ({ '--primary': brand.primary_color } as CSSProperties) : undefined}
     >
-      {open && <div className="bs-scrim" onClick={() => setOpen(false)} />}
+      {open && <div className="bs-scrim" aria-hidden="true" onClick={() => setOpen(false)} />}
       <aside
         id="workspace-navigation"
         className={`product-sidebar ${open ? 'is-open' : ''}`}
@@ -286,69 +312,29 @@ function Shell({ children }: { children: ReactNode }) {
           </span>
         </Link>
         <nav aria-label={t('التنقل الرئيسي', 'Main navigation')}>
-          {(() => {
-            const renderLink = ([key, , ar, en]: string[]) => (
-              <Link
-                onClick={() => {
-                  setOpen(false);
-                }}
-                key={key}
-                title={t(ar, en)}
-                href={
-                  key === 'crm' ? '/dashboard/crm/overview' : `/dashboard${key ? '/' + key : ''}`
-                }
-                aria-current={isActive(key) ? 'page' : undefined}
-                className={isActive(key) ? 'active' : ''}
-              >
-                <img
-                  className="nav-reference-icon"
-                  src={`/navigation/${key || 'dashboard'}.svg`}
-                  alt=""
-                />
-                <span className="nav-label">{t(ar, en)}</span>
-              </Link>
-            );
-            const primary = primaryKeys
-              .map((key) => links.find(([k]) => k === key))
-              .filter((link): link is string[] => !!link && allowedKey(link[0]));
-            const controlLinks = controlKeys
-              .map((key) => links.find(([k]) => k === key))
-              .filter((link): link is string[] => !!link && allowedKey(link[0]));
-            const moreActive = controlLinks.some(([k]) => isActive(k));
-            const expandedMore = moreOpen ?? moreActive;
+          {navigation.map(({ label: [ar, en], links }) => {
+            const visible = links.filter(([key]) => allowedKey(key));
+            if (!visible.length) return null;
             return (
-              <>
-                <div className="nav-primary">{primary.map(renderLink)}</div>
-                {controlLinks.length > 0 && (
-                  <>
-                    <button
-                      type="button"
-                      className={`nav-more-btn ${moreActive ? 'active' : ''}`}
-                      aria-expanded={expandedMore}
-                      aria-controls="nav-more-panel"
-                      title={t('لوحة التحكم', 'Control panel')}
-                      onClick={() => {
-                        if (compactNavigation && !isFlowEditor) toggleSidebar();
-                        setMoreOpen(!expandedMore);
-                      }}
-                    >
-                      <img className="nav-reference-icon" src="/navigation/control.svg" alt="" />
-                      <span className="nav-label">{t('لوحة التحكم', 'Control panel')}</span>
-                      <span className="nav-chevron">
-                        <NavIcon name="chevron" />
-                      </span>
-                    </button>
-                    <div
-                      id="nav-more-panel"
-                      className={`nav-more-panel ${expandedMore ? 'is-open' : ''}`}
-                    >
-                      {controlLinks.map(renderLink)}
-                    </div>
-                  </>
-                )}
-              </>
+              <section key={en} className="workspace-nav-group" aria-label={t(ar, en)}>
+                <h2>{t(ar, en)}</h2>
+                {visible.map(([key, titleAr, titleEn]) => (
+                  <Link
+                    key={key}
+                    href={destination(key)}
+                    title={t(titleAr, titleEn)}
+                    aria-label={t(titleAr, titleEn)}
+                    aria-current={isActive(key) ? 'page' : undefined}
+                    className={isActive(key) ? 'active' : ''}
+                    onClick={() => setOpen(false)}
+                  >
+                    <NavIcon name={key || 'grid'} />
+                    <span className="nav-label">{t(titleAr, titleEn)}</span>
+                  </Link>
+                ))}
+              </section>
             );
-          })()}
+          })}
         </nav>
       </aside>
       <div className="product-content">
@@ -419,7 +405,7 @@ function Shell({ children }: { children: ReactNode }) {
                   if (e.key === 'Enter' && searchHits[searchIndex]) {
                     e.preventDefault();
                     const key = searchHits[searchIndex][0];
-                    router.push(`/dashboard${key ? '/' + key : ''}`);
+                    router.push(destination(key));
                   }
                   if (e.key === 'Escape') setQ('');
                 }}
@@ -431,10 +417,10 @@ function Shell({ children }: { children: ReactNode }) {
                   role="listbox"
                   aria-label={t('نتائج البحث', 'Search results')}
                 >
-                  {searchHits.map(([k, , ar, en], index) => (
+                  {searchHits.map(([k, ar, en], index) => (
                     <Link
                       key={k}
-                      href={`/dashboard${k ? '/' + k : ''}`}
+                      href={destination(k)}
                       role="option"
                       id={`${searchId}-${index}`}
                       aria-selected={index === searchIndex}

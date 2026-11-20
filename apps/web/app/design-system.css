@@ -2478,3 +2478,143 @@ button.underline {
   font-size: 13.5px;
   font-weight: 700;
 }
+
+/* Workspace navigation and shared product controls. */
+:root {
+  --primary: #17695c;
+  --ink: #1b2725;
+  --ink-2: #3b514b;
+  --muted: #536a63;
+  --faint: #637a72;
+  --line: #dce7e2;
+  --line-strong: #c8d8d0;
+  --surface-muted: #f0f6f3;
+  --surface-soft: #e8f2ed;
+  --canvas: #f6f9f7;
+  --text-page: clamp(1.4rem, 1.25rem + .6vw, 1.85rem);
+  --shadow-sm: 0 2px 4px rgb(23 54 45 / 4%);
+  --shadow-md: 0 8px 24px rgb(23 54 45 / 9%);
+}
+
+.bs-shell .product-sidebar {
+  color: var(--ink-2);
+  border-color: var(--line);
+  font-family: inherit;
+}
+.bs-shell .product-sidebar .brand {
+  justify-content: flex-start;
+  gap: 10px;
+  padding-inline: 20px;
+  color: var(--ink);
+  border-color: var(--line);
+  font-size: 1.05rem;
+}
+.bs-shell .product-sidebar .brand-mark {
+  width: 34px;
+  height: 34px;
+  background: var(--primary);
+  border-radius: 10px;
+  font-size: 1.15rem;
+}
+.bs-shell .product-sidebar nav {
+  gap: 12px;
+  padding: 14px 12px 24px;
+}
+.workspace-nav-group {
+  display: grid;
+  gap: 2px;
+}
+.workspace-nav-group h2 {
+  margin: 0;
+  padding: 5px 10px;
+  color: var(--muted);
+  font-size: var(--text-caption);
+  font-weight: 700;
+}
+.bs-shell .product-sidebar nav .workspace-nav-group a {
+  gap: 10px;
+  border-radius: var(--radius-sm);
+  min-height: 41px;
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.bs-shell .product-sidebar nav .workspace-nav-group a.active {
+  color: var(--primary-deep);
+  background: var(--primary-soft);
+}
+.workspace-nav-group a svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+.bs-shell .product-sidebar nav .workspace-nav-group .nav-label {
+  white-space: normal;
+}
+.bs-shell .bs-search {
+  background-color: var(--surface-muted);
+}
+.bs-shell .bs-search:focus-within {
+  background-color: var(--surface);
+  border-color: var(--primary);
+  box-shadow: var(--ring);
+}
+.page-workspace > main,
+.page-workspace > main > section {
+  min-inline-size: 0;
+}
+.workspace-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+.workspace-heading > div:first-child {
+  min-inline-size: 0;
+}
+.workspace-heading h1 {
+  font-size: var(--text-page);
+  line-height: var(--line-heading);
+  overflow-wrap: anywhere;
+}
+.workspace-heading p {
+  color: var(--muted);
+  margin-block: 4px 0;
+}
+.workspace-heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.workspace-disclosure > summary {
+  display: list-item;
+  list-style: revert;
+  list-style-position: inside;
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 700;
+  padding-block: 8px;
+}
+.workspace-disclosure[open] > summary {
+  margin-block-end: 12px;
+  border-block-end: 1px solid var(--line);
+}
+@media (min-width: 701px) {
+  .product-shell.bs-shell.nav-collapsed { --sidebar-w: 72px; }
+  .bs-shell.nav-collapsed .product-sidebar .brand { justify-content: center; }
+  .bs-shell.nav-collapsed:not(.inbox-shell) .workspace-nav-group {
+    border-block-end: 1px solid var(--line);
+    padding-block-end: 8px;
+  }
+  .bs-shell.nav-collapsed:not(.inbox-shell) .workspace-nav-group h2 { display: none; }
+}
+@media (max-width: 700px) {
+  .bs-shell .product-sidebar .brand { padding-inline-end: 52px; }
+}
+@media (pointer: coarse) {
+  .bs-shell .product-sidebar nav .workspace-nav-group a,
+  .workspace-heading-actions .btn,
+  .bs-shell .bs-iconbtn,
+  .bs-shell .bs-avatar { min-height: 44px; }
+}
