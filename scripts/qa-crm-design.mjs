@@ -30,7 +30,18 @@ const results = [];
 let browser;
 try {
   for (const language of ['ar', 'en'])
-    for (const width of [390, 1366]) {
+    for (const [width, height, mode] of [
+      [320, 720, 'phone'],
+      [360, 800, 'phone'],
+      [390, 844, 'phone'],
+      [430, 932, 'phone'],
+      [768, 1024, 'tablet'],
+      [844, 390, 'landscape'],
+      [980, 840, 'desktop-site'],
+      [1366, 900, 'desktop'],
+    ].filter(
+      ([width]) => !process.env.CRM_QA_WIDTH || width === Number(process.env.CRM_QA_WIDTH),
+    )) {
       browser = await chromium.launch({
         executablePath: process.env.BOAT_CHROMIUM || '/usr/bin/google-chrome',
         args: ['--no-sandbox'],
@@ -109,8 +120,9 @@ try {
         before ? 'Subscriber profile' : 'Customer profile',
       );
       const context = await browser.newContext({
-        viewport: { width, height: 936 },
-        hasTouch: width === 390,
+        viewport: { width, height },
+        hasTouch: mode !== 'desktop',
+        isMobile: mode !== 'desktop' && mode !== 'desktop-site',
       });
       await context.addInitScript(
         ({ session, language }) => {
@@ -155,7 +167,7 @@ try {
           name: t('دون مسؤول', 'Unassigned'),
           exact: true,
         });
-        if (width === 390) await unassigned.tap();
+        if (width <= 430) await unassigned.tap();
         else await unassigned.click();
         await page
           .getByRole('button', { name: openProfile + 'Mariam Adel', exact: true })
@@ -166,7 +178,9 @@ try {
             .count(),
           0,
         );
-        await page.getByRole('button', { name: t('الكل', 'All'), exact: true }).click();
+        await page
+          .getByRole('button', { name: t('العملاء النشطون', 'Active customers'), exact: true })
+          .click();
         const search = page.getByRole('searchbox', { name: t('بحث عن عميل', 'Search customers') });
         await search.fill('mariam');
         await page
@@ -174,9 +188,67 @@ try {
           .waitFor();
       }
       await page.getByRole('button', { name: openProfile + 'Mariam Adel', exact: true }).click();
-      let dialog = page.getByRole('dialog', { name: profileTitle, exact: true });
+      let dialog = page.getByRole(before ? 'dialog' : 'region', {
+        name: profileTitle,
+        exact: true,
+      });
       await dialog.getByRole('heading', { name: 'Mariam Adel', exact: true }).waitFor();
+      if (!before && mode !== 'desktop') {
+        const record = await dialog.boundingBox();
+        assert.ok(
+          record && record.x < 2 && Math.abs(record.width - width) < 2,
+          'Full-width record in ' + mode,
+        );
+      }
       await shot('profile');
+      if (workflow && process.env.CRM_EXPERIENCE_BASELINE !== 'true') {
+        await dialog
+          .getByText(t('إدارة ملف العميل', 'Manage customer profile'), { exact: true })
+          .click();
+        await shot('profile-settings');
+        await dialog
+          .getByRole('button', { name: t('أرشفة العميل', 'Archive customer'), exact: true })
+          .click();
+        const archive = page.getByRole('dialog', {
+          name: t('أرشفة العميل', 'Archive customer'),
+          exact: true,
+        });
+        await archive
+          .getByRole('button', { name: t('تأكيد الأرشفة', 'Confirm archive'), exact: true })
+          .click();
+        await archive.waitFor({ state: 'hidden' });
+        assert.ok((await api('/crm/contacts/' + contacts[11].id, token)).archived_at);
+        await dialog
+          .getByRole('button', {
+            name: before ? 'Close / إغلاق' : t('العودة للعملاء', 'Back to customers'),
+            exact: true,
+          })
+          .click();
+        await page
+          .getByRole('group', { name: t('حالة القائمة', 'Customer list scope') })
+          .getByRole('button', { name: t('الأرشيف', 'Archived'), exact: true })
+          .click();
+        await page.getByRole('button', { name: openProfile + 'Mariam Adel', exact: true }).click();
+        await dialog
+          .getByText(t('إدارة ملف العميل', 'Manage customer profile'), { exact: true })
+          .click();
+        await dialog
+          .getByRole('button', { name: t('استعادة العميل', 'Restore customer'), exact: true })
+          .click();
+        await dialog.getByText(t('حُفظ التغيير.', 'Changes saved.'), { exact: true }).waitFor();
+        assert.equal((await api('/crm/contacts/' + contacts[11].id, token)).archived_at, null);
+        await dialog
+          .getByRole('button', {
+            name: before ? 'Close / إغلاق' : t('العودة للعملاء', 'Back to customers'),
+            exact: true,
+          })
+          .click();
+        await page
+          .getByRole('button', { name: t('العملاء النشطون', 'Active customers'), exact: true })
+          .click();
+        await page.getByRole('button', { name: openProfile + 'Mariam Adel', exact: true }).click();
+      }
+
       if (!before) {
         await dialog
           .getByRole('button', { name: t('تعديل البيانات', 'Edit details'), exact: true })
@@ -219,7 +291,12 @@ try {
           .click();
         await dialog.getByText('Requested flexible travel dates', { exact: true }).waitFor();
       }
-      await dialog.getByRole('button', { name: 'Close / إغلاق', exact: true }).click();
+      await dialog
+        .getByRole('button', {
+          name: before ? 'Close / إغلاق' : t('العودة للعملاء', 'Back to customers'),
+          exact: true,
+        })
+        .click();
       if (!before) {
         assert.equal(
           await page
@@ -238,11 +315,45 @@ try {
         .fill('Created through new design');
       await dialog.getByLabel(t('الهاتف', 'Phone'), { exact: true }).fill('201234567890');
       await shot('contact-editor');
+      if (workflow && process.env.CRM_EXPERIENCE_BASELINE !== 'true') {
+        await dialog.getByText(t('بيانات إضافية', 'Additional fields'), { exact: true }).click();
+        await dialog
+          .getByRole('button', { name: t('إضافة حقل', 'Add field'), exact: true })
+          .click();
+        await dialog
+          .getByLabel(t('اسم الحقل', 'Field name') + ' 1', { exact: true })
+          .fill('tripBudget');
+        await dialog.getByLabel(t('النوع', 'Type') + ' 1', { exact: true }).selectOption('number');
+        await dialog.getByLabel(t('القيمة', 'Value') + ' 1', { exact: true }).fill('0');
+        const save = dialog.getByRole('button', {
+          name: t('حفظ العميل', 'Save contact'),
+          exact: true,
+        });
+        const cancel = dialog.getByRole('button', { name: t('إلغاء', 'Cancel'), exact: true });
+        for (const control of [save, cancel]) {
+          assert.ok(
+            await control.evaluate((el) => {
+              const r = el.getBoundingClientRect();
+              return (
+                r.top >= 0 &&
+                r.bottom <= innerHeight &&
+                el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2))
+              );
+            }),
+          );
+        }
+        await shot('contact-editor-expanded');
+      }
+
       await dialog
         .getByRole('button', { name: t('حفظ العميل', 'Save contact'), exact: true })
         .click();
       await dialog.waitFor({ state: 'hidden' });
-      assert.equal((await api('/crm/contacts?q=Created', token)).items.length, 1);
+      const created = (await api('/crm/contacts?q=Created', token)).items;
+      assert.equal(created.length, 1);
+      if (workflow && process.env.CRM_EXPERIENCE_BASELINE !== 'true') {
+        assert.equal(created[0].attributes.tripBudget, 0);
+      }
       if (!before) {
         await page.goto(web + '/dashboard/crm?contact=' + conversation.contact_id);
         await page
@@ -255,7 +366,7 @@ try {
         );
         await page.getByText('Travel itinerary question', { exact: true }).last().waitFor();
         await page.goto(web + '/dashboard/crm?contact=' + contacts[0].id);
-        const profile = page.getByRole('dialog', { name: profileTitle });
+        const profile = page.getByRole(before ? 'dialog' : 'region', { name: profileTitle });
         await profile
           .getByRole('button', { name: t('فرص البيع', 'Opportunities'), exact: true })
           .click();
@@ -318,7 +429,7 @@ try {
       await dialog.waitFor({ state: 'hidden' });
       await page.getByRole('button', { name: 'Review travel itinerary', exact: true }).waitFor();
       await page.goto(web + '/dashboard/crm/pipeline');
-      if (!before && width === 390)
+      if (!before && width <= 430)
         await page
           .getByLabel(t('مرحلة البيع', 'Pipeline stage'), { exact: true })
           .selectOption('Proposal');
@@ -332,7 +443,7 @@ try {
         assert.equal((await api('/crm/deals?id=' + deal.id, token)).items[0].stage, 'Booked');
       }
       if (workflow) {
-        if (width === 390)
+        if (width <= 430)
           await page
             .getByLabel(t('مرحلة البيع', 'Pipeline stage'), { exact: true })
             .selectOption('Booked');
@@ -379,6 +490,17 @@ try {
         await page.goto(web + '/dashboard/crm/' + route);
         await page.locator('.page-workspace').first().waitFor();
         await shot(route);
+      }
+      if (workflow && process.env.CRM_EXPERIENCE_BASELINE !== 'true') {
+        const customFields = page
+          .locator('summary')
+          .filter({ hasText: t('الحقول المخصصة', 'Custom fields') });
+        await customFields.click();
+        await page
+          .getByRole('heading', { name: t('إضافة حقل مخصص', 'Add custom field'), exact: true })
+          .waitFor();
+        await shot('advanced-expanded');
+        await customFields.click();
       }
       if (workflow) {
         await page.goto(web + '/dashboard/crm');
@@ -462,6 +584,17 @@ try {
         await page.getByRole('button', { name: 'Confirm passport details', exact: true }).waitFor();
         await page.goto(web + '/dashboard/crm?contact=' + contacts[0].id);
         await page.getByRole('heading', { name: 'Nour Hassan', exact: true }).waitFor();
+        if (workflow && process.env.CRM_EXPERIENCE_BASELINE !== 'true') {
+          await page
+            .getByText(t('إدارة ملف العميل', 'Manage customer profile'), { exact: true })
+            .click();
+          assert.equal(
+            await page
+              .getByRole('button', { name: t('أرشفة العميل', 'Archive customer'), exact: true })
+              .count(),
+            0,
+          );
+        }
         if (workflow) {
           assert.equal(
             await page
@@ -483,6 +616,8 @@ try {
         language,
         width,
         status: 'PASS',
+        mode,
+        height,
         role: before ? 'owner' : 'owner and agent',
         api: 'NestJS with isolated PGlite',
         checks: before
