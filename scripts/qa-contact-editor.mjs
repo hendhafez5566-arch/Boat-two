@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 const { chromium } = createRequire(import.meta.url)(
   process.env.BOAT_PLAYWRIGHT_MODULE || 'playwright',
 );
-const out = 'docs/enterprise-20261115/contact-editor';
+const out = process.env.CRM_QA_OUTPUT || 'docs/enterprise-20261115/contact-editor';
 mkdirSync(out, { recursive: true });
 async function api(path, token, body, method = body ? 'POST' : 'GET') {
   const r = await fetch('http://localhost:4000' + path, {
@@ -23,15 +23,17 @@ async function api(path, token, body, method = body ? 'POST' : 'GET') {
   assert.ok(r.ok, path + JSON.stringify(d));
   return d;
 }
-const browser = await chromium.launch({
+const launchOptions = {
   executablePath: process.env.BOAT_CHROMIUM || '/usr/bin/google-chrome',
   args: ['--no-sandbox'],
-});
+};
+let browser;
 const results = [];
 let page;
 try {
   for (const language of ['en', 'ar'])
     for (const width of [320, 390, 768, 1366, 1920]) {
+      browser = await chromium.launch(launchOptions);
       const t = (ar, en) => (language === 'ar' ? ar : en);
       const session = await api('/auth/register', null, {
         email: randomUUID() + '@example.test',
@@ -91,6 +93,13 @@ try {
         await editor.getByLabel(t('اسم العميل', 'Customer name'), { exact: true }).inputValue(),
         name,
       );
+      await editor
+        .locator('summary')
+        .filter({ hasText: t('الحقول المخصصة', 'Custom fields') })
+        .click();
+      await editor
+        .getByText(t('تنظيم العميل والوسوم', 'Customer organization and labels'), { exact: true })
+        .click();
       await editor.getByLabel('Budget', { exact: true }).fill('0');
       await editor.getByLabel('Approved', { exact: true }).selectOption('false');
       await editor.getByLabel(t('الوسوم', 'Labels'), { exact: true }).fill('First، Second');
@@ -99,18 +108,14 @@ try {
         .getByRole('button', { name: t('إزالة الوسم', 'Remove label') + ' First', exact: true })
         .click();
       await editor.getByLabel(t('الوسوم', 'Labels'), { exact: true }).fill('Pending');
-      await editor
-        .getByText(t('بيانات إضافية متقدمة', 'Advanced additional attributes'), { exact: true })
-        .click();
-      const raw = editor.getByLabel(t('البيانات الإضافية JSON', 'Additional attributes JSON'), {
-        exact: true,
-      });
-      await raw.fill('{invalid');
+      await editor.getByText(t('بيانات إضافية', 'Additional fields'), { exact: true }).click();
+      await editor.getByRole('button', { name: t('إضافة حقل', 'Add field'), exact: true }).click();
       await editor
         .getByRole('button', { name: t('حفظ العميل', 'Save contact'), exact: true })
         .click();
       await editor.getByRole('alert').waitFor();
-      await raw.fill('{"budget":0,"approved":false,"kept":"hidden"}');
+      await editor.getByLabel(t('اسم الحقل', 'Field name') + ' 1', { exact: true }).fill('kept');
+      await editor.getByLabel(t('القيمة', 'Value') + ' 1', { exact: true }).fill('hidden');
       let fail = true;
       await page.route('**/crm/contacts', (r) =>
         r.request().method() === 'POST' && fail
@@ -140,6 +145,7 @@ try {
       assert.deepEqual(saved.tags, ['Second', 'Pending']);
       assert.equal(saved.attributes.budget, 0);
       assert.equal(saved.attributes.approved, false);
+      assert.equal(saved.attributes.kept, 'hidden');
       await page.reload();
       await page
         .getByRole('dialog', { name: t('إضافة عميل', 'Add contact'), exact: true })
@@ -149,6 +155,10 @@ try {
         name: t('تعديل العميل', 'Edit contact'),
         exact: true,
       });
+      await edit
+        .locator('summary')
+        .filter({ hasText: t('الحقول المخصصة', 'Custom fields') })
+        .click();
       assert.equal(await edit.getByLabel('Budget', { exact: true }).inputValue(), '0');
       assert.equal(await edit.getByLabel('Approved', { exact: true }).inputValue(), 'false');
       await edit
@@ -266,7 +276,8 @@ try {
           'overflow',
         ],
       });
-      await context.close();
+      await browser.close();
+      browser = null;
     }
 } catch (e) {
   if (page) {
@@ -275,6 +286,6 @@ try {
   }
   throw e;
 } finally {
-  await browser.close();
+  if (browser) await browser.close();
   writeFileSync(out + '/results.json', JSON.stringify(results, null, 2));
 }
