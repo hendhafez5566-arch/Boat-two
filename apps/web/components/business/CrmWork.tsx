@@ -108,6 +108,10 @@ export function CrmWork({
       total: 0,
     },
   );
+  const reloadCurrentView = useRef(data.reload);
+  useEffect(() => {
+    reloadCurrentView.current = data.reload;
+  }, [data.reload]);
   const stages = selectedPipeline?.stages ?? [];
   const activeStage = stages.includes(mobileStage)
     ? mobileStage
@@ -120,7 +124,7 @@ export function CrmWork({
     setNotice('');
     try {
       await action();
-      await data.reload();
+      await reloadCurrentView.current();
       onChanged?.();
       setNotice(t('تم الحفظ', 'Saved'));
     } catch (e) {

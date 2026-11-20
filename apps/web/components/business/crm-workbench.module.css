@@ -429,3 +429,24 @@
     width: 16px;
   }
 }
+.recordTabs button {
+  padding-inline: 0.55rem;
+  border-radius: 8px;
+  color: var(--crm-muted);
+  font-weight: 600;
+}
+.recordTabs button[aria-pressed='true'] {
+  font-weight: 750;
+}
+.supportPanel > summary {
+  padding: 0.7rem 0.85rem;
+}
+@media (min-width: 1101px) {
+  .recordHero {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+  .recordActions {
+    grid-column: 1 / -1;
+  }
+}
