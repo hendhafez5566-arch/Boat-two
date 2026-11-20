@@ -450,3 +450,37 @@
     grid-column: 1 / -1;
   }
 }
+.editorDialog[open] {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 24px);
+  overflow: hidden;
+}
+.editorDialog > header {
+  flex: none;
+}
+.editorDialog > :global(.dialog-body) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+  padding: 0.8rem;
+}
+.editorDialog .editor {
+  max-height: none;
+}
+.editorDialog .editorActions {
+  flex: none;
+}
+.editorDialog .editorBody {
+  overscroll-behavior: contain;
+}
+@media (max-height: 540px) {
+  .editorDialog > header {
+    padding-block: 0.5rem;
+  }
+  .editorDialog > :global(.dialog-body) {
+    padding-block: 0.5rem;
+  }
+}
