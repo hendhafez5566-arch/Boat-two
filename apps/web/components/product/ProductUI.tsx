@@ -70,8 +70,13 @@ export function Dialog({
     const dialog = ref.current;
     if (!dialog) return;
     const previous = document.activeElement as HTMLElement | null;
-    if (open && !dialog.open) dialog.showModal();
-    else if (!open && dialog.open) dialog.close();
+    if (open && !dialog.open) {
+      dialog.showModal();
+      // A reused dialog must start at its heading, not a previous record's scroll position.
+      dialog.scrollTop = 0;
+      const body = dialog.querySelector<HTMLElement>('.dialog-body');
+      if (body) body.scrollTop = 0;
+    } else if (!open && dialog.open) dialog.close();
     return () => {
       if (dialog.open) dialog.close();
       previous?.focus({ preventScroll: true });
