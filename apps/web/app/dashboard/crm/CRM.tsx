@@ -121,6 +121,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
   const [quickFilter, setQuickFilter] = useState('');
   function chooseQuickFilter(value: string) {
     setQuickFilter(value);
+    setArchiveFilter(value === 'archived' ? 'archived' : 'active');
     setStage('');
     setPage(1);
     setRouteFilters((previous) => {
@@ -530,6 +531,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
               ['qualified', t('عملاء مؤهلون', 'Qualified')],
               ['unassigned', t('دون مسؤول', 'Unassigned')],
               ['withoutFollowup', t('دون متابعة مفتوحة', 'No open follow-up')],
+              ['archived', t('الأرشيف', 'Archive')],
             ].map(([value, label]) => (
               <button
                 type="button"
@@ -1026,7 +1028,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                                 type="button"
                                 className={`btn ${!c.archived_at ? styles.removeAction : ''}`}
                                 aria-label={`${c.archived_at ? t('استعادة', 'Restore') : t('حذف من القائمة', 'Remove from list')}: ${c.name}`}
-                                onClick={() => setArchiveTarget(c)}
+                                onClick={() => { setError(''); setArchiveTarget(c); }}
                               >
                                 <NavIcon name={c.archived_at ? 'check' : 'trash'} />
                                 <span>
