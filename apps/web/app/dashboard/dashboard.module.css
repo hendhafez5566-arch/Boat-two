@@ -61,7 +61,7 @@
   border-radius: 8px;
   padding: 8px 14px;
   color: #fff;
-  background: #5543ec;
+  background: var(--primary);
   font: inherit;
   cursor: pointer;
 }

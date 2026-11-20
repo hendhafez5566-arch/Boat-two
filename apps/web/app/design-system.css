@@ -2668,3 +2668,10 @@ button.underline {
 #team-invitations {
   scroll-margin-block-start: calc(var(--topbar-h) + 16px);
 }
+
+.bs-shell .product-sidebar nav .workspace-nav-group a svg {
+  color: var(--muted);
+}
+.bs-shell .product-sidebar nav .workspace-nav-group a:is(:hover, .active) svg {
+  color: var(--primary);
+}
