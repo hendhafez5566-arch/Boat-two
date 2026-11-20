@@ -1,0 +1,431 @@
+.workspace,
+.work {
+  --crm-ink: #14243a;
+  --crm-muted: #506279;
+  --crm-line: #dce5ef;
+  --crm-paper: #fff;
+  --crm-wash: #f3f7fb;
+  --crm-accent: #17635e;
+  --crm-radius: 14px;
+  color: var(--crm-ink);
+}
+.listScreen[hidden] {
+  display: none;
+}
+.listScreen,
+.results,
+.recordScreen,
+.recordContent {
+  min-inline-size: 0;
+}
+.listFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  margin-block: 0.75rem;
+}
+.listFilters button[aria-pressed='true'] {
+  background: #e6f3f0;
+  color: var(--crm-accent);
+  border-color: #b5d9d2;
+}
+.directory,
+.recordHero,
+.recordFocus,
+.recordContent {
+  background: var(--crm-paper);
+  border: 1px solid var(--crm-line);
+  border-radius: var(--crm-radius);
+}
+.directoryBar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+.directoryScroll {
+  overflow: auto;
+}
+.directoryTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: start;
+}
+.directoryTable th,
+.directoryTable td {
+  text-align: start;
+  padding: 0.68rem 0.8rem;
+  border-block-start: 1px solid var(--crm-line);
+}
+.directoryTable th {
+  color: var(--crm-muted);
+  font-size: 0.84rem;
+  background: var(--crm-wash);
+}
+.directoryTable td {
+  overflow-wrap: anywhere;
+}
+.directoryTable tbody tr:hover {
+  background: #f8faff;
+}
+.directory[data-view='grid'] .directoryTable tbody {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+}
+.directory[data-view='grid'] .directoryTable,
+.directory[data-view='grid'] .directoryTable td {
+  display: block;
+}
+.directory[data-view='grid'] .directoryTable thead {
+  position: absolute;
+  clip-path: inset(50%);
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.directory[data-view='grid'] .directoryTable tr {
+  display: block;
+  border: 1px solid var(--crm-line);
+  border-radius: 12px;
+}
+.directory[data-view='grid'] .directoryScroll {
+  padding: 0.65rem;
+}
+.recordScreen {
+  max-inline-size: 75rem;
+  margin-inline: auto;
+}
+.recordTop {
+  padding-block: 0.5rem;
+}
+.record {
+  display: grid;
+  gap: 0.75rem;
+}
+.recordHero {
+  display: grid;
+  gap: 0.65rem;
+  padding: clamp(0.8rem, 2vw, 1.4rem);
+  border-block-start: 3px solid var(--crm-accent);
+}
+.identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+  overflow-wrap: anywhere;
+}
+.identity h2 {
+  margin: 0;
+  font-size: clamp(1.4rem, 3vw, 2.1rem);
+  line-height: 1.15;
+}
+.identity p {
+  margin: 0.25rem 0 0;
+  color: var(--crm-muted);
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  inline-size: 2.7rem;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  color: var(--crm-accent);
+  background: #e6f3f0;
+  font-weight: 750;
+}
+.recordStage,
+.recordActions,
+.recordTabs,
+.chips,
+.toolGrid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+.recordStage {
+  color: var(--crm-muted);
+}
+.recordActions > *,
+.recordTop button,
+.recordTabs button,
+.editorActions button {
+  min-block-size: 44px;
+}
+.recordLayout {
+  display: grid;
+  grid-template-columns: minmax(13rem, 0.65fr) minmax(0, 2fr);
+  align-items: start;
+  gap: 0.75rem;
+}
+.recordFocus {
+  padding: 0.7rem;
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.recordFocus > button {
+  display: grid;
+  text-align: start;
+  white-space: normal;
+  justify-items: start;
+  min-height: 44px;
+}
+.recordTabs {
+  padding: 0.5rem;
+  background: var(--crm-wash);
+  border-radius: var(--crm-radius) var(--crm-radius) 0 0;
+  border-block-end: 1px solid var(--crm-line);
+}
+.recordTabs button[aria-selected='true'],
+.recordTabs button[aria-pressed='true'] {
+  color: var(--crm-accent);
+  background: #e6f3f0;
+  border-color: #b5d9d2;
+}
+.recordBody {
+  padding: 0.8rem;
+  overflow-wrap: anywhere;
+}
+.recordTools {
+  margin: 0.5rem 0.8rem;
+  border-block-end: 1px solid var(--crm-line);
+}
+.recordTools summary,
+.formGroup summary {
+  cursor: pointer;
+  padding-block: 0.6rem;
+  font-weight: 650;
+}
+.toolGrid {
+  padding-block-end: 0.55rem;
+}
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: 0.5rem;
+}
+.facts > div {
+  padding: 0.65rem;
+  border-radius: 8px;
+  background: var(--crm-wash);
+}
+.facts dt {
+  color: var(--crm-muted);
+  font-size: 0.85em;
+}
+.facts dd {
+  margin: 0.3rem 0 0;
+}
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem;
+  background: #f3f7fb;
+  border: 1px solid #dce5ef;
+  border-radius: 12px;
+}
+.nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  gap: 0.35rem;
+  padding-inline: 0.65rem;
+  border-radius: 8px;
+}
+.nav a[aria-current='page'] {
+  background: #e6f3f0;
+  color: #17635e;
+  font-weight: 700;
+}
+.editorDialog {
+  width: min(42rem, 100%);
+}
+.editor {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 0;
+}
+.editorBody {
+  overflow-y: auto;
+  min-height: 0;
+  padding: 0.2rem 0.15rem 0.6rem;
+}
+.formFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+  min-inline-size: 0;
+}
+.formFields label {
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+  min-width: 0;
+}
+.formFields input,
+.formFields select {
+  width: 100%;
+  min-height: 44px;
+}
+.formGroup {
+  border-block-start: 1px solid #dce5ef;
+  margin-block: 0.45rem;
+}
+.formGroup > :not(summary) {
+  margin-block-end: 0.6rem;
+}
+.editorActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-block-start: 0.65rem;
+  border-block-start: 1px solid #dce5ef;
+}
+.workHeader {
+  display: grid;
+  gap: 0.55rem;
+  border-block-end: 1px solid var(--crm-line);
+  padding-block-end: 0.65rem;
+}
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
+  .recordScreen {
+    position: fixed;
+    z-index: 80;
+    inset: 0;
+    margin: 0;
+    max-inline-size: none;
+    overflow-y: auto;
+    background: var(--crm-wash);
+    padding: 0 0.65rem max(0.8rem, env(safe-area-inset-bottom));
+  }
+  .recordTop {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--crm-wash);
+  }
+  .recordLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .directoryTable,
+  .directoryTable td {
+    display: block;
+  }
+  .directoryTable tbody {
+    display: grid;
+    gap: 0.5rem;
+  }
+  .directoryTable thead {
+    position: absolute;
+    clip-path: inset(50%);
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+  .directoryTable tr {
+    display: block;
+    border: 1px solid var(--crm-line);
+    border-radius: 12px;
+  }
+  .directoryTable td {
+    border: 0;
+    padding: 0.3rem 0.65rem;
+  }
+  .directoryScroll {
+    padding: 0.5rem;
+  }
+  .editor {
+    max-height: 79dvh;
+  }
+}
+@media (max-width: 520px) {
+  .formFields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .editorActions button {
+    flex: 1;
+  }
+  .recordActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .recordActions > * {
+    white-space: normal;
+    justify-content: center;
+  }
+}
+@media (pointer: coarse) and (min-width: 761px) and (max-width: 1100px) {
+  .recordScreen {
+    font-size: clamp(1rem, 2.2vw, 1.45rem);
+  }
+  .recordActions > *,
+  .recordTop button,
+  .recordTabs button {
+    min-height: 58px;
+  }
+}
+
+.identity a {
+  display: inline-block;
+  margin-inline-end: 0.7rem;
+  color: var(--crm-accent);
+}
+.recordTop {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--crm-muted);
+}
+.supportPanel {
+  border: 1px solid var(--crm-line);
+  border-radius: var(--crm-radius);
+  background: var(--crm-paper);
+}
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
+  .directoryTable tbody tr,
+  .directory[data-view='grid'] .directoryTable tbody tr {
+    display: grid;
+    grid-template-columns: minmax(1.9rem, auto) minmax(0, 1fr);
+    padding: 0.4rem;
+    align-items: start;
+  }
+  .directoryTable td:nth-child(1) {
+    padding-inline: 0.35rem;
+  }
+  .directoryTable td:nth-child(n + 3) {
+    grid-column: 2;
+  }
+  .directoryTable td:nth-child(4) {
+    padding-block-start: 0.45rem;
+  }
+  .directoryTable td:nth-child(4) button {
+    min-block-size: 44px;
+  }
+}
+
+@media (max-width: 520px) {
+  .nav {
+    padding: 0.25rem;
+    gap: 0.15rem;
+  }
+  .nav a {
+    font-size: 0.83rem;
+    padding-inline: 0.35rem;
+    min-height: 38px;
+  }
+  .nav a svg {
+    width: 16px;
+  }
+}

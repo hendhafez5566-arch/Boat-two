@@ -8,6 +8,7 @@ import { useData } from './useData';
 import { download, exportCsv } from './csv';
 import { useLocale } from '../product/locale';
 import { NavIcon } from '../product/NavIcon';
+import bench from './crm-workbench.module.css';
 import styles from './crm-workspace.module.css';
 type Sale = { currency: string; status: string; count: number; value_cents: string };
 type Intelligence = {
@@ -233,7 +234,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
     );
   }
   return (
-    <main className={styles.page}>
+    <main className={`${styles.page} ${bench.work}`}>
       <CrmNav />
       <header className={styles.hero}>
         <div>
@@ -346,7 +347,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
             ))}
           </div>
           <div className={styles.split}>
-            <section className={styles.panel}>
+            <section className={`${styles.panel} ${bench.supportPanel}`}>
               <header className={styles.panelTitle}>
                 <h2>
                   <NavIcon name="reports" />
@@ -389,7 +390,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
                 )}
               </p>
             </section>
-            <section className={styles.panel}>
+            <section className={`${styles.panel} ${bench.supportPanel}`}>
               <h2>
                 <NavIcon name="coins" />
                 {t('القيمة حسب العملة', 'Value by currency')}
@@ -434,7 +435,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
             </section>
           </div>
           <div className={styles.split}>
-            <section className={styles.panel}>
+            <section className={`${styles.panel} ${bench.supportPanel}`}>
               <h2>
                 <NavIcon name="userClock" />
                 {t('عملاء يحتاجون متابعة', 'Customers needing a follow-up')}
@@ -465,7 +466,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
                 {t('عرض كل الملفات دون متابعة', 'View all without follow-up')}
               </Link>
             </section>
-            <section className={styles.panel}>
+            <section className={`${styles.panel} ${bench.supportPanel}`}>
               <h2>
                 <NavIcon name="globe" />
                 {t('مصادر العملاء', 'Customer sources')}
@@ -505,7 +506,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
           </div>
           {report && (
             <>
-              <section className={styles.panel}>
+              <section className={`${styles.panel} ${bench.supportPanel}`}>
                 <h2>
                   <NavIcon name="team" />
                   {t('أداء الموظفين', 'Team performance')}
@@ -541,7 +542,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
                   </table>
                 </div>
               </section>
-              <section className={styles.panel}>
+              <section className={`${styles.panel} ${bench.supportPanel}`}>
                 <h2>{t('أسباب خسارة الفرص', 'Loss reasons')}</h2>
                 {r.losses.map((l) => (
                   <p className={styles.valueRow} key={l.reason}>

@@ -11,6 +11,7 @@ import { CrmNav } from './CrmNav';
 import { NavIcon } from '../product/NavIcon';
 import styles from './crm-workspace.module.css';
 import design from './crm-design.module.css';
+import bench from './crm-workbench.module.css';
 import editorStyles from '../product/structured-editor.module.css';
 
 type Pipeline = { id: string; name: string; stages: string[] };
@@ -182,7 +183,7 @@ export function CrmWork({
     return (
       <article
         key={row.id}
-        className={`${styles.card} ${design.workCard}`}
+        className={`${styles.card} ${design.workCard} ${bench.supportPanel}`}
         data-work-card
         data-work-status={row.status}
         data-overdue={overdue}
@@ -342,9 +343,9 @@ export function CrmWork({
     />
   );
   return (
-    <section className={`${compact ? '' : styles.page} ${design.workspace}`}>
+    <section className={`${compact ? '' : styles.page} ${design.workspace} ${bench.work}`}>
       {!compact && <CrmNav />}
-      <header className={`${styles.heading} ${design.heading}`}>
+      <header className={`${styles.heading} ${bench.workHeader}`}>
         <div>
           <h1>
             <span className={design.headingIcon}>

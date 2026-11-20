@@ -6,6 +6,7 @@ import { api } from '../../../../lib/api';
 import { useData } from '../../../../components/business/useData';
 import { useLocale } from '../../../../components/product/locale';
 import { Button, EmptyState, Feedback } from '../../../../components/product/ProductUI';
+import bench from '../../../../components/business/crm-workbench.module.css';
 import styles from './lists.module.css';
 
 type Member = { id: string; name: string; email: string | null; phone: string | null };
@@ -108,7 +109,7 @@ export default function ContactLists() {
   }
 
   return (
-    <main className={`stack ${styles.page}`}>
+    <main className={`stack ${styles.page} ${bench.work}`}>
       <CrmNav />
       <header className="page-heading">
         <div>

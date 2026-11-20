@@ -3,6 +3,8 @@ import { DisclosureSummary } from '../product/DisclosureSummary';
 
 import { FormEvent, useRef, useState } from 'react';
 import Link from 'next/link';
+import bench from './crm-workbench.module.css';
+import { Dialog } from '../product/ProductUI';
 import { NavIcon } from '../product/NavIcon';
 import { api } from '../../lib/api';
 import { useData } from './useData';
@@ -24,6 +26,7 @@ type Contact = {
   tags: string[];
   owner_id: string | null;
   archived_at: string | null;
+  merged_into_id?: string | null;
   created_at: string;
   updated_at: string;
   attributes: Record<string, string | number | boolean | null>;
@@ -106,6 +109,7 @@ export default function SubscriberProfile({
     [],
   );
   const [quickCreate, setQuickCreate] = useState('');
+  const [confirmArchive, setConfirmArchive] = useState(false);
   const [overviewEditing, setOverviewEditing] = useState(false);
   const [tab, setTab] = useState('overview'),
     [busy, setBusy] = useState(false),
@@ -218,6 +222,15 @@ export default function SubscriberProfile({
       : [];
   const latestActivity = activity[0];
 
+  function archive(archived: boolean) {
+    return run(async () => {
+      await api(`/crm/contacts/${contactId}/archive`, {
+        method: 'PATCH',
+        body: JSON.stringify({ archived }),
+      });
+      setConfirmArchive(false);
+    });
+  }
   function saveOverview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -231,17 +244,7 @@ export default function SubscriberProfile({
     });
   }
   return (
-    <aside
-      className={`${styles.profile} ${design.profile}`}
-      aria-label={t('ملف العميل', 'Customer profile')}
-    >
-      <header className={styles.profileHeader}>
-        <span className={styles.avatar}>{contact?.name?.slice(0, 2) || '?'}</span>
-        <div>
-          <h2>{contact?.name || t('ملف العميل', 'Customer profile')}</h2>
-          <p dir="ltr">{contact?.phone || contact?.email || '—'}</p>
-        </div>
-      </header>
+    <article className={bench.record} aria-label={t('ملف العميل', 'Customer profile')}>
       {data.loading && <p role="status">{t('جارٍ تحميل الملف…', 'Loading profile…')}</p>}
       {(error || data.error) && (
         <p role="alert" className="notice error">
@@ -258,792 +261,865 @@ export default function SubscriberProfile({
       )}
       {profile && contact && (
         <>
-          <div className={styles.profileMeta}>
-            {canManage ? (
-              <label className={design.lifecycleControl}>
-                {t('مرحلة العميل', 'Lifecycle')}
-                <select
-                  aria-label={t('مرحلة العميل', 'Lifecycle')}
-                  disabled={busy}
-                  value={contact.lifecycle}
-                  onChange={(event) => {
-                    const lifecycle = event.target.value;
-                    void run(() => patch({ lifecycle }));
+          <div className={bench.recordHero}>
+            <header className={bench.identity}>
+              <span className={bench.avatar}>{contact?.name?.slice(0, 2) || '?'}</span>
+              <div>
+                <h2>{contact?.name || t('ملف العميل', 'Customer profile')}</h2>
+                {contact?.phone && (
+                  <a href={`tel:${contact.phone}`}>
+                    <bdi>{contact.phone}</bdi>
+                  </a>
+                )}
+                {contact?.email && (
+                  <a href={`mailto:${contact.email}`}>
+                    <bdi>{contact.email}</bdi>
+                  </a>
+                )}
+              </div>
+            </header>
+            <div className={bench.recordStage}>
+              {canManage ? (
+                <label className={design.lifecycleControl}>
+                  {t('مرحلة العميل', 'Lifecycle')}
+                  <select
+                    aria-label={t('مرحلة العميل', 'Lifecycle')}
+                    disabled={busy}
+                    value={contact.lifecycle}
+                    onChange={(event) => {
+                      const lifecycle = event.target.value;
+                      void run(() => patch({ lifecycle }));
+                    }}
+                  >
+                    {['lead', 'qualified', 'customer', 'inactive'].map((value) => (
+                      <option key={value} value={value}>
+                        {statusLabel(value, t)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <span className={styles.pill}>{statusLabel(contact.lifecycle, t)}</span>
+              )}
+              <span>{contact.archived_at ? t('مؤرشف', 'Archived') : t('نشط', 'Active')}</span>
+            </div>
+            <div className={bench.recordActions}>
+              {profile.timeline.conversations[0] && (
+                <Link
+                  className="btn btn-primary"
+                  href={
+                    '/dashboard/inbox?conversation=' +
+                    profile.timeline.conversations[0].id +
+                    '&channelId=' +
+                    profile.timeline.conversations[0].channel_id
+                  }
+                >
+                  <NavIcon name="chat" />
+                  {t('فتح المحادثة', 'Open conversation')}
+                </Link>
+              )}
+              {tab !== 'deals' && (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    setQuickCreate('deals');
+                    setTab('deals');
                   }}
                 >
-                  {['lead', 'qualified', 'customer', 'inactive'].map((value) => (
-                    <option key={value} value={value}>
-                      {statusLabel(value, t)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : (
-              <span className={styles.pill}>{statusLabel(contact.lifecycle, t)}</span>
-            )}
-            <span>{contact.archived_at ? t('مؤرشف', 'Archived') : t('نشط', 'Retained')}</span>
-            <small>
-              {t('منذ', 'Since')} {date(contact.created_at)}
-            </small>
-          </div>
-          <div className={styles.quickActions}>
-            {profile.timeline.conversations[0] && (
-              <Link
-                href={
-                  '/dashboard/inbox?conversation=' +
-                  profile.timeline.conversations[0].id +
-                  '&channelId=' +
-                  profile.timeline.conversations[0].channel_id
-                }
-              >
-                <NavIcon name="chat" />
-                {t('فتح المحادثة', 'Open conversation')}
-              </Link>
-            )}
-            {tab !== 'deals' && (
+                  <NavIcon name="handshake" />
+                  {t('إضافة فرصة', 'Add opportunity')}
+                </button>
+              )}
+              {tab !== 'tasks' && (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    setQuickCreate('tasks');
+                    setTab('tasks');
+                  }}
+                >
+                  <NavIcon name="calendar" />
+                  {t('إضافة متابعة', 'Add follow-up')}
+                </button>
+              )}
               <button
+                type="button"
+                className="btn"
                 onClick={() => {
-                  setQuickCreate('deals');
-                  setTab('deals');
-                }}
-              >
-                <NavIcon name="handshake" />
-                {t('إضافة فرصة', 'Add opportunity')}
-              </button>
-            )}
-            {tab !== 'tasks' && (
-              <button
-                onClick={() => {
-                  setQuickCreate('tasks');
-                  setTab('tasks');
-                }}
-              >
-                <NavIcon name="calendar" />
-                {t('إضافة متابعة', 'Add follow-up')}
-              </button>
-            )}
-            <button
-              onClick={() => {
-                setTab('notes');
-                requestAnimationFrame(() => noteInput.current?.focus());
-              }}
-            >
-              <NavIcon name="edit" />
-              {t('إضافة ملاحظة', 'Add note')}
-            </button>
-            {canManage && (
-              <button
-                onClick={() => {
-                  setTab('overview');
-                  setOverviewEditing(true);
+                  setTab('notes');
+                  requestAnimationFrame(() => noteInput.current?.focus());
                 }}
               >
                 <NavIcon name="edit" />
-                {t('تعديل البيانات', 'Edit details')}
+                {t('إضافة ملاحظة', 'Add note')}
               </button>
-            )}
-          </div>
-          <div className={styles.profileSummary}>
-            <div className={premium.actions}>
-              <span className={premium.badge}>
-                <NavIcon name="user" />
-                {members.data.members.find((m) => m.user_id === contact.owner_id)?.full_name ||
-                  t('دون مسؤول', 'Unassigned')}
-              </span>
-              <span className={premium.badge} data-tone="blue">
-                <NavIcon name="globe" />
-                {String(contact.attributes.source || t('المصدر غير محدد', 'Source not recorded'))}
-              </span>
-            </div>
-
-            {nextTask && (
-              <button
-                type="button"
-                className={`btn ${design.summaryAction}`}
-                onClick={() => {
-                  setQuickCreate('');
-                  setTab('tasks');
-                }}
-              >
-                <NavIcon name="calendar" />
-                <span>
-                  {t('أقرب متابعة', 'Next follow-up')} · {nextTask.title}
-                </span>
-                <time dateTime={nextTask.due_at}>{date(nextTask.due_at)}</time>
-              </button>
-            )}
-            {latestActivity && (
-              <button
-                type="button"
-                className={`btn ${design.summaryAction}`}
-                onClick={() => setTab('activity')}
-              >
-                <NavIcon name="stopwatch" />
-                <span>
-                  {t('آخر نشاط', 'Latest activity')} · {latestActivity.title}
-                </span>
-                <time dateTime={latestActivity.at}>{date(latestActivity.at)}</time>
-              </button>
-            )}
-          </div>
-          <nav
-            className={styles.profileTabs}
-            aria-label={t('أقسام ملف العميل', 'Customer profile sections')}
-          >
-            {tabs
-              .filter(([key]) => ['overview', 'deals', 'tasks', 'notes', 'activity'].includes(key))
-              .map(([key, ar, en]) => (
+              {canManage && (
                 <button
                   type="button"
-                  key={key}
-                  aria-pressed={tab === key}
+                  className="btn"
                   onClick={() => {
-                    setQuickCreate('');
-                    setTab(key);
-                    setError('');
-                    setNotice('');
+                    setTab('overview');
+                    setOverviewEditing(true);
                   }}
                 >
-                  {t(ar, en)}
+                  <NavIcon name="edit" />
+                  {t('تعديل البيانات', 'Edit details')}
                 </button>
-              ))}
-          </nav>
-          <details className={styles.profileMore}>
-            <DisclosureSummary>
-              {t('بيانات وإعدادات إضافية', 'More details and settings')}
-            </DisclosureSummary>
-            <div className={styles.profileChannels}>
-              {profile.channels.map((channel) => (
-                <span key={channel.id}>
-                  {channel.type} · {channel.name}
+              )}
+            </div>
+          </div>
+          <div className={bench.recordLayout}>
+            <div className={bench.recordFocus}>
+              <div className={bench.chips}>
+                <span className={premium.badge}>
+                  <NavIcon name="user" />
+                  {members.data.members.find((m) => m.user_id === contact.owner_id)?.full_name ||
+                    t('دون مسؤول', 'Unassigned')}
                 </span>
-              ))}
+                <span className={premium.badge} data-tone="blue">
+                  <NavIcon name="globe" />
+                  {String(contact.attributes.source || t('المصدر غير محدد', 'Source not recorded'))}
+                </span>
+              </div>
+
+              {nextTask && (
+                <button
+                  type="button"
+                  className={`btn ${design.summaryAction}`}
+                  onClick={() => {
+                    setQuickCreate('');
+                    setTab('tasks');
+                  }}
+                >
+                  <NavIcon name="calendar" />
+                  <span>
+                    {t('أقرب متابعة', 'Next follow-up')} · {nextTask.title}
+                  </span>
+                  <time dateTime={nextTask.due_at}>{date(nextTask.due_at)}</time>
+                </button>
+              )}
+              {latestActivity && (
+                <button
+                  type="button"
+                  className={`btn ${design.summaryAction}`}
+                  onClick={() => setTab('activity')}
+                >
+                  <NavIcon name="stopwatch" />
+                  <span>
+                    {t('آخر نشاط', 'Latest activity')} · {latestActivity.title}
+                  </span>
+                  <time dateTime={latestActivity.at}>{date(latestActivity.at)}</time>
+                </button>
+              )}
             </div>
-            <small>
-              {t('معرّف العميل', 'Customer ID')} <bdi>{contact.id}</bdi>
-            </small>
-            <CrmScore contactId={contactId} version={contact.updated_at} />
-            <div>
-              {tabs
-                .filter(
-                  ([key]) => !['overview', 'deals', 'tasks', 'notes', 'activity'].includes(key),
-                )
-                .map(([key, ar, en]) => (
-                  <button
-                    className="btn"
-                    key={key}
-                    aria-pressed={tab === key}
-                    onClick={() => {
-                      setTab(key);
-                      setQuickCreate('');
-                    }}
-                  >
-                    {t(ar, en)}
-                  </button>
-                ))}
-            </div>
-          </details>
-          <div className={styles.profileBody}>
-            {tab === 'deals' && (
-              <CrmWork
-                kind="deals"
-                compact
-                contactId={contactId}
-                createNew={quickCreate === 'deals'}
-                onChanged={() => void data.reload()}
-              />
-            )}
-            {tab === 'tasks' && (
-              <CrmWork
-                kind="tasks"
-                compact
-                contactId={contactId}
-                createNew={quickCreate === 'tasks'}
-                onChanged={() => void data.reload()}
-              />
-            )}
-            {tab === 'company' && (
-              <CompanyContacts
-                contact={contact}
-                canManage={canManage}
-                save={(company) =>
-                  run(() =>
-                    api(`/crm/contacts/${contactId}/profile`, {
-                      method: 'PATCH',
-                      body: JSON.stringify({
-                        attributes: { ...contact.attributes, company },
-                        expectedUpdatedAt: contact.updated_at,
-                      }),
-                    }),
+            <div className={bench.recordContent}>
+              <nav
+                className={bench.recordTabs}
+                aria-label={t('أقسام ملف العميل', 'Customer profile sections')}
+              >
+                {tabs
+                  .filter(([key]) =>
+                    ['overview', 'deals', 'tasks', 'notes', 'activity'].includes(key),
                   )
-                }
-              />
-            )}
-            {tab === 'overview' && (
-              <>
-                {overviewEditing && (
-                  <section className={design.inlineEditor}>
-                    <form className={styles.form} key={contact.updated_at} onSubmit={saveOverview}>
-                      <h3>{t('تعديل البيانات', 'Edit details')}</h3>
-                      <label>
-                        {t('الاسم', 'Name')}
-                        <input
-                          name="name"
-                          defaultValue={contact.name}
-                          required
-                          maxLength={120}
-                          disabled={!canManage}
-                        />
-                      </label>
-                      <label>
-                        {t('الهاتف', 'Phone')}
-                        <input
-                          name="phone"
-                          type="tel"
-                          dir="ltr"
-                          defaultValue={contact.phone ?? ''}
-                          maxLength={30}
-                          disabled={!canManage}
-                        />
-                      </label>
-                      <label>
-                        {t('البريد الإلكتروني', 'Email')}
-                        <input
-                          name="email"
-                          type="email"
-                          dir="ltr"
-                          defaultValue={contact.email ?? ''}
-                          disabled={!canManage}
-                        />
-                      </label>
-                      {canManage && (
-                        <button className="btn btn-primary" disabled={busy}>
-                          {t('حفظ التغييرات', 'Save Changes')}
-                        </button>
-                      )}
+                  .map(([key, ar, en]) => (
+                    <button
+                      type="button"
+                      key={key}
+                      aria-pressed={tab === key}
+                      onClick={() => {
+                        setQuickCreate('');
+                        setTab(key);
+                        setError('');
+                        setNotice('');
+                      }}
+                    >
+                      {t(ar, en)}
+                    </button>
+                  ))}
+              </nav>
+              <details className={bench.recordTools}>
+                <DisclosureSummary>
+                  {t('إدارة ملف العميل', 'Manage customer profile')}
+                </DisclosureSummary>
+                <div className={bench.toolGrid}>
+                  {tabs
+                    .filter(
+                      ([key]) => !['overview', 'deals', 'tasks', 'notes', 'activity'].includes(key),
+                    )
+                    .map(([key, ar, en]) => (
                       <button
+                        key={key}
                         type="button"
                         className="btn"
-                        onClick={() => setOverviewEditing(false)}
+                        aria-pressed={tab === key}
+                        onClick={() => {
+                          setTab(key);
+                          setQuickCreate('');
+                        }}
                       >
-                        {t('إلغاء', 'Cancel')}
+                        {t(ar, en)}
                       </button>
-                    </form>
-                  </section>
+                    ))}
+                  <button
+                    type="button"
+                    className="btn"
+                    aria-pressed={tab === 'score'}
+                    onClick={() => setTab('score')}
+                  >
+                    {t('التقييم والقنوات', 'Score and channels')}
+                  </button>
+                  {canManage && !contact.merged_into_id && (
+                    <button
+                      className="btn"
+                      disabled={busy}
+                      type="button"
+                      onClick={() =>
+                        contact.archived_at ? void archive(false) : setConfirmArchive(true)
+                      }
+                    >
+                      {contact.archived_at
+                        ? t('استعادة العميل', 'Restore customer')
+                        : t('أرشفة العميل', 'Archive customer')}
+                    </button>
+                  )}
+                </div>
+              </details>
+              <Dialog
+                open={confirmArchive}
+                onClose={() => {
+                  if (!busy) setConfirmArchive(false);
+                }}
+                title={t('أرشفة العميل', 'Archive customer')}
+              >
+                <p>
+                  {t(
+                    'سيُنقل العميل إلى الأرشيف ويمكن استعادته.',
+                    'The customer will move to Archived and can be restored.',
+                  )}
+                </p>
+                {error && <p role="alert">{error}</p>}
+                <div className="form-actions">
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={busy}
+                    onClick={() => setConfirmArchive(false)}
+                  >
+                    {t('إلغاء', 'Cancel')}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={busy}
+                    onClick={() => void archive(true)}
+                  >
+                    {t('تأكيد الأرشفة', 'Confirm archive')}
+                  </button>
+                </div>
+              </Dialog>
+              <div className={bench.recordBody}>
+                {tab === 'score' && (
+                  <>
+                    <CrmScore contactId={contactId} version={contact.updated_at} />
+                    <div className={styles.profileChannels}>
+                      {profile.channels.map((channel) => (
+                        <span key={channel.id}>{channel.name}</span>
+                      ))}
+                    </div>
+                    <details className={bench.recordTools}>
+                      <DisclosureSummary>{t('مرجع الدعم', 'Support reference')}</DisclosureSummary>
+                      <bdi>{contact.id}</bdi>
+                    </details>
+                  </>
                 )}
-                <div className={styles.overviewGrid}>
-                  <section className={styles.overviewCard}>
-                    <h3>{t('بيانات العميل', 'About')}</h3>
-                    <dl>
-                      <div>
-                        <dt>{t('الهاتف', 'Phone')}</dt>
-                        <dd dir="ltr">{contact.phone || '—'}</dd>
-                      </div>
-                      <div>
-                        <dt>{t('البريد الإلكتروني', 'Email')}</dt>
-                        <dd dir="ltr">{contact.email || '—'}</dd>
-                      </div>
+                {tab === 'deals' && (
+                  <CrmWork
+                    kind="deals"
+                    compact
+                    contactId={contactId}
+                    createNew={quickCreate === 'deals'}
+                    onChanged={() => void data.reload()}
+                  />
+                )}
+                {tab === 'tasks' && (
+                  <CrmWork
+                    kind="tasks"
+                    compact
+                    contactId={contactId}
+                    createNew={quickCreate === 'tasks'}
+                    onChanged={() => void data.reload()}
+                  />
+                )}
+                {tab === 'company' && (
+                  <CompanyContacts
+                    contact={contact}
+                    canManage={canManage}
+                    save={(company) =>
+                      run(() =>
+                        api(`/crm/contacts/${contactId}/profile`, {
+                          method: 'PATCH',
+                          body: JSON.stringify({
+                            attributes: { ...contact.attributes, company },
+                            expectedUpdatedAt: contact.updated_at,
+                          }),
+                        }),
+                      )
+                    }
+                  />
+                )}
+                {tab === 'overview' && (
+                  <>
+                    {overviewEditing && (
+                      <section className={design.inlineEditor}>
+                        <form
+                          className={styles.form}
+                          key={contact.updated_at}
+                          onSubmit={saveOverview}
+                        >
+                          <h3>{t('تعديل البيانات', 'Edit details')}</h3>
+                          <label>
+                            {t('الاسم', 'Name')}
+                            <input
+                              name="name"
+                              defaultValue={contact.name}
+                              required
+                              maxLength={120}
+                              disabled={!canManage}
+                            />
+                          </label>
+                          <label>
+                            {t('الهاتف', 'Phone')}
+                            <input
+                              name="phone"
+                              type="tel"
+                              dir="ltr"
+                              defaultValue={contact.phone ?? ''}
+                              maxLength={30}
+                              disabled={!canManage}
+                            />
+                          </label>
+                          <label>
+                            {t('البريد الإلكتروني', 'Email')}
+                            <input
+                              name="email"
+                              type="email"
+                              dir="ltr"
+                              defaultValue={contact.email ?? ''}
+                              disabled={!canManage}
+                            />
+                          </label>
+                          {canManage && (
+                            <button className="btn btn-primary" disabled={busy}>
+                              {t('حفظ التغييرات', 'Save Changes')}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={() => setOverviewEditing(false)}
+                          >
+                            {t('إلغاء', 'Cancel')}
+                          </button>
+                        </form>
+                      </section>
+                    )}
+                    <dl className={bench.facts}>
                       <div>
                         <dt>{t('تاريخ الإضافة', 'Added')}</dt>
                         <dd>{date(contact.created_at)}</dd>
                       </div>
-                    </dl>
-                  </section>
-                  <section className={styles.overviewCard}>
-                    <h3>{t('التفاعل', 'Engagement')}</h3>
-                    <dl>
                       <div>
-                        <dt>{t('آخر تواصل', 'Last Communication')}</dt>
-                        <dd>
-                          {date(
-                            profile.timeline.conversations
-                              .map((row) => row.last_message_at)
-                              .filter(Boolean)
-                              .sort()
-                              .at(-1),
-                          )}
-                        </dd>
+                        <dt>{t('آخر تحديث', 'Last updated')}</dt>
+                        <dd>{date(contact.updated_at)}</dd>
                       </div>
                       <div>
                         <dt>{t('المحادثات', 'Conversations')}</dt>
                         <dd>{profile.timeline.conversations.length}</dd>
                       </div>
-                      <div>
-                        <dt>{t('المرحلة', 'Lifecycle')}</dt>
-                        <dd>{statusLabel(contact.lifecycle, t)}</dd>
-                      </div>
-                      <div>
-                        <dt>{t('آخر تحديث للملف', 'Profile Updated')}</dt>
-                        <dd>{date(contact.updated_at)}</dd>
-                      </div>
                     </dl>
-                  </section>
-                </div>
-                <h3>{t('المحادثات', 'Conversations')}</h3>
-                {profile.timeline.conversations.map((row) => (
-                  <Link
-                    className={styles.profileRow}
-                    key={row.id}
-                    href={`/dashboard/inbox?conversation=${row.id}&channelId=${row.channel_id}`}
-                  >
-                    <strong>{row.channel_name}</strong>
-                    <span>
-                      {statusLabel(row.status, t)} · {date(row.last_message_at)}
-                    </span>
-                  </Link>
-                ))}
-                {!profile.timeline.conversations.length && (
-                  <p>{t('لا توجد محادثات.', 'No conversations.')}</p>
-                )}
-                {canManage && (
-                  <button
-                    type="button"
-                    className="btn"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(() =>
-                        api(`/crm/contacts/${contactId}/archive`, {
-                          method: 'PATCH',
-                          body: JSON.stringify({ archived: !contact.archived_at }),
-                        }),
-                      )
-                    }
-                  >
-                    {contact.archived_at
-                      ? t('استعادة المشترك', 'Restore subscriber')
-                      : t('أرشفة المشترك', 'Archive subscriber')}
-                  </button>
-                )}
-              </>
-            )}
-            {tab === 'agent' && (
-              <form
-                className={styles.form}
-                key={contact.updated_at}
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const value = new FormData(event.currentTarget).get('owner');
-                  void run(() => patch({ ownerId: String(value || '') || null }));
-                }}
-              >
-                <h3>{t('مسؤول العميل', 'Customer owner')}</h3>
-                {members.error && <p role="alert">{members.error}</p>}
-                <label>
-                  {t('الموظف', 'Agent')}
-                  <select name="owner" defaultValue={contact.owner_id ?? ''} disabled={!canManage}>
-                    <option value="">{t('غير معيّن', 'Unassigned')}</option>
-                    {members.data.members.map((member) => (
-                      <option key={member.user_id} value={member.user_id}>
-                        {member.full_name}
-                      </option>
+                    <h3>{t('المحادثات', 'Conversations')}</h3>
+                    {profile.timeline.conversations.map((row) => (
+                      <Link
+                        className={styles.profileRow}
+                        key={row.id}
+                        href={`/dashboard/inbox?conversation=${row.id}&channelId=${row.channel_id}`}
+                      >
+                        <strong>{row.channel_name}</strong>
+                        <span>
+                          {statusLabel(row.status, t)} · {date(row.last_message_at)}
+                        </span>
+                      </Link>
                     ))}
-                  </select>
-                </label>
-                <p>
-                  {t(
-                    'هذا مسؤول ملف العميل؛ استلام المحادثة وتوزيعها يتمان من الوارد.',
-                    'This owns the customer profile. Conversation takeover and assignment are managed in Inbox.',
-                  )}
-                </p>
-                {canManage && (
-                  <button className="btn btn-primary" disabled={busy}>
-                    {t('حفظ الموظف', 'Save Agent')}
-                  </button>
-                )}
-              </form>
-            )}
-            {tab === 'labels' && (
-              <>
-                <h3>{t('الوسوم', 'Labels')}</h3>
-                <div className={styles.tags}>
-                  {contact.tags.map((tag) => (
-                    <span key={tag}>
-                      {tag}
-                      {canManage && (
-                        <button
-                          type="button"
-                          disabled={busy}
-                          aria-label={`${t('إزالة', 'Remove')} ${tag}`}
-                          onClick={() =>
-                            void run(() =>
-                              patch({ tags: contact.tags.filter((value) => value !== tag) }),
-                            )
-                          }
-                        >
-                          ×
-                        </button>
-                      )}
-                    </span>
-                  ))}
-                </div>
-                {canManage && (
-                  <form
-                    className={styles.form}
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      const form = event.currentTarget;
-                      const value = String(new FormData(form).get('tag') || '').trim();
-                      if (value)
-                        void run(async () => {
-                          await patch({ tags: [...new Set([...contact.tags, value])] });
-                          form.reset();
-                        });
-                    }}
-                  >
-                    <label>
-                      {t('وسم جديد', 'New label')}
-                      <input name="tag" required maxLength={50} />
-                    </label>
-                    <button className="btn" disabled={busy}>
-                      {t('إضافة الوسم', 'Add Label')}
-                    </button>
-                  </form>
-                )}
-              </>
-            )}
-            {tab === 'lists' && (
-              <>
-                <h3>{t('قوائم العميل', 'Customer lists')}</h3>
-                {lists.error && <p role="alert">{lists.error}</p>}
-                {profile.lists.map((list) => (
-                  <div className={styles.profileRow} key={list.id}>
-                    <strong>{list.name}</strong>
-                    {canManage && (
-                      <button
-                        type="button"
-                        className="btn"
-                        disabled={busy}
-                        onClick={() =>
-                          void run(() =>
-                            api(`/contact-lists/${list.id}/members/${contactId}`, {
-                              method: 'DELETE',
-                            }),
-                          )
-                        }
-                      >
-                        {t('إزالة', 'Remove')}
-                      </button>
+                    {!profile.timeline.conversations.length && (
+                      <p>{t('لا توجد محادثات.', 'No conversations.')}</p>
                     )}
-                  </div>
-                ))}
-                {canManage && (
+                  </>
+                )}
+                {tab === 'agent' && (
                   <form
                     className={styles.form}
+                    key={contact.updated_at}
                     onSubmit={(event) => {
                       event.preventDefault();
-                      const id = new FormData(event.currentTarget).get('list');
-                      void run(() =>
-                        api(`/contact-lists/${id}/members`, {
-                          method: 'POST',
-                          body: JSON.stringify({ contactId }),
-                        }),
-                      );
+                      const value = new FormData(event.currentTarget).get('owner');
+                      void run(() => patch({ ownerId: String(value || '') || null }));
                     }}
                   >
+                    <h3>{t('مسؤول العميل', 'Customer owner')}</h3>
+                    {members.error && <p role="alert">{members.error}</p>}
                     <label>
-                      {t('إضافة لقائمة', 'Add to list')}
-                      <select name="list" required>
-                        <option value="">{t('اختر قائمة', 'Select list')}</option>
-                        {lists.data
-                          .filter(
-                            (list) => !profile.lists.some((current) => current.id === list.id),
-                          )
-                          .map((list) => (
-                            <option key={list.id} value={list.id}>
-                              {list.name}
-                            </option>
-                          ))}
-                      </select>
-                    </label>
-                    <button className="btn" disabled={busy}>
-                      {t('إضافة للقائمة', 'Add to List')}
-                    </button>
-                  </form>
-                )}
-                <p>
-                  {t(
-                    'عضوية القائمة منفصلة عن موافقة التسويق.',
-                    'List membership is separate from marketing consent.',
-                  )}
-                </p>
-              </>
-            )}
-            {tab === 'sequences' && (
-              <>
-                <h3>{t('تسلسلات العميل', 'Customer sequences')}</h3>
-                {sequences.error && <p role="alert">{sequences.error}</p>}
-                {profile.sequences.map((sequence) => (
-                  <div className={styles.profileRow} key={sequence.id}>
-                    <div>
-                      <strong>{sequence.name}</strong>
-                      <p>
-                        {statusLabel(sequence.status, t)} · {t('الخطوة', 'Step')}{' '}
-                        {sequence.step_index + 1}
-                      </p>
-                      <small>
-                        {date(sequence.next_run_at)}
-                        {sequence.stop_reason ? ` · ${sequence.stop_reason}` : ''}
-                      </small>
-                    </div>
-                    {canManage && sequence.status === 'active' && (
-                      <button
-                        type="button"
-                        className="btn"
-                        disabled={busy}
-                        onClick={() =>
-                          void run(() =>
-                            api(`/sequences/${sequence.id}/enrollments/${contactId}`, {
-                              method: 'DELETE',
-                            }),
-                          )
-                        }
-                      >
-                        {t('إيقاف للمشترك', 'Stop for subscriber')}
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {canManage && (
-                  <form
-                    className={styles.form}
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      const id = new FormData(event.currentTarget).get('sequence');
-                      void run(() =>
-                        api(`/sequences/${id}/enroll`, {
-                          method: 'POST',
-                          body: JSON.stringify({ contactId }),
-                        }),
-                      );
-                    }}
-                  >
-                    <label>
-                      {t('إضافة إلى تسلسل', 'Enroll in sequence')}
-                      <select name="sequence" required>
-                        <option value="">{t('اختر تسلسلًا', 'Select sequence')}</option>
-                        {sequences.data
-                          .filter(
-                            (sequence) =>
-                              sequence.status === 'active' &&
-                              profile.channels.some(
-                                (channel) => channel.id === sequence.channel_id,
-                              ) &&
-                              !profile.sequences.some(
-                                (current) =>
-                                  current.id === sequence.id && current.status === 'active',
-                              ),
-                          )
-                          .map((sequence) => (
-                            <option key={sequence.id} value={sequence.id}>
-                              {sequence.name}
-                            </option>
-                          ))}
-                      </select>
-                    </label>
-                    <button className="btn" disabled={busy}>
-                      {t('إضافة للتسلسل', 'Enroll')}
-                    </button>
-                  </form>
-                )}
-              </>
-            )}
-            {tab === 'input' && (
-              <>
-                <h3>{t('جلسات جمع البيانات', 'Input flow sessions')}</h3>
-                {profile.inputs.map((input, index) => (
-                  <article className={styles.profileRow} key={index}>
-                    <div>
-                      <strong>{input.name}</strong>
-                      <small>
-                        {statusLabel(input.status, t)} · {date(input.updated_at)}
-                      </small>
-                      <dl>
-                        {Object.entries(input.answers ?? {}).map(([key, value]) => (
-                          <div key={key}>
-                            <dt>{fields.data.find((field) => field.key === key)?.label ?? key}</dt>
-                            <dd>
-                              {typeof value === 'object'
-                                ? JSON.stringify(value)
-                                : String(value ?? '—')}
-                            </dd>
-                          </div>
-                        ))}
-                      </dl>
-                    </div>
-                  </article>
-                ))}
-                {!profile.inputs.length && (
-                  <p>{t('لا توجد جلسات مسجلة.', 'No recorded sessions.')}</p>
-                )}
-              </>
-            )}
-            {tab === 'fields' && (
-              <form
-                className={styles.form}
-                key={contact.updated_at}
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const form = new FormData(event.currentTarget);
-                  const attributes: Contact['attributes'] = {};
-                  for (const field of fields.data) {
-                    const value = form.get(field.key);
-                    attributes[field.key] =
-                      field.type === 'boolean'
-                        ? value === 'on'
-                        : value === ''
-                          ? null
-                          : field.type === 'number'
-                            ? Number(value)
-                            : String(value ?? '');
-                  }
-                  void run(() => patch({ attributes }));
-                }}
-              >
-                <h3>{t('الحقول المخصصة', 'Custom Fields')}</h3>
-                {fields.error && <p role="alert">{fields.error}</p>}
-                {fields.data.map((field) => (
-                  <label key={field.id}>
-                    {field.label}
-                    {field.type === 'boolean' ? (
-                      <input
-                        type="checkbox"
-                        name={field.key}
-                        defaultChecked={contact.attributes[field.key] === true}
+                      {t('الموظف', 'Agent')}
+                      <select
+                        name="owner"
+                        defaultValue={contact.owner_id ?? ''}
                         disabled={!canManage}
-                      />
-                    ) : (
-                      <input
-                        name={field.key}
-                        type={
-                          field.type === 'number'
-                            ? 'number'
-                            : field.type === 'date'
-                              ? 'date'
-                              : 'text'
-                        }
-                        defaultValue={String(contact.attributes[field.key] ?? '')}
-                        disabled={!canManage}
-                      />
-                    )}
-                  </label>
-                ))}
-                {!fields.data.length && (
-                  <p>{t('لا توجد تعريفات حقول.', 'No custom field definitions.')}</p>
-                )}
-                {canManage && fields.data.length > 0 && (
-                  <button className="btn btn-primary" disabled={busy}>
-                    {t('حفظ الحقول', 'Save Fields')}
-                  </button>
-                )}
-              </form>
-            )}
-            {tab === 'notes' && (
-              <>
-                <h3>{t('ملاحظات الفريق', 'Team Notes')}</h3>
-                <form
-                  className={styles.form}
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    const form = event.currentTarget;
-                    const text = new FormData(form).get('text');
-                    void run(async () => {
-                      await api(`/crm/contacts/${contactId}/notes`, {
-                        method: 'POST',
-                        body: JSON.stringify({ text }),
-                      });
-                      form.reset();
-                    });
-                  }}
-                >
-                  <label>
-                    {t('ملاحظة داخلية', 'Internal note')}
-                    <textarea ref={noteInput} name="text" required maxLength={4000} rows={3} />
-                  </label>
-                  <button className="btn" disabled={busy}>
-                    {t('إضافة الملاحظة', 'Add Note')}
-                  </button>
-                </form>
-                {profile.timeline.notes.map((note) => (
-                  <article className={styles.note} key={note.id}>
-                    <p>{note.body}</p>
-                    <small>
-                      {note.author} · {date(note.created_at)}
-                    </small>
-                  </article>
-                ))}
-              </>
-            )}
-            {tab === 'consent' && (
-              <>
-                <h3>{t('موافقة التسويق', 'Marketing Consent')}</h3>
-                {profile.timeline.consent.map((consent) => (
-                  <div className={styles.profileRow} key={consent.channel_id}>
-                    <strong>{consent.channel_name}</strong>
-                    <span>{statusLabel(consent.status, t)}</span>
-                    <small>{consent.evidence}</small>
-                  </div>
-                ))}
-                {canManage && (
-                  <form
-                    className={styles.form}
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      const form = new FormData(event.currentTarget);
-                      void run(() =>
-                        api(`/crm/contacts/${contactId}/consent`, {
-                          method: 'PUT',
-                          body: JSON.stringify(Object.fromEntries(form)),
-                        }),
-                      );
-                    }}
-                  >
-                    <label>
-                      {t('الحساب', 'Account')}
-                      <select name="channelId" required>
-                        {profile.channels.map((channel) => (
-                          <option key={channel.id} value={channel.id}>
-                            {channel.name}
+                      >
+                        <option value="">{t('غير معيّن', 'Unassigned')}</option>
+                        {members.data.members.map((member) => (
+                          <option key={member.user_id} value={member.user_id}>
+                            {member.full_name}
                           </option>
                         ))}
                       </select>
                     </label>
-                    <label>
-                      {t('الحالة', 'Status')}
-                      <select name="status">
-                        <option value="opted_out">{t('إلغاء الموافقة', 'Opt out')}</option>
-                        <option value="opted_in">{t('موافقة موثقة', 'Documented opt in')}</option>
-                      </select>
-                    </label>
-                    <label>
-                      {t('دليل الموافقة', 'Consent evidence')}
-                      <input name="evidence" minLength={5} maxLength={1000} required />
-                    </label>
-                    <button className="btn" disabled={busy || !profile.channels.length}>
-                      {t('حفظ الموافقة', 'Record Consent')}
-                    </button>
+                    <p>
+                      {t(
+                        'هذا مسؤول ملف العميل؛ استلام المحادثة وتوزيعها يتمان من الوارد.',
+                        'This owns the customer profile. Conversation takeover and assignment are managed in Inbox.',
+                      )}
+                    </p>
+                    {canManage && (
+                      <button className="btn btn-primary" disabled={busy}>
+                        {t('حفظ الموظف', 'Save Agent')}
+                      </button>
+                    )}
                   </form>
                 )}
-              </>
-            )}
-            {tab === 'activity' && (
-              <>
-                <ContactActivityExport key={contactId} contactId={contactId} />
-                <div className={premium.timeline}>
-                  {activity.map((e) => (
-                    <article key={e.id}>
-                      <time>{date(e.at)}</time>
-                      <strong>{e.title}</strong>
-                      <span>{e.body}</span>
-                    </article>
-                  ))}
-                </div>
-              </>
-            )}
+                {tab === 'labels' && (
+                  <>
+                    <h3>{t('الوسوم', 'Labels')}</h3>
+                    <div className={styles.tags}>
+                      {contact.tags.map((tag) => (
+                        <span key={tag}>
+                          {tag}
+                          {canManage && (
+                            <button
+                              type="button"
+                              disabled={busy}
+                              aria-label={`${t('إزالة', 'Remove')} ${tag}`}
+                              onClick={() =>
+                                void run(() =>
+                                  patch({ tags: contact.tags.filter((value) => value !== tag) }),
+                                )
+                              }
+                            >
+                              ×
+                            </button>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                    {canManage && (
+                      <form
+                        className={styles.form}
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          const form = event.currentTarget;
+                          const value = String(new FormData(form).get('tag') || '').trim();
+                          if (value)
+                            void run(async () => {
+                              await patch({ tags: [...new Set([...contact.tags, value])] });
+                              form.reset();
+                            });
+                        }}
+                      >
+                        <label>
+                          {t('وسم جديد', 'New label')}
+                          <input name="tag" required maxLength={50} />
+                        </label>
+                        <button className="btn" disabled={busy}>
+                          {t('إضافة الوسم', 'Add Label')}
+                        </button>
+                      </form>
+                    )}
+                  </>
+                )}
+                {tab === 'lists' && (
+                  <>
+                    <h3>{t('قوائم العميل', 'Customer lists')}</h3>
+                    {lists.error && <p role="alert">{lists.error}</p>}
+                    {profile.lists.map((list) => (
+                      <div className={styles.profileRow} key={list.id}>
+                        <strong>{list.name}</strong>
+                        {canManage && (
+                          <button
+                            type="button"
+                            className="btn"
+                            disabled={busy}
+                            onClick={() =>
+                              void run(() =>
+                                api(`/contact-lists/${list.id}/members/${contactId}`, {
+                                  method: 'DELETE',
+                                }),
+                              )
+                            }
+                          >
+                            {t('إزالة', 'Remove')}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {canManage && (
+                      <form
+                        className={styles.form}
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          const id = new FormData(event.currentTarget).get('list');
+                          void run(() =>
+                            api(`/contact-lists/${id}/members`, {
+                              method: 'POST',
+                              body: JSON.stringify({ contactId }),
+                            }),
+                          );
+                        }}
+                      >
+                        <label>
+                          {t('إضافة لقائمة', 'Add to list')}
+                          <select name="list" required>
+                            <option value="">{t('اختر قائمة', 'Select list')}</option>
+                            {lists.data
+                              .filter(
+                                (list) => !profile.lists.some((current) => current.id === list.id),
+                              )
+                              .map((list) => (
+                                <option key={list.id} value={list.id}>
+                                  {list.name}
+                                </option>
+                              ))}
+                          </select>
+                        </label>
+                        <button className="btn" disabled={busy}>
+                          {t('إضافة للقائمة', 'Add to List')}
+                        </button>
+                      </form>
+                    )}
+                    <p>
+                      {t(
+                        'عضوية القائمة منفصلة عن موافقة التسويق.',
+                        'List membership is separate from marketing consent.',
+                      )}
+                    </p>
+                  </>
+                )}
+                {tab === 'sequences' && (
+                  <>
+                    <h3>{t('تسلسلات العميل', 'Customer sequences')}</h3>
+                    {sequences.error && <p role="alert">{sequences.error}</p>}
+                    {profile.sequences.map((sequence) => (
+                      <div className={styles.profileRow} key={sequence.id}>
+                        <div>
+                          <strong>{sequence.name}</strong>
+                          <p>
+                            {statusLabel(sequence.status, t)} · {t('الخطوة', 'Step')}{' '}
+                            {sequence.step_index + 1}
+                          </p>
+                          <small>
+                            {date(sequence.next_run_at)}
+                            {sequence.stop_reason ? ` · ${sequence.stop_reason}` : ''}
+                          </small>
+                        </div>
+                        {canManage && sequence.status === 'active' && (
+                          <button
+                            type="button"
+                            className="btn"
+                            disabled={busy}
+                            onClick={() =>
+                              void run(() =>
+                                api(`/sequences/${sequence.id}/enrollments/${contactId}`, {
+                                  method: 'DELETE',
+                                }),
+                              )
+                            }
+                          >
+                            {t('إيقاف للمشترك', 'Stop for subscriber')}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {canManage && (
+                      <form
+                        className={styles.form}
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          const id = new FormData(event.currentTarget).get('sequence');
+                          void run(() =>
+                            api(`/sequences/${id}/enroll`, {
+                              method: 'POST',
+                              body: JSON.stringify({ contactId }),
+                            }),
+                          );
+                        }}
+                      >
+                        <label>
+                          {t('إضافة إلى تسلسل', 'Enroll in sequence')}
+                          <select name="sequence" required>
+                            <option value="">{t('اختر تسلسلًا', 'Select sequence')}</option>
+                            {sequences.data
+                              .filter(
+                                (sequence) =>
+                                  sequence.status === 'active' &&
+                                  profile.channels.some(
+                                    (channel) => channel.id === sequence.channel_id,
+                                  ) &&
+                                  !profile.sequences.some(
+                                    (current) =>
+                                      current.id === sequence.id && current.status === 'active',
+                                  ),
+                              )
+                              .map((sequence) => (
+                                <option key={sequence.id} value={sequence.id}>
+                                  {sequence.name}
+                                </option>
+                              ))}
+                          </select>
+                        </label>
+                        <button className="btn" disabled={busy}>
+                          {t('إضافة للتسلسل', 'Enroll')}
+                        </button>
+                      </form>
+                    )}
+                  </>
+                )}
+                {tab === 'input' && (
+                  <>
+                    <h3>{t('جلسات جمع البيانات', 'Input flow sessions')}</h3>
+                    {profile.inputs.map((input, index) => (
+                      <article className={styles.profileRow} key={index}>
+                        <div>
+                          <strong>{input.name}</strong>
+                          <small>
+                            {statusLabel(input.status, t)} · {date(input.updated_at)}
+                          </small>
+                          <dl>
+                            {Object.entries(input.answers ?? {}).map(([key, value]) => (
+                              <div key={key}>
+                                <dt>
+                                  {fields.data.find((field) => field.key === key)?.label ?? key}
+                                </dt>
+                                <dd>
+                                  <AnswerValue value={value} />
+                                </dd>
+                              </div>
+                            ))}
+                          </dl>
+                        </div>
+                      </article>
+                    ))}
+                    {!profile.inputs.length && (
+                      <p>{t('لا توجد جلسات مسجلة.', 'No recorded sessions.')}</p>
+                    )}
+                  </>
+                )}
+                {tab === 'fields' && (
+                  <form
+                    className={styles.form}
+                    key={contact.updated_at}
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const form = new FormData(event.currentTarget);
+                      const attributes: Contact['attributes'] = {};
+                      for (const field of fields.data) {
+                        const value = form.get(field.key);
+                        attributes[field.key] =
+                          field.type === 'boolean'
+                            ? value === 'on'
+                            : value === ''
+                              ? null
+                              : field.type === 'number'
+                                ? Number(value)
+                                : String(value ?? '');
+                      }
+                      void run(() => patch({ attributes }));
+                    }}
+                  >
+                    <h3>{t('الحقول المخصصة', 'Custom Fields')}</h3>
+                    {fields.error && <p role="alert">{fields.error}</p>}
+                    {fields.data.map((field) => (
+                      <label key={field.id}>
+                        {field.label}
+                        {field.type === 'boolean' ? (
+                          <input
+                            type="checkbox"
+                            name={field.key}
+                            defaultChecked={contact.attributes[field.key] === true}
+                            disabled={!canManage}
+                          />
+                        ) : (
+                          <input
+                            name={field.key}
+                            type={
+                              field.type === 'number'
+                                ? 'number'
+                                : field.type === 'date'
+                                  ? 'date'
+                                  : 'text'
+                            }
+                            defaultValue={String(contact.attributes[field.key] ?? '')}
+                            disabled={!canManage}
+                          />
+                        )}
+                      </label>
+                    ))}
+                    {!fields.data.length && (
+                      <p>{t('لا توجد تعريفات حقول.', 'No custom field definitions.')}</p>
+                    )}
+                    {canManage && fields.data.length > 0 && (
+                      <button className="btn btn-primary" disabled={busy}>
+                        {t('حفظ الحقول', 'Save Fields')}
+                      </button>
+                    )}
+                  </form>
+                )}
+                {tab === 'notes' && (
+                  <>
+                    <h3>{t('ملاحظات الفريق', 'Team Notes')}</h3>
+                    <form
+                      className={styles.form}
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const form = event.currentTarget;
+                        const text = new FormData(form).get('text');
+                        void run(async () => {
+                          await api(`/crm/contacts/${contactId}/notes`, {
+                            method: 'POST',
+                            body: JSON.stringify({ text }),
+                          });
+                          form.reset();
+                        });
+                      }}
+                    >
+                      <label>
+                        {t('ملاحظة داخلية', 'Internal note')}
+                        <textarea ref={noteInput} name="text" required maxLength={4000} rows={3} />
+                      </label>
+                      <button className="btn" disabled={busy}>
+                        {t('إضافة الملاحظة', 'Add Note')}
+                      </button>
+                    </form>
+                    {profile.timeline.notes.map((note) => (
+                      <article className={styles.note} key={note.id}>
+                        <p>{note.body}</p>
+                        <small>
+                          {note.author} · {date(note.created_at)}
+                        </small>
+                      </article>
+                    ))}
+                  </>
+                )}
+                {tab === 'consent' && (
+                  <>
+                    <h3>{t('موافقة التسويق', 'Marketing Consent')}</h3>
+                    {profile.timeline.consent.map((consent) => (
+                      <div className={styles.profileRow} key={consent.channel_id}>
+                        <strong>{consent.channel_name}</strong>
+                        <span>{statusLabel(consent.status, t)}</span>
+                        <small>{consent.evidence}</small>
+                      </div>
+                    ))}
+                    {canManage && (
+                      <form
+                        className={styles.form}
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          const form = new FormData(event.currentTarget);
+                          void run(() =>
+                            api(`/crm/contacts/${contactId}/consent`, {
+                              method: 'PUT',
+                              body: JSON.stringify(Object.fromEntries(form)),
+                            }),
+                          );
+                        }}
+                      >
+                        <label>
+                          {t('الحساب', 'Account')}
+                          <select name="channelId" required>
+                            {profile.channels.map((channel) => (
+                              <option key={channel.id} value={channel.id}>
+                                {channel.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          {t('الحالة', 'Status')}
+                          <select name="status">
+                            <option value="opted_out">{t('إلغاء الموافقة', 'Opt out')}</option>
+                            <option value="opted_in">
+                              {t('موافقة موثقة', 'Documented opt in')}
+                            </option>
+                          </select>
+                        </label>
+                        <label>
+                          {t('دليل الموافقة', 'Consent evidence')}
+                          <input name="evidence" minLength={5} maxLength={1000} required />
+                        </label>
+                        <button className="btn" disabled={busy || !profile.channels.length}>
+                          {t('حفظ الموافقة', 'Record Consent')}
+                        </button>
+                      </form>
+                    )}
+                  </>
+                )}
+                {tab === 'activity' && (
+                  <>
+                    <ContactActivityExport key={contactId} contactId={contactId} />
+                    <div className={premium.timeline}>
+                      {activity.map((e) => (
+                        <article key={e.id}>
+                          <time>{date(e.at)}</time>
+                          <strong>{e.title}</strong>
+                          <span>{e.body}</span>
+                        </article>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </>
       )}
-    </aside>
+    </article>
   );
+}
+
+function AnswerValue({ value }: { value: unknown }) {
+  if (Array.isArray(value))
+    return (
+      <ul>
+        {value.map((item, index) => (
+          <li key={index}>
+            <AnswerValue value={item} />
+          </li>
+        ))}
+      </ul>
+    );
+  if (value && typeof value === 'object')
+    return (
+      <dl>
+        {Object.entries(value).map(([key, item]) => (
+          <div key={key}>
+            <dt>{key}</dt>
+            <dd>
+              <AnswerValue value={item} />
+            </dd>
+          </div>
+        ))}
+      </dl>
+    );
+  return <bdi>{String(value ?? '—')}</bdi>;
 }
 
 function CompanyContacts({
