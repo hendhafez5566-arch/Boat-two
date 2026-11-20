@@ -508,6 +508,7 @@ export function CrmWork({
           <label className={`field ${design.mobileStage}`}>
             {t('مرحلة البيع', 'Pipeline stage')}
             <select
+              aria-label={t('مرحلة البيع', 'Pipeline stage')}
               value={activeStage || ''}
               onChange={(event) => setMobileStage(event.target.value)}
             >
