@@ -285,7 +285,6 @@ export default function Campaigns() {
   }
   return (
     <main className={styles.page}>
-      <ExternalDeliveryNotice />
       <header className={styles.heading}>
         <div>
           <h1>{t('مركز البث', 'Broadcast Center')}</h1>
@@ -322,6 +321,7 @@ export default function Campaigns() {
           )}
         </div>
       </header>
+      <ExternalDeliveryNotice />
       {mode === 'sequence' ? (
         <SequencesPanel />
       ) : (

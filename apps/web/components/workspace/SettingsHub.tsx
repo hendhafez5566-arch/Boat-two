@@ -98,9 +98,6 @@ export default function SettingsHub() {
                   ? t('تكاملات API', 'API Integration')
                   : t('الأمان', 'Security')}
             </h2>
-            <p>
-              {tab === 'integrations' ? t('التكاملات', 'Integration') : t('الإعدادات', 'Settings')}
-            </p>
           </header>
           <AccountWorkspaceContext.Provider value={true}>
             {tab === 'company' ? (

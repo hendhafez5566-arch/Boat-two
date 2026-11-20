@@ -1,4 +1,5 @@
 'use client';
+import { WorkspaceHeading } from '../product/ProductUI';
 import { statusLabel } from '../product/status';
 import { GenerationBudgetPanel } from '../business/GenerationBudgetPanel';
 import { ModelCatalog } from '../business/ModelCatalog';
@@ -80,18 +81,13 @@ export default function Agents() {
   }
   return (
     <section className="stack">
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow">{t('مساعدو الذكاء الاصطناعي', 'AI AGENTS')}</p>
-          <h1>{t('مساعد يعرف شركتك', 'An assistant that knows your business')}</h1>
-          <p>
-            {t(
-              'مساعد افتراضي لكل شركة، مصادر معرفة محددة، ومراقبة استهلاك فعلية.',
-              'A default workspace agent, scoped knowledge sources and actual usage tracking.',
-            )}
-          </p>
-        </div>
-      </div>
+      <WorkspaceHeading
+        title={t('مساعدو الذكاء الاصطناعي', 'AI Agents')}
+        description={t(
+          'اضبط المساعدين ومصادرهم وتابع استهلاكهم.',
+          'Configure your agents and their sources, and track usage.',
+        )}
+      />
       <p className="notice">
         {t(
           'استدعاءات المزود المدفوعة معطلة افتراضيًا. لا تضع مفاتيح إنتاجية قبل التصريح. التكلفة تعرض فقط إن وُجدت بيانات تسعير موثقة.',
@@ -274,82 +270,85 @@ export default function Agents() {
           {t('حفظ المساعد', 'Save agent')}
         </button>
       </form>
-      <section className="card">
-        <h2>{t('مزودو الخدمة', 'Providers')}</h2>
+      <details className="card workspace-disclosure">
+        <summary>{t('مزودو الخدمة', 'Providers')}</summary>
         {data.data.providers.map((p) => (
           <ProviderEditor key={p.id + ':' + p.revision} provider={p} busy={busy} act={act} />
         ))}
-      </section>
-      <form
-        className="card"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          const form = e.currentTarget;
-          const f = new FormData(form);
-          try {
-            await act('/agents/providers', {
-              name: f.get('name'),
-              kind: f.get('kind'),
-              model: f.get('model'),
-              apiKey: f.get('apiKey'),
-              enabled: false,
-              inputUsdPerMillion: f.get('inputPrice') === '' ? null : Number(f.get('inputPrice')),
-              outputUsdPerMillion:
-                f.get('outputPrice') === '' ? null : Number(f.get('outputPrice')),
-            });
-            form.reset();
-          } catch {
-            /* The action helper displays the error. */
-          }
-        }}
-      >
-        <h2>
-          {t('إضافة مزود (يحفظ معطلًا ومشفرًا)', 'Add provider (saved disabled and encrypted)')}
-        </h2>
-        <label className="field">
-          {t('المزود', 'Provider')}
-          <select name="kind">
-            <option value="anthropic">Anthropic</option>
-            <option value="openai">OpenAI</option>
-          </select>
-        </label>
-        <div className="form-grid">
+        <form
+          className="stack"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const f = new FormData(form);
+            try {
+              await act('/agents/providers', {
+                name: f.get('name'),
+                kind: f.get('kind'),
+                model: f.get('model'),
+                apiKey: f.get('apiKey'),
+                enabled: false,
+                inputUsdPerMillion: f.get('inputPrice') === '' ? null : Number(f.get('inputPrice')),
+                outputUsdPerMillion:
+                  f.get('outputPrice') === '' ? null : Number(f.get('outputPrice')),
+              });
+              form.reset();
+            } catch {
+              /* The action helper displays the error. */
+            }
+          }}
+        >
+          <h2>
+            {t('إضافة مزود (يحفظ معطلًا ومشفرًا)', 'Add provider (saved disabled and encrypted)')}
+          </h2>
           <label className="field">
-            {t('الاسم', 'Name')}
-            <input name="name" required />
+            {t('المزود', 'Provider')}
+            <select name="kind">
+              <option value="anthropic">Anthropic</option>
+              <option value="openai">OpenAI</option>
+            </select>
           </label>
-          <label className="field">
-            {t('معرّف النموذج', 'Model identifier')}
-            <input required name="model" dir="ltr" />
-          </label>
-          <label className="field">
-            {t('مفتاح API', 'API key')}
-            <input required name="apiKey" type="password" minLength={10} autoComplete="off" />
-          </label>
-        </div>
-        <div className="form-grid mt-4">
-          <label className="field">
-            {t('سعر مليون رمز إدخال بالدولار (اختياري)', 'USD per million input tokens (optional)')}
-            <input type="number" name="inputPrice" min={0} max={10000} step="0.000001" />
-          </label>
-          <label className="field">
+          <div className="form-grid">
+            <label className="field">
+              {t('الاسم', 'Name')}
+              <input name="name" required />
+            </label>
+            <label className="field">
+              {t('معرّف النموذج', 'Model identifier')}
+              <input required name="model" dir="ltr" />
+            </label>
+            <label className="field">
+              {t('مفتاح API', 'API key')}
+              <input required name="apiKey" type="password" minLength={10} autoComplete="off" />
+            </label>
+          </div>
+          <div className="form-grid mt-4">
+            <label className="field">
+              {t(
+                'سعر مليون رمز إدخال بالدولار (اختياري)',
+                'USD per million input tokens (optional)',
+              )}
+              <input type="number" name="inputPrice" min={0} max={10000} step="0.000001" />
+            </label>
+            <label className="field">
+              {t(
+                'سعر مليون رمز إخراج بالدولار (اختياري)',
+                'USD per million output tokens (optional)',
+              )}
+              <input type="number" name="outputPrice" min={0} max={10000} step="0.000001" />
+            </label>
+          </div>
+          <p className="muted">
             {t(
-              'سعر مليون رمز إخراج بالدولار (اختياري)',
-              'USD per million output tokens (optional)',
+              'التكلفة تقدير باستخدام الأسعار التي تسجلها، وليست فاتورة المزود.',
+              'Costs are estimates from your configured rates, not provider invoices.',
             )}
-            <input type="number" name="outputPrice" min={0} max={10000} step="0.000001" />
-          </label>
-        </div>
-        <p className="muted">
-          {t(
-            'التكلفة تقدير باستخدام الأسعار التي تسجلها، وليست فاتورة المزود.',
-            'Costs are estimates from your configured rates, not provider invoices.',
-          )}
-        </p>
-        <button className="btn mt-4" disabled={busy}>
-          {t('حفظ المزود', 'Save provider')}
-        </button>
-      </form>
+          </p>
+          <button className="btn mt-4" disabled={busy}>
+            {t('حفظ المزود', 'Save provider')}
+          </button>
+        </form>
+      </details>
       <ModelCatalog key={data.data.providers.map((p) => p.id + ':' + p.revision).join(',')} />
       <GenerationBudgetPanel />
       <AgentRouting />

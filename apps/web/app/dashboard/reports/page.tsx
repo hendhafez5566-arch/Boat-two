@@ -1,4 +1,5 @@
 'use client';
+import { WorkspaceHeading } from '../../../components/product/ProductUI';
 import { DisclosureSummary } from '../../../components/product/DisclosureSummary';
 
 import { reportColumn, reportValue } from '../../../lib/report-format';
@@ -52,18 +53,10 @@ export default function Reports() {
   ];
   return (
     <main className="stack">
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow">{t('التحليلات والتقارير', 'ANALYTICS & REPORTS')}</p>
-          <h1>{t('تقارير النشاط والمبيعات', 'Activity and sales reports')}</h1>
-          <p>
-            {t(
-              'اختر أيامًا بتوقيت شركتك. يوم النهاية مشمول بالكامل؛ تُحوّل الحدود تلقائيًا للتقرير.',
-              'Choose calendar days in your workspace timezone. The final day is included; report bounds are converted automatically.',
-            )}
-          </p>
-        </div>
-      </div>
+      <WorkspaceHeading
+        title={t('تقارير النشاط والمبيعات', 'Activity and sales reports')}
+        description={t('يعرض التقرير الأيام حسب توقيت مساحة العمل، ويشمل يوم النهاية.', 'Reports use your workspace timezone and include the final day.')}
+      />
       <form
         className="card form-actions"
         onSubmit={async (e) => {

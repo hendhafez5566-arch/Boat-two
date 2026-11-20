@@ -1,4 +1,5 @@
 'use client';
+import { WorkspaceHeading } from '../product/ProductUI';
 import { AUTOMATION_EVENTS, eventLabel } from '../../lib/business-events';
 import { statusLabel } from '../product/status';
 import { SavedAutomationEditor } from '../business/SavedAutomationEditor';
@@ -80,27 +81,22 @@ export default function Automations() {
     })[type] || type;
   return (
     <section className="stack">
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow">{t('أتمتة الأعمال', 'BUSINESS AUTOMATION')}</p>
-          <h1>{t('أتمتة الأعمال', 'Automations')}</h1>
-          <p>
-            {t(
-              'الأتمتة تستخدم سجل الأحداث نفسه، وتُحفظ إجراءاتها مع نتيجة التنفيذ.',
-              'Automations use the shared event ledger and commit actions with their execution result.',
-            )}
-          </p>
-        </div>
-        <button
-          className="btn"
-          onClick={() => {
-            list.reload();
-            history.reload();
-          }}
-        >
-          {t('تحديث', 'Refresh')}
-        </button>
-      </div>
+      <WorkspaceHeading
+        title={t('أتمتة الأعمال', 'Automations')}
+        description={t('اضبط القواعد وراجع نتائج تشغيلها.', 'Manage rules and review their runs.')}
+        actions={
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              list.reload();
+              history.reload();
+            }}
+          >
+            {t('تحديث', 'Refresh')}
+          </button>
+        }
+      />
       {(error || list.error) && <p className="notice error">{error || list.error}</p>}
       <div className="auto-stats">
         <div>

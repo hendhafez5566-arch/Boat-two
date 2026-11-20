@@ -1,4 +1,5 @@
 'use client';
+import { WorkspaceHeading } from '../product/ProductUI';
 import { KnowledgeRetention } from '../business/KnowledgeRetention';
 import { useEffect, useState } from 'react';
 import { KnowledgeJobs } from '../business/KnowledgeJobs';
@@ -90,18 +91,13 @@ export default function Knowledge() {
   );
   return (
     <section className="stack">
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow">{t('المعرفة', 'KNOWLEDGE')}</p>
-          <h1>{t('معرفة موثوقة لمساعدك', 'Trusted knowledge for your assistant')}</h1>
-          <p>
-            {t(
-              'أضف المعلومات، راجع مصادرها، ثم تابع الفهرسة. الاستدعاءات المدفوعة تتطلب تفعيل المشغّل.',
-              'Add information, review sources, then track indexing. Paid calls require operator activation.',
-            )}
-          </p>
-        </div>
-      </div>
+      <WorkspaceHeading
+        title={t('قاعدة المعرفة', 'Knowledge Base')}
+        description={t(
+          'راجع المصادر وحالة الفهرسة وأضف معلومات لمساعدك.',
+          'Manage sources, check indexing and add information for your assistant.',
+        )}
+      />
       {error && (
         <p role="alert" className="notice error">
           {error}
@@ -109,101 +105,105 @@ export default function Knowledge() {
       )}
       {canManage && (
         <>
-          <form className="card stack" onSubmit={submit}>
-            <h2>{t('إضافة مصدر', 'Add a source')}</h2>
-            <label className="field">
-              {t('1. اختر نوع المعلومات', '1. Choose the information type')}
-              <select value={tab} onChange={(e) => setTab(e.target.value as typeof tab)}>
-                {Object.entries(types).map(([key, label]) => (
-                  <option key={key} value={key}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              {t('2. عنوان واضح للمصدر', '2. Give the source a clear title')}
-              <input name="title" maxLength={200} required={tab === 'text' || tab === 'faq'} />
-            </label>
-            {tab === 'text' && (
+          <details className="card workspace-disclosure">
+            <summary>{t('إضافة مصدر', 'Add a source')}</summary>
+            <form className="stack" onSubmit={submit}>
               <label className="field">
-                {t('المعلومات التي يستند إليها المساعد', 'Information the assistant can use')}
-                <textarea name="content" required minLength={20} maxLength={300000} rows={7} />
+                {t('1. اختر نوع المعلومات', '1. Choose the information type')}
+                <select value={tab} onChange={(e) => setTab(e.target.value as typeof tab)}>
+                  {Object.entries(types).map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
               </label>
-            )}
-            {tab === 'url' && (
               <label className="field">
-                {t('رابط الصفحة', 'Page URL')}
-                <input name="url" type="url" maxLength={2000} required dir="ltr" />
+                {t('2. عنوان واضح للمصدر', '2. Give the source a clear title')}
+                <input name="title" maxLength={200} required={tab === 'text' || tab === 'faq'} />
               </label>
-            )}
-            {tab === 'file' && (
-              <label className="field">
-                {t(
-                  'ملف حتى 5MB؛ PDF المصوّر غير مدعوم',
-                  'File up to 5MB; scanned PDFs are unsupported',
-                )}
-                <input name="file" type="file" required accept=".txt,.md,.csv,.pdf,.docx" />
-              </label>
-            )}
-            {tab === 'faq' && (
-              <>
-                {faq.map((item, index) => (
-                  <div className="form-grid" key={index}>
-                    <label className="field">
-                      {t('السؤال', 'Question')}
-                      <input
-                        value={item.question}
-                        required
-                        maxLength={500}
-                        onChange={(e) =>
-                          setFaq(
-                            faq.map((v, i) =>
-                              i === index ? { ...v, question: e.target.value } : v,
-                            ),
-                          )
-                        }
-                      />
-                    </label>
-                    <label className="field">
-                      {t('الإجابة', 'Answer')}
-                      <textarea
-                        value={item.answer}
-                        required
-                        maxLength={2500}
-                        onChange={(e) =>
-                          setFaq(
-                            faq.map((v, i) => (i === index ? { ...v, answer: e.target.value } : v)),
-                          )
-                        }
-                      />
-                    </label>
-                    <button
-                      className="btn"
-                      type="button"
-                      disabled={faq.length <= 1}
-                      onClick={() => setFaq(faq.filter((_, i) => i !== index))}
-                    >
-                      {t('إزالة السؤال', 'Remove question')}
-                    </button>
-                  </div>
-                ))}
-                <button
-                  className="btn"
-                  type="button"
-                  disabled={faq.length >= 300}
-                  onClick={() => setFaq([...faq, { question: '', answer: '' }])}
-                >
-                  {t('إضافة سؤال', 'Add question')}
-                </button>
-              </>
-            )}
-            <button className="btn btn-primary" disabled={busy}>
-              {busy
-                ? t('جارٍ الحفظ…', 'Saving…')
-                : t('3. حفظ ومتابعة الفهرسة', '3. Save and track indexing')}
-            </button>
-          </form>
+              {tab === 'text' && (
+                <label className="field">
+                  {t('المعلومات التي يستند إليها المساعد', 'Information the assistant can use')}
+                  <textarea name="content" required minLength={20} maxLength={300000} rows={7} />
+                </label>
+              )}
+              {tab === 'url' && (
+                <label className="field">
+                  {t('رابط الصفحة', 'Page URL')}
+                  <input name="url" type="url" maxLength={2000} required dir="ltr" />
+                </label>
+              )}
+              {tab === 'file' && (
+                <label className="field">
+                  {t(
+                    'ملف حتى 5MB؛ PDF المصوّر غير مدعوم',
+                    'File up to 5MB; scanned PDFs are unsupported',
+                  )}
+                  <input name="file" type="file" required accept=".txt,.md,.csv,.pdf,.docx" />
+                </label>
+              )}
+              {tab === 'faq' && (
+                <>
+                  {faq.map((item, index) => (
+                    <div className="form-grid" key={index}>
+                      <label className="field">
+                        {t('السؤال', 'Question')}
+                        <input
+                          value={item.question}
+                          required
+                          maxLength={500}
+                          onChange={(e) =>
+                            setFaq(
+                              faq.map((v, i) =>
+                                i === index ? { ...v, question: e.target.value } : v,
+                              ),
+                            )
+                          }
+                        />
+                      </label>
+                      <label className="field">
+                        {t('الإجابة', 'Answer')}
+                        <textarea
+                          value={item.answer}
+                          required
+                          maxLength={2500}
+                          onChange={(e) =>
+                            setFaq(
+                              faq.map((v, i) =>
+                                i === index ? { ...v, answer: e.target.value } : v,
+                              ),
+                            )
+                          }
+                        />
+                      </label>
+                      <button
+                        className="btn"
+                        type="button"
+                        disabled={faq.length <= 1}
+                        onClick={() => setFaq(faq.filter((_, i) => i !== index))}
+                      >
+                        {t('إزالة السؤال', 'Remove question')}
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    className="btn"
+                    type="button"
+                    disabled={faq.length >= 300}
+                    onClick={() => setFaq([...faq, { question: '', answer: '' }])}
+                  >
+                    {t('إضافة سؤال', 'Add question')}
+                  </button>
+                </>
+              )}
+              <button className="btn btn-primary" disabled={busy}>
+                {busy
+                  ? t('جارٍ الحفظ…', 'Saving…')
+                  : t('3. حفظ ومتابعة الفهرسة', '3. Save and track indexing')}
+              </button>
+            </form>
+          </details>
           <KnowledgeJobs />
         </>
       )}

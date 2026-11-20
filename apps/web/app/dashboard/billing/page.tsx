@@ -78,7 +78,7 @@ export default function Billing() {
   const error = ws.error || plans.error || status.error || log.error;
   return (
     <main className={styles.page}>
-      <header className={styles.heading}>
+      <header className={`${styles.heading} workspace-heading`}>
         <h1>{t('الفوترة', 'Billing')}</h1>
         <p>{t('الخطة والإضافات وسجل الدفع', 'Plan, addons, and payment history')}</p>
       </header>
@@ -88,7 +88,7 @@ export default function Billing() {
         </p>
       )}
       {status.data?.configured === false && <p className="notice" role="status" aria-label={t('حالة الدفع الإلكتروني','Online payment availability')}>
-        {t('الدفع الإلكتروني غير مفعّل في هذه البيئة. يمكنك مراجعة الباقات والاستخدام؛ عرض السعر لا يعني وجود اشتراك مدفوع أو تنفيذ خصم.','Online payment is not configured in this environment. You can review plans and usage; a displayed price does not mean a paid subscription or charge has been activated.')}
+        {t('الدفع الإلكتروني غير متاح حاليًا. يمكنك مراجعة الباقات والاستخدام.', 'Online payments are currently unavailable. You can still review plans and usage.')}
       </p>}
       <section
         className={styles.summary}

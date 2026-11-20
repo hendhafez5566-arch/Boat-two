@@ -119,7 +119,6 @@ export default function Onboarding() {
     <main className="ob">
       <header className="ob-hero">
         <div className="ob-hero-text">
-          <p className="eyebrow">{t('أهلًا بك على متن Boat Two', 'Welcome aboard')}</p>
           <h1>{t('دليل البداية', 'Getting started')}</h1>
           <p>
             {t(
@@ -191,7 +190,7 @@ export default function Onboarding() {
                 <small>{s.hint}</small>
               </div>
               <Link
-                className={`btn ${!s.done && s.kind === 'core' ? 'btn-primary' : ''}`}
+                className={`btn ${current ? 'btn-primary' : ''}`}
                 href={s.href}
               >
                 {s.done

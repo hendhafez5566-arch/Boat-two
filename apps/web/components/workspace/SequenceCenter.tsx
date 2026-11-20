@@ -50,7 +50,7 @@ export default function SequenceCenter({
   const pages = Math.max(1, Math.ceil(data.data.total / limit));
   return (
     <section className="stack">
-      <div className={styles.toolbar}>
+      <div className={`${styles.toolbar} workspace-heading`}>
         <div>
           <h2>{t('تسلسلات المتابعة', 'Follow-up Sequences')}</h2>
           <p className="muted">

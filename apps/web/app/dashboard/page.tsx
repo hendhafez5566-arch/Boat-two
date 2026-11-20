@@ -81,11 +81,11 @@ export default function Dashboard() {
   };
   return (
     <main className={styles.page}>
-      <header className={styles.heading}>
+      <header className={`${styles.heading} workspace-heading`}>
         <div>
           <h1>
             {t('أهلًا بعودتك', 'Welcome Back')}
-            {summary.data?.userName ? `, ${summary.data.userName}` : ''} 👋
+            {summary.data?.userName ? `, ${summary.data.userName}` : ''}
           </h1>
           <p>
             {t(

@@ -1,4 +1,5 @@
 'use client';
+import { WorkspaceHeading } from '../../../components/product/ProductUI';
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { statusLabel } from '../../../components/product/status';
@@ -84,21 +85,14 @@ export default function Team() {
   }
   return (
     <main className="stack">
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow">{t('الفريق والصلاحيات', 'PEOPLE & ACCESS')}</p>
-          <h1>{t('الفريق والصلاحيات', 'Team & permissions')}</h1>
-          <p>
-            {t(
-              'المالك يدير الأدوار، والمدير يدير العمل، والموظف يتابع المحادثات.',
-              'Owners manage roles, admins manage operations, agents handle conversations.',
-            )}
-          </p>
-        </div>
-        <span className="badge">
-          {members.length} {t('عضو', 'members')}
-        </span>
-      </div>
+      <WorkspaceHeading
+        title={t('الفريق والصلاحيات', 'Team & permissions')}
+        description={t('راجع أعضاء الفريق وأدوارهم ودعواتهم.', 'Manage team members, roles and invitations.')}
+        actions={<>
+            <span className="badge">{members.length} {t('عضو', 'members')}</span>
+            {role && role !== 'agent' && <a className="btn" href="#team-invitations">{t('الدعوات', 'Invitations')}</a>}
+          </>}
+      />
       {error && (
         <p role="alert" className="notice error">
           {error}
@@ -163,7 +157,7 @@ export default function Team() {
       {role !== 'agent' && (
         <section className="card">
           <h2>{t('دعوة موظف', 'Invite a teammate')}</h2>
-          <form onSubmit={invite}>
+          <form id="team-invitations" onSubmit={invite}>
             <div className="form-grid">
               <label className="field">
                 {t('البريد الإلكتروني', 'Email')}

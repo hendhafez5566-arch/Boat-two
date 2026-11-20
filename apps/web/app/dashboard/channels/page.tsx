@@ -322,7 +322,7 @@ export default function Channels() {
 
   return (
     <main className={`stack ${styles.page}`}>
-      <div className="page-heading">
+      <div className="page-heading workspace-heading">
         <div>
           <h1>{t('ربط الحساب', 'Connect Account')}</h1>
           <p>

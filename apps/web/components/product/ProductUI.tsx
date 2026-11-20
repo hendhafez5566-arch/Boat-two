@@ -97,3 +97,23 @@ export function Dialog({
     </dialog>
   );
 }
+
+export function WorkspaceHeading({
+  title,
+  description,
+  actions,
+}: {
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+}) {
+  return (
+    <header className="workspace-heading">
+      <div>
+        <h1>{title}</h1>
+        {description && <p>{description}</p>}
+      </div>
+      {actions && <div className="workspace-heading-actions">{actions}</div>}
+    </header>
+  );
+}
