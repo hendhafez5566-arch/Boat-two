@@ -1460,7 +1460,7 @@ function Editor({ id }: { id: string }) {
       className={`premium-builder ${styles.editor}`}
       dir={language === 'ar' ? 'rtl' : 'ltr'}
     >
-      <header className={styles.toolbar} aria-label={t('أدوات مصمم البوت', 'Flow editor toolbar')}>
+      <header className={styles.toolbar} data-tools-open={moreOpen} aria-label={t('أدوات مصمم البوت', 'Flow editor toolbar')}>
         <a
           className={`${styles.toolButton} ${styles.exitButton}`}
           href={channelHref('/dashboard/flows', accountContext)}
