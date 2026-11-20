@@ -2618,3 +2618,48 @@ button.underline {
   .bs-shell .bs-iconbtn,
   .bs-shell .bs-avatar { min-height: 44px; }
 }
+
+/* Auth keeps the task in view on phone and tablet. */
+.auth-experience.auth-v2 {
+  background: var(--canvas);
+}
+.auth-v2 .auth-story {
+  background:
+    radial-gradient(ellipse at 95% 100%, rgb(255 255 255 / 18%), transparent 58%),
+    var(--primary-deep);
+}
+.auth-story-copy {
+  position: relative;
+  z-index: 1;
+}
+.auth-story-copy h2 {
+  max-width: 18ch;
+  color: white;
+  font-size: clamp(1.9rem, 3.6vw, 3.15rem);
+  line-height: var(--line-heading);
+}
+.auth-story-copy p {
+  margin-block-start: 12px;
+}
+.auth-v2 .auth-form-content h1 {
+  font-size: var(--text-page);
+  line-height: var(--line-heading);
+  margin-block-end: 6px;
+}
+.ob-hero,
+.ob-next {
+  border-color: var(--line);
+  background: var(--surface);
+}
+.ob-step.is-current {
+  border-color: var(--primary-line);
+  background: var(--primary-softer);
+}
+@media (max-width: 760px) {
+  .auth-v2 .auth-story {
+    padding-block: 18px;
+    padding-inline-end: 130px;
+  }
+  .auth-story-copy { display: none; }
+  .auth-v2 .auth-form-panel { margin-block-start: 0; padding-block-start: 16px; }
+}

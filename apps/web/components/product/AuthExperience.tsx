@@ -67,33 +67,14 @@ export function AuthExperience({
           )}
           <strong>{brand?.name ?? 'Boat Two'}</strong>
         </Link>
-        <span className="auth-orbit" aria-hidden="true">
-          <NavIcon name="automations" />
-        </span>
-        <p className="eyebrow">
-          {t('محادثات تفتح فرصًا جديدة', 'Conversations that open possibilities')}
-        </p>
-        <h1>
-          {brand?.widgetTitle ??
-            t('كل محادثة، بداية أفضل.', 'Every conversation. A better beginning.')}
-        </h1>
-        <p>
-          {t(
-            'مساحة واحدة تجمع فريقك وعملاءك وأفكارك. صمّم تجربة ترحيب وابدأ بخطوات بسيطة.',
-            'One space for your team, customers and ideas. Create a warm welcome and start with simple steps.',
-          )}
-        </p>
-        <div className="auth-benefits">
-          {[
-            ['inbox', t('فريق متصل', 'A connected team')],
-            ['flows', t('بوت على مقاسك', 'A bot made for you')],
-            ['crm', t('علاقات تدوم', 'Lasting relationships')],
-          ].map(([icon, label]) => (
-            <span key={icon}>
-              <NavIcon name={icon} />
-              {label}
-            </span>
-          ))}
+        <div className="auth-story-copy">
+          <h2>{brand?.widgetTitle ?? t('أدِر محادثاتك من مكان واحد', 'Manage your conversations in one place')}</h2>
+          <p>
+            {t(
+              'تابع محادثات العملاء مع فريقك، ونظّم بياناتهم، وصمّم الردود الآلية.',
+              'Handle customer conversations as a team, organize contacts and build automated replies.',
+            )}
+          </p>
         </div>
       </section>
       <section className="auth-form-panel">
@@ -101,14 +82,13 @@ export function AuthExperience({
           العربية / English
         </button>
         <div className="auth-form-content">
-          <p className="eyebrow">{brand?.name ?? t('شركتك، متصلة', 'Your business, connected')}</p>
-          <h2>
+          <h1>
             {joining
               ? t('انضم إلى فريقك', 'Join your team')
               : register
                 ? t('لنبدأ بشركتك', 'Let’s start with your business')
-                : t('أهلًا بعودتك', 'Welcome back')}
-          </h2>
+                : t('تسجيل الدخول', 'Sign in')}
+          </h1>
           <p className="muted">
             {joining
               ? t(
