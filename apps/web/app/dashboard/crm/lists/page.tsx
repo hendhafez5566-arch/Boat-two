@@ -1,7 +1,7 @@
 'use client';
 
+import { CrmNav } from '../../../../components/business/CrmNav';
 import { FormEvent, useRef, useState } from 'react';
-import Link from 'next/link';
 import { api } from '../../../../lib/api';
 import { useData } from '../../../../components/business/useData';
 import { useLocale } from '../../../../components/product/locale';
@@ -48,7 +48,12 @@ export default function ContactLists() {
       setSearchText('');
       setCandidates([]);
       setContactId('');
-      setMessage(t('تم إنشاء القائمة. يمكنك الآن إضافة العملاء إليها.', 'List created. You can now add customers.'));
+      setMessage(
+        t(
+          'تم إنشاء القائمة. يمكنك الآن إضافة العملاء إليها.',
+          'List created. You can now add customers.',
+        ),
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -64,7 +69,9 @@ export default function ContactLists() {
       return;
     }
     try {
-      const result = await api<{ items: Member[] }>(`/crm/contacts?q=${encodeURIComponent(q)}&limit=20`);
+      const result = await api<{ items: Member[] }>(
+        `/crm/contacts?q=${encodeURIComponent(q)}&limit=20`,
+      );
       if (request === searchRequest.current) setCandidates(result.items ?? []);
     } catch (e) {
       if (request === searchRequest.current) setError((e as Error).message);
@@ -72,7 +79,11 @@ export default function ContactLists() {
   }
 
   async function change(id: string, remove = false) {
-    if (remove && !window.confirm(t('إزالة العميل من هذه القائمة؟', 'Remove this customer from this list?'))) return;
+    if (
+      remove &&
+      !window.confirm(t('إزالة العميل من هذه القائمة؟', 'Remove this customer from this list?'))
+    )
+      return;
     setBusy(true);
     setError('');
     setMessage('');
@@ -84,7 +95,11 @@ export default function ContactLists() {
       await load(selected);
       lists.reload();
       setContactId('');
-      setMessage(remove ? t('تمت إزالة العميل من القائمة.', 'Customer removed from the list.') : t('تمت إضافة العميل إلى القائمة.', 'Customer added to the list.'));
+      setMessage(
+        remove
+          ? t('تمت إزالة العميل من القائمة.', 'Customer removed from the list.')
+          : t('تمت إضافة العميل إلى القائمة.', 'Customer added to the list.'),
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -94,13 +109,10 @@ export default function ContactLists() {
 
   return (
     <main className={`stack ${styles.page}`}>
-      <Link className={styles.backLink} href="/dashboard/crm">
-        {t('العودة إلى إدارة العملاء', 'Back to customer management')}
-      </Link>
+      <CrmNav />
       <header className="page-heading">
         <div>
-          <h1>{t('قوائم المشتركين', 'Subscriber lists')}</h1>
-          <p>{t('اجمع عملاءك في قوائم واضحة لاستخدامها في المتابعة والأتمتة، بشكل مستقل عن الوسوم.', 'Organize customers into audiences for follow-ups and automation, separately from labels.')}</p>
+          <h1>{t('قوائم العملاء', 'Customer lists')}</h1>
         </div>
       </header>
 
@@ -110,88 +122,139 @@ export default function ContactLists() {
       <div className={styles.workspace}>
         <section className={`card ${styles.createCard}`} aria-labelledby="new-list-heading">
           <div className={styles.sectionHeading}>
-            <span className={styles.step}>1</span>
             <div>
               <h2 id="new-list-heading">{t('أنشئ قائمة', 'Create an audience list')}</h2>
-              <p>{t('سمِّ القائمة حسب نوع العملاء، مثل المهتمين بخدمة معينة.', 'Give the audience a recognizable name, such as customers interested in a service.')}</p>
             </div>
           </div>
           <form onSubmit={create} className={styles.createForm}>
             <label className="field">
               {t('اسم القائمة الجديدة', 'New list name')}
-              <input name="name" maxLength={120} required placeholder={t('مثال: عملاء محتملون', 'e.g. Potential customers')} />
+              <input
+                name="name"
+                maxLength={120}
+                required
+                placeholder={t('مثال: عملاء محتملون', 'e.g. Potential customers')}
+              />
             </label>
-            <Button variant="primary" type="submit" busy={busy}>{t('إنشاء القائمة', 'Create list')}</Button>
+            <Button variant="primary" type="submit" busy={busy}>
+              {t('إنشاء القائمة', 'Create list')}
+            </Button>
           </form>
         </section>
 
         <section className={`card ${styles.manageCard}`} aria-labelledby="manage-list-heading">
           <div className={styles.sectionHeading}>
-            <span className={styles.step}>2</span>
             <div>
               <h2 id="manage-list-heading">{t('أدر أعضاء القائمة', 'Manage audience members')}</h2>
-              <p>{t('اختر قائمة لإضافة عملاء إليها أو مراجعة أعضائها.', 'Select a list to add customers or review its current members.')}</p>
             </div>
           </div>
 
           {lists.data.length === 0 && !selected ? (
-            <EmptyState icon="crm" title={t('لا توجد قوائم بعد', 'No audience lists yet')} description={t('أنشئ أول قائمة باستخدام النموذج المجاور.', 'Create your first audience list with the form above or beside this section.')} />
+            <EmptyState icon="crm" title={t('لا توجد قوائم بعد', 'No audience lists yet')} />
           ) : (
             <>
               <label className="field">
                 {t('القائمة الحالية', 'Current audience list')}
-                <select disabled={busy} value={selected} onChange={(e) => {
-                  const id = e.target.value;
-                  setMessage('');
-                  setSearchText('');
-                  setCandidates([]);
-                  setContactId('');
-                  ++searchRequest.current;
-                  if (!id) { setSelected(''); setMembers([]); return; }
-                  setBusy(true);
-                  setError('');
-                  void load(id).catch((error) => setError(error.message)).finally(() => setBusy(false));
-                }}>
+                <select
+                  disabled={busy}
+                  value={selected}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setMessage('');
+                    setSearchText('');
+                    setCandidates([]);
+                    setContactId('');
+                    ++searchRequest.current;
+                    if (!id) {
+                      setSelected('');
+                      setMembers([]);
+                      return;
+                    }
+                    setBusy(true);
+                    setError('');
+                    void load(id)
+                      .catch((error) => setError(error.message))
+                      .finally(() => setBusy(false));
+                  }}
+                >
                   <option value="">{t('اختر قائمة لعرضها', 'Choose a list')}</option>
-                  {lists.data.map((list) => <option key={list.id} value={list.id}>{list.name} ({list.members})</option>)}
+                  {lists.data.map((list) => (
+                    <option key={list.id} value={list.id}>
+                      {list.name} ({list.members})
+                    </option>
+                  ))}
                 </select>
               </label>
               {selected && (
                 <>
                   <div className={styles.selectedHeading}>
                     <h3>{selectedList?.name ?? t('القائمة الحالية', 'Current list')}</h3>
-                    <span>{t('عدد الأعضاء', 'Members')}: {members.length}</span>
+                    <span>
+                      {t('عدد الأعضاء', 'Members')}: {members.length}
+                    </span>
                   </div>
                   <div className={styles.searchGroup}>
                     <h3>{t('إضافة عميل', 'Add a customer')}</h3>
                     <label className="field">
                       {t('ابحث بالاسم أو بيانات التواصل', 'Search by name or contact details')}
-                      <input type="search" value={searchText} placeholder={t('ابدأ كتابة اسم العميل', 'Start typing a customer name')} onChange={(e) => { setSearchText(e.target.value); void search(e.target.value); }} />
+                      <input
+                        type="search"
+                        value={searchText}
+                        placeholder={t('ابدأ كتابة اسم العميل', 'Start typing a customer name')}
+                        onChange={(e) => {
+                          setSearchText(e.target.value);
+                          void search(e.target.value);
+                        }}
+                      />
                     </label>
                     <label className="field">
                       {t('اختر العميل من النتائج', 'Choose a customer from results')}
                       <select value={contactId} onChange={(e) => setContactId(e.target.value)}>
                         <option value="">{t('اختر العميل', 'Choose customer')}</option>
-                        {candidates.map((contact) => <option key={contact.id} value={contact.id}>{contact.name || contact.email || contact.phone || contact.id}</option>)}
+                        {candidates.map((contact) => (
+                          <option key={contact.id} value={contact.id}>
+                            {contact.name || contact.email || contact.phone || contact.id}
+                          </option>
+                        ))}
                       </select>
                     </label>
-                    <Button variant="primary" type="button" disabled={busy || !contactId} onClick={() => void change(contactId)}>{t('إضافة إلى القائمة', 'Add to list')}</Button>
+                    <Button
+                      variant="primary"
+                      type="button"
+                      disabled={busy || !contactId}
+                      onClick={() => void change(contactId)}
+                    >
+                      {t('إضافة إلى القائمة', 'Add to list')}
+                    </Button>
                   </div>
                   <div className={styles.memberHeading}>
                     <h3>{t('الأعضاء الحاليون', 'Current members')}</h3>
                     <span>{t('يُعرض أحدث 500 عضو', 'Up to 500 recent members shown')}</span>
                   </div>
                   {members.length === 0 ? (
-                    <EmptyState icon="user" title={t('القائمة فارغة', 'This list is empty')} description={t('ابحث عن أول عميل وأضفه إلى القائمة.', 'Search for a customer and add them to the list.')} />
+                    <EmptyState icon="user" title={t('القائمة فارغة', 'This list is empty')} />
                   ) : (
                     <ul className={styles.memberList}>
-                      {members.map((member) => <li key={member.id} className={styles.memberRow}>
-                        <div>
-                          <strong>{member.name || member.email || member.phone || member.id}</strong>
-                          {member.name && (member.email || member.phone) && <small dir="auto">{member.email || member.phone}</small>}
-                        </div>
-                        <Button type="button" variant="danger" disabled={busy} onClick={() => void change(member.id, true)}>{t('إزالة', 'Remove')}</Button>
-                      </li>)}
+                      {members.map((member) => (
+                        <li key={member.id} className={styles.memberRow}>
+                          <div>
+                            <strong>
+                              {member.name || member.email || member.phone || member.id}
+                            </strong>
+                            {member.name && (member.email || member.phone) && (
+                              <small dir="auto">{member.email || member.phone}</small>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="danger"
+                            disabled={busy}
+                            onClick={() => void change(member.id, true)}
+                          >
+                            {t('إزالة', 'Remove')}
+                          </Button>
+                        </li>
+                      ))}
                     </ul>
                   )}
                 </>

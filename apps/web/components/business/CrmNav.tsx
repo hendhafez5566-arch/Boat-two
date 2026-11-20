@@ -14,11 +14,10 @@ export function CrmNav() {
       aria-label={t('إدارة العملاء', 'CRM navigation')}
     >
       {[
-        ['/dashboard/crm/overview', 'لوحة العمل', 'Workspace', 'reports'],
         ['/dashboard/crm', 'العملاء', 'Customers', 'crm'],
         ['/dashboard/crm/pipeline', 'فرص البيع', 'Pipeline', 'handshake'],
         ['/dashboard/crm/tasks', 'المهام والمتابعات', 'Tasks & follow-ups', 'calendar'],
-        ['/dashboard/crm/reports', 'التقارير', 'Reports', 'reports'],
+        ['/dashboard/crm/overview', 'نظرة عامة', 'Overview', 'grid'],
       ].map(([href, ar, en, icon]) => (
         <Link key={href} href={href} aria-current={path === href ? 'page' : undefined}>
           <NavIcon name={icon} />
@@ -33,6 +32,9 @@ export function CrmNav() {
         </summary>
         <div className={design.moreLinks}>
           {[
+            ['/dashboard/crm/lists', 'قوائم العملاء', 'Customer lists', 'list'],
+            ['/dashboard/crm/reports', 'التقارير', 'Reports', 'reports'],
+            ['/dashboard/crm/work', 'إدارة وتصدير السجلات', 'Manage and export work', 'export'],
             ['/dashboard/crm/segments', 'الشرائح الذكية', 'Smart segments', 'filter'],
             ['/dashboard/crm/notifications', 'التنبيهات', 'Notifications', 'bell'],
             ['/dashboard/crm/sales', 'المبيعات الذكية', 'Smart sales', 'team'],

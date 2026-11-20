@@ -49,8 +49,7 @@ const navigation = [
   },
 ];
 const links = navigation.flatMap((group) => group.links);
-const destination = (key: string) =>
-  key === 'crm' ? '/dashboard/crm/overview' : `/dashboard${key ? '/' + key : ''}`;
+const destination = (key: string) => `/dashboard${key ? '/' + key : ''}`;
 const restrictedForAgents = [
   'channels',
   'social',
@@ -271,7 +270,9 @@ function Shell({ children }: { children: ReactNode }) {
   const focused = isInbox || /^\/dashboard\/flows\/[^/]+$/.test(path);
   const allowedKey = (key: string) => role !== 'agent' || !restrictedForAgents.includes(key);
   const isActive = (key: string) =>
-    key ? path === destination(key) || path.startsWith('/dashboard/' + key + '/') : path === '/dashboard';
+    key
+      ? path === destination(key) || path.startsWith('/dashboard/' + key + '/')
+      : path === '/dashboard';
   const searchHits = q.trim()
     ? links
         .filter(

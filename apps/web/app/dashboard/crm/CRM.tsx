@@ -82,7 +82,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
       document.removeEventListener('keydown', escape);
     };
   }, [headMenu]);
-  const [cols, setCols] = useState<Column[]>(['contact', 'lifecycle', 'tags']);
+  const [cols, setCols] = useState<Column[]>(['contact', 'lifecycle']);
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('crm.columns') || 'null');
@@ -118,6 +118,21 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
   );
   const [bulkIds, setBulkIds] = useState<string[]>([]);
   const [stage, setStage] = useState('');
+  const [quickFilter, setQuickFilter] = useState('');
+  function chooseQuickFilter(value: string) {
+    setQuickFilter(value);
+    setStage('');
+    setPage(1);
+    setRouteFilters((previous) => {
+      const next = { ...previous };
+      for (const key of ['lifecycle', 'unassigned', 'withoutFollowup', 'hasOpenDeal'])
+        delete next[key];
+      if (value === 'lead' || value === 'qualified') next.lifecycle = value;
+      if (value === 'unassigned') next.unassigned = 'true';
+      if (value === 'withoutFollowup') next.withoutFollowup = 'true';
+      return next;
+    });
+  }
   const [tag, setTag] = useState('');
   const [archiveFilter, setArchiveFilter] = useState('active');
   const [page, setPage] = useState(1);
@@ -141,6 +156,13 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     if (preset === 'unattended') filters.withoutFollowup = 'true';
     if (preset === 'openDeals') filters.hasOpenDeal = 'true';
     setRouteFilters(filters);
+    setQuickFilter(
+      filters.unassigned
+        ? 'unassigned'
+        : filters.withoutFollowup
+          ? 'withoutFollowup'
+          : filters.lifecycle || '',
+    );
     if (q.get('create') === 'true') {
       setShowCreate(true);
       const url = new URL(window.location.href);
@@ -400,18 +422,6 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
             </button>
             {headMenu === 'manage' && (
               <div className={styles.dropdownMenu}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setHeadMenu(null);
-                    setEdit(null);
-                    setContactDraft(null);
-                    setShowCreate(true);
-                    setTab('contacts');
-                  }}
-                >
-                  {t('إضافة مشترك', 'Add subscriber')}
-                </button>
                 {tabs.map(([id, ar, en]) => (
                   <button
                     type="button"
@@ -442,7 +452,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
       {tab !== 'contacts' && (
         <nav className={styles.navigation}>
           <button className="btn" onClick={() => setTab('contacts')}>
-            {t('العودة للمشتركين', 'Back to subscribers')}
+            {t('العودة للعملاء', 'Back to customers')}
           </button>
           <span>{t(...(tabs.find(([key]) => key === tab)?.slice(1) as [string, string]))}</span>
         </nav>
@@ -450,7 +460,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
       <Dialog
         open={importOpen}
         onClose={() => setImportOpen(false)}
-        title={t('تصدير واستيراد المشتركين', 'Subscriber Export/Import')}
+        title={t('تصدير واستيراد العملاء', 'Customer import and export')}
       >
         {canManage && (
           <>
@@ -474,24 +484,37 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
           {message}
         </p>
       )}
-      {tab === 'contacts' && Object.keys(routeFilters).length > 0 && (
-        <p className="notice" role="status">
-          {t('عرض مخصص من لوحة العمل أو التقارير', 'Filtered view from workspace or reports')}{' '}
-          <button className="btn" onClick={() => setRouteFilters({})}>
-            {t('مسح فلاتر العرض', 'Clear view filters')}
-          </button>
-        </p>
-      )}
+      {tab === 'contacts' &&
+        Object.keys(routeFilters).some(
+          (key) => !quickFilter || !['lifecycle', 'unassigned', 'withoutFollowup'].includes(key),
+        ) && (
+          <p className="notice" role="status">
+            {t('فلاتر نشطة', 'Active filters')}{' '}
+            <button
+              className="btn"
+              onClick={() => {
+                setRouteFilters({});
+                setQuickFilter('');
+                setPage(1);
+              }}
+            >
+              {t('مسح فلاتر العرض', 'Clear view filters')}
+            </button>
+          </p>
+        )}
       {tab === 'contacts' && (
         <>
           <div className={`${styles.searchTools} ${design.searchBar}`}>
             <NavIcon name="search" />
             <input
               type="search"
-              aria-label={t('بحث في المشتركين', 'Search subscribers')}
+              aria-label={t('بحث عن عميل', 'Search customers')}
               placeholder={t('بحث بالاسم أو الهاتف أو البريد…', 'Search by name, phone or email…')}
               value={q}
-              onChange={(e) => setQ(e.target.value)}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setPage(1);
+              }}
             />
             <button
               type="button"
@@ -504,11 +527,31 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
               {t('التصفية', 'Filters')}
             </button>
           </div>
+          <div
+            className={design.quickFilters}
+            role="group"
+            aria-label={t('فلاتر سريعة', 'Quick filters')}
+          >
+            {[
+              ['', t('الكل', 'All')],
+              ['lead', t('عملاء محتملون', 'Leads')],
+              ['qualified', t('عملاء مؤهلون', 'Qualified')],
+              ['unassigned', t('دون مسؤول', 'Unassigned')],
+              ['withoutFollowup', t('دون متابعة مفتوحة', 'No open follow-up')],
+            ].map(([value, label]) => (
+              <button
+                type="button"
+                key={value}
+                className="btn"
+                aria-pressed={quickFilter === value && !stage}
+                onClick={() => chooseQuickFilter(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <div className={design.filterPanel} id="customer-filters" hidden={!filtersOpen}>
-            <section
-              className={styles.filters}
-              aria-label={t('تصفية المشتركين', 'Subscriber filters')}
-            >
+            <section className={styles.filters} aria-label={t('تصفية العملاء', 'Customer filters')}>
               <select
                 aria-label={t('القناة', 'Channel')}
                 value={filterChannels.data.find((c) => c.id === channelId)?.type || ''}
@@ -574,11 +617,11 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                 ))}
               </select>
               <select
-                aria-label={t('حالة المشترك', 'Subscriber status')}
+                aria-label={t('حالة العميل', 'Customer status')}
                 value={archiveFilter}
                 onChange={(e) => setArchiveFilter(e.target.value)}
               >
-                <option value="active">{t('نشط', 'Retained')}</option>
+                <option value="active">{t('نشط', 'Active')}</option>
                 <option value="archived">{t('مؤرشف', 'Archived')}</option>
                 <option value="all">{t('الكل', 'All Status')}</option>
               </select>
@@ -588,13 +631,15 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                 {t('إضافة فلتر', 'Add Filter')}
               </button>
               <span>
-                {contacts.data.total} {t('نتيجة', 'subscribers')}
+                {contacts.data.total} {t('نتيجة', 'customers')}
               </span>
               <button
                 type="button"
                 className="btn"
                 onClick={() => {
                   setQ('');
+                  setRouteFilters({});
+                  setQuickFilter('');
                   setStage('');
                   setTag('');
                   setArchiveFilter('active');
@@ -610,47 +655,50 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
               </button>
             </div>
           </div>
-          {summary.error && (
-            <p className="notice error" role="alert">
-              {summary.error}
-            </p>
-          )}
-          <div
-            className={styles.statistics}
-            aria-label={t('إحصائيات نتائج التصفية', 'Filtered subscriber statistics')}
-          >
-            {(
-              [
-                ['total', t('العملاء', 'Customers')],
-                ['retained', t('النشطون', 'Retained')],
-                ['subscribed', t('موافقة تسويق موثقة', 'Marketing Opt-ins')],
-                ['in_sequences', t('في تسلسلات نشطة', 'In Active Sequences')],
-              ] as const
-            ).map(([key, label]) => (
-              <article key={key}>
-                <span className={styles.statIcon} data-tone={key}>
-                  <NavIcon
-                    name={
-                      key === 'total'
-                        ? 'crm'
-                        : key === 'retained'
-                          ? 'check'
-                          : key === 'subscribed'
-                            ? 'user'
-                            : 'sequences'
-                    }
-                  />
-                </span>
-                <span>{label}</span>
-                <strong>{summary.loading ? '…' : summary.error ? '—' : summary.data[key]}</strong>
-                <small>
-                  {key === 'total'
-                    ? t('ضمن نتائج التصفية', 'Within current filters')
-                    : `${summary.data.total ? Math.round((summary.data[key] / summary.data.total) * 100) : 0}% ${t('من الإجمالي', 'of total')}`}
-                </small>
-              </article>
-            ))}
-          </div>
+          <details className={design.customerStats}>
+            <summary>{t('إحصائيات العملاء', 'Customer statistics')}</summary>
+            {summary.error && (
+              <p className="notice error" role="alert">
+                {summary.error}
+              </p>
+            )}
+            <div
+              className={styles.statistics}
+              aria-label={t('إحصائيات نتائج التصفية', 'Filtered customer statistics')}
+            >
+              {(
+                [
+                  ['total', t('العملاء', 'Customers')],
+                  ['retained', t('النشطون', 'Retained')],
+                  ['subscribed', t('موافقة تسويق موثقة', 'Marketing Opt-ins')],
+                  ['in_sequences', t('في تسلسلات نشطة', 'In Active Sequences')],
+                ] as const
+              ).map(([key, label]) => (
+                <article key={key}>
+                  <span className={styles.statIcon} data-tone={key}>
+                    <NavIcon
+                      name={
+                        key === 'total'
+                          ? 'crm'
+                          : key === 'retained'
+                            ? 'check'
+                            : key === 'subscribed'
+                              ? 'user'
+                              : 'sequences'
+                      }
+                    />
+                  </span>
+                  <span>{label}</span>
+                  <strong>{summary.loading ? '…' : summary.error ? '—' : summary.data[key]}</strong>
+                  <small>
+                    {key === 'total'
+                      ? t('ضمن نتائج التصفية', 'Within current filters')
+                      : `${summary.data.total ? Math.round((summary.data[key] / summary.data.total) * 100) : 0}% ${t('من الإجمالي', 'of total')}`}
+                  </small>
+                </article>
+              ))}
+            </div>
+          </details>
           <Dialog
             open={toolsOpen}
             onClose={() => setToolsOpen(false)}
@@ -660,7 +708,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
               {t('إدارة المبيعات والمتابعات المتقدمة', 'Manage sales and follow-ups')}
             </Link>
             <Link href="/dashboard/crm/lists" className="btn">
-              {t('قوائم المشتركين', 'Subscriber lists')}
+              {t('قوائم العملاء', 'Customer lists')}
             </Link>
             <div className="form-grid">
               <label className="field">
@@ -855,20 +903,18 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                 <span>
                   {bulkIds.length > 0 ? `${bulkIds.length} ${t('محدد', 'selected')}` : ''}
                 </span>
-                <button
-                  className="btn"
-                  disabled={!bulkIds.length}
-                  onClick={() => setToolsOpen(true)}
-                >
-                  {t('إجراءات جماعية', 'Bulk Actions')}
-                  <NavIcon name="chevron" />
-                </button>
+                {canManage && bulkIds.length > 0 && (
+                  <button className="btn" onClick={() => setToolsOpen(true)}>
+                    {t('إجراءات جماعية', 'Bulk Actions')}
+                    <NavIcon name="chevron" />
+                  </button>
+                )}
                 <button className="btn" onClick={() => setToolsOpen(true)}>
                   {t('خيارات', 'Options')}
                   <NavIcon name="chevron" />
                 </button>
                 <select
-                  aria-label={t('ترتيب المشتركين', 'Sort subscribers')}
+                  aria-label={t('ترتيب العملاء', 'Sort customers')}
                   value={sort}
                   onChange={(e) => setSort(e.target.value)}
                 >
@@ -969,30 +1015,38 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                         <td>
                           <div className={styles.statePills} data-customer-state>
                             <span data-tone={c.archived_at ? 'muted' : 'green'}>
-                              {c.archived_at ? t('مؤرشف', 'Archived') : t('نشط', 'Retained')}
+                              {c.archived_at ? t('مؤرشف', 'Archived') : t('نشط', 'Active')}
                             </span>
-                            <span
-                              data-tone={
-                                (c.consents || []).some(
+                            {cols.includes('tags') && (
+                              <span
+                                data-tone={
+                                  (c.consents || []).some(
+                                    (consent) =>
+                                      (!channelId || consent.channelId === channelId) &&
+                                      consent.status === 'opted_in',
+                                  )
+                                    ? 'blue'
+                                    : 'muted'
+                                }
+                              >
+                                {(c.consents || []).some(
                                   (consent) =>
                                     (!channelId || consent.channelId === channelId) &&
                                     consent.status === 'opted_in',
                                 )
-                                  ? 'blue'
-                                  : 'muted'
-                              }
-                            >
-                              {(c.consents || []).some(
-                                (consent) =>
-                                  (!channelId || consent.channelId === channelId) &&
-                                  consent.status === 'opted_in',
-                              )
-                                ? t('مشترك', 'Subscribed')
-                                : t('موافقة غير موثقة', 'No opt-in')}
-                            </span>
+                                  ? t('مشترك', 'Subscribed')
+                                  : t('موافقة غير موثقة', 'No opt-in')}
+                              </span>
+                            )}
                             {cols.includes('lifecycle') && (
                               <small>{statusLabel(c.lifecycle, t)}</small>
                             )}
+                            <small className={design.customerOwner}>
+                              <NavIcon name="user" />
+                              {team.data.members.find((member) => member.user_id === c.owner_id)
+                                ?.full_name ||
+                                (c.owner_id ? t('—', '—') : t('دون مسؤول', 'Unassigned'))}
+                            </small>
                           </div>
                         </td>
                         <td>
@@ -1000,13 +1054,13 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                             <button
                               type="button"
                               className="btn"
-                              aria-label={t('ملف المشترك: ', 'Subscriber actions: ') + c.name}
+                              aria-label={t('فتح ملف ', 'Open profile for ') + c.name}
                               onClick={() => {
                                 setSelected(c);
                               }}
                             >
                               <NavIcon name="user" />
-                              <span>{t('فتح', 'Open')}</span>
+                              <span>{t('فتح الملف', 'Open profile')}</span>
                             </button>
                             <button
                               type="button"
@@ -1068,7 +1122,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
           <Dialog
             open={!!selected}
             onClose={() => setSelected(null)}
-            title={t('ملف المشترك', 'Subscriber profile')}
+            title={t('ملف العميل', 'Customer profile')}
             className={styles.profileDrawer}
           >
             {selected && (

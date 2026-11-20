@@ -1,7 +1,7 @@
 'use client';
+import { CrmNav } from '../../../../components/business/CrmNav';
 import { statusLabel } from '../../../../components/product/status';
 import { useState } from 'react';
-import Link from 'next/link';
 import { api } from '../../../../lib/api';
 import { useData } from '../../../../components/business/useData';
 import { useLocale } from '../../../../components/product/locale';
@@ -66,11 +66,9 @@ export default function WorkPage() {
   }
   return (
     <main className="stack">
+      <CrmNav />
       <div className="page-heading">
         <h1>{t('المبيعات والمتابعات', 'Sales and follow-ups')}</h1>
-        <Link href="/dashboard/crm" className="btn">
-          {t('العودة للعملاء', 'Back to CRM')}
-        </Link>
       </div>
       <div className="form-actions">
         {['deals', 'tasks'].map((value) => (

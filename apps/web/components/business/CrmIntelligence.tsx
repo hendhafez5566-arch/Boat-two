@@ -237,18 +237,11 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
       <CrmNav />
       <header className={styles.hero}>
         <div>
-          <h1>{report ? t('تقارير العملاء', 'CRM reports') : t('نظرة عامة على العملاء', 'CRM overview')}</h1>
-          <p>
+          <h1>
             {report
-              ? t(
-                  'اعرف ما يتحرك، وما يحتاج اهتمامًا، بالأرقام الفعلية.',
-                  'See what is moving and what needs attention with real data.',
-                )
-              : t(
-                  'عملاؤك ومبيعاتك ومتابعات فريقك، في مساحة عمل واحدة.',
-                  'Customers, sales and team follow-ups in one workspace.',
-                )}
-          </p>
+              ? t('تقارير العملاء', 'CRM reports')
+              : t('نظرة عامة على العملاء', 'CRM overview')}
+          </h1>
         </div>
         <div className={styles.actions}>
           <Link className="btn btn-primary" href="/dashboard/crm?create=true">
