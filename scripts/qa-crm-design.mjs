@@ -10,7 +10,8 @@ const { chromium } = createRequire(import.meta.url)(
   base = 'http://localhost:4000',
   web = 'http://localhost:3000',
   out = process.env.CRM_QA_OUTPUT || 'docs/ux-evidence/crm-redesign',
-  before = process.env.CRM_QA_PHASE === 'before';
+  before = process.env.CRM_QA_PHASE === 'before',
+  workflow = !before && process.env.CRM_WORKFLOW_BASELINE !== 'true';
 mkdirSync(out, { recursive: true });
 async function api(path, token, body, method = body ? 'POST' : 'GET') {
   const r = await fetch(base + path, {
@@ -187,6 +188,37 @@ try {
         await dialog.getByRole('heading', { name: 'Mariam Saad', exact: true }).waitFor();
         assert.equal((await api('/crm/contacts/' + contacts[11].id, token)).name, 'Mariam Saad');
       }
+      if (workflow) {
+        const lifecycle = dialog.getByRole('combobox', {
+          name: t('مرحلة العميل', 'Lifecycle'),
+          exact: true,
+        });
+        await lifecycle.selectOption('qualified');
+        await dialog.getByText(t('حُفظ التغيير.', 'Changes saved.'), { exact: true }).waitFor();
+        assert.equal((await api('/crm/contacts/' + contacts[11].id, token)).lifecycle, 'qualified');
+        await dialog
+          .getByRole('button', { name: t('إضافة ملاحظة', 'Add note'), exact: true })
+          .click();
+        const note = dialog.getByRole('textbox', {
+          name: t('ملاحظة داخلية', 'Internal note'),
+          exact: true,
+        });
+        await note.waitFor();
+        await page.waitForFunction(() => document.activeElement?.getAttribute('name') === 'text');
+        await page.keyboard.type('Requested flexible travel dates');
+        await dialog
+          .getByRole('button', { name: t('إضافة الملاحظة', 'Add Note'), exact: true })
+          .click();
+        await dialog.getByText('Requested flexible travel dates', { exact: true }).waitFor();
+        const profile = await api('/crm/contacts/' + contacts[11].id + '/profile', token);
+        assert.ok(
+          profile.timeline.notes.some((item) => item.body === 'Requested flexible travel dates'),
+        );
+        await dialog
+          .getByRole('button', { name: new RegExp(t('آخر نشاط', 'Latest activity')) })
+          .click();
+        await dialog.getByText('Requested flexible travel dates', { exact: true }).waitFor();
+      }
       await dialog.getByRole('button', { name: 'Close / إغلاق', exact: true }).click();
       if (!before) {
         assert.equal(
@@ -299,6 +331,23 @@ try {
         await page.getByText(t('تم الحفظ', 'Saved'), { exact: true }).waitFor();
         assert.equal((await api('/crm/deals?id=' + deal.id, token)).items[0].stage, 'Booked');
       }
+      if (workflow) {
+        if (width === 390)
+          await page
+            .getByLabel(t('مرحلة البيع', 'Pipeline stage'), { exact: true })
+            .selectOption('Booked');
+        await page
+          .getByRole('combobox', {
+            name: t('حالة الفرصة', 'Opportunity status') + ': December travel booking',
+          })
+          .selectOption('won');
+        await page
+          .getByRole('combobox', {
+            name: t('حالة الفرصة', 'Opportunity status') + ': December travel booking',
+          })
+          .waitFor({ state: 'hidden' });
+        assert.equal((await api('/crm/deals?id=' + deal.id, token)).items[0].status, 'won');
+      }
       await page
         .getByRole('button', { name: t('إضافة فرصة', 'Add opportunity'), exact: true })
         .click();
@@ -331,15 +380,97 @@ try {
         await page.locator('.page-workspace').first().waitFor();
         await shot(route);
       }
+      if (workflow) {
+        await page.goto(web + '/dashboard/crm');
+        await page.getByRole('button', { name: t('إدارة', 'Manage'), exact: true }).click();
+        const csv = page.waitForEvent('download');
+        await page.getByRole('button', { name: t('تصدير CSV', 'Export CSV'), exact: true }).click();
+        assert.match((await csv).suggestedFilename(), /\.csv$/i);
+        await page.getByRole('button', { name: t('إدارة', 'Manage'), exact: true }).click();
+        await page
+          .getByRole('button', {
+            name: t('استيراد وإدارة الملفات', 'Import and manage files'),
+            exact: true,
+          })
+          .click();
+        const importDialog = page.getByRole('dialog', {
+          name: t('تصدير واستيراد العملاء', 'Customer import and export'),
+        });
+        await importDialog.waitFor();
+        await importDialog.getByRole('button', { name: 'Close / إغلاق', exact: true }).click();
+        const tools = page.getByText(t('أدوات CRM', 'CRM tools'), { exact: true });
+        await tools.click();
+        await page
+          .getByRole('link', { name: t('قوائم العملاء', 'Customer lists'), exact: true })
+          .click();
+        await page
+          .getByLabel(t('اسم القائمة الجديدة', 'New list name'), { exact: true })
+          .fill('Returning travelers');
+        await page
+          .getByRole('button', { name: t('إنشاء القائمة', 'Create list'), exact: true })
+          .click();
+        await page.getByRole('heading', { name: 'Returning travelers', exact: true }).waitFor();
+        const lists = await api('/contact-lists', token);
+        assert.ok(lists.some((list) => list.name === 'Returning travelers'));
+        await page.goto(web + '/dashboard/crm/segments');
+        await page.getByLabel(t('اسم العرض', 'View name'), { exact: true }).fill('Travel accounts');
+        await page.getByRole('button', { name: t('حفظ العرض', 'Save view'), exact: true }).click();
+        await page.getByText('Travel accounts', { exact: true }).waitFor();
+        assert.ok(
+          (await api('/crm/workspace/views', token)).some(
+            (view) => view.name === 'Travel accounts',
+          ),
+        );
+      }
       if (!before) {
         await page.evaluate(
           (session) => localStorage.setItem('session', JSON.stringify(session)),
           agent,
         );
+        if (workflow) {
+          await page.goto(web + '/dashboard/crm');
+          await page.getByRole('link', { name: t('مهامي', 'My tasks'), exact: true }).click();
+          await page
+            .getByRole('button', { name: 'Check flight preferences', exact: true })
+            .waitFor();
+          assert.ok(
+            (await page
+              .getByRole('button', { name: t('مهامي', 'My tasks'), exact: true })
+              .getAttribute('aria-pressed')) === 'true',
+          );
+        }
+        if (workflow) {
+          await page.goto(web + '/dashboard/crm/pipeline?status=won&view=table');
+          const ownDeal = page.getByRole('combobox', {
+            name: t('حالة الفرصة', 'Opportunity status') + ': December travel booking',
+          });
+          await ownDeal.selectOption('open');
+          await ownDeal.waitFor({ state: 'hidden' });
+          assert.equal((await api('/crm/deals?id=' + deal.id, token)).items[0].status, 'open');
+          await page.goto(web + '/dashboard/crm/pipeline?view=table');
+          const otherDeal = page.getByRole('combobox', {
+            name: t('حالة الفرصة', 'Opportunity status') + ': New hotel reservation',
+          });
+          await page
+            .getByRole('combobox', {
+              name: t('حالة الفرصة', 'Opportunity status') + ': December travel booking',
+            })
+            .waitFor();
+          assert.equal(await otherDeal.count(), 0);
+        }
         await page.goto(web + '/dashboard/crm/tasks?ownerId=me&status=done');
         await page.getByRole('button', { name: 'Confirm passport details', exact: true }).waitFor();
         await page.goto(web + '/dashboard/crm?contact=' + contacts[0].id);
         await page.getByRole('heading', { name: 'Nour Hassan', exact: true }).waitFor();
+        if (workflow) {
+          assert.equal(
+            await page
+              .getByRole('combobox', { name: t('مرحلة العميل', 'Lifecycle'), exact: true })
+              .count(),
+            0,
+          );
+        }
+
         assert.equal(
           await page
             .getByRole('button', { name: t('تعديل البيانات', 'Edit details'), exact: true })
@@ -364,6 +495,14 @@ try {
               'stage update and opportunity creation',
               'all CRM pages render',
               'employee access boundaries',
+              ...(workflow
+                ? [
+                    'direct lifecycle and opportunity status',
+                    'focused note and latest activity',
+                    'my tasks shortcut',
+                    'CSV export, import dialog, list creation and saved smart view',
+                  ]
+                : []),
             ],
       });
       await browser.close();

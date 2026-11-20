@@ -31,3 +31,10 @@ Counts start at the indicated screen. A field selection counts as one action. Ty
 | Add a note from profile overview | 4 — open Notes, focus field, type, submit | 3 — open focused composer, type, submit |
 
 Search and profile opening, opening an existing conversation, and opening follow-up and opportunity creation remain direct actions. The editable customer lifecycle still requires owner/admin access. Deal status still uses the assignee/manager permission rules, and loss reason remains editable in the full opportunity form.
+
+## Verification
+
+- Browser suite: `scripts/qa-crm-design.mjs`. It uses the compiled NestJS application and isolated PGlite data, an owner and an invited agent, a web conversation, customers with mixed assignment, follow-ups and deals. It exercises both Arabic and English at 390 px and 1366 px. External delivery is disabled.
+- The extended checks cover persisted lifecycle, focused note entry and activity, assignment and follow-up completion, my tasks, opportunity status and phase, owner/agent visibility, customer CSV download, reaching the import dialog, creating a list, and saving a smart view. They also visit the overview, reports, advanced settings, sales, alerts and the work export page.
+- API regression suites: `qa-crm-v2-api.mjs` passed 45 checks and `qa-crm-v3-api.mjs` passed 69 checks. They cover reporting, scoring, advanced automation, assignment concurrency, notifications and authorization.
+- Every CRM route was visited in the browser suite. Import execution, every configuration permutation, and external integrations were outside the browser suite. The import dialog check confirms access, and the test data stays local.
