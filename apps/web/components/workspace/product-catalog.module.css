@@ -1184,16 +1184,16 @@
   border-color: #b6bfe7;
 }
 .compactActions :global(.btn-primary) {
-  background: #4f58b7;
+  background: var(--primary);
   color: #fff;
-  border-color: #4f58b7;
+  border-color: var(--primary);
 }
 .compactActions :global(.btn-primary:hover) {
-  background: #414a9e;
-  border-color: #414a9e;
+  background: var(--primary-deep);
+  border-color: var(--primary-deep);
 }
 .compactActions :global(.btn:focus-visible) {
-  outline: 3px solid #abb5ee;
+  outline: 3px solid var(--primary-line);
   outline-offset: 3px;
 }
 .categoriesPanel {
@@ -1281,12 +1281,12 @@
   transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 }
 .root .compactActions .headerActions :global(.btn-primary) {
-  background: #5145a8;
-  border-color: #5145a8;
+  background: var(--primary);
+  border-color: var(--primary);
   color: #fff;
-  box-shadow: 0 3px 8px #5145a81a;
+  box-shadow: 0 3px 8px color-mix(in srgb, var(--primary) 12%, transparent);
 }
-.root .compactActions .headerActions :global(.btn-primary:hover:not(:disabled)) { background: #43388e; border-color: #43388e; }
+.root .compactActions .headerActions :global(.btn-primary:hover:not(:disabled)) { background: var(--primary-deep); border-color: var(--primary-deep); }
 .root .compactActions .headerActions :global(.btn:not(.btn-primary):not(:disabled)) {
   background: #f0f7f5;
   border-color: #cce4dc;
@@ -1349,7 +1349,7 @@
 .pageNumber { display: inline-flex; align-items: center; gap: 6px; }
 .pageGap { padding-inline: 3px; color: #8994a5; }
 .pageButtons button { min-width: 44px; min-height: 44px; border: 1px solid #e0e5ef; border-radius: 10px; background: #fff; color: #495773; padding: 8px 12px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
-.pageButtons button[aria-current='page'] { background: #5145a8; color: #fff; border-color: #5145a8; box-shadow: 0 2px 5px #5145a81a; }
+.pageButtons button[aria-current='page'] { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 2px 5px color-mix(in srgb, var(--primary) 12%, transparent); }
 .pageButtons button:hover:not(:disabled):not([aria-current]) { background: #f0eef9; border-color: #d4cdef; }
 .pageButtons button:disabled { background: #f8f9fc; color: #9aa3b3; border-color: #edf0f5; cursor: default; }
 .pageButtons button:focus-visible { outline: 3px solid #b6ade8; outline-offset: 3px; }
