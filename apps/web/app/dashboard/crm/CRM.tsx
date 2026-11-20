@@ -1190,6 +1190,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
             open={showCreate || !!edit}
             onClose={closeContact}
             title={edit ? t('تعديل العميل', 'Edit contact') : t('إضافة عميل', 'Add contact')}
+            className={styles.customerEditorDialog}
           >
             {(showCreate || edit) && (
               <div>
