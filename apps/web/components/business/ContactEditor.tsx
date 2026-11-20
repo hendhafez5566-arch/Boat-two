@@ -230,11 +230,8 @@ export function ContactEditor({
         />
       </fieldset>
       {!!fields.length && (
-        <fieldset className={styles.section} disabled={busy}>
-          <legend>
-            <NavIcon name="settings" />
-            {t('الحقول المخصصة', 'Custom fields')}
-          </legend>
+        <details className={design.optionalFields}>
+          <summary>{t('الحقول المخصصة', 'Custom fields')}</summary>
           <div className={styles.grid}>
             {fields.map((field) => (
               <label key={field.id}>
@@ -271,16 +268,10 @@ export function ContactEditor({
               </label>
             ))}
           </div>
-        </fieldset>
+        </details>
       )}
-      <details>
-        <summary>{t('بيانات إضافية متقدمة', 'Advanced additional attributes')}</summary>
-        <p>
-          {t(
-            'للحقول غير المسجلة في إعداداتك. التعديل هنا يحافظ على بقية القيم عند تعديل الحقول أعلاه.',
-            'For attributes not registered in your settings. Editing fields above retains other saved values.',
-          )}
-        </p>
+      <details className={design.technicalFields}>
+        <summary>{t('خيارات تقنية متقدمة', 'Advanced technical options')}</summary>
         <label className="field">
           {t('البيانات الإضافية JSON', 'Additional attributes JSON')}
           <textarea
