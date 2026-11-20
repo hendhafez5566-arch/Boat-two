@@ -200,24 +200,28 @@ export default function SubscriberProfile({
                 {t('فتح المحادثة', 'Open conversation')}
               </Link>
             )}
-            <button
-              onClick={() => {
-                setQuickCreate('deals');
-                setTab('deals');
-              }}
-            >
-              <NavIcon name="handshake" />
-              {t('إضافة فرصة', 'Add opportunity')}
-            </button>
-            <button
-              onClick={() => {
-                setQuickCreate('tasks');
-                setTab('tasks');
-              }}
-            >
-              <NavIcon name="calendar" />
-              {t('إضافة متابعة', 'Add follow-up')}
-            </button>
+            {tab !== 'deals' && (
+              <button
+                onClick={() => {
+                  setQuickCreate('deals');
+                  setTab('deals');
+                }}
+              >
+                <NavIcon name="handshake" />
+                {t('إضافة فرصة', 'Add opportunity')}
+              </button>
+            )}
+            {tab !== 'tasks' && (
+              <button
+                onClick={() => {
+                  setQuickCreate('tasks');
+                  setTab('tasks');
+                }}
+              >
+                <NavIcon name="calendar" />
+                {t('إضافة متابعة', 'Add follow-up')}
+              </button>
+            )}
             <button onClick={() => setTab('notes')}>
               <NavIcon name="edit" />
               {t('إضافة ملاحظة', 'Add note')}
@@ -325,6 +329,7 @@ export default function SubscriberProfile({
                 compact
                 contactId={contactId}
                 createNew={quickCreate === 'deals'}
+                onChanged={() => void data.reload()}
               />
             )}
             {tab === 'tasks' && (
@@ -333,6 +338,7 @@ export default function SubscriberProfile({
                 compact
                 contactId={contactId}
                 createNew={quickCreate === 'tasks'}
+                onChanged={() => void data.reload()}
               />
             )}
             {tab === 'company' && (

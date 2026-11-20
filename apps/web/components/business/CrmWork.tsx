@@ -39,11 +39,13 @@ export function CrmWork({
   contactId,
   compact = false,
   createNew = false,
+  onChanged,
 }: {
   kind: 'deals' | 'tasks';
   contactId?: string;
   compact?: boolean;
   createNew?: boolean;
+  onChanged?: () => void;
 }) {
   const { t, language } = useLocale();
   const deals = kind === 'deals';
@@ -114,6 +116,7 @@ export function CrmWork({
     try {
       await action();
       await data.reload();
+      onChanged?.();
       setNotice(t('تم الحفظ', 'Saved'));
     } catch (e) {
       setError((e as Error).message);
