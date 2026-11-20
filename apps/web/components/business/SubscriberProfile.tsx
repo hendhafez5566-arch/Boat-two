@@ -113,6 +113,7 @@ export default function SubscriberProfile({
     [notice, setNotice] = useState('');
   const lock = useRef(false);
   const noteInput = useRef<HTMLTextAreaElement>(null);
+  const profileContent = useRef<HTMLDivElement>(null);
   const profile = data.data,
     contact = profile?.contact;
   async function run(fn: () => Promise<unknown>) {
@@ -408,42 +409,7 @@ export default function SubscriberProfile({
                 </button>
               ))}
           </nav>
-          <details className={styles.profileMore}>
-            <DisclosureSummary>
-              {t('بيانات وإعدادات إضافية', 'More details and settings')}
-            </DisclosureSummary>
-            <div className={styles.profileChannels}>
-              {profile.channels.map((channel) => (
-                <span key={channel.id}>
-                  {channel.type} · {channel.name}
-                </span>
-              ))}
-            </div>
-            <small>
-              {t('معرّف العميل', 'Customer ID')} <bdi>{contact.id}</bdi>
-            </small>
-            <CrmScore contactId={contactId} version={contact.updated_at} />
-            <div>
-              {tabs
-                .filter(
-                  ([key]) => !['overview', 'deals', 'tasks', 'notes', 'activity'].includes(key),
-                )
-                .map(([key, ar, en]) => (
-                  <button
-                    className="btn"
-                    key={key}
-                    aria-pressed={tab === key}
-                    onClick={() => {
-                      setTab(key);
-                      setQuickCreate('');
-                    }}
-                  >
-                    {t(ar, en)}
-                  </button>
-                ))}
-            </div>
-          </details>
-          <div className={styles.profileBody}>
+          <div className={styles.profileBody} ref={profileContent}>
             {tab === 'deals' && (
               <CrmWork
                 kind="deals"
@@ -1040,6 +1006,45 @@ export default function SubscriberProfile({
               </>
             )}
           </div>
+          <details className={styles.profileMore}>
+            <DisclosureSummary>
+              {t('المزيد', 'More')}
+            </DisclosureSummary>
+            <div className={styles.profileAdvancedLinks}>
+              {tabs
+                .filter(
+                  ([key]) => !['overview', 'deals', 'tasks', 'notes', 'activity'].includes(key),
+                )
+                .map(([key, ar, en]) => (
+                  <button
+                    className="btn"
+                    key={key}
+                    aria-pressed={tab === key}
+                    onClick={() => {
+                      setTab(key);
+                      setQuickCreate('');
+                      profileContent.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                    }}
+                  >
+                    {t(ar, en)}
+                  </button>
+                ))}
+            </div>
+            <details className={styles.profileTechnical}>
+              <summary>{t('معلومات تقنية وتقييم العميل', 'Technical information and scoring')}</summary>
+            <div className={styles.profileChannels}>
+              {profile.channels.map((channel) => (
+                <span key={channel.id}>
+                  {channel.type} · {channel.name}
+                </span>
+              ))}
+            </div>
+            <small>
+              {t('معرّف العميل', 'Customer ID')} <bdi>{contact.id}</bdi>
+            </small>
+            <CrmScore contactId={contactId} version={contact.updated_at} />
+            </details>
+          </details>
         </>
       )}
     </aside>
