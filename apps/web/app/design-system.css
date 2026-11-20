@@ -2663,3 +2663,8 @@ button.underline {
   .auth-story-copy { display: none; }
   .auth-v2 .auth-form-panel { margin-block-start: 0; padding-block-start: 16px; }
 }
+
+#available-connections,
+#team-invitations {
+  scroll-margin-block-start: calc(var(--topbar-h) + 16px);
+}

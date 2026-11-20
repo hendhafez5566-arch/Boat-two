@@ -121,6 +121,17 @@ function Shell({ children }: { children: ReactNode }) {
   const [limits, setLimits] = useState<Record<string, number>>({});
   const [aiEnabled, setAiEnabled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 700px)');
+    const update = () => {
+      setMobile(media.matches);
+      if (!media.matches) setOpen(false);
+    };
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
   const [collapsed, setCollapsed] = useState(false);
   const compactWorkspace = path === '/dashboard/flows' || path.startsWith('/dashboard/crm');
   const [workspaceExpanded, setWorkspaceExpanded] = useState(false);
@@ -342,11 +353,11 @@ function Shell({ children }: { children: ReactNode }) {
           <header className="product-topbar bs-topbar">
             <button
               className="bs-iconbtn bs-burger"
-              aria-expanded={open || !compactNavigation}
+              aria-expanded={mobile ? open : !compactNavigation}
               aria-controls="workspace-navigation"
               aria-label={t('القائمة', 'Navigation')}
               onClick={() => {
-                if (window.matchMedia('(max-width: 700px)').matches) setOpen(!open);
+                if (mobile) setOpen(!open);
                 else toggleSidebar();
               }}
             >

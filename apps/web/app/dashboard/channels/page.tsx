@@ -332,15 +332,21 @@ export default function Channels() {
             )}
           </p>
         </div>
-        <button
-          type="button"
-          className="btn"
-          aria-expanded={guideOpen}
-          aria-controls="channel-connection-guide"
-          onClick={() => setGuideOpen(!guideOpen)}
-        >
-          {t('دليل الربط', 'Connection Guide')}
-        </button>
+        <div className="workspace-heading-actions">
+          <a className="btn btn-primary" href="#available-connections" onClick={() => setAvailableOpen(true)}>
+            <NavIcon name="plus" />
+            {t('ربط قناة', 'Connect a channel')}
+          </a>
+          <button
+            type="button"
+            className="btn"
+            aria-expanded={guideOpen}
+            aria-controls="channel-connection-guide"
+            onClick={() => setGuideOpen(!guideOpen)}
+          >
+            {t('دليل الربط', 'Connection Guide')}
+          </button>
+        </div>
       </div>
 
       <section
@@ -1170,7 +1176,7 @@ export default function Channels() {
         </div>
       </section>
 
-      <section className="card stack">
+      <section id="available-connections" className="card stack">
         <header className="page-heading">
           <h2>{t('الاتصالات المتاحة', 'Available Connections')}</h2>
           <button
