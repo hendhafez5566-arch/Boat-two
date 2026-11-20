@@ -3,6 +3,7 @@ import { DisclosureSummary } from '../product/DisclosureSummary';
 
 import { FormEvent, useRef, useState } from 'react';
 import Link from 'next/link';
+import { Dialog } from '../product/ProductUI';
 import { NavIcon } from '../product/NavIcon';
 import { api } from '../../lib/api';
 import { useData } from './useData';
@@ -24,6 +25,7 @@ type Contact = {
   tags: string[];
   owner_id: string | null;
   archived_at: string | null;
+  merged_into_id?: string | null;
   created_at: string;
   updated_at: string;
   attributes: Record<string, string | number | boolean | null>;
@@ -106,6 +108,7 @@ export default function SubscriberProfile({
     [],
   );
   const [quickCreate, setQuickCreate] = useState('');
+  const [confirmArchive, setConfirmArchive] = useState(false);
   const [overviewEditing, setOverviewEditing] = useState(false);
   const [tab, setTab] = useState('overview'),
     [busy, setBusy] = useState(false),
@@ -217,6 +220,16 @@ export default function SubscriberProfile({
           .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
       : [];
   const latestActivity = activity[0];
+
+  function archive(archived: boolean) {
+    return run(async () => {
+      await api(`/crm/contacts/${contactId}/archive`, {
+        method: 'PATCH',
+        body: JSON.stringify({ archived }),
+      });
+      setConfirmArchive(false);
+    });
+  }
 
   function saveOverview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -408,42 +421,103 @@ export default function SubscriberProfile({
                 </button>
               ))}
           </nav>
-          <details className={styles.profileMore}>
+          <details className={design.profileSettings}>
             <DisclosureSummary>
-              {t('بيانات وإعدادات إضافية', 'More details and settings')}
+              {t('إدارة ملف العميل', 'Manage customer profile')}
             </DisclosureSummary>
-            <div className={styles.profileChannels}>
-              {profile.channels.map((channel) => (
-                <span key={channel.id}>
-                  {channel.type} · {channel.name}
-                </span>
-              ))}
-            </div>
-            <small>
-              {t('معرّف العميل', 'Customer ID')} <bdi>{contact.id}</bdi>
-            </small>
-            <CrmScore contactId={contactId} version={contact.updated_at} />
-            <div>
-              {tabs
-                .filter(
-                  ([key]) => !['overview', 'deals', 'tasks', 'notes', 'activity'].includes(key),
-                )
-                .map(([key, ar, en]) => (
-                  <button
-                    className="btn"
-                    key={key}
-                    aria-pressed={tab === key}
-                    onClick={() => {
-                      setTab(key);
-                      setQuickCreate('');
-                    }}
-                  >
-                    {t(ar, en)}
-                  </button>
-                ))}
-            </div>
+            <label>
+              {t('القسم', 'Section')}
+              <select
+                value={['overview', 'deals', 'tasks', 'notes', 'activity'].includes(tab) ? '' : tab}
+                onChange={(event) => {
+                  setTab(event.target.value || 'overview');
+                  setQuickCreate('');
+                  setError('');
+                }}
+              >
+                <option value="">{t('اختر قسمًا', 'Choose a section')}</option>
+                {tabs
+                  .filter(
+                    ([key]) => !['overview', 'deals', 'tasks', 'notes', 'activity'].includes(key),
+                  )
+                  .map(([key, ar, en]) => (
+                    <option key={key} value={key}>
+                      {t(ar, en)}
+                    </option>
+                  ))}
+                <option value="score">{t('التقييم والقنوات', 'Score and channels')}</option>
+              </select>
+            </label>
+            {canManage && !contact.merged_into_id && (
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={() =>
+                  contact.archived_at ? void archive(false) : setConfirmArchive(true)
+                }
+              >
+                <NavIcon name={contact.archived_at ? 'undo' : 'archive'} />
+                {contact.archived_at
+                  ? t('استعادة العميل', 'Restore customer')
+                  : t('أرشفة العميل', 'Archive customer')}
+              </button>
+            )}
           </details>
+          <Dialog
+            open={confirmArchive}
+            onClose={() => {
+              if (!busy) setConfirmArchive(false);
+            }}
+            title={t('أرشفة العميل', 'Archive customer')}
+          >
+            <p>
+              {t(
+                'سيُنقل العميل إلى الأرشيف ويمكن استعادته.',
+                'The customer will move to Archived and can be restored.',
+              )}
+            </p>
+            {error && (
+              <p role="alert" className="notice error">
+                {error}
+              </p>
+            )}
+            <div className="form-actions">
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={() => setConfirmArchive(false)}
+              >
+                {t('إلغاء', 'Cancel')}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={busy}
+                onClick={() => void archive(true)}
+              >
+                {t('تأكيد الأرشفة', 'Confirm archive')}
+              </button>
+            </div>
+          </Dialog>
           <div className={styles.profileBody}>
+            {tab === 'score' && (
+              <section className={design.profileSection}>
+                <h3>{t('التقييم والقنوات', 'Score and channels')}</h3>
+                <CrmScore contactId={contactId} version={contact.updated_at} />
+                <div className={styles.profileChannels}>
+                  {profile.channels.map((channel) => (
+                    <span key={channel.id}>{channel.name}</span>
+                  ))}
+                </div>
+                <details className={design.profileSettings}>
+                  <DisclosureSummary>{t('مرجع الدعم', 'Support reference')}</DisclosureSummary>
+                  <bdi>{contact.id}</bdi>
+                </details>
+              </section>
+            )}
+
             {tab === 'deals' && (
               <CrmWork
                 kind="deals"
@@ -531,54 +605,35 @@ export default function SubscriberProfile({
                     </form>
                   </section>
                 )}
-                <div className={styles.overviewGrid}>
-                  <section className={styles.overviewCard}>
-                    <h3>{t('بيانات العميل', 'About')}</h3>
-                    <dl>
+                <section className={design.profileSection}>
+                  <h3>{t('بيانات العميل', 'About')}</h3>
+                  <dl className={design.contactFacts}>
+                    {contact.phone && (
                       <div>
                         <dt>{t('الهاتف', 'Phone')}</dt>
-                        <dd dir="ltr">{contact.phone || '—'}</dd>
-                      </div>
-                      <div>
-                        <dt>{t('البريد الإلكتروني', 'Email')}</dt>
-                        <dd dir="ltr">{contact.email || '—'}</dd>
-                      </div>
-                      <div>
-                        <dt>{t('تاريخ الإضافة', 'Added')}</dt>
-                        <dd>{date(contact.created_at)}</dd>
-                      </div>
-                    </dl>
-                  </section>
-                  <section className={styles.overviewCard}>
-                    <h3>{t('التفاعل', 'Engagement')}</h3>
-                    <dl>
-                      <div>
-                        <dt>{t('آخر تواصل', 'Last Communication')}</dt>
                         <dd>
-                          {date(
-                            profile.timeline.conversations
-                              .map((row) => row.last_message_at)
-                              .filter(Boolean)
-                              .sort()
-                              .at(-1),
-                          )}
+                          <bdi>{contact.phone}</bdi>
                         </dd>
                       </div>
+                    )}
+                    {contact.email && (
                       <div>
-                        <dt>{t('المحادثات', 'Conversations')}</dt>
-                        <dd>{profile.timeline.conversations.length}</dd>
+                        <dt>{t('البريد الإلكتروني', 'Email')}</dt>
+                        <dd>
+                          <bdi>{contact.email}</bdi>
+                        </dd>
                       </div>
-                      <div>
-                        <dt>{t('المرحلة', 'Lifecycle')}</dt>
-                        <dd>{statusLabel(contact.lifecycle, t)}</dd>
-                      </div>
-                      <div>
-                        <dt>{t('آخر تحديث للملف', 'Profile Updated')}</dt>
-                        <dd>{date(contact.updated_at)}</dd>
-                      </div>
-                    </dl>
-                  </section>
-                </div>
+                    )}
+                    <div>
+                      <dt>{t('تاريخ الإضافة', 'Added')}</dt>
+                      <dd>{date(contact.created_at)}</dd>
+                    </div>
+                    <div>
+                      <dt>{t('آخر تحديث', 'Last updated')}</dt>
+                      <dd>{date(contact.updated_at)}</dd>
+                    </div>
+                  </dl>
+                </section>
                 <h3>{t('المحادثات', 'Conversations')}</h3>
                 {profile.timeline.conversations.map((row) => (
                   <Link
@@ -594,25 +649,6 @@ export default function SubscriberProfile({
                 ))}
                 {!profile.timeline.conversations.length && (
                   <p>{t('لا توجد محادثات.', 'No conversations.')}</p>
-                )}
-                {canManage && (
-                  <button
-                    type="button"
-                    className="btn"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(() =>
-                        api(`/crm/contacts/${contactId}/archive`, {
-                          method: 'PATCH',
-                          body: JSON.stringify({ archived: !contact.archived_at }),
-                        }),
-                      )
-                    }
-                  >
-                    {contact.archived_at
-                      ? t('استعادة المشترك', 'Restore subscriber')
-                      : t('أرشفة المشترك', 'Archive subscriber')}
-                  </button>
                 )}
               </>
             )}
@@ -862,9 +898,7 @@ export default function SubscriberProfile({
                           <div key={key}>
                             <dt>{fields.data.find((field) => field.key === key)?.label ?? key}</dt>
                             <dd>
-                              {typeof value === 'object'
-                                ? JSON.stringify(value)
-                                : String(value ?? '—')}
+                              <AnswerValue value={value} />
                             </dd>
                           </div>
                         ))}
@@ -1044,6 +1078,33 @@ export default function SubscriberProfile({
       )}
     </aside>
   );
+}
+
+function AnswerValue({ value }: { value: unknown }) {
+  if (Array.isArray(value))
+    return (
+      <ul>
+        {value.map((item, index) => (
+          <li key={index}>
+            <AnswerValue value={item} />
+          </li>
+        ))}
+      </ul>
+    );
+  if (value && typeof value === 'object')
+    return (
+      <dl>
+        {Object.entries(value).map(([key, item]) => (
+          <div key={key}>
+            <dt>{key}</dt>
+            <dd>
+              <AnswerValue value={item} />
+            </dd>
+          </div>
+        ))}
+      </dl>
+    );
+  return <bdi>{String(value ?? '—')}</bdi>;
 }
 
 function CompanyContacts({

@@ -1207,3 +1207,30 @@
   .subscriberList[data-view='grid'] table { min-width: 0; }
   .subscriberList[data-view='grid'] tbody { grid-template-columns: minmax(0, 1fr); }
 }
+
+.profileDrawer .profileHeader,
+.profileDrawer .profileMeta,
+.profileDrawer .quickActions,
+.profileDrawer .profileSummary,
+.profileDrawer .profileBody {
+  padding: 10px 14px;
+}
+.profileDrawer .profileTabs {
+  padding: 6px 14px;
+  gap: 4px;
+  justify-content: start;
+  flex-wrap: wrap;
+}
+.profileDrawer .profileTabs button {
+  min-height: 36px;
+  padding: 5px 8px;
+}
+.profileDrawer .quickActions {
+  gap: 6px;
+}
+.profileDrawer .quickActions > * {
+  min-height: 42px;
+  flex: 1 1 100px;
+  padding: 5px 8px;
+  text-align: start;
+}

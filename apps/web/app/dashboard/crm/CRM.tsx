@@ -347,7 +347,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     ['config', 'الحقول والشرائح', 'Fields & segments'],
   ];
   return (
-    <main className={`${styles.page} ${design.workspace}`}>
+    <main className={`${styles.page} ${design.workspace} ${design.customerWorkspace}`}>
       <CrmNav />
       <header className={`${styles.heading} ${design.heading}`}>
         <div>
@@ -540,6 +540,28 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                 {label}
               </button>
             ))}
+          </div>
+          <div
+            className={design.customerScope}
+            role="group"
+            aria-label={t('حالة القائمة', 'Customer list scope')}
+          >
+            <button
+              type="button"
+              className="btn"
+              aria-pressed={archiveFilter === 'active'}
+              onClick={() => setArchiveFilter('active')}
+            >
+              {t('العملاء النشطون', 'Active customers')}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              aria-pressed={archiveFilter === 'archived'}
+              onClick={() => setArchiveFilter('archived')}
+            >
+              {t('الأرشيف', 'Archived')}
+            </button>
           </div>
           <div className={design.filterPanel} id="customer-filters" hidden={!filtersOpen}>
             <section className={styles.filters} aria-label={t('تصفية العملاء', 'Customer filters')}>
@@ -1011,15 +1033,17 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                               <NavIcon name="user" />
                               <span>{t('فتح الملف', 'Open profile')}</span>
                             </button>
-                            <button
-                              type="button"
-                              className="btn"
-                              aria-label={t('تعديل: ', 'Edit: ') + c.name}
-                              onClick={() => editContact(c)}
-                            >
-                              <NavIcon name="edit" />
-                              <span>{t('تعديل', 'Edit')}</span>
-                            </button>
+                            {canManage && (
+                              <button
+                                type="button"
+                                className="btn"
+                                aria-label={t('تعديل: ', 'Edit: ') + c.name}
+                                onClick={() => editContact(c)}
+                              >
+                                <NavIcon name="edit" />
+                                <span>{t('تعديل', 'Edit')}</span>
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1116,7 +1140,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
             open={!!selected}
             onClose={() => setSelected(null)}
             title={t('ملف العميل', 'Customer profile')}
-            className={styles.profileDrawer}
+            className={`${styles.profileDrawer} ${design.profileDialog}`}
           >
             {selected && (
               <SubscriberProfile
@@ -1134,9 +1158,10 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
             open={showCreate || !!edit}
             onClose={closeContact}
             title={edit ? t('تعديل العميل', 'Edit contact') : t('إضافة عميل', 'Add contact')}
+            className={design.contactDialog}
           >
             {(showCreate || edit) && (
-              <div>
+              <>
                 <ContactEditor
                   key={edit || 'create'}
                   contact={contactDraft}
@@ -1154,7 +1179,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                     setContactDraft(null);
                   }}
                 />
-              </div>
+              </>
             )}
           </Dialog>
           <Dialog
@@ -1557,14 +1582,23 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
           </div>
           {canManage && (
             <>
-              <CrmScoring />
-              <CrmSegments />
-              <CrmAutomation />
+              <details className={design.settingsDisclosure}>
+                <DisclosureSummary>{t('تقييم العملاء', 'Customer scoring')}</DisclosureSummary>
+                <CrmScoring />
+              </details>
+              <details className={design.settingsDisclosure}>
+                <DisclosureSummary>{t('الشرائح الذكية', 'Smart segments')}</DisclosureSummary>
+                <CrmSegments />
+              </details>
+              <details className={design.settingsDisclosure}>
+                <DisclosureSummary>{t('قواعد الأتمتة', 'Automation rules')}</DisclosureSummary>
+                <CrmAutomation />
+              </details>
             </>
           )}
-          <div className="card-grid">
+          <details className={design.settingsDisclosure}>
+            <DisclosureSummary>{t('الحقول المخصصة', 'Custom fields')}</DisclosureSummary>
             <section className="card">
-              <h2>{t('الحقول المخصصة', 'Custom fields')}</h2>
               {fields.data.map((x) => (
                 <p className="muted" key={x.id}>
                   {x.label} ·{' '}
@@ -1576,12 +1610,14 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                       boolean: t('نعم / لا', 'Yes / no'),
                     } as Record<string, string>
                   )[x.type] || x.type}{' '}
-                  · {x.key}
                 </p>
               ))}
             </section>
+            {canManage && <CustomFieldForm onSave={(body) => act('/crm/fields', body)} />}
+          </details>
+          <details className={design.settingsDisclosure}>
+            <DisclosureSummary>{t('الشرائح المحفوظة', 'Saved segments')}</DisclosureSummary>
             <section className="card">
-              <h2>{t('الشرائح المحفوظة', 'Saved segments')}</h2>
               {segments.data.map((x) => (
                 <div className="step" key={x.id}>
                   <button
@@ -1613,93 +1649,104 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                 </div>
               ))}
             </section>
-          </div>
-          {canManage && <CustomFieldForm onSave={(body) => act('/crm/fields', body)} />}
-          <section className="card stack">
-            <h2>{t('مراجعة شروط الشريحة', 'Review segment conditions')}</h2>
-            <p>
-              {contacts.data.total}{' '}
-              {t(
-                'عميل مطابق حاليًا — تُحفظ الشروط لا قائمة ثابتة من العملاء',
-                'contacts match now — saves conditions, not a fixed contact list',
+            <section className="card stack">
+              <h2>{t('مراجعة شروط الشريحة', 'Review segment conditions')}</h2>
+              <p>
+                {contacts.data.total}{' '}
+                {t(
+                  'عميل مطابق حاليًا — تُحفظ الشروط لا قائمة ثابتة من العملاء',
+                  'contacts match now — saves conditions, not a fixed contact list',
+                )}
+              </p>
+              <div className="form-grid">
+                <label>
+                  {t('البحث', 'Search')}
+                  <input
+                    value={q}
+                    onChange={(e) => {
+                      setQ(e.target.value);
+                      setPage(1);
+                    }}
+                  />
+                </label>
+                <label>
+                  {t('المرحلة', 'Lifecycle')}
+                  <select
+                    value={stage}
+                    onChange={(e) => {
+                      setStage(e.target.value);
+                      setPage(1);
+                    }}
+                  >
+                    <option value="">{t('كل المراحل', 'All stages')}</option>
+                    {['lead', 'qualified', 'customer', 'inactive'].map((x) => (
+                      <option key={x} value={x}>
+                        {statusLabel(x, t)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  {t('الوسم', 'Tag')}
+                  <input
+                    value={tag}
+                    onChange={(e) => {
+                      setTag(e.target.value);
+                      setPage(1);
+                    }}
+                  />
+                </label>
+                <label>
+                  {t('حالة الملفات', 'Profile status')}
+                  <select
+                    value={archiveFilter}
+                    onChange={(e) => {
+                      setArchiveFilter(e.target.value);
+                      setPage(1);
+                    }}
+                  >
+                    {['active', 'archived', 'all'].map((x) => (
+                      <option key={x} value={x}>
+                        {x === 'all' ? t('الكل', 'All') : statusLabel(x, t)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </section>
+            <SimpleForm
+              title={t('احفظ التصفية الحالية كشريحة', 'Save current filters as a segment')}
+              fields={[['name', t('اسم الشريحة', 'Segment name')]]}
+              onSave={(b) =>
+                act('/crm/segments', { name: b.name, filters: Object.fromEntries(filter) })
+              }
+            />
+          </details>
+          <details className={design.settingsDisclosure}>
+            <DisclosureSummary>{t('البيانات المكررة', 'Duplicates')}</DisclosureSummary>
+            <section className="card">
+              {duplicates.data.map((x) => (
+                <p className="muted" key={x.kind + x.value}>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      setQ(x.value);
+                      setTab('contacts');
+                      setPage(1);
+                    }}
+                  >
+                    {x.value} · {x.count}
+                  </button>
+                </p>
+              ))}
+              {!duplicates.data.length && (
+                <p className="muted">
+                  {t('لا توجد عناوين بريد مكررة.', 'No duplicate email addresses.')}
+                </p>
               )}
-            </p>
-            <div className="form-grid">
-              <label>
-                {t('البحث', 'Search')}
-                <input
-                  value={q}
-                  onChange={(e) => {
-                    setQ(e.target.value);
-                    setPage(1);
-                  }}
-                />
-              </label>
-              <label>
-                {t('المرحلة', 'Lifecycle')}
-                <select
-                  value={stage}
-                  onChange={(e) => {
-                    setStage(e.target.value);
-                    setPage(1);
-                  }}
-                >
-                  <option value="">{t('كل المراحل', 'All stages')}</option>
-                  {['lead', 'qualified', 'customer', 'inactive'].map((x) => (
-                    <option key={x} value={x}>
-                      {statusLabel(x, t)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                {t('الوسم', 'Tag')}
-                <input
-                  value={tag}
-                  onChange={(e) => {
-                    setTag(e.target.value);
-                    setPage(1);
-                  }}
-                />
-              </label>
-              <label>
-                {t('حالة الملفات', 'Profile status')}
-                <select
-                  value={archiveFilter}
-                  onChange={(e) => {
-                    setArchiveFilter(e.target.value);
-                    setPage(1);
-                  }}
-                >
-                  {['active', 'archived', 'all'].map((x) => (
-                    <option key={x} value={x}>
-                      {x === 'all' ? t('الكل', 'All') : statusLabel(x, t)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          </section>
-          <SimpleForm
-            title={t('احفظ التصفية الحالية كشريحة', 'Save current filters as a segment')}
-            fields={[['name', t('اسم الشريحة', 'Segment name')]]}
-            onSave={(b) =>
-              act('/crm/segments', { name: b.name, filters: Object.fromEntries(filter) })
-            }
-          />
-          <section className="card">
-            <h2>{t('بريد مكرر', 'Duplicate emails')}</h2>
-            {duplicates.data.map((x) => (
-              <p className="muted" key={x.kind + x.value}>
-                {x.kind}: {x.value} · {x.count} · {x.ids.join(', ')}
-              </p>
-            ))}
-            {!duplicates.data.length && (
-              <p className="muted">
-                {t('لا توجد عناوين بريد مكررة.', 'No duplicate email addresses.')}
-              </p>
-            )}
-          </section>
+            </section>
+          </details>
         </>
       )}
       {tab !== 'config' && tab !== 'contacts' && (
