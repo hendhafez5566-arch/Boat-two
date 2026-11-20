@@ -96,13 +96,17 @@ export function CrmWork({
   const selectedPipeline = pipelines.data.find((p) => p.id === pipeline) || pipelines.data[0];
   const params = new URLSearchParams({ ...routeDates, q, status, page: String(page), limit: '50' });
   if (deals && selectedPipeline && !allPipelines) params.set('pipelineId', selectedPipeline.id);
-  if (owner) params.set('ownerId', owner === 'me' ? team.data.currentUserId : owner);
+  const resolvedOwner = owner === 'me' ? team.data.currentUserId : owner;
+  if (resolvedOwner) params.set('ownerId', resolvedOwner);
   if (contactId) params.set('contactId', contactId);
   if (!deals && period !== 'all') params.set('period', period);
-  const data = useData<{ items: Work[]; total: number }>(`/crm/${kind}?${params}`, {
-    items: [],
-    total: 0,
-  });
+  const data = useData<{ items: Work[]; total: number }>(
+    owner === 'me' && !resolvedOwner ? null : `/crm/${kind}?${params}`,
+    {
+      items: [],
+      total: 0,
+    },
+  );
   const stages = selectedPipeline?.stages ?? [];
   const activeStage = stages.includes(mobileStage)
     ? mobileStage
@@ -149,8 +153,9 @@ export function CrmWork({
     );
   }
   const canEdit = (row: Work) =>
-    team.data.role !== 'agent' ||
-    (deals ? row.owner_id : row.assigned_to) === team.data.currentUserId;
+    !!team.data.role &&
+    (team.data.role !== 'agent' ||
+      (deals ? row.owner_id : row.assigned_to) === team.data.currentUserId);
   const memberName = (id: string | null) =>
     team.data.members.find((m) => m.user_id === id)?.full_name || t('غير مسند', 'Unassigned');
   const amount = (row: Work) =>
@@ -158,6 +163,20 @@ export function CrmWork({
       style: 'currency',
       currency: row.currency,
     }).format(Number(row.value_cents) / 100);
+  function dealStatus(row: Work) {
+    return (
+      <select
+        aria-label={t('حالة الفرصة', 'Opportunity status') + ': ' + row.title}
+        value={row.status}
+        disabled={busy || !canEdit(row)}
+        onChange={(event) => void update(row, { status: event.target.value })}
+      >
+        <option value="open">{t('مفتوحة', 'Open')}</option>
+        <option value="won">{t('ناجحة', 'Won')}</option>
+        <option value="lost">{t('خاسرة', 'Lost')}</option>
+      </select>
+    );
+  }
   function card(row: Work) {
     const overdue = !deals && row.status === 'open' && Date.parse(row.due_at) < Date.now();
     return (
@@ -174,20 +193,24 @@ export function CrmWork({
         onDragStart={(e) => e.dataTransfer.setData('text/plain', row.id)}
       >
         <div className={design.workCardHeader}>
-          <span className={design.workStatus} data-state={overdue ? 'overdue' : row.status}>
-            <NavIcon
-              name={row.status === 'done' || row.status === 'won' ? 'circleCheck' : 'calendar'}
-            />
-            {row.status === 'done'
-              ? t('مكتملة', 'Completed')
-              : row.status === 'won'
-                ? t('ناجحة', 'Won')
-                : row.status === 'lost'
-                  ? t('خاسرة', 'Lost')
-                  : overdue
-                    ? t('متأخرة', 'Overdue')
-                    : t('مفتوحة', 'Open')}
-          </span>
+          {deals ? (
+            dealStatus(row)
+          ) : (
+            <span className={design.workStatus} data-state={overdue ? 'overdue' : row.status}>
+              <NavIcon
+                name={row.status === 'done' || row.status === 'won' ? 'circleCheck' : 'calendar'}
+              />
+              {row.status === 'done'
+                ? t('مكتملة', 'Completed')
+                : row.status === 'won'
+                  ? t('ناجحة', 'Won')
+                  : row.status === 'lost'
+                    ? t('خاسرة', 'Lost')
+                    : overdue
+                      ? t('متأخرة', 'Overdue')
+                      : t('مفتوحة', 'Open')}
+            </span>
+          )}
         </div>
         <button
           className={styles.linkButton}
@@ -569,6 +592,7 @@ export function CrmWork({
                 <th>{t('الفرصة', 'Opportunity')}</th>
                 <th>{t('العميل', 'Customer')}</th>
                 <th>{t('المرحلة', 'Stage')}</th>
+                <th>{t('الحالة', 'Status')}</th>
                 <th>{t('القيمة', 'Value')}</th>
                 <th>{t('المسؤول', 'Owner')}</th>
               </tr>
@@ -591,6 +615,7 @@ export function CrmWork({
                     </Link>
                   </td>
                   <td>{row.stage}</td>
+                  <td>{dealStatus(row)}</td>
                   <td>{amount(row)}</td>
                   <td>{memberName(row.owner_id)}</td>
                 </tr>

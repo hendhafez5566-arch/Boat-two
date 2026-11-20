@@ -361,6 +361,12 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
           </h1>
         </div>
         <div className={styles.headActions}>
+          {tab === 'contacts' && (
+            <Link className="btn" href="/dashboard/crm/tasks?ownerId=me">
+              <NavIcon name="calendar" />
+              {t('مهامي', 'My tasks')}
+            </Link>
+          )}
           <button
             className="btn btn-primary"
             onClick={() => {

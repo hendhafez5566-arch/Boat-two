@@ -704,3 +704,32 @@ nav.nav .moreLinks a {
 }
 
 .viewLabel { white-space: normal; }
+
+.lifecycleControl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.lifecycleControl select {
+  max-inline-size: 100%;
+}
+.profile .lifecycleControl select {
+  border-color: var(--primary-line);
+}
+
+.profile .summaryAction {
+  min-inline-size: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: start;
+  text-align: start;
+  white-space: normal;
+}
+.summaryAction > span {
+  flex: 1 1 10rem;
+  overflow-wrap: anywhere;
+}
+.summaryAction time {
+  color: var(--muted);
+}

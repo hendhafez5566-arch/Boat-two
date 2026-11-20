@@ -27,7 +27,7 @@ export function CrmNav() {
       <details className={design.moreNav}>
         <summary>
           <NavIcon name="settings" />
-          {t('المزيد', 'More')}
+          {t('أدوات CRM', 'CRM tools')}
           <NavIcon name="chevron" />
         </summary>
         <div className={design.moreLinks}>

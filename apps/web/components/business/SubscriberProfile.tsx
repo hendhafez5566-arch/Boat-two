@@ -112,6 +112,7 @@ export default function SubscriberProfile({
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
   const lock = useRef(false);
+  const noteInput = useRef<HTMLTextAreaElement>(null);
   const profile = data.data,
     contact = profile?.contact;
   async function run(fn: () => Promise<unknown>) {
@@ -139,6 +140,84 @@ export default function SubscriberProfile({
     });
   const date = (value?: string | null) =>
     value ? new Date(value).toLocaleString(language === 'ar' ? 'ar-EG' : 'en-GB') : '—';
+  const nextTask = profile?.timeline.tasks
+    .filter((task) => task.status === 'open')
+    .sort((a, b) => a.due_at.localeCompare(b.due_at))[0];
+  const activity =
+    profile && contact
+      ? [
+          {
+            id: 'created:' + contact.id,
+            at: contact.created_at,
+            title: t('أُنشئ ملف العميل', 'Customer profile created'),
+            body: contact.name,
+          },
+          ...profile.timeline.notes.map((n) => ({
+            id: 'note:' + n.id,
+            at: n.created_at,
+            title: t('ملاحظة داخلية', 'Internal note'),
+            body: n.body,
+          })),
+          ...profile.timeline.conversations.map((c) => ({
+            id: 'conversation:' + c.id,
+            at: c.last_message_at,
+            title: t('آخر تواصل في المحادثة', 'Latest conversation activity'),
+            body: c.channel_name,
+          })),
+          ...profile.timeline.tasks.map((task) => ({
+            id: 'task:' + task.id,
+            at: task.updated_at,
+            title:
+              task.status === 'done'
+                ? t('متابعة مكتملة', 'Follow-up completed')
+                : t('متابعة مفتوحة', 'Open follow-up'),
+            body: task.title,
+          })),
+          ...profile.timeline.deals
+            .filter((d) => !profile.timeline.stageChanges?.some((s) => s.deal_id === d.id))
+            .map((d) => ({
+              id: 'deal:' + d.id,
+              at: d.updated_at,
+              title: t('آخر تحديث لفرصة البيع', 'Latest opportunity update'),
+              body: d.title + ' · ' + d.stage,
+            })),
+          ...(profile.timeline.ownerChanges || []).map((s) => ({
+            id: 'owner:' + s.id,
+            at: s.created_at,
+            title: t('تغيّر الموظف المسؤول', 'Owner changed'),
+            body: s.full_name || t('دون مسؤول', 'Unassigned'),
+          })),
+          ...profile.timeline.events
+            .filter((e) => e.type === 'crm.bot.answer' || e.type === 'crm.conversation.taken')
+            .map((e) => ({
+              id: 'sales:' + e.id,
+              at: e.created_at,
+              title:
+                e.type === 'crm.bot.answer'
+                  ? t('حفظ البوت بيانات العميل', 'Bot saved customer data')
+                  : t('استلم الموظف المحادثة', 'Employee took conversation'),
+              body: t('حُفظ الحدث داخل الشركة', 'Event recorded in workspace'),
+            })),
+          ...(profile.timeline.stageChanges || []).map((s) => ({
+            id: 'stage:' + s.id,
+            at: s.created_at,
+            title: t('تغيّرت مرحلة فرصة البيع', 'Opportunity stage changed'),
+            body: s.title + ' · ' + s.details.from + ' ← ' + s.details.to,
+          })),
+          ...profile.timeline.events
+            .filter((e) => e.type.includes('contacts') && e.type.endsWith('.update'))
+            .map((e) => ({
+              id: 'event:' + e.id,
+              at: e.created_at,
+              title: t('تحديث بيانات العميل', 'Customer data updated'),
+              body: t('حُفظ تحديث في ملف العميل', 'An update was recorded in this profile'),
+            })),
+        ]
+          .filter((e) => e.at)
+          .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+      : [];
+  const latestActivity = activity[0];
+
   function saveOverview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -180,7 +259,28 @@ export default function SubscriberProfile({
       {profile && contact && (
         <>
           <div className={styles.profileMeta}>
-            <span className={styles.pill}>{statusLabel(contact.lifecycle, t)}</span>
+            {canManage ? (
+              <label className={design.lifecycleControl}>
+                {t('مرحلة العميل', 'Lifecycle')}
+                <select
+                  aria-label={t('مرحلة العميل', 'Lifecycle')}
+                  disabled={busy}
+                  value={contact.lifecycle}
+                  onChange={(event) => {
+                    const lifecycle = event.target.value;
+                    void run(() => patch({ lifecycle }));
+                  }}
+                >
+                  {['lead', 'qualified', 'customer', 'inactive'].map((value) => (
+                    <option key={value} value={value}>
+                      {statusLabel(value, t)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <span className={styles.pill}>{statusLabel(contact.lifecycle, t)}</span>
+            )}
             <span>{contact.archived_at ? t('مؤرشف', 'Archived') : t('نشط', 'Retained')}</span>
             <small>
               {t('منذ', 'Since')} {date(contact.created_at)}
@@ -222,7 +322,12 @@ export default function SubscriberProfile({
                 {t('إضافة متابعة', 'Add follow-up')}
               </button>
             )}
-            <button onClick={() => setTab('notes')}>
+            <button
+              onClick={() => {
+                setTab('notes');
+                requestAnimationFrame(() => noteInput.current?.focus());
+              }}
+            >
               <NavIcon name="edit" />
               {t('إضافة ملاحظة', 'Add note')}
             </button>
@@ -251,18 +356,34 @@ export default function SubscriberProfile({
               </span>
             </div>
 
-            {profile.timeline.tasks
-              .filter((task) => task.status === 'open')
-              .sort((a, b) => a.due_at.localeCompare(b.due_at))[0] && (
-              <small>
+            {nextTask && (
+              <button
+                type="button"
+                className={`btn ${design.summaryAction}`}
+                onClick={() => {
+                  setQuickCreate('');
+                  setTab('tasks');
+                }}
+              >
                 <NavIcon name="calendar" />
-                {t('أقرب متابعة', 'Next follow-up')}:{' '}
-                {date(
-                  profile.timeline.tasks
-                    .filter((task) => task.status === 'open')
-                    .sort((a, b) => a.due_at.localeCompare(b.due_at))[0].due_at,
-                )}
-              </small>
+                <span>
+                  {t('أقرب متابعة', 'Next follow-up')} · {nextTask.title}
+                </span>
+                <time dateTime={nextTask.due_at}>{date(nextTask.due_at)}</time>
+              </button>
+            )}
+            {latestActivity && (
+              <button
+                type="button"
+                className={`btn ${design.summaryAction}`}
+                onClick={() => setTab('activity')}
+              >
+                <NavIcon name="stopwatch" />
+                <span>
+                  {t('آخر نشاط', 'Latest activity')} · {latestActivity.title}
+                </span>
+                <time dateTime={latestActivity.at}>{date(latestActivity.at)}</time>
+              </button>
             )}
           </div>
           <nav
@@ -819,14 +940,6 @@ export default function SubscriberProfile({
             {tab === 'notes' && (
               <>
                 <h3>{t('ملاحظات الفريق', 'Team Notes')}</h3>
-                {profile.timeline.notes.map((note) => (
-                  <article className={styles.note} key={note.id}>
-                    <p>{note.body}</p>
-                    <small>
-                      {note.author} · {date(note.created_at)}
-                    </small>
-                  </article>
-                ))}
                 <form
                   className={styles.form}
                   onSubmit={(event) => {
@@ -844,12 +957,20 @@ export default function SubscriberProfile({
                 >
                   <label>
                     {t('ملاحظة داخلية', 'Internal note')}
-                    <textarea name="text" required maxLength={4000} rows={3} />
+                    <textarea ref={noteInput} name="text" required maxLength={4000} rows={3} />
                   </label>
                   <button className="btn" disabled={busy}>
                     {t('إضافة الملاحظة', 'Add Note')}
                   </button>
                 </form>
+                {profile.timeline.notes.map((note) => (
+                  <article className={styles.note} key={note.id}>
+                    <p>{note.body}</p>
+                    <small>
+                      {note.author} · {date(note.created_at)}
+                    </small>
+                  </article>
+                ))}
               </>
             )}
             {tab === 'consent' && (
@@ -908,97 +1029,14 @@ export default function SubscriberProfile({
               <>
                 <ContactActivityExport key={contactId} contactId={contactId} />
                 <div className={premium.timeline}>
-                  {[
-                    {
-                      id: 'created:' + contact.id,
-                      at: contact.created_at,
-                      title: t('أُنشئ ملف العميل', 'Customer profile created'),
-                      body: contact.name,
-                    },
-                    ...profile.timeline.notes.map((n) => ({
-                      id: 'note:' + n.id,
-                      at: n.created_at,
-                      title: t('ملاحظة داخلية', 'Internal note'),
-                      body: n.body,
-                    })),
-                    ...profile.timeline.conversations.map((c) => ({
-                      id: 'conversation:' + c.id,
-                      at: c.last_message_at,
-                      title: t('آخر تواصل في المحادثة', 'Latest conversation activity'),
-                      body: c.channel_name,
-                    })),
-                    ...profile.timeline.tasks.map((task) => ({
-                      id: 'task:' + task.id,
-                      at: task.updated_at,
-                      title:
-                        task.status === 'done'
-                          ? t('متابعة مكتملة', 'Follow-up completed')
-                          : t('متابعة مفتوحة', 'Open follow-up'),
-                      body: task.title,
-                    })),
-                    ...profile.timeline.deals
-                      .filter(
-                        (d) => !profile.timeline.stageChanges?.some((s) => s.deal_id === d.id),
-                      )
-                      .map((d) => ({
-                        id: 'deal:' + d.id,
-                        at: d.updated_at,
-                        title: t('آخر تحديث لفرصة البيع', 'Latest opportunity update'),
-                        body: d.title + ' · ' + d.stage,
-                      })),
-                    ...(profile.timeline.ownerChanges || []).map((s) => ({
-                      id: 'owner:' + s.id,
-                      at: s.created_at,
-                      title: t('تغيّر الموظف المسؤول', 'Owner changed'),
-                      body: s.full_name || t('دون مسؤول', 'Unassigned'),
-                    })),
-                    ...profile.timeline.events
-                      .filter(
-                        (e) => e.type === 'crm.bot.answer' || e.type === 'crm.conversation.taken',
-                      )
-                      .map((e) => ({
-                        id: 'sales:' + e.id,
-                        at: e.created_at,
-                        title:
-                          e.type === 'crm.bot.answer'
-                            ? t('حفظ البوت بيانات العميل', 'Bot saved customer data')
-                            : t('استلم الموظف المحادثة', 'Employee took conversation'),
-                        body: t('حُفظ الحدث داخل الشركة', 'Event recorded in workspace'),
-                      })),
-                    ...(profile.timeline.stageChanges || []).map((s) => ({
-                      id: 'stage:' + s.id,
-                      at: s.created_at,
-                      title: t('تغيّرت مرحلة فرصة البيع', 'Opportunity stage changed'),
-                      body: s.title + ' · ' + s.details.from + ' ← ' + s.details.to,
-                    })),
-                    ...profile.timeline.events
-                      .filter((e) => e.type.includes('contacts') && e.type.endsWith('.update'))
-                      .map((e) => ({
-                        id: 'event:' + e.id,
-                        at: e.created_at,
-                        title: t('تحديث بيانات العميل', 'Customer data updated'),
-                        body: t(
-                          'حُفظ تحديث في ملف العميل',
-                          'An update was recorded in this profile',
-                        ),
-                      })),
-                  ]
-                    .filter((e) => e.at)
-                    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
-                    .map((e) => (
-                      <article key={e.id}>
-                        <time>{date(e.at)}</time>
-                        <strong>{e.title}</strong>
-                        <span>{e.body}</span>
-                      </article>
-                    ))}
+                  {activity.map((e) => (
+                    <article key={e.id}>
+                      <time>{date(e.at)}</time>
+                      <strong>{e.title}</strong>
+                      <span>{e.body}</span>
+                    </article>
+                  ))}
                 </div>
-                <p className={premium.hint}>
-                  {t(
-                    'تظهر آخر حالة محفوظة لكل محادثة وصفقة ومتابعة، مع أحداث تحديث الملف المسجلة.',
-                    'Shows latest saved activity per conversation, opportunity and follow-up, plus recorded profile updates.',
-                  )}
-                </p>
               </>
             )}
           </div>
