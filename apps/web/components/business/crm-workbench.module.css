@@ -484,3 +484,24 @@
     padding-block: 0.5rem;
   }
 }
+.workHeader :global(.btn-primary) {
+  background: var(--crm-accent);
+  border-color: var(--crm-accent);
+  color: white;
+}
+@media (max-width: 580px) {
+  .workHeader {
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .workHeader h1 {
+    font-size: 1.18rem;
+  }
+  .workHeader h1 > span {
+    display: none;
+  }
+  .workToolbar > input[type='search'] {
+    flex: 0 0 100%;
+    inline-size: 100%;
+  }
+}

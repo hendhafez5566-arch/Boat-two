@@ -411,10 +411,11 @@ export function CrmWork({
           ))}
         </div>
       )}
-      <div className={`${styles.toolbar} ${design.workToolbar}`}>
+      <div className={`${styles.toolbar} ${design.workToolbar} ${bench.workToolbar}`}>
         <input
           aria-label={t('بحث', 'Search work')}
-          placeholder={t('ابحث بالعنوان أو العميل', 'Search title or customer')}
+          type="search"
+          placeholder={t('العنوان أو اسم العميل', 'Title or customer')}
           value={q}
           onChange={(e) => {
             setQ(e.target.value);
@@ -461,7 +462,10 @@ export function CrmWork({
           <NavIcon name="filter" /> {t('التصفية', 'Filters')}
         </Button>
       </div>
-      <div className={`${styles.toolbar} ${design.workToolbar}`} hidden={!filtersOpen}>
+      <div
+        className={`${styles.toolbar} ${design.workToolbar} ${bench.workToolbar}`}
+        hidden={!filtersOpen}
+      >
         <select
           aria-label={t('الحالة', 'Status')}
           value={status}
