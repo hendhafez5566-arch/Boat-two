@@ -1,7 +1,7 @@
 .workspace {
-  --crm-accent: #5b52c9;
-  --crm-ink: #24334b;
-  --crm-muted: #61718a;
+  --crm-accent: var(--primary);
+  --crm-ink: var(--ink);
+  --crm-muted: var(--muted);
   min-width: 0;
   color: var(--crm-ink);
   font-size: 14px;
@@ -10,11 +10,11 @@
 .workspace :global(.btn),
 .editor :global(.btn) {
   min-height: 42px;
-  border: 1px solid #dde4ef;
+  border: 1px solid var(--line);
   border-radius: 11px;
   padding: 9px 14px;
   background: #fff;
-  color: #43536f;
+  color: var(--ink-2);
   font-size: 14px;
   font-weight: 650;
   gap: 8px;
@@ -22,29 +22,29 @@
 }
 .workspace :global(.btn-primary),
 .editor :global(.btn-primary) {
-  background: #5b52c9;
-  border-color: #5b52c9;
+  background: var(--primary);
+  border-color: var(--primary);
   color: #fff;
-  box-shadow: 0 4px 10px #5b52c920;
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--primary) 12%, transparent);
 }
 .workspace :global(.btn:hover),
 .editor :global(.btn:hover) {
-  border-color: #b9b7e0;
-  background: #f5f4fd;
+  border-color: var(--primary-line);
+  background: var(--primary-softer);
 }
 .workspace :global(.btn-primary:hover),
 .editor :global(.btn-primary:hover) {
-  background: #4b43b4;
+  background: var(--primary-deep);
   color: #fff;
 }
 .workspace :is(input, select, textarea),
 .editor :is(input, select, textarea) {
-  accent-color: #5b52c9;
+  accent-color: var(--primary);
 }
 .workspace :focus-visible,
 .editor :focus-visible,
 .nav :focus-visible {
-  outline: 3px solid #9a98e5;
+  outline: 3px solid var(--primary);
   outline-offset: 3px;
 }
 .workspace :global(.btn svg),
@@ -74,9 +74,9 @@
   display: grid;
   place-items: center;
   border-radius: 15px;
-  color: #5b52c9;
-  background: #eeecfb;
-  border: 1px solid #e4e0f9;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-line);
 }
 .headingIcon svg {
   width: 24px;
@@ -108,11 +108,11 @@ nav.nav > a svg {
   height: 18px;
 }
 nav.nav > a[aria-current='page'] {
-  color: #5146b3;
-  background: #eeecfb;
+  color: var(--primary-deep);
+  background: var(--primary-soft);
 }
 nav.nav > a[aria-current='page'] svg {
-  color: #6255ce;
+  color: var(--primary);
 }
 .moreNav {
   position: relative;
@@ -138,8 +138,8 @@ nav.nav > a[aria-current='page'] svg {
   height: 18px;
 }
 .moreNav[open] summary {
-  background: #f3f2fb;
-  color: #5146b3;
+  background: var(--primary-softer);
+  color: var(--primary-deep);
 }
 .moreLinks {
   position: absolute;
@@ -276,7 +276,7 @@ nav.nav .moreLinks a {
   margin-top: 12px;
   width: 100%;
   border-color: #dedcf1;
-  color: #5b52c9;
+  color: var(--primary);
   background: #f6f5fd;
 }
 .workCard[data-work-status='done'] > button:last-child {
@@ -471,7 +471,7 @@ nav.nav .moreLinks a {
 
 .workTabs {
   padding: 5px;
-  border: 1px solid #e0e6f0;
+  border: 1px solid var(--line);
   background: #fff;
   border-radius: 13px;
   gap: 5px;
@@ -487,21 +487,21 @@ nav.nav .moreLinks a {
   color: #65748b;
 }
 .workTabs button[aria-pressed='true'] {
-  background: #5b52c9;
+  background: var(--primary);
   color: #fff;
-  box-shadow: 0 3px 8px #5b52c923;
+  box-shadow: 0 3px 8px color-mix(in srgb, var(--primary) 14%, transparent);
 }
 .workToolbar {
   padding: 12px;
-  border: 1px solid #e0e6f0;
+  border: 1px solid var(--line);
   border-radius: 14px;
   background: #fff;
   gap: 10px;
 }
 .workToolbar select {
   font-size: 14px;
-  border-color: #e0e5f0;
-  background: #fafbfe;
+  border-color: var(--line);
+  background: var(--surface-muted);
 }
 .profile p {
   font-size: 14px !important;
@@ -530,9 +530,9 @@ nav.nav .moreLinks a {
   border-radius: 12px;
   width: 44px;
   height: 44px;
-  color: #6556b5;
-  background: #eeebfb;
-  border: 1px solid #e6e1f6;
+  color: var(--primary-deep);
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-line);
 }
 .workspace tr:nth-child(3n + 2) [data-customer-avatar] {
   background: #edf4fc;
@@ -574,7 +574,7 @@ nav.nav .moreLinks a {
   box-shadow: 0 3px 12px #24365304;
 }
 .workspace [data-crm-customers][data-view='grid'] :global(.product-table) tr:hover {
-  border-color: #c8c4e8;
+  border-color: var(--primary-line);
   background: #fefeff;
 }
 .workspace [data-crm-customers][data-view='grid'] :global(.product-table) td {
@@ -612,7 +612,7 @@ nav.nav .moreLinks a {
 .workspace [data-crm-customers][data-view='grid'] [data-customer-actions] :global(.btn) {
   flex: 1;
   min-height: 40px !important;
-  background: #fafbfe;
+  background: var(--surface-muted);
   border-color: #e1e6ef;
 }
 .editor [data-wide] {
@@ -623,4 +623,85 @@ nav.nav .moreLinks a {
     grid-template-columns: minmax(0, 1fr);
     padding: 12px;
   }
+}
+
+.quickFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.quickFilters :global(.btn)[aria-pressed='true'] {
+  border-color: var(--primary-line);
+  color: var(--primary-deep);
+  background: var(--primary-soft);
+}
+.customerStats {
+  order: 1;
+}
+.customerStats > summary {
+  cursor: pointer;
+  padding: 10px 0;
+  color: var(--muted);
+  font-weight: 650;
+}
+.customerOwner {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+}
+.customerOwner svg {
+  width: 14px;
+  height: 14px;
+}
+.workspace [data-customer-actions] :global(.btn):first-child {
+  color: var(--primary-deep);
+  border-color: var(--primary-line);
+  background: var(--primary-soft);
+}
+.workspace [data-customer-name] {
+  color: var(--ink);
+}
+.workspace tr:nth-child(n) [data-customer-avatar] {
+  background: var(--primary-soft);
+  color: var(--primary-deep);
+  border-color: var(--primary-line);
+}
+.workToolbar[hidden] {
+  display: none;
+}
+.workStatus[data-state='overdue'] {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.mobileStage {
+  display: none;
+}
+@media (max-width: 640px) {
+  .mobileStage {
+    display: flex;
+  }
+  .employeeBoard {
+    grid-auto-columns: minmax(0, 1fr);
+    overflow: visible;
+  }
+  .employeeBoard > section[data-mobile-active='false'] {
+    display: none;
+  }
+}
+@media (pointer: coarse) {
+  .quickFilters :global(.btn) {
+    min-height: 44px;
+  }
+}
+
+.inlineEditor {
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+}
+.inlineEditor h2 {
+  font-size: var(--text-dialog);
+  margin-block-end: 12px;
 }

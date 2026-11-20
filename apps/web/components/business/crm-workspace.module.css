@@ -310,7 +310,7 @@
 }
 .sourceRow meter {
   width: 30%;
-  accent-color: #7562de;
+  accent-color: var(--primary);
   height: 10px;
 }
 .sourceRow span {
@@ -322,8 +322,8 @@
   width: 42px;
   height: 42px;
   border-radius: 14px;
-  background: #edeafa;
-  color: #6552c3;
+  background: var(--primary-soft);
+  color: var(--primary-deep);
   font-weight: 750;
   flex-shrink: 0;
 }
@@ -338,7 +338,7 @@
 }
 .column {
   background: var(--surface-soft, #eef3f8);
-  border: 1px solid #dfe6ef;
+  border: 1px solid var(--line);
   border-radius: 17px;
   padding: 14px;
   min-height: 330px;
@@ -347,10 +347,10 @@
   font-size: 14px;
   padding: 7px;
   justify-content: space-between;
-  border-inline-start: 3px solid #8070df;
+  border-inline-start: 3px solid var(--primary);
 }
 .card {
-  border: 1px solid #dfe5ee;
+  border: 1px solid var(--line);
   border-radius: 15px;
   background: #fff;
   padding: 19px;

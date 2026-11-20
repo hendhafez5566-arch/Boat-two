@@ -56,6 +56,8 @@ export function CrmWork({
   const [period, setPeriod] = useState('all');
   const [page, setPage] = useState(1);
   const [view, setView] = useState('board');
+  const [mobileStage, setMobileStage] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [dialog, setDialog] = useState<Work | 'new' | null>(createNew ? 'new' : null);
   const [dirty, setDirty] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
@@ -90,6 +92,9 @@ export function CrmWork({
   );
   const pipelines = useData<Pipeline[]>('/crm/pipelines', []);
   const selectedPipeline = pipelines.data.find((p) => p.id === pipeline) || pipelines.data[0];
+  const activeStage = selectedPipeline?.stages.includes(mobileStage)
+    ? mobileStage
+    : selectedPipeline?.stages[0];
   const params = new URLSearchParams({ ...routeDates, q, status, page: String(page), limit: '50' });
   if (deals && selectedPipeline && !allPipelines) params.set('pipelineId', selectedPipeline.id);
   if (owner) params.set('ownerId', owner === 'me' ? team.data.currentUserId : owner);
@@ -150,13 +155,14 @@ export function CrmWork({
       currency: row.currency,
     }).format(Number(row.value_cents) / 100);
   function card(row: Work) {
+    const overdue = !deals && row.status === 'open' && Date.parse(row.due_at) < Date.now();
     return (
       <article
         key={row.id}
         className={`${styles.card} ${design.workCard}`}
         data-work-card
         data-work-status={row.status}
-        data-overdue={!deals && row.status === 'open' && new Date(row.due_at) < new Date()}
+        data-overdue={overdue}
         data-stale={
           deals && row.status === 'open' && Date.now() - Date.parse(row.updated_at) > 14 * 86400000
         }
@@ -164,7 +170,7 @@ export function CrmWork({
         onDragStart={(e) => e.dataTransfer.setData('text/plain', row.id)}
       >
         <div className={design.workCardHeader}>
-          <span className={design.workStatus} data-state={row.status}>
+          <span className={design.workStatus} data-state={overdue ? 'overdue' : row.status}>
             <NavIcon
               name={row.status === 'done' || row.status === 'won' ? 'circleCheck' : 'calendar'}
             />
@@ -174,7 +180,9 @@ export function CrmWork({
                 ? t('ناجحة', 'Won')
                 : row.status === 'lost'
                   ? t('خاسرة', 'Lost')
-                  : t('مفتوحة', 'Open')}
+                  : overdue
+                    ? t('متأخرة', 'Overdue')
+                    : t('مفتوحة', 'Open')}
           </span>
         </div>
         <button
@@ -216,17 +224,19 @@ export function CrmWork({
           <NavIcon name="user" />
           {memberName(deals ? row.owner_id : row.assigned_to)}
         </p>
-        <p>
-          <NavIcon name="stopwatch" />
-          {t('آخر نشاط', 'Last activity')}:{' '}
-          {new Date(row.updated_at).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en')}
-        </p>
+        {deals && (
+          <p>
+            <NavIcon name="stopwatch" />
+            {t('آخر نشاط', 'Last activity')}{' '}
+            {new Date(row.updated_at).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en')}
+          </p>
+        )}
         {deals &&
           row.status === 'open' &&
           Date.now() - Date.parse(row.updated_at) > 14 * 86400000 && (
             <span className={styles.badge} data-tone="orange">
               <NavIcon name="userClock" />
-              {t('دون تحديث منذ14يومًا', 'No update for14days')}
+              {t('دون تحديث منذ 14 يومًا', 'No update for 14 days')}
             </span>
           )}
         {deals && row.expected_close && (
@@ -265,6 +275,43 @@ export function CrmWork({
   const title = deals
     ? t('فرص البيع', 'Sales pipeline')
     : t('المهام والمتابعات', 'Tasks & follow-ups');
+  const editorTitle =
+    dialog === 'new'
+      ? deals
+        ? t('فرصة جديدة', 'New opportunity')
+        : t('متابعة جديدة', 'New follow-up')
+      : t('تعديل', 'Edit');
+  const editor = dialog && (
+    <WorkForm
+      key={typeof dialog === 'string' ? 'new' : dialog.id}
+      kind={kind}
+      row={typeof dialog === 'string' ? undefined : dialog}
+      contactId={contactId}
+      pipelines={pipelines.data}
+      members={
+        team.data.role === 'agent'
+          ? team.data.members.filter((m) => m.user_id === team.data.currentUserId)
+          : team.data.members
+      }
+      busy={busy}
+      error={error}
+      onDirty={() => setDirty(true)}
+      onCancel={closeEditor}
+      onSubmit={(values) =>
+        run(async () => {
+          const editing = typeof dialog !== 'string';
+          await api<Work>(`/crm/${kind}${editing ? '/' + dialog.id : ''}`, {
+            method: editing ? 'PATCH' : 'POST',
+            body: JSON.stringify({
+              ...values,
+              ...(editing ? { expectedUpdatedAt: dialog.updated_at } : {}),
+            }),
+          });
+          discardEditor();
+        })
+      }
+    />
+  );
   return (
     <section className={`${compact ? '' : styles.page} ${design.workspace}`}>
       {!compact && <CrmNav />}
@@ -286,6 +333,12 @@ export function CrmWork({
           {deals ? t('إضافة فرصة', 'Add opportunity') : t('إضافة متابعة', 'Add follow-up')}
         </Button>
       </header>
+      {compact && editor && (
+        <section className={design.inlineEditor}>
+          <h2>{editorTitle}</h2>
+          {editor}
+        </section>
+      )}
       {!deals && (
         <div className={`${styles.quickTabs} ${design.workTabs}`}>
           {[
@@ -293,6 +346,7 @@ export function CrmWork({
             ['overdue', t('متأخرة', 'Overdue'), 'userClock'],
             ['upcoming', t('قادمة', 'Upcoming'), 'calendar'],
             ['done', t('مكتملة', 'Completed'), 'circleCheck'],
+            ['all', t('كل المفتوحة', 'All open'), 'list'],
             ['mine', t('مهامي', 'My tasks'), 'user'],
           ].map(([key, label, icon]) => (
             <button
@@ -307,7 +361,7 @@ export function CrmWork({
               onClick={() => {
                 setPage(1);
                 setRouteDates({});
-                if (key === 'mine') setOwner('me');
+                if (key === 'mine') setOwner((value) => (value === 'me' ? '' : 'me'));
                 else if (key === 'done') {
                   setStatus('done');
                   setPeriod('all');
@@ -352,6 +406,28 @@ export function CrmWork({
             ))}
           </select>
         )}
+        {deals && (
+          <Button
+            onClick={() => {
+              setAllPipelines(false);
+              setView(view === 'board' && !allPipelines ? 'table' : 'board');
+            }}
+          >
+            <NavIcon name="reports" />
+            {view === 'board' && !allPipelines
+              ? t('عرض جدولي', 'Table view')
+              : t('لوحة المراحل', 'Board view')}
+          </Button>
+        )}
+        <Button
+          type="button"
+          aria-expanded={filtersOpen}
+          onClick={() => setFiltersOpen(!filtersOpen)}
+        >
+          <NavIcon name="filter" /> {t('التصفية', 'Filters')}
+        </Button>
+      </div>
+      <div className={`${styles.toolbar} ${design.workToolbar}`} hidden={!filtersOpen}>
         <select
           aria-label={t('الحالة', 'Status')}
           value={status}
@@ -402,17 +478,6 @@ export function CrmWork({
             <option value="upcoming">{t('قادم', 'Upcoming')}</option>
           </select>
         )}
-        {deals && (
-          <Button
-            onClick={() => {
-              setAllPipelines(false);
-              setView(view === 'board' ? 'table' : 'board');
-            }}
-          >
-            <NavIcon name="reports" />
-            {view === 'board' ? t('عرض جدولي', 'Table view') : t('لوحة المراحل', 'Board view')}
-          </Button>
-        )}
       </div>
       {(error || data.error || pipelines.error || team.error) && (
         <p role="alert" className="notice error">
@@ -427,23 +492,30 @@ export function CrmWork({
       {data.loading && <p role="status">{t('جارٍ التحميل…', 'Loading…')}</p>}
       {deals && !selectedPipeline && !pipelines.loading ? (
         <div className={styles.empty}>
-          <p>
-            {t(
-              'أنشئ خط مبيعات وحدد مراحله للبدء.',
-              'Create a pipeline and its stages to get started.',
-            )}
-          </p>
+          <p>{t('لا توجد خطوط مبيعات.', 'No pipelines yet.')}</p>
           <Link className="btn" href="/dashboard/crm/advanced">
             {t('إعداد خطوط المبيعات', 'Set up pipelines')}
           </Link>
         </div>
       ) : deals && view === 'board' && !allPipelines ? (
         <>
-          <div className={styles.board}>
+          <label className={`field ${design.mobileStage}`}>
+            {t('مرحلة البيع', 'Pipeline stage')}
+            <select
+              value={activeStage || ''}
+              onChange={(event) => setMobileStage(event.target.value)}
+            >
+              {selectedPipeline?.stages.map((stage) => (
+                <option key={stage}>{stage}</option>
+              ))}
+            </select>
+          </label>
+          <div className={`${styles.board} ${design.employeeBoard}`}>
             {selectedPipeline?.stages.map((stage) => (
               <section
                 key={stage}
                 className={styles.column}
+                data-mobile-active={stage === activeStage}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault();
@@ -523,12 +595,7 @@ export function CrmWork({
         <div className={styles.grid}>{data.data.items.map(card)}</div>
       )}
       {!data.loading && !data.data.items.length && (
-        <p className={styles.empty}>
-          {t(
-            'لا توجد نتائج. أضف سجلًا أو غيّر الفلاتر.',
-            'No results. Add a record or adjust your filters.',
-          )}
-        </p>
+        <p className={styles.empty}>{t('لا توجد نتائج مطابقة.', 'No matching results.')}</p>
       )}
       <div className={styles.row}>
         <p>
@@ -547,49 +614,11 @@ export function CrmWork({
           </Button>
         </div>
       </div>
-      <Dialog
-        open={!!dialog}
-        onClose={closeEditor}
-        title={
-          dialog === 'new'
-            ? deals
-              ? t('فرصة جديدة', 'New opportunity')
-              : t('متابعة جديدة', 'New follow-up')
-            : t('تعديل', 'Edit')
-        }
-      >
-        {dialog && (
-          <WorkForm
-            key={typeof dialog === 'string' ? 'new' : dialog.id}
-            kind={kind}
-            row={typeof dialog === 'string' ? undefined : dialog}
-            contactId={contactId}
-            pipelines={pipelines.data}
-            members={
-              team.data.role === 'agent'
-                ? team.data.members.filter((m) => m.user_id === team.data.currentUserId)
-                : team.data.members
-            }
-            busy={busy}
-            error={error}
-            onDirty={() => setDirty(true)}
-            onCancel={closeEditor}
-            onSubmit={(values) =>
-              run(async () => {
-                const editing = typeof dialog !== 'string';
-                await api<Work>(`/crm/${kind}${editing ? '/' + dialog.id : ''}`, {
-                  method: editing ? 'PATCH' : 'POST',
-                  body: JSON.stringify({
-                    ...values,
-                    ...(editing ? { expectedUpdatedAt: dialog.updated_at } : {}),
-                  }),
-                });
-                discardEditor();
-              })
-            }
-          />
-        )}
-      </Dialog>
+      {!compact && (
+        <Dialog open={!!dialog} onClose={closeEditor} title={editorTitle}>
+          {editor}
+        </Dialog>
+      )}
       <Dialog
         open={confirmClose}
         onClose={() => setConfirmClose(false)}

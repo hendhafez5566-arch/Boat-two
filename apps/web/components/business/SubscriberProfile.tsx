@@ -3,7 +3,6 @@ import { DisclosureSummary } from '../product/DisclosureSummary';
 
 import { FormEvent, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Dialog } from '../product/ProductUI';
 import { NavIcon } from '../product/NavIcon';
 import { api } from '../../lib/api';
 import { useData } from './useData';
@@ -155,27 +154,14 @@ export default function SubscriberProfile({
   return (
     <aside
       className={`${styles.profile} ${design.profile}`}
-      aria-label={t('ملف المشترك', 'Subscriber profile')}
+      aria-label={t('ملف العميل', 'Customer profile')}
     >
       <header className={styles.profileHeader}>
         <span className={styles.avatar}>{contact?.name?.slice(0, 2) || '?'}</span>
         <div>
-          <h2>{contact?.name || t('ملف المشترك', 'Subscriber profile')}</h2>
+          <h2>{contact?.name || t('ملف العميل', 'Customer profile')}</h2>
           <p dir="ltr">{contact?.phone || contact?.email || '—'}</p>
         </div>
-        {canManage && (
-          <button
-            type="button"
-            className="btn"
-            aria-label={t('تعديل ملف المشترك', 'Edit subscriber profile')}
-            onClick={() => {
-              setTab('overview');
-              setOverviewEditing(true);
-            }}
-          >
-            <NavIcon name="edit" />
-          </button>
-        )}
       </header>
       {data.loading && <p role="status">{t('جارٍ تحميل الملف…', 'Loading profile…')}</p>}
       {(error || data.error) && (
@@ -200,13 +186,6 @@ export default function SubscriberProfile({
               {t('منذ', 'Since')} {date(contact.created_at)}
             </small>
           </div>
-          <div className={styles.profileChannels}>
-            {profile.channels.map((channel) => (
-              <span key={channel.id}>
-                {channel.type} · {channel.name}
-              </span>
-            ))}
-          </div>
           <div className={styles.quickActions}>
             {profile.timeline.conversations[0] && (
               <Link
@@ -218,7 +197,7 @@ export default function SubscriberProfile({
                 }
               >
                 <NavIcon name="chat" />
-                {t('محادثة', 'Conversation')}
+                {t('فتح المحادثة', 'Open conversation')}
               </Link>
             )}
             <button
@@ -228,7 +207,7 @@ export default function SubscriberProfile({
               }}
             >
               <NavIcon name="handshake" />
-              {t('فرصة بيع', 'Opportunity')}
+              {t('إضافة فرصة', 'Add opportunity')}
             </button>
             <button
               onClick={() => {
@@ -237,11 +216,11 @@ export default function SubscriberProfile({
               }}
             >
               <NavIcon name="calendar" />
-              {t('متابعة', 'Follow-up')}
+              {t('إضافة متابعة', 'Add follow-up')}
             </button>
             <button onClick={() => setTab('notes')}>
               <NavIcon name="edit" />
-              {t('ملاحظة', 'Note')}
+              {t('إضافة ملاحظة', 'Add note')}
             </button>
             {canManage && (
               <button
@@ -251,7 +230,7 @@ export default function SubscriberProfile({
                 }}
               >
                 <NavIcon name="edit" />
-                {t('تعديل', 'Edit')}
+                {t('تعديل البيانات', 'Edit details')}
               </button>
             )}
           </div>
@@ -267,7 +246,7 @@ export default function SubscriberProfile({
                 {String(contact.attributes.source || t('المصدر غير محدد', 'Source not recorded'))}
               </span>
             </div>
-            <CrmScore contactId={contactId} version={contact.updated_at} />
+
             {profile.timeline.tasks
               .filter((task) => task.status === 'open')
               .sort((a, b) => a.due_at.localeCompare(b.due_at))[0] && (
@@ -284,12 +263,10 @@ export default function SubscriberProfile({
           </div>
           <nav
             className={styles.profileTabs}
-            aria-label={t('أقسام ملف المشترك', 'Subscriber profile sections')}
+            aria-label={t('أقسام ملف العميل', 'Customer profile sections')}
           >
             {tabs
-              .filter(([key]) =>
-                ['overview', 'deals', 'tasks', 'notes', 'activity', 'fields'].includes(key),
-              )
+              .filter(([key]) => ['overview', 'deals', 'tasks', 'notes', 'activity'].includes(key))
               .map(([key, ar, en]) => (
                 <button
                   type="button"
@@ -308,13 +285,23 @@ export default function SubscriberProfile({
           </nav>
           <details className={styles.profileMore}>
             <DisclosureSummary>
-              {t('الشركة والوسوم والإعدادات الإضافية', 'Company, labels and more')}
+              {t('بيانات وإعدادات إضافية', 'More details and settings')}
             </DisclosureSummary>
+            <div className={styles.profileChannels}>
+              {profile.channels.map((channel) => (
+                <span key={channel.id}>
+                  {channel.type} · {channel.name}
+                </span>
+              ))}
+            </div>
+            <small>
+              {t('معرّف العميل', 'Customer ID')} <bdi>{contact.id}</bdi>
+            </small>
+            <CrmScore contactId={contactId} version={contact.updated_at} />
             <div>
               {tabs
                 .filter(
-                  ([key]) =>
-                    !['overview', 'deals', 'tasks', 'notes', 'activity', 'fields'].includes(key),
+                  ([key]) => !['overview', 'deals', 'tasks', 'notes', 'activity'].includes(key),
                 )
                 .map(([key, ar, en]) => (
                   <button
@@ -367,9 +354,59 @@ export default function SubscriberProfile({
             )}
             {tab === 'overview' && (
               <>
+                {overviewEditing && (
+                  <section className={design.inlineEditor}>
+                    <form className={styles.form} key={contact.updated_at} onSubmit={saveOverview}>
+                      <h3>{t('تعديل البيانات', 'Edit details')}</h3>
+                      <label>
+                        {t('الاسم', 'Name')}
+                        <input
+                          name="name"
+                          defaultValue={contact.name}
+                          required
+                          maxLength={120}
+                          disabled={!canManage}
+                        />
+                      </label>
+                      <label>
+                        {t('الهاتف', 'Phone')}
+                        <input
+                          name="phone"
+                          type="tel"
+                          dir="ltr"
+                          defaultValue={contact.phone ?? ''}
+                          maxLength={30}
+                          disabled={!canManage}
+                        />
+                      </label>
+                      <label>
+                        {t('البريد الإلكتروني', 'Email')}
+                        <input
+                          name="email"
+                          type="email"
+                          dir="ltr"
+                          defaultValue={contact.email ?? ''}
+                          disabled={!canManage}
+                        />
+                      </label>
+                      {canManage && (
+                        <button className="btn btn-primary" disabled={busy}>
+                          {t('حفظ التغييرات', 'Save Changes')}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => setOverviewEditing(false)}
+                      >
+                        {t('إلغاء', 'Cancel')}
+                      </button>
+                    </form>
+                  </section>
+                )}
                 <div className={styles.overviewGrid}>
                   <section className={styles.overviewCard}>
-                    <h3>{t('عن المشترك', 'About')}</h3>
+                    <h3>{t('بيانات العميل', 'About')}</h3>
                     <dl>
                       <div>
                         <dt>{t('الهاتف', 'Phone')}</dt>
@@ -378,10 +415,6 @@ export default function SubscriberProfile({
                       <div>
                         <dt>{t('البريد الإلكتروني', 'Email')}</dt>
                         <dd dir="ltr">{contact.email || '—'}</dd>
-                      </div>
-                      <div>
-                        <dt>{t('معرّف المشترك', 'Subscriber ID')}</dt>
-                        <dd dir="ltr">{contact.id}</dd>
                       </div>
                       <div>
                         <dt>{t('تاريخ الإضافة', 'Added')}</dt>
@@ -419,53 +452,6 @@ export default function SubscriberProfile({
                     </dl>
                   </section>
                 </div>
-                {overviewEditing && (
-                  <Dialog
-                    open={overviewEditing}
-                    onClose={() => setOverviewEditing(false)}
-                    title={t('تعديل ملف المشترك', 'Edit subscriber profile')}
-                  >
-                    <form className={styles.form} key={contact.updated_at} onSubmit={saveOverview}>
-                      <h3>{t('عن المشترك', 'About')}</h3>
-                      <label>
-                        {t('الاسم', 'Name')}
-                        <input
-                          name="name"
-                          defaultValue={contact.name}
-                          required
-                          maxLength={120}
-                          disabled={!canManage}
-                        />
-                      </label>
-                      <label>
-                        {t('الهاتف', 'Phone')}
-                        <input
-                          name="phone"
-                          type="tel"
-                          dir="ltr"
-                          defaultValue={contact.phone ?? ''}
-                          maxLength={30}
-                          disabled={!canManage}
-                        />
-                      </label>
-                      <label>
-                        {t('البريد الإلكتروني', 'Email')}
-                        <input
-                          name="email"
-                          type="email"
-                          dir="ltr"
-                          defaultValue={contact.email ?? ''}
-                          disabled={!canManage}
-                        />
-                      </label>
-                      {canManage && (
-                        <button className="btn btn-primary" disabled={busy}>
-                          {t('حفظ التغييرات', 'Save Changes')}
-                        </button>
-                      )}
-                    </form>
-                  </Dialog>
-                )}
                 <h3>{t('المحادثات', 'Conversations')}</h3>
                 {profile.timeline.conversations.map((row) => (
                   <Link
@@ -513,7 +499,7 @@ export default function SubscriberProfile({
                   void run(() => patch({ ownerId: String(value || '') || null }));
                 }}
               >
-                <h3>{t('مسؤول المشترك', 'Subscriber owner')}</h3>
+                <h3>{t('مسؤول العميل', 'Customer owner')}</h3>
                 {members.error && <p role="alert">{members.error}</p>}
                 <label>
                   {t('الموظف', 'Agent')}
@@ -590,7 +576,7 @@ export default function SubscriberProfile({
             )}
             {tab === 'lists' && (
               <>
-                <h3>{t('قوائم المشترك', 'Subscriber lists')}</h3>
+                <h3>{t('قوائم العميل', 'Customer lists')}</h3>
                 {lists.error && <p role="alert">{lists.error}</p>}
                 {profile.lists.map((list) => (
                   <div className={styles.profileRow} key={list.id}>
@@ -657,7 +643,7 @@ export default function SubscriberProfile({
             )}
             {tab === 'sequences' && (
               <>
-                <h3>{t('تسلسلات المشترك', 'Subscriber sequences')}</h3>
+                <h3>{t('تسلسلات العميل', 'Customer sequences')}</h3>
                 {sequences.error && <p role="alert">{sequences.error}</p>}
                 {profile.sequences.map((sequence) => (
                   <div className={styles.profileRow} key={sequence.id}>
