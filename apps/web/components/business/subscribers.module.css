@@ -559,8 +559,8 @@
   border-radius: 9px;
   display: grid;
   place-items: center;
-  background: #f0efff;
-  color: #5141e3;
+  background: var(--primary-soft);
+  color: var(--primary-deep);
 }
 .statIcon svg {
   width: 22px;
@@ -573,7 +573,7 @@
 }
 .statIcon[data-tone='in_sequences'] {
   background: #eff7ff;
-  color: #5141e3;
+  color: var(--primary-deep);
 }
 .identity {
   display: flex;
@@ -731,9 +731,9 @@
   flex-shrink: 1;
 }
 .headActions :global(.btn-primary) {
-  background: #5b3fe0;
+  background: var(--primary);
   color: white;
-  border-color: #5b3fe0;
+  border-color: var(--primary);
 }
 
 /* CRM V2: shared brand, readable controls and a focused customer workspace. */
@@ -773,9 +773,9 @@
   font-weight: 650;
 }
 .page :global(.btn-primary) {
-  background: #6356df;
-  border-color: #6356df;
-  box-shadow: 0 4px 12px #6356df20;
+  background: var(--primary);
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 12%, transparent);
 }
 .statistics > div {
   border-radius: 16px !important;
@@ -811,7 +811,7 @@
   padding: 18px 15px !important;
 }
 .table tbody tr:hover {
-  background: #f7f6ff;
+  background: var(--surface-muted);
 }
 .profile {
   border-radius: 20px !important;
@@ -833,8 +833,8 @@
   color: #536780 !important;
 }
 .avatar {
-  background: #eae5fc !important;
-  color: #6651c3 !important;
+  background: var(--primary-soft) !important;
+  color: var(--primary-deep) !important;
   border-radius: 14px !important;
 }
 .profileMeta {
@@ -855,8 +855,8 @@
   font-size: 12px !important;
 }
 .profileTabs button[aria-pressed='true'] {
-  background: #ece7fd !important;
-  color: #634aca !important;
+  background: var(--primary-soft) !important;
+  color: var(--primary-deep) !important;
 }
 .profileBody {
   padding: 20px !important;
@@ -869,8 +869,8 @@
   color: #68768c !important;
 }
 .pill {
-  color: #4c409a !important;
-  background: #ede9fc !important;
+  color: var(--primary-deep) !important;
+  background: var(--primary-soft) !important;
   border-radius: 8px !important;
 }
 .profileRow {
@@ -886,7 +886,7 @@
   border-radius: 8px !important;
 }
 .page :focus-visible {
-  outline: 3px solid #a098eb;
+  outline: 3px solid var(--primary);
   outline-offset: 3px;
 }
 .quickActions {
@@ -906,7 +906,7 @@
   border: 1px solid #dedfed;
   border-radius: 9px;
   background: #fff;
-  color: #5748b5;
+  color: var(--primary-deep);
   padding: 9px 12px;
   font: inherit;
   font-size: 12px;
@@ -919,7 +919,7 @@
 }
 .quickActions button:hover,
 .quickActions a:hover {
-  background: #f1eefd;
+  background: var(--primary-soft);
 }
 .profileSummary {
   padding: 14px 20px;

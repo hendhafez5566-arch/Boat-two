@@ -377,14 +377,14 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
             <button
               className="btn"
               type="button"
-              aria-expanded={headMenu === 'transfer'}
-              onClick={() => setHeadMenu(headMenu === 'transfer' ? null : 'transfer')}
+              aria-expanded={headMenu === 'manage'}
+              onClick={() => setHeadMenu(headMenu === 'manage' ? null : 'manage')}
             >
-              <NavIcon name="export" />
-              {t('تصدير / استيراد', 'Export/Import')}
+              <NavIcon name="settings" />
+              {t('إدارة', 'Manage')}
               <NavIcon name="chevron" />
             </button>
-            {headMenu === 'transfer' && (
+            {headMenu === 'manage' && (
               <div className={styles.dropdownMenu}>
                 <button
                   type="button"
@@ -406,22 +406,15 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                     {t('استيراد وإدارة الملفات', 'Import and manage files')}
                   </button>
                 )}
-              </div>
-            )}
-          </div>
-          <div className={styles.dropdown} data-subscriber-menu>
-            <button
-              className="btn"
-              type="button"
-              aria-expanded={headMenu === 'manage'}
-              onClick={() => setHeadMenu(headMenu === 'manage' ? null : 'manage')}
-            >
-              <NavIcon name="settings" />
-              {t('إدارة', 'Manage')}
-              <NavIcon name="chevron" />
-            </button>
-            {headMenu === 'manage' && (
-              <div className={styles.dropdownMenu}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHeadMenu(null);
+                    refresh();
+                  }}
+                >
+                  {t('تحديث القائمة', 'Refresh list')}
+                </button>
                 {tabs.map(([id, ar, en]) => (
                   <button
                     type="button"
@@ -439,14 +432,6 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
               </div>
             )}
           </div>
-          <button
-            className="btn"
-            type="button"
-            aria-label={t('تحديث', 'Refresh')}
-            onClick={refresh}
-          >
-            <NavIcon name="redo" />
-          </button>
         </div>
       </header>
       {tab !== 'contacts' && (
@@ -655,50 +640,6 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
               </button>
             </div>
           </div>
-          <details className={design.customerStats}>
-            <summary>{t('إحصائيات العملاء', 'Customer statistics')}</summary>
-            {summary.error && (
-              <p className="notice error" role="alert">
-                {summary.error}
-              </p>
-            )}
-            <div
-              className={styles.statistics}
-              aria-label={t('إحصائيات نتائج التصفية', 'Filtered customer statistics')}
-            >
-              {(
-                [
-                  ['total', t('العملاء', 'Customers')],
-                  ['retained', t('النشطون', 'Retained')],
-                  ['subscribed', t('موافقة تسويق موثقة', 'Marketing Opt-ins')],
-                  ['in_sequences', t('في تسلسلات نشطة', 'In Active Sequences')],
-                ] as const
-              ).map(([key, label]) => (
-                <article key={key}>
-                  <span className={styles.statIcon} data-tone={key}>
-                    <NavIcon
-                      name={
-                        key === 'total'
-                          ? 'crm'
-                          : key === 'retained'
-                            ? 'check'
-                            : key === 'subscribed'
-                              ? 'user'
-                              : 'sequences'
-                      }
-                    />
-                  </span>
-                  <span>{label}</span>
-                  <strong>{summary.loading ? '…' : summary.error ? '—' : summary.data[key]}</strong>
-                  <small>
-                    {key === 'total'
-                      ? t('ضمن نتائج التصفية', 'Within current filters')
-                      : `${summary.data.total ? Math.round((summary.data[key] / summary.data.total) * 100) : 0}% ${t('من الإجمالي', 'of total')}`}
-                  </small>
-                </article>
-              ))}
-            </div>
-          </details>
           <Dialog
             open={toolsOpen}
             onClose={() => setToolsOpen(false)}
@@ -740,6 +681,35 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                   ))}
                 </select>
               </label>
+            </div>
+            <div className="form-actions">
+              <select
+                aria-label={t('ترتيب العملاء', 'Sort customers')}
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+              >
+                <option value="latest">{t('الأحدث', 'Latest')}</option>
+                <option value="oldest">{t('الأقدم', 'Oldest')}</option>
+                <option value="name">{t('الاسم', 'Name')}</option>
+              </select>
+              <button
+                className="btn"
+                type="button"
+                aria-pressed={viewMode === 'list'}
+                onClick={() => setViewMode('list')}
+              >
+                <span className={design.viewLabel}>{t('عرض القائمة', 'List view')}</span>
+                <NavIcon name="list" />
+              </button>
+              <button
+                className="btn"
+                type="button"
+                aria-pressed={viewMode === 'grid'}
+                onClick={() => setViewMode('grid')}
+              >
+                <span className={design.viewLabel}>{t('عرض البطاقات', 'Card view')}</span>
+                <NavIcon name="grid" />
+              </button>
             </div>
             <details className="col-picker">
               <DisclosureSummary className="btn">{t('الأعمدة', 'Columns')}</DisclosureSummary>
@@ -913,40 +883,13 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                   {t('خيارات', 'Options')}
                   <NavIcon name="chevron" />
                 </button>
-                <select
-                  aria-label={t('ترتيب العملاء', 'Sort customers')}
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value)}
-                >
-                  <option value="latest">{t('الأحدث', 'Latest')}</option>
-                  <option value="oldest">{t('الأقدم', 'Oldest')}</option>
-                  <option value="name">{t('الاسم', 'Name')}</option>
-                </select>
-                <button
-                  className="btn"
-                  type="button"
-                  aria-pressed={viewMode === 'list'}
-                  onClick={() => setViewMode('list')}
-                >
-                  <span className="sr-only">{t('قائمة', 'List')}</span>
-                  <NavIcon name="list" />
-                </button>
-                <button
-                  className="btn"
-                  type="button"
-                  aria-pressed={viewMode === 'grid'}
-                  onClick={() => setViewMode('grid')}
-                >
-                  <span className="sr-only">{t('شبكة', 'Grid')}</span>
-                  <NavIcon name="grid" />
-                </button>
               </div>
               <div className={styles.tableScroll}>
                 <table className="product-table">
                   <thead>
                     <tr>
                       <th>{t('تحديد', 'Select')}</th>
-                      <th>{t('المشترك', 'Subscriber')}</th>
+                      <th>{t('العميل', 'Customer')}</th>
                       <th>{t('الحالة', 'Status')}</th>
                       <th>{t('الإجراءات', 'Actions')}</th>
                     </tr>
@@ -1119,6 +1062,50 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
               </footer>
             </section>
           </div>
+          <details className={design.customerStats}>
+            <summary>{t('إحصائيات العملاء', 'Customer statistics')}</summary>
+            {summary.error && (
+              <p className="notice error" role="alert">
+                {summary.error}
+              </p>
+            )}
+            <div
+              className={styles.statistics}
+              aria-label={t('إحصائيات نتائج التصفية', 'Filtered customer statistics')}
+            >
+              {(
+                [
+                  ['total', t('العملاء', 'Customers')],
+                  ['retained', t('النشطون', 'Retained')],
+                  ['subscribed', t('موافقة تسويق موثقة', 'Marketing Opt-ins')],
+                  ['in_sequences', t('في تسلسلات نشطة', 'In Active Sequences')],
+                ] as const
+              ).map(([key, label]) => (
+                <article key={key}>
+                  <span className={styles.statIcon} data-tone={key}>
+                    <NavIcon
+                      name={
+                        key === 'total'
+                          ? 'crm'
+                          : key === 'retained'
+                            ? 'check'
+                            : key === 'subscribed'
+                              ? 'user'
+                              : 'sequences'
+                      }
+                    />
+                  </span>
+                  <span>{label}</span>
+                  <strong>{summary.loading ? '…' : summary.error ? '—' : summary.data[key]}</strong>
+                  <small>
+                    {key === 'total'
+                      ? t('ضمن نتائج التصفية', 'Within current filters')
+                      : `${summary.data.total ? Math.round((summary.data[key] / summary.data.total) * 100) : 0}% ${t('من الإجمالي', 'of total')}`}
+                  </small>
+                </article>
+              ))}
+            </div>
+          </details>
           <Dialog
             open={!!selected}
             onClose={() => setSelected(null)}

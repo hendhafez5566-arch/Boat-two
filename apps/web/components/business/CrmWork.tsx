@@ -92,9 +92,6 @@ export function CrmWork({
   );
   const pipelines = useData<Pipeline[]>('/crm/pipelines', []);
   const selectedPipeline = pipelines.data.find((p) => p.id === pipeline) || pipelines.data[0];
-  const activeStage = selectedPipeline?.stages.includes(mobileStage)
-    ? mobileStage
-    : selectedPipeline?.stages[0];
   const params = new URLSearchParams({ ...routeDates, q, status, page: String(page), limit: '50' });
   if (deals && selectedPipeline && !allPipelines) params.set('pipelineId', selectedPipeline.id);
   if (owner) params.set('ownerId', owner === 'me' ? team.data.currentUserId : owner);
@@ -104,6 +101,10 @@ export function CrmWork({
     items: [],
     total: 0,
   });
+  const stages = selectedPipeline?.stages ?? [];
+  const activeStage = stages.includes(mobileStage)
+    ? mobileStage
+    : (stages.find((stage) => data.data.items.some((row) => row.stage === stage)) ?? stages[0]);
   async function run(action: () => Promise<unknown>) {
     if (lock.current) return;
     lock.current = true;
@@ -251,7 +252,9 @@ export function CrmWork({
               aria-label={t('مرحلة', 'Stage') + ': ' + row.title}
               value={row.stage}
               disabled={busy || !canEdit(row)}
-              onChange={(e) => void update(row, { stage: e.target.value })}
+              onChange={(e) => {
+                void update(row, { stage: e.target.value });
+              }}
             >
               {selectedPipeline?.stages.map((s) => (
                 <option key={s}>{s}</option>

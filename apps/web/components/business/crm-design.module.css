@@ -635,9 +635,6 @@ nav.nav .moreLinks a {
   color: var(--primary-deep);
   background: var(--primary-soft);
 }
-.customerStats {
-  order: 1;
-}
 .customerStats > summary {
   cursor: pointer;
   padding: 10px 0;
@@ -705,3 +702,5 @@ nav.nav .moreLinks a {
   font-size: var(--text-dialog);
   margin-block-end: 12px;
 }
+
+.viewLabel { white-space: normal; }
