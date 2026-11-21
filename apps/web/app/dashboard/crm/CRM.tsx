@@ -1654,21 +1654,6 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     </main>
   );
 }
-function ContactSelect({ items }: { items: Contact[] }) {
-  const { t } = useLocale();
-  return (
-    <label className="field">
-      {t('العميل (من نتائج البحث الحالية)', 'Contact (current search results)')}
-      <select name="contactId" required>
-        {items.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
 function SimpleForm({
   title,
   fields,
