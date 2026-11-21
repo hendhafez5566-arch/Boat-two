@@ -30,7 +30,16 @@ const results = [];
 let browser;
 try {
   for (const language of ['ar', 'en'])
-    for (const width of [390, 1366]) {
+    for (const [width, height, mode] of [
+      [320, 720, 'phone'],
+      [360, 800, 'phone'],
+      [390, 844, 'phone'],
+      [430, 932, 'phone'],
+      [768, 1024, 'tablet'],
+      [844, 390, 'landscape'],
+      [980, 840, 'desktop-site'],
+      [1366, 900, 'desktop'],
+    ].filter(([w]) => !process.env.CRM_QA_WIDTH || w === Number(process.env.CRM_QA_WIDTH))) {
       browser = await chromium.launch({
         executablePath: process.env.BOAT_CHROMIUM || '/usr/bin/google-chrome',
         args: ['--no-sandbox'],
@@ -109,8 +118,9 @@ try {
         before ? 'Subscriber profile' : 'Customer profile',
       );
       const context = await browser.newContext({
-        viewport: { width, height: 936 },
-        hasTouch: width === 390,
+        viewport: { width, height },
+        hasTouch: mode !== 'desktop',
+        isMobile: mode !== 'desktop' && mode !== 'desktop-site',
       });
       await context.addInitScript(
         ({ session, language }) => {
@@ -138,6 +148,16 @@ try {
         );
         await page.screenshot({ path: `${out}/${name}-${language}-${width}.png` });
       }
+      if (!before) {
+        await page.goto(web + '/dashboard/crm/today');
+        await page.getByRole('heading', { name: t('يوم العمل', 'Today'), exact: true }).waitFor();
+        await shot('today');
+        await page.getByRole('link', { name: t('الأدوات', 'Tools'), exact: true }).click();
+        await page
+          .getByRole('heading', { name: t('أدوات CRM', 'CRM tools'), exact: true })
+          .waitFor();
+        await shot('tools');
+      }
       await page.goto(web + '/dashboard/crm');
       await page.getByRole('button', { name: openProfile + 'Mariam Adel', exact: true }).waitFor();
       assert.equal(
@@ -155,7 +175,7 @@ try {
           name: t('دون مسؤول', 'Unassigned'),
           exact: true,
         });
-        if (width === 390) await unassigned.tap();
+        if (width <= 430) await unassigned.tap();
         else await unassigned.click();
         await page
           .getByRole('button', { name: openProfile + 'Mariam Adel', exact: true })
@@ -174,7 +194,10 @@ try {
           .waitFor();
       }
       await page.getByRole('button', { name: openProfile + 'Mariam Adel', exact: true }).click();
-      let dialog = page.getByRole('dialog', { name: profileTitle, exact: true });
+      let dialog = page.getByRole(before ? 'dialog' : 'region', {
+        name: profileTitle,
+        exact: true,
+      });
       await dialog.getByRole('heading', { name: 'Mariam Adel', exact: true }).waitFor();
       await shot('profile');
       if (!before) {
@@ -219,7 +242,12 @@ try {
           .click();
         await dialog.getByText('Requested flexible travel dates', { exact: true }).waitFor();
       }
-      await dialog.getByRole('button', { name: 'Close / إغلاق', exact: true }).click();
+      await dialog
+        .getByRole('button', {
+          name: before ? 'Close / إغلاق' : t('العودة للعملاء', 'Back to customers'),
+          exact: true,
+        })
+        .click();
       if (!before) {
         assert.equal(
           await page
@@ -243,6 +271,11 @@ try {
         .click();
       await dialog.waitFor({ state: 'hidden' });
       assert.equal((await api('/crm/contacts?q=Created', token)).items.length, 1);
+      if (!before)
+        await page
+          .getByRole('region', { name: profileTitle })
+          .getByRole('heading', { name: 'Created through new design', exact: true })
+          .waitFor();
       if (!before) {
         await page.goto(web + '/dashboard/crm?contact=' + conversation.contact_id);
         await page
@@ -255,7 +288,7 @@ try {
         );
         await page.getByText('Travel itinerary question', { exact: true }).last().waitFor();
         await page.goto(web + '/dashboard/crm?contact=' + contacts[0].id);
-        const profile = page.getByRole('dialog', { name: profileTitle });
+        const profile = page.getByRole(before ? 'dialog' : 'region', { name: profileTitle });
         await profile
           .getByRole('button', { name: t('فرص البيع', 'Opportunities'), exact: true })
           .click();
@@ -318,7 +351,7 @@ try {
       await dialog.waitFor({ state: 'hidden' });
       await page.getByRole('button', { name: 'Review travel itinerary', exact: true }).waitFor();
       await page.goto(web + '/dashboard/crm/pipeline');
-      if (!before && width === 390)
+      if (!before && width <= 430)
         await page
           .getByLabel(t('مرحلة البيع', 'Pipeline stage'), { exact: true })
           .selectOption('Proposal');
@@ -332,7 +365,7 @@ try {
         assert.equal((await api('/crm/deals?id=' + deal.id, token)).items[0].stage, 'Booked');
       }
       if (workflow) {
-        if (width === 390)
+        if (width <= 430)
           await page
             .getByLabel(t('مرحلة البيع', 'Pipeline stage'), { exact: true })
             .selectOption('Booked');
@@ -398,7 +431,7 @@ try {
         });
         await importDialog.waitFor();
         await importDialog.getByRole('button', { name: 'Close / إغلاق', exact: true }).click();
-        const tools = page.getByText(t('أدوات CRM', 'CRM tools'), { exact: true });
+        const tools = page.getByRole('link', { name: t('الأدوات', 'Tools'), exact: true });
         await tools.click();
         await page
           .getByRole('link', { name: t('قوائم العملاء', 'Customer lists'), exact: true })
@@ -428,6 +461,12 @@ try {
           agent,
         );
         if (workflow) {
+          await page.goto(web + '/dashboard/crm/today');
+          await page.getByRole('link', { name: /Check flight preferences/ }).click();
+          await page
+            .getByRole('region', { name: profileTitle })
+            .getByRole('button', { name: 'Check flight preferences', exact: true })
+            .waitFor();
           await page.goto(web + '/dashboard/crm');
           await page.getByRole('link', { name: t('مهامي', 'My tasks'), exact: true }).click();
           await page
@@ -482,6 +521,8 @@ try {
       results.push({
         language,
         width,
+        height,
+        mode,
         status: 'PASS',
         role: before ? 'owner' : 'owner and agent',
         api: 'NestJS with isolated PGlite',
