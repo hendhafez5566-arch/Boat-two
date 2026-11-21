@@ -340,6 +340,22 @@ try {
         const followUp = (await api('/crm/tasks?q=Check%20flight', token)).items[0];
         assert.equal(followUp.assigned_to, staffId);
         assert.equal(followUp.contact_id, contacts[0].id);
+        await profile
+          .getByRole('button', { name: 'Check flight preferences', exact: true })
+          .click();
+        await profile
+          .getByLabel(t('ربط بفرصة بيع (اختياري)', 'Link opportunity (optional)'), { exact: true })
+          .selectOption(deal.id);
+        await profile.getByLabel(t('الأولوية', 'Priority'), { exact: true }).selectOption('high');
+        await profile
+          .getByRole('button', { name: t('حفظ المتابعة', 'Save follow-up'), exact: true })
+          .click();
+        await profile
+          .getByRole('button', { name: t('حفظ المتابعة', 'Save follow-up'), exact: true })
+          .waitFor({ state: 'hidden' });
+        const edited = (await api('/crm/tasks?q=Check%20flight', token)).items[0];
+        assert.equal(edited.deal_id, deal.id);
+        assert.equal(edited.priority, 'high');
       }
       await page.goto(web + '/dashboard/crm/tasks');
       await page.getByRole('button', { name: 'Confirm passport details', exact: true }).waitFor();
@@ -435,6 +451,43 @@ try {
         await page.goto(web + '/dashboard/crm/' + route);
         await page.locator('.page-workspace').first().waitFor();
         await shot(route);
+      }
+      if (!before) {
+        await page.goto(web + '/dashboard/crm/advanced');
+        await page
+          .getByRole('button', {
+            name: t('إعداد خطوط المبيعات', 'Configure pipelines'),
+            exact: true,
+          })
+          .click();
+        const pipelineForm = page
+          .locator('form')
+          .filter({
+            has: page.getByRole('heading', {
+              name: t('خط مبيعات جديد', 'New pipeline'),
+              exact: true,
+            }),
+          });
+        await pipelineForm.getByLabel(t('الاسم', 'Name'), { exact: true }).fill('ZZ QA pipeline');
+        await pipelineForm.locator('input[name=stage]').nth(0).fill('Prospect');
+        await pipelineForm.locator('input[name=stage]').nth(1).fill('Review');
+        await pipelineForm
+          .getByRole('button', { name: t('إضافة مرحلة', 'Add stage'), exact: true })
+          .click();
+        await pipelineForm.locator('input[name=stage]').nth(2).fill('Booked');
+        await pipelineForm
+          .getByRole('button', { name: t('لأعلى', 'Move up'), exact: true })
+          .nth(2)
+          .click();
+        await shot('pipeline-settings');
+        await pipelineForm
+          .getByRole('button', { name: t('إنشاء خط مبيعات', 'Create pipeline'), exact: true })
+          .click();
+        await page.getByText('ZZ QA pipeline', { exact: true }).last().waitFor();
+        assert.deepEqual(
+          (await api('/crm/pipelines', token)).find((p) => p.name === 'ZZ QA pipeline').stages,
+          ['Prospect', 'Booked', 'Review'],
+        );
       }
       if (workflow) {
         await page.goto(web + '/dashboard/crm');
