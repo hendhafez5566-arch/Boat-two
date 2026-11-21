@@ -51,3 +51,10 @@ This matrix supplements the baseline above. “Earlier” records a browser jour
 | Data retention, record exports, permissions | Broad review | Existing | Existing | Pending per action | Existing endpoints | Pending | Dedicated flows and safe synthetic settings tests pending |
 
 The former stage form required composing a comma-delimited list and manually typing replacement names. The new form uses an ordered stage list and selects replacement names from the stages that will remain. Updating the linked opportunity of a follow-up takes one edit-and-save operation, and retains the follow-up ID and history. These are measured interface differences. Independent first-use usability testing remains pending.
+
+### Continuation verification
+
+- Latest production build and API compilation passed. The production build was exercised on local Chromium with authenticated owner and agent sessions backed by synthetic data. All 16 combinations passed: Arabic and English at 320, 360, 390, 430, 768, and 1366 px, with 844×390 landscape and a 980 px touch-based Desktop Site approximation.
+- Each matrix run created a follow-up, reopened its editor, linked it to the customer's opportunity, changed priority, and checked both persisted values. Each run created a pipeline by adding and reordering stages and checked the saved order. Archive/restore and the existing customer, task, pipeline, import dialog, list and saved view journeys also ran.
+- CRM API suites passed 60 and 69 checks. Follow-up linking tests include unlink, rejection of a deal belonging to another customer, and rejection of an agent editing a task outside their assignment. The continuation browser matrix uses owner and agent roles. Administrator browser results in the preceding report are from the reviewed baseline.
+- Visual checks inspected the follow-up and opportunity dialogs and pipeline settings on phone and desktop. Native Android keyboard behavior, production Preview login and advanced action-by-action acceptance remain unverified. No Railway deployment was made for this continuation.

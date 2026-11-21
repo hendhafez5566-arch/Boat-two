@@ -265,6 +265,18 @@ try {
     assert.equal((await request('/conversations?needsReply=true', token)).items.length, 0);
     assert.equal((await request('/crm/workspace/analytics', token)).conversations.needs_reply, 0);
     count++;
+    const unrelated = await request('/crm/contacts', token, { name: 'Other customer' });
+    const unrelatedOffer = await request('/crm/deals', token, {
+      contactId: unrelated.id,
+      pipelineId: p.id,
+      title: 'Unrelated offer',
+      stage: 'New',
+      valueCents: 0,
+      currency: 'EGP',
+    });
+    await request('/crm/tasks/' + task.id, token, { dealId: unrelatedOffer.id }, 'PATCH', 400);
+    await request('/crm/tasks/' + task.id, agent.accessToken, { dealId: offer.id }, 'PATCH', 403);
+    count += 2;
     for (const other of sessions.slice(0, -1))
       await request('/crm/workspace/score/' + c.id, other.accessToken, null, 'GET', 404);
     count++;
