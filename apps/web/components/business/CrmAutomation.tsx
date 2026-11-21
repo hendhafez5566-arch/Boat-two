@@ -36,6 +36,7 @@ export function CrmAutomation() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
+  const [savedId, setSavedId] = useState('');
   const [customerStage, setCustomerStage] = useState('');
   const p = pipelines.data.find((x) => x.id === pipeline) || pipelines.data[0];
   const f = fields.data.find((x) => x.key === field) || fields.data[0];
@@ -108,7 +109,11 @@ export function CrmAutomation() {
               ),
         );
       } else {
-        await api('/automations', { method: 'POST', body: JSON.stringify(rule) });
+        const saved = await api<{ id: string }>('/automations', {
+          method: 'POST',
+          body: JSON.stringify(rule),
+        });
+        setSavedId(saved.id);
         setNotice(
           t(
             'حُفظت القاعدة. يمكنك إدارتها ومراجعة سجلها من الأتمتة.',
@@ -394,6 +399,11 @@ export function CrmAutomation() {
             : t('معاينة واختبار اصطناعي', 'Preview & synthetic test')}
         </Button>
       </form>
+      {savedId && (
+        <Link className="btn" href={'/dashboard/automations?rule=' + encodeURIComponent(savedId)}>
+          {t('فتح القاعدة المحفوظة', 'Open saved rule')}
+        </Link>
+      )}
       <p>
         <Link className="btn" href="/dashboard/automations">
           {t('إدارة القواعد وAND/OR وسجل التنفيذ', 'Manage rules, AND/OR & execution history')}

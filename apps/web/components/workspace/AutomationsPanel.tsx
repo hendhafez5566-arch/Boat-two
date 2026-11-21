@@ -21,6 +21,7 @@ type Rule = {
   id: string;
   name: string;
   enabled: boolean;
+  revision: number;
   trigger: string;
   conditions: { lifecycle?: string; tag?: string };
   actions: Action[];
@@ -36,6 +37,13 @@ export default function Automations() {
   });
   const [tab, setTab] = useState<'rules' | 'create' | 'saved' | 'history'>('rules');
   const [editId, setEditId] = useState('');
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('rule');
+    if (id) {
+      setEditId(id);
+      setTab('saved');
+    }
+  }, []);
   const [createMode, setCreateMode] = useState<'quick' | 'sequence'>('quick');
   useEffect(() => {
     if (tab === 'rules') list.reload();
@@ -190,7 +198,11 @@ export default function Automations() {
                     void act(() =>
                       api('/automations/' + r.id, {
                         method: 'PATCH',
-                        body: JSON.stringify({ ...r, enabled: !r.enabled }),
+                        body: JSON.stringify({
+                          ...r,
+                          enabled: !r.enabled,
+                          expectedRevision: r.revision,
+                        }),
                       }),
                     );
                   }}
