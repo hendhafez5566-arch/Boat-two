@@ -66,6 +66,10 @@ try {
         fullName: 'Mona Adel',
       });
       const staffId = (await api('/crm/workspace/members', agent.accessToken)).currentUserId;
+      if (!before) {
+        for (const type of ['text', 'number', 'date', 'boolean'])
+          await api('/crm/fields', token, { key: 'qa_' + type, label: 'QA ' + type, type });
+      }
       const contacts = [];
       for (let i = 0; i < 12; i++)
         contacts.push(
@@ -265,6 +269,14 @@ try {
         .getByLabel(t('اسم العميل', 'Customer name'), { exact: true })
         .fill('Created through new design');
       await dialog.getByLabel(t('الهاتف', 'Phone'), { exact: true }).fill('201234567890');
+      if (!before) {
+        await dialog.getByText(t('الحقول المخصصة', 'Custom fields'), { exact: true }).click();
+        await dialog.getByLabel('QA text', { exact: true }).fill('Synthetic value');
+        await dialog.getByLabel('QA number', { exact: true }).fill('0');
+        await dialog.getByLabel('QA date', { exact: true }).fill('2030-05-04');
+        await dialog.getByLabel('QA boolean', { exact: true }).selectOption('false');
+        await shot('contact-custom-fields');
+      }
       await shot('contact-editor');
       await dialog
         .getByRole('button', { name: t('حفظ العميل', 'Save contact'), exact: true })
@@ -272,6 +284,11 @@ try {
       await dialog.waitFor({ state: 'hidden' });
       assert.equal((await api('/crm/contacts?q=Created', token)).items.length, 1);
       if (!before) {
+        const saved = (await api('/crm/contacts?q=Created', token)).items[0];
+        assert.equal(saved.attributes.qa_text, 'Synthetic value');
+        assert.equal(saved.attributes.qa_number, 0);
+        assert.equal(saved.attributes.qa_date, '2030-05-04');
+        assert.equal(saved.attributes.qa_boolean, false);
         const created = page.getByRole('region', { name: profileTitle });
         await created
           .getByRole('heading', { name: 'Created through new design', exact: true })
@@ -460,14 +477,12 @@ try {
             exact: true,
           })
           .click();
-        const pipelineForm = page
-          .locator('form')
-          .filter({
-            has: page.getByRole('heading', {
-              name: t('خط مبيعات جديد', 'New pipeline'),
-              exact: true,
-            }),
-          });
+        const pipelineForm = page.locator('form').filter({
+          has: page.getByRole('heading', {
+            name: t('خط مبيعات جديد', 'New pipeline'),
+            exact: true,
+          }),
+        });
         await pipelineForm.getByLabel(t('الاسم', 'Name'), { exact: true }).fill('ZZ QA pipeline');
         await pipelineForm.locator('input[name=stage]').nth(0).fill('Prospect');
         await pipelineForm.locator('input[name=stage]').nth(1).fill('Review');
@@ -506,6 +521,34 @@ try {
           name: t('تصدير واستيراد العملاء', 'Customer import and export'),
         });
         await importDialog.waitFor();
+        const importFile = importDialog.locator('input[accept=".csv,.xlsx"]');
+        await importFile.setInputFiles({
+          name: 'invalid.csv',
+          mimeType: 'text/csv',
+          buffer: Buffer.from('Name,Email\nBroken,bad-address\n'),
+        });
+        await importDialog
+          .getByText(t('البريد غير صالح', 'Invalid email'), { exact: false })
+          .waitFor();
+        const start = importDialog.getByRole('button', {
+          name: t('تأكيد وبدء الاستيراد', 'Confirm and start import'),
+          exact: true,
+        });
+        assert.equal(await start.isEnabled(), false);
+        await importFile.setInputFiles({
+          name: 'valid.csv',
+          mimeType: 'text/csv',
+          buffer: Buffer.from('Name,Email\nQA import,crm-import@example.test\n'),
+        });
+        await start.click();
+        await importDialog
+          .getByText(t('تم تجهيز الاستيراد', 'Import queued'), { exact: false })
+          .waitFor();
+        for (let attempt = 0; attempt < 20; attempt++) {
+          if ((await api('/crm/contacts?q=QA%20import', token)).items.length) break;
+          if (attempt === 19) throw new Error('Isolated import job did not complete');
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
         await importDialog.getByRole('button', { name: 'Close / إغلاق', exact: true }).click();
         const tools = page.getByRole('link', { name: t('الأدوات', 'Tools'), exact: true });
         await tools.click();
@@ -530,6 +573,99 @@ try {
             (view) => view.name === 'Travel accounts',
           ),
         );
+      }
+      if (!before) {
+        await page.goto(web + '/dashboard/crm');
+        await page.getByRole('button', { name: t('إدارة', 'Manage'), exact: true }).click();
+        await page
+          .getByRole('button', { name: t('ملفات مكررة ودمج', 'Duplicates and merge'), exact: true })
+          .click();
+        const mergeTool = page
+          .locator('section')
+          .filter({
+            has: page.getByRole('heading', {
+              name: t('معاينة ودمج الملفات المكررة', 'Preview and merge duplicate profiles'),
+              exact: true,
+            }),
+          })
+          .last();
+        await mergeTool
+          .getByText(t('التطابقات المكتشفة', 'Detected matches'), { exact: true })
+          .click();
+        await mergeTool
+          .getByText(t('لا توجد تطابقات', 'No matches found'), { exact: true })
+          .waitFor();
+        await mergeTool.locator('select').nth(0).selectOption(contacts[9].id);
+        await mergeTool.locator('select').nth(1).selectOption(contacts[10].id);
+        await mergeTool
+          .getByRole('button', {
+            name: t('معاينة التأثير والتعارضات', 'Preview impact and conflicts'),
+            exact: true,
+          })
+          .click();
+        await mergeTool
+          .getByRole('heading', { name: t('الملف الأساسي', 'Target profile'), exact: true })
+          .waitFor();
+        await shot('merge-preview');
+        await page.goto(web + '/dashboard/crm/reports');
+        const exportReport = page.waitForEvent('download');
+        await page.getByRole('button', { name: t('تصدير CSV', 'Export CSV'), exact: true }).click();
+        assert.equal((await exportReport).suggestedFilename(), 'boat-crm-report.csv');
+        await page
+          .getByRole('link', {
+            name: t('المتابعات المتأخرة', 'Overdue follow-ups') + ': Mona Adel',
+            exact: true,
+          })
+          .click();
+        await page.waitForURL(
+          (url) =>
+            url.pathname.endsWith('/tasks') &&
+            url.searchParams.get('period') === 'overdue' &&
+            url.searchParams.get('ownerId') === staffId,
+        );
+        await page.goto(web + '/dashboard/crm/advanced');
+        await page.getByText(t('أتمتة CRM', 'CRM automation'), { exact: true }).click();
+        const automation = page.locator('form').filter({
+          has: page.getByRole('button', {
+            name: t('معاينة واختبار اصطناعي', 'Preview & synthetic test'),
+            exact: true,
+          }),
+        });
+        await automation
+          .getByLabel(t('اسم القاعدة', 'Rule name'), { exact: true })
+          .fill('Synthetic acceptance rule');
+        await automation
+          .getByLabel(t('بوجود وسم (اختياري)', 'With tag (optional)'), { exact: true })
+          .fill('reviewed');
+        await automation
+          .getByLabel(t('مرحلة العميل (اختياري)', 'Customer lifecycle (optional)'), { exact: true })
+          .selectOption('qualified');
+        await automation
+          .getByLabel(t('العنوان', 'Title'), { exact: true })
+          .fill('Synthetic follow-up only');
+        await automation
+          .getByRole('button', {
+            name: t('معاينة واختبار اصطناعي', 'Preview & synthetic test'),
+            exact: true,
+          })
+          .click();
+        await page
+          .getByText(t('المعاينة الاصطناعية مطابقة', 'Synthetic preview matched'), { exact: false })
+          .waitFor();
+        await shot('automation-preview');
+        await page
+          .getByRole('button', { name: t('حفظ القاعدة', 'Save rule'), exact: true })
+          .click();
+        await page.getByText(t('حُفظت القاعدة', 'Rule saved'), { exact: false }).waitFor();
+        await page.goto(web + '/dashboard/crm/sales');
+        await page
+          .getByRole('button', {
+            name: t('اختبار السياسة المحفوظة دون إسناد', 'Test saved policy without assignment'),
+            exact: true,
+          })
+          .click();
+        await page.locator('output[role=status]').waitFor();
+        await shot('assignment-preview');
       }
       if (!before) {
         await page.evaluate(

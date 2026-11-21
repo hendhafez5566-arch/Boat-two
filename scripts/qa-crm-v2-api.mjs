@@ -277,6 +277,96 @@ try {
     await request('/crm/tasks/' + task.id, token, { dealId: unrelatedOffer.id }, 'PATCH', 400);
     await request('/crm/tasks/' + task.id, agent.accessToken, { dealId: offer.id }, 'PATCH', 403);
     count += 2;
+    const staffUserId = (await request('/crm/workspace/members', agent.accessToken)).currentUserId;
+    const current = await request(
+      '/crm/deals/' + offer.id,
+      token,
+      {
+        status: 'lost',
+        lossReason: 'Synthetic price objection',
+        valueCents: 32100,
+        currency: 'USD',
+        ownerId: staffUserId,
+        expectedClose: '2030-04-12',
+      },
+      'PATCH',
+    );
+    assert.equal(current.loss_reason, 'Synthetic price objection');
+    assert.equal(current.currency, 'USD');
+    assert.equal(Number(current.value_cents), 32100);
+    assert.equal(current.owner_id, staffUserId);
+    assert.equal(current.expected_close.slice(0, 10), '2030-04-12');
+    assert.equal(
+      (await request('/crm/deals/' + offer.id, token, { status: 'open' }, 'PATCH')).status,
+      'open',
+    );
+    assert.equal(
+      (await request('/crm/deals/' + offer.id, token, { status: 'won' }, 'PATCH')).status,
+      'won',
+    );
+    const originalDeals = (await request('/crm/deals?pipelineId=' + p.id, token)).items;
+    await request(
+      '/crm/pipelines/' + p.id,
+      token,
+      { name: 'Sales', stages: ['Qualified', 'Proposal'] },
+      'PATCH',
+      400,
+    );
+    assert.deepEqual((await request('/crm/deals?pipelineId=' + p.id, token)).items, originalDeals);
+    await request(
+      '/crm/pipelines/' + p.id,
+      token,
+      {
+        name: 'Sales',
+        stages: ['Qualified', 'Proposal'],
+        replacements: { New: 'Proposal' },
+      },
+      'PATCH',
+    );
+    const migrated = (await request('/crm/deals?pipelineId=' + p.id, token)).items;
+    assert.equal(migrated.length, originalDeals.length);
+    for (const deal of originalDeals) {
+      const moved = migrated.find((item) => item.id === deal.id);
+      const { updated_at: previousUpdate, ...previous } = deal;
+      const { updated_at: nextUpdate, ...after } = moved;
+      assert.ok(Date.parse(nextUpdate) >= Date.parse(previousUpdate));
+      assert.deepEqual(after, {
+        ...previous,
+        stage: deal.stage === 'New' ? 'Proposal' : deal.stage,
+        pipeline_stages: ['Qualified', 'Proposal'],
+      });
+    }
+    count += 5;
+    await request('/crm/contacts/' + unrelated.id + '/notes', token, {
+      text: 'Synthetic merge note',
+    });
+    const merge = await request(
+      '/crm/contacts/' + c.id + '/merge-preview?sourceId=' + unrelated.id,
+      token,
+    );
+    assert.equal(merge.canMerge, true);
+    await request(
+      '/crm/contacts/' + c.id + '/merge',
+      agent.accessToken,
+      {
+        sourceId: unrelated.id,
+        evidence: 'Synthetic matches reviewed',
+      },
+      'POST',
+      403,
+    );
+    await request('/crm/contacts/' + c.id + '/merge', token, {
+      sourceId: unrelated.id,
+      evidence: 'Synthetic matches reviewed',
+    });
+    const mergedProfile = await request('/crm/contacts/' + c.id + '/profile', token);
+    assert.ok(mergedProfile.timeline.notes.some((note) => note.body === 'Synthetic merge note'));
+    assert.ok(
+      (await request('/crm/deals?pipelineId=' + p.id, token)).items.some(
+        (deal) => deal.id === unrelatedOffer.id && deal.contact_id === c.id,
+      ),
+    );
+    count += 4;
     for (const other of sessions.slice(0, -1))
       await request('/crm/workspace/score/' + c.id, other.accessToken, null, 'GET', 404);
     count++;
