@@ -54,6 +54,7 @@ export function CrmWork({
   const [q, setQ] = useState('');
   const [pipeline, setPipeline] = useState('');
   const [status, setStatus] = useState('open');
+  const [currencyFilter, setCurrencyFilter] = useState('');
   const [owner, setOwner] = useState('');
   const [period, setPeriod] = useState('all');
   const [page, setPage] = useState(1);
@@ -67,6 +68,7 @@ export function CrmWork({
     if (compact) return;
     const p = new URLSearchParams(window.location.search);
     if (p.has('ownerId')) setOwner(p.get('ownerId') || '');
+    if (/^[A-Z]{3}$/.test(p.get('currency') || '')) setCurrencyFilter(p.get('currency') || '');
     if (p.has('status')) setStatus(p.get('status') || '');
     if (p.has('period')) setPeriod(p.get('period') || 'all');
     if (p.get('create') === 'true') {
@@ -96,6 +98,7 @@ export function CrmWork({
   const selectedPipeline = pipelines.data.find((p) => p.id === pipeline) || pipelines.data[0];
   const params = new URLSearchParams({ ...routeDates, q, status, page: String(page), limit: '50' });
   if (deals && selectedPipeline && !allPipelines) params.set('pipelineId', selectedPipeline.id);
+  if (deals && /^[A-Z]{3}$/.test(currencyFilter)) params.set('currency', currencyFilter);
   const resolvedOwner = owner === 'me' ? team.data.currentUserId : owner;
   if (resolvedOwner) params.set('ownerId', resolvedOwner);
   if (contactId) params.set('contactId', contactId);
@@ -459,6 +462,23 @@ export function CrmWork({
           <NavIcon name="filter" /> {t('التصفية', 'Filters')}
         </Button>
       </div>
+      {deals && /^[A-Z]{3}$/.test(currencyFilter) && (
+        <div className={styles.actions}>
+          <span className={styles.badge}>
+            {t('العملة', 'Currency')} · {currencyFilter}
+          </span>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              setCurrencyFilter('');
+              setPage(1);
+            }}
+          >
+            {t('إزالة فلتر العملة', 'Clear currency filter')}
+          </button>
+        </div>
+      )}
       <div className={`${styles.toolbar} ${design.workToolbar}`} hidden={!filtersOpen}>
         <select
           aria-label={t('الحالة', 'Status')}
@@ -495,6 +515,18 @@ export function CrmWork({
             </option>
           ))}
         </select>
+        {deals && (
+          <input
+            aria-label={t('عملة الصفقة', 'Deal currency')}
+            placeholder={t('العملة (مثل EGP)', 'Currency (e.g. EGP)')}
+            maxLength={3}
+            value={currencyFilter}
+            onChange={(event) => {
+              setCurrencyFilter(event.target.value.toUpperCase());
+              setPage(1);
+            }}
+          />
+        )}
         {!deals && (
           <select
             aria-label={t('الموعد', 'Due date filter')}

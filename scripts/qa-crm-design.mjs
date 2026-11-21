@@ -611,6 +611,18 @@ try {
         const exportReport = page.waitForEvent('download');
         await page.getByRole('button', { name: t('تصدير CSV', 'Export CSV'), exact: true }).click();
         assert.equal((await exportReport).suggestedFilename(), 'boat-crm-report.csv');
+        await page.locator('a[href*="currency=EGP"]').first().click();
+        await page.waitForURL(
+          (url) => url.pathname.endsWith('/pipeline') && url.searchParams.get('currency') === 'EGP',
+        );
+        await page
+          .getByRole('button', {
+            name: t('إزالة فلتر العملة', 'Clear currency filter'),
+            exact: true,
+          })
+          .waitFor();
+        await page.goto(web + '/dashboard/crm/reports');
+
         await page
           .getByRole('link', {
             name: t('المتابعات المتأخرة', 'Overdue follow-ups') + ': Mona Adel',

@@ -304,6 +304,25 @@ try {
       (await request('/crm/deals/' + offer.id, token, { status: 'won' }, 'PATCH')).status,
       'won',
     );
+    const report = await request('/crm/workspace/analytics', token);
+    for (const group of report.sales) {
+      const filtered = await request(
+        '/crm/deals?' +
+          new URLSearchParams({
+            currency: group.currency,
+            status: group.status,
+            updatedFrom: report.startAt,
+            updatedTo: report.endAt,
+          }),
+        token,
+      );
+      assert.equal(filtered.total, group.count);
+      assert.equal(
+        filtered.items.reduce((sum, deal) => sum + Number(deal.value_cents), 0),
+        Number(group.value_cents),
+      );
+    }
+    count++;
     const originalDeals = (await request('/crm/deals?pipelineId=' + p.id, token)).items;
     await request(
       '/crm/pipelines/' + p.id,

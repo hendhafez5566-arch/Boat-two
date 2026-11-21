@@ -632,6 +632,7 @@ export class CrmController {
         status: z.string().max(20).optional(),
         ownerId: z.string().uuid().optional(),
         pipelineId: z.string().uuid().optional(),
+        currency: z.string().regex(/^[A-Z]{3}$/).optional(),
         contactId: z.string().uuid().optional(),
         id: z.string().uuid().optional(),
         dueFrom: z.string().datetime().optional(),
@@ -654,6 +655,10 @@ export class CrmController {
       if (kind === 'deals') {
         params.push(q.pipelineId ?? null);
         where += ' AND ($4::uuid IS NULL OR w.pipeline_id=$4)';
+        if (q.currency) {
+          params.push(q.currency);
+          where += ` AND w.currency=$${params.length}`;
+        }
       } else {
         params.push(q.dueFrom ?? null, q.dueTo ?? null);
         where +=

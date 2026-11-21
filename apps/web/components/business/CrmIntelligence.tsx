@@ -81,7 +81,13 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
   const contactLink = (filter: string) =>
     '/dashboard/crm?' +
     new URLSearchParams({ preset: filter, ...(r?.ownerId ? { ownerId: r.ownerId } : {}) });
-  const workLink = (kind: string, status = 'open', period = '', ownerId = r?.ownerId) =>
+  const workLink = (
+    kind: string,
+    status = 'open',
+    period = '',
+    ownerId = r?.ownerId,
+    currency?: string,
+  ) =>
     '/dashboard/crm/' +
     kind +
     '?' +
@@ -90,6 +96,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
       ...(kind === 'pipeline' ? { view: 'table', allPipelines: 'true' } : {}),
       ...(ownerId ? { ownerId } : {}),
       ...(period ? { period } : {}),
+      ...(currency ? { currency } : {}),
       ...(!period && r ? { updatedFrom: r.startAt, updatedTo: r.endAt } : {}),
     });
   const won = r?.sales.filter((s) => s.status === 'won').reduce((a, s) => a + s.count, 0) || 0;
@@ -403,7 +410,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
                 r.sales.map((s) => (
                   <Link
                     className={styles.valueRow}
-                    href={workLink('pipeline', s.status)}
+                    href={workLink('pipeline', s.status, '', r.ownerId, s.currency)}
                     key={s.currency + s.status}
                   >
                     <span
