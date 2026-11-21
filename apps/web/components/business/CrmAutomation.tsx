@@ -1,7 +1,7 @@
 'use client';
 import { statusLabel } from '../product/status';
 import product from './crm-product.module.css';
-import { FormEvent, useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../lib/api';
 import { useData } from './useData';
@@ -36,6 +36,7 @@ export function CrmAutomation() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
+  const operationPending = useRef(false);
   const [savedId, setSavedId] = useState('');
   const [customerStage, setCustomerStage] = useState('');
   const p = pipelines.data.find((x) => x.id === pipeline) || pipelines.data[0];
@@ -78,13 +79,20 @@ export function CrmAutomation() {
       : { ...(tag ? { tag } : {}), ...(customerStage ? { lifecycle: customerStage } : {}) };
   const rule = { name, trigger, enabled, conditions, actions: [action] };
   const fingerprint = JSON.stringify(rule);
-  async function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  function invalidatePreview() {
+    setPreview('');
+    setNotice('');
+    setError('');
+  }
+  async function run(mode: 'preview' | 'save') {
+    if (operationPending.current || (mode === 'save' && preview !== fingerprint)) return;
+    operationPending.current = true;
     setBusy(true);
     setError('');
     setNotice('');
     try {
-      if (preview !== fingerprint) {
+      if (mode === 'preview') {
+        setPreview('');
         const result = await api<{ matched: boolean; executed: boolean }>('/automations/preview', {
           method: 'POST',
           body: JSON.stringify({
@@ -100,8 +108,8 @@ export function CrmAutomation() {
         setNotice(
           result.matched
             ? t(
-                'المعاينة الاصطناعية مطابقة. لم يُنفذ أي إجراء. راجع الملخص ثم احفظ.',
-                'Synthetic preview matched. No actions executed. Review the summary, then save.',
+                'المعاينة الاصطناعية مطابقة. لم يُنفذ أي إجراء.',
+                'Synthetic preview matched. No actions executed.',
               )
             : t(
                 'لم تطابق بيانات المعاينة الشروط. لم يُنفذ إجراء.',
@@ -125,11 +133,13 @@ export function CrmAutomation() {
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      operationPending.current = false;
       setBusy(false);
     }
   }
   function template(kind: string) {
-    setPreview('');
+    if (operationPending.current) return;
+    invalidatePreview();
     setCustomerStage('');
     setType(kind === 'stage' ? 'task' : kind === 'interest' ? 'deal' : 'notify');
     setTrigger(
@@ -168,13 +178,16 @@ export function CrmAutomation() {
           ['interest', 'فرصة اهتمام', 'Interest opportunity'],
           ['takeover', 'تنبيه الاستلام', 'Takeover alert'],
         ].map(([v, ar, en]) => (
-          <button type="button" className="btn" key={v} onClick={() => template(v)}>
+          <button type="button" className="btn" key={v} disabled={busy} onClick={() => template(v)}>
             {t(ar, en)}
           </button>
         ))}
       </div>
-      <form className={styles.form} onSubmit={submit}>
-        <fieldset className={product.formFields}>
+      <form className={styles.form} onChange={invalidatePreview} onSubmit={(event) => {
+        event.preventDefault();
+        void run('preview');
+      }}>
+        <fieldset className={product.formFields} disabled={busy}>
           <legend>{t('متى تعمل القاعدة؟', 'Trigger and conditions')}</legend>
           <label>
             {t('اسم القاعدة', 'Rule name')}
@@ -226,7 +239,7 @@ export function CrmAutomation() {
             </select>
           </label>
         </fieldset>
-        <fieldset className={product.formFields}>
+        <fieldset className={product.formFields} disabled={busy}>
           <legend>{t('ماذا تنفّذ القاعدة؟', 'Action details')}</legend>
           <label>
             {t('الإجراء', 'Action')}
@@ -377,6 +390,7 @@ export function CrmAutomation() {
           <span>
             <input
               type="checkbox"
+              disabled={busy}
               checked={enabled}
               onChange={(e) => setEnabled(e.target.checked)}
             />
@@ -393,11 +407,21 @@ export function CrmAutomation() {
             {notice}
           </p>
         )}
-        <Button busy={busy} type="submit">
-          {preview === fingerprint
-            ? t('حفظ القاعدة', 'Save rule')
-            : t('معاينة واختبار اصطناعي', 'Preview & synthetic test')}
-        </Button>
+        <div className={styles.actions}>
+          <Button disabled={busy} type="submit">
+            {t('معاينة واختبار اصطناعي', 'Preview & synthetic test')}
+          </Button>
+          <Button
+            variant="primary"
+            disabled={busy || preview !== fingerprint}
+            type="button"
+            onClick={(event) => {
+              if (event.currentTarget.form?.reportValidity()) void run('save');
+            }}
+          >
+            {t('حفظ القاعدة', 'Save rule')}
+          </Button>
+        </div>
       </form>
       {savedId && (
         <Link className="btn" href={'/dashboard/automations?rule=' + encodeURIComponent(savedId)}>

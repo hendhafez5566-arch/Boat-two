@@ -103,7 +103,7 @@ export class DataSourcesController {
 
 export async function previewSpreadsheet(file: Express.Multer.File, sheet?: string) {
   if (!file) throw new BadRequestException('Choose an .xlsx or .csv file (maximum 5 MB)');
-  let rows: string[][], sheets: string[];
+  let rows: string[][], sheets: string[], selectedSheet = 'CSV';
   if (/\.csv$/i.test(file.originalname)) {
     if (file.buffer.includes(0)) throw new BadRequestException('Use UTF-8 CSV');
     const csv = file.buffer.toString('utf8');
@@ -138,8 +138,16 @@ export async function previewSpreadsheet(file: Express.Multer.File, sheet?: stri
       const workbook = new Workbook();
       await workbook.xlsx.load((await normalizeXlsxNamespaces(file.buffer)) as never);
       sheets = workbook.worksheets.map((w) => w.name);
-      const ws = sheet ? workbook.getWorksheet(sheet) : workbook.worksheets[0];
-      if (!ws) throw new Error('Choose a worksheet');
+      if (!sheets.length) throw new Error('Workbook has no worksheets');
+      const ws = sheet
+        ? workbook.getWorksheet(sheet)
+        : workbook.worksheets.find((candidate) => {
+            const values = candidate.getRow(1).values;
+            return Array.isArray(values) && values.some((value) => value != null && String(value).trim());
+          }) ?? workbook.worksheets[0];
+      if (!ws) throw new Error('Worksheet not found');
+      selectedSheet = ws.name;
+      if (!ws.rowCount || !ws.columnCount) throw new Error('Worksheet is empty; add column headers and data');
       if (ws.rowCount > 10001 || ws.columnCount > 100)
         throw new Error('File exceeds 10000 rows / 100 columns');
       rows = [];
@@ -157,11 +165,12 @@ export async function previewSpreadsheet(file: Express.Multer.File, sheet?: stri
       throw new BadRequestException('Cannot import workbook: ' + (e as Error).message);
     }
   } else throw new BadRequestException('Only .xlsx and .csv files are supported');
+  if (!rows.length || !rows[0].some((cell) => cell.trim()))
+    throw new BadRequestException('The selected sheet has no column headers');
   if (
-    !rows.length ||
     rows.length > 10001 ||
     rows.some((r) => r.length > 100 || r.some((c) => c.length > 4000))
   )
     throw new BadRequestException('Invalid file size or data');
-  return { sheets, rows: rowsSchema.parse(rows) };
+  return { sheets, selectedSheet, rows: rowsSchema.parse(rows) };
 }

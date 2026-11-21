@@ -633,6 +633,7 @@ export class CrmController {
         ownerId: z.string().uuid().optional(),
         pipelineId: z.string().uuid().optional(),
         currency: z.string().regex(/^[A-Z]{3}$/).optional(),
+        stageSummary: z.enum(['true']).optional(),
         contactId: z.string().uuid().optional(),
         id: z.string().uuid().optional(),
         dueFrom: z.string().datetime().optional(),
@@ -708,7 +709,14 @@ export class CrmController {
           [...params, limit, offset],
         )
       ).rows;
-      return { items, total, page: exporting ? 1 : q.page, limit };
+      const stageSummary = kind === 'deals' && !exporting && q.stageSummary
+        ? (await c.query(
+            `SELECT w.stage,w.currency,count(*)::int AS count,sum(w.value_cents)::text AS value_cents ${from}
+             GROUP BY w.stage,w.currency ORDER BY w.stage,w.currency`,
+            params,
+          )).rows
+        : undefined;
+      return { items, total, page: exporting ? 1 : q.page, limit, stageSummary };
     });
   }
   @Get('deals') deals(@Req() r: AuthedRequest, @Query() query: unknown) {

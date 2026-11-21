@@ -18,7 +18,7 @@ import { Dialog } from '../../../components/product/ProductUI';
 import { statusLabel } from '../../../components/product/status';
 import { CrmJobs } from '../../../components/business/CrmJobs';
 import { ContactLifecycle } from '../../../components/business/ContactLifecycle';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
@@ -36,6 +36,7 @@ type Contact = {
   tags: string[];
   owner_id: string | null;
   archived_at: string | null;
+  created_at: string;
   updated_at: string;
   attributes: Record<string, string | number | boolean | null>;
 };
@@ -68,6 +69,11 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
   const [headMenu, setHeadMenu] = useState<string | null>(null);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
+  const [exportFields, setExportFields] = useState(['name', 'email', 'phone', 'lifecycle', 'tags']);
+  const exportPending = useRef(false);
   const [importOpen, setImportOpen] = useState(false);
   useEffect(() => {
     if (!headMenu) return;
@@ -354,7 +360,27 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
       setBusy(false);
     }
   }
+  const exportOptions = [
+    ['name', t('الاسم', 'Name')],
+    ['email', t('البريد الإلكتروني', 'Email')],
+    ['phone', t('الهاتف', 'Phone')],
+    ['lifecycle', t('مرحلة العميل', 'Customer lifecycle')],
+    ['tags', t('الوسوم', 'Tags')],
+    ['owner_id', t('معرّف المسؤول', 'Owner ID')],
+    ['lists', t('القوائم', 'Lists')],
+    ['sequences', t('التسلسلات', 'Sequences')],
+    ['consents', t('الموافقات التسويقية', 'Marketing consent')],
+    ['created_at', t('تاريخ الإضافة', 'Added')],
+    ['updated_at', t('آخر تحديث', 'Last updated')],
+    ['archived_at', t('تاريخ الأرشفة', 'Archived at')],
+    ...fields.data.map((field) => ['attribute:' + field.key, field.label]),
+    ['attributes', t('كل بيانات الحقول المخصصة', 'All custom field data')],
+  ];
   async function exportContacts() {
+    if (exportPending.current || !exportFields.length) return;
+    exportPending.current = true;
+    setExporting(true);
+    setExportError('');
     try {
       const r = await api<{ items: Contact[]; total: number }>(`/crm/contacts/export?${filter}`);
       if (r.total > r.items.length)
@@ -364,9 +390,25 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
             'Narrow the filter to 10,000 contacts or fewer.',
           ),
         );
-      download('contacts.csv', exportCsv(r.items, ['name', 'email', 'phone', 'lifecycle', 'tags']));
+      const headers = exportOptions.map(([key]) => key).filter((key) => exportFields.includes(key));
+      const rows = r.items.map((contact) => Object.fromEntries(headers.map((key) => {
+        if (key === 'attributes') return [key, JSON.stringify(contact.attributes ?? {})];
+        if (key.startsWith('attribute:')) {
+          const value = contact.attributes?.[key.slice('attribute:'.length)];
+          return [key, value && typeof value === 'object' ? JSON.stringify(value) : value];
+        }
+        const value = contact[key as keyof Contact];
+        return [key, ['lists', 'sequences', 'consents'].includes(key)
+          ? JSON.stringify(value ?? [])
+          : value];
+      })));
+      download('contacts.csv', exportCsv(rows, headers));
+      setExportOpen(false);
     } catch (e) {
-      setError((e as Error).message);
+      setExportError((e as Error).message);
+    } finally {
+      exportPending.current = false;
+      setExporting(false);
     }
   }
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -445,7 +487,8 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                     type="button"
                     onClick={() => {
                       setHeadMenu(null);
-                      void exportContacts();
+                      setExportError('');
+                      setExportOpen(true);
                     }}
                   >
                     {t('تصدير CSV', 'Export CSV')}
@@ -508,6 +551,35 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
             <span>{t(...(tabs.find(([key]) => key === tab)?.slice(1) as [string, string]))}</span>
           </nav>
         )}
+        <Dialog
+          open={exportOpen}
+          onClose={() => { if (!exporting) setExportOpen(false); }}
+          title={t('حقول تصدير العملاء', 'Customer export fields')}
+        >
+          <form onSubmit={(event) => { event.preventDefault(); void exportContacts(); }}>
+            <fieldset className={product.formFields} disabled={exporting}>
+              <legend>{t('الحقول', 'Fields')}</legend>
+              {exportOptions.map(([key, label]) => (
+                <label key={key}>
+                  <input
+                    type="checkbox"
+                    checked={exportFields.includes(key)}
+                    onChange={(event) => {
+                      const checked = event.currentTarget.checked;
+                      setExportFields((current) => checked
+                        ? [...current, key]
+                        : current.filter((field) => field !== key));
+                    }}
+                  />{' '}{label}
+                </label>
+              ))}
+            </fieldset>
+            {exportError && <p role="alert">{exportError}</p>}
+            <button type="submit" className="btn" disabled={exporting || !exportFields.length}>
+              {exporting ? t('جارٍ التصدير…', 'Exporting…') : t('تنزيل CSV', 'Download CSV')}
+            </button>
+          </form>
+        </Dialog>
         <Dialog
           open={importOpen}
           onClose={() => setImportOpen(false)}

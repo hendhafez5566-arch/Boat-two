@@ -38,17 +38,23 @@ export function CrmImport() {
     setError('');
     setNotice('');
     setRows([]);
+    if (selectedSheet) setSheet(selectedSheet);
+    else {
+      setSheets([]);
+      setSheet('');
+      setFile(null);
+    }
     try {
       const form = new FormData();
       form.append('file', file);
       if (selectedSheet) form.append('sheet', selectedSheet);
-      const result = await api<{ rows: string[][]; sheets: string[] }>(
+      const result = await api<{ rows: string[][]; sheets: string[]; selectedSheet?: string }>(
         '/crm/workspace/import-preview',
         { method: 'POST', body: form },
       );
       setFile(file);
       setSheets(result.sheets);
-      setSheet(selectedSheet || result.sheets[0]);
+      setSheet(result.selectedSheet || selectedSheet || result.sheets[0]);
       setRows(result.rows);
       setMapping(
         Object.fromEntries(
@@ -59,7 +65,15 @@ export function CrmImport() {
         ),
       );
     } catch (e) {
-      setError((e as Error).message);
+      const message = (e as Error).message;
+      setError(
+        /worksheet is empty|no worksheets|no column headers/i.test(message)
+          ? t(
+              'لا توجد أعمدة في هذه الورقة. اختر ورقة أخرى أو أضف رؤوس الأعمدة والبيانات.',
+              'This sheet has no columns. Choose another sheet or add headers and data.',
+            )
+          : message,
+      );
     } finally {
       lock.current = false;
       setBusy(false);
@@ -167,22 +181,24 @@ export function CrmImport() {
           {notice}
         </p>
       )}
+      {sheets.length > 1 && (
+        <label>
+          {t('ورقة العمل', 'Worksheet')}
+          <select
+            disabled={busy}
+            value={sheet}
+            onChange={(e) => {
+              if (file) void load(file, e.target.value);
+            }}
+          >
+            {sheets.map((s) => (
+              <option key={s}>{s}</option>
+            ))}
+          </select>
+        </label>
+      )}
       {!!rows.length && (
         <>
-          <label>
-            {t('ورقة العمل', 'Worksheet')}
-            <select
-              disabled={busy}
-              value={sheet}
-              onChange={(e) => {
-                if (file) void load(file, e.target.value);
-              }}
-            >
-              {sheets.map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
-          </label>
           <div className={styles.grid}>
             {fields.map(([key, ar, en]) => (
               <label key={key}>

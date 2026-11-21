@@ -130,7 +130,12 @@ export default function SubscriberProfile({
       onChanged();
       setNotice(t('حُفظ التغيير.', 'Changes saved.'));
     } catch (e) {
-      setError((e as Error).message);
+      setError(e instanceof TypeError
+        ? t(
+            'تعذّر الاتصال. تحقق من اتصالك وأعد المحاولة.',
+            'Unable to connect. Check your connection and try again.',
+          )
+        : (e as Error).message);
     } finally {
       lock.current = false;
       setBusy(false);
@@ -382,7 +387,9 @@ export default function SubscriberProfile({
               >
                 <NavIcon name="calendar" />
                 <span>
-                  {t('أقرب متابعة', 'Next follow-up')} · {nextTask.title}
+                  {(new Date(nextTask.due_at).getTime() < Date.now()
+                    ? t('متابعة متأخرة', 'Overdue follow-up')
+                    : t('أقرب متابعة', 'Next follow-up'))} · {nextTask.title}
                 </span>
                 <time dateTime={nextTask.due_at}>{date(nextTask.due_at)}</time>
               </button>
@@ -614,14 +621,18 @@ export default function SubscriberProfile({
                     type="button"
                     className="btn"
                     disabled={busy}
-                    onClick={() =>
+                    onClick={() => {
+                      if (!contact.archived_at && !window.confirm(t(
+                        'أرشفة هذا العميل؟ يمكنك استعادته من الأرشيف.',
+                        'Archive this customer? You can restore them from the archive.',
+                      ))) return;
                       void run(() =>
                         api(`/crm/contacts/${contactId}/archive`, {
                           method: 'PATCH',
                           body: JSON.stringify({ archived: !contact.archived_at }),
                         }),
-                      )
-                    }
+                      );
+                    }}
                   >
                     {contact.archived_at
                       ? t('استعادة العميل', 'Restore customer')

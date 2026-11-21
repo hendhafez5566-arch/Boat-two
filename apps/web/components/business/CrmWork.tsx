@@ -103,13 +103,15 @@ export function CrmWork({
   if (resolvedOwner) params.set('ownerId', resolvedOwner);
   if (contactId) params.set('contactId', contactId);
   if (!deals && period !== 'all') params.set('period', period);
-  const data = useData<{ items: Work[]; total: number }>(
-    owner === 'me' && !resolvedOwner ? null : `/crm/${kind}?${params}`,
-    {
-      items: [],
-      total: 0,
-    },
-  );
+  if (deals && view === 'board' && !allPipelines) params.set('stageSummary', 'true');
+  const data = useData<{
+    items: Work[];
+    total: number;
+    stageSummary?: { stage: string; currency: string; count: number; value_cents: string }[];
+  }>(owner === 'me' && !resolvedOwner ? null : `/crm/${kind}?${params}`, {
+    items: [],
+    total: 0,
+  });
   const currentReload = useRef(data.reload);
   useEffect(() => {
     currentReload.current = data.reload;
@@ -575,6 +577,12 @@ export function CrmWork({
               ))}
             </select>
           </label>
+          <p className={styles.hint}>
+            {t(
+              'إجماليات المراحل تشمل كل النتائج المطابقة؛ البطاقات حسب الصفحة.',
+              'Stage totals cover all matching deals. Cards are shown by page.',
+            )}
+          </p>
           <div className={`${styles.board} ${design.employeeBoard}`}>
             {selectedPipeline?.stages.map((stage) => (
               <section
@@ -593,26 +601,26 @@ export function CrmWork({
                 <h2>
                   {stage}{' '}
                   <span className={styles.badge}>
-                    {data.data.items.filter((d) => d.stage === stage).length}
+                    {data.loading
+                      ? '…'
+                      : data.error
+                        ? '—'
+                        : data.data.stageSummary
+                            ?.filter((d) => d.stage === stage)
+                            .reduce((sum, d) => sum + d.count, 0) ?? '—'}
                   </span>
                 </h2>
                 <div className={styles.stageTotals}>
-                  {Array.from(
-                    new Set(
-                      data.data.items.filter((d) => d.stage === stage).map((d) => d.currency),
-                    ),
-                  ).map((currency) => (
-                    <span key={currency}>
-                      {new Intl.NumberFormat(language === 'ar' ? 'ar-EG' : 'en', {
-                        style: 'currency',
-                        currency,
-                      }).format(
-                        data.data.items
-                          .filter((d) => d.stage === stage && d.currency === currency)
-                          .reduce((sum, d) => sum + Number(d.value_cents), 0) / 100,
-                      )}
-                    </span>
-                  ))}
+                  {!data.loading && !data.error && data.data.stageSummary
+                    ?.filter((group) => group.stage === stage)
+                    .map((group) => (
+                      <span key={group.currency}>
+                        {new Intl.NumberFormat(language === 'ar' ? 'ar-EG' : 'en', {
+                          style: 'currency',
+                          currency: group.currency,
+                        }).format(Number(group.value_cents) / 100)}
+                      </span>
+                    ))}
                 </div>
                 {data.data.items.filter((d) => d.stage === stage).map(card)}
               </section>
