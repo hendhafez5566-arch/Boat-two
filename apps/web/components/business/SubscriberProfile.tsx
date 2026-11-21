@@ -545,54 +545,6 @@ export default function SubscriberProfile({
                     </form>
                   </section>
                 )}
-                <div className={styles.overviewGrid}>
-                  <section className={styles.overviewCard}>
-                    <h3>{t('بيانات العميل', 'About')}</h3>
-                    <dl>
-                      <div>
-                        <dt>{t('الهاتف', 'Phone')}</dt>
-                        <dd dir="ltr">{contact.phone || '—'}</dd>
-                      </div>
-                      <div>
-                        <dt>{t('البريد الإلكتروني', 'Email')}</dt>
-                        <dd dir="ltr">{contact.email || '—'}</dd>
-                      </div>
-                      <div>
-                        <dt>{t('تاريخ الإضافة', 'Added')}</dt>
-                        <dd>{date(contact.created_at)}</dd>
-                      </div>
-                    </dl>
-                  </section>
-                  <section className={styles.overviewCard}>
-                    <h3>{t('التفاعل', 'Engagement')}</h3>
-                    <dl>
-                      <div>
-                        <dt>{t('آخر تواصل', 'Last Communication')}</dt>
-                        <dd>
-                          {date(
-                            profile.timeline.conversations
-                              .map((row) => row.last_message_at)
-                              .filter(Boolean)
-                              .sort()
-                              .at(-1),
-                          )}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>{t('المحادثات', 'Conversations')}</dt>
-                        <dd>{profile.timeline.conversations.length}</dd>
-                      </div>
-                      <div>
-                        <dt>{t('المرحلة', 'Lifecycle')}</dt>
-                        <dd>{statusLabel(contact.lifecycle, t)}</dd>
-                      </div>
-                      <div>
-                        <dt>{t('آخر تحديث للملف', 'Profile Updated')}</dt>
-                        <dd>{date(contact.updated_at)}</dd>
-                      </div>
-                    </dl>
-                  </section>
-                </div>
                 <h3>{t('المحادثات', 'Conversations')}</h3>
                 {profile.timeline.conversations.map((row) => (
                   <Link
@@ -609,6 +561,35 @@ export default function SubscriberProfile({
                 {!profile.timeline.conversations.length && (
                   <p>{t('لا توجد محادثات.', 'No conversations.')}</p>
                 )}
+                <details>
+                  <summary>{t('بيانات السجل', 'Record details')}</summary>
+                  <dl className={styles.overviewGrid}>
+                    <div>
+                      <dt>{t('تاريخ الإضافة', 'Added')}</dt>
+                      <dd>{date(contact.created_at)}</dd>
+                    </div>
+                    <div>
+                      <dt>{t('آخر تحديث للملف', 'Profile updated')}</dt>
+                      <dd>{date(contact.updated_at)}</dd>
+                    </div>
+                    <div>
+                      <dt>{t('آخر تواصل', 'Last communication')}</dt>
+                      <dd>
+                        {date(
+                          profile.timeline.conversations
+                            .map((row) => row.last_message_at)
+                            .filter(Boolean)
+                            .sort()
+                            .at(-1),
+                        )}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>{t('المحادثات', 'Conversations')}</dt>
+                      <dd>{profile.timeline.conversations.length}</dd>
+                    </div>
+                  </dl>
+                </details>
                 {canManage && (
                   <button
                     type="button"

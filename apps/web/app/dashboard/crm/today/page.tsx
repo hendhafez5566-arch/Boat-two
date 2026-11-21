@@ -4,10 +4,10 @@ import { useLocale } from '../../../../components/product/locale';
 import { useData } from '../../../../components/business/useData';
 import styles from '../../../../components/business/crm-product.module.css';
 
-type Task = { id: string; title: string; contact_id: string; contact_name: string };
+type Task = { id: string; title: string; contact_id: string; contact_name: string; due_at: string };
 type QueueData = { items: Task[]; total: number };
 function Queue({ period, title, owner }: { period: string; title: string; owner: string }) {
-  const { t } = useLocale();
+  const { t, language } = useLocale();
   const scope = new URLSearchParams({ period, status: 'open', ownerId: owner });
   const tasks = useData<QueueData>(
     owner
@@ -16,8 +16,11 @@ function Queue({ period, title, owner }: { period: string; title: string; owner:
     { items: [], total: 0 },
   );
   return (
-    <section className={styles.group} aria-label={title}>
-      <h2>{title}</h2>
+    <section className={`${styles.group} ${styles.queue}`} aria-label={title}>
+      <h2>
+        {title}
+        {!tasks.loading && !tasks.error && <span>{tasks.data.total}</span>}
+      </h2>
       {tasks.error && (
         <p className="notice error" role="alert">
           {tasks.error}
@@ -34,7 +37,15 @@ function Queue({ period, title, owner }: { period: string; title: string; owner:
       {tasks.data.items.map((task) => (
         <Link key={task.id} href={'/dashboard/crm?contact=' + task.contact_id + '&section=tasks'}>
           <strong>{task.title}</strong>
-          <span>{task.contact_name}</span>
+          <span>
+            {task.contact_name}
+            <time dateTime={task.due_at}>
+              {new Intl.DateTimeFormat(language === 'ar' ? 'ar-EG' : 'en', {
+                dateStyle: 'short',
+                timeStyle: 'short',
+              }).format(new Date(task.due_at))}
+            </time>
+          </span>
         </Link>
       ))}
       <Link href={'/dashboard/crm/tasks?' + new URLSearchParams({ period, ownerId: 'me' })}>
@@ -63,13 +74,13 @@ export default function TodayPage() {
       )}
       <div className={styles.columns}>
         <Queue
-          period="today"
-          title={t('المستحقة اليوم', 'Due today')}
+          period="overdue"
+          title={t('المتأخرة', 'Overdue')}
           owner={member.data.currentUserId}
         />
         <Queue
-          period="overdue"
-          title={t('المتأخرة', 'Overdue')}
+          period="today"
+          title={t('المستحقة اليوم', 'Due today')}
           owner={member.data.currentUserId}
         />
         <Queue

@@ -271,11 +271,34 @@ try {
         .click();
       await dialog.waitFor({ state: 'hidden' });
       assert.equal((await api('/crm/contacts?q=Created', token)).items.length, 1);
-      if (!before)
-        await page
-          .getByRole('region', { name: profileTitle })
+      if (!before) {
+        const created = page.getByRole('region', { name: profileTitle });
+        await created
           .getByRole('heading', { name: 'Created through new design', exact: true })
           .waitFor();
+        const id = new URL(page.url()).searchParams.get('contact');
+        await created
+          .getByRole('button', { name: t('أرشفة العميل', 'Archive customer'), exact: true })
+          .click();
+        await created
+          .getByRole('button', { name: t('استعادة العميل', 'Restore customer'), exact: true })
+          .waitFor();
+        assert.ok((await api('/crm/contacts/' + id, token)).archived_at);
+        await created
+          .getByRole('button', { name: t('العودة للعملاء', 'Back to customers'), exact: true })
+          .click();
+        await page.getByRole('button', { name: t('الأرشيف', 'Archived'), exact: true }).click();
+        await page
+          .getByRole('button', { name: openProfile + 'Created through new design', exact: true })
+          .click();
+        await created
+          .getByRole('button', { name: t('استعادة العميل', 'Restore customer'), exact: true })
+          .click();
+        await created
+          .getByRole('button', { name: t('أرشفة العميل', 'Archive customer'), exact: true })
+          .waitFor();
+        assert.equal((await api('/crm/contacts/' + id, token)).archived_at, null);
+      }
       if (!before) {
         await page.goto(web + '/dashboard/crm?contact=' + conversation.contact_id);
         await page

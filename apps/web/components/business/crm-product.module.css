@@ -167,3 +167,24 @@
   font-weight: 650;
   padding: 0.7rem 0.25rem;
 }
+.queue h2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.queue h2 span {
+  background: #e1f2ed;
+  border-radius: 8px;
+  padding-inline: 0.5rem;
+  min-width: 1.6rem;
+  text-align: center;
+}
+.queue p {
+  margin: 0.5rem 1rem;
+  padding: 0.4rem 0;
+}
+.queue time {
+  display: block;
+  font-size: 0.82rem;
+  color: #496460;
+}
