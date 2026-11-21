@@ -7,7 +7,6 @@ import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 import { Button } from '../product/ProductUI';
 import { NavIcon } from '../product/NavIcon';
-import { CrmNav } from './CrmNav';
 import { useData } from './useData';
 import { noticeLabel } from './SalesNotifications';
 import { SalesScoringSignals } from './SalesScoringSignals';
@@ -190,7 +189,6 @@ export function SmartSales() {
   if (members.data.role === 'agent')
     return (
       <main className={styles.page}>
-        <CrmNav />
         <h1>{t('مساحة عملي', 'My workspace')}</h1>
         <TeamProductivity />
         <p>
@@ -214,21 +212,20 @@ export function SmartSales() {
     );
   return (
     <main className={styles.page}>
-      <CrmNav />
       <header className={styles.hero}>
         <div>
           <span className={styles.eyebrow}>
             <NavIcon name="team" />
             {t('إدارة المبيعات', 'Sales operations')}
           </span>
-          <h1>{t('الفريق المناسب، في الوقت المناسب', 'The right team, at the right time')}</h1>
-          <p>
-            {t(
-              'وزّع العملاء واضبط التنبيهات والأتمتة من مساحة واحدة.',
-              'Manage lead assignment, notifications and automation in one workspace.',
-            )}
-          </p>
+          <h1>{t('التوزيع والإسناد', 'Assignment')}</h1>
           <div className={css.row}>
+            <a className="btn" href="#assignment-queue">
+              {t('بانتظار التوزيع', 'Assignment queue')}
+            </a>
+            <a className="btn" href="#assignment-history">
+              {t('سجل الإسناد', 'Assignment history')}
+            </a>
             <Link className="btn" href="/dashboard/team">
               {t('الفريق والتوفر', 'Team and availability')}
             </Link>
@@ -761,7 +758,7 @@ export function SmartSales() {
       )}
       <CrmAutomation />
       <SalesScoringSignals />
-      <section className={styles.card}>
+      <section id="assignment-queue" className={styles.card}>
         <h2>
           {t('محادثات تنتظر التوزيع', 'Conversations waiting for assignment')} · {queue.data.total}
         </h2>
@@ -820,7 +817,7 @@ export function SmartSales() {
         )}
       </section>
       <TeamProductivity />
-      <section className={styles.card}>
+      <section id="assignment-history" className={styles.card}>
         <h2>{t('آخر تغييرات المسؤول', 'Recent assignment changes')}</h2>
         {history.error && <p role="alert">{history.error}</p>}
         {!history.data.length && (

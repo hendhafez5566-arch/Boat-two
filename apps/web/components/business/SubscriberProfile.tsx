@@ -83,10 +83,12 @@ const tabs = [
 
 export default function SubscriberProfile({
   contactId,
+  initialTab = 'overview',
   canManage,
   onChanged,
 }: {
   contactId: string;
+  initialTab?: string;
   canManage: boolean;
   onChanged: () => void;
 }) {
@@ -107,7 +109,7 @@ export default function SubscriberProfile({
   );
   const [quickCreate, setQuickCreate] = useState('');
   const [overviewEditing, setOverviewEditing] = useState(false);
-  const [tab, setTab] = useState('overview'),
+  const [tab, setTab] = useState(initialTab),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
@@ -239,7 +241,19 @@ export default function SubscriberProfile({
         <span className={styles.avatar}>{contact?.name?.slice(0, 2) || '?'}</span>
         <div>
           <h2>{contact?.name || t('ملف العميل', 'Customer profile')}</h2>
-          <p dir="ltr">{contact?.phone || contact?.email || '—'}</p>
+          <div>
+            {contact?.phone && (
+              <a href={'tel:' + contact.phone}>
+                <bdi>{contact.phone}</bdi>
+              </a>
+            )}
+            {contact?.phone && contact?.email && <span aria-hidden="true"> · </span>}
+            {contact?.email && (
+              <a href={'mailto:' + contact.email}>
+                <bdi>{contact.email}</bdi>
+              </a>
+            )}
+          </div>
         </div>
       </header>
       {data.loading && <p role="status">{t('جارٍ تحميل الملف…', 'Loading profile…')}</p>}
@@ -610,8 +624,8 @@ export default function SubscriberProfile({
                     }
                   >
                     {contact.archived_at
-                      ? t('استعادة المشترك', 'Restore subscriber')
-                      : t('أرشفة المشترك', 'Archive subscriber')}
+                      ? t('استعادة العميل', 'Restore customer')
+                      : t('أرشفة العميل', 'Archive customer')}
                   </button>
                 )}
               </>

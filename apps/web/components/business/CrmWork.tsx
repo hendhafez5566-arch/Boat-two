@@ -7,7 +7,6 @@ import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 import { Button, Dialog } from '../product/ProductUI';
 import { useData } from './useData';
-import { CrmNav } from './CrmNav';
 import { NavIcon } from '../product/NavIcon';
 import styles from './crm-workspace.module.css';
 import design from './crm-design.module.css';
@@ -107,6 +106,10 @@ export function CrmWork({
       total: 0,
     },
   );
+  const currentReload = useRef(data.reload);
+  useEffect(() => {
+    currentReload.current = data.reload;
+  }, [data.reload]);
   const stages = selectedPipeline?.stages ?? [];
   const activeStage = stages.includes(mobileStage)
     ? mobileStage
@@ -119,7 +122,7 @@ export function CrmWork({
     setNotice('');
     try {
       await action();
-      await data.reload();
+      await currentReload.current();
       onChanged?.();
       setNotice(t('تم الحفظ', 'Saved'));
     } catch (e) {
@@ -343,7 +346,6 @@ export function CrmWork({
   );
   return (
     <section className={`${compact ? '' : styles.page} ${design.workspace}`}>
-      {!compact && <CrmNav />}
       <header className={`${styles.heading} ${design.heading}`}>
         <div>
           <h1>

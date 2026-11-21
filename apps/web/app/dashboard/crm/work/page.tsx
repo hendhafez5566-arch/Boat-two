@@ -1,5 +1,4 @@
 'use client';
-import { CrmNav } from '../../../../components/business/CrmNav';
 import { statusLabel } from '../../../../components/product/status';
 import { useState } from 'react';
 import { api } from '../../../../lib/api';
@@ -66,7 +65,6 @@ export default function WorkPage() {
   }
   return (
     <main className="stack">
-      <CrmNav />
       <div className="page-heading">
         <h1>{t('المبيعات والمتابعات', 'Sales and follow-ups')}</h1>
       </div>

@@ -1,0 +1,169 @@
+.shell {
+  display: grid;
+  gap: 1rem;
+  max-width: 94rem;
+  margin-inline: auto;
+  min-width: 0;
+}
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding: 0.4rem;
+  background: white;
+  border: 1px solid #dce8e4;
+  border-radius: 12px;
+  align-items: center;
+}
+.nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.45rem 0.8rem;
+  border-radius: 8px;
+  color: #294841;
+  font-weight: 600;
+}
+.nav a[aria-current='page'] {
+  background: #e1f2ed;
+  color: #105850;
+}
+.page {
+  display: grid;
+  gap: 1rem;
+}
+.page h1,
+.page h2 {
+  margin: 0;
+}
+.group {
+  border: 1px solid #dce8e4;
+  border-radius: 14px;
+  background: white;
+  overflow: hidden;
+}
+.group h2 {
+  padding: 1rem;
+  border-block-end: 1px solid #e4eeeb;
+  font-size: 1rem;
+}
+.group a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  min-height: 48px;
+  border-block-end: 1px solid #e4eeeb;
+}
+.group a:last-child {
+  border: 0;
+}
+.group a:hover {
+  background: #f2f8f6;
+}
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+.record {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding-block-end: 1rem;
+}
+.record > header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: white;
+  padding: 0.5rem;
+  border-radius: 10px;
+}
+.list[hidden] {
+  display: none;
+}
+@media (max-width: 740px), (pointer: coarse) {
+  .record {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: block;
+    overflow: auto;
+    background: #f2f8f6;
+    padding: 0.6rem;
+  }
+  .nav a {
+    padding-inline: 0.55rem;
+  }
+}
+.group > summary {
+  padding: 1rem;
+  cursor: pointer;
+  font-weight: 650;
+}
+.group a strong,
+.group a span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.editorDialog[open] {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 1.25rem);
+  overflow: hidden;
+}
+.editorDialog > :global(.dialog-body) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  max-height: none;
+  padding: 1rem;
+}
+.editor {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 0.55rem;
+}
+.editorBody {
+  overflow: auto;
+  min-height: 0;
+  padding: 0.25rem;
+}
+.editorActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  border-block-start: 1px solid #dce8e4;
+  padding-block-start: 0.6rem;
+}
+.editorActions button {
+  min-height: 44px;
+}
+.formFields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 0.65rem;
+}
+.formFields label {
+  display: grid;
+  gap: 0.35rem;
+}
+.formFields input,
+.formFields select {
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+}
+.formGroup {
+  border-block-start: 1px solid #dce8e4;
+}
+.formGroup summary {
+  cursor: pointer;
+  font-weight: 650;
+  padding: 0.7rem 0.25rem;
+}

@@ -5,7 +5,6 @@ import { api } from '../../lib/api';
 import { NavIcon } from '../product/NavIcon';
 import { useLocale } from '../product/locale';
 import { useData } from './useData';
-import { CrmNav } from './CrmNav';
 import styles from './crm-workspace.module.css';
 import css from './sales.module.css';
 type Notice = {
@@ -200,7 +199,6 @@ export function SalesNotifications({ compact = false }: { compact?: boolean }) {
     );
   return (
     <main className={styles.page}>
-      <CrmNav />
       <div className={styles.heading}>
         <h1>{t('تنبيهاتك ومتابعاتك', 'Your notifications & follow-ups')}</h1>
         <p>

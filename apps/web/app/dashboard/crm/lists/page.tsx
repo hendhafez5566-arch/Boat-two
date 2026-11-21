@@ -1,6 +1,5 @@
 'use client';
 
-import { CrmNav } from '../../../../components/business/CrmNav';
 import { FormEvent, useRef, useState } from 'react';
 import { api } from '../../../../lib/api';
 import { useData } from '../../../../components/business/useData';
@@ -109,7 +108,6 @@ export default function ContactLists() {
 
   return (
     <main className={`stack ${styles.page}`}>
-      <CrmNav />
       <header className="page-heading">
         <div>
           <h1>{t('قوائم العملاء', 'Customer lists')}</h1>

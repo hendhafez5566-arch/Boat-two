@@ -3,7 +3,6 @@ import { DisclosureSummary } from '../product/DisclosureSummary';
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { CrmNav } from './CrmNav';
 import { useData } from './useData';
 import { download, exportCsv } from './csv';
 import { useLocale } from '../product/locale';
@@ -81,14 +80,14 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
   const contactLink = (filter: string) =>
     '/dashboard/crm?' +
     new URLSearchParams({ preset: filter, ...(r?.ownerId ? { ownerId: r.ownerId } : {}) });
-  const workLink = (kind: string, status = 'open', period = '') =>
+  const workLink = (kind: string, status = 'open', period = '', ownerId = r?.ownerId) =>
     '/dashboard/crm/' +
     kind +
     '?' +
     new URLSearchParams({
       status,
       ...(kind === 'pipeline' ? { view: 'table', allPipelines: 'true' } : {}),
-      ...(r?.ownerId ? { ownerId: r.ownerId } : {}),
+      ...(ownerId ? { ownerId } : {}),
       ...(period ? { period } : {}),
       ...(!period && r ? { updatedFrom: r.startAt, updatedTo: r.endAt } : {}),
     });
@@ -234,7 +233,6 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
   }
   return (
     <main className={styles.page}>
-      <CrmNav />
       <header className={styles.hero}>
         <div>
           <h1>
@@ -528,13 +526,36 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
                               {e.full_name}
                             </Link>
                           </td>
-                          <td>{e.completed}</td>
                           <td>
-                            <span className={styles.badge} data-tone={e.overdue ? 'red' : 'green'}>
-                              {e.overdue}
-                            </span>
+                            <Link
+                              href={workLink('tasks', 'done', '', e.user_id)}
+                              aria-label={
+                                t('متابعات مكتملة', 'Completed follow-ups') + ': ' + e.full_name
+                              }
+                            >
+                              {e.completed}
+                            </Link>
                           </td>
-                          <td>{e.won}</td>
+                          <td>
+                            <Link
+                              href={workLink('tasks', 'open', 'overdue', e.user_id)}
+                              aria-label={
+                                t('المتابعات المتأخرة', 'Overdue follow-ups') + ': ' + e.full_name
+                              }
+                              className={styles.badge}
+                              data-tone={e.overdue ? 'red' : 'green'}
+                            >
+                              {e.overdue}
+                            </Link>
+                          </td>
+                          <td>
+                            <Link
+                              href={workLink('pipeline', 'won', '', e.user_id)}
+                              aria-label={t('فرص ناجحة', 'Won opportunities') + ': ' + e.full_name}
+                            >
+                              {e.won}
+                            </Link>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
