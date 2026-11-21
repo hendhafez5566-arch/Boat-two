@@ -820,7 +820,12 @@ function WorkForm({
           {!deals && taskContact && !opportunities.loading && !opportunities.error && (
             <label>
               {t('ربط بفرصة بيع (اختياري)', 'Link opportunity (optional)')}
-              <select name="dealId" defaultValue={row?.deal_id || ''} key={taskContact}>
+              <select
+                aria-label={t('ربط بفرصة بيع (اختياري)', 'Link opportunity (optional)')}
+                name="dealId"
+                defaultValue={row?.deal_id || ''}
+                key={taskContact}
+              >
                 {row?.deal_id && !opportunities.data.items.some((d) => d.id === row.deal_id) && (
                   <option value={row.deal_id}>
                     {t('الفرصة المرتبطة حاليًا', 'Currently linked opportunity')}
@@ -933,7 +938,11 @@ function WorkForm({
             <>
               <label>
                 {t('الأولوية', 'Priority')}
-                <select name="priority" defaultValue={row?.priority || 'normal'}>
+                <select
+                  aria-label={t('الأولوية', 'Priority')}
+                  name="priority"
+                  defaultValue={row?.priority || 'normal'}
+                >
                   <option value="normal">{t('عادية', 'Normal')}</option>
                   <option value="high">{t('عالية', 'High')}</option>
                   <option value="low">{t('منخفضة', 'Low')}</option>
