@@ -58,3 +58,31 @@ The former stage form required composing a comma-delimited list and manually typ
 - Each matrix run created a follow-up, reopened its editor, linked it to the customer's opportunity, changed priority, and checked both persisted values. Each run created a pipeline by adding and reordering stages and checked the saved order. Archive/restore and the existing customer, task, pipeline, import dialog, list and saved view journeys also ran.
 - CRM API suites passed 60 and 69 checks. Follow-up linking tests include unlink, rejection of a deal belonging to another customer, and rejection of an agent editing a task outside their assignment. The continuation browser matrix uses owner and agent roles. Administrator browser results in the preceding report are from the reviewed baseline.
 - Visual checks inspected the follow-up and opportunity dialogs and pipeline settings on phone and desktop. Native Android keyboard behavior, production Preview login and advanced action-by-action acceptance remain unverified. No Railway deployment was made for this continuation.
+
+## Acceptance delta after `5c7894c`
+
+This table updates the continuation matrix above. API verification and browser verification are recorded separately. “Open” means this action has not met the release criterion.
+
+| Internal action | Implementation and evidence | Remaining acceptance |
+| --- | --- | --- |
+| Duplicate review | Moved from the filter panel to **Manage → Duplicates and merge**. Detected groups use the exact member records, including when phone formatting differs. Mobile comparison uses two record cards. | Browser fixture for a populated detected-match group and conflicting channel identities is open. |
+| Merge | Isolated API suite verified preview, denial for an agent, permitted merge, preservation of notes, and reassociation of opportunities. No live workspace data was used. | Conflict resolution and historical consent verification on the new screen are open. |
+| Import | Invalid rows are identified by original file line number, with reasons and disabled submission. A valid upload completed through the isolated background worker. | XLSX worksheet selection, mixed duplicate conflict handling, and retry from the redesigned screen are open. |
+| Contact fields | Text, number, date and boolean are exercised by the updated browser scenario; zero and false are checked as persisted values. | Editing and clearing each type in every entry point are open. |
+| Contact export and bulk | CSV entry point remains available, with isolated browser download checked. | Bulk change/undo, all export fields, retention and bounded jobs from the UI are open. |
+| Contacts, lists, sequences, consent and owner | Entry points from the prior continuation are retained. | Individual membership, enrollment, consent and ownership journeys remain open. |
+| Linked stage migration | API rejects removal of a used stage without a replacement and leaves its deals intact. With a replacement, all rows were matched by ID and checked: only the intended stage and update time changed, with the new pipeline stages reflected. | Replacement and rejection journeys through the pipeline editor are open. |
+| Deal outcome and details | Isolated API covered loss reason, reopen and win, amount, currency, owner, expected date. Prior stage-history regression remains in the same suite. | Independent operator and every editor variant are open. |
+| Reports | Currency-specific report rows carry the currency filter to the deals list, where the filter can be cleared. API checks compare both counts and monetary totals per currency/status against filtered records across the report's date window. | Full date/filter combinations, custom periods in the UI, administrator browser permissions and CSV contents remain open. |
+| Automation | CRM creation supports tag and lifecycle together, sends a synthetic fixture for preview, and can persist the previewed rule disabled. API suite covers condition trees, edits and disabling under isolation. | Enabling/editing in the CRM UI, changing all action types, and negative preview scenarios in the browser remain open. |
+| Scoring | Weight inputs and the interest label are separate form groups. | Administrator save/reload journey and interpretation by a new manager are open. |
+| Assignment | Eligible staff are grouped separately with their count. The browser checks the saved-policy dry-run output. The API suite checks isolation and routing. | Browser testing of saving and activating policy, exercising multiple staff, and conflict handling is open. |
+| Notifications | Read actions have an in-flight lock, an explicit mark-all control, and disabled empty state. API notification checks cover per-user privacy. | Browser read/handled journeys with populated data under each role are open. |
+
+Authenticated browser scenarios use isolated synthetic sessions. A new independent employee and manager were not available for first-use testing. A physical Android device and the Android input method were not available. The branch remains unreleased on Railway while acceptance items are open.
+
+### Verification for this acceptance delta
+
+- API compilation and the final Next.js build passed. The isolated API suites passed 90 and 69 checks.
+- The browser regression passed all 16 Arabic/English viewport combinations (320, 360, 390, 430, 768, 1366, 844 landscape and 980 touch emulation) on the functional snapshot. The final control-size change was also exercised at 390 and 1366 in both languages.
+- The added journeys check actual import processing after blocking an invalid row, persistence of all four custom field types, the duplicate-review empty state and pair preview, report CSV download and filtered drill-down, and two-condition synthetic automation preview through disabled save. The assignment dry run does not assign customers. These checks do not establish that an untrained user can find the controls independently.
