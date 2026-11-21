@@ -100,13 +100,13 @@ try {
     await record.getByText('More details and settings', { exact: true }).click();
     await record.getByRole('button', { name: 'Marketing Consent', exact: true }).click();
     await record.getByLabel('Account', { exact: true }).selectOption(channelId);
-    await record.getByLabel('Status', { exact: true }).selectOption('opted_in');
+    await record.locator('select[name=status]').selectOption('opted_in');
     await record.getByLabel('Consent evidence', { exact: true }).fill('Synthetic explicit consent');
     await record.getByRole('button', { name: 'Record Consent', exact: true }).click();
     await record.getByText('Synthetic explicit consent', { exact: true }).waitFor();
     await record.getByRole('button', { name: 'Overview', exact: true }).click();
     await record.getByRole('button', { name: 'Start conversation', exact: true }).click();
-    await record.getByLabel('WhatsApp channel and template', { exact: true }).selectOption(channelId + ':qa_first_contact:en');
+    await record.getByRole('combobox', { name: 'WhatsApp channel and template' }).selectOption(channelId + ':qa_first_contact:en');
     page.once('dialog', (dialog) => dialog.accept());
     await record.getByRole('button', { name: 'Send template', exact: true }).click();
     await record.getByText('First message queued.', { exact: true }).waitFor();
