@@ -65,9 +65,10 @@ export class CrmController {
       async (c) =>
         (
           await c.query(
-            `SELECT kind,value,array_agg(id ORDER BY created_at,id) AS ids,count(*)::int AS count FROM (
- SELECT id,created_at,'email' AS kind,lower(trim(email)) AS value FROM contacts WHERE email IS NOT NULL AND merged_into_id IS NULL
- UNION ALL SELECT id,created_at,'phone',normalize_contact_phone(phone) FROM contacts WHERE phone IS NOT NULL AND merged_into_id IS NULL
+            `SELECT kind,value,array_agg(id ORDER BY created_at,id) AS ids,count(*)::int AS count,
+ (array_agg(jsonb_build_object('id',id,'name',name,'email',email) ORDER BY created_at,id))[1:100] AS members FROM (
+ SELECT id,created_at,name,email,'email' AS kind,lower(trim(email)) AS value FROM contacts WHERE email IS NOT NULL AND merged_into_id IS NULL
+ UNION ALL SELECT id,created_at,name,email,'phone',normalize_contact_phone(phone) FROM contacts WHERE phone IS NOT NULL AND merged_into_id IS NULL
  ) candidates WHERE value IS NOT NULL AND value<>'' GROUP BY kind,value HAVING count(*)>1 ORDER BY count(*) DESC LIMIT 100`,
           )
         ).rows,

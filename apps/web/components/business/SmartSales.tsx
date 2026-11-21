@@ -319,30 +319,36 @@ export function SmartSales() {
               'Unavailable team members are excluded. Assignment sends no messages.',
             )}
           </p>
-          <div className={css.employees}>
-            {members.data.members.map((m) => (
-              <div key={m.user_id} className={css.member}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={draft.assignment.memberIds.includes(m.user_id)}
-                    onChange={(e) =>
-                      setDraft({
-                        ...draft,
-                        assignment: {
-                          ...draft.assignment,
-                          memberIds: e.target.checked
-                            ? [...draft.assignment.memberIds, m.user_id]
-                            : draft.assignment.memberIds.filter((id) => id !== m.user_id),
-                        },
-                      })
-                    }
-                  />
-                  {m.full_name}
-                </label>
-              </div>
-            ))}
-          </div>
+          <details>
+            <summary>
+              {t('الموظفون المؤهلون للتوزيع', 'Eligible employees')} ·{' '}
+              {draft.assignment.memberIds.length}
+            </summary>
+            <div className={css.employees}>
+              {members.data.members.map((m) => (
+                <div key={m.user_id} className={css.member}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={draft.assignment.memberIds.includes(m.user_id)}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          assignment: {
+                            ...draft.assignment,
+                            memberIds: e.target.checked
+                              ? [...draft.assignment.memberIds, m.user_id]
+                              : draft.assignment.memberIds.filter((id) => id !== m.user_id),
+                          },
+                        })
+                      }
+                    />
+                    {m.full_name}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </details>
           {draft.assignment.method === 'rules' && (
             <div className={styles.card}>
               <h3>

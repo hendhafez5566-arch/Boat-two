@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 import { useData } from './useData';
+import { statusLabel } from '../product/status';
+import product from './crm-product.module.css';
 type Profile = {
   id: string;
   name: string;
@@ -15,6 +17,7 @@ type Profile = {
   tags: string[];
   attributes: Record<string, unknown>;
 };
+type Candidate = { id: string; name: string; email: string | null };
 type Preview = {
   target: Profile;
   source: Profile;
@@ -38,10 +41,16 @@ export function ContactLifecycle({
     [preview, setPreview] = useState<Preview | null>(null),
     [error, setError] = useState(''),
     [loading, setLoading] = useState(false);
-  const contacts = useData<{ items: { id: string; name: string; email: string | null }[] }>(
+  const [match, setMatch] = useState<string | null>(null);
+  const duplicates = useData<
+    { kind: string; value: string; count: number; members?: Candidate[] }[]
+  >('/crm/contacts/duplicates', []);
+  const contacts = useData<{ items: Candidate[] }>(
     '/crm/contacts?archived=all&limit=100&q=' + encodeURIComponent(q),
     { items: [] },
   );
+  const matched = duplicates.data.find((group) => group.kind + ':' + group.value === match);
+  const candidates = matched?.members ?? contacts.data.items;
   return (
     <section className="card stack">
       <h2>{t('معاينة ودمج الملفات المكررة', 'Preview and merge duplicate profiles')}</h2>
@@ -51,9 +60,41 @@ export function ContactLifecycle({
           'Original records and campaign ledgers are retained. Target profile values win and opt-out wins consent conflicts.',
         )}
       </p>
+      <details>
+        <DisclosureSummary>{t('التطابقات المكتشفة', 'Detected matches')}</DisclosureSummary>
+        {duplicates.error && <p role="alert">{duplicates.error}</p>}
+        {!duplicates.loading && !duplicates.error && !duplicates.data.length && (
+          <p>{t('لا توجد تطابقات', 'No matches found')}</p>
+        )}
+        <div className="form-actions">
+          {duplicates.data.map((group) => (
+            <button
+              type="button"
+              className="btn"
+              key={group.kind + ':' + group.value}
+              disabled={loading || busy}
+              onClick={() => {
+                setMatch(group.kind + ':' + group.value);
+                setQ(group.value);
+                setTarget('');
+                setSource('');
+                setPreview(null);
+              }}
+            >
+              <bdi>{group.value}</bdi> · {group.count}
+            </button>
+          ))}
+        </div>
+      </details>
       <label className="field">
         {t('ابحث بالاسم أو الهاتف أو البريد', 'Search by name, phone or email')}
-        <input value={q} onChange={(e) => setQ(e.target.value)} />
+        <input
+          value={q}
+          onChange={(e) => {
+            setMatch(null);
+            setQ(e.target.value);
+          }}
+        />
       </label>
       <div className="form-grid">
         {[
@@ -63,6 +104,7 @@ export function ContactLifecycle({
           <label className="field" key={key}>
             {label}
             <select
+              disabled={loading || busy}
               value={key === 'target' ? target : source}
               onChange={(e) => {
                 if (key === 'target') setTarget(e.target.value);
@@ -71,9 +113,9 @@ export function ContactLifecycle({
               }}
             >
               <option value="">{t('اختر ملفًا', 'Choose profile')}</option>
-              {contacts.data.items.map((contact) => (
+              {candidates.map((contact) => (
                 <option key={contact.id} value={contact.id}>
-                  {contact.name} · {contact.email || contact.id}
+                  {contact.name} · {contact.email || '—'}
                 </option>
               ))}
             </select>
@@ -84,6 +126,7 @@ export function ContactLifecycle({
         <DisclosureSummary>{t('اختيار بالمعرّف', 'Select by ID')}</DisclosureSummary>
         <input
           aria-label={t('معرّف الأساسي', 'Target ID')}
+          disabled={loading || busy}
           value={target}
           onChange={(e) => {
             setTarget(e.target.value);
@@ -92,6 +135,7 @@ export function ContactLifecycle({
         />
         <input
           aria-label={t('معرّف المكرر', 'Source ID')}
+          disabled={loading || busy}
           value={source}
           onChange={(e) => {
             setSource(e.target.value);
@@ -123,35 +167,48 @@ export function ContactLifecycle({
       {(error || contacts.error) && <p className="notice error">{error || contacts.error}</p>}
       {preview && (
         <>
-          <div className="table-wrap">
-            <table className="product-table">
-              <thead>
-                <tr>
-                  <th>{t('الحقل', 'Field')}</th>
-                  <th>{t('الأساسي', 'Target')}</th>
-                  <th>{t('المكرر', 'Duplicate')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(['name', 'email', 'phone', 'lifecycle', 'tags', 'attributes'] as const).map(
-                  (key) => (
-                    <tr key={key}>
-                      <td>{key}</td>
-                      <td>
-                        {typeof preview.target[key] === 'object'
-                          ? JSON.stringify(preview.target[key])
-                          : preview.target[key] || '—'}
-                      </td>
-                      <td>
-                        {typeof preview.source[key] === 'object'
-                          ? JSON.stringify(preview.source[key])
-                          : preview.source[key] || '—'}
-                      </td>
-                    </tr>
-                  ),
+          <div className={product.columns}>
+            {(
+              [
+                [preview.target, t('الملف الأساسي', 'Target profile')],
+                [preview.source, t('الملف المكرر', 'Duplicate profile')],
+              ] as const
+            ).map(([record, title]) => (
+              <section key={record.id} className={product.group}>
+                <h2>{title}</h2>
+                <div className={product.profileTools}>
+                  <dl>
+                    <dt>{t('الاسم', 'Name')}</dt>
+                    <dd>{record.name}</dd>
+                    <dt>{t('البريد الإلكتروني', 'Email')}</dt>
+                    <dd>
+                      <bdi>{record.email || '—'}</bdi>
+                    </dd>
+                    <dt>{t('الهاتف', 'Phone')}</dt>
+                    <dd>
+                      <bdi>{record.phone || '—'}</bdi>
+                    </dd>
+                    <dt>{t('الحالة', 'Lifecycle')}</dt>
+                    <dd>{statusLabel(record.lifecycle, t)}</dd>
+                    <dt>{t('الوسوم', 'Labels')}</dt>
+                    <dd>{record.tags.join(' · ') || '—'}</dd>
+                  </dl>
+                </div>
+                {!!Object.keys(record.attributes).length && (
+                  <details>
+                    <summary>{t('البيانات الإضافية', 'Additional data')}</summary>
+                    <dl>
+                      {Object.entries(record.attributes).map(([key, value]) => (
+                        <div key={key}>
+                          <dt>{key}</dt>
+                          <dd>{value == null ? '—' : String(value)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </details>
                 )}
-              </tbody>
-            </table>
+              </section>
+            ))}
           </div>
           <div className="flex flex-wrap gap-2">
             {Object.entries(preview.counts).map(([name, count]) => (
@@ -230,6 +287,8 @@ export function ContactLifecycle({
                 });
                 setPreview(null);
                 setSource('');
+                void duplicates.reload();
+                void contacts.reload();
               } catch {
                 /* Parent displays error. */
               }

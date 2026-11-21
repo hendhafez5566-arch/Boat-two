@@ -65,13 +65,14 @@ export function CrmImport() {
       setBusy(false);
     }
   }
-  const mapped = () =>
-    rows
-      .slice(1)
-      .filter((row) => row.some((x) => x.trim()))
-      .map((row) => {
-        const cell = (key: string) => row[Number(mapping[key])] || '';
-        return {
+  const mapped = rows
+    .slice(1)
+    .map((row, index) => {
+      const cell = (key: string) => row[Number(mapping[key])] || '';
+      return {
+        rowNumber: index + 2,
+        blank: row.every((value) => !value.trim()),
+        contact: {
           name: cell('name').trim(),
           email: cell('email').trim() || null,
           phone: cell('phone').trim() || null,
@@ -80,16 +81,24 @@ export function CrmImport() {
             .map((x) => x.trim())
             .filter(Boolean),
           attributes: { company: cell('company').trim(), source: cell('source').trim() },
-        };
-      });
+        },
+      };
+    })
+    .filter((row) => !row.blank);
+  const invalidRows = mapped.filter(
+    ({ contact }) =>
+      !contact.name ||
+      (!contact.email && !contact.phone) ||
+      (contact.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email)),
+  );
   async function submit() {
     if (lock.current) return;
     lock.current = true;
     setBusy(true);
     setError('');
     try {
-      const contacts = mapped();
-      if (!contacts.length || contacts.some((c) => !c.name || (!c.email && !c.phone)))
+      const contacts = mapped.map(({ contact }) => contact);
+      if (!contacts.length || invalidRows.length)
         throw Error(
           t(
             'كل صف يحتاج اسمًا وبريدًا أو هاتفًا لمنع التكرار.',
@@ -217,12 +226,30 @@ export function CrmImport() {
               </tbody>
             </table>
           </div>
+          {invalidRows.length > 0 && (
+            <div className="notice error" role="alert">
+              <strong>
+                {t('صفوف تحتاج مراجعة قبل الاستيراد', 'Rows to review before import')} ·{' '}
+                {invalidRows.length}
+              </strong>
+              <ul>
+                {invalidRows.slice(0, 10).map(({ rowNumber, contact }) => (
+                  <li key={rowNumber}>
+                    {t('صف', 'Row')} {rowNumber}:{' '}
+                    {!contact.name
+                      ? t('الاسم مطلوب', 'Name required')
+                      : !contact.email && !contact.phone
+                        ? t('البريد أو الهاتف مطلوب', 'Email or phone required')
+                        : t('البريد غير صالح', 'Invalid email')}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <Button
             variant="primary"
             busy={busy}
-            disabled={
-              Number(mapping.name) < 0 || (Number(mapping.email) < 0 && Number(mapping.phone) < 0)
-            }
+            disabled={!mapped.length || invalidRows.length > 0}
             onClick={() => void submit()}
           >
             {t('تأكيد وبدء الاستيراد', 'Confirm and start import')}

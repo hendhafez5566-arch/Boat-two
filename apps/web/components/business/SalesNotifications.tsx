@@ -48,6 +48,8 @@ export function SalesNotifications({ compact = false }: { compact?: boolean }) {
     [page, setPage] = useState(1),
     [error, setError] = useState('');
   const ref = useRef<HTMLDivElement>(null);
+  const pending = useRef(false);
+  const [marking, setMarking] = useState(false);
   const data = useData<{ unread: number; items: Notice[] }>(
     '/crm/sales/notifications?tab=' + tab + '&page=' + page,
     { unread: 0, items: [] },
@@ -73,6 +75,9 @@ export function SalesNotifications({ compact = false }: { compact?: boolean }) {
     };
   }, [open]);
   async function mark(id?: string, handled = false) {
+    if (pending.current) return;
+    pending.current = true;
+    setMarking(true);
     try {
       await api('/crm/sales/notifications/' + (id || 'read-all'), {
         method: 'POST',
@@ -82,6 +87,9 @@ export function SalesNotifications({ compact = false }: { compact?: boolean }) {
       setError('');
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      pending.current = false;
+      setMarking(false);
     }
   }
   const panel = (
@@ -91,8 +99,8 @@ export function SalesNotifications({ compact = false }: { compact?: boolean }) {
           <NavIcon name="bell" />
           {t('مركز التنبيهات', 'Notifications')}
         </h2>
-        <button className="btn" onClick={() => void mark()}>
-          {t('قراءة الجميع', 'Read all')}
+        <button className="btn" disabled={marking || !data.data.unread} onClick={() => void mark()}>
+          {t('تحديد الكل كمقروء', 'Mark all as read')}
         </button>
       </div>
       <div className={css.row}>
@@ -144,12 +152,12 @@ export function SalesNotifications({ compact = false }: { compact?: boolean }) {
               <small>{new Date(n.created_at).toLocaleString()}</small>
               <div className={css.row}>
                 {!n.read_at && (
-                  <button className="btn" onClick={() => void mark(n.id)}>
+                  <button className="btn" disabled={marking} onClick={() => void mark(n.id)}>
                     {t('قراءة', 'Read')}
                   </button>
                 )}
                 {!n.handled_at && (
-                  <button className="btn" onClick={() => void mark(n.id, true)}>
+                  <button className="btn" disabled={marking} onClick={() => void mark(n.id, true)}>
                     {t('تم التعامل معها', 'Mark handled')}
                   </button>
                 )}

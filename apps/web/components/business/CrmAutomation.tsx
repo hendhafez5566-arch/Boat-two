@@ -1,4 +1,5 @@
 'use client';
+import { statusLabel } from '../product/status';
 import product from './crm-product.module.css';
 import { FormEvent, useState } from 'react';
 import Link from 'next/link';
@@ -35,6 +36,7 @@ export function CrmAutomation() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
+  const [customerStage, setCustomerStage] = useState('');
   const p = pipelines.data.find((x) => x.id === pipeline) || pipelines.data[0];
   const f = fields.data.find((x) => x.key === field) || fields.data[0];
   const action =
@@ -69,7 +71,11 @@ export function CrmAutomation() {
                             : value,
                     }
                   : { type, pipelineId: p?.id, stage: stage || p?.stages[0] };
-  const rule = { name, trigger, enabled, conditions: tag ? { tag } : {}, actions: [action] };
+  const conditions =
+    tag && customerStage
+      ? { allOf: [{ tag }, { lifecycle: customerStage }] }
+      : { ...(tag ? { tag } : {}), ...(customerStage ? { lifecycle: customerStage } : {}) };
+  const rule = { name, trigger, enabled, conditions, actions: [action] };
   const fingerprint = JSON.stringify(rule);
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -82,7 +88,11 @@ export function CrmAutomation() {
           method: 'POST',
           body: JSON.stringify({
             rule,
-            contact: { name: 'Synthetic preview', tags: tag ? [tag] : [] },
+            contact: {
+              name: 'Synthetic preview',
+              tags: tag ? [tag] : [],
+              ...(customerStage ? { lifecycle: customerStage } : {}),
+            },
           }),
         });
         setPreview(fingerprint);
@@ -115,6 +125,7 @@ export function CrmAutomation() {
   }
   function template(kind: string) {
     setPreview('');
+    setCustomerStage('');
     setType(kind === 'stage' ? 'task' : kind === 'interest' ? 'deal' : 'notify');
     setTrigger(
       kind === 'stage'
@@ -194,6 +205,20 @@ export function CrmAutomation() {
           <label>
             {t('بوجود وسم (اختياري)', 'With tag (optional)')}
             <input maxLength={50} value={tag} onChange={(e) => setTag(e.target.value)} />
+          </label>
+          <label>
+            {t('مرحلة العميل (اختياري)', 'Customer lifecycle (optional)')}
+            <select
+              aria-label={t('مرحلة العميل (اختياري)', 'Customer lifecycle (optional)')}
+              value={customerStage}
+              onChange={(event) => setCustomerStage(event.target.value)}
+            >
+              <option value="">{t('أي مرحلة', 'Any lifecycle')}</option>
+              <option value="lead">{t('عميل محتمل', 'Lead')}</option>
+              <option value="qualified">{t('مؤهل', 'Qualified')}</option>
+              <option value="customer">{t('عميل', 'Customer')}</option>
+              <option value="inactive">{t('غير نشط', 'Inactive')}</option>
+            </select>
           </label>
         </fieldset>
         <fieldset className={product.formFields}>
@@ -336,7 +361,11 @@ export function CrmAutomation() {
         <div className={css.summary}>
           {t('عندما: ', 'When: ')}
           {automationLabel(trigger, t)}
-          {tag ? ' · ' + t('الوسم: ', 'Tag: ') + tag : ''} → {automationLabel(type, t)}
+          {tag ? ' · ' + t('الوسم: ', 'Tag: ') + tag : ''}
+          {customerStage &&
+            ' · ' + t('مرحلة العميل', 'Customer lifecycle') + ': ' + statusLabel(customerStage, t)}
+          {' → '}
+          {automationLabel(type, t)}
           {title ? ' · ' + title : ''}
         </div>
         <label>

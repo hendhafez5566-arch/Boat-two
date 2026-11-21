@@ -67,6 +67,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
   const [tab, setTab] = useState(initialTab);
   const [headMenu, setHeadMenu] = useState<string | null>(null);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   useEffect(() => {
     if (!headMenu) return;
@@ -460,6 +461,17 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                       {t('استيراد وإدارة الملفات', 'Import and manage files')}
                     </button>
                   )}
+                  {canManage && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHeadMenu(null);
+                        setDuplicateOpen(true);
+                      }}
+                    >
+                      {t('ملفات مكررة ودمج', 'Duplicates and merge')}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
@@ -507,6 +519,15 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
               <CrmJobs />
             </>
           )}
+        </Dialog>
+        <Dialog
+          open={duplicateOpen}
+          onClose={() => {
+            if (!busy) setDuplicateOpen(false);
+          }}
+          title={t('ملفات مكررة ودمج', 'Duplicates and merge')}
+        >
+          {canManage && duplicateOpen && <ContactLifecycle act={act} busy={busy} />}
         </Dialog>
         {(error ||
           contacts.error ||
@@ -815,7 +836,6 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                   ))}
                 </div>
               </details>
-              {canManage && <ContactLifecycle act={act} busy={busy} />}
 
               {canManage && bulkIds.length > 0 && (
                 <form

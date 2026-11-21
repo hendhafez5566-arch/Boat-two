@@ -130,25 +130,31 @@ export function CrmScoring() {
             }
           }}
         >
-          <div className={styles.grid}>
-            {Object.entries(labels).map(([key, label]) => (
-              <label key={key}>
-                {label}
-                <input
-                  type="number"
-                  name={key}
-                  min="0"
-                  max="100"
-                  required
-                  defaultValue={data.data!.rules[key as keyof Rules]}
-                />
-              </label>
-            ))}
-          </div>
-          <label>
-            {t('وسم الاهتمام', 'Interest tag')}
-            <input name="interestTag" maxLength={50} defaultValue={data.data.rules.interestTag} />
-          </label>
+          <fieldset className={styles.form}>
+            <legend>{t('نقاط إشارات الاهتمام', 'Interest signal points')}</legend>
+            <div className={styles.grid}>
+              {Object.entries(labels).map(([key, label]) => (
+                <label key={key}>
+                  {label}
+                  <input
+                    type="number"
+                    name={key}
+                    min="0"
+                    max="100"
+                    required
+                    defaultValue={data.data!.rules[key as keyof Rules]}
+                  />
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset className={styles.form}>
+            <legend>{t('الوسم المستخدم في التقييم', 'Label used for scoring')}</legend>
+            <label>
+              {t('وسم الاهتمام', 'Interest tag')}
+              <input name="interestTag" maxLength={50} defaultValue={data.data.rules.interestTag} />
+            </label>
+          </fieldset>
           <button className="btn btn-primary" disabled={busy}>
             <NavIcon name="check" />
             {t('حفظ القواعد', 'Save rules')}
