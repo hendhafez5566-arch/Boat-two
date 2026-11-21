@@ -227,10 +227,26 @@ try {
           .getByRole('button', { name: t('تعديل البيانات', 'Edit details'), exact: true })
           .click();
         await dialog.locator('input[name=name]').fill('Mariam Saad');
-        await dialog
-          .getByRole('button', { name: t('حفظ التغييرات', 'Save Changes'), exact: true })
-          .click();
+        const saveChanges = dialog.getByRole('button', {
+          name: t('حفظ التغييرات', 'Save Changes'),
+          exact: true,
+        });
+        const profilePath = '**/crm/contacts/' + contacts[11].id + '/profile';
+        let attempts = 0;
+        await page.route(profilePath, async (route) => {
+          if (route.request().method() !== 'PATCH') return route.continue();
+          attempts++;
+          if (attempts === 1) return route.abort('internetdisconnected');
+          return route.continue();
+        });
+        await saveChanges.click();
+        await dialog.getByRole('alert').getByText(t('تعذّر الاتصال', 'Unable to connect'), { exact: false }).waitFor();
+        assert.equal(await dialog.locator('input[name=name]').inputValue(), 'Mariam Saad');
+        assert.equal((await api('/crm/contacts/' + contacts[11].id, token)).name, 'Mariam Adel');
+        await saveChanges.dblclick();
         await dialog.getByRole('heading', { name: 'Mariam Saad', exact: true }).waitFor();
+        await page.unroute(profilePath);
+        assert.equal(attempts, 2);
         assert.equal((await api('/crm/contacts/' + contacts[11].id, token)).name, 'Mariam Saad');
       }
       if (workflow) {
@@ -283,6 +299,20 @@ try {
         .getByRole('button', { name: t('إضافة عميل', 'Add customer'), exact: true })
         .click();
       dialog = page.getByRole('dialog', { name: t('إضافة عميل', 'Add contact'), exact: true });
+      if (!before) {
+        const name = dialog.getByLabel(t('اسم العميل', 'Customer name'), { exact: true });
+        await name.fill('Unsaved QA draft');
+        const cancel = dialog.getByRole('button', { name: t('إلغاء', 'Cancel'), exact: true });
+        await cancel.click();
+        const discard = page.getByRole('dialog', { name: t('تجاهل التغييرات؟', 'Discard changes?') });
+        await discard.getByRole('button', { name: t('متابعة التعديل', 'Keep editing') }).click();
+        assert.equal(await name.inputValue(), 'Unsaved QA draft');
+        await cancel.click();
+        await discard.getByRole('button', { name: t('تجاهل التغييرات', 'Discard changes'), exact: true }).click();
+        await dialog.waitFor({ state: 'hidden' });
+        assert.equal((await api('/crm/contacts?q=Unsaved%20QA%20draft', token)).total, 0);
+        await page.getByRole('button', { name: t('إضافة عميل', 'Add customer'), exact: true }).click();
+      }
       await dialog
         .getByLabel(t('اسم العميل', 'Customer name'), { exact: true })
         .fill('Created through new design');
@@ -312,9 +342,17 @@ try {
           .getByRole('heading', { name: 'Created through new design', exact: true })
           .waitFor();
         const id = new URL(page.url()).searchParams.get('contact');
-        await created
-          .getByRole('button', { name: t('أرشفة العميل', 'Archive customer'), exact: true })
-          .click();
+        await created.getByText(t('لا توجد محادثات.', 'No conversations.'), { exact: true }).waitFor();
+        assert.equal(await created.getByRole('link', { name: t('فتح المحادثة', 'Open conversation'), exact: true }).count(), 0);
+        const archive = created.getByRole('button', {
+          name: t('أرشفة العميل', 'Archive customer'),
+          exact: true,
+        });
+        page.once('dialog', (dialog) => dialog.dismiss());
+        await archive.click();
+        assert.equal((await api('/crm/contacts/' + id, token)).archived_at, null);
+        page.once('dialog', (dialog) => dialog.accept());
+        await archive.click();
         await created
           .getByRole('button', { name: t('استعادة العميل', 'Restore customer'), exact: true })
           .waitFor();
@@ -617,7 +655,17 @@ try {
         await page.getByRole('button', { name: t('إدارة', 'Manage'), exact: true }).click();
         const csv = page.waitForEvent('download');
         await page.getByRole('button', { name: t('تصدير CSV', 'Export CSV'), exact: true }).click();
-        assert.match((await csv).suggestedFilename(), /\.csv$/i);
+        const exportDialog = page.getByRole('dialog', {
+          name: t('حقول تصدير العملاء', 'Customer export fields'),
+        });
+        await exportDialog.getByLabel('QA number', { exact: true }).check();
+        await exportDialog.getByLabel('QA boolean', { exact: true }).check();
+        await exportDialog.getByRole('button', { name: t('تنزيل CSV', 'Download CSV') }).click();
+        const downloadedContacts = await csv;
+        assert.match(downloadedContacts.suggestedFilename(), /\.csv$/i);
+        const contactsCsv = readFileSync(await downloadedContacts.path(), 'utf8');
+        assert.match(contactsCsv, /"attribute:qa_boolean","attribute:qa_number"/);
+        assert.match(contactsCsv, /"Created through new design"[^\r\n]*,"false","0"/);
         await page.getByRole('button', { name: t('إدارة', 'Manage'), exact: true }).click();
         await page
           .getByRole('button', {
@@ -647,6 +695,7 @@ try {
           'exceljs',
         );
         const book = new Workbook();
+        book.addWorksheet('Empty');
         book.addWorksheet('Reject').addRows([
           ['Name', 'Email'],
           ['Wrong sheet', 'invalid'],
@@ -662,6 +711,10 @@ try {
           buffer: Buffer.from(await book.xlsx.writeBuffer()),
         });
         const worksheet = importDialog.locator('select').first();
+        assert.equal(await worksheet.inputValue(), 'Reject');
+        await worksheet.selectOption('Empty');
+        await importDialog.getByText(t('لا توجد أعمدة في هذه الورقة', 'This sheet has no columns'), { exact: false }).waitFor();
+        assert.equal(await start.count(), 0);
         await worksheet.selectOption('Import');
         await start.click();
         await importDialog
@@ -973,9 +1026,17 @@ try {
           .getByText(t('المعاينة الاصطناعية مطابقة', 'Synthetic preview matched'), { exact: false })
           .waitFor();
         await shot('automation-preview');
-        await page
-          .getByRole('button', { name: t('حفظ القاعدة', 'Save rule'), exact: true })
-          .click();
+        const saveRule = automation.getByRole('button', { name: t('حفظ القاعدة', 'Save rule'), exact: true });
+        const ruleTag = automation.getByLabel(t('بوجود وسم (اختياري)', 'With tag (optional)'), { exact: true });
+        await ruleTag.fill('another-tag');
+        await ruleTag.fill('reviewed');
+        assert.equal(await saveRule.isEnabled(), false);
+        await automation.getByRole('button', {
+          name: t('معاينة واختبار اصطناعي', 'Preview & synthetic test'),
+          exact: true,
+        }).click();
+        await page.getByText(t('المعاينة الاصطناعية مطابقة', 'Synthetic preview matched'), { exact: false }).waitFor();
+        await saveRule.click();
         await page.getByText(t('حُفظت القاعدة', 'Rule saved'), { exact: false }).waitFor();
         const saved = (await api('/automations', token)).find(
           (r) => r.name === 'Synthetic acceptance rule',

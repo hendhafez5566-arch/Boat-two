@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 const log = openSync('/tmp/boat-crm-v2-api.log', 'w');
 const server = spawn(process.execPath, ['scripts/qa-full-api.mjs'], {
   stdio: ['ignore', log, log],
-  env: { ...process.env, BOAT_CLOUD_REVIEW: 'true' },
+  env: { ...process.env, BOAT_CLOUD_REVIEW: 'true', BOAT_CRM_QA: 'true' },
 });
 let count = 0;
 const sessions = [];
@@ -386,6 +386,67 @@ try {
       ),
     );
     count += 4;
+    if (business === 'Travel') {
+      const adminInvite = await request('/team/invitations', token, {
+        email: randomUUID() + '@example.test',
+        role: 'admin',
+        sendEmail: false,
+      });
+      const admin = await request('/auth/accept-invitation', null, {
+        token: new URL(adminInvite.inviteUrl).searchParams.get('token'),
+        password: 'Synthetic-' + randomUUID(),
+        fullName: 'CRM concurrent-edit administrator',
+      });
+      const profilePath = '/crm/contacts/' + c.id + '/profile';
+      const snapshot = (await request(profilePath, admin.accessToken)).contact.updated_at;
+      await request(profilePath, token, { name: 'First saved edit', expectedUpdatedAt: snapshot }, 'PATCH');
+      await request(profilePath, admin.accessToken, {
+        name: 'Stale administrator edit',
+        expectedUpdatedAt: snapshot,
+      }, 'PATCH', 409);
+      assert.equal((await request(profilePath, token)).contact.name, 'First saved edit');
+      const archivePath = '/crm/contacts/' + c.id + '/archive';
+      await request(archivePath, agent.accessToken, { archived: true }, 'PATCH', 403);
+      await request(archivePath, admin.accessToken, { archived: true }, 'PATCH');
+      assert.ok((await request(profilePath, token)).contact.archived_at);
+      await request(archivePath, agent.accessToken, { archived: false }, 'PATCH', 403);
+      await request(archivePath, token, { archived: false }, 'PATCH');
+      assert.equal((await request(profilePath, token)).contact.archived_at, null);
+      count += 2;
+      const me = await request('/auth/me', token);
+      const tenantId = me.user.tenantId || me.user.tenant_id || me.tenant?.id || me.workspaces[0].tenant_id;
+      await request('/__qa/crm', null, { tenantId, op: 'seed' });
+      await request('/__qa/crm', null, {
+        tenantId,
+        op: 'work-volume',
+        pipelineId: p.id,
+        contactId: c.id,
+        staffId: staffUserId,
+      });
+      const customers = await request('/crm/contacts?q=Load%20customer&sort=name&limit=50&page=2', token);
+      assert.equal(customers.total, 3000);
+      assert.equal(customers.items.length, 50);
+      const tasks = await request('/crm/tasks?q=Follow-up%20volume&limit=50&page=5', agent.accessToken);
+      assert.equal(tasks.total, 212);
+      assert.equal(tasks.items.length, 12);
+      assert.ok(tasks.items.every((task, i, rows) => i === 0 || task.due_at >= rows[i - 1].due_at));
+      const scope = '/crm/deals?pipelineId=' + p.id + '&q=Kanban%20volume&limit=50&stageSummary=true';
+      const firstPage = await request(scope, token);
+      const lastPage = await request(scope + '&page=5', token);
+      const grouped = [
+        { stage: 'Proposal', currency: 'EGP', count: 106, value_cents: '10600' },
+        { stage: 'Proposal', currency: 'USD', count: 106, value_cents: '21200' },
+      ];
+      assert.equal(firstPage.total, 212);
+      assert.equal(firstPage.items.length, 50);
+      assert.equal(lastPage.items.length, 12);
+      assert.equal(new Set([...firstPage.items, ...lastPage.items].map((deal) => deal.id)).size, 62);
+      assert.deepEqual(firstPage.stageSummary, grouped);
+      assert.deepEqual(lastPage.stageSummary, grouped);
+      assert.deepEqual((await request(scope + '&currency=USD', token)).stageSummary, [grouped[1]]);
+      assert.deepEqual((await request(scope, agent.accessToken)).stageSummary, [grouped[0]]);
+      count += 4;
+    }
     for (const other of sessions.slice(0, -1))
       await request('/crm/workspace/score/' + c.id, other.accessToken, null, 'GET', 404);
     count++;
@@ -400,6 +461,7 @@ try {
         database: '101 real migrations on isolated PGlite with RLS; no owner database',
         tests: [
           'currency separation/no join inflation',
+          'Kanban totals across pages, currencies and agent scope',
           'score rules and configurable recalculation',
           'date and range rejection',
           'period cohort and date drilldown',

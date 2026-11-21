@@ -22,6 +22,26 @@ export function installCrmFixtures(app, local) {
             ),
           );
           res.json({ seeded: 3000 });
+        } else if (op === 'work-volume') {
+          const { pipelineId, staffId } = req.body;
+          await db.withTenant(tenantId, async (c) => {
+            await c.query(
+              `INSERT INTO crm_deals(tenant_id,contact_id,pipeline_id,title,stage,value_cents,currency,owner_id)
+               SELECT $1,$2,$3,'Kanban volume '||n,'Proposal',
+                 CASE WHEN n%2=0 THEN 100 ELSE 200 END,
+                 CASE WHEN n%2=0 THEN 'EGP' ELSE 'USD' END,
+                 CASE WHEN n%2=0 THEN $4::uuid ELSE NULL END
+               FROM generate_series(1,212) n`,
+              [tenantId, contactId, pipelineId, staffId],
+            );
+            await c.query(
+              `INSERT INTO crm_tasks(tenant_id,contact_id,title,due_at,assigned_to,priority)
+               SELECT $1,$2,'Follow-up volume '||n,'2030-05-04'::date+n,$3,'normal'
+               FROM generate_series(1,212) n`,
+              [tenantId, contactId, staffId],
+            );
+          });
+          res.json({ deals: 212, tasks: 212 });
         } else if (op === 'jobs') {
           for (let i = 0; i < 110; i++) {
             const jobs = await db.withTenant(
