@@ -57,7 +57,7 @@ try {
       name: 'Sales',
       stages: ['New', 'Qualified', 'Proposal'],
     });
-    await request('/crm/deals', token, {
+    const offer = await request('/crm/deals', token, {
       contactId: c.id,
       pipelineId: p.id,
       title: 'Offer EGP',
@@ -94,6 +94,15 @@ try {
       400,
     );
     count++;
+    const linked = await request('/crm/tasks/' + task.id, token, { dealId: offer.id }, 'PATCH');
+    assert.equal(linked.deal_id, offer.id);
+    await request('/crm/tasks/' + task.id, token, { dealId: randomUUID() }, 'PATCH', 400);
+    assert.equal(
+      (await request('/crm/tasks/' + task.id, token, { dealId: null }, 'PATCH')).deal_id,
+      null,
+    );
+    count += 3;
+
     await request(
       '/crm/tasks',
       token,
@@ -232,10 +241,17 @@ try {
     const channel = await request('/channels', token, { type: 'web', name: 'Isolated reply QA' });
     const visitor = await request('/widget/' + channel.external_id + '/session', null, {});
     const inbound = async () => {
-      const sent = await fetch('http://127.0.0.1:4000/widget/' + channel.external_id + '/messages?visitorId=' + visitor.visitorId, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-visitor-token': visitor.token },
-        body: JSON.stringify({ text: 'Synthetic reply filter QA', clientMsgId: randomUUID() }),
-      });
+      const sent = await fetch(
+        'http://127.0.0.1:4000/widget/' +
+          channel.external_id +
+          '/messages?visitorId=' +
+          visitor.visitorId,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-visitor-token': visitor.token },
+          body: JSON.stringify({ text: 'Synthetic reply filter QA', clientMsgId: randomUUID() }),
+        },
+      );
       assert.ok(sent.ok, await sent.text());
     };
     await inbound();
@@ -243,7 +259,9 @@ try {
     await request('/conversations/' + cv.id + '/takeover', token, {});
     assert.equal((await request('/conversations?needsReply=true', token)).items.length, 1);
     assert.equal((await request('/crm/workspace/analytics', token)).conversations.needs_reply, 1);
-    await request('/conversations/' + cv.id + '/messages', token, { text: 'Synthetic staff reply' });
+    await request('/conversations/' + cv.id + '/messages', token, {
+      text: 'Synthetic staff reply',
+    });
     assert.equal((await request('/conversations?needsReply=true', token)).items.length, 0);
     assert.equal((await request('/crm/workspace/analytics', token)).conversations.needs_reply, 0);
     count++;

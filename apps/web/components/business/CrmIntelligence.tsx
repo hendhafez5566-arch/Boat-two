@@ -1,4 +1,5 @@
 'use client';
+import product from './crm-product.module.css';
 import { DisclosureSummary } from '../product/DisclosureSummary';
 
 import { useState } from 'react';
@@ -328,7 +329,13 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
             )}
             : {r.conversations.needs_reply}
           </Link>
-          <div className={styles.metrics}>
+          <nav className={product.sectionLinks} aria-label={t('أقسام التقرير', 'Report sections')}>
+            <a href="#crm-metrics">{t('المؤشرات', 'Metrics')}</a>
+            <a href="#crm-growth">{t('نمو العملاء والمبيعات', 'Customer growth and sales')}</a>
+            <a href="#crm-attention">{t('المتابعات والمصادر', 'Follow-ups and sources')}</a>
+            {report && <a href="#crm-team">{t('أداء الفريق', 'Team performance')}</a>}
+          </nav>
+          <div id="crm-metrics" className={styles.metrics}>
             {metrics.map((m) => (
               <Link href={m.href} className={styles.stat} key={m.icon + m.label} data-tone={m.tone}>
                 <span className={styles.statIcon}>
@@ -343,7 +350,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
               </Link>
             ))}
           </div>
-          <div className={styles.split}>
+          <div id="crm-growth" className={styles.split}>
             <section className={styles.panel}>
               <header className={styles.panelTitle}>
                 <h2>
@@ -431,7 +438,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
               )}
             </section>
           </div>
-          <div className={styles.split}>
+          <div id="crm-attention" className={styles.split}>
             <section className={styles.panel}>
               <h2>
                 <NavIcon name="userClock" />
@@ -503,7 +510,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
           </div>
           {report && (
             <>
-              <section className={styles.panel}>
+              <section id="crm-team" className={styles.panel}>
                 <h2>
                   <NavIcon name="team" />
                   {t('أداء الموظفين', 'Team performance')}

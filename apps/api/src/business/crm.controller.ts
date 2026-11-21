@@ -909,6 +909,7 @@ export class CrmController {
           dueAt: z.string().datetime().optional(),
           priority: z.enum(['low', 'normal', 'high']).optional(),
           assignedTo: z.string().uuid().nullable().optional(),
+          dealId: z.string().uuid().nullable().optional(),
           expectedUpdatedAt: z.string().datetime().optional(),
         })
         .refine((b) => Object.keys(b).some((key) => key !== 'expectedUpdatedAt')),
@@ -934,9 +935,16 @@ export class CrmController {
         !(await c.query('SELECT 1 FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.user_id=$1 AND u.disabled_at IS NULL FOR SHARE OF m,u', [b.assignedTo])).rowCount
       )
         throw new BadRequestException('Assignee must be an active workspace member');
+      if (b.dealId) {
+        const deal = await c.query(
+          'SELECT d.id FROM crm_deals d JOIN crm_tasks t ON t.contact_id=d.contact_id WHERE t.id=$1 AND d.id=$2 FOR SHARE OF d',
+          [id, b.dealId],
+        );
+        if (!deal.rowCount) throw new BadRequestException('Deal must belong to this customer');
+      }
       const row = (
         await c.query(
-          `UPDATE crm_tasks SET status=COALESCE($2,status),title=COALESCE($3,title),due_at=COALESCE($4,due_at),assigned_to=CASE WHEN $5 THEN $6::uuid ELSE assigned_to END,priority=COALESCE($8,priority),updated_at=now() WHERE id=$1 AND ($7::timestamptz IS NULL OR date_trunc('milliseconds',updated_at)=$7) RETURNING *`,
+          `UPDATE crm_tasks SET status=COALESCE($2,status),title=COALESCE($3,title),due_at=COALESCE($4,due_at),assigned_to=CASE WHEN $5 THEN $6::uuid ELSE assigned_to END,priority=COALESCE($8,priority),deal_id=CASE WHEN $9 THEN $10::uuid ELSE deal_id END,updated_at=now() WHERE id=$1 AND ($7::timestamptz IS NULL OR date_trunc('milliseconds',updated_at)=$7) RETURNING *`,
           [
             id,
             b.status ?? null,
@@ -946,6 +954,8 @@ export class CrmController {
             b.assignedTo ?? null,
             b.expectedUpdatedAt ?? null,
             b.priority ?? null,
+            b.dealId !== undefined,
+            b.dealId ?? null,
           ],
         )
       ).rows[0];

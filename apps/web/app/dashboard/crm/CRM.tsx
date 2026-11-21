@@ -1,4 +1,5 @@
 'use client';
+import { PipelineStages } from '../../../components/business/PipelineStages';
 import product from '../../../components/business/crm-product.module.css';
 import design from '../../../components/business/crm-design.module.css';
 import { DisclosureSummary } from '../../../components/product/DisclosureSummary';
@@ -1418,10 +1419,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                     onSubmit={async (event) => {
                       event.preventDefault();
                       const form = new FormData(event.currentTarget);
-                      const stages = String(form.get('stages'))
-                        .split(',')
-                        .map((s) => s.trim())
-                        .filter(Boolean);
+                      const stages = form.getAll('stage').map((value) => String(value).trim());
                       const replacements = Object.fromEntries(
                         pipeline.stages
                           .map((stage, index) => [
@@ -1445,23 +1443,10 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                       {t('الاسم', 'Name')}
                       <input name="name" required maxLength={100} defaultValue={pipeline.name} />
                     </label>
-                    <label className="field">
-                      {t('المراحل بالترتيب، مفصولة بفاصلة', 'Stages in order, separated by commas')}
-                      <input name="stages" required defaultValue={pipeline.stages.join(', ')} />
-                    </label>
-                    {pipeline.stages.map((stage, index) => (
-                      <label key={stage} className="field">
-                        {t('بديل عند حذف المرحلة: ', 'Replacement if removing: ') + stage}
-                        <input
-                          name={'replacement-' + index}
-                          maxLength={60}
-                          placeholder={t(
-                            'اسم مرحلة في القائمة الجديدة',
-                            'Stage name in the new list',
-                          )}
-                        />
-                      </label>
-                    ))}
+                    <PipelineStages
+                      key={JSON.stringify(pipeline.stages)}
+                      original={pipeline.stages}
+                    />
                     <div className="flex flex-wrap gap-2">
                       <button className="btn btn-primary" disabled={busy}>
                         {t('حفظ المراحل', 'Save stages')}
@@ -1488,22 +1473,33 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                 </details>
               ))}
             </section>
-            <SimpleForm
-              title={t('خط مبيعات جديد', 'New pipeline')}
-              fields={[
-                ['name', t('الاسم', 'Name')],
-                ['stages', t('مراحل مفصولة بفاصلة', 'Comma-separated stages')],
-              ]}
-              onSave={(b) =>
-                act('/crm/pipelines', {
-                  name: b.name,
-                  stages: b.stages
-                    .split(',')
-                    .map((x) => x.trim())
-                    .filter(Boolean),
-                })
-              }
-            />
+            {canManage && (
+              <form
+                className="card stack"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  const form = new FormData(event.currentTarget);
+                  try {
+                    await act('/crm/pipelines', {
+                      name: form.get('name'),
+                      stages: form.getAll('stage').map((value) => String(value).trim()),
+                    });
+                  } catch {
+                    // The action banner displays the error.
+                  }
+                }}
+              >
+                <h2>{t('خط مبيعات جديد', 'New pipeline')}</h2>
+                <label className="field">
+                  {t('الاسم', 'Name')}
+                  <input name="name" maxLength={100} required />
+                </label>
+                <PipelineStages />
+                <button className="btn btn-primary" disabled={busy}>
+                  {t('إنشاء خط مبيعات', 'Create pipeline')}
+                </button>
+              </form>
+            )}
           </>
         )}
         {tab === 'tasks' && (

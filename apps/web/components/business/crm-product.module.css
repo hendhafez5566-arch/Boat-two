@@ -188,3 +188,53 @@
   font-size: 0.82rem;
   color: #496460;
 }
+.stageEditor,
+.stageEditor ol,
+.stageEditor li {
+  display: grid;
+  gap: 0.65rem;
+  min-inline-size: 0;
+}
+.stageEditor ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.stageEditor li {
+  padding: 0.7rem;
+  border: 1px solid #dce8e4;
+  border-radius: 8px;
+}
+.stageEditor label {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+.stageEditor input,
+.stageEditor select {
+  width: 100%;
+  min-width: 0;
+}
+.profileTools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.65rem;
+}
+.profileTools button {
+  min-height: 44px;
+}
+.sectionLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.sectionLinks a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  border: 1px solid #dce8e4;
+  border-radius: 8px;
+  padding-inline: 0.65rem;
+  background: white;
+}

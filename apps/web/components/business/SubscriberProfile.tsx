@@ -1,4 +1,5 @@
 'use client';
+import product from './crm-product.module.css';
 import { DisclosureSummary } from '../product/DisclosureSummary';
 
 import { FormEvent, useRef, useState } from 'react';
@@ -433,29 +434,47 @@ export default function SubscriberProfile({
                 </span>
               ))}
             </div>
-            <small>
-              {t('معرّف العميل', 'Customer ID')} <bdi>{contact.id}</bdi>
-            </small>
-            <CrmScore contactId={contactId} version={contact.updated_at} />
-            <div>
-              {tabs
-                .filter(
-                  ([key]) => !['overview', 'deals', 'tasks', 'notes', 'activity'].includes(key),
-                )
-                .map(([key, ar, en]) => (
-                  <button
-                    className="btn"
-                    key={key}
-                    aria-pressed={tab === key}
-                    onClick={() => {
-                      setTab(key);
-                      setQuickCreate('');
-                    }}
-                  >
-                    {t(ar, en)}
-                  </button>
-                ))}
+            <div className={product.columns}>
+              {[
+                {
+                  title: t('بيانات العميل', 'Customer details'),
+                  keys: ['company', 'agent', 'labels', 'fields', 'input'],
+                },
+                {
+                  title: t('التواصل والتسويق', 'Communication and marketing'),
+                  keys: ['lists', 'sequences', 'consent'],
+                },
+              ].map(({ title, keys }) => (
+                <section key={title} className={product.group}>
+                  <h2>{title}</h2>
+                  <div className={product.profileTools}>
+                    {tabs
+                      .filter(([key]) => keys.includes(key))
+                      .map(([key, ar, en]) => (
+                        <button
+                          className="btn"
+                          type="button"
+                          key={key}
+                          aria-pressed={tab === key}
+                          onClick={() => {
+                            setTab(key);
+                            setQuickCreate('');
+                          }}
+                        >
+                          {t(ar, en)}
+                        </button>
+                      ))}
+                  </div>
+                </section>
+              ))}
             </div>
+            <details>
+              <summary>{t('التقييم ومرجع الدعم', 'Score and support reference')}</summary>
+              <CrmScore contactId={contactId} version={contact.updated_at} />
+              <small>
+                {t('مرجع العميل', 'Customer reference')} <bdi>{contact.id}</bdi>
+              </small>
+            </details>
           </details>
           <div className={styles.profileBody}>
             {tab === 'deals' && (
@@ -856,11 +875,7 @@ export default function SubscriberProfile({
                         {Object.entries(input.answers ?? {}).map(([key, value]) => (
                           <div key={key}>
                             <dt>{fields.data.find((field) => field.key === key)?.label ?? key}</dt>
-                            <dd>
-                              {typeof value === 'object'
-                                ? JSON.stringify(value)
-                                : String(value ?? '—')}
-                            </dd>
+                            <dd>{renderAnswer(value)}</dd>
                           </div>
                         ))}
                       </dl>
@@ -1095,4 +1110,27 @@ function CompanyContacts({
       ))}
     </section>
   );
+}
+
+function renderAnswer(value: unknown): React.ReactNode {
+  if (Array.isArray(value))
+    return (
+      <ul>
+        {value.map((item, index) => (
+          <li key={index}>{renderAnswer(item)}</li>
+        ))}
+      </ul>
+    );
+  if (value && typeof value === 'object')
+    return (
+      <dl>
+        {Object.entries(value).map(([key, item]) => (
+          <div key={key}>
+            <dt>{key}</dt>
+            <dd>{renderAnswer(item)}</dd>
+          </div>
+        ))}
+      </dl>
+    );
+  return String(value ?? '—');
 }

@@ -1,4 +1,5 @@
 'use client';
+import product from './crm-product.module.css';
 import { FormEvent, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../lib/api';
@@ -145,12 +146,6 @@ export function CrmAutomation() {
         <NavIcon name="automations" />
         {t('أتمتة المبيعات والمتابعات', 'Sales & follow-up automation')}
       </h2>
-      <p>
-        {t(
-          'قواعد داخلية عبر محرك الأتمتة الحالي. اختبر بعميل اصطناعي قبل الحفظ.',
-          'Internal rules using the existing automation engine. Preview with a synthetic customer before saving.',
-        )}
-      </p>
       <div className={css.row}>
         {[
           ['stage', 'متابعة مرحلة', 'Stage follow-up'],
@@ -162,171 +157,182 @@ export function CrmAutomation() {
           </button>
         ))}
       </div>
-      <form className={`${styles.form} ${css.fields}`} onSubmit={submit}>
-        <label>
-          {t('اسم القاعدة', 'Rule name')}
-          <input required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
-        </label>
-        <label>
-          {t('عندما', 'When')}
-          <select value={trigger} onChange={(e) => setTrigger(e.target.value)}>
-            {[
-              'crm.contacts.insert',
-              'crm.contacts.update',
-              'crm.bot.answer',
-              'crm.tag.added',
-              'crm.lifecycle.changed',
-              'crm.crm_deals.insert',
-              'crm.deal.stage_changed',
-              'crm.deal.closed',
-              'crm.task.overdue',
-              'crm.conversation.created',
-              'crm.conversation.taken',
-            ].map((v) => (
-              <option value={v} key={v}>
-                {automationLabel(v, t)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          {t('بوجود وسم (اختياري)', 'With tag (optional)')}
-          <input maxLength={50} value={tag} onChange={(e) => setTag(e.target.value)} />
-        </label>
-        <label>
-          {t('الإجراء', 'Action')}
-          <select value={type} onChange={(e) => setType(e.target.value)}>
-            {['task', 'deal', 'assign', 'notify', 'tag', 'lifecycle', 'field', 'moveDeal'].map(
-              (v) => (
+      <form className={styles.form} onSubmit={submit}>
+        <fieldset className={product.formFields}>
+          <legend>{t('متى تعمل القاعدة؟', 'Trigger and conditions')}</legend>
+          <label>
+            {t('اسم القاعدة', 'Rule name')}
+            <input
+              required
+              maxLength={120}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </label>
+          <label>
+            {t('عندما', 'When')}
+            <select value={trigger} onChange={(e) => setTrigger(e.target.value)}>
+              {[
+                'crm.contacts.insert',
+                'crm.contacts.update',
+                'crm.bot.answer',
+                'crm.tag.added',
+                'crm.lifecycle.changed',
+                'crm.crm_deals.insert',
+                'crm.deal.stage_changed',
+                'crm.deal.closed',
+                'crm.task.overdue',
+                'crm.conversation.created',
+                'crm.conversation.taken',
+              ].map((v) => (
                 <option value={v} key={v}>
                   {automationLabel(v, t)}
                 </option>
-              ),
-            )}
-          </select>
-        </label>
-        {['task', 'deal', 'notify'].includes(type) && (
-          <label>
-            {t('العنوان', 'Title')}
-            <input
-              required
-              maxLength={200}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
+              ))}
+            </select>
           </label>
-        )}
-        {type === 'task' && (
-          <>
+          <label>
+            {t('بوجود وسم (اختياري)', 'With tag (optional)')}
+            <input maxLength={50} value={tag} onChange={(e) => setTag(e.target.value)} />
+          </label>
+        </fieldset>
+        <fieldset className={product.formFields}>
+          <legend>{t('ماذا تنفّذ القاعدة؟', 'Action details')}</legend>
+          <label>
+            {t('الإجراء', 'Action')}
+            <select value={type} onChange={(e) => setType(e.target.value)}>
+              {['task', 'deal', 'assign', 'notify', 'tag', 'lifecycle', 'field', 'moveDeal'].map(
+                (v) => (
+                  <option value={v} key={v}>
+                    {automationLabel(v, t)}
+                  </option>
+                ),
+              )}
+            </select>
+          </label>
+          {['task', 'deal', 'notify'].includes(type) && (
             <label>
-              {t('بعد (دقائق)', 'After (minutes)')}
+              {t('العنوان', 'Title')}
               <input
                 required
-                type="number"
-                min={0}
-                max={525600}
-                value={minutes}
-                onChange={(e) => setMinutes(Number(e.target.value))}
+                maxLength={200}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
               />
             </label>
-            <label>
-              <span>
+          )}
+          {type === 'task' && (
+            <>
+              <label>
+                {t('بعد (دقائق)', 'After (minutes)')}
                 <input
-                  type="checkbox"
-                  checked={linkDeal}
-                  onChange={(e) => setLinkDeal(e.target.checked)}
+                  required
+                  type="number"
+                  min={0}
+                  max={525600}
+                  value={minutes}
+                  onChange={(e) => setMinutes(Number(e.target.value))}
                 />
-                {t('ربط بصفقة الحدث (محفز صفقة فقط)', 'Link to event deal (deal trigger only)')}
-              </span>
-            </label>
-          </>
-        )}
-        {['deal', 'moveDeal'].includes(type) && (
-          <>
+              </label>
+              <label>
+                <span>
+                  <input
+                    type="checkbox"
+                    checked={linkDeal}
+                    onChange={(e) => setLinkDeal(e.target.checked)}
+                  />
+                  {t('ربط بصفقة الحدث (محفز صفقة فقط)', 'Link to event deal (deal trigger only)')}
+                </span>
+              </label>
+            </>
+          )}
+          {['deal', 'moveDeal'].includes(type) && (
+            <>
+              <label>
+                {t('خط المبيعات', 'Pipeline')}
+                <select
+                  required
+                  value={p?.id || ''}
+                  onChange={(e) => {
+                    setPipeline(e.target.value);
+                    setStage('');
+                  }}
+                >
+                  <option value="" disabled>
+                    {t('اختر خطًا', 'Select pipeline')}
+                  </option>
+                  {pipelines.data.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                {t('المرحلة', 'Stage')}
+                <select
+                  required
+                  value={stage || p?.stages[0] || ''}
+                  onChange={(e) => setStage(e.target.value)}
+                >
+                  {p?.stages.map((s) => (
+                    <option key={s}>{s}</option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+          {type === 'assign' && (
             <label>
-              {t('خط المبيعات', 'Pipeline')}
-              <select
-                required
-                value={p?.id || ''}
-                onChange={(e) => {
-                  setPipeline(e.target.value);
-                  setStage('');
-                }}
-              >
-                <option value="" disabled>
-                  {t('اختر خطًا', 'Select pipeline')}
-                </option>
-                {pipelines.data.map((x) => (
-                  <option key={x.id} value={x.id}>
-                    {x.name}
+              {t('الموظف', 'Employee')}
+              <select required value={user} onChange={(e) => setUser(e.target.value)}>
+                <option value="">{t('اختر موظفًا', 'Select employee')}</option>
+                {team.data.members.map((m) => (
+                  <option value={m.user_id} key={m.user_id}>
+                    {m.full_name}
                   </option>
                 ))}
               </select>
             </label>
+          )}
+          {type === 'field' && (
             <label>
-              {t('المرحلة', 'Stage')}
-              <select
-                required
-                value={stage || p?.stages[0] || ''}
-                onChange={(e) => setStage(e.target.value)}
-              >
-                {p?.stages.map((s) => (
-                  <option key={s}>{s}</option>
+              {t('الحقل المخصص', 'Custom field')}
+              <select required value={f?.key || ''} onChange={(e) => setField(e.target.value)}>
+                {fields.data.map((f) => (
+                  <option value={f.key} key={f.key}>
+                    {f.label}
+                  </option>
                 ))}
               </select>
             </label>
-          </>
-        )}
-        {type === 'assign' && (
-          <label>
-            {t('الموظف', 'Employee')}
-            <select required value={user} onChange={(e) => setUser(e.target.value)}>
-              <option value="">{t('اختر موظفًا', 'Select employee')}</option>
-              {team.data.members.map((m) => (
-                <option value={m.user_id} key={m.user_id}>
-                  {m.full_name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        {type === 'field' && (
-          <label>
-            {t('الحقل المخصص', 'Custom field')}
-            <select required value={f?.key || ''} onChange={(e) => setField(e.target.value)}>
-              {fields.data.map((f) => (
-                <option value={f.key} key={f.key}>
-                  {f.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        {type === 'lifecycle' ? (
-          <label>
-            {t('الحالة الجديدة', 'New lifecycle')}
-            <select value={value || 'qualified'} onChange={(e) => setValue(e.target.value)}>
-              {[
-                ['lead', 'عميل محتمل', 'Lead'],
-                ['qualified', 'مؤهل', 'Qualified'],
-                ['customer', 'عميل', 'Customer'],
-                ['inactive', 'غير نشط', 'Inactive'],
-              ].map(([v, ar, en]) => (
-                <option key={v} value={v}>
-                  {t(ar, en)}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          ['tag', 'field'].includes(type) && (
+          )}
+          {type === 'lifecycle' ? (
             <label>
-              {t('القيمة', 'Value')}
-              <input required value={value} onChange={(e) => setValue(e.target.value)} />
-              {type === 'field' && f?.type === 'boolean' && <small>true / false</small>}
+              {t('الحالة الجديدة', 'New lifecycle')}
+              <select value={value || 'qualified'} onChange={(e) => setValue(e.target.value)}>
+                {[
+                  ['lead', 'عميل محتمل', 'Lead'],
+                  ['qualified', 'مؤهل', 'Qualified'],
+                  ['customer', 'عميل', 'Customer'],
+                  ['inactive', 'غير نشط', 'Inactive'],
+                ].map(([v, ar, en]) => (
+                  <option key={v} value={v}>
+                    {t(ar, en)}
+                  </option>
+                ))}
+              </select>
             </label>
-          )
-        )}
+          ) : (
+            ['tag', 'field'].includes(type) && (
+              <label>
+                {t('القيمة', 'Value')}
+                <input required value={value} onChange={(e) => setValue(e.target.value)} />
+                {type === 'field' && f?.type === 'boolean' && <small>true / false</small>}
+              </label>
+            )
+          )}
+        </fieldset>
         <div className={css.summary}>
           {t('عندما: ', 'When: ')}
           {automationLabel(trigger, t)}

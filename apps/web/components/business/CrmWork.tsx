@@ -1,4 +1,5 @@
 'use client';
+import product from './crm-product.module.css';
 import { DisclosureSummary } from '../product/DisclosureSummary';
 
 import { FormEvent, useEffect, useRef, useState } from 'react';
@@ -649,7 +650,12 @@ export function CrmWork({
         </div>
       </div>
       {!compact && (
-        <Dialog open={!!dialog} onClose={closeEditor} title={editorTitle}>
+        <Dialog
+          open={!!dialog}
+          onClose={closeEditor}
+          title={editorTitle}
+          className={product.editorDialog}
+        >
           {editor}
         </Dialog>
       )}
@@ -699,6 +705,7 @@ function WorkForm({
 }) {
   const { t } = useLocale();
   const deals = kind === 'deals';
+  const [outcome, setOutcome] = useState(row?.status || 'open');
   const [search, setSearch] = useState('');
   const [pickedContact, setPickedContact] = useState<{
     id: string;
@@ -735,237 +742,253 @@ function WorkForm({
       if (!row) values.pipelineId = selected?.id;
       else {
         values.status = f.get('status');
-        values.lossReason = f.get('lossReason') || null;
+        if (outcome === 'lost') values.lossReason = f.get('lossReason') || null;
       }
     } else {
       values.dueAt = new Date(String(f.get('dueAt'))).toISOString();
       values.assignedTo = f.get('ownerId') || null;
       values.priority = f.get('priority') || 'normal';
-      if (!row) values.dealId = f.get('dealId') || null;
+      if (row) values.status = f.get('status');
+      if (f.has('dealId')) values.dealId = f.get('dealId') || null;
     }
     void onSubmit(values);
   }
   return (
-    <form
-      className={`${styles.form} ${editorStyles.form} ${design.editor}`}
-      onSubmit={submit}
-      onChange={onDirty}
-    >
-      <fieldset
-        className={`${editorStyles.section} ${styles.form} ${design.workFields}`}
-        disabled={busy}
-      >
-        <legend>
-          <NavIcon name={deals ? 'handshake' : 'calendar'} />
-          {deals
-            ? t('بيانات الفرصة', 'Opportunity details')
-            : t('بيانات المتابعة', 'Follow-up details')}
-        </legend>
-        {!row && !contactId && (
-          <>
-            <label>
-              {t('ابحث عن العميل', 'Find customer')}
-              <input value={search} onChange={(e) => setSearch(e.target.value)} />
-            </label>
-            <label>
-              {t('العميل', 'Customer')}
-              <select
-                aria-label={t('العميل', 'Customer')}
-                name="contactId"
-                required
-                value={taskContact}
-                onChange={(e) => {
-                  setTaskContact(e.target.value);
-                  setPickedContact(
-                    contacts.data.items.find((c) => c.id === e.target.value) || pickedContact,
-                  );
-                }}
-              >
-                <option value="" disabled>
-                  {t('اختر عميلًا', 'Choose customer')}
-                </option>
-                {pickedContact && !contacts.data.items.some((c) => c.id === pickedContact.id) && (
-                  <option value={pickedContact.id}>
-                    {pickedContact.name} {pickedContact.phone}
-                  </option>
-                )}
-                {contacts.data.items.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} {c.phone}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {contacts.loading && (
-              <p role="status">{t('جارٍ البحث عن العملاء…', 'Searching customers…')}</p>
-            )}
-            {!contacts.loading && !contacts.error && !contacts.data.items.length && (
-              <p role="status">
-                {t(
-                  'لا يوجد عميل مطابق. غيّر البحث أو أضف العميل من إدارة العملاء.',
-                  'No matching customer. Change your search or add a customer in Customers.',
-                )}
-              </p>
-            )}
-
-            {contacts.error && <p role="alert">{contacts.error}</p>}
-          </>
-        )}
-        {!deals && !row && taskContact && (
-          <label>
-            {t('ربط بفرصة بيع (اختياري)', 'Link opportunity (optional)')}
-            <select name="dealId" defaultValue="" key={taskContact}>
-              <option value="">{t('متابعة العميل فقط', 'Customer follow-up only')}</option>
-              {opportunities.data.items.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.title}
-                </option>
-              ))}
-            </select>
+    <form className={product.editor} onSubmit={submit} onChange={onDirty}>
+      <div className={product.editorBody}>
+        <fieldset className={`${editorStyles.section} ${product.formFields}`} disabled={busy}>
+          <legend>
+            <NavIcon name={deals ? 'handshake' : 'calendar'} />
+            {deals
+              ? t('بيانات الفرصة', 'Opportunity details')
+              : t('بيانات المتابعة', 'Follow-up details')}
+          </legend>
+          <label data-wide>
+            {t('العنوان', 'Title')}
+            <input name="title" required maxLength={200} defaultValue={row?.title || ''} />
           </label>
-        )}
-        <label data-wide>
-          {t('العنوان', 'Title')}
-          <input name="title" required maxLength={200} defaultValue={row?.title || ''} />
-        </label>
-        {deals ? (
-          <>
+          {!row && !contactId && (
+            <>
+              <label>
+                {t('ابحث عن العميل', 'Find customer')}
+                <input value={search} onChange={(e) => setSearch(e.target.value)} />
+              </label>
+              <label>
+                {t('العميل', 'Customer')}
+                <select
+                  aria-label={t('العميل', 'Customer')}
+                  name="contactId"
+                  required
+                  value={taskContact}
+                  onChange={(e) => {
+                    setTaskContact(e.target.value);
+                    setPickedContact(
+                      contacts.data.items.find((c) => c.id === e.target.value) || pickedContact,
+                    );
+                  }}
+                >
+                  <option value="" disabled>
+                    {t('اختر عميلًا', 'Choose customer')}
+                  </option>
+                  {pickedContact && !contacts.data.items.some((c) => c.id === pickedContact.id) && (
+                    <option value={pickedContact.id}>
+                      {pickedContact.name} {pickedContact.phone}
+                    </option>
+                  )}
+                  {contacts.data.items.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} {c.phone}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {contacts.loading && (
+                <p role="status">{t('جارٍ البحث عن العملاء…', 'Searching customers…')}</p>
+              )}
+              {!contacts.loading && !contacts.error && !contacts.data.items.length && (
+                <p role="status">
+                  {t(
+                    'لا يوجد عميل مطابق. غيّر البحث أو أضف العميل من إدارة العملاء.',
+                    'No matching customer. Change your search or add a customer in Customers.',
+                  )}
+                </p>
+              )}
+
+              {contacts.error && <p role="alert">{contacts.error}</p>}
+            </>
+          )}
+          {!deals && taskContact && !opportunities.loading && !opportunities.error && (
             <label>
-              {t('خط المبيعات', 'Pipeline')}
-              <select
-                name="pipelineId"
-                disabled={!!row}
-                value={pipeline}
-                onChange={(e) => {
-                  setPipeline(e.target.value);
-                  setStage(pipelines.find((p) => p.id === e.target.value)?.stages[0] || '');
-                }}
-              >
-                {pipelines.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
+              {t('ربط بفرصة بيع (اختياري)', 'Link opportunity (optional)')}
+              <select name="dealId" defaultValue={row?.deal_id || ''} key={taskContact}>
+                {row?.deal_id && !opportunities.data.items.some((d) => d.id === row.deal_id) && (
+                  <option value={row.deal_id}>
+                    {t('الفرصة المرتبطة حاليًا', 'Currently linked opportunity')}
+                  </option>
+                )}
+                <option value="">{t('متابعة العميل فقط', 'Customer follow-up only')}</option>
+                {opportunities.data.items.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.title}
                   </option>
                 ))}
               </select>
             </label>
-            <label>
-              {t('المرحلة', 'Stage')}
-              <select
-                aria-label={t('المرحلة', 'Stage')}
-                name="stage"
-                required
-                value={stage}
-                onChange={(e) => setStage(e.target.value)}
-              >
-                {selected?.stages.map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
-            </label>
-            <div className={styles.grid}>
+          )}
+          {deals ? (
+            <>
               <label>
-                {t('القيمة', 'Value')}
-                <input
-                  type="number"
-                  name="value"
-                  min="0"
-                  max="1000000000"
-                  step="0.01"
-                  required
-                  defaultValue={Number(row?.value_cents || 0) / 100}
-                />
+                {t('خط المبيعات', 'Pipeline')}
+                <select
+                  name="pipelineId"
+                  disabled={!!row}
+                  value={pipeline}
+                  onChange={(e) => {
+                    setPipeline(e.target.value);
+                    setStage(pipelines.find((p) => p.id === e.target.value)?.stages[0] || '');
+                  }}
+                >
+                  {pipelines.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label>
-                {t('العملة', 'Currency')}
-                <input
-                  name="currency"
+                {t('المرحلة', 'Stage')}
+                <select
+                  aria-label={t('المرحلة', 'Stage')}
+                  name="stage"
                   required
-                  minLength={3}
-                  maxLength={3}
-                  pattern="[A-Za-z]{3}"
-                  defaultValue={row?.currency || 'EGP'}
+                  value={stage}
+                  onChange={(e) => setStage(e.target.value)}
+                >
+                  {selected?.stages.map((s) => (
+                    <option key={s}>{s}</option>
+                  ))}
+                </select>
+              </label>
+              <div className={styles.grid}>
+                <label>
+                  {t('القيمة', 'Value')}
+                  <input
+                    type="number"
+                    name="value"
+                    min="0"
+                    max="1000000000"
+                    step="0.01"
+                    required
+                    defaultValue={Number(row?.value_cents || 0) / 100}
+                  />
+                </label>
+                <label>
+                  {t('العملة', 'Currency')}
+                  <input
+                    name="currency"
+                    required
+                    minLength={3}
+                    maxLength={3}
+                    pattern="[A-Za-z]{3}"
+                    defaultValue={row?.currency || 'EGP'}
+                  />
+                </label>
+              </div>
+              <label>
+                {t('الإغلاق المتوقع', 'Expected close')}
+                <input
+                  type="date"
+                  name="expectedClose"
+                  defaultValue={row?.expected_close?.slice(0, 10) || ''}
                 />
               </label>
-            </div>
-            <label>
-              {t('الإغلاق المتوقع', 'Expected close')}
-              <input
-                type="date"
-                name="expectedClose"
-                defaultValue={row?.expected_close?.slice(0, 10) || ''}
-              />
-            </label>
-            {row && (
-              <>
+              {row && (
+                <>
+                  <label>
+                    {t('الحالة', 'Status')}
+                    <select
+                      name="status"
+                      value={outcome}
+                      onChange={(e) => setOutcome(e.target.value)}
+                    >
+                      <option value="open">{t('مفتوحة', 'Open')}</option>
+                      <option value="won">{t('ناجحة', 'Won')}</option>
+                      <option value="lost">{t('خاسرة', 'Lost')}</option>
+                    </select>
+                  </label>
+                  {outcome === 'lost' && (
+                    <label>
+                      {t('سبب الخسارة (اختياري)', 'Loss reason (optional)')}
+                      <textarea
+                        name="lossReason"
+                        maxLength={500}
+                        defaultValue={row.loss_reason || ''}
+                      />
+                    </label>
+                  )}
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <label>
+                {t('الأولوية', 'Priority')}
+                <select name="priority" defaultValue={row?.priority || 'normal'}>
+                  <option value="normal">{t('عادية', 'Normal')}</option>
+                  <option value="high">{t('عالية', 'High')}</option>
+                  <option value="low">{t('منخفضة', 'Low')}</option>
+                </select>
+              </label>
+              <label>
+                {t('موعد المتابعة', 'Follow-up date')}
+                <input
+                  type="datetime-local"
+                  name="dueAt"
+                  required
+                  defaultValue={localDate(row?.due_at)}
+                />
+              </label>
+              {row && (
                 <label>
                   {t('الحالة', 'Status')}
                   <select name="status" defaultValue={row.status}>
                     <option value="open">{t('مفتوحة', 'Open')}</option>
-                    <option value="won">{t('ناجحة', 'Won')}</option>
-                    <option value="lost">{t('خاسرة', 'Lost')}</option>
+                    <option value="done">{t('مكتملة', 'Completed')}</option>
                   </select>
                 </label>
-                <label>
-                  {t('سبب الخسارة (اختياري)', 'Loss reason (optional)')}
-                  <textarea
-                    name="lossReason"
-                    maxLength={500}
-                    defaultValue={row.loss_reason || ''}
-                  />
-                </label>
-              </>
-            )}
-          </>
-        ) : (
-          <>
-            <label>
-              {t('الأولوية', 'Priority')}
-              <select name="priority" defaultValue={row?.priority || 'normal'}>
-                <option value="normal">{t('عادية', 'Normal')}</option>
-                <option value="high">{t('عالية', 'High')}</option>
-                <option value="low">{t('منخفضة', 'Low')}</option>
-              </select>
-            </label>
-            <label>
-              {t('موعد المتابعة', 'Follow-up date')}
-              <input
-                type="datetime-local"
-                name="dueAt"
-                required
-                defaultValue={localDate(row?.due_at)}
-              />
-            </label>
-          </>
+              )}
+            </>
+          )}
+        </fieldset>
+        <fieldset className={editorStyles.section} disabled={busy}>
+          <legend>
+            <NavIcon name="team" />
+            {t('المسؤولية', 'Assignment')}
+          </legend>
+          <label>
+            {t('الموظف المسؤول', 'Assigned employee')}
+            <select
+              aria-label={t('الموظف المسؤول', 'Assigned employee')}
+              name="ownerId"
+              defaultValue={(deals ? row?.owner_id : row?.assigned_to) || ''}
+            >
+              <option value="">{t('غير مسند', 'Unassigned')}</option>
+              {members.map((m) => (
+                <option key={m.user_id} value={m.user_id}>
+                  {m.full_name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </fieldset>
+        {error && (
+          <p className="notice error" role="alert">
+            {error}
+          </p>
         )}
-      </fieldset>
-      <fieldset className={editorStyles.section} disabled={busy}>
-        <legend>
-          <NavIcon name="team" />
-          {t('المسؤولية', 'Assignment')}
-        </legend>
-        <label>
-          {t('الموظف المسؤول', 'Assigned employee')}
-          <select
-            aria-label={t('الموظف المسؤول', 'Assigned employee')}
-            name="ownerId"
-            defaultValue={(deals ? row?.owner_id : row?.assigned_to) || ''}
-          >
-            <option value="">{t('غير مسند', 'Unassigned')}</option>
-            {members.map((m) => (
-              <option key={m.user_id} value={m.user_id}>
-                {m.full_name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </fieldset>
-      {error && (
-        <p className="notice error" role="alert">
-          {error}
-        </p>
-      )}
-      {deals && row && <StageHistory contactId={row.contact_id} dealId={row.id} />}
-      <footer className={editorStyles.actions}>
+        {deals && row && <StageHistory contactId={row.contact_id} dealId={row.id} />}
+      </div>
+      <footer className={product.editorActions}>
         <Button type="button" disabled={busy} onClick={onCancel}>
           {t('إلغاء', 'Cancel')}
         </Button>
