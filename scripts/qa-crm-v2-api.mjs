@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { openSync, writeFileSync, mkdirSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
+import { createRequire } from 'node:module';
 const log = openSync('/tmp/boat-crm-v2-api.log', 'w');
 const server = spawn(process.execPath, ['scripts/qa-full-api.mjs'], {
   stdio: ['ignore', log, log],
@@ -387,6 +388,28 @@ try {
     );
     count += 4;
     if (business === 'Travel') {
+      const { Workbook } = createRequire(process.cwd() + '/apps/api/package.json')('exceljs');
+      for (const [sheet, error] of [
+        ['', /no worksheets/i],
+        ['Empty', /worksheet is empty/i],
+        ['Missing headings', /no column headers/i],
+      ]) {
+        const workbook = new Workbook();
+        if (sheet) {
+          const worksheet = workbook.addWorksheet(sheet);
+          if (sheet === 'Missing headings') worksheet.getCell('A2').value = 'Synthetic record';
+        }
+        const form = new FormData();
+        form.append('file', new Blob([await workbook.xlsx.writeBuffer()]), 'synthetic.xlsx');
+        const response = await fetch('http://127.0.0.1:4000/crm/workspace/import-preview', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token },
+          body: form,
+        });
+        assert.equal(response.status, 400);
+        assert.match((await response.json()).message, error);
+        count++;
+      }
       const adminInvite = await request('/team/invitations', token, {
         email: randomUUID() + '@example.test',
         role: 'admin',
