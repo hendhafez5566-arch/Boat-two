@@ -427,7 +427,33 @@ try {
         name: 'Stale administrator edit',
         expectedUpdatedAt: snapshot,
       }, 'PATCH', 409);
-      assert.equal((await request(profilePath, token)).contact.name, 'First saved edit');
+      const latestContact = (await request(profilePath, token)).contact;
+      assert.equal(latestContact.name, 'First saved edit');
+      const bulkChange = { ids: [c.id], addTags: ['integrity-bulk'] };
+      await request('/crm/contacts/bulk', token, {
+        ...bulkChange, expectedVersions: { [c.id]: snapshot },
+      }, 'POST', 409);
+      assert.equal((await request(profilePath, token)).contact.tags.includes('integrity-bulk'), false);
+      await request('/crm/contacts/bulk', agent.accessToken, bulkChange, 'POST', 403);
+      await request('/crm/contacts/bulk', token, {
+        ...bulkChange, expectedVersions: { [c.id]: latestContact.updated_at },
+      });
+      assert.equal((await request(profilePath, token)).contact.tags.includes('integrity-bulk'), true);
+      count += 3;
+      const replayKey = randomUUID();
+      const candidates = [
+        ['contacts', { name: 'Receipt isolation', requestId: replayKey }, 'name'],
+        ['deals', { contactId: c.id, pipelineId: p.id, stage: 'Proposal', title: 'Receipt deal', valueCents: 100, requestId: replayKey }, 'title'],
+        ['tasks', { contactId: c.id, title: 'Receipt follow-up', dueAt: '2030-05-04T12:00:00.000Z', requestId: replayKey }, 'title'],
+      ];
+      for (const [kind, payload, field] of candidates) {
+        const path = '/crm/' + kind;
+        const original = await request(path, token, payload);
+        const retry = await request(path, token, payload);
+        assert.equal(retry.id, original.id);
+        await request(path, token, { ...payload, [field]: 'Changed body' }, 'POST', 409);
+        count += 2;
+      }
       const archivePath = '/crm/contacts/' + c.id + '/archive';
       await request(archivePath, agent.accessToken, { archived: true }, 'PATCH', 403);
       await request(archivePath, admin.accessToken, { archived: true }, 'PATCH');
