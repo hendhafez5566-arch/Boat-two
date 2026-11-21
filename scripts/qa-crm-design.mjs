@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID as uuid } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { assertLocalAcceptance } from './acceptance-local.mjs';
 assertLocalAcceptance();
 const { chromium } = createRequire(import.meta.url)(
@@ -65,6 +65,24 @@ try {
         password: 'Synthetic-' + uuid(),
         fullName: 'Mona Adel',
       });
+      const managerRun = !before && process.env.CRM_QA_MANAGER === 'admin';
+      let managerSession = session;
+      if (managerRun) {
+        const managerInvite = await api('/team/invitations', token, {
+          email: uuid() + '@example.test',
+          role: 'admin',
+          sendEmail: false,
+        });
+        managerSession = await api('/auth/accept-invitation', null, {
+          token: new URL(managerInvite.inviteUrl).searchParams.get('token'),
+          password: 'Synthetic-' + uuid(),
+          fullName: 'CRM QA administrator',
+        });
+        assert.equal(
+          (await api('/crm/workspace/members', managerSession.accessToken)).role,
+          'admin',
+        );
+      }
       const staffId = (await api('/crm/workspace/members', agent.accessToken)).currentUserId;
       if (!before) {
         for (const type of ['text', 'number', 'date', 'boolean'])
@@ -503,6 +521,96 @@ try {
           (await api('/crm/pipelines', token)).find((p) => p.name === 'ZZ QA pipeline').stages,
           ['Prospect', 'Booked', 'Review'],
         );
+        const p = (await api('/crm/pipelines', token)).find((p) => p.name === 'ZZ QA pipeline');
+        const linked = await api('/crm/deals', token, {
+          contactId: contacts[9].id,
+          pipelineId: p.id,
+          title: 'Synthetic migration deal',
+          stage: 'Prospect',
+          currency: 'USD',
+          valueCents: 12345,
+          ownerId: staffId,
+          expectedClose: '2030-05-04',
+        });
+        const settings = page
+          .locator('details')
+          .filter({ has: page.locator('summary').getByText('ZZ QA pipeline', { exact: true }) })
+          .last();
+        await settings.locator('summary').first().click();
+        await settings
+          .getByRole('button', { name: t('إزالة المرحلة', 'Remove stage'), exact: true })
+          .first()
+          .click();
+        const refused = page.waitForResponse(
+          (r) => r.url().endsWith('/crm/pipelines/' + p.id) && r.request().method() === 'PATCH',
+        );
+        await settings
+          .getByRole('button', { name: t('حفظ المراحل', 'Save stages'), exact: true })
+          .click();
+        assert.equal((await refused).status(), 400);
+        assert.equal((await api('/crm/deals?id=' + linked.id, token)).items[0].stage, 'Prospect');
+        await settings.locator('select[name=replacement-0]').selectOption('Booked');
+        await shot('pipeline-replacement');
+        await settings
+          .getByRole('button', { name: t('حفظ المراحل', 'Save stages'), exact: true })
+          .click();
+        await settings.locator('input[name=stage]').first().getAttribute('value');
+        for (let attempt = 0; attempt < 12; attempt++) {
+          const migrated = (await api('/crm/deals?id=' + linked.id, token)).items[0];
+          if (migrated.stage === 'Booked') {
+            for (const key of [
+              'id',
+              'title',
+              'value_cents',
+              'currency',
+              'owner_id',
+              'contact_id',
+              'expected_close',
+              'created_at',
+            ])
+              assert.equal(String(migrated[key]), String(linked[key]));
+            break;
+          }
+          if (attempt === 11) throw new Error('Pipeline migration did not persist');
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+        await page.goto(web + '/dashboard/crm/pipeline?view=table&allPipelines=true&status=');
+        await page.getByRole('button', { name: 'Synthetic migration deal', exact: true }).click();
+        const dealDialog = page
+          .getByRole('dialog')
+          .filter({
+            has: page.getByRole('button', {
+              name: t('حفظ الفرصة', 'Save opportunity'),
+              exact: true,
+            }),
+          });
+        await dealDialog.locator('select[name=status]').selectOption('lost');
+        await dealDialog.locator('textarea[name=lossReason]').fill('Synthetic loss reason');
+        await dealDialog.locator('input[name=value]').fill('147.25');
+        await dealDialog.locator('input[name=currency]').fill('EUR');
+        await dealDialog.locator('select[name=ownerId]').selectOption(owner);
+        await dealDialog
+          .getByRole('button', { name: t('حفظ الفرصة', 'Save opportunity'), exact: true })
+          .click();
+        await dealDialog.waitFor({ state: 'hidden' });
+        const lost = (await api('/crm/deals?id=' + linked.id, token)).items[0];
+        assert.equal(lost.status, 'lost');
+        assert.equal(lost.loss_reason, 'Synthetic loss reason');
+        assert.equal(Number(lost.value_cents), 14725);
+        assert.equal(lost.currency, 'EUR');
+        assert.equal(lost.owner_id, owner);
+        const outcome = page.getByRole('combobox', {
+          name: t('حالة الفرصة', 'Opportunity status') + ': Synthetic migration deal',
+          exact: true,
+        });
+        for (const status of ['open', 'won']) {
+          const changed = page.waitForResponse(
+            (res) =>
+              res.url().endsWith('/crm/deals/' + linked.id) && res.request().method() === 'PATCH',
+          );
+          await outcome.selectOption(status);
+          assert.equal((await (await changed).json()).status, status);
+        }
       }
       if (workflow) {
         await page.goto(web + '/dashboard/crm');
@@ -535,11 +643,26 @@ try {
           exact: true,
         });
         assert.equal(await start.isEnabled(), false);
+        const { Workbook } = createRequire(new URL('../apps/api/package.json', import.meta.url))(
+          'exceljs',
+        );
+        const book = new Workbook();
+        book.addWorksheet('Reject').addRows([
+          ['Name', 'Email'],
+          ['Wrong sheet', 'invalid'],
+        ]);
+        book.addWorksheet('Import').addRows([
+          ['Name', 'Email'],
+          ['QA import', 'crm-import@example.test'],
+          ['Duplicate must not replace', contacts[0].email],
+        ]);
         await importFile.setInputFiles({
-          name: 'valid.csv',
-          mimeType: 'text/csv',
-          buffer: Buffer.from('Name,Email\nQA import,crm-import@example.test\n'),
+          name: 'review.xlsx',
+          mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          buffer: Buffer.from(await book.xlsx.writeBuffer()),
         });
+        const worksheet = importDialog.locator('select').first();
+        await worksheet.selectOption('Import');
         await start.click();
         await importDialog
           .getByText(t('تم تجهيز الاستيراد', 'Import queued'), { exact: false })
@@ -549,6 +672,7 @@ try {
           if (attempt === 19) throw new Error('Isolated import job did not complete');
           await new Promise((resolve) => setTimeout(resolve, 300));
         }
+        assert.equal((await api('/crm/contacts/' + contacts[0].id, token)).name, 'Nour Hassan');
         await importDialog.getByRole('button', { name: 'Close / إغلاق', exact: true }).click();
         const tools = page.getByRole('link', { name: t('الأدوات', 'Tools'), exact: true });
         await tools.click();
@@ -564,6 +688,93 @@ try {
         await page.getByRole('heading', { name: 'Returning travelers', exact: true }).waitFor();
         const lists = await api('/contact-lists', token);
         assert.ok(lists.some((list) => list.name === 'Returning travelers'));
+        const list = lists.find((item) => item.name === 'Returning travelers');
+        await page.goto(web + '/dashboard/crm?contact=' + contacts[9].id);
+        const record = page.getByRole('region', { name: profileTitle });
+        await record
+          .getByText(t('بيانات وإعدادات إضافية', 'More details and settings'), { exact: true })
+          .click();
+        await record.getByRole('button', { name: t('القوائم', 'Lists'), exact: true }).click();
+        await record.locator('select[name=list]').selectOption(list.id);
+        await record
+          .getByRole('button', { name: t('إضافة للقائمة', 'Add to List'), exact: true })
+          .click();
+        await record.getByRole('button', { name: t('إزالة', 'Remove'), exact: true }).click();
+        await record
+          .getByRole('button', { name: t('إزالة', 'Remove'), exact: true })
+          .waitFor({ state: 'hidden' });
+        assert.equal(
+          (await api('/crm/contacts/' + contacts[9].id + '/profile', token)).lists.length,
+          0,
+        );
+        await record.getByRole('button', { name: t('الموظف', 'Agent'), exact: true }).click();
+        await record.locator('select[name=owner]').selectOption(staffId);
+        const ownerSaved = page.waitForResponse(
+          (res) => res.url().endsWith('/profile') && res.request().method() === 'PATCH',
+        );
+        await record
+          .getByRole('button', { name: t('حفظ الموظف', 'Save Agent'), exact: true })
+          .click();
+        assert.ok((await ownerSaved).ok());
+        assert.equal((await api('/crm/contacts/' + contacts[9].id, token)).owner_id, staffId);
+        await record.getByRole('button', { name: t('الوسوم', 'Labels'), exact: true }).click();
+        await record.locator('input[name=tag]').fill('qa-browser-label');
+        await record
+          .getByRole('button', { name: t('إضافة الوسم', 'Add Label'), exact: true })
+          .click();
+        await record
+          .getByRole('button', { name: t('إزالة', 'Remove') + ' qa-browser-label', exact: true })
+          .click();
+        await record
+          .getByRole('button', { name: t('إزالة', 'Remove') + ' qa-browser-label', exact: true })
+          .waitFor({ state: 'hidden' });
+        await page.goto(web + '/dashboard/crm?contact=' + conversation.contact_id);
+        const consentRecord = page.getByRole('region', { name: profileTitle });
+        await consentRecord
+          .getByText(t('بيانات وإعدادات إضافية', 'More details and settings'), { exact: true })
+          .click();
+        await consentRecord
+          .getByRole('button', { name: t('موافقة التسويق', 'Marketing Consent'), exact: true })
+          .click();
+        await consentRecord.locator('select[name=status]').selectOption('opted_out');
+        await consentRecord.locator('input[name=evidence]').fill('Synthetic consent withdrawal');
+        await consentRecord
+          .getByRole('button', { name: t('حفظ الموافقة', 'Record Consent'), exact: true })
+          .click();
+        await consentRecord.getByText('Synthetic consent withdrawal', { exact: true }).waitFor();
+        assert.equal(
+          (
+            await api('/crm/contacts/' + conversation.contact_id + '/profile', token)
+          ).timeline.consent.find((c) => c.channel_id === channel.id).status,
+          'opted_out',
+        );
+        await page.goto(web + '/dashboard/crm');
+        await page
+          .getByRole('searchbox', { name: t('بحث عن عميل', 'Search customers'), exact: true })
+          .fill('Design client 9');
+        await page
+          .getByRole('checkbox', { name: t('تحديد ', 'Select ') + 'Design client 9', exact: true })
+          .check();
+        await page
+          .getByRole('button', { name: t('إجراءات جماعية', 'Bulk Actions'), exact: true })
+          .click();
+        const bulk = page.locator('form').filter({
+          has: page.getByRole('button', {
+            name: t('تطبيق على المحددين', 'Apply to selected'),
+            exact: true,
+          }),
+        });
+        await bulk.locator('input[name=tags]').fill('qa-bulk-label');
+        const bulkSaved = page.waitForResponse(
+          (res) => res.url().endsWith('/contacts/bulk') && res.request().method() === 'POST',
+        );
+        await bulk
+          .getByRole('button', { name: t('تطبيق على المحددين', 'Apply to selected'), exact: true })
+          .click();
+        assert.ok((await bulkSaved).ok());
+        assert.ok(
+          (await api('/crm/contacts/' + contacts[9].id, token)).tags.includes('qa-bulk-label'),
+        );
         await page.goto(web + '/dashboard/crm/segments');
         await page.getByLabel(t('اسم العرض', 'View name'), { exact: true }).fill('Travel accounts');
         await page.getByRole('button', { name: t('حفظ العرض', 'Save view'), exact: true }).click();
@@ -607,10 +818,73 @@ try {
           .getByRole('heading', { name: t('الملف الأساسي', 'Target profile'), exact: true })
           .waitFor();
         await shot('merge-preview');
+        const otherVisitor = await api('/widget/' + channel.external_id + '/session', null, {});
+        const conflictingMessage = await fetch(
+          base + '/widget/' + channel.external_id + '/messages?visitorId=' + otherVisitor.visitorId,
+          {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', 'x-visitor-token': otherVisitor.token },
+            body: JSON.stringify({ text: 'Synthetic separate identity', clientMsgId: uuid() }),
+          },
+        );
+        assert.ok(conflictingMessage.ok);
+        const conversations = (await api('/conversations', token)).items;
+        const conflict = conversations.find(
+          (item) => item.contact_id && item.contact_id !== conversation.contact_id,
+        );
+        assert.ok(conflict);
+        const blocked = await api(
+          '/crm/contacts/' +
+            conversation.contact_id +
+            '/merge-preview?sourceId=' +
+            conflict.contact_id,
+          token,
+        );
+        assert.equal(blocked.canMerge, false);
+        assert.equal(blocked.identities.length, 1);
+        await mergeTool.getByText(t('اختيار بالمعرّف', 'Select by ID'), { exact: true }).click();
+        await mergeTool
+          .getByLabel(t('معرّف الأساسي', 'Target ID'), { exact: true })
+          .fill(conversation.contact_id);
+        await mergeTool
+          .getByLabel(t('معرّف المكرر', 'Source ID'), { exact: true })
+          .fill(conflict.contact_id);
+        await mergeTool
+          .getByRole('button', {
+            name: t('معاينة التأثير والتعارضات', 'Preview impact and conflicts'),
+            exact: true,
+          })
+          .click();
+        await mergeTool
+          .getByText(
+            t(
+              'تعارض هوية القناة؛ يتطلب مراجعة بشرية',
+              'Channel identity conflict; manual review required',
+            ),
+            { exact: false },
+          )
+          .waitFor();
+        assert.equal(
+          await mergeTool
+            .getByRole('button', { name: t('دمج بعد المراجعة', 'Merge after review'), exact: true })
+            .isEnabled(),
+          false,
+        );
+        await shot('merge-conflict');
+
+        if (managerRun)
+          await page.evaluate(
+            (session) => localStorage.setItem('session', JSON.stringify(session)),
+            managerSession,
+          );
         await page.goto(web + '/dashboard/crm/reports');
         const exportReport = page.waitForEvent('download');
         await page.getByRole('button', { name: t('تصدير CSV', 'Export CSV'), exact: true }).click();
-        assert.equal((await exportReport).suggestedFilename(), 'boat-crm-report.csv');
+        const reportFile = await exportReport;
+        assert.equal(reportFile.suggestedFilename(), 'boat-crm-report.csv');
+        const reportCsv = readFileSync(await reportFile.path(), 'utf8');
+        assert.match(reportCsv, /EGP/);
+        assert.match(reportCsv, /Mona Adel/);
         await page.locator('a[href*="currency=EGP"]').first().click();
         await page.waitForURL(
           (url) => url.pathname.endsWith('/pipeline') && url.searchParams.get('currency') === 'EGP',
@@ -635,7 +909,41 @@ try {
             url.searchParams.get('period') === 'overdue' &&
             url.searchParams.get('ownerId') === staffId,
         );
+        await page.goto(web + '/dashboard/crm/reports');
+        const periodFilter = page.getByLabel(t('فترة التقرير', 'Report period'), { exact: true });
+        for (const period of ['1', '7', '30', 'month']) {
+          const requested = page.waitForResponse(
+            (r) => r.url().includes('/crm/workspace/analytics?from=') && r.ok(),
+          );
+          await periodFilter.selectOption(period);
+          const report = await (await requested).json();
+          assert.ok(report.from && report.to && report.timezone);
+        }
+        await periodFilter.selectOption('custom');
+        await page.getByLabel(t('من تاريخ', 'From date'), { exact: true }).fill('2000-01-01');
+        const custom = page.waitForResponse(
+          (r) => r.url().includes('from=2000-01-01&to=2000-01-02') && r.ok(),
+        );
+        await page.getByLabel(t('إلى تاريخ', 'To date'), { exact: true }).fill('2000-01-02');
+        const historical = await (await custom).json();
+        assert.equal(historical.contacts.new, 0);
+        assert.equal(historical.sales.length, 0);
+        const personal = page.waitForResponse((r) => r.url().includes('mine=true') && r.ok());
+        await page.getByRole('button', { name: t('الفريق كله', 'All team'), exact: true }).click();
+        assert.equal((await (await personal).json()).scope, 'mine');
         await page.goto(web + '/dashboard/crm/advanced');
+        await page.getByText(t('تقييم العملاء', 'Customer scoring'), { exact: true }).click();
+        const scoring = page.locator('form').filter({
+          has: page.getByRole('button', { name: t('حفظ القواعد', 'Save rules'), exact: true }),
+        });
+        await scoring.locator('input[name=email]').fill('12');
+        await scoring
+          .getByRole('button', { name: t('حفظ القواعد', 'Save rules'), exact: true })
+          .click();
+        await page
+          .getByText(t('حُفظت قواعد التقييم', 'Scoring rules saved'), { exact: true })
+          .waitFor();
+        assert.equal((await api('/crm/workspace/scoring', token)).rules.email, 12);
         await page.getByText(t('أتمتة CRM', 'CRM automation'), { exact: true }).click();
         const automation = page.locator('form').filter({
           has: page.getByRole('button', {
@@ -669,6 +977,96 @@ try {
           .getByRole('button', { name: t('حفظ القاعدة', 'Save rule'), exact: true })
           .click();
         await page.getByText(t('حُفظت القاعدة', 'Rule saved'), { exact: false }).waitFor();
+        const saved = (await api('/automations', token)).find(
+          (r) => r.name === 'Synthetic acceptance rule',
+        );
+        await page
+          .getByRole('link', { name: t('فتح القاعدة المحفوظة', 'Open saved rule'), exact: true })
+          .click();
+        const editor = page.locator('form').filter({
+          has: page.getByRole('button', { name: t('حفظ المسار', 'Save sequence'), exact: true }),
+        });
+        await editor
+          .getByLabel(t('الاسم', 'Name'), { exact: true })
+          .fill('Synthetic reviewed rule');
+        const savedResponse = page.waitForResponse(
+          (r) => r.url().endsWith('/automations/' + saved.id) && r.request().method() === 'PATCH',
+        );
+        await editor
+          .getByRole('button', { name: t('حفظ المسار', 'Save sequence'), exact: true })
+          .click();
+        assert.ok((await savedResponse).ok());
+        await page.goto(web + '/dashboard/automations');
+        const autoCard = page.locator('.auto-card').filter({ hasText: 'Synthetic reviewed rule' });
+        page.once('dialog', (dialog) => dialog.accept());
+        await autoCard
+          .getByRole('switch', { name: t('تفعيل القاعدة', 'Enable rule'), exact: true })
+          .click();
+        await autoCard
+          .getByRole('switch', { name: t('إيقاف القاعدة', 'Disable rule'), exact: true })
+          .click();
+        await autoCard
+          .getByRole('switch', { name: t('تفعيل القاعدة', 'Enable rule'), exact: true })
+          .waitFor();
+        assert.equal(
+          (await api('/automations', token)).find((r) => r.id === saved.id).enabled,
+          false,
+        );
+        if (process.env.CRM_QA_SEQUENCE === '1') {
+          const me = await api('/auth/me', token);
+          const tenantId =
+            me.user.tenantId || me.user.tenant_id || me.tenant?.id || me.workspaces[0].tenant_id;
+          const { channelId } = await api('/__qa/crm', null, {
+            tenantId,
+            op: 'inbound',
+            phone: '201002345678',
+          });
+          const linked = (await api('/conversations', token)).items.find(
+            (item) => item.channel_id === channelId,
+          );
+          assert.ok(linked);
+          const sequence = await api('/sequences', token, {
+            name: 'Synthetic sequence acceptance',
+            channelId,
+            steps: [
+              {
+                id: 'step1',
+                delay: { amount: 1000, unit: 'hours' },
+                content: { text: 'Synthetic event only' },
+              },
+            ],
+          });
+          await api(
+            '/sequences/' + sequence.id + '/status',
+            token,
+            { status: 'active', expectedRevision: sequence.revision },
+            'PATCH',
+          );
+          await page.goto(web + '/dashboard/crm?contact=' + linked.contact_id);
+          const card = page.getByRole('region', { name: profileTitle });
+          await card
+            .getByText(t('بيانات وإعدادات إضافية', 'More details and settings'), { exact: true })
+            .click();
+          await card
+            .getByRole('button', { name: t('التسلسلات', 'Sequences'), exact: true })
+            .click();
+          await card.locator('select[name=sequence]').selectOption(sequence.id);
+          await card
+            .getByRole('button', { name: t('إضافة للتسلسل', 'Enroll'), exact: true })
+            .click();
+          await card
+            .getByRole('button', { name: t('إيقاف للمشترك', 'Stop for subscriber'), exact: true })
+            .click();
+          await card
+            .getByRole('button', { name: t('إيقاف للمشترك', 'Stop for subscriber'), exact: true })
+            .waitFor({ state: 'hidden' });
+          assert.equal(
+            (await api('/crm/contacts/' + linked.contact_id + '/profile', token)).sequences.find(
+              (x) => x.id === sequence.id,
+            ).status,
+            'stopped',
+          );
+        }
         await page.goto(web + '/dashboard/crm/sales');
         await page
           .getByRole('button', {
@@ -677,7 +1075,60 @@ try {
           })
           .click();
         await page.locator('output[role=status]').waitFor();
+        const assignment = page.locator('form').filter({
+          has: page.getByRole('heading', {
+            name: t('توزيع العملاء', 'Lead assignment'),
+            exact: true,
+          }),
+        });
+        await assignment
+          .getByText(t('الموظفون المؤهلون للتوزيع', 'Eligible employees'), { exact: false })
+          .click();
+        await assignment.getByRole('checkbox', { name: 'Mona Adel', exact: true }).check();
+        await assignment.getByRole('checkbox', { name: 'CRM design QA', exact: true }).check();
+        await assignment
+          .getByRole('checkbox', {
+            name: t('تشغيل التوزيع التلقائي', 'Enable automatic assignment'),
+            exact: true,
+          })
+          .check();
+        await assignment
+          .getByRole('button', { name: t('حفظ الإعدادات', 'Save settings'), exact: true })
+          .click();
+        await page.getByText(t('تم حفظ الإعدادات.', 'Settings saved.'), { exact: true }).waitFor();
+        const assignmentSettings = await api('/crm/sales/settings', token);
+        assert.equal(assignmentSettings.assignment.enabled, true);
+        assert.ok(assignmentSettings.assignment.memberIds.includes(staffId));
+        assert.ok(assignmentSettings.assignment.memberIds.includes(owner));
         await shot('assignment-preview');
+        await page.goto(web + '/dashboard/crm/notifications');
+        const notificationPanel = page.locator('main');
+        const unread = notificationPanel.getByRole('button', {
+          name: t('غير مقروء', 'Unread'),
+          exact: true,
+        });
+        await unread.click();
+        const noticeToken = managerSession.accessToken;
+        const notices = await api('/crm/sales/notifications?tab=unread', noticeToken);
+        assert.ok(notices.items.length > 0);
+        const handled = page.waitForResponse(
+          (r) => r.url().includes('/crm/sales/notifications/') && r.request().method() === 'POST',
+        );
+        await notificationPanel
+          .locator('article')
+          .first()
+          .getByRole('button', { name: t('تم التعامل معها', 'Mark handled'), exact: true })
+          .click();
+        assert.ok((await handled).ok());
+        await notificationPanel
+          .getByRole('button', { name: t('تم التعامل معها', 'Handled'), exact: true })
+          .first()
+          .click();
+        await notificationPanel.locator('article').first().waitFor();
+        assert.ok(
+          (await api('/crm/sales/notifications?tab=handled', noticeToken)).items.length > 0,
+        );
+        await shot('notifications-handled');
       }
       if (!before) {
         await page.evaluate(
@@ -748,7 +1199,7 @@ try {
         height,
         mode,
         status: 'PASS',
-        role: before ? 'owner' : 'owner and agent',
+        role: before ? 'owner' : managerRun ? 'owner, admin and agent' : 'owner and agent',
         api: 'NestJS with isolated PGlite',
         checks: before
           ? ['baseline capture']
