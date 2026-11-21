@@ -26,6 +26,22 @@ async function api(path, token, body, method = body ? 'POST' : 'GET') {
   assert.ok(r.ok, path + ' ' + r.status + ' ' + JSON.stringify(data));
   return data;
 }
+async function recoverCreate(page, dialog, save, kind, query, token) {
+  const endpoint = '**/crm/' + kind;
+  await page.route(endpoint, async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    const committed = await route.fetch();
+    assert.ok(committed.ok());
+    await route.abort('internetdisconnected');
+  });
+  await save.click();
+  await dialog.getByRole('alert').waitFor();
+  await page.unroute(endpoint);
+  assert.equal((await api('/crm/' + kind + '?q=' + encodeURIComponent(query), token)).total, 1);
+  await save.click();
+  await dialog.waitFor({ state: 'hidden' });
+  assert.equal((await api('/crm/' + kind + '?q=' + encodeURIComponent(query), token)).total, 1);
+}
 const results = [];
 let browser;
 try {
@@ -227,6 +243,10 @@ try {
           .getByRole('button', { name: t('تعديل البيانات', 'Edit details'), exact: true })
           .click();
         await dialog.locator('input[name=name]').fill('Mariam Saad');
+        const back = dialog.getByRole('button', { name: t('العودة للعملاء', 'Back to customers'), exact: true });
+        page.once('dialog', (dialog) => dialog.dismiss());
+        await back.click();
+        assert.equal(await dialog.locator('input[name=name]').inputValue(), 'Mariam Saad');
         const saveChanges = dialog.getByRole('button', {
           name: t('حفظ التغييرات', 'Save Changes'),
           exact: true,
@@ -326,9 +346,21 @@ try {
         await shot('contact-custom-fields');
       }
       await shot('contact-editor');
-      await dialog
-        .getByRole('button', { name: t('حفظ العميل', 'Save contact'), exact: true })
-        .click();
+      const createContact = dialog.getByRole('button', { name: t('حفظ العميل', 'Save contact'), exact: true });
+      const contactsEndpoint = '**/crm/contacts';
+      if (!before) await page.route(contactsEndpoint, async (route) => {
+        if (route.request().method() !== 'POST') return route.continue();
+        const committed = await route.fetch();
+        assert.ok(committed.ok());
+        await route.abort('internetdisconnected');
+      });
+      await createContact.click();
+      if (!before) {
+        await dialog.getByRole('alert').waitFor();
+        await page.unroute(contactsEndpoint);
+        assert.equal((await api('/crm/contacts?q=Created', token)).total, 1);
+        await createContact.click();
+      }
       await dialog.waitFor({ state: 'hidden' });
       assert.equal((await api('/crm/contacts?q=Created', token)).items.length, 1);
       if (!before) {
@@ -457,9 +489,11 @@ try {
         .getByLabel(t('موعد المتابعة', 'Follow-up date'), { exact: true })
         .fill('2030-01-10T14:30');
       await shot('task-editor');
-      await dialog
-        .getByRole('button', { name: t('حفظ المتابعة', 'Save follow-up'), exact: true })
-        .click();
+      {
+        const save = dialog.getByRole('button', { name: t('حفظ المتابعة', 'Save follow-up'), exact: true });
+        if (before) await save.click();
+        else await recoverCreate(page, dialog, save, 'tasks', 'Review travel itinerary', token);
+      }
       await dialog.waitFor({ state: 'hidden' });
       await page.getByRole('button', { name: 'Review travel itinerary', exact: true }).waitFor();
       await page.goto(web + '/dashboard/crm/pipeline');
@@ -503,9 +537,11 @@ try {
       await dialog.getByLabel(t('العنوان', 'Title'), { exact: true }).fill('New hotel reservation');
       await dialog.getByLabel(t('القيمة', 'Value'), { exact: true }).fill('150.29');
       await shot('opportunity-editor');
-      await dialog
-        .getByRole('button', { name: t('حفظ الفرصة', 'Save opportunity'), exact: true })
-        .click();
+      {
+        const save = dialog.getByRole('button', { name: t('حفظ الفرصة', 'Save opportunity'), exact: true });
+        if (before) await save.click();
+        else await recoverCreate(page, dialog, save, 'deals', 'New hotel reservation', token);
+      }
       await dialog.waitFor({ state: 'hidden' });
       assert.equal(
         String((await api('/crm/deals?q=New%20hotel', token)).items[0].value_cents),
@@ -677,7 +713,7 @@ try {
           name: t('تصدير واستيراد العملاء', 'Customer import and export'),
         });
         await importDialog.waitFor();
-        const importFile = importDialog.locator('input[accept=".csv,.xlsx"]');
+        const importFile = importDialog.locator('input[accept=".csv,.xlsx,.json"]');
         await importFile.setInputFiles({
           name: 'invalid.csv',
           mimeType: 'text/csv',
@@ -726,6 +762,28 @@ try {
           await new Promise((resolve) => setTimeout(resolve, 300));
         }
         assert.equal((await api('/crm/contacts/' + contacts[0].id, token)).name, 'Nour Hassan');
+        await importFile.setInputFiles({
+          name: 'resume.json',
+          mimeType: 'application/json',
+          buffer: Buffer.from(JSON.stringify([{ name: 'QA resumed JSON', email: 'qa-resume@example.test' }])),
+        });
+        const completion = '**/crm/jobs/*/complete-upload';
+        let acceptedJob;
+        await page.route(completion, async (route) => {
+          const response = await route.fetch();
+          assert.ok(response.ok());
+          acceptedJob = (await response.json()).id;
+          await route.abort('internetdisconnected');
+        });
+        await start.click();
+        await importDialog.getByRole('alert').waitFor();
+        assert.ok(acceptedJob);
+        await page.unroute(completion);
+        const resumed = page.waitForResponse((response) => response.url().endsWith('/crm/jobs/uploads') && response.request().method() === 'POST');
+        await start.click();
+        assert.equal((await (await resumed).json()).id, acceptedJob);
+        await importDialog.getByText(t('تم تجهيز الاستيراد', 'Import queued'), { exact: false }).waitFor();
+        assert.equal((await api('/crm/jobs', token)).filter((job) => job.id === acceptedJob).length, 1);
         await importDialog.getByRole('button', { name: 'Close / إغلاق', exact: true }).click();
         const tools = page.getByRole('link', { name: t('الأدوات', 'Tools'), exact: true });
         await tools.click();
@@ -818,6 +876,12 @@ try {
           }),
         });
         await bulk.locator('input[name=tags]').fill('qa-bulk-label');
+        await bulk.getByText(/Design client 9/).waitFor();
+        const applyBulk = bulk.getByRole('button', { name: t('تطبيق على المحددين', 'Apply to selected'), exact: true });
+        page.once('dialog', (dialog) => dialog.dismiss());
+        await applyBulk.click();
+        assert.equal((await api('/crm/contacts/' + contacts[9].id, token)).tags.includes('qa-bulk-label'), false);
+        page.once('dialog', (dialog) => dialog.accept());
         const bulkSaved = page.waitForResponse(
           (res) => res.url().endsWith('/contacts/bulk') && res.request().method() === 'POST',
         );
@@ -828,6 +892,26 @@ try {
         assert.ok(
           (await api('/crm/contacts/' + contacts[9].id, token)).tags.includes('qa-bulk-label'),
         );
+        await page.goto(web + '/dashboard/crm');
+        const searchBulk = page.getByRole('searchbox', { name: t('بحث عن عميل', 'Search customers'), exact: true });
+        const selectPage = page.getByRole('checkbox', { name: t('تحديد عملاء الصفحة', 'Select this page'), exact: true });
+        const bulkButton = page.getByRole('button', { name: t('إجراءات جماعية', 'Bulk Actions'), exact: true });
+        await selectPage.check();
+        await bulkButton.waitFor();
+        await page.getByRole('button', { name: t('عملاء مؤهلون', 'Qualified'), exact: true }).click();
+        await bulkButton.waitFor({ state: 'hidden' });
+        await page.getByRole('button', { name: t('الكل', 'All'), exact: true }).click();
+        await selectPage.check();
+        await bulkButton.waitFor();
+        await page.getByRole('button', { name: t('التالي', 'Next'), exact: true }).click();
+        await bulkButton.waitFor({ state: 'hidden' });
+        await selectPage.check();
+        await bulkButton.waitFor();
+        await searchBulk.fill('Nour');
+        await bulkButton.waitFor({ state: 'hidden' });
+        await selectPage.check();
+        await page.getByRole('button', { name: t('الأرشيف', 'Archived'), exact: true }).click();
+        await bulkButton.waitFor({ state: 'hidden' });
         await page.goto(web + '/dashboard/crm/segments');
         await page.getByLabel(t('اسم العرض', 'View name'), { exact: true }).fill('Travel accounts');
         await page.getByRole('button', { name: t('حفظ العرض', 'Save view'), exact: true }).click();
@@ -1252,6 +1336,49 @@ try {
             .count(),
           0,
         );
+      }
+      if (workflow && process.env.CRM_QA_FIRST_CONTACT === '1') {
+        const me = await api('/auth/me', token);
+        const tenantId = me.user.tenantId || me.user.tenant_id || me.tenant?.id || me.workspaces[0].tenant_id;
+        const { channelId } = await api('/__qa/crm', null, { tenantId, op: 'outbound-channel' });
+        const first = await api('/crm/contacts', token, { name: 'Synthetic first contact', phone: '+12025550136' });
+        const path = '/crm/contacts/' + first.id;
+        const startPath = path + '/start-conversation';
+        const payload = { channelId, name: 'qa_first_contact', language: 'en' };
+        async function expectDenied(accessToken, expected) {
+          const response = await fetch(base + startPath, {
+            method: 'POST',
+            headers: { authorization: 'Bearer ' + accessToken, 'content-type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          assert.equal(response.status, expected);
+        }
+        await expectDenied(agent.accessToken, 403);
+        await expectDenied(token, 400);
+        await api(path + '/consent', token, { channelId, status: 'opted_in', evidence: 'Isolated QA consent' }, 'PUT');
+        await page.evaluate((value) => localStorage.setItem('session', JSON.stringify(value)), session);
+        await page.goto(web + '/dashboard/crm?contact=' + first.id);
+        await page.getByRole('button', { name: t('بدء محادثة', 'Start conversation'), exact: true }).click();
+        await page.getByRole('combobox', { name: t('قناة واتساب والقالب', 'WhatsApp channel and template') }).selectOption(channelId + ':qa_first_contact:en');
+        await page.getByText('Synthetic greeting', { exact: true }).waitFor();
+        const send = page.getByRole('button', { name: t('إرسال القالب', 'Send template'), exact: true });
+        page.once('dialog', (dialog) => dialog.dismiss());
+        await send.click();
+        assert.equal((await api(path + '/profile', token)).timeline.conversations.length, 0);
+        await api(path + '/consent', token, { channelId, status: 'opted_out', evidence: 'Isolated QA withdrawal' }, 'PUT');
+        page.once('dialog', (dialog) => dialog.accept());
+        await send.click();
+        await page.getByRole('alert').getByText(/customer opt-in/).waitFor();
+        assert.equal((await api(path + '/profile', token)).timeline.conversations.length, 0);
+        await api(path + '/consent', token, { channelId, status: 'opted_in', evidence: 'Isolated QA consent renewed' }, 'PUT');
+        page.once('dialog', (dialog) => dialog.accept());
+        await send.click();
+        await page.getByText(t('تمت جدولة الرسالة الأولى.', 'First message queued.'), { exact: true }).waitFor();
+        const repeated = await api(startPath, token, payload);
+        assert.equal(repeated.started, false);
+        assert.equal((await api(path + '/profile', token)).timeline.conversations.length, 1);
+        const messages = (await api('/conversations/' + repeated.id + '/messages', token)).items;
+        assert.equal(messages.filter((message) => message.direction === 'out').length, 1);
       }
       if (workflow && process.env.CRM_QA_VOLUME === '1') {
         const me = await api('/auth/me', token);

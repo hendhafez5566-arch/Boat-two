@@ -22,6 +22,19 @@ export function installCrmFixtures(app, local) {
             ),
           );
           res.json({ seeded: 3000 });
+        } else if (op === 'outbound-channel') {
+          const channelId = await db.withTenant(tenantId, async (c) => {
+            const channel = (await c.query(
+              "INSERT INTO channels(tenant_id,name,type,status,external_id) VALUES($1,'Synthetic outbound','whatsapp','active',gen_random_uuid()::text) RETURNING id",
+              [tenantId],
+            )).rows[0];
+            await c.query(
+              "INSERT INTO whatsapp_templates(tenant_id,channel_id,name,language,category,body,status,supported) VALUES($1,$2,'qa_first_contact','en','UTILITY','Synthetic greeting','APPROVED',true)",
+              [tenantId, channel.id],
+            );
+            return channel.id;
+          });
+          res.json({ channelId });
         } else if (op === 'work-volume') {
           const { pipelineId, staffId } = req.body;
           await db.withTenant(tenantId, async (c) => {
