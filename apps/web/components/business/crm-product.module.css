@@ -153,11 +153,16 @@
   display: grid;
   gap: 0.35rem;
 }
-.formFields input,
+.formFields input:not([type='checkbox']),
 .formFields select {
   min-width: 0;
   width: 100%;
   min-height: 44px;
+}
+.formFields input[type='checkbox'] {
+  inline-size: 1.1rem;
+  block-size: 1.1rem;
+  min-block-size: 0;
 }
 .formGroup {
   border-block-start: 1px solid #dce8e4;
