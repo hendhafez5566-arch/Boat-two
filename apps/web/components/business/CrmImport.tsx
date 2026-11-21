@@ -132,10 +132,11 @@ export function CrmImport() {
       };
     })
     .filter((row) => !row.blank);
+  const requiresIdentity = !/\.csv$/i.test(file?.name ?? '');
   const invalidRows = mapped.filter(
     ({ contact }) =>
       !contact.name ||
-      (!contact.email && !contact.phone) ||
+      (requiresIdentity && !contact.email && !contact.phone) ||
       (contact.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email)),
   );
   async function submit() {
@@ -323,7 +324,7 @@ export function CrmImport() {
                     {t('صف', 'Row')} {rowNumber}:{' '}
                     {!contact.name
                       ? t('الاسم مطلوب', 'Name required')
-                      : !contact.email && !contact.phone
+                      : requiresIdentity && !contact.email && !contact.phone
                         ? t('البريد أو الهاتف مطلوب', 'Email or phone required')
                         : t('البريد غير صالح', 'Invalid email')}
                   </li>

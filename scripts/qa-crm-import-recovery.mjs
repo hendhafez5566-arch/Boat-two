@@ -35,7 +35,7 @@ try {
     name: 'resumable.csv',
     mimeType: 'text/csv',
     buffer: Buffer.from(['Name,Email', ...Array.from({ length: 101 }, (_, i) =>
-      'Resume client ' + i + ',resume-' + i + '@example.test')].join('\n')),
+      'Resume client ' + i + ',' + (i === 100 ? '' : 'resume-' + i + '@example.test'))].join('\n')),
   };
   async function stageImport() {
     await page.goto('http://localhost:3000/dashboard/crm');
