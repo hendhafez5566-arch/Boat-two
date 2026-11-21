@@ -4,6 +4,7 @@ import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 import { Button } from '../product/ProductUI';
 import styles from './crm-workspace.module.css';
+import { parseCsvRows } from './csv';
 const fields = [
   ['name', 'الاسم', 'Name'],
   ['email', 'البريد الإلكتروني', 'Email'],
@@ -24,6 +25,9 @@ export function CrmImport() {
   const { t } = useLocale();
   const [rows, setRows] = useState<string[][]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
+  const [jsonContacts, setJsonContacts] = useState<Record<string, unknown>[]>([]);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [upload, setUpload] = useState<{ fingerprint: string; id: string } | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [sheets, setSheets] = useState<string[]>([]);
   const [sheet, setSheet] = useState('');
@@ -38,6 +42,8 @@ export function CrmImport() {
     setError('');
     setNotice('');
     setRows([]);
+    setJsonContacts([]);
+    setProgress(null);
     if (selectedSheet) setSheet(selectedSheet);
     else {
       setSheets([]);
@@ -45,13 +51,35 @@ export function CrmImport() {
       setFile(null);
     }
     try {
-      const form = new FormData();
-      form.append('file', file);
-      if (selectedSheet) form.append('sheet', selectedSheet);
-      const result = await api<{ rows: string[][]; sheets: string[]; selectedSheet?: string }>(
-        '/crm/workspace/import-preview',
-        { method: 'POST', body: form },
-      );
+      if (/\.json$/i.test(file.name)) {
+        if (file.size > 10000000) throw Error(t('حد الملف 10MB.', 'File limit is 10MB.'));
+        const parsed: unknown = JSON.parse(await file.text());
+        if (!Array.isArray(parsed) || !parsed.length || parsed.length > 10000 ||
+          parsed.some((row) => !row || typeof row !== 'object' || typeof row.name !== 'string' || !row.name.trim()))
+          throw Error(t('يجب أن يحتوي الملف على 1–10,000 عميل بأسماء صالحة.', 'Choose 1–10,000 named customers.'));
+        setJsonContacts(parsed.map((row) => ({
+          ...row,
+          email: row.email || null,
+          phone: row.phone || null,
+          tags: Array.isArray(row.tags) ? row.tags : String(row.tags || '').split(/[;|]/).filter(Boolean),
+        })));
+        return;
+      }
+      let result: { rows: string[][]; sheets: string[]; selectedSheet?: string };
+      if (/\.csv$/i.test(file.name)) {
+        if (file.size > 10000000) throw Error(t('حد الملف 10MB.', 'File limit is 10MB.'));
+        const text = await file.text();
+        if (text.includes('\0')) throw Error(t('استخدم CSV بترميز UTF-8.', 'Use UTF-8 CSV.'));
+        const parsed = parseCsvRows(text);
+        if (!parsed[0]?.some((cell) => cell.trim())) throw Error('The selected sheet has no column headers');
+        if (parsed.length > 10001) throw Error(t('الحد الأقصى 10,000 عميل.', 'Import up to 10,000 customers.'));
+        result = { rows: parsed, sheets: ['CSV'], selectedSheet: 'CSV' };
+      } else {
+        const form = new FormData();
+        form.append('file', file);
+        if (selectedSheet) form.append('sheet', selectedSheet);
+        result = await api('/crm/workspace/import-preview', { method: 'POST', body: form });
+      }
       setFile(file);
       setSheets(result.sheets);
       setSheet(result.selectedSheet || selectedSheet || result.sheets[0]);
@@ -82,12 +110,17 @@ export function CrmImport() {
   const mapped = rows
     .slice(1)
     .map((row, index) => {
+      const canonicalValue = (key: string) => row[rows[0].findIndex((header) => header.trim() === key)]?.trim();
+      const lifecycle = canonicalValue('lifecycle');
+      const ownerId = canonicalValue('ownerId');
       const cell = (key: string) => row[Number(mapping[key])] || '';
       return {
         rowNumber: index + 2,
         blank: row.every((value) => !value.trim()),
         contact: {
           name: cell('name').trim(),
+          ...(lifecycle ? { lifecycle } : {}),
+          ...(ownerId ? { ownerId } : {}),
           email: cell('email').trim() || null,
           phone: cell('phone').trim() || null,
           tags: cell('tags')
@@ -111,7 +144,7 @@ export function CrmImport() {
     setBusy(true);
     setError('');
     try {
-      const contacts = mapped.map(({ contact }) => contact);
+      const contacts = jsonContacts.length ? jsonContacts : mapped.map(({ contact }) => contact);
       if (!contacts.length || invalidRows.length)
         throw Error(
           t(
@@ -124,16 +157,49 @@ export function CrmImport() {
       const fingerprint = Array.from(new Uint8Array(digest))
         .map((n) => n.toString(16).padStart(2, '0'))
         .join('');
-      const job = await api<{ id: string; uploaded: number }>('/crm/jobs/uploads', {
+      const resumeKey = 'boat:crm-upload:' + fingerprint;
+      let resume = upload?.fingerprint === fingerprint ? upload.id : undefined;
+      try {
+        resume ||= sessionStorage.getItem(resumeKey) || undefined;
+      } catch {
+        // The in-memory receipt still supports retries when storage is unavailable.
+      }
+      const job = await api<{ id: string; uploaded: number; status: string }>('/crm/jobs/uploads', {
         method: 'POST',
-        body: JSON.stringify({ total: contacts.length, fingerprint }),
+        body: JSON.stringify({ total: contacts.length, fingerprint, ...(resume ? { resume } : {}) }),
       });
-      for (let offset = job.uploaded; offset < contacts.length; offset += 100)
-        await api(`/crm/jobs/${job.id}/upload`, {
+      setUpload({ id: job.id, fingerprint });
+      try {
+        sessionStorage.setItem(resumeKey, job.id);
+      } catch {
+        // The open importer retains the receipt.
+      }
+      let offset = job.uploaded;
+      setProgress({ done: offset, total: contacts.length });
+      while (offset < contacts.length) {
+        let rows = contacts.slice(offset, offset + 100);
+        while (new TextEncoder().encode(JSON.stringify({ after: offset, rows })).byteLength > 900000) {
+          if (rows.length === 1)
+            throw Error(t('صف واحد يتجاوز حد الطلب.', 'One row exceeds the request limit.'));
+          rows = rows.slice(0, Math.ceil(rows.length / 2));
+        }
+        const result = await api<{ uploaded: number }>(`/crm/jobs/${job.id}/upload`, {
           method: 'POST',
-          body: JSON.stringify({ after: offset, rows: contacts.slice(offset, offset + 100) }),
+          body: JSON.stringify({ after: offset, rows }),
         });
+        if (result.uploaded <= offset || result.uploaded > contacts.length)
+          throw Error(t('تعذّر تقدم الرفع. أعد المحاولة.', 'Upload did not advance. Try again.'));
+        offset = result.uploaded;
+        setProgress({ done: offset, total: contacts.length });
+      }
       await api(`/crm/jobs/${job.id}/complete-upload`, { method: 'POST' });
+      setUpload(null);
+      try {
+        sessionStorage.removeItem(resumeKey);
+      } catch {
+        // Nothing to clear when storage is unavailable.
+      }
+      setJsonContacts([]);
       setNotice(
         t(
           'تم تجهيز الاستيراد. تابع النتائج والأخطاء في المهام أدناه؛ السجلات المكررة لا تُستبدل.',
@@ -151,18 +217,12 @@ export function CrmImport() {
   }
   return (
     <section className={styles.card}>
-      <h2>{t('استيراد عملاء من Excel أو CSV', 'Import customers from Excel or CSV')}</h2>
-      <p>
-        {t(
-          'ارفع الملف ← راجع الأعمدة ← ابدأ الاستيراد. لا يُعدّل أي عميل موجود.',
-          'Upload → review columns → start import. Existing customers are never overwritten.',
-        )}
-      </p>
+      <h2>{t('استيراد عملاء من Excel أو CSV أو JSON', 'Import customers from Excel, CSV or JSON')}</h2>
       <label>
-        {t('اختر الملف (حتى 5 MB)', 'Choose file (up to 5 MB)')}
+        {t('اختر الملف (Excel حتى 5 MB، CSV وJSON حتى 10 MB)', 'Choose file (Excel up to 5 MB, CSV and JSON up to 10 MB)')}
         <input
           type="file"
-          accept=".csv,.xlsx"
+          accept=".csv,.xlsx,.json"
           disabled={busy}
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -180,6 +240,15 @@ export function CrmImport() {
         <p role="status" className="notice">
           {notice}
         </p>
+      )}
+      {progress && <progress aria-label={t('تقدم رفع العملاء', 'Contact upload progress')} value={progress.done} max={progress.total} />}
+      {jsonContacts.length > 0 && (
+        <div>
+          <p>{jsonContacts.length} {t('عميل', 'customers')}</p>
+          <Button busy={busy} onClick={() => void submit()}>
+            {t('تأكيد وبدء الاستيراد', 'Confirm and start import')}
+          </Button>
+        </div>
       )}
       {sheets.length > 1 && (
         <label>

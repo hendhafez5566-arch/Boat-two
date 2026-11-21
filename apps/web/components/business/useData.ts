@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../lib/api';
 export function useData<T>(path: string | null, initial: T) {
+  const [loadedPath, setLoadedPath] = useState<string | null>(null);
   const [data, setData] = useState(initial);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -17,6 +18,7 @@ export function useData<T>(path: string | null, initial: T) {
       const result = await api<T>(path);
       if (n === sequence.current) {
         setData(result);
+        setLoadedPath(path);
         setError('');
       }
     } catch (e) {
@@ -31,5 +33,5 @@ export function useData<T>(path: string | null, initial: T) {
       sequence.current++;
     };
   }, [reload]);
-  return { data, error, loading, reload, setError };
+  return { data, error, loading, reload, setError, loadedPath };
 }

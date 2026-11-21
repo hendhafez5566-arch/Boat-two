@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ConflictException,
   Delete,
   Get,
   ForbiddenException,
@@ -85,13 +86,16 @@ export class CrmController {
     });
   }
   @Post('contacts') create(@Req() r: AuthedRequest, @Body() body: unknown) {
-    const input = parse(contactSchema, body);
+    const { requestId, ...input } = parse(contactSchema.extend({ requestId: z.string().uuid().optional() }), body);
     if (r.user.role === 'agent') {
       if (input.ownerId && input.ownerId !== r.user.userId)
         throw new ForbiddenException('Only managers may assign another employee');
       input.ownerId = r.user.userId;
     }
-    return this.crm.save(r.user.tenantId, input);
+    const create = () => this.crm.save(r.user.tenantId, input);
+    return requestId
+      ? this.crm.createOnce(r.user.tenantId, r.user.userId, r.user.role, 'contacts', requestId, input, create)
+      : create();
   }
   @Post('contacts/bulk') @Roles('owner', 'admin') bulkContacts(
     @Req() r: AuthedRequest,
@@ -105,6 +109,7 @@ export class CrmController {
             .min(1)
             .max(100)
             .refine((ids) => new Set(ids).size === ids.length),
+          expectedVersions: z.record(z.string().uuid(), z.string().datetime()).optional(),
           lifecycle: z.enum(['lead', 'qualified', 'customer', 'inactive']).optional(),
           addTags: z.array(z.string().trim().min(1).max(50)).max(20).default([]),
           ownerId: z.string().uuid().nullable().optional(),
@@ -123,11 +128,14 @@ export class CrmController {
     return this.crm.db.withTenant(r.user.tenantId, async (c) => {
       await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
       const contacts = await c.query(
-        'SELECT id,attributes FROM contacts WHERE merged_into_id IS NULL AND id=ANY($1::uuid[]) ORDER BY id FOR UPDATE',
+        'SELECT id,attributes,updated_at FROM contacts WHERE merged_into_id IS NULL AND id=ANY($1::uuid[]) ORDER BY id FOR UPDATE',
         [b.ids],
       );
       if (contacts.rowCount !== b.ids.length)
         throw new NotFoundException('One or more contacts not found');
+      if (b.expectedVersions && contacts.rows.some((contact) =>
+        new Date(contact.updated_at).getTime() !== Date.parse(b.expectedVersions![contact.id] ?? ''),
+      )) throw new ConflictException('Selected customers changed. Refresh and select them again.');
       if (
         b.ownerId &&
         !(await c.query('SELECT 1 FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.user_id=$1 AND u.disabled_at IS NULL FOR SHARE OF m,u', [b.ownerId])).rowCount
@@ -729,8 +737,9 @@ export class CrmController {
     return this.workList(r, query, 'tasks', true);
   }
   @Post('deals') deal(@Req() r: AuthedRequest, @Body() body: unknown) {
-    const b = parse(
+    const { requestId, ...b } = parse(
       z.object({
+        requestId: z.string().uuid().optional(),
         contactId: z.string().uuid(),
         pipelineId: z.string().uuid(),
         ownerId: z.string().uuid().nullable().optional(),
@@ -750,7 +759,7 @@ export class CrmController {
         throw new ForbiddenException('Agents may assign only their own work');
       b.ownerId = r.user.userId;
     }
-    return this.crm.db.withTenant(r.user.tenantId, async (c) => {
+    const create = () => this.crm.db.withTenant(r.user.tenantId, async (c) => {
       await this.crm.get(r.user.tenantId, b.contactId);
       const pipeline = (
         await c.query('SELECT stages FROM crm_pipelines WHERE id=$1 FOR SHARE', [b.pipelineId])
@@ -779,6 +788,9 @@ export class CrmController {
         )
       ).rows[0];
     });
+    return requestId
+      ? this.crm.createOnce(r.user.tenantId, r.user.userId, r.user.role, 'deals', requestId, b, create)
+      : create();
   }
   @Patch('deals/:id') updateDeal(
     @Req() r: AuthedRequest,
@@ -861,8 +873,9 @@ export class CrmController {
     return this.workList(r, query, 'tasks');
   }
   @Post('tasks') task(@Req() r: AuthedRequest, @Body() body: unknown) {
-    const b = parse(
+    const { requestId, ...b } = parse(
       z.object({
+        requestId: z.string().uuid().optional(),
         contactId: z.string().uuid(),
         dealId: z.string().uuid().nullable().optional(),
         title: z.string().min(1).max(200),
@@ -877,7 +890,7 @@ export class CrmController {
         throw new ForbiddenException('Agents may assign only their own work');
       b.assignedTo = r.user.userId;
     }
-    return this.crm.db.withTenant(r.user.tenantId, async (c) => {
+    const create = () => this.crm.db.withTenant(r.user.tenantId, async (c) => {
       await this.crm.get(r.user.tenantId, b.contactId);
       if (
         b.assignedTo &&
@@ -909,6 +922,9 @@ export class CrmController {
         )
       ).rows[0];
     });
+    return requestId
+      ? this.crm.createOnce(r.user.tenantId, r.user.userId, r.user.role, 'tasks', requestId, b, create)
+      : create();
   }
   @Patch('tasks/:id') updateTask(
     @Req() r: AuthedRequest,

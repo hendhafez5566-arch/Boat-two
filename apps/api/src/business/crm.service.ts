@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -204,6 +205,42 @@ export class CrmService {
       });
       await this.save(tenant, input, id);
       return this.profile(tenant, id);
+    });
+  }
+  createOnce(
+    tenant: string,
+    actor: string,
+    role: string,
+    kind: 'contacts' | 'deals' | 'tasks',
+    requestId: string,
+    input: object,
+    create: () => Promise<{ id: string }>,
+  ) {
+    const fingerprint = createHash('sha256').update(JSON.stringify(input)).digest('hex');
+    const table = kind === 'contacts' ? 'contacts' : `crm_${kind}`;
+    return this.db.withTenant(tenant, async (c) => {
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+      const identity = [tenant, actor, kind, requestId];
+      const receipt = (await c.query(
+        'SELECT entity_id,fingerprint FROM crm_create_receipts WHERE tenant_id=$1 AND actor_id=$2 AND kind=$3 AND request_id=$4',
+        identity,
+      )).rows[0];
+      if (receipt) {
+        if (receipt.fingerprint !== fingerprint)
+          throw new ConflictException('This request already created a record. Retry the original details or refresh the list.');
+        const row = (await c.query(`SELECT * FROM ${table} WHERE id=$1`, [receipt.entity_id])).rows[0];
+        if (!row || row.merged_into_id)
+          throw new ConflictException('The record created by this request is no longer available.');
+        if (role === 'agent' && kind !== 'contacts' && row[kind === 'deals' ? 'owner_id' : 'assigned_to'] !== actor)
+          throw new NotFoundException('Record not found');
+        return row;
+      }
+      const record = await create();
+      await c.query(
+        'INSERT INTO crm_create_receipts(tenant_id,actor_id,kind,request_id,fingerprint,entity_id) VALUES($1,$2,$3,$4,$5,$6)',
+        [...identity, fingerprint, record.id],
+      );
+      return record;
     });
   }
   async save(tenant: string, input: z.infer<typeof contactSchema>, id?: string) {

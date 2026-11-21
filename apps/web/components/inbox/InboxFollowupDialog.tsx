@@ -17,6 +17,7 @@ export function InboxFollowupDialog({
 }) {
   const { t } = useLocale();
   const submitLock = useRef(false);
+  const requestId = useRef('');
   const [followupBusy, setFollowupBusy] = useState(false);
   const [followupError, setFollowupError] = useState('');
   const [dueAt, setDueAt] = useState('');
@@ -33,9 +34,11 @@ export function InboxFollowupDialog({
     setFollowupBusy(true);
     setFollowupError('');
     try {
+      if (!requestId.current) requestId.current = crypto.randomUUID();
       await api('/crm/tasks', {
         method: 'POST',
         body: JSON.stringify({
+          requestId: requestId.current,
           contactId: detail.contact_id,
           title: reason.trim(),
           dueAt: new Date(dueAt).toISOString(),
@@ -54,6 +57,7 @@ export function InboxFollowupDialog({
   }
   useEffect(() => {
     if (open) {
+      requestId.current = '';
       quickTime(24);
       setReason('');
       setFollowupError('');

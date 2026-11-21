@@ -22,6 +22,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
+import { useCrmDraftGuard } from '../../../components/business/useCrmDraftGuard';
 import { useData } from '../../../components/business/useData';
 import { download, exportCsv } from '../../../components/business/csv';
 type Contact = {
@@ -47,17 +48,6 @@ type Pipeline = {
   owner_id: string | null;
   ownership_revision: number;
 };
-type Deal = {
-  id: string;
-  title: string;
-  contact_name: string;
-  pipeline_id: string;
-  stage: string;
-  status: string;
-  value_cents: string;
-  currency: string;
-};
-type Task = { id: string; title: string; contact_name: string; due_at: string; status: string };
 const COLUMNS = ['contact', 'lifecycle', 'tags', 'id'] as const;
 type Column = (typeof COLUMNS)[number];
 
@@ -124,7 +114,8 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     canManage ? '/sequences' : null,
     [],
   );
-  const [bulkIds, setBulkIds] = useState<string[]>([]);
+  const bulkPending = useRef(false);
+  const [selectedBulkIds, setBulkIds] = useState<string[]>([]);
   const [stage, setStage] = useState('');
   const [quickFilter, setQuickFilter] = useState('');
   function chooseQuickFilter(value: string) {
@@ -179,6 +170,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     }
   }, []);
   const [contactDraft, setContactDraft] = useState<Contact | null>(null);
+  const createRequestId = useRef('');
   const [contactDirty, setContactDirty] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
   function closeContact() {
@@ -191,6 +183,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     setEdit(null);
   }
   function discardContact() {
+    createRequestId.current = '';
     setContactDirty(false);
     setConfirmClose(false);
     setShowCreate(false);
@@ -198,6 +191,15 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
   }
   const [selected, setSelected] = useState<Contact | null>(null);
   const [recordSection, setRecordSection] = useState('overview');
+  const [profileDirty, setProfileDirty] = useState(false);
+  const hasDraft = contactDirty || profileDirty;
+  function confirmDiscard() {
+    return !hasDraft || window.confirm(t('تجاهل التعديلات غير المحفوظة؟', 'Discard unsaved changes?'));
+  }
+  useCrmDraftGuard(hasDraft, t('تجاهل التعديلات غير المحفوظة؟', 'Discard unsaved changes?'), () => {
+    setProfileDirty(false);
+    discardContact();
+  });
   function openRecord(contact: Contact) {
     const url = new URL(location.href);
     url.searchParams.set('contact', contact.id);
@@ -206,6 +208,8 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     setSelected(contact);
   }
   function closeRecord() {
+    if (!confirmDiscard()) return;
+    setProfileDirty(false);
     const url = new URL(location.href);
     url.searchParams.delete('contact');
     url.searchParams.delete('section');
@@ -255,10 +259,25 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     ...(stage ? { lifecycle: stage } : {}),
     ...(tag ? { tag } : {}),
   });
+  const contactsPath = `/crm/contacts?${filter}&page=${page}&limit=${pageSize}&sort=${sort}`;
   const contacts = useData<{ items: Contact[]; total: number }>(
-    `/crm/contacts?${filter}&page=${page}&limit=${pageSize}&sort=${sort}`,
+    contactsPath,
     { items: [], total: 0 },
   );
+  const [selectionPath, setSelectionPath] = useState('');
+  const canSelect = canManage && !contacts.loading && !contacts.error && contacts.loadedPath === contactsPath;
+  const bulkContacts = canSelect && selectionPath === contactsPath
+    ? contacts.data.items.filter((contact) => selectedBulkIds.includes(contact.id))
+    : [];
+  const bulkIds = bulkContacts.map((contact) => contact.id);
+  function selectBulk(update: (ids: string[]) => string[]) {
+    if (!canSelect) return;
+    setSelectionPath(contactsPath);
+    setBulkIds((ids) => update(selectionPath === contactsPath ? ids : []));
+  }
+  useEffect(() => {
+    setBulkIds([]);
+  }, [contactsPath]);
   const editContact = (contact: Contact) => {
     setEdit(contact.id);
     setContactDraft(contact);
@@ -292,14 +311,6 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     sort,
   ]);
   const pipelines = useData<Pipeline[]>('/crm/pipelines', []);
-  const deals = useData<{ items: Deal[]; total: number }>('/crm/deals?page=' + page, {
-    items: [],
-    total: 0,
-  });
-  const tasks = useData<{ items: Task[]; total: number }>('/crm/tasks?page=' + page, {
-    items: [],
-    total: 0,
-  });
   const fields = useData<ContactField[]>('/crm/fields', []);
   const segments = useData<
     {
@@ -336,8 +347,6 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
   const refresh = () => {
     contacts.reload();
     summary.reload();
-    deals.reload();
-    tasks.reload();
     fields.reload();
     segments.reload();
     duplicates.reload();
@@ -414,8 +423,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
   const [filtersOpen, setFiltersOpen] = useState(false);
   const tabs = [
     ['contacts', 'جهات الاتصال', 'Contacts'],
-    ['deals', 'الصفقات', 'Deals'],
-    ['tasks', 'المتابعات', 'Tasks'],
+    ['pipeline-settings', 'خطوط المبيعات', 'Sales pipelines'],
     ['config', 'الحقول والشرائح', 'Fields & segments'],
   ];
   return (
@@ -432,6 +440,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
             contactId={selected.id}
             initialTab={recordSection}
             canManage={canManage}
+            onDraftChange={setProfileDirty}
             onChanged={() => {
               void contacts.reload();
               void summary.reload();
@@ -524,19 +533,9 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                   >
                     {t('تحديث القائمة', 'Refresh list')}
                   </button>
-                  {tabs.map(([id, ar, en]) => (
-                    <button
-                      type="button"
-                      key={id}
-                      onClick={() => {
-                        setHeadMenu(null);
-                        setTab(id);
-                        setPage(1);
-                      }}
-                    >
-                      {t(ar, en)}
-                    </button>
-                  ))}
+                  <Link href="/dashboard/crm/pipeline">{t('فرص البيع', 'Pipeline')}</Link>
+                  <Link href="/dashboard/crm/tasks">{t('المتابعات', 'Follow-ups')}</Link>
+                  <Link href="/dashboard/crm/advanced">{t('الإعدادات المتقدمة', 'Advanced settings')}</Link>
                   <Link href="/dashboard/crm/lists">{t('القوائم', 'Lists')}</Link>
                 </div>
               )}
@@ -603,16 +602,12 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
         </Dialog>
         {(error ||
           contacts.error ||
-          deals.error ||
-          tasks.error ||
           fields.error ||
           segments.error) && (
           <p className="notice error" role="alert">
             {error ||
               contacts.error ||
-              deals.error ||
-              tasks.error ||
-              fields.error ||
+                      fields.error ||
               segments.error}
           </p>
         )}
@@ -917,9 +912,17 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                     const data = new FormData(event.currentTarget);
                     const lifecycle = String(data.get('lifecycle') || '');
                     const owner = String(data.get('owner') || '');
+                    if (!canSelect || !bulkIds.length || busy || bulkPending.current) return;
+                    const scope = t(
+                      `تطبيق التعديلات على ${bulkIds.length} عميل محدد في الصفحة ${page}؟`,
+                      `Apply changes to ${bulkIds.length} selected customers on page ${page}?`,
+                    );
+                    if (!window.confirm(scope + '\n' + bulkContacts.map((contact) => contact.name).join('، '))) return;
+                    bulkPending.current = true;
                     try {
                       await act('/crm/contacts/bulk', {
                         ids: bulkIds,
+                        expectedVersions: Object.fromEntries(bulkContacts.map((contact) => [contact.id, contact.updated_at])),
                         attributes: Object.fromEntries(
                           fields.data
                             .filter((field) => data.get('apply-' + field.key))
@@ -947,12 +950,15 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                       setBulkIds([]);
                     } catch {
                       /* Shared error banner. */
+                    } finally {
+                      bulkPending.current = false;
                     }
                   }}
                 >
                   <h2>
                     {t('تعديل العملاء المحددين', 'Edit selected contacts')} ({bulkIds.length})
                   </h2>
+                  <p>{t('الصفحة', 'Page')} {page} · {bulkContacts.map((contact) => contact.name).join('، ')}</p>
                   <div className="form-grid">
                     <label className="field">
                       {t('المرحلة', 'Lifecycle')}
@@ -1036,13 +1042,13 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                         contacts.data.items.length > 0 &&
                         contacts.data.items.every((contact) => bulkIds.includes(contact.id))
                       }
-                      onChange={(e) =>
-                        setBulkIds(
-                          e.target.checked ? contacts.data.items.map((contact) => contact.id) : [],
-                        )
-                      }
+                      disabled={!canSelect}
+                      onChange={(e) => {
+                        const checked = e.currentTarget.checked;
+                        selectBulk(() => checked ? contacts.data.items.map((contact) => contact.id) : []);
+                      }}
                     />
-                    {t('تحديد الكل', 'Select all')}
+                    {t('تحديد عملاء الصفحة', 'Select this page')}
                   </label>
                   <span>
                     {bulkIds.length > 0 ? `${bulkIds.length} ${t('محدد', 'selected')}` : ''}
@@ -1076,14 +1082,11 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                               type="checkbox"
                               aria-label={t('تحديد ', 'Select ') + c.name}
                               checked={bulkIds.includes(c.id)}
-                              disabled={!bulkIds.includes(c.id) && bulkIds.length >= 100}
-                              onChange={(event) =>
-                                setBulkIds((ids) =>
-                                  event.target.checked
-                                    ? [...ids, c.id]
-                                    : ids.filter((id) => id !== c.id),
-                                )
-                              }
+                              disabled={!canSelect || (!bulkIds.includes(c.id) && bulkIds.length >= 100)}
+                              onChange={(event) => {
+                                const checked = event.currentTarget.checked;
+                                selectBulk((ids) => checked ? [...ids, c.id] : ids.filter((id) => id !== c.id));
+                              }}
                             />
                           </td>
                           <td>
@@ -1297,9 +1300,10 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                   onCancel={closeContact}
                   onDirty={() => setContactDirty(true)}
                   onSave={async (draft) => {
+                    if (!edit && !createRequestId.current) createRequestId.current = crypto.randomUUID();
                     const saved = await act(
                       '/crm/contacts' + (edit ? '/' + edit + '/profile' : ''),
-                      draft,
+                      edit ? draft : { ...draft, requestId: createRequestId.current },
                       edit ? 'PATCH' : 'POST',
                     );
                     discardContact();
@@ -1331,126 +1335,8 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
             </Dialog>
           </>
         )}
-        {tab === 'deals' && (
+        {tab === 'pipeline-settings' && canManage && (
           <>
-            <section className="card">
-              <h2>{t('الصفقات وخطوط المبيعات', 'Deals & pipelines')}</h2>
-              <div className="table-wrap">
-                <table className="product-table">
-                  <thead>
-                    <tr>
-                      <th>{t('الصفقة', 'Deal')}</th>
-                      <th>{t('العميل', 'Contact')}</th>
-                      <th>{t('القيمة', 'Value')}</th>
-                      <th>{t('المرحلة', 'Stage')}</th>
-                      <th>{t('الحالة', 'Status')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {deals.data.items.map((d) => (
-                      <tr key={d.id}>
-                        <td>{d.title}</td>
-                        <td>{d.contact_name}</td>
-                        <td>
-                          {Number(d.value_cents) / 100} {d.currency}
-                        </td>
-                        <td>
-                          <select
-                            value={d.stage}
-                            onChange={(e) =>
-                              act(
-                                '/crm/deals/' + d.id,
-                                { stage: e.target.value, status: d.status },
-                                'PATCH',
-                              ).catch(() => {})
-                            }
-                          >
-                            {pipelines.data
-                              .find((p) => p.id === d.pipeline_id)
-                              ?.stages.map((s) => (
-                                <option key={s}>{s}</option>
-                              ))}
-                          </select>
-                        </td>
-                        <td>
-                          <select
-                            value={d.status}
-                            onChange={(e) =>
-                              act(
-                                '/crm/deals/' + d.id,
-                                { stage: d.stage, status: e.target.value },
-                                'PATCH',
-                              ).catch(() => {})
-                            }
-                          >
-                            {['open', 'won', 'lost'].map((s) => (
-                              <option key={s} value={s}>
-                                {statusLabel(s, t)}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {!deals.data.items.length && (
-                <p className="empty">{t('لا توجد صفقات بعد.', 'No deals yet.')}</p>
-              )}
-            </section>
-            <form
-              className="card"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const f = e.currentTarget;
-                const b = new FormData(f);
-                const pipeline = pipelines.data.find((p) => p.id === b.get('pipelineId'));
-                try {
-                  await act('/crm/deals', {
-                    title: b.get('title'),
-                    contactId: b.get('contactId'),
-                    pipelineId: pipeline?.id,
-                    stage: pipeline?.stages[0],
-                    valueCents: Math.round(Number(b.get('value')) * 100),
-                    currency: b.get('currency'),
-                  });
-                  f.reset();
-                } catch {
-                  /* The action helper displays the error. */
-                }
-              }}
-            >
-              <h2>{t('صفقة جديدة', 'New deal')}</h2>
-              <div className="form-grid">
-                <label className="field">
-                  {t('العنوان', 'Title')}
-                  <input name="title" required />
-                </label>
-                <ContactSelect items={contacts.data.items} />
-                <label className="field">
-                  {t('خط المبيعات', 'Pipeline')}
-                  <select name="pipelineId" required>
-                    {pipelines.data.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  {t('القيمة', 'Value')}
-                  <input name="value" type="number" min="0" step="0.01" required />
-                </label>
-                <label className="field">
-                  {t('العملة', 'Currency')}
-                  <input name="currency" defaultValue="USD" pattern="[A-Z]{3}" required />
-                </label>
-              </div>
-              <button className="btn btn-primary mt-4" disabled={busy || !pipelines.data.length}>
-                {t('إنشاء الصفقة', 'Create deal')}
-              </button>
-            </form>
             <section className="card space-y-4">
               <h2>{t('إدارة مراحل المبيعات', 'Manage sales stages')}</h2>
               <p className="text-sm text-slate-500">
@@ -1594,109 +1480,12 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
             )}
           </>
         )}
-        {tab === 'tasks' && (
-          <>
-            <section className="card table-wrap">
-              <table className="product-table">
-                <thead>
-                  <tr>
-                    <th>{t('المهمة', 'Task')}</th>
-                    <th>{t('العميل', 'Contact')}</th>
-                    <th>{t('الموعد', 'Due')}</th>
-                    <th>{t('الحالة', 'Status')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tasks.data.items.map((x) => (
-                    <tr key={x.id}>
-                      <td>{x.title}</td>
-                      <td>{x.contact_name}</td>
-                      <td
-                        className={
-                          x.status === 'open' && new Date(x.due_at) < new Date()
-                            ? 'text-red-700'
-                            : ''
-                        }
-                      >
-                        {new Date(x.due_at).toLocaleString()}
-                      </td>
-                      <td>
-                        <button
-                          className="btn"
-                          disabled={busy}
-                          onClick={() =>
-                            act(
-                              '/crm/tasks/' + x.id,
-                              { status: x.status === 'open' ? 'done' : 'open' },
-                              'PATCH',
-                            ).catch(() => {})
-                          }
-                        >
-                          {x.status === 'open' ? t('إكمال', 'Complete') : t('إعادة فتح', 'Reopen')}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {!tasks.data.items.length && (
-                <p className="empty">{t('لا توجد متابعات.', 'No follow-ups yet.')}</p>
-              )}
-            </section>
-            <form
-              className="card"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const f = e.currentTarget;
-                const b = new FormData(f);
-                try {
-                  await act('/crm/tasks', {
-                    title: b.get('title'),
-                    contactId: b.get('contactId'),
-                    dueAt: new Date(String(b.get('dueAt'))).toISOString(),
-                    assignedTo: b.get('assignedTo') || null,
-                  });
-                  f.reset();
-                } catch {
-                  /* The action helper displays the error. */
-                }
-              }}
-            >
-              <h2>{t('متابعة جديدة', 'New follow-up')}</h2>
-              <div className="form-grid">
-                <label className="field">
-                  {t('المهمة', 'Task')}
-                  <input required name="title" />
-                </label>
-                <ContactSelect items={contacts.data.items} />
-                <label className="field">
-                  {t('الموعد', 'Due')}
-                  <input required name="dueAt" type="datetime-local" />
-                </label>
-                <label className="field">
-                  {t('المسؤول', 'Assignee')}
-                  <select name="assignedTo">
-                    <option value="">{t('غير معيّن', 'Unassigned')}</option>
-                    {team.data.members.map((x) => (
-                      <option key={x.user_id} value={x.user_id}>
-                        {x.full_name || x.email}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <button className="btn btn-primary mt-4" disabled={busy}>
-                {t('حفظ المتابعة', 'Save follow-up')}
-              </button>
-            </form>
-          </>
-        )}
         {tab === 'config' && (
           <>
             <div className="form-actions">
-              <button className="btn" onClick={() => setTab('deals')}>
+              {canManage && <button className="btn" onClick={() => setTab('pipeline-settings')}>
                 {t('إعداد خطوط المبيعات', 'Configure pipelines')}
-              </button>
+              </button>}
               <Link className="btn" href="/dashboard/automations">
                 {t('إدارة الأتمتة', 'Manage automations')}
               </Link>
@@ -1860,28 +1649,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
             </section>
           </>
         )}
-        {tab !== 'config' && tab !== 'contacts' && (
-          <div className="form-actions">
-            <button disabled={page === 1} className="btn" onClick={() => setPage((p) => p - 1)}>
-              {t('السابق', 'Previous')}
-            </button>
-            <span>{page}</span>
-            <button
-              className="btn"
-              disabled={
-                page * 25 >=
-                (tab === 'contacts'
-                  ? contacts.data.total
-                  : tab === 'deals'
-                    ? deals.data.total
-                    : tasks.data.total)
-              }
-              onClick={() => setPage((p) => p + 1)}
-            >
-              {t('التالي', 'Next')}
-            </button>
-          </div>
-        )}
+
       </div>
     </main>
   );

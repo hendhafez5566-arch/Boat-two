@@ -308,15 +308,22 @@ export class MessagingService {
       const row = (
         await c.query(
           `SELECT cv.id, cv.last_inbound_at, ch.id AS channel_id, ch.type, ch.status, ch.credentials_enc,
-                  cc.external_id AS recipient,cc.blocked_at
+                  cc.external_id AS recipient,cc.blocked_at,
+                  cv.crm_initiated AND cv.last_inbound_at IS NULL AND
+                    (ct.archived_at IS NOT NULL OR ct.merged_into_id IS NOT NULL OR NOT EXISTS(
+                      SELECT 1 FROM contact_consents s WHERE s.contact_id=cv.contact_id
+                        AND s.channel_id=cv.channel_id AND s.status='opted_in'
+                    )) AS crm_consent_denied
            FROM conversations cv
            JOIN channels ch ON ch.id = cv.channel_id
+           JOIN contacts ct ON ct.id = cv.contact_id
            JOIN contact_channels cc ON cc.contact_id = cv.contact_id AND cc.channel_id = cv.channel_id
            WHERE cv.id = $1`,
           [p.conversationId],
         )
       ).rows[0];
       if (!row) throw new NotFoundException('Conversation not found');
+      if (row.crm_consent_denied) throw new BadRequestException('Customer opt-in is required');
       if (row.blocked_at) throw new BadRequestException('Recipient is blocked on this account');
       if (row.status !== 'active') throw new BadRequestException('Channel is disabled');
 

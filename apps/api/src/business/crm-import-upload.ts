@@ -6,6 +6,7 @@ import { contactSchema } from './schemas';
 import { parse } from '../common/zod';
 export const uploadSchema = z
   .object({
+    resume: z.string().uuid().optional(),
     total: z.number().int().min(1).max(10000),
     fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
   })
@@ -26,8 +27,11 @@ export async function startImportUpload(
   await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
   const existing = (
     await c.query(
-      "SELECT id,kind,status,total,uploaded FROM crm_jobs WHERE kind='import' AND status='uploading' AND input->>'fingerprint'=$1 ORDER BY created_at DESC LIMIT 1",
-      [input.fingerprint],
+      `SELECT id,kind,status,total,uploaded FROM crm_jobs
+       WHERE kind='import' AND input->>'fingerprint'=$1
+       AND (status='uploading' OR (id=$2::uuid AND created_by=$3 AND status NOT IN ('canceled','failed')))
+       ORDER BY (id=$2::uuid) DESC NULLS LAST, created_at DESC LIMIT 1`,
+      [input.fingerprint, input.resume ?? null, actor],
     )
   ).rows[0];
   if (existing) {

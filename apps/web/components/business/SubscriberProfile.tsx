@@ -11,6 +11,7 @@ import { useLocale } from '../product/locale';
 import { statusLabel } from '../product/status';
 import { CrmScore } from './CrmScoring';
 import premium from './crm-workspace.module.css';
+import { StartCrmConversation } from './StartCrmConversation';
 import { CrmWork } from './CrmWork';
 import { ContactActivityExport } from './ContactActivityExport';
 import design from './crm-design.module.css';
@@ -87,11 +88,13 @@ export default function SubscriberProfile({
   initialTab = 'overview',
   canManage,
   onChanged,
+  onDraftChange,
 }: {
   contactId: string;
   initialTab?: string;
   canManage: boolean;
   onChanged: () => void;
+  onDraftChange: (dirty: boolean) => void;
 }) {
   const { t, language } = useLocale();
   const data = useData<Profile | null>(`/crm/contacts/${contactId}/profile`, null);
@@ -110,11 +113,28 @@ export default function SubscriberProfile({
   );
   const [quickCreate, setQuickCreate] = useState('');
   const [overviewEditing, setOverviewEditing] = useState(false);
-  const [tab, setTab] = useState(initialTab),
+  const [tab, updateTab] = useState(initialTab),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
   const lock = useRef(false);
+  const overviewDirty = useRef(false);
+  function setDraft(dirty: boolean) {
+    overviewDirty.current = dirty;
+    onDraftChange(dirty);
+  }
+  function leaveOverview() {
+    if (lock.current) return false;
+    if (overviewDirty.current && !window.confirm(t('تجاهل التعديلات غير المحفوظة؟', 'Discard unsaved changes?'))) return false;
+    setDraft(false);
+    setOverviewEditing(false);
+    return true;
+  }
+  function setTab(next: string) {
+    if (next !== tab && !leaveOverview()) return false;
+    updateTab(next);
+    return true;
+  }
   const noteInput = useRef<HTMLTextAreaElement>(null);
   const profile = data.data,
     contact = profile?.contact;
@@ -235,6 +255,7 @@ export default function SubscriberProfile({
         phone: String(form.get('phone') || '') || null,
         email: String(form.get('email') || '') || null,
       });
+      setDraft(false);
       setOverviewEditing(false);
     });
   }
@@ -323,8 +344,7 @@ export default function SubscriberProfile({
             {tab !== 'deals' && (
               <button
                 onClick={() => {
-                  setQuickCreate('deals');
-                  setTab('deals');
+                  if (setTab('deals')) setQuickCreate('deals');
                 }}
               >
                 <NavIcon name="handshake" />
@@ -334,8 +354,7 @@ export default function SubscriberProfile({
             {tab !== 'tasks' && (
               <button
                 onClick={() => {
-                  setQuickCreate('tasks');
-                  setTab('tasks');
+                  if (setTab('tasks')) setQuickCreate('tasks');
                 }}
               >
                 <NavIcon name="calendar" />
@@ -523,7 +542,7 @@ export default function SubscriberProfile({
               <>
                 {overviewEditing && (
                   <section className={design.inlineEditor}>
-                    <form className={styles.form} key={contact.updated_at} onSubmit={saveOverview}>
+                    <form className={styles.form} key={contact.updated_at} onSubmit={saveOverview} onChange={() => setDraft(true)}>
                       <h3>{t('تعديل البيانات', 'Edit details')}</h3>
                       <label>
                         {t('الاسم', 'Name')}
@@ -564,7 +583,7 @@ export default function SubscriberProfile({
                       <button
                         type="button"
                         className="btn"
-                        onClick={() => setOverviewEditing(false)}
+                        onClick={leaveOverview}
                       >
                         {t('إلغاء', 'Cancel')}
                       </button>
@@ -585,7 +604,10 @@ export default function SubscriberProfile({
                   </Link>
                 ))}
                 {!profile.timeline.conversations.length && (
-                  <p>{t('لا توجد محادثات.', 'No conversations.')}</p>
+                  <div>
+                    <p>{t('لا توجد محادثات.', 'No conversations.')}</p>
+                    {canManage && !contact.archived_at && <StartCrmConversation contactId={contactId} />}
+                  </div>
                 )}
                 <details>
                   <summary>{t('بيانات السجل', 'Record details')}</summary>

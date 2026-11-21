@@ -322,6 +322,97 @@ export class InboxController {
     });
   }
 
+  @Get('crm/contacts/:id/conversation-options')
+  @Roles('owner', 'admin')
+  async conversationOptions(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return (await this.crmConversationOptions(req.user.tenantId, id)).map(({ recipient, ...option }) => option);
+  }
+
+  private crmConversationOptions(tenantId: string, id: string) {
+    return this.db.withTenant(tenantId, async (c) => {
+      const rows = (await c.query(
+        `SELECT ch.id AS channel_id,ch.name AS channel_name,t.name,t.language,t.body,
+           COALESCE(cc.external_id,normalize_contact_phone(ct.phone)) AS recipient
+         FROM contacts ct JOIN contact_consents s ON s.contact_id=ct.id
+         JOIN channels ch ON ch.id=s.channel_id
+         LEFT JOIN contact_channels cc ON cc.contact_id=ct.id AND cc.channel_id=ch.id
+         JOIN whatsapp_templates t ON t.channel_id=ch.id
+         WHERE ct.id=$1 AND ct.archived_at IS NULL AND ct.merged_into_id IS NULL
+           AND ch.type='whatsapp' AND ch.status='active' AND cc.blocked_at IS NULL
+           AND (cc.external_id IS NOT NULL OR (
+             ct.phone ~ '^[+][1-9][0-9]{7,14}$' AND NOT EXISTS(
+               SELECT 1 FROM contacts duplicate
+               WHERE duplicate.id<>ct.id AND duplicate.merged_into_id IS NULL
+                 AND normalize_contact_phone(duplicate.phone)=normalize_contact_phone(ct.phone)
+             )
+           ))
+           AND (SELECT count(*) FROM contact_channels links WHERE links.contact_id=ct.id AND links.channel_id=ch.id)<=1
+           AND NOT EXISTS(SELECT 1 FROM contact_channels other WHERE other.channel_id=ch.id
+              AND other.external_id=COALESCE(cc.external_id,normalize_contact_phone(ct.phone))
+              AND other.contact_id<>ct.id)
+           AND s.status='opted_in' AND t.status='APPROVED' AND t.supported
+           AND t.body NOT LIKE '%{{%'
+           AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(t.components) part WHERE part->>'type' NOT IN ('BODY','FOOTER'))
+         ORDER BY ch.name,t.name,t.language`, [id],
+      )).rows;
+      return rows;
+    });
+  }
+
+  @Post('crm/contacts/:id/start-conversation')
+  @Roles('owner', 'admin')
+  async startConversation(
+    @Req() req: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const input = parse(z.object({
+      channelId: z.string().uuid(),
+      name: z.string().regex(/^[a-z0-9_]{1,512}$/),
+      language: z.string().regex(/^[a-z]{2,3}(?:_[A-Z]{2})?$/),
+    }), body);
+    const { tenantId, userId } = req.user;
+    const result = await this.db.withTenant(tenantId, async (c) => {
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+      const existing = (await c.query(
+        `SELECT id,channel_id FROM conversations WHERE contact_id=$1
+         ORDER BY (channel_id=$2) DESC,last_message_at DESC LIMIT 1`,
+        [id, input.channelId],
+      )).rows[0];
+      if (existing) return { ...existing, started: false };
+      const eligible = (await this.crmConversationOptions(tenantId, id)).find((row) =>
+        row.channel_id === input.channelId && row.name === input.name && row.language === input.language);
+      if (!eligible)
+        throw new BadRequestException('An active WhatsApp account, customer opt-in, and an approved template are required.');
+      await c.query(
+        'INSERT INTO contact_channels(tenant_id,contact_id,channel_id,external_id) VALUES($1,$2,$3,$4) ON CONFLICT(channel_id,external_id) DO NOTHING',
+        [tenantId, id, input.channelId, eligible.recipient],
+      );
+      const identity = await c.query(
+        'SELECT 1 FROM contact_channels WHERE contact_id=$1 AND channel_id=$2 AND external_id=$3 AND blocked_at IS NULL',
+        [id, input.channelId, eligible.recipient],
+      );
+      if (!identity.rowCount) throw new ConflictException('This channel identity is already linked to another contact.');
+      const conversation = (await c.query(
+        `INSERT INTO conversations(tenant_id,contact_id,channel_id,handled_by,assigned_to,crm_initiated)
+         VALUES($1,$2,$3,'human',$4,true)
+         ON CONFLICT(channel_id,contact_id) WHERE status<>'closed' DO NOTHING RETURNING id,channel_id`,
+        [tenantId, id, input.channelId, userId],
+      )).rows[0];
+      if (!conversation) throw new ConflictException('A conversation was just opened. Refresh the customer profile.');
+      await this.messaging.sendOutbound({
+        tenantId,
+        conversationId: conversation.id,
+        senderType: 'agent',
+        senderUserId: userId,
+        content: { template: { name: input.name, language: input.language, bodyParams: [] } },
+      });
+      return { ...conversation, started: true };
+    });
+    if (result.started) this.changed(tenantId, result.id, 'crm_started');
+    return result;
+  }
+
   @Post('conversations/:id/messages')
   async send(
     @Req() req: AuthedRequest,

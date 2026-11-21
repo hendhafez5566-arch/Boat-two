@@ -64,18 +64,25 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
           }
           const message = (
             await c.query(
-              `SELECT m.*,ch.type AS channel_type,ch.status AS channel_status,ch.credentials_enc,cv.last_inbound_at,(SELECT im.external_id FROM messages im WHERE im.conversation_id=m.conversation_id AND im.direction='in' AND im.external_id IS NOT NULL ORDER BY im.created_at DESC LIMIT 1) AS last_inbound_message_id,cc.external_id AS recipient,cc.blocked_at FROM messages m JOIN channels ch ON ch.id=m.channel_id JOIN conversations cv ON cv.id=m.conversation_id JOIN contact_channels cc ON cc.channel_id=m.channel_id AND cc.contact_id=cv.contact_id WHERE m.id=$1`,
+              `SELECT m.*,ch.type AS channel_type,ch.status AS channel_status,ch.credentials_enc,cv.last_inbound_at,(SELECT im.external_id FROM messages im WHERE im.conversation_id=m.conversation_id AND im.direction='in' AND im.external_id IS NOT NULL ORDER BY im.created_at DESC LIMIT 1) AS last_inbound_message_id,cc.external_id AS recipient,cc.blocked_at,
+               cv.crm_initiated AND cv.last_inbound_at IS NULL AND
+                 (ct.archived_at IS NOT NULL OR ct.merged_into_id IS NOT NULL OR NOT EXISTS(
+                   SELECT 1 FROM contact_consents s WHERE s.contact_id=cv.contact_id
+                     AND s.channel_id=cv.channel_id AND s.status='opted_in'
+                 )) AS crm_consent_denied
+               FROM messages m JOIN channels ch ON ch.id=m.channel_id JOIN conversations cv ON cv.id=m.conversation_id JOIN contacts ct ON ct.id=cv.contact_id JOIN contact_channels cc ON cc.channel_id=m.channel_id AND cc.contact_id=cv.contact_id WHERE m.id=$1`,
               [j.message_id],
             )
           ).rows[0];
-          if (message?.blocked_at) {
+          if (message?.blocked_at || message?.crm_consent_denied) {
+            const reason = message.blocked_at ? 'RECIPIENT_BLOCKED' : 'CRM_CONSENT_WITHDRAWN';
             await c.query(
-              "UPDATE outbound_jobs SET status='failed',error='Recipient is blocked',updated_at=now() WHERE id=$1",
-              [j.id],
+              "UPDATE outbound_jobs SET status='failed',error=$2,updated_at=now() WHERE id=$1",
+              [j.id, reason],
             );
             await c.query(
-              "UPDATE messages SET status='failed',error='RECIPIENT_BLOCKED' WHERE id=$1",
-              [j.message_id],
+              "UPDATE messages SET status='failed',error=$2 WHERE id=$1",
+              [j.message_id, reason],
             );
             return null;
           }

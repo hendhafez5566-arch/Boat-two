@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 import { Button, Dialog } from '../product/ProductUI';
+import { useCrmDraftGuard } from './useCrmDraftGuard';
 import { useData } from './useData';
 import { NavIcon } from '../product/NavIcon';
 import styles from './crm-workspace.module.css';
@@ -64,6 +65,7 @@ export function CrmWork({
   const [dialog, setDialog] = useState<Work | 'new' | null>(createNew ? 'new' : null);
   const [dirty, setDirty] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
+  useCrmDraftGuard(dirty, t('تجاهل التعديلات غير المحفوظة؟', 'Discard unsaved changes?'), discardEditor);
   useEffect(() => {
     if (compact) return;
     const p = new URLSearchParams(window.location.search);
@@ -90,6 +92,7 @@ export function CrmWork({
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
+  const createRequestId = useRef('');
   const team = useData<{ currentUserId: string; role: string; members: Member[] }>(
     '/crm/workspace/members',
     { currentUserId: '', role: '', members: [] },
@@ -144,6 +147,7 @@ export function CrmWork({
     else setDialog(null);
   }
   function discardEditor() {
+    createRequestId.current = '';
     setConfirmClose(false);
     setDirty(false);
     setDialog(null);
@@ -338,11 +342,12 @@ export function CrmWork({
       onSubmit={(values) =>
         run(async () => {
           const editing = typeof dialog !== 'string';
+          if (!editing && !createRequestId.current) createRequestId.current = crypto.randomUUID();
           await api<Work>(`/crm/${kind}${editing ? '/' + dialog.id : ''}`, {
             method: editing ? 'PATCH' : 'POST',
             body: JSON.stringify({
               ...values,
-              ...(editing ? { expectedUpdatedAt: dialog.updated_at } : {}),
+              ...(editing ? { expectedUpdatedAt: dialog.updated_at } : { requestId: createRequestId.current }),
             }),
           });
           discardEditor();

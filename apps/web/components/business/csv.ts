@@ -1,5 +1,5 @@
 // RFC 4180 quoted cells, embedded newlines and escaped quotes; export neutralizes formulas.
-export function parseCsv(text: string): Record<string, string>[] {
+export function parseCsvRows(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = '';
@@ -26,13 +26,7 @@ export function parseCsv(text: string): Record<string, string>[] {
   if (quoted) throw new Error('Unclosed quoted CSV cell');
   row.push(cell);
   if (row.some(Boolean)) rows.push(row);
-  const headers = rows.shift()?.map((x) => x.trim()) || [];
-  if (!headers.includes('name')) throw new Error('CSV must include a name column');
-  if (new Set(headers).size !== headers.length) throw new Error('Duplicate CSV column');
-  return rows.map((r) => {
-    if (r.length !== headers.length) throw new Error('CSV row has a different number of columns');
-    return Object.fromEntries(headers.map((h, i) => [h, r[i]]));
-  });
+  return rows;
 }
 export function exportCsv(rows: Record<string, unknown>[], headers: string[]) {
   const cell = (value: unknown) => {
