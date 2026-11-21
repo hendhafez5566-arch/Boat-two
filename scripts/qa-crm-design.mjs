@@ -39,7 +39,7 @@ try {
       [844, 390, 'landscape'],
       [980, 840, 'desktop-site'],
       [1366, 900, 'desktop'],
-    ].filter(([w]) => !process.env.CRM_QA_WIDTH || w === Number(process.env.CRM_QA_WIDTH))) {
+    ].filter(([w]) => !process.env.CRM_QA_WIDTH || process.env.CRM_QA_WIDTH.split(',').map(Number).includes(w))) {
       browser = await chromium.launch({
         executablePath: process.env.BOAT_CHROMIUM || '/usr/bin/google-chrome',
         args: ['--no-sandbox'],
@@ -1252,6 +1252,32 @@ try {
             .count(),
           0,
         );
+      }
+      if (workflow && process.env.CRM_QA_VOLUME === '1') {
+        const me = await api('/auth/me', token);
+        const tenantId = me.user.tenantId || me.user.tenant_id || me.tenant?.id || me.workspaces[0].tenant_id;
+        await api('/__qa/crm', null, {
+          tenantId,
+          op: 'work-volume',
+          pipelineId: pipeline.id,
+          contactId: contacts[0].id,
+          staffId,
+        });
+        await page.goto(web + '/dashboard/crm/pipeline');
+        await page.getByRole('combobox', { name: t('خط المبيعات', 'Pipeline'), exact: true }).selectOption(pipeline.id);
+        await page.getByRole('textbox', { name: t('بحث', 'Search work'), exact: true }).fill('Kanban volume');
+        const mobileStage = page.getByRole('combobox', { name: t('مرحلة البيع', 'Pipeline stage'), exact: true });
+        if (await mobileStage.isVisible()) await mobileStage.selectOption('Proposal');
+        const fullCount = page.getByRole('heading', { name: 'Proposal 106', exact: true });
+        await fullCount.waitFor();
+        assert.equal(await page.locator('[data-work-card]').count(), 50);
+        const nextPage = page.getByRole('button', { name: t('التالي', 'Next'), exact: true });
+        await nextPage.click();
+        await fullCount.waitFor();
+        await nextPage.click();
+        await fullCount.waitFor();
+        assert.equal(await page.locator('[data-work-card]').count(), 6);
+        await shot('pipeline-paginated-total');
       }
       assert.deepEqual(errors, []);
       results.push({
