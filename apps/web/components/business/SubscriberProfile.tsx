@@ -138,6 +138,19 @@ export default function SubscriberProfile({
   const noteInput = useRef<HTMLTextAreaElement>(null);
   const profile = data.data,
     contact = profile?.contact;
+  const availableChannels = useData<{ id: string; name: string; type: string; status: string }[]>(
+    canManage && tab === 'consent' && !contact?.archived_at && /^\+[1-9][0-9]{7,14}$/.test(contact?.phone ?? '')
+      ? '/channels'
+      : null,
+    [],
+  );
+  const consentChannels = [
+    ...(profile?.channels ?? []),
+    ...availableChannels.data.filter((channel) =>
+      channel.type === 'whatsapp' && channel.status === 'active' &&
+      !profile?.channels.some((linked) => linked.id === channel.id),
+    ),
+  ];
   async function run(fn: () => Promise<unknown>) {
     if (lock.current) return;
     lock.current = true;
@@ -1043,7 +1056,7 @@ export default function SubscriberProfile({
                     <label>
                       {t('الحساب', 'Account')}
                       <select name="channelId" required>
-                        {profile.channels.map((channel) => (
+                        {consentChannels.map((channel) => (
                           <option key={channel.id} value={channel.id}>
                             {channel.name}
                           </option>
@@ -1061,7 +1074,7 @@ export default function SubscriberProfile({
                       {t('دليل الموافقة', 'Consent evidence')}
                       <input name="evidence" minLength={5} maxLength={1000} required />
                     </label>
-                    <button className="btn" disabled={busy || !profile.channels.length}>
+                    <button className="btn" disabled={busy || !consentChannels.length}>
                       {t('حفظ الموافقة', 'Record Consent')}
                     </button>
                   </form>

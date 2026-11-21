@@ -19,6 +19,9 @@ const response = await fetch(base + '/auth/register', {
 assert.ok(response.ok);
 const session = await response.json();
 const headers = { authorization: 'Bearer ' + session.accessToken, 'content-type': 'application/json' };
+assert.ok((await fetch(base + '/channels', {
+  method: 'POST', headers, body: JSON.stringify({ type: 'web', name: 'CSV QA site' }),
+})).ok);
 assert.ok((await fetch(base + '/workspace/onboarding/complete', { method: 'POST', headers, body: '{}' })).ok);
 
 const browser = await chromium.launch({
@@ -76,6 +79,40 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   console.log('PASS CSV recovery after a committed chunk and page reopen');
+
+  if (process.env.CRM_QA_FIRST_CONTACT === '1') {
+    const request = async (path, body) => {
+      const response = await fetch(base + path, {
+        headers,
+        ...(body ? { method: 'POST', body: JSON.stringify(body) } : {}),
+      });
+      assert.ok(response.ok, path + ' ' + response.status);
+      return response.json();
+    };
+    const me = await request('/auth/me');
+    const tenantId = me.user.tenantId || me.user.tenant_id || me.tenant?.id || me.workspaces[0].tenant_id;
+    const { channelId } = await request('/__qa/crm', { tenantId, op: 'outbound-channel' });
+    const contact = await request('/crm/contacts', { name: 'Manual opt-in QA', phone: '+12025550137' });
+    const profile = '/crm/contacts/' + contact.id + '/profile';
+    assert.equal((await request(profile)).channels.length, 0);
+    await page.goto('http://localhost:3000/dashboard/crm?contact=' + contact.id);
+    const record = page.getByRole('region', { name: 'Customer profile', exact: true });
+    await record.getByText('More details and settings', { exact: true }).click();
+    await record.getByRole('button', { name: 'Marketing Consent', exact: true }).click();
+    await record.getByLabel('Account', { exact: true }).selectOption(channelId);
+    await record.getByLabel('Status', { exact: true }).selectOption('opted_in');
+    await record.getByLabel('Consent evidence', { exact: true }).fill('Synthetic explicit consent');
+    await record.getByRole('button', { name: 'Record Consent', exact: true }).click();
+    await record.getByText('Synthetic explicit consent', { exact: true }).waitFor();
+    await record.getByRole('button', { name: 'Overview', exact: true }).click();
+    await record.getByRole('button', { name: 'Start conversation', exact: true }).click();
+    await record.getByLabel('WhatsApp channel and template', { exact: true }).selectOption(channelId + ':qa_first_contact:en');
+    page.once('dialog', (dialog) => dialog.accept());
+    await record.getByRole('button', { name: 'Send template', exact: true }).click();
+    await record.getByText('First message queued.', { exact: true }).waitFor();
+    assert.equal((await request(profile)).timeline.conversations.length, 1);
+    console.log('PASS recorded opt-in from an unlinked profile and queued the first template');
+  }
 } finally {
   await browser.close();
 }
