@@ -213,6 +213,47 @@ export class CrmController {
       return row;
     });
   }
+  @Delete('contacts/:id') @Roles('owner')
+  async deleteContact(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    try {
+      return await this.crm.db.withTenant(r.user.tenantId, async (c) => {
+        await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+        const contact = (await c.query(
+          'SELECT archived_at,merged_into_id FROM contacts WHERE id=$1 FOR UPDATE',
+          [id],
+        )).rows[0];
+        if (!contact) throw new NotFoundException('Contact not found');
+        if (!contact.archived_at)
+          throw new ConflictException('Archive this customer before deleting.');
+        const linked = (await c.query(
+          `SELECT EXISTS (SELECT 1 FROM conversations WHERE contact_id=$1)
+             OR EXISTS (SELECT 1 FROM crm_deals WHERE contact_id=$1)
+             OR EXISTS (SELECT 1 FROM crm_tasks WHERE contact_id=$1)
+             OR EXISTS (SELECT 1 FROM crm_notes WHERE contact_id=$1)
+             OR EXISTS (SELECT 1 FROM flow_sessions WHERE contact_id=$1)
+             OR EXISTS (SELECT 1 FROM appointments WHERE contact_id=$1)
+             OR EXISTS (SELECT 1 FROM campaign_recipients WHERE contact_id=$1 OR canonical_contact_id=$1)
+             OR EXISTS (SELECT 1 FROM sequence_enrollments WHERE contact_id=$1)
+             OR EXISTS (SELECT 1 FROM contact_consents WHERE contact_id=$1)
+             OR EXISTS (SELECT 1 FROM consent_history WHERE contact_id=$1)
+             OR EXISTS (SELECT 1 FROM contacts WHERE merged_into_id=$1) AS present`,
+          [id],
+        )).rows[0].present;
+        if (contact.merged_into_id || linked)
+          throw new ConflictException('This customer has linked history. Keep the customer archived.');
+        await c.query(
+          "DELETE FROM crm_notifications WHERE contact_id=$1 AND resource_type='contact' AND resource_id=$1",
+          [id],
+        );
+        await c.query('DELETE FROM contacts WHERE id=$1', [id]);
+        return { id, deleted: true };
+      });
+    } catch (error) {
+      if ((error as { code?: string }).code === '23503')
+        throw new ConflictException('This customer has linked history. Keep the customer archived.');
+      throw error;
+    }
+  }
   @Get('contacts/:id/merge-preview') @Roles('owner', 'admin') previewMerge(
     @Req() r: AuthedRequest,
     @Param('id', ParseUUIDPipe) id: string,

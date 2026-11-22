@@ -443,6 +443,13 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
             initialTab={recordSection}
             canManage={canManage}
             onDraftChange={setProfileDirty}
+            onDeleted={workspace.data.role === 'owner' ? () => {
+              closeRecord();
+              setError('');
+              setMessage(t('تم حذف العميل نهائيًا.', 'Customer permanently deleted.'));
+              void contacts.reload();
+              void summary.reload();
+            } : undefined}
             onChanged={() => {
               void contacts.reload();
               void summary.reload();

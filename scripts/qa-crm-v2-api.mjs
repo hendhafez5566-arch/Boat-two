@@ -467,6 +467,18 @@ try {
         assert.equal(lateReplay.updated_at, newer.updated_at);
         count += 5;
       }
+      const disposable = await request('/crm/contacts', token, { name: 'Synthetic deletion' });
+      const deletePath = '/crm/contacts/' + disposable.id;
+      await request(deletePath, token, null, 'DELETE', 409);
+      await request(deletePath + '/archive', admin.accessToken, { archived: true }, 'PATCH');
+      await request(deletePath, admin.accessToken, null, 'DELETE', 403);
+      await request(deletePath, agent.accessToken, null, 'DELETE', 403);
+      assert.equal((await request(deletePath, token, null, 'DELETE')).deleted, true);
+      await request(deletePath, token, null, 'GET', 404);
+      await request('/crm/contacts/' + c.id + '/archive', token, { archived: true }, 'PATCH');
+      await request('/crm/contacts/' + c.id, token, null, 'DELETE', 409);
+      assert.ok((await request(profilePath, token)).timeline.notes.length);
+      count += 6;
       const archivePath = '/crm/contacts/' + c.id + '/archive';
       await request(archivePath, agent.accessToken, { archived: true }, 'PATCH', 403);
       await request(archivePath, admin.accessToken, { archived: true }, 'PATCH');

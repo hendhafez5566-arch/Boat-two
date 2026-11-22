@@ -90,12 +90,14 @@ export default function SubscriberProfile({
   canManage,
   onChanged,
   onDraftChange,
+  onDeleted,
 }: {
   contactId: string;
   initialTab?: string;
   canManage: boolean;
   onChanged: () => void;
   onDraftChange: (dirty: boolean) => void;
+  onDeleted?: () => void;
 }) {
   const { t, language } = useLocale();
   const data = useData<Profile | null>(`/crm/contacts/${contactId}/profile`, null);
@@ -153,7 +155,7 @@ export default function SubscriberProfile({
       !profile?.channels.some((linked) => linked.id === channel.id),
     ),
   ];
-  async function run(fn: () => Promise<unknown>) {
+  async function run(fn: () => Promise<unknown>, afterDelete?: () => void) {
     if (lock.current) return;
     lock.current = true;
     setBusy(true);
@@ -161,6 +163,10 @@ export default function SubscriberProfile({
     setNotice('');
     try {
       await fn();
+      if (afterDelete) {
+        afterDelete();
+        return;
+      }
       await data.reload();
       onChanged();
       setNotice(t('حُفظ التغيير.', 'Changes saved.'));
@@ -674,6 +680,33 @@ export default function SubscriberProfile({
                     {contact.archived_at
                       ? t('استعادة العميل', 'Restore customer')
                       : t('أرشفة العميل', 'Archive customer')}
+                  </button>
+                )}
+                {contact.archived_at && onDeleted && (
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    disabled={busy || overviewEditing}
+                    onClick={() => {
+                      if (!window.confirm(t(
+                        'حذف هذا العميل نهائيًا؟ لا يمكن استعادته بعد الحذف.',
+                        'Permanently delete this customer? This cannot be undone.',
+                      ))) return;
+                      void run(async () => {
+                        try {
+                          await api(`/crm/contacts/${contactId}`, { method: 'DELETE' });
+                        } catch (error) {
+                          if (error instanceof Error && error.message.includes('linked history'))
+                            throw new Error(t(
+                              'العميل له سجلات مرتبطة. يمكنك إبقاؤه في الأرشيف.',
+                              'This customer has linked history. Keep the customer archived.',
+                            ));
+                          throw error;
+                        }
+                      }, onDeleted);
+                    }}
+                  >
+                    {t('حذف العميل نهائيًا', 'Permanently delete customer')}
                   </button>
                 )}
               </>

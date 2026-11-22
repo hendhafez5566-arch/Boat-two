@@ -418,6 +418,20 @@ try {
           .getByRole('button', { name: t('أرشفة العميل', 'Archive customer'), exact: true })
           .waitFor();
         assert.equal((await api('/crm/contacts/' + id, token)).archived_at, null);
+        const disposable = await api('/crm/contacts', token, { name: 'Synthetic deletion candidate' });
+        const deletionPath = '/crm/contacts/' + disposable.id;
+        await api(deletionPath + '/archive', token, { archived: true }, 'PATCH');
+        await page.goto(web + '/dashboard/crm?contact=' + disposable.id);
+        const deleteButton = page.getByRole('button', {
+          name: t('حذف العميل نهائيًا', 'Permanently delete customer'), exact: true,
+        });
+        page.once('dialog', (dialog) => dialog.dismiss());
+        await deleteButton.click();
+        assert.ok((await api(deletionPath, token)).archived_at);
+        page.once('dialog', (dialog) => dialog.accept());
+        await deleteButton.click();
+        await deleteButton.waitFor({ state: 'hidden' });
+        assert.equal((await api('/crm/contacts?q=Synthetic%20deletion%20candidate&archived=all', token)).total, 0);
       }
       if (!before) {
         await page.goto(web + '/dashboard/crm?contact=' + conversation.contact_id);

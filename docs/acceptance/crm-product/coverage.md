@@ -67,6 +67,11 @@ Four Chromium combinations passed at 390 px and 1366 px in Arabic and English. T
 - Chromium at 390 px exercised customer, opportunity and follow-up edit recovery in Arabic and English. The test drops the response after the API commits the edit, then retries from the same editor. The optimized Next.js build passed. [Browser suite](../../../scripts/qa-crm-design.mjs) · [API suite](../../../scripts/qa-crm-v2-api.mjs)
 - Recovery after closing or reloading the editor, other mutation types, and physical Android and independent user acceptance remain open.
 
+## Archived customer deletion
+
+- A workspace owner can permanently delete an archived customer from the profile after confirming. The transaction preserves contacts with linked history, including conversations, work records, appointments, campaign or consent history and merged profiles. Contact-only notifications are removed with an eligible customer. Existing audit and retention policies still apply.
+- The isolated API suite passed 124 checks, including active-contact rejection, role restrictions, successful deletion, and linked-history protection.
+
 ## Measured workflow changes and manual acceptance
 
 - Saving a new customer opens the profile in the same action. The prior flow needed a directory lookup and another profile action after saving.
