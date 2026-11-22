@@ -125,6 +125,15 @@ export class WorkspaceController {
     );
   }
 
+  @Get('workspace/onboarding/message-check')
+  firstIncomingMessage(@Req() req: AuthedRequest) {
+    return this.db.withTenant(req.user.tenantId, async (c) => (
+      await c.query(
+        'SELECT EXISTS (SELECT 1 FROM conversations WHERE last_inbound_at IS NOT NULL) AS received',
+      )
+    ).rows[0]);
+  }
+
   @Roles('owner', 'admin')
   @Post('workspace/onboarding/complete')
   completeOnboarding(@Req() req: AuthedRequest) {

@@ -16,10 +16,29 @@ export default function Onboarding() {
   } | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [channels, setChannels] = useState<{ status: string }[]>([]);
+  const [channels, setChannels] = useState<{ status: string; type: string; external_id: string }[]>([]);
+  const [receivedMessage, setReceivedMessage] = useState(false);
+  const [checkingMessage, setCheckingMessage] = useState(false);
+  const [messageFeedback, setMessageFeedback] = useState('');
+  const webChannel = channels.find((channel) => channel.status === 'active' && channel.type === 'web');
+  async function checkFirstMessage() {
+    setCheckingMessage(true);
+    setMessageFeedback('');
+    try {
+      const result = await api<{ received: boolean }>('/workspace/onboarding/message-check');
+      setReceivedMessage(result.received);
+      setMessageFeedback(result.received
+        ? t('تم استلام رسالة واردة.', 'An incoming message was received.')
+        : t('لم تصل رسالة واردة بعد.', 'No incoming message yet.'));
+    } catch {
+      setMessageFeedback(t('تعذّر التحقق. حاول مرة أخرى.', 'Could not check. Try again.'));
+    } finally {
+      setCheckingMessage(false);
+    }
+  }
   const hasActiveChannel = channels.some((channel) => channel.status === 'active');
   useEffect(() => {
-    Promise.all([api<NonNullable<typeof w>>('/workspace'), api<{ status: string }[]>('/channels')])
+    Promise.all([api<NonNullable<typeof w>>('/workspace'), api<typeof channels>('/channels')])
       .then(([workspace, channelList]) => {
         setW(workspace);
         setChannels(channelList);
@@ -203,6 +222,27 @@ export default function Onboarding() {
           );
         })}
       </ol>
+      {hasActiveChannel && (
+        <section className="ob-finish" aria-labelledby="first-message-heading">
+          <h2 id="first-message-heading">{t('جرّب أول رسالة واردة', 'Try your first incoming message')}</h2>
+          <p>{webChannel
+            ? t('افتح تجربة محادثة الموقع وأرسل رسالة، ثم ارجع للتحقق من وصولها.', 'Open the website chat demo, send a message, then check that it arrived.')
+            : t('أرسل رسالة من حساب اختبار إلى القناة المتصلة، ثم تحقق من وصولها.', 'Send a message from a test account to your connected channel, then check that it arrived.')}</p>
+          <div className="form-actions">
+            {webChannel && (
+              <a className="btn" href={`/widget-demo.html?key=${encodeURIComponent(webChannel.external_id)}`}
+                target="_blank" rel="noopener noreferrer">
+                {t('افتح تجربة محادثة الموقع', 'Open website chat demo')}
+              </a>
+            )}
+            <button className="btn btn-primary" type="button" disabled={checkingMessage} onClick={checkFirstMessage}>
+              {t('تحقق من الرسالة', 'Check for a message')}
+            </button>
+            {receivedMessage && <Link className="btn" href="/dashboard/inbox">{t('افتح صندوق الوارد', 'Open inbox')}</Link>}
+          </div>
+          <p role="status">{messageFeedback}</p>
+        </section>
+      )}
       <section className="ob-finish">
         <div className="form-actions">
           <button className="btn btn-primary" disabled={busy || !hasActiveChannel} onClick={finish}>
