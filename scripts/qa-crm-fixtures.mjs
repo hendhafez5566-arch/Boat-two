@@ -5,6 +5,7 @@ export function installCrmFixtures(app, local) {
   const { DatabaseService } = local('./dist/database/database.service');
   const { CrmJobs } = local('./dist/business/crm-jobs');
   const { MessagingService } = local('./dist/messaging/messaging.service');
+  const { OutboundService } = local('./dist/messaging/outbound.service');
   const { AutomationService } = local('./dist/business/automation.service');
   const db = app.get(DatabaseService);
   app
@@ -35,6 +36,18 @@ export function installCrmFixtures(app, local) {
             return channel.id;
           });
           res.json({ channelId });
+        } else if (op === 'outbound-tick') {
+          const { conversationId } = req.body;
+          if (process.env.EXTERNAL_DELIVERY_ENABLED !== 'false' ||
+              !/^[0-9a-f-]{36}$/.test(conversationId)) throw Error('Isolated outbound fixture required');
+          await app.get(OutboundService).tick();
+          const row = (await db.withTenant(tenantId, (c) => c.query(
+            `SELECT j.status AS job_status,m.status AS message_status,m.error
+             FROM outbound_jobs j JOIN messages m ON m.id=j.message_id
+             WHERE m.conversation_id=$1 ORDER BY m.seq LIMIT 1`,
+            [conversationId],
+          ))).rows[0];
+          res.json(row ?? {});
         } else if (op === 'work-volume') {
           const { pipelineId, staffId } = req.body;
           await db.withTenant(tenantId, async (c) => {

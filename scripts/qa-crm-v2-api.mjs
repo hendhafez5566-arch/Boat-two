@@ -452,7 +452,20 @@ try {
         const retry = await request(path, token, payload);
         assert.equal(retry.id, original.id);
         await request(path, token, { ...payload, [field]: 'Changed body' }, 'POST', 409);
-        count += 2;
+        const editPath = path + '/' + original.id + (kind === 'contacts' ? '/profile' : '');
+        const change = { [field]: 'Receipt edit', expectedUpdatedAt: original.updated_at, requestId: replayKey };
+        const row = (result) => kind === 'contacts' ? result.contact : result;
+        const changed = row(await request(editPath, token, change, 'PATCH'));
+        const replay = row(await request(editPath, token, change, 'PATCH'));
+        assert.equal(replay.updated_at, changed.updated_at);
+        await request(editPath, token, { ...change, [field]: 'Different edit' }, 'PATCH', 409);
+        const newer = row(await request(editPath, token, {
+          [field]: 'Newer edit', expectedUpdatedAt: changed.updated_at,
+        }, 'PATCH'));
+        const lateReplay = row(await request(editPath, token, change, 'PATCH'));
+        assert.equal(lateReplay[field], newer[field]);
+        assert.equal(lateReplay.updated_at, newer.updated_at);
+        count += 5;
       }
       const archivePath = '/crm/contacts/' + c.id + '/archive';
       await request(archivePath, agent.accessToken, { archived: true }, 'PATCH', 403);
@@ -464,6 +477,24 @@ try {
       count += 2;
       const me = await request('/auth/me', token);
       const tenantId = me.user.tenantId || me.user.tenant_id || me.tenant?.id || me.workspaces[0].tenant_id;
+      const { channelId } = await request('/__qa/crm', null, { tenantId, op: 'outbound-channel' });
+      const recipient = await request('/crm/contacts', token, {
+        name: 'Queued consent withdrawal', phone: '+12025550139',
+      });
+      const recipientPath = '/crm/contacts/' + recipient.id;
+      const consent = { channelId, status: 'opted_in', evidence: 'Synthetic acceptance opt-in' };
+      await request(recipientPath + '/consent', token, consent, 'PUT');
+      const queued = await request(recipientPath + '/start-conversation', token, {
+        channelId, name: 'qa_first_contact', language: 'en',
+      });
+      assert.equal(queued.started, true);
+      await request(recipientPath + '/consent', token, {
+        ...consent, status: 'opted_out', evidence: 'Synthetic acceptance withdrawal',
+      }, 'PUT');
+      assert.deepEqual(await request('/__qa/crm', null, {
+        tenantId, op: 'outbound-tick', conversationId: queued.id,
+      }), { job_status: 'failed', message_status: 'failed', error: 'CRM_CONSENT_WITHDRAWN' });
+      count++;
       await request('/__qa/crm', null, { tenantId, op: 'seed' });
       await request('/__qa/crm', null, {
         tenantId,

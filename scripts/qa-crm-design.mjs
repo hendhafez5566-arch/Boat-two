@@ -42,6 +42,18 @@ async function recoverCreate(page, dialog, save, kind, query, token) {
   await dialog.waitFor({ state: 'hidden' });
   assert.equal((await api('/crm/' + kind + '?q=' + encodeURIComponent(query), token)).total, 1);
 }
+async function recoverEdit(page, editor, save, endpoint) {
+  await page.route(endpoint, async (route) => {
+    if (route.request().method() !== 'PATCH') return route.continue();
+    assert.ok((await route.fetch()).ok());
+    await route.abort('internetdisconnected');
+  });
+  await save.click();
+  await editor.getByRole('alert').first().waitFor();
+  await page.unroute(endpoint);
+  await save.click();
+  await save.waitFor({ state: 'hidden' });
+}
 const results = [];
 let browser;
 try {
@@ -256,13 +268,16 @@ try {
         await page.route(profilePath, async (route) => {
           if (route.request().method() !== 'PATCH') return route.continue();
           attempts++;
-          if (attempts === 1) return route.abort('internetdisconnected');
+          if (attempts === 1) {
+            assert.ok((await route.fetch()).ok());
+            return route.abort('internetdisconnected');
+          }
           return route.continue();
         });
         await saveChanges.click();
         await dialog.getByRole('alert').getByText(t('تعذّر الاتصال', 'Unable to connect'), { exact: false }).waitFor();
         assert.equal(await dialog.locator('input[name=name]').inputValue(), 'Mariam Saad');
-        assert.equal((await api('/crm/contacts/' + contacts[11].id, token)).name, 'Mariam Adel');
+        assert.equal((await api('/crm/contacts/' + contacts[11].id, token)).name, 'Mariam Saad');
         await saveChanges.dblclick();
         await dialog.getByRole('heading', { name: 'Mariam Saad', exact: true }).waitFor();
         await page.unroute(profilePath);
@@ -452,9 +467,8 @@ try {
           .getByLabel(t('ربط بفرصة بيع (اختياري)', 'Link opportunity (optional)'), { exact: true })
           .selectOption(deal.id);
         await profile.getByLabel(t('الأولوية', 'Priority'), { exact: true }).selectOption('high');
-        await profile
-          .getByRole('button', { name: t('حفظ المتابعة', 'Save follow-up'), exact: true })
-          .click();
+        const saveFollowUp = profile.getByRole('button', { name: t('حفظ المتابعة', 'Save follow-up'), exact: true });
+        await recoverEdit(page, profile, saveFollowUp, '**/crm/tasks/' + followUp.id);
         await profile
           .getByRole('button', { name: t('حفظ المتابعة', 'Save follow-up'), exact: true })
           .waitFor({ state: 'hidden' });
@@ -663,9 +677,8 @@ try {
         await dealDialog.locator('input[name=value]').fill('147.25');
         await dealDialog.locator('input[name=currency]').fill('EUR');
         await dealDialog.locator('select[name=ownerId]').selectOption(owner);
-        await dealDialog
-          .getByRole('button', { name: t('حفظ الفرصة', 'Save opportunity'), exact: true })
-          .click();
+        const saveDeal = dealDialog.getByRole('button', { name: t('حفظ الفرصة', 'Save opportunity'), exact: true });
+        await recoverEdit(page, dealDialog, saveDeal, '**/crm/deals/' + linked.id);
         await dealDialog.waitFor({ state: 'hidden' });
         const lost = (await api('/crm/deals?id=' + linked.id, token)).items[0];
         assert.equal(lost.status, 'lost');
