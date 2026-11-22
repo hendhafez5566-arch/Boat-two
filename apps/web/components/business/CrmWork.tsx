@@ -8,6 +8,7 @@ import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 import { Button, Dialog } from '../product/ProductUI';
 import { useCrmDraftGuard } from './useCrmDraftGuard';
+import { useCrmEditBody } from './useCrmEditBody';
 import { useData } from './useData';
 import { NavIcon } from '../product/NavIcon';
 import styles from './crm-workspace.module.css';
@@ -92,6 +93,7 @@ export function CrmWork({
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
+  const editBody = useCrmEditBody();
   const createRequestId = useRef('');
   const team = useData<{ currentUserId: string; role: string; members: Member[] }>(
     '/crm/workspace/members',
@@ -161,7 +163,7 @@ export function CrmWork({
     return run(() =>
       api(`/crm/${kind}/${row.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ ...changes, expectedUpdatedAt: row.updated_at }),
+        body: JSON.stringify(editBody(row.id, { ...changes, expectedUpdatedAt: row.updated_at })),
       }),
     );
   }
@@ -345,10 +347,9 @@ export function CrmWork({
           if (!editing && !createRequestId.current) createRequestId.current = crypto.randomUUID();
           await api<Work>(`/crm/${kind}${editing ? '/' + dialog.id : ''}`, {
             method: editing ? 'PATCH' : 'POST',
-            body: JSON.stringify({
-              ...values,
-              ...(editing ? { expectedUpdatedAt: dialog.updated_at } : { requestId: createRequestId.current }),
-            }),
+            body: editing
+              ? JSON.stringify(editBody(dialog.id, { ...values, expectedUpdatedAt: dialog.updated_at }))
+              : JSON.stringify({ ...values, requestId: createRequestId.current }),
           });
           discardEditor();
         })

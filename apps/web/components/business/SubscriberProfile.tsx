@@ -6,6 +6,7 @@ import { FormEvent, useRef, useState } from 'react';
 import Link from 'next/link';
 import { NavIcon } from '../product/NavIcon';
 import { api } from '../../lib/api';
+import { useCrmEditBody } from './useCrmEditBody';
 import { useData } from './useData';
 import { useLocale } from '../product/locale';
 import { statusLabel } from '../product/status';
@@ -118,6 +119,7 @@ export default function SubscriberProfile({
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
   const lock = useRef(false);
+  const editBody = useCrmEditBody();
   const overviewDirty = useRef(false);
   function setDraft(dirty: boolean) {
     overviewDirty.current = dirty;
@@ -177,7 +179,7 @@ export default function SubscriberProfile({
   const patch = (change: Partial<Contact> & { ownerId?: string | null }) =>
     api(`/crm/contacts/${contactId}/profile`, {
       method: 'PATCH',
-      body: JSON.stringify({ ...change, expectedUpdatedAt: contact?.updated_at }),
+      body: JSON.stringify(editBody(contactId, { ...change, expectedUpdatedAt: contact?.updated_at })),
     });
   const date = (value?: string | null) =>
     value ? new Date(value).toLocaleString(language === 'ar' ? 'ar-EG' : 'en-GB') : '—';

@@ -48,14 +48,17 @@ export class CrmController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: unknown,
   ) {
-    const patch = parse(
+    const { requestId, ...patch } = parse(
       sparsePatch(contactSchema
         .omit({ allowDuplicate: true })
         .partial()
-        .extend({ expectedUpdatedAt: z.string().datetime() })),
+        .extend({ expectedUpdatedAt: z.string().datetime(), requestId: z.string().uuid().optional() })),
       body,
     );
-    return this.crm.patchProfile(r.user.tenantId, id, patch);
+    const write = () => this.crm.patchProfile(r.user.tenantId, id, patch);
+    return requestId
+      ? this.crm.writeOnce(r.user.tenantId, r.user.userId, r.user.role, 'contacts', requestId, patch, write, id)
+      : write();
   }
   @Get('contacts/export') export(@Req() r: AuthedRequest, @Query() query: unknown) {
     return this.crm.list(r.user.tenantId, parse(filtersSchema, query), 1, 10000);
@@ -94,7 +97,7 @@ export class CrmController {
     }
     const create = () => this.crm.save(r.user.tenantId, input);
     return requestId
-      ? this.crm.createOnce(r.user.tenantId, r.user.userId, r.user.role, 'contacts', requestId, input, create)
+      ? this.crm.writeOnce(r.user.tenantId, r.user.userId, r.user.role, 'contacts', requestId, input, create)
       : create();
   }
   @Post('contacts/bulk') @Roles('owner', 'admin') bulkContacts(
@@ -789,7 +792,7 @@ export class CrmController {
       ).rows[0];
     });
     return requestId
-      ? this.crm.createOnce(r.user.tenantId, r.user.userId, r.user.role, 'deals', requestId, b, create)
+      ? this.crm.writeOnce(r.user.tenantId, r.user.userId, r.user.role, 'deals', requestId, b, create)
       : create();
   }
   @Patch('deals/:id') updateDeal(
@@ -797,7 +800,7 @@ export class CrmController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: unknown,
   ) {
-    const b = parse(
+    const { requestId, ...b } = parse(
       z
         .object({
           stage: z.string().min(1).max(60).optional(),
@@ -811,12 +814,13 @@ export class CrmController {
           ownerId: z.string().uuid().nullable().optional(),
           expectedClose: crmDate.nullable().optional(),
           lossReason: z.string().trim().max(500).nullable().optional(),
+          requestId: z.string().uuid().optional(),
           expectedUpdatedAt: z.string().datetime().optional(),
         })
-        .refine((b) => Object.keys(b).some((key) => key !== 'expectedUpdatedAt')),
+        .refine((b) => Object.keys(b).some((key) => key !== 'expectedUpdatedAt' && key !== 'requestId')),
       body,
     );
-    return this.crm.db.withTenant(r.user.tenantId, async (c) => {
+    const write = () => this.crm.db.withTenant(r.user.tenantId, async (c) => {
       if (r.user.role === 'agent') {
         const current = (
           await c.query('SELECT owner_id FROM crm_deals WHERE id=$1 FOR UPDATE', [id])
@@ -868,6 +872,9 @@ export class CrmController {
       if (!row) throw new BadRequestException('Deal changed; refresh before saving');
       return row;
     });
+    return requestId
+      ? this.crm.writeOnce(r.user.tenantId, r.user.userId, r.user.role, 'deals', requestId, b, write, id)
+      : write();
   }
   @Get('tasks') tasks(@Req() r: AuthedRequest, @Query() query: unknown) {
     return this.workList(r, query, 'tasks');
@@ -923,7 +930,7 @@ export class CrmController {
       ).rows[0];
     });
     return requestId
-      ? this.crm.createOnce(r.user.tenantId, r.user.userId, r.user.role, 'tasks', requestId, b, create)
+      ? this.crm.writeOnce(r.user.tenantId, r.user.userId, r.user.role, 'tasks', requestId, b, create)
       : create();
   }
   @Patch('tasks/:id') updateTask(
@@ -931,7 +938,7 @@ export class CrmController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: unknown,
   ) {
-    const b = parse(
+    const { requestId, ...b } = parse(
       z
         .object({
           status: z.enum(['open', 'done']).optional(),
@@ -940,12 +947,13 @@ export class CrmController {
           priority: z.enum(['low', 'normal', 'high']).optional(),
           assignedTo: z.string().uuid().nullable().optional(),
           dealId: z.string().uuid().nullable().optional(),
+          requestId: z.string().uuid().optional(),
           expectedUpdatedAt: z.string().datetime().optional(),
         })
-        .refine((b) => Object.keys(b).some((key) => key !== 'expectedUpdatedAt')),
+        .refine((b) => Object.keys(b).some((key) => key !== 'expectedUpdatedAt' && key !== 'requestId')),
       body,
     );
-    return this.crm.db.withTenant(r.user.tenantId, async (c) => {
+    const write = () => this.crm.db.withTenant(r.user.tenantId, async (c) => {
       if (r.user.role === 'agent') {
         const current = (
           await c.query('SELECT assigned_to FROM crm_tasks WHERE id=$1 FOR UPDATE', [id])
@@ -996,5 +1004,8 @@ export class CrmController {
       }
       return row;
     });
+    return requestId
+      ? this.crm.writeOnce(r.user.tenantId, r.user.userId, r.user.role, 'tasks', requestId, b, write, id)
+      : write();
   }
 }

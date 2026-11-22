@@ -22,6 +22,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
+import { useCrmEditBody } from '../../../components/business/useCrmEditBody';
 import { useCrmDraftGuard } from '../../../components/business/useCrmDraftGuard';
 import { useData } from '../../../components/business/useData';
 import { download, exportCsv } from '../../../components/business/csv';
@@ -170,6 +171,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     }
   }, []);
   const [contactDraft, setContactDraft] = useState<Contact | null>(null);
+  const editBody = useCrmEditBody();
   const createRequestId = useRef('');
   const [contactDirty, setContactDirty] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
@@ -1303,7 +1305,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                     if (!edit && !createRequestId.current) createRequestId.current = crypto.randomUUID();
                     const saved = await act(
                       '/crm/contacts' + (edit ? '/' + edit + '/profile' : ''),
-                      edit ? draft : { ...draft, requestId: createRequestId.current },
+                      edit ? editBody(edit, draft) : { ...draft, requestId: createRequestId.current },
                       edit ? 'PATCH' : 'POST',
                     );
                     discardContact();
