@@ -55,10 +55,25 @@ for (const language of ['ar', 'en']) {
     await page.waitForURL(/\/dashboard\/inbox/);
     const conversations = await request('/conversations', undefined, session.accessToken);
     assert.equal(conversations.items.length, 1);
+    await page.locator('.inbox-item').filter({ hasText: text }).click();
+    const reply = 'Synthetic operator reply ' + language;
+    const composer = page.getByLabel(t('محرر الرد', 'Reply composer'));
+    await composer.fill(reply);
+    await composer.press('Enter');
+    await demo.getByText(reply, { exact: true }).waitFor();
+    await page.getByRole('button', { name: t('تعيين متابعة', 'Set Follow-up') }).click();
+    const followup = page.getByRole('dialog', { name: t('تعيين متابعة', 'Set Follow-up') });
+    await followup.locator('input[type=datetime-local]').fill(new Date(Date.now()+86400000).toISOString().slice(0,16));
+    await followup.getByLabel(t('السبب', 'Reason'), { exact: false }).fill('Synthetic pilot follow-up');
+    await followup.getByRole('button', { name: t('حفظ المتابعة', 'Save Follow-up') }).click();
+    await followup.waitFor({ state: 'hidden' });
+    const tasks = await request('/crm/tasks?q=Synthetic%20pilot%20follow-up', undefined, session.accessToken);
+    assert.equal(tasks.total, 1);
+
     const other = await register();
     assert.equal((await request('/workspace/onboarding/message-check', undefined, other.accessToken)).received, false);
     assert.equal((await request('/conversations', undefined, other.accessToken)).items.length, 0);
-    console.log('PASS first incoming Webchat message, inbox shortcut and workspace isolation', language, 390);
+    console.log('PASS first incoming Webchat message, inbox reply, follow-up and workspace isolation', language, 390);
   } finally {
     await browser.close();
   }
