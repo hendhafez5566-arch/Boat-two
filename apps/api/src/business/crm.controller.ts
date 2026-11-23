@@ -429,13 +429,14 @@ export class CrmController {
   ) {
     const b = parse(z.object({ text: z.string().trim().min(1).max(4000) }), body);
     return this.crm.db.withTenant(r.user.tenantId, async (c) => {
-      await this.crm.get(r.user.tenantId, id);
-      return (
-        await c.query(
-          'INSERT INTO crm_notes(tenant_id,contact_id,body,created_by) VALUES($1,$2,$3,$4) RETURNING *',
-          [r.user.tenantId, id, b.text, r.user.userId],
-        )
-      ).rows[0];
+      const { rows: [note] } = await c.query(
+        `INSERT INTO crm_notes(tenant_id,contact_id,body,created_by)
+         SELECT tenant_id,id,$2,$3 FROM contacts WHERE id=$1
+         RETURNING *`,
+        [id, b.text, r.user.userId],
+      );
+      if (!note) throw new NotFoundException('Contact not found');
+      return note;
     });
   }
   @Put('contacts/:id/consent') @Roles('owner', 'admin') consent(

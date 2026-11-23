@@ -1,14 +1,48 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { Agent, request as httpRequest } from 'node:http';
 import { performance } from 'node:perf_hooks';
 import { assertLocalAcceptance } from './acceptance-local.mjs';
 
 assertLocalAcceptance();
 const base = 'http://127.0.0.1:4000';
-async function request(path, token, body, method = body ? 'POST' : 'GET') {
+// An explicit pool keeps the load generator's connection limit under test control.
+const agent = new Agent({ keepAlive: true, maxSockets: 128, maxFreeSockets: 128 });
+function pooledRequest(path, token, body, method, extraHeaders) {
+  const payload = body ? JSON.stringify(body) : undefined;
+  const started = performance.now();
+  return new Promise((resolve, reject) => {
+    let socketWait, writeFinished;
+    const req = httpRequest(base + path, {
+      agent, method, signal: AbortSignal.timeout(30_000),
+      headers: {
+        'content-type': 'application/json',
+        ...(payload ? { 'content-length': Buffer.byteLength(payload) } : {}),
+        ...(token ? { authorization: 'Bearer ' + token } : {}),
+        ...extraHeaders,
+      },
+    }, (response) => {
+      const firstByte = performance.now() - started;
+      let raw = '';
+      response.setEncoding('utf8');
+      response.on('data', (chunk) => { raw += chunk; });
+      response.on('error', reject);
+      response.on('end', () => {
+        try { resolve({ status: response.statusCode, data: JSON.parse(raw), socketWait, writeFinished, firstByte }); }
+        catch (error) { reject(error); }
+      });
+    });
+    req.on('socket', () => { socketWait = performance.now() - started; });
+    req.on('finish', () => { writeFinished = performance.now() - started; });
+    req.on('error', reject);
+    req.end(payload);
+  });
+}
+async function request(path, token, body, method = body ? 'POST' : 'GET', extraHeaders) {
+  if (process.env.CRM_LOAD_CLIENT !== 'fetch') return pooledRequest(path, token, body, method, extraHeaders);
   const response = await fetch(base + path, {
     method,
-    headers: { 'content-type': 'application/json', ...(token ? { authorization: 'Bearer ' + token } : {}) },
+    headers: { 'content-type': 'application/json', ...(token ? { authorization: 'Bearer ' + token } : {}), ...extraHeaders },
     body: body ? JSON.stringify(body) : undefined,
     signal: AbortSignal.timeout(30_000),
   });
@@ -21,6 +55,7 @@ async function setup(path, token, body) {
 }
 
 const workspaces = [];
+const includeWebchat = process.env.CRM_LOAD_WEBCHAT === '1';
 for (let index = 0; index < 10; index++) {
   const session = await setup('/auth/register', null, {
     email: randomUUID() + '@example.test',
@@ -33,9 +68,21 @@ for (let index = 0; index < 10; index++) {
   const tenantId = me.user.tenantId || me.user.tenant_id || me.tenant?.id || me.workspaces[0].tenant_id;
   const marker = await setup('/crm/contacts', token, { name: 'Load marker company ' + index });
   await setup('/__qa/crm', null, { tenantId, op: 'seed' });
+  let visitor;
+  if (includeWebchat) {
+    const channel = await setup('/channels', token, { name: 'Synthetic load chat', type: 'web' });
+    const session = await setup('/widget/' + channel.external_id + '/session', null, {});
+    visitor = {
+      path: '/widget/' + channel.external_id + '/messages?visitorId=' + session.visitorId,
+      headers: { 'x-visitor-token': session.token },
+    };
+    const first = await request(visitor.path, null, { text: 'Initial synthetic message', clientMsgId: randomUUID() }, 'POST', visitor.headers);
+    assert.equal(first.status, 201);
+  }
   const firstPage = await setup('/crm/contacts?limit=1', token);
-  assert.equal(firstPage.total, 3001);
-  workspaces.push({ token, contactId: marker.id });
+  const total = includeWebchat ? 3002 : 3001;
+  assert.equal(firstPage.total, total);
+  workspaces.push({ index, token, contactId: marker.id, visitor, total });
 }
 
 const workload = [
@@ -45,8 +92,20 @@ const workload = [
   { name: 'page100', path: () => '/crm/contacts?page=100&limit=25&sort=name', expected: 200 },
   { name: 'profile', path: ({ contactId }) => '/crm/contacts/' + contactId + '/profile', expected: 200 },
   { name: 'noteWrite', path: ({ contactId }) => '/crm/contacts/' + contactId + '/notes', body: (i) => ({ text: 'Synthetic load note ' + i }), expected: 201 },
-  { name: 'tenantIsolation', path: (_, i) => '/crm/contacts/' + workspaces[(i + 1) % 10].contactId + '/profile', expected: 404 },
+  { name: 'tenantIsolation', path: ({ index }) => '/crm/contacts/' + workspaces[(index + 1) % workspaces.length].contactId + '/profile', expected: 404 },
 ];
+if (includeWebchat) workload.push(
+  { name: 'inboxList', path: () => '/conversations?limit=25', expected: 200 },
+  {
+    name: 'webchatInbound', path: ({ visitor }) => visitor.path,
+    body: (i) => ({ text: 'Synthetic inbound under load ' + i, clientMsgId: randomUUID() }),
+    headers: ({ visitor }) => visitor.headers, visitor: true, expected: 201,
+  },
+  {
+    name: 'tenantWriteIsolation', path: ({ index }) => '/crm/contacts/' + workspaces[(index + 1) % workspaces.length].contactId + '/notes',
+    body: () => ({ text: 'Synthetic isolation check' }), expected: 404,
+  },
+);
 const percentile = (values, p) => values.length ? Math.round(values[Math.ceil(values.length * p) - 1]) : null;
 async function run(concurrency, count) {
   const start = performance.now();
@@ -55,20 +114,23 @@ async function run(concurrency, count) {
   await Promise.all(Array.from({ length: concurrency }, async () => {
     for (let i = next++; i < count; i = next++) {
       const operation = workload[i % workload.length];
-      const workspace = workspaces[i % workspaces.length];
+      const workspaceIndex = includeWebchat ? Math.floor(i / workload.length) : i;
+      const workspace = workspaces[workspaceIndex % workspaces.length];
       const before = performance.now();
-      let outcome;
+      let outcome, socketWait, writeFinished, firstByte;
       try {
-        const { status, data } = await request(operation.path(workspace, i), workspace.token, operation.body?.(i));
+        const result = await request(operation.path(workspace, i), operation.visitor ? null : workspace.token, operation.body?.(i), undefined, operation.headers?.(workspace));
+        const { status, data } = result;
+        ({ socketWait, writeFinished, firstByte } = result);
         if (status !== operation.expected) outcome = 'HTTP ' + status;
-        else if (['firstPage', 'page100'].includes(operation.name) && data.total !== 3001) outcome = 'invalid total';
+        else if (['firstPage', 'page100'].includes(operation.name) && data.total !== workspace.total) outcome = 'invalid total';
         else if (operation.name === 'profile' && data.contact.id !== workspace.contactId) outcome = 'incorrect record';
         else if (operation.name === 'search' && !data.items.every((row) => row.name.startsWith('Load customer 2'))) outcome = 'invalid search';
         else outcome = 'ok';
       } catch (error) {
         outcome = error.name;
       }
-      records.push({ name: operation.name, elapsed: performance.now() - before, outcome });
+      records.push({ name: operation.name, elapsed: performance.now() - before, outcome, socketWait, writeFinished, firstByte });
     }
   }));
   const summary = (rows) => {
@@ -79,6 +141,9 @@ async function run(concurrency, count) {
       outcomes: Object.fromEntries([...new Set(rows.map((row) => row.outcome))].map((outcome) =>
         [outcome, rows.filter((row) => row.outcome === outcome).length])),
       p50ms: percentile(times, .5), p95ms: percentile(times, .95), p99ms: percentile(times, .99),
+      socketWaitP95ms: percentile(rows.flatMap((row) => row.socketWait === undefined ? [] : [row.socketWait]).sort((a, b) => a - b), .95),
+      writeFinishedP95ms: percentile(rows.flatMap((row) => row.writeFinished === undefined ? [] : [row.writeFinished]).sort((a, b) => a - b), .95),
+      firstByteP95ms: percentile(rows.flatMap((row) => row.firstByte === undefined ? [] : [row.firstByte]).sort((a, b) => a - b), .95),
     };
   };
   return {
@@ -94,5 +159,7 @@ if (process.env.CRM_LOAD_INCLUDE_128 === '1') stages.push([128, 896]);
 for (const [concurrency, requests] of stages) {
   const result = await run(concurrency, requests);
   console.log(JSON.stringify(result));
-  if (result.operations.tenantIsolation.outcomes['HTTP 200']) throw Error('Cross-tenant data returned');
+  if (['tenantIsolation', 'tenantWriteIsolation'].some((name) =>
+    Object.keys(result.operations[name]?.outcomes ?? {}).some((outcome) => /^HTTP 2/.test(outcome))))
+    throw Error('Cross-tenant operation succeeded');
 }

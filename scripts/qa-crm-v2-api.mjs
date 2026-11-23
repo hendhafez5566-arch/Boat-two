@@ -539,8 +539,11 @@ try {
       assert.deepEqual((await request(scope, agent.accessToken)).stageSummary, [grouped[0]]);
       count += 4;
     }
-    for (const other of sessions.slice(0, -1))
+    for (const other of sessions.slice(0, -1)) {
       await request('/crm/workspace/score/' + c.id, other.accessToken, null, 'GET', 404);
+      await request('/crm/contacts/' + c.id + '/notes', other.accessToken, { text: 'Cross-tenant test note' }, 'POST', 404);
+      count++;
+    }
     count++;
   }
   mkdirSync('docs/acceptance/2026-11-01-crm-v2', { recursive: true });
