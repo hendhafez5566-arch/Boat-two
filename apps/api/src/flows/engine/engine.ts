@@ -1,3 +1,5 @@
+import { advanceConversationCheckout, beginConversationCheckout, checkoutPrompt } from './conversation-checkout';
+import { checkoutSchema } from '../../commerce/checkout';
 import { boundedRegexTest, RegexBudget } from './bounded-regex';
 import { randomUUID } from 'node:crypto';
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -477,6 +479,16 @@ export class FlowEngine {
     state: FlowState,
   ): Promise<EngineResult> {
     if (node.type === 'catalog') {
+      if (state.waiting?.checkout && this.deps.quoteCheckout && this.deps.saveCheckout) {
+        const result = await advanceConversationCheckout(state.waiting.checkout, this.replyText(ctx), {
+          quote: this.deps.quoteCheckout,
+          save: this.deps.saveCheckout,
+        }, node.data.checkoutFollowup === true);
+        await this.send({ text: result.text });
+        if (!result.done) return this.finish('waiting', state);
+        state.waiting = null;
+        return this.run(ctx, state, node.edges.next ?? null);
+      }
       if (node.data.sourceId) {
         const d = node.data,
           reply = ctx.lastMessage.replyId;
@@ -528,6 +540,17 @@ export class FlowEngine {
       if (!chosen) return this.finish('waiting', state);
       state.vars[node.data.saveAs || 'selectedProductId'] = chosen.id.slice('product:'.length);
       state.vars[(node.data.saveAs || 'selectedProductId') + '_name'] = chosen.title;
+      if (node.data.checkout && this.deps.checkoutProduct && this.deps.quoteCheckout && this.deps.saveCheckout && state.waiting) {
+        const product = await this.deps.checkoutProduct(chosen.id.slice('product:'.length));
+        if (checkoutSchema.parse(product.checkout ?? {}).kind === 'appointment') {
+          await this.send({ text: 'استخدم مسار حجز الموعد / Use the appointment booking flow.' });
+        } else {
+          state.waiting.checkout = beginConversationCheckout(product);
+          state.waiting.catalogOptions = [];
+          await this.send({ text: checkoutPrompt(state.waiting.checkout) });
+          return this.finish('waiting', state);
+        }
+      }
       state.waiting = null;
       return this.run(ctx, state, node.edges.next ?? null);
     }

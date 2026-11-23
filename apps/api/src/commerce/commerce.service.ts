@@ -270,9 +270,11 @@ export class CommerceService {
     });
   }
 
-  createConversationOrder(tenant: string, actor: string, input: z.infer<typeof conversationOrderSchema>) {
+  createConversationOrder(tenant: string, actor: string | null, input: z.infer<typeof conversationOrderSchema>,
+    checkout?: { terms: { totalCents: string | null; currency: string }; followup: boolean },
+  ) {
     const { conversationId, channelId, ...selection } = input;
-    return this.db.withTenant(tenant, async (c) => {
+    return this.db.conversation(tenant, conversationId, () => this.db.withTenant(tenant, async (c) => {
       const { rows: [conversation] } = await c.query<{ contact_id: string }>(
         `SELECT contact_id FROM conversations
          WHERE tenant_id=$1 AND id=$2 AND channel_id=$3 FOR SHARE`,
@@ -281,12 +283,13 @@ export class CommerceService {
       if (!conversation) throw new NotFoundException('Conversation unavailable');
       return this.createOrder(tenant, actor, { ...selection, contactId: conversation.contact_id }, {
         conversationId, channelId,
-      });
-    });
+      }, checkout);
+    }));
   }
 
-  async createOrder(tenant: string, actor: string, input: z.infer<typeof orderSchema>,
+  async createOrder(tenant: string, actor: string | null, input: z.infer<typeof orderSchema>,
     origin?: { conversationId: string; channelId: string },
+    checkout?: { terms: { totalCents: string | null; currency: string }; followup: boolean },
   ) {
     return this.db.withTenant(tenant, async (c) => {
       await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,116))', [tenant + ':' + input.requestId]);
@@ -306,6 +309,8 @@ export class CommerceService {
       );
       if (!product) throw new NotFoundException('Product unavailable');
       const snapshot = calculateCheckout(product, input);
+      if (checkout && (snapshot.currency !== checkout.terms.currency || snapshot.totalCents !== checkout.terms.totalCents))
+        throw new ConflictException('Checkout price changed');
       if (snapshot.kind === 'appointment') throw new BadRequestException('Use the appointment booking workflow');
       const contact = await c.query('SELECT id FROM contacts WHERE tenant_id=$1 AND id=$2', [tenant, input.contactId]);
       if (!contact.rows.length) throw new NotFoundException('Contact unavailable');
@@ -327,6 +332,12 @@ export class CommerceService {
         [tenant, order.id, actor]);
       await c.query('INSERT INTO crm_notes(tenant_id,contact_id,body,created_by) VALUES($1,$2,$3,$4)',
         [tenant, input.contactId, 'Order / طلب ' + order.id + ' — ' + snapshot.name, actor]);
+      if (checkout?.followup) {
+        await c.query(
+          "INSERT INTO crm_tasks(tenant_id,contact_id,title,due_at) VALUES($1,$2,$3,now()+interval '1 day')",
+          [tenant, input.contactId, 'Follow up on order / متابعة الطلب ' + order.id],
+        );
+      }
       return order;
     });
   }

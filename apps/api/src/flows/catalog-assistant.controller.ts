@@ -15,6 +15,8 @@ const setupSchema = z.object({
   welcome: z.string().trim().min(1).max(1024),
   fallback: z.string().trim().min(1).max(1024),
   channelId: z.string().uuid(),
+  checkout: z.boolean().optional(),
+  checkoutFollowup: z.boolean().optional(),
   assigneeId: z.string().uuid().optional(),
   productIds: z.array(z.string().uuid()).min(1).max(1000).optional(),
 });
@@ -72,7 +74,8 @@ export class CatalogAssistantController {
         pages.push({ id, size: batch.length, title: 'صفحة · Page ' + (pages.length + 1) });
         nodes.push({
           id, type: 'catalog', position: { x: 850, y: pages.length * 165 },
-          data: { productIds: batch.map((p) => p.id), text: setup.name, selectable: true, native: false },
+          data: { productIds: batch.map((p) => p.id), text: setup.name, selectable: true, native: false,
+            ...(setup.checkout ? { checkout: true, checkoutFollowup: setup.checkoutFollowup === true } : {}) },
           edges: { next: 'end' },
         });
       }

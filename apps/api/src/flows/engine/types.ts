@@ -1,3 +1,5 @@
+import type { CheckoutProduct, Selection } from '../../commerce/checkout';
+import type { PendingCheckout, CheckoutTerms } from './conversation-checkout';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export type NodeType =
   | 'product'
@@ -141,6 +143,7 @@ export interface FlowState {
     formToken?: string;
     catalogOptions?: { id: string; title: string }[];
     catalogPage?: number;
+    checkout?: PendingCheckout;
   };
   totalSteps: number;
 }
@@ -198,6 +201,9 @@ export interface EngineDeps {
     text: string,
     selectable?: boolean,
   ): Promise<OutContent>;
+  checkoutProduct?(id: string): Promise<CheckoutProduct>;
+  quoteCheckout?(selection: Selection): Promise<CheckoutTerms>;
+  saveCheckout?(selection: Selection, requestId: string, terms: CheckoutTerms, followup: boolean): Promise<{ id: string }>;
   bookAppointment?(
     serviceId: string,
     start: string,

@@ -150,6 +150,8 @@ export const nodeSchema = z.discriminatedUnion('type', [
       native: z.boolean().default(false),
       text: z.string().min(1).max(1024),
       selectable: z.boolean().optional(),
+      checkout: z.boolean().optional(),
+      checkoutFollowup: z.boolean().optional(),
       saveAs: varName.optional(),
     }),
   }),

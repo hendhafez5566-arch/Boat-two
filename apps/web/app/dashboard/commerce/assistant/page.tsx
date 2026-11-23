@@ -64,7 +64,7 @@ function Assistant() {
   const [manual, setManual] = useState(false);
   const [selected, setSelected] = useState<CatalogProduct[]>([]);
   const [settings, setSettings] = useState({
-    name: '', channelId: '', assigneeId: '', welcome: 'أهلًا وسهلًا / Welcome',
+    name: '', channelId: '', assigneeId: '', checkout: false, checkoutFollowup: false, welcome: 'أهلًا وسهلًا / Welcome',
     fallback: 'اختَر عنصرًا من القائمة / Choose a catalog item',
   });
   const [readiness, setReadiness] = useState<Readiness | null>(null);
@@ -148,6 +148,14 @@ function Assistant() {
         <option value="">{t('اختر قناة', 'Choose channel')}</option>
         {channels.data.filter((c) => c.status === 'active').map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select></label>
+      <label><input type="checkbox" checked={settings.checkout}
+        onChange={(e) => { invalidate(); setSettings({ ...settings, checkout: e.target.checked }); }}/>
+        {t('حفظ طلب العميل بعد التأكيد في المحادثة', 'Save the order after the customer confirms in chat')}
+      </label>
+      {settings.checkout && <label><input type="checkbox" checked={settings.checkoutFollowup}
+        onChange={(e) => { invalidate(); setSettings({ ...settings, checkoutFollowup: e.target.checked }); }}/>
+        {t('إنشاء متابعة للطلب في CRM', 'Create a CRM follow-up for the order')}
+      </label>}
       <label>{t('مسؤول التحويل', 'Handoff assignee')}
         <select aria-label={t('مسؤول التحويل', 'Handoff assignee')} value={settings.assigneeId}
           onChange={(e) => { invalidate(); setSettings({ ...settings, assigneeId: e.target.value }); }}>

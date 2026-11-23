@@ -53,6 +53,8 @@ export function validateGraph(graph: FlowGraph): { errors: Issue[]; warnings: Is
         if (!parsed.success)
           for (const issue of parsed.error.issues)
             errors.push({ nodeId: n.id, message: `${issue.path.join('.')}: ${issue.message}` });
+        if (n.type === 'catalog' && d.checkout && (!d.selectable || d.native || d.sourceId))
+          errors.push({ nodeId: n.id, message: 'Checkout requires a selectable local catalog' });
         if (n.type === 'catalog' && !d.sourceId && !(d.productIds ?? []).length)
           errors.push({ nodeId: n.id, message: 'Choose products or a dynamic data source' });
         if (n.type === 'catalog' && d.sourceId && d.native)
