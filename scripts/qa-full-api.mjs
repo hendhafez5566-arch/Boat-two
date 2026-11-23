@@ -103,6 +103,18 @@ if (process.env.BOAT_TELEGRAM_QA === 'true') {
   const { NestFactory } = local('@nestjs/core');
   const { AppModule } = local('./dist/app.module');
   const app = await NestFactory.create(AppModule, { logger: ['error'], rawBody: true });
+  if (process.env.BOAT_CRM_LOAD_TIMING === 'true') {
+    app.use((req, res, next) => {
+      const received = performance.now();
+      res.setHeader('x-qa-received-ms', String(performance.timeOrigin + received));
+      const writeHead = res.writeHead;
+      res.writeHead = function (...args) {
+        this.setHeader('x-qa-handling-ms', String(performance.now() - received));
+        return writeHead.apply(this, args);
+      };
+      next();
+    });
+  }
   app.useBodyParser('json', { limit: '1mb' });
   app.use((req, res, next) => requestContext.run(req, next));
   app.enableCors();

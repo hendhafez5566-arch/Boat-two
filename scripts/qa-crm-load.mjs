@@ -23,12 +23,19 @@ function pooledRequest(path, token, body, method, extraHeaders) {
       },
     }, (response) => {
       const firstByte = performance.now() - started;
+      const received = Number(response.headers['x-qa-received-ms']);
+      const handling = Number(response.headers['x-qa-handling-ms']);
+      const ingress = received > 0 ? Math.max(0, received - performance.timeOrigin - started) : undefined;
+      const handlingMs = Number.isFinite(handling) ? handling : undefined;
+      const responseWait = ingress !== undefined && handlingMs !== undefined
+        ? Math.max(0, firstByte - ingress - handlingMs)
+        : undefined;
       let raw = '';
       response.setEncoding('utf8');
       response.on('data', (chunk) => { raw += chunk; });
       response.on('error', reject);
       response.on('end', () => {
-        try { resolve({ status: response.statusCode, data: JSON.parse(raw), socketWait, writeFinished, firstByte }); }
+        try { resolve({ status: response.statusCode, data: JSON.parse(raw), socketWait, writeFinished, firstByte, ingress, handlingMs, responseWait }); }
         catch (error) { reject(error); }
       });
     });
@@ -117,11 +124,11 @@ async function run(concurrency, count) {
       const workspaceIndex = includeWebchat ? Math.floor(i / workload.length) : i;
       const workspace = workspaces[workspaceIndex % workspaces.length];
       const before = performance.now();
-      let outcome, socketWait, writeFinished, firstByte;
+      let outcome, socketWait, writeFinished, firstByte, ingress, handlingMs, responseWait;
       try {
         const result = await request(operation.path(workspace, i), operation.visitor ? null : workspace.token, operation.body?.(i), undefined, operation.headers?.(workspace));
         const { status, data } = result;
-        ({ socketWait, writeFinished, firstByte } = result);
+        ({ socketWait, writeFinished, firstByte, ingress, handlingMs, responseWait } = result);
         if (status !== operation.expected) outcome = 'HTTP ' + status;
         else if (['firstPage', 'page100'].includes(operation.name) && data.total !== workspace.total) outcome = 'invalid total';
         else if (operation.name === 'profile' && data.contact.id !== workspace.contactId) outcome = 'incorrect record';
@@ -130,7 +137,7 @@ async function run(concurrency, count) {
       } catch (error) {
         outcome = error.name;
       }
-      records.push({ name: operation.name, elapsed: performance.now() - before, outcome, socketWait, writeFinished, firstByte });
+      records.push({ name: operation.name, elapsed: performance.now() - before, outcome, socketWait, writeFinished, firstByte, ingress, handlingMs, responseWait });
     }
   }));
   const summary = (rows) => {
@@ -141,9 +148,19 @@ async function run(concurrency, count) {
       outcomes: Object.fromEntries([...new Set(rows.map((row) => row.outcome))].map((outcome) =>
         [outcome, rows.filter((row) => row.outcome === outcome).length])),
       p50ms: percentile(times, .5), p95ms: percentile(times, .95), p99ms: percentile(times, .99),
-      socketWaitP95ms: percentile(rows.flatMap((row) => row.socketWait === undefined ? [] : [row.socketWait]).sort((a, b) => a - b), .95),
-      writeFinishedP95ms: percentile(rows.flatMap((row) => row.writeFinished === undefined ? [] : [row.writeFinished]).sort((a, b) => a - b), .95),
-      firstByteP95ms: percentile(rows.flatMap((row) => row.firstByte === undefined ? [] : [row.firstByte]).sort((a, b) => a - b), .95),
+      ...Object.fromEntries(
+        Object.entries({
+          socketWaitP95ms: 'socketWait',
+          writeFinishedP95ms: 'writeFinished',
+          firstByteP95ms: 'firstByte',
+          ingressP95ms: 'ingress',
+          serverHandlingP95ms: 'handlingMs',
+          responseWaitP95ms: 'responseWait',
+        }).map(([name, key]) => [name, percentile(
+          rows.map((row) => row[key]).filter(Number.isFinite).sort((a, b) => a - b),
+          .95,
+        )]),
+      ),
     };
   };
   return {
