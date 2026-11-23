@@ -651,6 +651,9 @@ export class CommerceService {
   }
   async book(tenant: string, input: z.infer<typeof bookingSchema>) {
     return this.db.withTenant(tenant, async (c) => {
+      await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,116))', [
+        `appointment:${tenant}:${input.eventKey}`,
+      ]);
       await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [input.serviceId]);
       const prior = (
         await c.query('SELECT * FROM appointments WHERE event_key=$1', [input.eventKey])

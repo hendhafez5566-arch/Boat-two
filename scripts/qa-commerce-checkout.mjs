@@ -201,6 +201,63 @@ const recorded = (await api('/commerce/orders', token)).filter((order) => order.
 assert.equal(recorded.length, 1);
 assert.deepEqual(recorded[0].origin, { conversationId: conversation.id, channelId: channel.id });
 console.log('PASS conversation order identity, authorization, channel binding, and retry');
+const monday = new Date();
+monday.setUTCHours(9, 0, 0, 0);
+monday.setUTCDate(monday.getUTCDate() + ((8 - monday.getUTCDay()) % 7 || 7));
+const serviceInput = {
+  name:'Synthetic weekly visit', durationMinutes:60, timezone:'Africa/Cairo',
+  schedule:{mon:[['10:00','15:00']]},
+};
+const appointment = await api('/commerce/services', token, serviceInput);
+const appointment2 = await api('/commerce/services', token, {...serviceInput, name:'Separate consultation'});
+const booking = {
+  serviceId:appointment.id, contactId:contact.id, start:monday.toISOString(), eventKey:randomUUID(), dryRun:false,
+};
+const previewBooking = await api('/commerce/appointments', token, {...booking, dryRun:true});
+assert.equal(previewBooking.persisted,false);
+assert.equal((await api('/commerce/appointments',token)).length,0);
+await api('/commerce/appointments',token,{...booking,start:new Date(+monday+5*60*60*1000).toISOString()},409);
+const [firstBooking, retryBooking] = await Promise.all([
+  api('/commerce/appointments',token,booking), api('/commerce/appointments',token,booking),
+]);
+assert.equal(firstBooking.id,retryBooking.id);
+await api('/commerce/appointments',token,{...booking,eventKey:randomUUID()},409);
+await api('/commerce/appointments',foreignToken,booking,404);
+await api('/commerce/appointments/'+firstBooking.id+'/cancel',token,{});
+const retryAfterCancellation = await api('/commerce/appointments',token,{...booking,eventKey:randomUUID()});
+assert.notEqual(retryAfterCancellation.id,firstBooking.id);
+const sameKey = randomUUID();
+const differentServices = await Promise.all([appointment.id,appointment2.id].map((serviceId) =>
+  fetch('http://localhost:4000/commerce/appointments',{
+    method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},
+    body:JSON.stringify({...booking,serviceId,eventKey:sameKey,start:new Date(+monday+60*60*1000).toISOString()}),
+  }),
+));
+assert.deepEqual(differentServices.map((response)=>response.status).sort(),[201,409]);
+const slotRace = await Promise.all([randomUUID(),randomUUID()].map((eventKey) =>
+  fetch('http://localhost:4000/commerce/appointments',{
+    method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},
+    body:JSON.stringify({...booking,eventKey,start:new Date(+monday+2*60*60*1000).toISOString()}),
+  }),
+));
+assert.deepEqual(slotRace.map((response)=>response.status).sort(),[201,409]);
+
+const quoteProduct = await api('/commerce/products',token,{
+  sku:'QA-QUOTE',name:'Custom quote fixture',priceCents:'0',checkout:{kind:'quote'},
+});
+const quoteOrder = await api('/commerce/orders',token,{
+  productId:quoteProduct.id, contactId:contact.id, requestId:randomUUID(), quantity:1,
+});
+assert.equal(quoteOrder.snapshot.kind,'quote');
+assert.equal(quoteOrder.snapshot.totalCents,null);
+const appointmentProduct = await api('/commerce/products',token,{
+  sku:'QA-APPOINTMENT',name:'Bookable fixture',priceCents:'100',checkout:{kind:'appointment'},
+});
+await api('/commerce/orders',token,{
+  productId:appointmentProduct.id,contactId:contact.id,requestId:randomUUID(),quantity:1,
+},400);
+console.log('PASS quote order and explicit separation of appointment booking');
+console.log('PASS appointments: Cairo hours, preview, tenant boundary, replay and contention, cancellation and rebooking');
 if (process.env.COMMERCE_QA_API_ONLY === 'true') process.exit(0);
 const { chromium } = createRequire(import.meta.url)(process.env.BOAT_PLAYWRIGHT_MODULE || 'playwright');
 const browser = await chromium.launch({
