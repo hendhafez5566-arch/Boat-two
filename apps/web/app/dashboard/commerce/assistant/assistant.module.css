@@ -1,0 +1,48 @@
+.hero {
+  position: relative;
+  overflow: hidden;
+  color: #fff;
+  border-radius: 21px;
+  padding: 24px 25px;
+  background: linear-gradient(125deg, #075c59 5%, var(--primary, #087e77) 55%, #2bb6aa 140%);
+  box-shadow: 0 16px 33px #126e6633;
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  inline-size: 220px;
+  block-size: 220px;
+  border: 1px solid #ffffff44;
+  border-radius: 50%;
+  inset-inline-end: -55px;
+  inset-block-start: -110px;
+  box-shadow: 0 0 0 32px #ffffff09, 0 0 0 72px #ffffff07;
+  pointer-events: none;
+}
+.hero h1, .hero a { color: inherit; }
+.steps {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 7px;
+}
+.steps button {
+  min-width: 0;
+  min-height: 44px;
+  padding: 12px 7px;
+  border: 1px solid #e5edf0;
+  border-radius: 14px;
+  background: #fff;
+  color: #516274;
+  overflow-wrap: anywhere;
+}
+.steps button[aria-current='step'] {
+  border-color: #58b9ab;
+  background: #eaf8f4;
+  color: #076a63;
+  font-weight: 700;
+}
+@media (max-width: 750px) {
+  .steps { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 4px; }
+  .steps button { padding: 10px 3px; border-radius: 11px; }
+  .hero { padding: 20px 17px; border-radius: 16px; }
+}

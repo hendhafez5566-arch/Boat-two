@@ -1,3 +1,4 @@
+import { CatalogAssistantController } from './catalog-assistant.controller';
 import { Module } from '@nestjs/common';
 import { SystemActionsController } from './system-actions.controller';
 import { IntegrationsModule } from '../integrations/integrations.module';
@@ -20,7 +21,7 @@ import { FlowActionsService } from './flow-actions.service';
     IntegrationsModule,
     CommerceModule,
   ],
-  controllers: [FlowsController, SystemActionsController],
+  controllers: [FlowsController, SystemActionsController, CatalogAssistantController],
   providers: [FlowsService, FlowRuntimeService, FlowActionsService],
 })
 export class FlowsModule {}

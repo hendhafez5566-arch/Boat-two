@@ -277,6 +277,9 @@ export default function BotManager() {
         <header>
           <h1>{t('البوتات / الحسابات', 'Bots / Accounts')}</h1>
           <Link href="/dashboard/channels">+ {t('إضافة', 'Add Bot')}</Link>
+          {process.env.NEXT_PUBLIC_COMMERCE_CHECKOUT === 'true' && <Link href="/dashboard/commerce/assistant">
+            {t('مساعد إعداد البوت', 'Bot setup assistant')}
+          </Link>}
         </header>
         <label className={styles.search}>
           <NavIcon name="search" />
