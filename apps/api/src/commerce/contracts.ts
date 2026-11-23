@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { isValidTimezone } from '../flows/engine/hours';
-export const categorySchema = z.object({ name: z.string().trim().min(1).max(120) });
+export const categorySchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  parentId: z.string().uuid().nullable().optional(),
+});
 export const productSchema = z.object({
   categoryId: z.string().uuid().nullable().optional(),
   sku: z.string().trim().min(1).max(80),

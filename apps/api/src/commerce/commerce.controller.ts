@@ -34,14 +34,16 @@ export class CommerceController {
     return this.commerce.categories(r.user.tenantId);
   }
   @Post('categories') category(@Req() r: AuthedRequest, @Body() body: unknown) {
-    return this.commerce.saveCategory(r.user.tenantId, parse(categorySchema, body).name);
+    const { name, parentId } = parse(categorySchema, body);
+    return this.commerce.saveCategory(r.user.tenantId, name, undefined, parentId);
   }
   @Patch('categories/:id') renameCategory(
     @Req() r: AuthedRequest,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: unknown,
   ) {
-    return this.commerce.saveCategory(r.user.tenantId, parse(categorySchema, body).name, id);
+    const { name, parentId } = parse(categorySchema, body);
+    return this.commerce.saveCategory(r.user.tenantId, name, id, parentId);
   }
   @Delete('categories/:id') removeCategory(
     @Req() r: AuthedRequest,

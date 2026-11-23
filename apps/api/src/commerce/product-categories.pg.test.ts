@@ -20,6 +20,7 @@ test('local categories persist, preserve legacy edits and enforce tenant isolati
     await pg.exec(readFileSync('src/database/migrations/105_product_categories.sql', 'utf8'));
     await pg.exec(readFileSync('src/database/migrations/106_product_details.sql', 'utf8'));
     await pg.exec(readFileSync('src/database/migrations/107_local_product_delete_grant.sql', 'utf8'));
+    await pg.exec(readFileSync('src/database/migrations/115_product_category_tree.sql', 'utf8'));
     // Flow references are JSON rather than direct FKs, so deletion must guard them.
     await pg.exec(`
       CREATE TABLE flows(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),tenant_id uuid NOT NULL,draft_graph jsonb NOT NULL DEFAULT '{}');
@@ -103,6 +104,25 @@ test('local categories persist, preserve legacy edits and enforce tenant isolati
     await assert.rejects(service.saveProduct(b, input, String(p.id)));
     const cleared = await service.saveProduct(a, { ...input, categoryId: null }, String(p.id));
     assert.equal(cleared.category_id, null);
+    const root = await service.saveCategory(a, 'Parent');
+    const child = await service.saveCategory(a, 'Subcategory', undefined, root.id);
+    const grandchild = await service.saveCategory(a, 'Third level', undefined, child.id);
+    await assert.rejects(service.saveCategory(a, 'Parent', root.id, grandchild.id), /outside/);
+    await assert.rejects(service.saveCategory(a, 'Subcategory', child.id, child.id), /outside/);
+    await assert.rejects(service.saveCategory(b, 'Foreign child', undefined, child.id), /unavailable/);
+    await assert.rejects(service.removeCategory(a, root.id), /subcategories/);
+    await service.saveCategory(a, 'Renamed child', child.id);
+    assert.equal((await service.categories(a)).find((row) => row.id === child.id).parent_id, root.id);
+    await service.saveProduct(a, { ...input, sku: 'NESTED', categoryId: grandchild.id });
+    const treeCopy = await service.duplicateCategory(a, root.id, 'Parent copy');
+    const branch = await service.categories(a);
+    const childCopy = branch.find((row) => row.parent_id === treeCopy.id);
+    const grandchildCopy = branch.find((row) => row.parent_id === childCopy.id);
+    assert.equal(childCopy.name, 'Renamed child');
+    assert.equal(grandchildCopy.name, 'Third level');
+    assert.equal(treeCopy.product_count, 1);
+    assert.equal((await service.products(a)).find((row) => row.category_id === grandchildCopy.id).name, input.name);
+    assert.equal((await service.saveCategory(a, 'Third level', grandchild.id, null)).parent_id, null);
     const removable = await service.saveProduct(a, { ...input, sku: 'SAFE-REMOVE' });
     await assert.rejects(service.removeProduct(b, String(removable.id)), /Product unavailable/);
     await pg.query('INSERT INTO flows(tenant_id,draft_graph) VALUES($1,$2::jsonb)', [

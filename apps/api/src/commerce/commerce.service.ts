@@ -22,19 +22,38 @@ export class CommerceService {
   categories(tenant: string) {
     return this.db.withTenant(
       tenant,
-      async (c) => (await c.query('SELECT id,name FROM product_categories ORDER BY name')).rows,
+      async (c) => (await c.query('SELECT id,name,parent_id FROM product_categories ORDER BY name,id')).rows,
     );
   }
-  saveCategory(tenant: string, name: string, id?: string) {
+  saveCategory(tenant: string, name: string, id?: string, parentId?: string | null) {
     return this.db.withTenant(tenant, async (c) => {
+      // Moves and copies in one tenant share a lock so overlapping edits cannot create a cycle.
+      await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,115))', [tenant]);
+      if (parentId) {
+        const ancestry = await c.query(
+          `WITH RECURSIVE ancestors AS (
+             SELECT id, parent_id FROM product_categories WHERE tenant_id = $1 AND id = $2
+             UNION
+             SELECT p.id, p.parent_id FROM product_categories p
+             JOIN ancestors a ON p.id = a.parent_id WHERE p.tenant_id = $1
+           ) SELECT id FROM ancestors`,
+          [tenant, parentId],
+        );
+        if (!ancestry.rows.length) throw new NotFoundException('Parent category unavailable');
+        if (ancestry.rows.some((row) => row.id === id))
+          throw new ConflictException('Choose a parent outside this category and its subcategories');
+      }
       const result = id
-        ? await c.query('UPDATE product_categories SET name=$2 WHERE id=$1 RETURNING id,name', [
-            id,
-            name,
-          ])
+        ? await c.query(
+            `UPDATE product_categories SET name = $3,
+               parent_id = CASE WHEN $5 THEN $4::uuid ELSE parent_id END
+             WHERE tenant_id = $1 AND id = $2 RETURNING id,name,parent_id`,
+            [tenant, id, name, parentId ?? null, parentId !== undefined],
+          )
         : await c.query(
-            'INSERT INTO product_categories(tenant_id,name) VALUES($1,$2) RETURNING id,name',
-            [tenant, name],
+            `INSERT INTO product_categories(tenant_id,name,parent_id)
+             VALUES($1,$2,$3) RETURNING id,name,parent_id`,
+            [tenant, name, parentId ?? null],
           );
       if (!result.rows[0]) throw new NotFoundException('Category unavailable');
       return result.rows[0];
@@ -42,23 +61,40 @@ export class CommerceService {
   }
   async removeCategory(tenant: string, id: string) {
     return this.db.withTenant(tenant, async (c) => {
-      // The composite foreign key also protects against a concurrent product insert.
+      await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,115))', [tenant]);
+      // Composite foreign keys also protect against a concurrent product insert.
       const category = await c.query('SELECT id FROM product_categories WHERE id=$1 FOR UPDATE', [id]);
       if (!category.rows[0]) throw new NotFoundException('Category unavailable');
-      const products = await c.query('SELECT 1 FROM catalog_products WHERE category_id=$1 LIMIT 1', [id]);
+      const [products, children] = [
+        await c.query('SELECT 1 FROM catalog_products WHERE category_id=$1 LIMIT 1', [id]),
+        await c.query('SELECT 1 FROM product_categories WHERE parent_id=$1 LIMIT 1', [id]),
+      ];
       if (products.rows.length)
         throw new ConflictException('Move all products, including archived products, before deleting this category');
+      if (children.rows.length)
+        throw new ConflictException('Move all subcategories before deleting this category');
       await c.query('DELETE FROM product_categories WHERE id=$1', [id]);
       return { deleted: true };
     });
   }
   async duplicateCategory(tenant: string, sourceId: string, name: string) {
     return this.db.withTenant(tenant, async (c) => {
+      await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,115))', [tenant]);
       const result = await c.query(
-        `WITH new_category AS (
-           INSERT INTO product_categories (tenant_id, name)
-           SELECT tenant_id, $3 FROM product_categories WHERE tenant_id = $1 AND id = $2
-           RETURNING id, tenant_id, name
+        `WITH RECURSIVE subtree AS (
+           SELECT id, parent_id, name FROM product_categories WHERE tenant_id = $1 AND id = $2
+           UNION
+           SELECT child.id, child.parent_id, child.name FROM product_categories child
+           JOIN subtree parent ON parent.id = child.parent_id WHERE child.tenant_id = $1
+         ), mapped AS MATERIALIZED (
+           SELECT id, parent_id, name, gen_random_uuid() AS new_id FROM subtree
+         ), new_categories AS (
+           INSERT INTO product_categories (id, tenant_id, parent_id, name)
+           SELECT node.new_id, $1,
+                  CASE WHEN node.id = $2 THEN node.parent_id ELSE parent.new_id END,
+                  CASE WHEN node.id = $2 THEN $3 ELSE node.name END
+           FROM mapped node LEFT JOIN mapped parent ON node.parent_id = parent.id
+           RETURNING id, tenant_id, name, parent_id
          ), copied AS (
            INSERT INTO catalog_products
              (tenant_id, category_id, sku, name, description, price_cents, currency,
@@ -67,12 +103,16 @@ export class CommerceService {
                   product.name, product.description, product.price_cents, product.currency,
                   product.image_url, product.link_url, product.archived,
                   product.specifications, product.options
-           FROM new_category destination
+           FROM new_categories destination
+           JOIN mapped node ON destination.id = node.new_id
            JOIN catalog_products product ON product.tenant_id = destination.tenant_id
-           WHERE product.category_id = $2 AND product.source_id IS NULL
+           WHERE product.category_id = node.id AND product.source_id IS NULL
            RETURNING id
          )
-         SELECT id, name, (SELECT count(*)::int FROM copied) AS product_count FROM new_category`,
+         SELECT destination.id, destination.name, destination.parent_id,
+                (SELECT count(*)::int FROM copied) AS product_count
+         FROM new_categories destination JOIN mapped node ON destination.id = node.new_id
+         WHERE node.id = $2`,
         [tenant, sourceId, name],
       );
       if (!result.rows[0]) throw new NotFoundException('Category unavailable');

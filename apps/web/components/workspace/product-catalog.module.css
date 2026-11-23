@@ -1403,3 +1403,15 @@
 .resultsHeader input {
   width: 100%;
 }
+
+.editorModes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.editorModes button {
+  min-block-size: 44px;
+}
+.editorDialog :is(.editorDisclosure, .archiveField)[hidden] {
+  display: none;
+}

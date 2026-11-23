@@ -6,6 +6,33 @@ import { productDecimal, productMinorUnits, productPrice } from '../../lib/produ
 import { useData } from '../business/useData';
 import { useLocale } from '../product/locale';
 import styles from './product-catalog.module.css';
+const catalogEditorModesEnabled = process.env.NEXT_PUBLIC_CATALOG_EDITOR_MODES === 'true';
+const categoryTreeEnabled = process.env.NEXT_PUBLIC_CATALOG_CATEGORY_TREE === 'true';
+type Category = { id: string; name: string; parent_id?: string | null };
+const editorModePreference = 'boat.catalog.editor-mode';
+type EditorMode = 'simple' | 'advanced';
+
+function orderCategories(categories: Category[]) {
+  if (!categoryTreeEnabled) return categories.map((category) => ({ ...category, label: category.name, ancestors: [] as string[] }));
+  const children = new Map<string | null, Category[]>();
+  for (const category of categories) {
+    const parent = category.parent_id ?? null;
+    const branch = children.get(parent) ?? [];
+    branch.push(category);
+    children.set(parent, branch);
+  }
+  const ordered: (Category & { ancestors: string[]; label: string })[] = [];
+  const walk = (parent: string | null, path: string[], ancestors: string[]) => {
+    for (const category of children.get(parent) ?? []) {
+      const names = [...path, category.name];
+      ordered.push({ ...category, ancestors, label: names.join(' / ') });
+      walk(category.id, names, [...ancestors, category.id]);
+    }
+  };
+  walk(null, [], []);
+  return ordered;
+}
+
 export type CatalogProduct = {
   id: string;
   sku: string;
@@ -59,9 +86,37 @@ export function ProductImage({ product }: { product: Pick<CatalogProduct, 'image
 }
 export default function ProductCatalog({ navigation }: { navigation?: ReactNode } = {}) {
   const { t } = useLocale();
-  const categories = useData<{ id: string; name: string }[]>('/commerce/categories', []);
+  const categories = useData<Category[]>('/commerce/categories', []);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [editorDirty, setEditorDirty] = useState(false);
+  const [editorMode, setEditorMode] = useState<EditorMode>('simple');
+
+  useEffect(() => {
+    if (!catalogEditorModesEnabled) return;
+    try {
+      if (localStorage.getItem(editorModePreference) === 'advanced') setEditorMode('advanced');
+    } catch {
+      // Switching modes still works when browser storage is unavailable.
+    }
+  }, []);
+
+  function changeEditorMode(mode: EditorMode, form: HTMLFormElement | null) {
+    if (mode === 'simple') {
+      const invalid = form?.querySelector<HTMLInputElement>('[data-editor-advanced] input:invalid');
+      if (invalid) {
+        const section = invalid.closest('details');
+        if (section) section.open = true;
+        invalid.reportValidity();
+        return;
+      }
+    }
+    setEditorMode(mode);
+    try {
+      localStorage.setItem(editorModePreference, mode);
+    } catch {
+      // Only the display preference is local. Product values always use the existing API.
+    }
+  }
   const closeEditor = () => {
     if (
       !busy &&
@@ -79,6 +134,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
   const [categorySearch, setCategorySearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
   const [categoryEditing, setCategoryEditing] = useState('');
+  const [categoryParent, setCategoryParent] = useState('');
   const [copyingCategory, setCopyingCategory] = useState(false);
   const [deleteCategory, setDeleteCategory] = useState<{ id: string; name: string } | null>(null);
   const [categoryDeleteConfirmed, setCategoryDeleteConfirmed] = useState(false);
@@ -96,7 +152,11 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
     { id: number; name: string; value: string; kind: 'specification' | 'option' }[]
   >([]);
   const nextDetail = useRef(0);
-  const selectedCategory = categories.data.find((item) => item.id === category);
+  const orderedCategories = orderCategories(categories.data);
+  const selectedCategory = orderedCategories.find((item) => item.id === category);
+  const parentOptions = orderedCategories.filter(
+    (item) => item.id !== categoryEditing && !item.ancestors.includes(categoryEditing),
+  );
 
   function openEditor(product: CatalogProduct | null) {
     setDraftImage(product?.image_url ?? null);
@@ -126,9 +186,10 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
     setEditing(product);
   }
 
-  function openCategory(id = '', copy = false) {
+  function openCategory(id = '', copy = false, parent = '') {
     setError('');
     setCategoryEditing(id);
+    setCategoryParent(parent || categories.data.find((item) => item.id === id)?.parent_id || '');
     setCopyingCategory(copy);
     setCategoriesOpen(true);
   }
@@ -140,6 +201,10 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
   const categoryProductCount = deleteCategory
     ? products.data.filter((product) => product.category_id === deleteCategory.id).length
     : 0;
+  const categoryHasChildren = deleteCategory
+    ? categories.data.some((item) => item.parent_id === deleteCategory.id)
+    : false;
+  const categoryDeletionBlocked = categoryProductCount > 0 || categoryHasChildren;
   const [editing, setEditing] = useState<CatalogProduct | null | undefined>(undefined);
   const [preview, setPreview] = useState<CatalogProduct | null>(null);
   const [busy, setBusy] = useState(false),
@@ -158,11 +223,22 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
     setProductSearch('');
   };
   const productQuery = productSearch.trim().toLocaleLowerCase();
+  const branches = new Map(orderedCategories.map((item) => [item.id, item.ancestors]));
+  const categoryCounts = new Map<string, number>([['all', products.data.length]]);
+  for (const product of products.data) {
+    const id = product.category_id ?? 'none';
+    for (const branch of [id, ...(branches.get(id) ?? [])]) {
+      categoryCounts.set(branch, (categoryCounts.get(branch) ?? 0) + 1);
+    }
+  }
+  const inCategory = (product: CatalogProduct, id: string) =>
+    id === 'all' ||
+    (id === 'none'
+      ? !product.category_id
+      : product.category_id === id ||
+        (product.category_id && branches.get(product.category_id)?.includes(id)));
   const rows = products.data
-    .filter(
-      (p) =>
-        category === 'all' || (category === 'none' ? !p.category_id : p.category_id === category),
-    )
+    .filter((product) => inCategory(product, category))
     .filter((product) =>
       [product.name, product.sku].some((value) => value?.toLocaleLowerCase().includes(productQuery)),
     )
@@ -238,7 +314,10 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
           (copyingCategory ? '/duplicate' : ''),
         {
           method: categoryEditing && !copyingCategory ? 'PATCH' : 'POST',
-          body: JSON.stringify({ name: f.get('categoryName') }),
+          body: JSON.stringify({
+            name: f.get('categoryName'),
+            ...(categoryTreeEnabled && !copyingCategory ? { parentId: f.get('parent') || null } : {}),
+          }),
         },
       );
       await Promise.all([categories.reload(), copyingCategory && products.reload()]);
@@ -402,32 +481,22 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                   onChange={(event) => setCategory(event.target.value)}
                 >
                   {[
-                    { id: 'all', name: t('كل المنتجات', 'All products') },
-                    { id: 'none', name: t('دون قسم', 'Uncategorized') },
-                    ...categories.data,
+                    { id: 'all', label: t('كل المنتجات', 'All products') },
+                    { id: 'none', label: t('دون قسم', 'Uncategorized') },
+                    ...orderedCategories,
                   ]
                     .filter(
                       (item) =>
                         item.id === 'all' ||
                         item.id === 'none' ||
                         item.id === category ||
-                        item.name
+                        item.label
                           .toLocaleLowerCase()
                           .includes(categorySearch.trim().toLocaleLowerCase()),
                     )
                     .map((item) => (
                       <option key={item.id} value={item.id}>
-                        {item.name} (
-                        {
-                          products.data.filter(
-                            (product) =>
-                              item.id === 'all' ||
-                              (item.id === 'none'
-                                ? !product.category_id
-                                : product.category_id === item.id),
-                          ).length
-                        }
-                        )
+                        {item.label} ({categoryCounts.get(item.id) ?? 0})
                       </option>
                     ))}
                 </select>
@@ -440,8 +509,13 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                       className="btn"
                       onClick={() => openCategory(selectedCategory.id)}
                     >
-                      {t('تعديل الاسم', 'Rename')}
+                      {categoryTreeEnabled ? t('تعديل القسم', 'Edit category') : t('تعديل الاسم', 'Rename')}
                     </button>
+                    {categoryTreeEnabled && (
+                      <button type="button" className="btn" onClick={() => openCategory('', false, selectedCategory.id)}>
+                        {t('إضافة قسم فرعي', 'Add subcategory')}
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="btn"
@@ -486,13 +560,15 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                     'Deletion is permanent. To protect data, a category cannot be deleted while it contains active or archived products.',
                   )}
                 </p>
-                <p className={categoryProductCount ? styles.blockedDeletion : styles.safeDeletion}>
+                <p className={categoryDeletionBlocked ? styles.blockedDeletion : styles.safeDeletion}>
                   {categoryProductCount
                     ? t(
                         `القسم يحتوي على ${categoryProductCount} منتج. انقل كل المنتجات لقسم آخر أولًا.`,
                         `This category has ${categoryProductCount} products. Move them first.`,
                       )
-                    : t(
+                    : categoryHasChildren
+                      ? t('انقل الأقسام الفرعية قبل حذف هذا القسم.', 'Move the subcategories before deleting this category.')
+                      : t(
                         'القسم فارغ ويمكن حذفه بعد التأكيد.',
                         'The category is empty and can be deleted after confirmation.',
                       )}
@@ -507,7 +583,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                     type="checkbox"
                     checked={categoryDeleteConfirmed}
                     onChange={(event) => setCategoryDeleteConfirmed(event.target.checked)}
-                    disabled={busy || categoryProductCount > 0}
+                    disabled={busy || categoryDeletionBlocked}
                   />
                   {t(
                     'أؤكد الحذف النهائي لهذا القسم',
@@ -530,7 +606,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                   <button
                     type="button"
                     className="btn btn-danger"
-                    disabled={busy || !categoryDeleteConfirmed || categoryProductCount > 0}
+                    disabled={busy || !categoryDeleteConfirmed || categoryDeletionBlocked}
                     onClick={async () => {
                       if (!deleteCategory || lock.current) return;
                       lock.current = true;
@@ -569,7 +645,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
               copyingCategory
                 ? t('نسخ القسم ومنتجاته', 'Duplicate category and products')
                 : categoryEditing
-                  ? t('تعديل اسم القسم', 'Rename category')
+                  ? categoryTreeEnabled ? t('تعديل القسم', 'Edit category') : t('تعديل اسم القسم', 'Rename category')
                   : t('إضافة قسم', 'Add category')
             }
           >
@@ -609,6 +685,17 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                   }
                 />
               </label>
+              {categoryTreeEnabled && !copyingCategory && (
+                <label className="field">
+                  {t('القسم الرئيسي', 'Parent category')}
+                  <select name="parent" defaultValue={categoryParent}>
+                    <option value="">{t('بدون قسم رئيسي', 'No parent category')}</option>
+                    {parentOptions.map((item) => (
+                      <option key={item.id} value={item.id}>{item.label}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <button type="submit" className="btn btn-primary" disabled={busy}>
                 {copyingCategory
                   ? t('إنشاء النسخة', 'Create copy')
@@ -790,6 +877,22 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                   {error}
                 </p>
               )}
+              {catalogEditorModesEnabled && (
+                <div className={styles.editorModes} role="group" aria-label={t('وضع المحرر', 'Editor mode')}>
+                  {(['simple', 'advanced'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      className={`btn ${editorMode === mode ? 'btn-primary' : ''}`}
+                      type="button"
+                      aria-pressed={editorMode === mode}
+                      disabled={busy}
+                      onClick={(event) => changeEditorMode(mode, event.currentTarget.form)}
+                    >
+                      {mode === 'simple' ? t('الوضع السهل', 'Simple') : t('الوضع المتقدم', 'Advanced')}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className={styles.editorGuide}>
                 <strong>
                   {editing
@@ -827,9 +930,9 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                       }
                     >
                       <option value="">{t('دون قسم', 'Uncategorized')}</option>
-                      {categories.data.map((c) => (
+                      {orderedCategories.map((c) => (
                         <option key={c.id} value={c.id}>
-                          {c.name}
+                          {c.label}
                         </option>
                       ))}
                     </select>
@@ -899,6 +1002,8 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
               {(['specification', 'option'] as const).map((kind) => (
                 <details
                   className={styles.editorDisclosure}
+                  data-editor-advanced
+                  hidden={catalogEditorModesEnabled && editorMode === 'simple'}
                   key={kind}
                   open={expandedSections[kind]}
                   onToggle={(event) => {
@@ -1038,6 +1143,8 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
               )}
               <details
                 className={styles.editorDisclosure}
+                data-editor-advanced
+                hidden={catalogEditorModesEnabled && editorMode === 'simple'}
                 open={expandedSections.meta}
                 onToggle={(event) => {
                   const isOpen = event.currentTarget.open;
@@ -1068,7 +1175,10 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                   </div>
                 </div>
               </details>
-              <label className={styles.archiveField}>
+              <label
+                className={styles.archiveField}
+                hidden={catalogEditorModesEnabled && editorMode === 'simple'}
+              >
                 <input type="checkbox" name="archived" defaultChecked={editing?.archived} />
                 <span>
                   <strong>{t('أرشفة المنتج', 'Archive product')}</strong>
