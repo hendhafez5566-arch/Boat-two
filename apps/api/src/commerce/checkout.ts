@@ -47,6 +47,10 @@ export const orderSchema = z.object({
   contactId: key,
   requestId: key,
 });
+export const conversationOrderSchema = orderSchema.omit({ contactId: true }).extend({
+  channelId: key,
+  conversationId: key,
+}).strict();
 export type Selection = z.infer<typeof selectionSchema>;
 export type CheckoutProduct = {
   id: string;

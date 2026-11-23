@@ -1,7 +1,7 @@
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { sniffMatches } from '../inbox/files/storage';
-import { orderSchema, selectionSchema } from './checkout';
+import { conversationOrderSchema, orderSchema, selectionSchema } from './checkout';
 import {
   BadRequestException,
   Body,
@@ -130,6 +130,12 @@ export class CommerceController {
   }
   @Post('orders') createOrder(@Req() r: AuthedRequest, @Body() body: unknown) {
     return this.commerce.createOrder(r.user.tenantId, r.user.userId, parse(orderSchema, body));
+  }
+  @Post('orders/from-conversation')
+  createConversationOrder(@Req() r: AuthedRequest, @Body() body: unknown) {
+    return this.commerce.createConversationOrder(
+      r.user.tenantId, r.user.userId, parse(conversationOrderSchema, body),
+    );
   }
   @Get('orders') orders(@Req() r: AuthedRequest, @Query() query: unknown) {
     const { page } = parse(z.object({ page: z.coerce.number().int().min(1).max(100000).default(1) }), query);

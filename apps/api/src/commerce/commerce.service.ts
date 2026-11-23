@@ -1,4 +1,4 @@
-import { calculateCheckout, CheckoutProduct, Selection, orderSchema } from './checkout';
+import { calculateCheckout, CheckoutProduct, Selection, conversationOrderSchema, orderSchema } from './checkout';
 import { itemText } from './data-contracts';
 import {
   BadRequestException,
@@ -270,17 +270,35 @@ export class CommerceService {
     });
   }
 
-  async createOrder(tenant: string, actor: string, input: z.infer<typeof orderSchema>) {
+  createConversationOrder(tenant: string, actor: string, input: z.infer<typeof conversationOrderSchema>) {
+    const { conversationId, channelId, ...selection } = input;
+    return this.db.withTenant(tenant, async (c) => {
+      const { rows: [conversation] } = await c.query<{ contact_id: string }>(
+        `SELECT contact_id FROM conversations
+         WHERE tenant_id=$1 AND id=$2 AND channel_id=$3 FOR SHARE`,
+        [tenant, conversationId, channelId],
+      );
+      if (!conversation) throw new NotFoundException('Conversation unavailable');
+      return this.createOrder(tenant, actor, { ...selection, contactId: conversation.contact_id }, {
+        conversationId, channelId,
+      });
+    });
+  }
+
+  async createOrder(tenant: string, actor: string, input: z.infer<typeof orderSchema>,
+    origin?: { conversationId: string; channelId: string },
+  ) {
     return this.db.withTenant(tenant, async (c) => {
       await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,116))', [tenant + ':' + input.requestId]);
-      const request = JSON.stringify(input);
+      const request = JSON.stringify(origin ? { ...input, origin } : input);
       const { rows: [previous] } = await c.query(
-        'SELECT *, request=$3::jsonb AS identical FROM commerce_orders WHERE tenant_id=$1 AND request_id=$2',
+        'SELECT id,contact_id,snapshot,status,created_at,request=$3::jsonb AS identical FROM commerce_orders WHERE tenant_id=$1 AND request_id=$2',
         [tenant, input.requestId, request],
       );
       if (previous) {
         if (!previous.identical) throw new ConflictException('Request ID already used for another order');
-        return previous;
+        const { identical, ...order } = previous;
+        return order;
       }
       const { rows: [product] } = await c.query<CheckoutProduct>(
         'SELECT * FROM catalog_products WHERE tenant_id=$1 AND id=$2 AND NOT archived AND source_id IS NULL FOR UPDATE',
@@ -315,7 +333,8 @@ export class CommerceService {
 
   orders(tenant: string, page: number) {
     return this.db.withTenant(tenant, async (c) => (await c.query(
-      `SELECT o.id,o.contact_id,c.name AS contact_name,o.status,o.snapshot,o.created_at
+      `SELECT o.id,o.contact_id,c.name AS contact_name,o.status,o.snapshot,o.created_at,
+              o.request->'origin' AS origin
        FROM commerce_orders o JOIN contacts c ON (o.tenant_id,o.contact_id)=(c.tenant_id,c.id)
        WHERE o.tenant_id=$1 ORDER BY o.created_at DESC,o.id DESC LIMIT 51 OFFSET $2`,
       [tenant, (page-1)*50],

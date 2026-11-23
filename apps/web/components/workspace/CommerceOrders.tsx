@@ -12,7 +12,8 @@ type Snapshot = {
   name: string; kind: string; currency: string; totalCents: string | null;
   package: { name: string } | null; quantity: number; documents: string[];
 };
-type Order = { id: string; contact_id: string; contact_name: string; status: string; snapshot: Snapshot };
+type Origin = { conversationId: string; channelId: string };
+type Order = { origin?: Origin | null; id: string; contact_id: string; contact_name: string; status: string; snapshot: Snapshot };
 
 function OrderDocuments({ order }: { order: Order }) {
   const { t } = useLocale();
@@ -64,7 +65,7 @@ function OrderDocuments({ order }: { order: Order }) {
   </section>;
 }
 
-export default function CommerceOrders({ contacts }: { contacts: { id: string; name: string }[] }) {
+export default function CommerceOrders({ contacts, origin }: { contacts: { id: string; name: string }[]; origin?: Origin }) {
   const { t } = useLocale();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -95,10 +96,10 @@ export default function CommerceOrders({ contacts }: { contacts: { id: string; n
     setError('');
     try {
       if (save) {
-        const payload = { ...selection, contactId: data.get('contact') };
+        const payload = { ...selection, ...(origin ?? { contactId: data.get('contact') }) };
         const key = JSON.stringify(payload);
         if (retry.current?.key !== key) retry.current = { key, id: crypto.randomUUID() };
-        await api('/commerce/orders', {
+        await api(origin ? '/commerce/orders/from-conversation' : '/commerce/orders', {
           method: 'POST', body: JSON.stringify({ ...payload, requestId: retry.current.id }),
         });
         retry.current = null;
@@ -191,10 +192,12 @@ export default function CommerceOrders({ contacts }: { contacts: { id: string; n
           const button = (e.nativeEvent as SubmitEvent).submitter;
           void submit(e.currentTarget, button?.getAttribute('value') === 'save');
         }}>
-        <label>{t('العميل', 'Customer')} <select name="contact" defaultValue="">
+        {origin ? <p>{t('سيُربط الطلب بعميل المحادثة.', 'This order will use the conversation customer.')} {' '}
+          <Link href={'/dashboard/inbox?conversation=' + origin.conversationId}>{t('فتح المحادثة', 'Open conversation')}</Link></p>
+        : <label>{t('العميل', 'Customer')} <select name="contact" defaultValue="">
           <option value="">{t('اختر عميلاً', 'Choose customer')}</option>
           {contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select></label>
+        </select></label>}
         <CheckoutSelection product={picked} packageId={packageId} onPackage={setPackageId}/>
         <button className="btn" disabled={busy}>{t('معاينة السعر', 'Preview price')}</button>
         {preview && <p role="status">{amount(preview)}</p>}
@@ -211,6 +214,9 @@ export default function CommerceOrders({ contacts }: { contacts: { id: string; n
     {orders.data.slice(0, 50).map((o) => <article key={o.id} className="card">
       <h3>{o.snapshot.name}</h3>
       <Link href={'/dashboard/crm?contact=' + o.contact_id}>{o.contact_name}</Link>
+      {o.origin && <p><Link href={'/dashboard/inbox?conversation=' + o.origin.conversationId}>
+        {t('المحادثة الأصلية', 'Original conversation')}
+      </Link></p>}
       <p>{o.snapshot.quantity} × {o.snapshot.package?.name ?? o.snapshot.name} · {amount(o.snapshot)}</p>
       <p>{statusLabels[o.status]}</p>
       {!!o.snapshot.documents.length && <button className="btn" aria-expanded={documentsId === o.id}

@@ -174,6 +174,33 @@ assert.ok(catalogNodes.every((n) => n.data.productIds.length <= 10));
 assert.equal(new Set(catalogNodes.flatMap((n) => n.data.productIds)).size, pagedReadiness.products.length);
 console.log('PASS checkout pricing, conditional fields, idempotency, stock, CRM link, tenant isolation, draft, preview, release, and stale readiness');
 
+const visitor = await api('/widget/' + channel.external_id + '/session', null, {});
+const inbound = await fetch('http://localhost:4000/widget/' + channel.external_id + '/messages?visitorId=' + visitor.visitorId, {
+  method: 'POST',
+  headers: { 'content-type': 'application/json', 'x-visitor-token': visitor.token },
+  body: JSON.stringify({ text: 'Synthetic checkout inquiry', clientMsgId: randomUUID() }),
+});
+assert.ok(inbound.ok);
+const { items: [conversation] } = await api('/conversations?channelId=' + channel.id, token);
+assert.ok(conversation?.contact_id);
+const conversationRequest = {
+  productId: service.id, quantity: 1, requestId: randomUUID(), channelId: channel.id, conversationId: conversation.id,
+};
+const orderPath = '/commerce/orders/from-conversation';
+await api(orderPath, foreignToken, conversationRequest, 404);
+await api(orderPath, staff.accessToken, conversationRequest, 403);
+await api(orderPath, token, { ...conversationRequest, channelId: randomUUID() }, 404);
+await api(orderPath, token, { ...conversationRequest, contactId: contact.id }, 400);
+const [conversationOrder, retriedOrder] = await Promise.all([
+  api(orderPath, token, conversationRequest), api(orderPath, token, conversationRequest),
+]);
+assert.deepEqual(conversationOrder, retriedOrder);
+assert.equal(conversationOrder.contact_id, conversation.contact_id);
+await api(orderPath, token, { ...conversationRequest, quantity: 2 }, 409);
+const recorded = (await api('/commerce/orders', token)).filter((order) => order.id === conversationOrder.id);
+assert.equal(recorded.length, 1);
+assert.deepEqual(recorded[0].origin, { conversationId: conversation.id, channelId: channel.id });
+console.log('PASS conversation order identity, authorization, channel binding, and retry');
 if (process.env.COMMERCE_QA_API_ONLY === 'true') process.exit(0);
 const { chromium } = createRequire(import.meta.url)(process.env.BOAT_PLAYWRIGHT_MODULE || 'playwright');
 const browser = await chromium.launchPersistentContext('', {

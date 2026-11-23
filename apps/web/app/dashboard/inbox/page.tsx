@@ -967,6 +967,12 @@ export default function Inbox() {
                       )}
                     </strong>
                     <small>{detail.contact_phone || detail.channel_name}</small>
+                    {process.env.NEXT_PUBLIC_COMMERCE_CHECKOUT === 'true' &&
+                      ['owner', 'admin'].includes(workspaceRole) && detail.channel_id && (
+                      <Link href={'/dashboard/commerce?' + new URLSearchParams({
+                        conversation: detail.id, channel: detail.channel_id,
+                      })}>{t('إنشاء طلب', 'Create order')}</Link>
+                    )}
                   </div>
                   <div className={styles.threadTools}>
                     <button
