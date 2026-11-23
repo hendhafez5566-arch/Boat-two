@@ -1,0 +1,215 @@
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { createRequire } from 'node:module';
+import { mkdirSync } from 'node:fs';
+import { assertLocalAcceptance } from './acceptance-local.mjs';
+
+assertLocalAcceptance();
+const out = process.env.COMMERCE_QA_OUTPUT;
+if (out) mkdirSync(out, { recursive: true });
+
+async function api(path, token, body, status, method = body === undefined ? 'GET' : 'POST') {
+  const res = await fetch('http://localhost:4000' + path, {
+    method,
+    headers: { 'content-type': 'application/json', ...(token ? { authorization: 'Bearer ' + token } : {}) },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (status) assert.equal(res.status, status, path + ': ' + JSON.stringify(data));
+  else assert.ok(res.ok, path + ': ' + JSON.stringify(data));
+  return data;
+}
+
+async function createRace(token, first, second) {
+  const results = await Promise.all([first, second].map((body) => fetch('http://localhost:4000/commerce/orders', {
+    method: 'POST', headers: { 'content-type':'application/json', authorization:'Bearer ' + token },
+    body: JSON.stringify(body),
+  })));
+  assert.deepEqual(results.map((r) => r.status).sort(), [201,400]);
+}
+const register = () => api('/auth/register', null, {
+  email: randomUUID() + '@example.test', password: 'Strong-test-' + randomUUID(),
+  fullName: 'Checkout QA', workspaceName: 'Isolated Checkout QA',
+});
+const session = await register();
+const token = session.accessToken;
+const channel = await api('/channels', token, { type: 'web', name: 'QA Channel' });
+await api('/workspace/onboarding/complete', token, {});
+const contact = await api('/crm/contacts', token, {name: 'Synthetic Buyer'});
+const pack = randomUUID();
+const otherPack = randomUUID();
+const question = randomUUID();
+const productInput = {
+  sku: 'CHECKOUT-QA', name: 'Checkout fixture', priceCents: '2000',
+  options: [{name: 'Extra', priceCents: '200'}],
+  checkout: {
+    stock: 2, discountBps: 1000, taxBps: 500,
+    packages: [{ id: pack, name: 'Plus', priceCents: '3000' }, {id: otherPack, name: 'Basic', priceCents: '2000'}],
+    questions: [{id: question, label: 'Travel date', type: 'date', required: true, packageId: pack}],
+  }
+};
+const product = await api('/commerce/products', token, productInput);
+const selection = {productId: product.id, packageId: pack, quantity: 1, options: ['Extra']};
+const quote = await api('/commerce/checkout/quote', token, selection);
+assert.equal(quote.totalCents, '3024');
+assert.equal(quote.questions[0].id, question);
+assert.equal((await api('/commerce/checkout/quote', token, {...selection, packageId: otherPack})).questions.length, 0);
+const order = {...selection, contactId: contact.id, requestId: randomUUID()};
+await api('/commerce/orders', token, order, 400);
+const readyOrder = { ...order, answers: [{id: question, value: '2027-02-02'}] };
+const [first, repeat] = await Promise.all([
+  api('/commerce/orders', token, readyOrder), api('/commerce/orders', token, readyOrder),
+]);
+assert.equal(first.id, repeat.id);
+assert.equal(first.snapshot.totalCents, '3024');
+await api('/commerce/orders', token, {...readyOrder, quantity: 2}, 409);
+await api('/commerce/products/' + product.id, token, {...productInput, checkoutUpdatedAt: '2020-01-01T00:00:00.000Z'}, 409, 'PATCH');
+await createRace(token, {...readyOrder, requestId:randomUUID()}, {...readyOrder, requestId:randomUUID()});
+await api('/commerce/orders', token, {...readyOrder, requestId: randomUUID()}, 400);
+const orders = await api('/commerce/orders', token);
+assert.equal(orders.length, 2);
+assert.equal(orders[0].contact_id, contact.id);
+assert.equal(orders[0].contact_name, 'Synthetic Buyer');
+
+await api('/commerce/orders/' + first.id + '/status', token, {status:'confirmed'}, undefined, 'PATCH');
+await api('/commerce/orders/' + first.id + '/status', token, {status:'cancelled'}, undefined, 'PATCH');
+await api('/commerce/orders/' + first.id + '/status', token, {status:'cancelled'}, undefined, 'PATCH');
+assert.deepEqual((await api('/commerce/orders/' + first.id + '/history', token)).map((event) => event.status), ['new','confirmed','cancelled']);
+await api('/commerce/checkout/quote', token, selection);
+await api('/commerce/checkout/quote', token, {...selection, quantity:2}, 400);
+
+const foreign = await register();
+const foreignToken = foreign.accessToken;
+assert.deepEqual(await api('/commerce/orders', foreignToken), []);
+await api('/commerce/checkout/quote', foreignToken, selection, 404);
+const docProduct = await api('/commerce/products', token, {
+  sku:'DOC-QA', name:'Documents fixture', priceCents:'400', checkout:{documents:['Identity proof']},
+});
+const docOrder = await api('/commerce/orders', token, {
+  productId:docProduct.id, contactId:contact.id, requestId:randomUUID(), quantity:1,
+});
+const docPath = '/commerce/orders/' + docOrder.id + '/documents';
+await api('/commerce/orders/' + docOrder.id + '/status', token, { status:'confirmed' }, undefined, 'PATCH');
+await api('/commerce/orders/' + docOrder.id + '/status', token, { status:'completed' }, 409, 'PATCH');
+const form = new FormData();
+const sample = '%PDF-1.4\n% isolated synthetic fixture\n%%EOF';
+form.append('file', new Blob([sample], {type:'application/pdf'}), 'fixture.pdf');
+const uploaded = await fetch('http://localhost:4000' + docPath + '/0', {
+  method:'POST', headers:{authorization:'Bearer ' + token}, body:form,
+});
+assert.equal(uploaded.status,201);
+assert.deepEqual(await api(docPath, token), [{slot:0,filename:'fixture.pdf',mime:'application/pdf'}]);
+const bytes = await fetch('http://localhost:4000' + docPath + '/0', { headers:{authorization:'Bearer ' + token} });
+assert.equal(await bytes.text(),sample);
+assert.equal(bytes.headers.get('cache-control'),'private, no-store');
+assert.equal((await fetch('http://localhost:4000' + docPath + '/0', { headers:{authorization:'Bearer ' + foreignToken} })).status,404);
+assert.equal((await fetch('http://localhost:4000' + docPath + '/0')).status,401);
+await api('/commerce/orders/' + docOrder.id + '/status', token, { status:'completed' }, undefined, 'PATCH');
+
+const service = await api('/commerce/products', token, {sku:'ASSISTANT-QA', name:'Assistant fixture', priceCents:'100', checkout:{kind:'service'}});
+const setup = {name:'Isolated setup QA', welcome:'Welcome to QA', fallback:'Choose an item', channelId:channel.id, productIds:[service.id]};
+const before = await api('/flows', token);
+const invalid = await api('/catalog-assistant/readiness', token, {...setup, channelId:randomUUID()});
+assert.ok(invalid.blockers.length);
+const check = await api('/catalog-assistant/readiness', token, setup);
+assert.deepEqual(check.blockers, []);
+assert.ok(check.warnings.length);
+await api('/catalog-assistant/draft', token, {setup, revision:'0'.repeat(64)}, 409);
+const draft = await api('/catalog-assistant/draft', token, {setup, revision:check.revision});
+const stored = await api('/flows/' + draft.id, token);
+assert.ok(stored.draft_graph.nodes.some((n) => n.type === 'catalog' && n.data.productIds.includes(service.id)));
+assert.equal(stored.published_version_id ?? null, null);
+const preview = await api('/flows/' + draft.id + '/test', token, {});
+assert.ok(preview.transcript.some((row) => JSON.stringify(row).includes('Welcome to QA')));
+const menu = await api('/flows/' + draft.id + '/test', token, { state: preview.state, replyId: 'browse' });
+assert.ok(menu.transcript.some((row) => JSON.stringify(row).includes(service.id)));
+const fallback = await api('/flows/' + draft.id + '/test', token, { state: preview.state, text: 'unknown' });
+assert.ok(fallback.transcript.some((row) => JSON.stringify(row).includes('Choose an item')));
+await api('/catalog-assistant/releases', token, { setup, revision:check.revision, flowId:draft.id, confirm:false }, 400);
+const released = await api('/catalog-assistant/releases', token, { setup, revision:check.revision, flowId:draft.id, confirm:true });
+assert.equal(released.sent, false);
+assert.equal(released.mode, 'demo');
+assert.equal((await api('/catalog-assistant/releases', token))[0].id, released.id);
+assert.deepEqual(await api('/catalog-assistant/releases', foreignToken), []);
+const after = await api('/flows', token);
+for (const flow of before) assert.deepEqual(after.find((f) => f.id === flow.id), flow);
+await api('/commerce/products/' + service.id, token, {sku:service.sku, name:service.name, priceCents:'301'}, undefined, 'PATCH');
+await api('/catalog-assistant/releases', token, { setup, revision:check.revision, flowId:draft.id, confirm:true }, 409);
+const restored = await api('/catalog-assistant/releases/' + released.id + '/restore', token, { confirm: true });
+assert.equal(restored.restored_from, released.id);
+assert.equal(restored.sent, false);
+await api('/catalog-assistant/releases/' + released.id + '/restore', foreignToken, { confirm: true }, 404);
+
+const invitation = await api('/team/invitations', token, {
+  role: 'agent', email: randomUUID() + '@example.test', sendEmail: false,
+});
+const staff = await api('/auth/accept-invitation', null, {
+  token:new URL(invitation.inviteUrl).searchParams.get('token'), password:'Strong-test-' + randomUUID(), fullName:'Staff QA',
+});
+await api('/catalog-assistant/releases', staff.accessToken, undefined, 403);
+await api('/catalog-assistant/releases', staff.accessToken, { setup, revision:check.revision, flowId:draft.id, confirm:true }, 403);
+await api('/commerce/orders', staff.accessToken, undefined, 403);
+
+for (let i = 0; i < 101; i++) await api('/commerce/products', token, {
+  sku:'PAGE-' + i, name:'Paged item ' + i, priceCents:'900',
+});
+const large = {...setup, name:'All active items', productIds:undefined};
+const pagedReadiness = await api('/catalog-assistant/readiness', token, large);
+assert.deepEqual(pagedReadiness.blockers, []);
+assert.ok(pagedReadiness.products.length >= 100);
+const pagedDraft = await api('/catalog-assistant/draft', token, {setup:large, revision:pagedReadiness.revision});
+const pagedGraph = (await api('/flows/' + pagedDraft.id, token)).draft_graph;
+const catalogNodes = pagedGraph.nodes.filter((n) => n.type === 'catalog');
+assert.ok(catalogNodes.length > 10);
+assert.ok(catalogNodes.every((n) => n.data.productIds.length <= 10));
+assert.equal(new Set(catalogNodes.flatMap((n) => n.data.productIds)).size, pagedReadiness.products.length);
+console.log('PASS checkout pricing, conditional fields, idempotency, stock, CRM link, tenant isolation, draft, preview, release, and stale readiness');
+
+const { chromium } = createRequire(import.meta.url)(process.env.BOAT_PLAYWRIGHT_MODULE || 'playwright');
+const browser = await chromium.launchPersistentContext('', {
+  executablePath: process.env.BOAT_CHROMIUM, args: ['--no-sandbox', '--disable-software-rasterizer'],
+});
+try {
+  for (const [language, width] of [['ar',390],['en',1440]]) {
+    const page = await browser.newPage();
+    await page.setViewportSize({width,height:900});
+    await page.addInitScript(({session,language}) => {
+      localStorage.setItem('session', JSON.stringify(session));
+      localStorage.setItem('boat-language', language);
+    }, { session, language });
+    const t = (ar,en) => language === 'ar' ? ar : en;
+    await page.goto('http://localhost:3000/dashboard/commerce');
+    await page.getByRole('button',{name:t('الطلبات','Orders'),exact:true}).click();
+    await page.getByRole('link',{name:'Synthetic Buyer'}).first().waitFor();
+    assert.match(await page.getByRole('link',{name:'Synthetic Buyer'}).first().getAttribute('href'), new RegExp(contact.id));
+    if (out) await page.screenshot({path:out + '/orders-' + width + '.png'});
+    if (language === 'en') {
+      const card = page.getByRole('article').filter({ has: page.getByRole('heading',{name:'Documents fixture'}) });
+      await card.getByRole('button',{name:'Documents',exact:true}).click();
+      await card.getByRole('button',{name:'Download · fixture.pdf'}).waitFor();
+      await card.getByRole('button',{name:'CRM follow-up'}).click();
+      await card.locator('input[name=due]').fill('2030-02-02T13:00');
+      await card.getByRole('button',{name:'Create follow-up'}).click();
+      await page.getByText('CRM follow-up created.',{exact:true}).waitFor();
+    }
+    await page.goto('http://localhost:3000/dashboard/commerce/assistant');
+    await page.getByRole('heading',{name:t('مساعد إعداد البوت الذكي','Smart bot setup')}).waitFor();
+    if (out) await page.screenshot({path:out + '/assistant-' + width + '.png'});
+    await page.getByRole('checkbox',{name:t('تحديد المنتجات يدويًا','Select products manually')}).check();
+    await page.getByRole('textbox',{name:t('ابحث في الكتالوج','Search the catalog')}).fill('ASSISTANT-QA');
+    await page.getByRole('button',{name:'Assistant fixture · ASSISTANT-QA'}).click();
+    await page.getByRole('button',{name:t('متابعة','Continue'),exact:true}).click();
+    await page.getByRole('textbox',{name:t('اسم المسار','Flow name')}).fill('Browser setup ' + language);
+    await page.getByLabel(t('القناة','Channel'),{exact:true}).selectOption(channel.id);
+    await page.getByRole('button',{name:t('متابعة','Continue'),exact:true}).click();
+    await page.getByRole('button',{name:t('فحص الجاهزية','Check readiness'),exact:true}).click();
+    await page.getByRole('button',{name:t('إنشاء مسودة في محرر البوت','Create Flow Builder draft')}).click();
+    await page.getByRole('button',{name:t('تشغيل المعاينة المعزولة','Run isolated preview')}).click();
+    await page.getByText('أهلًا وسهلًا / Welcome',{exact:false}).waitFor();
+    if (out) await page.screenshot({path:out + '/assistant-preview-' + width + '.png'});
+    await page.close();
+  }
+} finally {
+  await browser.close();
+}
+console.log('PASS real Orders and Assistant rendered at 390 RTL and 1440 LTR');
