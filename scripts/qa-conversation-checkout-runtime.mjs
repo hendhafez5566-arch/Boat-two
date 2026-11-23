@@ -28,12 +28,14 @@ const channel = await api('/channels', token, whatsapp
 await api('/workspace/onboarding/complete',token,{});
 const pack = randomUUID();
 const question = randomUUID();
-const product = await api('/commerce/products', token, {
+const productInput = {
   sku:'CHAT-CHECKOUT', name:'Runtime checkout product', priceCents:'3000',
   options:[{name:'Transfer',priceCents:'250'}],
-  checkout:{stock:4, packages:[{id:pack,name:'Standard',priceCents:'4000'}],
+  checkout:{stock:4, packages:[{id:pack,name:'Standard',priceCents:'4000'},
+      ...['Plus','Premium','Family'].map((name) => ({id:randomUUID(),name,priceCents:'5000'}))],
     questions:[{id:question,label:'Travel date',type:'date',required:true,packageId:pack}]},
-});
+};
+const product = await api('/commerce/products', token, productInput);
 const setup = {name:'Runtime order',welcome:'Start checkout',fallback:'Choose browse',channelId:channel.id,checkout:true,checkoutFollowup:true};
 const readiness = await api('/catalog-assistant/readiness',token,setup);
 assert.deepEqual(readiness.blockers,[]);
@@ -43,11 +45,11 @@ await api('/flows/'+draft.id+'/publish',token,{expectedUpdatedAt:configured.upda
 const visitor = whatsapp ? null : await api('/widget/'+channel.external_id+'/session',null,{});
 const route = visitor ? base+'/widget/'+channel.external_id+'/messages?visitorId='+visitor.visitorId : base+'/webhooks/whatsapp';
 const headers = {'content-type':'application/json', ...(visitor ? {'x-visitor-token':visitor.token} : {})};
-async function send(body, clientMsgId=randomUUID()) {
+async function send(body, clientMsgId=randomUUID(), replyType='list_reply') {
   const payload = JSON.stringify(whatsapp ? {entry:[{changes:[{field:'messages',value:{
     metadata:{phone_number_id:'900000000042'}, contacts:[{wa_id:'15550100042',profile:{name:'Synthetic customer'}}],
     messages:[{id:'wamid.'+clientMsgId,from:'15550100042',timestamp:String(Math.floor(Date.now()/1000)),
-      ...(body.reply ? {type:'interactive',interactive:{type:'list_reply',list_reply:body.reply}} : {type:'text',text:{body:body.text}})}],
+      ...(body.reply ? {type:'interactive',interactive:{type:replyType,[replyType]:body.reply}} : {type:'text',text:{body:body.text}})}],
   }}]}]} : {...body,clientMsgId});
   const signature = whatsapp ? {'x-hub-signature-256':'sha256='+createHmac('sha256',fixtureSecret).update(payload).digest('hex')} : {};
   const r=await fetch(route,{method:'POST',headers:{...headers,...signature},body:payload});
@@ -60,23 +62,47 @@ async function wait(text) {
       const { items:[current] } = await api('/conversations?channelId='+channel.id,token);
       history = current ? await api('/conversations/'+current.id+'/messages',token) : [];
     } else history = await (await fetch(route,{headers})).json();
-    if(JSON.stringify(history).includes(text)) return;
+    if(JSON.stringify(history).includes(text)) return history;
     await new Promise((resolve)=>setTimeout(resolve,50));
   }
   assert.fail('Runtime did not reach '+text);
 }
+function checkoutOption(history, suffix) {
+  const content = JSON.stringify(history);
+  const match = [...content.matchAll(/checkout:[a-f0-9-]{36}:[a-z]+:\d+:[01]/g)]
+    .map(([id]) => id).find((id) => id.endsWith(suffix));
+  assert.ok(match, 'Missing checkout interactive option ' + suffix);
+  return match;
+}
 await send({text:'Start'}); await wait('Start checkout');
-await send({reply:{id:'browse',title:'Catalog'}}); await wait('Runtime checkout product');
-await send({reply:{id:'product:'+product.id,title:'Runtime checkout product'}}); await wait('Choose a package');
-await send({text:'1'}); await wait('Add-on numbers');
+await send({reply:{id:'browse',title:'Catalog'}},undefined,'button_reply'); await wait('Runtime checkout product');
+await send({reply:{id:'product:'+product.id,title:'Runtime checkout product'}});
+const packageId = checkoutOption(await wait('Choose a package'), ':package:0:1');
+await send({reply:{id:packageId,title:'Standard'}}); await wait('Add-on numbers');
 await send({text:'1'}); await wait('Quantity');
 await send({text:'2'}); await wait('Travel date');
+await send({reply:{id:packageId,title:'Standard'}}); // Stale choice must not fill the date.
 await send({text:'2027-02-30'});
 assert.deepEqual(await api('/commerce/orders', token),[]);
-await send({text:'2027-02-28'}); await wait('85.00 EGP');
+await send({text:'2027-02-28'});
+const confirmId=checkoutOption(await wait('85.00 EGP'), ':confirm:1:1');
 assert.deepEqual(await api('/commerce/orders', token),[]);
+const change = process.env.CHECKOUT_QA_CHANGE_AFTER_QUOTE;
+if (change) await api('/commerce/products/'+product.id,token,{
+  ...productInput, checkoutUpdatedAt:product.updated_at, checkout:{...productInput.checkout,
+    ...(change === 'price' ? {packages:[{id:pack,name:'Standard',priceCents:'4500'}]} : {stock:1}),
+  },
+},'PATCH');
 const confirmation = randomUUID();
-await Promise.all([send({text:'١'},confirmation),send({text:'١'},confirmation)]);
+const reply = {reply:{id:confirmId,title:'Confirm'}};
+await Promise.all([send(reply,confirmation,'button_reply'),send(reply,confirmation,'button_reply')]);
+if (change) {
+  await wait('Price or availability changed');
+  assert.deepEqual(await api('/commerce/orders',token),[]);
+  assert.equal((await api('/commerce/products/'+product.id,token)).checkout.stock,change === 'price' ? 4 : 1);
+  console.log('PASS declined stale confirmed checkout after '+change+' changed');
+  process.exit(0);
+}
 await wait('Order saved:');
 const orders = await api('/commerce/orders',token);
 assert.equal(orders.length,1);

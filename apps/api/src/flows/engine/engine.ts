@@ -1,4 +1,4 @@
-import { advanceConversationCheckout, beginConversationCheckout, checkoutPrompt } from './conversation-checkout';
+import { advanceConversationCheckout, beginConversationCheckout, checkoutPromptContent, checkoutReply } from './conversation-checkout';
 import { checkoutSchema } from '../../commerce/checkout';
 import { boundedRegexTest, RegexBudget } from './bounded-regex';
 import { randomUUID } from 'node:crypto';
@@ -480,11 +480,17 @@ export class FlowEngine {
   ): Promise<EngineResult> {
     if (node.type === 'catalog') {
       if (state.waiting?.checkout && this.deps.quoteCheckout && this.deps.saveCheckout) {
-        const result = await advanceConversationCheckout(state.waiting.checkout, this.replyText(ctx), {
+        const checkout = state.waiting.checkout;
+        const reply = checkoutReply(checkout, ctx.channel.type, ctx.lastMessage.replyId, this.replyText(ctx));
+        if (reply === null) {
+          await this.send(checkoutPromptContent(checkout, ctx.channel.type));
+          return this.finish('waiting', state);
+        }
+        const result = await advanceConversationCheckout(checkout, reply, {
           quote: this.deps.quoteCheckout,
           save: this.deps.saveCheckout,
         }, node.data.checkoutFollowup === true);
-        await this.send({ text: result.text });
+        await this.send(result.done ? { text: result.text } : checkoutPromptContent(checkout, ctx.channel.type));
         if (!result.done) return this.finish('waiting', state);
         state.waiting = null;
         return this.run(ctx, state, node.edges.next ?? null);
@@ -547,7 +553,7 @@ export class FlowEngine {
         } else {
           state.waiting.checkout = beginConversationCheckout(product);
           state.waiting.catalogOptions = [];
-          await this.send({ text: checkoutPrompt(state.waiting.checkout) });
+          await this.send(checkoutPromptContent(state.waiting.checkout, ctx.channel.type));
           return this.finish('waiting', state);
         }
       }

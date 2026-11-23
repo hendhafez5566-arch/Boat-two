@@ -3,6 +3,7 @@ import { HttpException } from '@nestjs/common';
 import { checkoutSchema } from '../../commerce/checkout';
 import { priceText } from '../../commerce/contracts';
 import type { CheckoutProduct, Selection } from '../../commerce/checkout';
+import type { OutContent } from './types';
 
 export type CheckoutTerms = { totalCents: string | null; currency: string };
 export type PendingCheckout = {
@@ -65,6 +66,55 @@ export function checkoutPrompt(state: PendingCheckout): string {
       ].filter(Boolean).join('\n');
     }
   }
+}
+
+function checkoutChoices(state: PendingCheckout): { value: string; title: string }[] {
+  const config = checkoutSchema.parse(state.product.checkout ?? {});
+  const numberedChoices = (labels: string[]) => labels.map((title, index) => ({ title, value: String(index + 1) }));
+  switch (state.step) {
+    case 'package':
+      return numberedChoices(config.packages.map((pack) => pack.name));
+    case 'options':
+      return state.product.options.length === 1
+        ? [{ value: '1', title: state.product.options[0].name }, { value: '0', title: 'بدون إضافة / Skip' }]
+        : [];
+    case 'questions': {
+      const question = questionFor(state);
+      if (question?.type !== 'list') return [];
+      const choices = numberedChoices(question.choices);
+      if (!question.required) choices.push({ value: '/skip', title: 'تخطّي / Skip' });
+      return choices;
+    }
+    case 'confirm':
+      return [{ value: '1', title: 'تأكيد / Confirm' }, { value: '0', title: 'إلغاء / Cancel' }];
+    default:
+      return [];
+  }
+}
+
+function replyId(state: PendingCheckout, value: string) {
+  return `checkout:${state.requestId}:${state.step}:${state.questionIndex}:${value}`;
+}
+
+export function checkoutPromptContent(state: PendingCheckout, channel: string): OutContent {
+  const text = checkoutPrompt(state);
+  const choices = checkoutChoices(state);
+  if (!['web', 'whatsapp'].includes(channel) || !choices.length || choices.length > 10 || text.length > 1024)
+    return { text };
+  const rows = choices.map(({ value, title }) => ({ id: replyId(state, value), title }));
+  if (rows.length <= 3 && rows.every(({ title }) => [...title].length <= 20))
+    return { text, buttons: rows };
+  if (rows.every(({ title }) => [...title].length <= 24))
+    return { text, list: { buttonText: 'اختَر / Choose', sections: [{ rows }] } };
+  return { text };
+}
+
+export function checkoutReply(state: PendingCheckout, channel: string, id: string | undefined, text: string) {
+  if (!id) return text;
+  const content = checkoutPromptContent(state, channel);
+  const rows = content.buttons ?? content.list?.sections.flatMap((section) => section.rows) ?? [];
+  if (!rows.some((row) => row.id === id)) return null;
+  return checkoutChoices(state).find((choice) => replyId(state, choice.value) === id)?.value ?? null;
 }
 
 export async function advanceConversationCheckout(state: PendingCheckout, raw: string, deps: CheckoutDeps, followup: boolean) {
