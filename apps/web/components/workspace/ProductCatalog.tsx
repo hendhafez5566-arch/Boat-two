@@ -1,4 +1,5 @@
 'use client';
+import { CheckoutEditor, checkoutEnabled, defaultCheckout, type CheckoutConfig } from './CheckoutEditor';
 import { Dialog } from '../product/ProductUI';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../../lib/api';
@@ -35,6 +36,8 @@ function orderCategories(categories: Category[]) {
 
 export type CatalogProduct = {
   id: string;
+  updated_at?: string;
+  checkout?: Partial<CheckoutConfig>;
   sku: string;
   name: string;
   description: string;
@@ -167,7 +170,10 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
     (item) => item.id !== categoryEditing && !item.ancestors.includes(categoryEditing),
   );
 
+  const [checkout, setCheckout] = useState(defaultCheckout);
+
   function openEditor(product: CatalogProduct | null) {
+    setCheckout({ ...defaultCheckout, ...product?.checkout });
     setDraftImage(product?.image_url ?? null);
     setExpandedSections({
       specification: !!product?.specifications?.length,
@@ -324,6 +330,14 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
           ...(f.get('catalog') ? { catalogId: f.get('catalog') } : {}),
           ...(f.get('retailer') ? { retailerId: f.get('retailer') } : {}),
           archived: f.get('archived') === 'on',
+          ...(checkoutEnabled ? {
+            checkoutUpdatedAt: editing?.updated_at,
+            checkout: {
+              ...checkout,
+              documents: checkout.documents.map((d) => d.trim()).filter(Boolean),
+              questions: checkout.questions.map((q) => ({ ...q, choices: q.choices.map((c) => c.trim()).filter(Boolean) })),
+            },
+          } : {}),
           specifications: details
             .filter((item) => item.kind === 'specification')
             .map(({ name, value }) => ({ name, value })),
@@ -944,6 +958,10 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                   ))}
                 </div>
               )}
+              {checkoutEnabled && <CheckoutEditor value={checkout} onChange={(value) => {
+                setCheckout(value);
+                setEditorDirty(true);
+              }}/>}
               <div className={styles.editorGuide}>
                 <strong>
                   {editing

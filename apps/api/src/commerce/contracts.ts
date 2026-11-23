@@ -1,3 +1,4 @@
+import { checkoutSchema } from './checkout';
 import { z } from 'zod';
 import { isValidTimezone } from '../flows/engine/hours';
 export const categorySchema = z.object({
@@ -5,6 +6,8 @@ export const categorySchema = z.object({
   parentId: z.string().uuid().nullable().optional(),
 });
 export const productSchema = z.object({
+  checkout: checkoutSchema.optional(),
+  checkoutUpdatedAt: z.iso.datetime({offset: true}).optional(),
   categoryId: z.string().uuid().nullable().optional(),
   sku: z.string().trim().min(1).max(80),
   name: z.string().trim().min(1).max(120),

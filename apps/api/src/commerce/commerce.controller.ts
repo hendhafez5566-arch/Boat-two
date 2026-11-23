@@ -1,3 +1,7 @@
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
+import { sniffMatches } from '../inbox/files/storage';
+import { orderSchema, selectionSchema } from './checkout';
 import {
   BadRequestException,
   Body,
@@ -6,6 +10,10 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  ParseIntPipe,
+  Res,
+  UploadedFile,
+  UseInterceptors,
   Patch,
   Post,
   Query,
@@ -108,6 +116,51 @@ export class CommerceController {
     return this.commerce
       .productContent(r.user.tenantId, id, false)
       .then((content) => ({ mock: true, sent: false, content }));
+  }
+  @Post('checkout/quote') quote(@Req() r: AuthedRequest, @Body() body: unknown) {
+    return this.commerce.quote(r.user.tenantId, parse(selectionSchema, body));
+  }
+  @Post('orders') createOrder(@Req() r: AuthedRequest, @Body() body: unknown) {
+    return this.commerce.createOrder(r.user.tenantId, r.user.userId, parse(orderSchema, body));
+  }
+  @Get('orders') orders(@Req() r: AuthedRequest, @Query() query: unknown) {
+    const { page } = parse(z.object({ page: z.coerce.number().int().min(1).max(100000).default(1) }), query);
+    return this.commerce.orders(r.user.tenantId, page);
+  }
+  @Patch('orders/:id/status')
+  orderStatus(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    const { status } = parse(z.object({ status: z.enum(['confirmed', 'completed', 'cancelled']) }), body);
+    return this.commerce.changeOrderStatus(r.user.tenantId, r.user.userId, id, status);
+  }
+  @Get('orders/:id/history')
+  orderHistory(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.commerce.orderHistory(r.user.tenantId, id);
+  }
+  @Get('orders/:id/documents')
+  documents(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.commerce.orderDocuments(r.user.tenantId, id);
+  }
+  @Post('orders/:id/documents/:slot')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 2 * 1024 * 1024, files: 1 } }))
+  uploadDocument(
+    @Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string, @Param('slot', ParseIntPipe) slot: number,
+    @UploadedFile() file?: { originalname: string; mimetype: string; buffer: Buffer },
+  ) {
+    if (!file || !['application/pdf', 'image/jpeg', 'image/png'].includes(file.mimetype) ||
+        !sniffMatches(file.mimetype, file.buffer))
+      throw new BadRequestException('Choose a PDF, JPG, or PNG document');
+    return this.commerce.uploadOrderDocument(r.user.tenantId, id, slot, file);
+  }
+  @Get('orders/:id/documents/:slot')
+  async downloadDocument(
+    @Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string, @Param('slot', ParseIntPipe) slot: number,
+    @Res() response: Response,
+  ) {
+    const document = await this.commerce.orderDocument(r.user.tenantId, id, slot);
+    response.set({
+      'Content-Type': document.mime, 'Content-Disposition': 'attachment', 'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'; sandbox",
+    }).send(Buffer.from(document.bytes));
   }
   @Get('services') services(@Req() r: AuthedRequest) {
     return this.commerce.services(r.user.tenantId);

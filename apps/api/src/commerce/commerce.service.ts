@@ -1,3 +1,4 @@
+import { calculateCheckout, CheckoutProduct, Selection, orderSchema } from './checkout';
 import { itemText } from './data-contracts';
 import {
   BadRequestException,
@@ -98,11 +99,13 @@ export class CommerceService {
          ), copied AS (
            INSERT INTO catalog_products
              (tenant_id, category_id, sku, name, description, price_cents, currency,
-              image_url, link_url, archived, specifications, options)
+              image_url, link_url, archived, specifications, options, checkout)
            SELECT destination.tenant_id, destination.id, 'COPY-' || gen_random_uuid()::text,
                   product.name, product.description, product.price_cents, product.currency,
                   product.image_url, product.link_url, product.archived,
-                  product.specifications, product.options
+                  product.specifications, product.options,
+                  CASE WHEN product.checkout->>'stock' IS NULL THEN product.checkout
+                       ELSE jsonb_set(product.checkout, '{stock}', '0') END
            FROM new_categories destination
            JOIN mapped node ON destination.id = node.new_id
            JOIN catalog_products product ON product.tenant_id = destination.tenant_id
@@ -172,6 +175,14 @@ export class CommerceService {
   }
   saveProduct(tenant: string, input: z.infer<typeof productSchema>, id?: string) {
     return this.db.withTenant(tenant, async (c) => {
+      if (id && input.checkout !== undefined) {
+        const current = (await c.query(
+          'SELECT updated_at FROM catalog_products WHERE tenant_id=$1 AND id=$2 AND source_id IS NULL FOR UPDATE',
+          [tenant, id],
+        )).rows[0];
+        if (!current || new Date(current.updated_at).getTime() !== Date.parse(input.checkoutUpdatedAt ?? ''))
+          throw new ConflictException('Product changed. Reload before editing checkout configuration.');
+      }
       // Editing the Archived checkbox must protect active bot references too;
       // otherwise it would bypass the dedicated guarded archive endpoint.
       if (id && input.archived) {
@@ -201,7 +212,7 @@ export class CommerceService {
         }
       }
       const result = await c.query(
-        `INSERT INTO catalog_products(id,tenant_id,sku,name,description,price_cents,currency,image_url,link_url,catalog_id,retailer_id,archived,category_id,specifications,options) VALUES(COALESCE($1::uuid,gen_random_uuid()),$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,COALESCE($15::jsonb,'[]'),COALESCE($16::jsonb,'[]')) ON CONFLICT(id) DO UPDATE SET sku=EXCLUDED.sku,name=EXCLUDED.name,description=EXCLUDED.description,price_cents=EXCLUDED.price_cents,currency=EXCLUDED.currency,image_url=EXCLUDED.image_url,link_url=EXCLUDED.link_url,catalog_id=EXCLUDED.catalog_id,retailer_id=EXCLUDED.retailer_id,archived=EXCLUDED.archived,category_id=CASE WHEN $14 THEN EXCLUDED.category_id ELSE catalog_products.category_id END,specifications=COALESCE($15::jsonb,catalog_products.specifications),options=COALESCE($16::jsonb,catalog_products.options),updated_at=now() WHERE catalog_products.source_id IS NULL RETURNING *`,
+        `INSERT INTO catalog_products(id,tenant_id,sku,name,description,price_cents,currency,image_url,link_url,catalog_id,retailer_id,archived,category_id,specifications,options,checkout) VALUES(COALESCE($1::uuid,gen_random_uuid()),$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,COALESCE($15::jsonb,'[]'),COALESCE($16::jsonb,'[]'),COALESCE($17::jsonb,'{}')) ON CONFLICT(id) DO UPDATE SET sku=EXCLUDED.sku,name=EXCLUDED.name,description=EXCLUDED.description,price_cents=EXCLUDED.price_cents,currency=EXCLUDED.currency,image_url=EXCLUDED.image_url,link_url=EXCLUDED.link_url,catalog_id=EXCLUDED.catalog_id,retailer_id=EXCLUDED.retailer_id,archived=EXCLUDED.archived,category_id=CASE WHEN $14 THEN EXCLUDED.category_id ELSE catalog_products.category_id END,specifications=COALESCE($15::jsonb,catalog_products.specifications),options=COALESCE($16::jsonb,catalog_products.options),checkout=COALESCE($17::jsonb,catalog_products.checkout),updated_at=clock_timestamp() WHERE catalog_products.source_id IS NULL RETURNING *`,
         [
           id ?? null,
           tenant,
@@ -219,10 +230,150 @@ export class CommerceService {
           input.categoryId !== undefined,
           input.specifications === undefined ? null : JSON.stringify(input.specifications),
           input.options === undefined ? null : JSON.stringify(input.options),
+          input.checkout === undefined ? null : JSON.stringify(input.checkout),
         ],
       );
       return result.rows[0];
     });
+  }
+  async quote(tenant: string, input: Selection) {
+    return this.db.withTenant(tenant, async (c) => {
+      const { rows: [product] } = await c.query<CheckoutProduct>(
+        'SELECT * FROM catalog_products WHERE tenant_id=$1 AND id=$2 AND NOT archived AND source_id IS NULL',
+        [tenant, input.productId],
+      );
+      if (!product) throw new NotFoundException('Product unavailable');
+      return calculateCheckout(product, input, true);
+    });
+  }
+
+  async createOrder(tenant: string, actor: string, input: z.infer<typeof orderSchema>) {
+    return this.db.withTenant(tenant, async (c) => {
+      await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,116))', [tenant + ':' + input.requestId]);
+      const request = JSON.stringify(input);
+      const { rows: [previous] } = await c.query(
+        'SELECT *, request=$3::jsonb AS identical FROM commerce_orders WHERE tenant_id=$1 AND request_id=$2',
+        [tenant, input.requestId, request],
+      );
+      if (previous) {
+        if (!previous.identical) throw new ConflictException('Request ID already used for another order');
+        return previous;
+      }
+      const { rows: [product] } = await c.query<CheckoutProduct>(
+        'SELECT * FROM catalog_products WHERE tenant_id=$1 AND id=$2 AND NOT archived AND source_id IS NULL FOR UPDATE',
+        [tenant, input.productId],
+      );
+      if (!product) throw new NotFoundException('Product unavailable');
+      const snapshot = calculateCheckout(product, input);
+      if (snapshot.kind === 'appointment') throw new BadRequestException('Use the appointment booking workflow');
+      const contact = await c.query('SELECT id FROM contacts WHERE tenant_id=$1 AND id=$2', [tenant, input.contactId]);
+      if (!contact.rows.length) throw new NotFoundException('Contact unavailable');
+      if (snapshot.kind !== 'quote') {
+        await c.query(
+          `UPDATE catalog_products
+           SET checkout=jsonb_set(checkout, '{stock}', to_jsonb((checkout->>'stock')::int-$3::int)),
+               updated_at=clock_timestamp()
+           WHERE tenant_id=$1 AND id=$2 AND checkout->>'stock' IS NOT NULL`,
+          [tenant, input.productId, input.quantity],
+        );
+      }
+      const { rows: [order] } = await c.query(
+        `INSERT INTO commerce_orders(tenant_id,contact_id,request_id,request,snapshot,created_by)
+         VALUES($1,$2,$3,$4,$5,$6) RETURNING id,contact_id,snapshot,status,created_at`,
+        [tenant, input.contactId, input.requestId, request, JSON.stringify(snapshot), actor],
+      );
+      await c.query("INSERT INTO commerce_order_events(tenant_id,order_id,status,actor_id) VALUES($1,$2,'new',$3)",
+        [tenant, order.id, actor]);
+      await c.query('INSERT INTO crm_notes(tenant_id,contact_id,body,created_by) VALUES($1,$2,$3,$4)',
+        [tenant, input.contactId, 'Order / طلب ' + order.id + ' — ' + snapshot.name, actor]);
+      return order;
+    });
+  }
+
+  orders(tenant: string, page: number) {
+    return this.db.withTenant(tenant, async (c) => (await c.query(
+      `SELECT o.id,o.contact_id,c.name AS contact_name,o.status,o.snapshot,o.created_at
+       FROM commerce_orders o JOIN contacts c ON (o.tenant_id,o.contact_id)=(c.tenant_id,c.id)
+       WHERE o.tenant_id=$1 ORDER BY o.created_at DESC,o.id DESC LIMIT 51 OFFSET $2`,
+      [tenant, (page-1)*50],
+    )).rows);
+  }
+  uploadOrderDocument(tenant: string, orderId: string, slot: number, file: { originalname: string; mimetype: string; buffer: Buffer }) {
+    return this.db.withTenant(tenant, async (c) => {
+      const { rows: [order] } = await c.query(
+        'SELECT snapshot,status FROM commerce_orders WHERE tenant_id=$1 AND id=$2 FOR UPDATE',
+        [tenant, orderId],
+      );
+      if (!order || !order.snapshot.documents[slot]) throw new NotFoundException('Document slot unavailable');
+      if (!['new','confirmed'].includes(order.status)) throw new ConflictException('Order is closed');
+      const { rows: [document] } = await c.query(
+        `INSERT INTO commerce_order_documents(tenant_id,order_id,slot,filename,mime,bytes)
+         VALUES($1,$2,$3,$4,$5,$6)
+         ON CONFLICT(tenant_id,order_id,slot) DO UPDATE SET filename=EXCLUDED.filename,mime=EXCLUDED.mime,bytes=EXCLUDED.bytes
+         RETURNING slot,filename,mime`,
+        [tenant, orderId, slot, file.originalname.slice(0,200), file.mimetype, file.buffer],
+      );
+      return document;
+    });
+  }
+
+  orderDocuments(tenant: string, orderId: string) {
+    return this.db.withTenant(tenant, async (c) => (await c.query(
+      'SELECT slot,filename,mime FROM commerce_order_documents WHERE tenant_id=$1 AND order_id=$2 ORDER BY slot',
+      [tenant, orderId],
+    )).rows);
+  }
+
+  orderDocument(tenant: string, orderId: string, slot: number) {
+    return this.db.withTenant(tenant, async (c) => {
+      const { rows: [document] } = await c.query(
+        'SELECT filename,mime,bytes FROM commerce_order_documents WHERE tenant_id=$1 AND order_id=$2 AND slot=$3',
+        [tenant, orderId, slot],
+      );
+      if (!document) throw new NotFoundException('Document unavailable');
+      return document;
+    });
+  }
+
+  async changeOrderStatus(tenant: string, actor: string, id: string, status: string) {
+    return this.db.withTenant(tenant, async (c) => {
+      const { rows: [order] } = await c.query(
+        'SELECT id,status,snapshot FROM commerce_orders WHERE tenant_id=$1 AND id=$2 FOR UPDATE',
+        [tenant, id],
+      );
+      if (!order) throw new NotFoundException('Order unavailable');
+      if (order.status === status) return { id, status };
+      const transitions: Record<string, string[]> = { new: ['confirmed', 'cancelled'], confirmed: ['completed', 'cancelled'] };
+      if (!transitions[order.status]?.includes(status)) throw new ConflictException('Invalid order transition');
+      if (status === 'completed' && order.snapshot.documents.length) {
+        const { rows: [documents] } = await c.query(
+          'SELECT count(*)::int AS count FROM commerce_order_documents WHERE tenant_id=$1 AND order_id=$2',
+          [tenant, id],
+        );
+        if (documents.count !== order.snapshot.documents.length)
+          throw new ConflictException('Upload all required documents before completing this order');
+      }
+      if (status === 'cancelled' && order.snapshot.stockTracked) {
+        await c.query(
+          `UPDATE catalog_products
+           SET checkout=jsonb_set(checkout,'{stock}', to_jsonb(LEAST(1000000,(checkout->>'stock')::int+$3::int))),
+               updated_at=clock_timestamp()
+           WHERE tenant_id=$1 AND id=$2 AND checkout->>'stock' IS NOT NULL`,
+          [tenant, order.snapshot.productId, order.snapshot.quantity],
+        );
+      }
+      await c.query('UPDATE commerce_orders SET status=$3 WHERE tenant_id=$1 AND id=$2', [tenant, id, status]);
+      await c.query('INSERT INTO commerce_order_events(tenant_id, order_id,status,actor_id) VALUES($1,$2,$3,$4)',
+        [tenant, id, status, actor]);
+      return { id, status };
+    });
+  }
+
+  orderHistory(tenant: string, id: string) {
+    return this.db.withTenant(tenant, async (c) => (await c.query(
+      'SELECT status,created_at FROM commerce_order_events WHERE tenant_id=$1 AND order_id=$2 ORDER BY created_at,id',
+      [tenant, id],
+    )).rows);
   }
   async archiveProduct(tenant: string, id: string) {
     return this.changeLocalProduct(tenant, id, 'archive');

@@ -1,6 +1,8 @@
 'use client';
 import { DisclosureSummary } from '../product/DisclosureSummary';
 import ProductCatalog from './ProductCatalog';
+import CommerceOrders from './CommerceOrders';
+import { checkoutEnabled } from './CheckoutEditor';
 import catalogStyles from './product-catalog.module.css';
 
 import DataSourcesPanel from './DataSourcesPanel';
@@ -89,6 +91,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
         ['products', 'إدارة المنتجات', 'Manage products'],
         ['sources', 'الاستيراد والمزامنة', 'Import & sync'],
         ['appointments', 'المواعيد', 'Appointments'],
+        ...(checkoutEnabled ? [['orders', 'الطلبات', 'Orders']] : []),
       ]
         .filter(([id]) => !initialTab || id !== 'appointments')
         .map(([id, ar, en]) => (
@@ -149,6 +152,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
         </p>
       )}
       {tab === 'sources' && <DataSourcesPanel />}
+      {tab === 'orders' && checkoutEnabled && <CommerceOrders contacts={contacts.data.items}/>}
       {tab === 'products' && <ProductCatalog navigation={catalogNavigation} />}
       {tab === 'appointments' && (
         <>

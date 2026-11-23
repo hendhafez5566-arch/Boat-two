@@ -21,6 +21,7 @@ test('local categories persist, preserve legacy edits and enforce tenant isolati
     await pg.exec(readFileSync('src/database/migrations/106_product_details.sql', 'utf8'));
     await pg.exec(readFileSync('src/database/migrations/107_local_product_delete_grant.sql', 'utf8'));
     await pg.exec(readFileSync('src/database/migrations/115_product_category_tree.sql', 'utf8'));
+    await pg.exec("ALTER TABLE catalog_products ADD COLUMN checkout jsonb NOT NULL DEFAULT '{}'");
     // Flow references are JSON rather than direct FKs, so deletion must guard them.
     await pg.exec(`
       CREATE TABLE flows(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),tenant_id uuid NOT NULL,draft_graph jsonb NOT NULL DEFAULT '{}');
@@ -158,7 +159,7 @@ test('local categories persist, preserve legacy edits and enforce tenant isolati
     const lastPage = await service.productPage(a, root.id, 'fixture', 101);
     assert.equal(lastPage.total, 1005);
     assert.equal(lastPage.page, 101);
-    assert.deepEqual(lastPage.rows.map((row) => row.sku), [
+    assert.deepEqual(lastPage.rows.map((row: { sku: string }) => row.sku), [
       'LOAD-1001', 'LOAD-1002', 'LOAD-1003', 'LOAD-1004', 'LOAD-1005',
     ]);
     assert.equal((await service.productPage(a, root.id, 'LOAD-1005', 1)).rows[0].sku, 'LOAD-1005');
