@@ -148,6 +148,23 @@ test('local categories persist, preserve legacy edits and enforce tenant isolati
       id: removable.id,
     });
     assert.equal((await service.products(a)).some((item) => item.id === removable.id), false);
+    await pg.query(
+      `INSERT INTO catalog_products (tenant_id, category_id, sku, name, price_cents, currency, archived)
+       SELECT $1,$2,'LOAD-' || lpad(n::text,4,'0'),'Fixture ' || lpad(n::text,4,'0'),1000,'EGP',n % 2 = 0
+       FROM generate_series(1,1005) n`,
+      [a, child.id],
+    );
+    assert.equal((await service.products(a)).length, 500, 'legacy array contract');
+    const lastPage = await service.productPage(a, root.id, 'fixture', 101);
+    assert.equal(lastPage.total, 1005);
+    assert.equal(lastPage.page, 101);
+    assert.deepEqual(lastPage.rows.map((row) => row.sku), [
+      'LOAD-1001', 'LOAD-1002', 'LOAD-1003', 'LOAD-1004', 'LOAD-1005',
+    ]);
+    assert.equal((await service.productPage(a, root.id, 'LOAD-1005', 1)).rows[0].sku, 'LOAD-1005');
+    assert.equal((await service.productPage(a, root.id, 'LOAD-1005', 82)).page, 1);
+    assert.equal((await service.productPage(b, 'all', 'LOAD-', 1)).total, 0);
+    assert.equal((await service.productScope(a)).find((row) => row.category_id === child.id).count, 1005);
   } finally {
     await pg.close();
   }

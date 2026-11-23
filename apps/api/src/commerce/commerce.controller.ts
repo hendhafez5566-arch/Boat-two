@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   Req,
 } from '@nestjs/common';
 import { z } from 'zod';
@@ -62,6 +63,17 @@ export class CommerceController {
   }
   @Get('products') products(@Req() r: AuthedRequest) {
     return this.commerce.products(r.user.tenantId);
+  }
+  @Get('products/scope') productScope(@Req() r: AuthedRequest) {
+    return this.commerce.productScope(r.user.tenantId);
+  }
+  @Get('products/page') productPage(@Req() r: AuthedRequest, @Query() query: unknown) {
+    const input = parse(z.object({
+      q: z.string().trim().max(120).default(''),
+      category: z.union([z.uuid(), z.enum(['all', 'none'])]).default('all'),
+      page: z.coerce.number().int().min(1).max(100_000).default(1),
+    }), query);
+    return this.commerce.productPage(r.user.tenantId, input.category, input.q, input.page);
   }
   @Post('products') product(@Req() r: AuthedRequest, @Body() body: unknown) {
     return this.commerce.saveProduct(r.user.tenantId, parse(productSchema, body));

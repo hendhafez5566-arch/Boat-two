@@ -133,6 +133,15 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
   const listStart = useRef<HTMLDivElement>(null);
   const [categorySearch, setCategorySearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
+  const [catalogQuery, setCatalogQuery] = useState('');
+  useEffect(() => {
+    if (!categoryTreeEnabled) return;
+    const timeout = window.setTimeout(() => {
+      setCatalogQuery(productSearch.trim());
+      setPage(1);
+    }, 200);
+    return () => window.clearTimeout(timeout);
+  }, [productSearch]);
   const [categoryEditing, setCategoryEditing] = useState('');
   const [categoryParent, setCategoryParent] = useState('');
   const [copyingCategory, setCopyingCategory] = useState(false);
@@ -197,14 +206,37 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
   const [serverPreview, setServerPreview] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
   const previewRequest = useRef(0);
-  const products = useData<CatalogProduct[]>('/commerce/products', []);
+  const legacyProducts = useData<CatalogProduct[]>(categoryTreeEnabled ? null : '/commerce/products', []);
+  const scope = useData<{ category_id: string | null; count: number }[]>(
+    categoryTreeEnabled ? '/commerce/products/scope' : null,
+    [],
+  );
+  const pagePath = '/commerce/products/page?' + new URLSearchParams({
+    category,
+    q: catalogQuery,
+    page: String(page),
+  });
+  const pagedProducts = useData<{ rows: CatalogProduct[]; total: number; page: number }>(
+    categoryTreeEnabled ? pagePath : null,
+    { rows: [], total: 0, page: 1 },
+  );
+  const reloadProducts = () => categoryTreeEnabled
+    ? Promise.all([pagedProducts.reload(), scope.reload()])
+    : legacyProducts.reload();
+  const productError = categoryTreeEnabled ? pagedProducts.error || scope.error : legacyProducts.error;
+  const productsLoading = categoryTreeEnabled
+    ? pagedProducts.loading || scope.loading || (!pagedProducts.error && pagedProducts.loadedPath !== pagePath)
+    : legacyProducts.loading;
   const categoryProductCount = deleteCategory
-    ? products.data.filter((product) => product.category_id === deleteCategory.id).length
+    ? categoryTreeEnabled
+      ? scope.data.find((row) => row.category_id === deleteCategory.id)?.count ?? 0
+      : legacyProducts.data.filter((product) => product.category_id === deleteCategory.id).length
     : 0;
   const categoryHasChildren = deleteCategory
     ? categories.data.some((item) => item.parent_id === deleteCategory.id)
     : false;
-  const categoryDeletionBlocked = categoryProductCount > 0 || categoryHasChildren;
+  const categoryDeletionBlocked = categoryProductCount > 0 || categoryHasChildren ||
+    (categoryTreeEnabled && (scope.loading || !!scope.error));
   const [editing, setEditing] = useState<CatalogProduct | null | undefined>(undefined);
   const [preview, setPreview] = useState<CatalogProduct | null>(null);
   const [busy, setBusy] = useState(false),
@@ -215,40 +247,51 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
     const timeout = window.setTimeout(() => setSuccess(''), 3000);
     return () => window.clearTimeout(timeout);
   }, [success]);
-  useEffect(() => setPage(1), [category, productSearch]);
+  function changeCategory(id: string) {
+    setCategory(id);
+    setPage(1);
+  }
   const lock = useRef(false);
   const resetFilters = () => {
-    setCategory('all');
+    changeCategory('all');
     setCategorySearch('');
     setProductSearch('');
+    setCatalogQuery('');
   };
   const productQuery = productSearch.trim().toLocaleLowerCase();
   const branches = new Map(orderedCategories.map((item) => [item.id, item.ancestors]));
-  const categoryCounts = new Map<string, number>([['all', products.data.length]]);
-  for (const product of products.data) {
-    const id = product.category_id ?? 'none';
-    for (const branch of [id, ...(branches.get(id) ?? [])]) {
-      categoryCounts.set(branch, (categoryCounts.get(branch) ?? 0) + 1);
+  const categoryCounts = new Map<string, number>();
+  const productCounts = categoryTreeEnabled
+    ? scope.data
+    : legacyProducts.data.map((product) => ({ category_id: product.category_id, count: 1 }));
+  for (const { category_id, count } of productCounts) {
+    const id = category_id ?? 'none';
+    for (const branch of ['all', id, ...(branches.get(id) ?? [])]) {
+      categoryCounts.set(branch, (categoryCounts.get(branch) ?? 0) + count);
     }
   }
-  const inCategory = (product: CatalogProduct, id: string) =>
-    id === 'all' ||
-    (id === 'none'
-      ? !product.category_id
-      : product.category_id === id ||
-        (product.category_id && branches.get(product.category_id)?.includes(id)));
-  const rows = products.data
-    .filter((product) => inCategory(product, category))
+  const legacyRows = legacyProducts.data
+    .filter((product) => category === 'all' ||
+      (category === 'none' ? !product.category_id : product.category_id === category))
     .filter((product) =>
       [product.name, product.sku].some((value) => value?.toLocaleLowerCase().includes(productQuery)),
     )
     .sort((a, b) => a.name.localeCompare(b.name));
+  const matchingPageLoaded = pagedProducts.loadedPath === pagePath && !pagedProducts.error;
+  const resultCount = categoryTreeEnabled
+    ? matchingPageLoaded ? pagedProducts.data.total : 0
+    : legacyRows.length;
+  const productCount = categoryCounts.get('all') ?? 0;
   const pageSize = 10;
-  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
-  const currentPage = Math.min(page, pageCount);
+  const pageCount = Math.max(1, Math.ceil(resultCount / pageSize));
+  const currentPage = categoryTreeEnabled ? pagedProducts.data.page : Math.min(page, pageCount);
   const firstRow = (currentPage - 1) * pageSize;
-  const visibleRows = rows.slice(firstRow, firstRow + pageSize);
-  useEffect(() => setPage((value) => Math.min(value, pageCount)), [pageCount]);
+  const visibleRows = categoryTreeEnabled
+    ? matchingPageLoaded ? pagedProducts.data.rows : []
+    : legacyRows.slice(firstRow, firstRow + pageSize);
+  useEffect(() => {
+    if (!categoryTreeEnabled) setPage((value) => Math.min(value, pageCount));
+  }, [pageCount]);
   const pageNumbers = Array.from(
     new Set([1, currentPage - 1, currentPage, currentPage + 1, pageCount]),
   )
@@ -289,7 +332,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
             .map(({ name, value }) => ({ name, priceCents: productMinorUnits(value.trim()) })),
         }),
       });
-      await products.reload();
+      await reloadProducts();
       setEditing(undefined);
       setEditorDirty(false);
       setSuccess(t('تم حفظ المنتج.', 'Product saved.'));
@@ -320,8 +363,8 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
           }),
         },
       );
-      await Promise.all([categories.reload(), copyingCategory && products.reload()]);
-      setCategory(saved.id);
+      await Promise.all([categories.reload(), copyingCategory && reloadProducts()]);
+      changeCategory(saved.id);
       setCategoriesOpen(false);
       setSuccess(
         copyingCategory
@@ -352,7 +395,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
         method: action === 'archive' ? 'POST' : 'DELETE',
         body: JSON.stringify({ confirm: true }),
       });
-      await products.reload();
+      await reloadProducts();
       setSuccess(
         action === 'archive'
           ? t(
@@ -432,11 +475,11 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
               <span>{success}</span>
             </div>
           )}
-          {(products.error ||
+          {(productError ||
             (error && editing === undefined && !categoriesOpen && !deleteCategory && !preview)) && (
             <p className="notice error" role="alert">
-              {products.error || error}
-              <button type="button" className="btn" onClick={() => void products.reload()}>
+              {productError || error}
+              <button type="button" className="btn" onClick={() => void reloadProducts()}>
                 {t('إعادة المحاولة', 'Retry')}
               </button>
             </p>
@@ -478,7 +521,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                 <select
                   aria-label={t('اختر قسم المنتجات', 'Choose product category')}
                   value={category}
-                  onChange={(event) => setCategory(event.target.value)}
+                  onChange={(event) => changeCategory(event.target.value)}
                 >
                   {[
                     { id: 'all', label: t('كل المنتجات', 'All products') },
@@ -561,7 +604,11 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                   )}
                 </p>
                 <p className={categoryDeletionBlocked ? styles.blockedDeletion : styles.safeDeletion}>
-                  {categoryProductCount
+                  {scope.error
+                    ? t('تعذر التحقق من المنتجات داخل القسم.', 'Could not verify products in this category.')
+                    : scope.loading && categoryTreeEnabled
+                      ? t('جارٍ التحقق من القسم…', 'Checking category…')
+                      : categoryProductCount
                     ? t(
                         `القسم يحتوي على ${categoryProductCount} منتج. انقل كل المنتجات لقسم آخر أولًا.`,
                         `This category has ${categoryProductCount} products. Move them first.`,
@@ -618,7 +665,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                           body: JSON.stringify({ confirm: true }),
                         });
                         await categories.reload();
-                        setCategory('all');
+                        changeCategory('all');
                         setDeleteCategory(null);
                         setCategoryDeleteConfirmed(false);
                         setSuccess(t('تم حذف القسم الفارغ.', 'Empty category deleted.'));
@@ -706,21 +753,25 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
           <header className={styles.resultsHeader}>
             <div>
               <h2>{selectedCategory?.name ?? (category === 'none' ? t('دون قسم', 'Uncategorized') : t('كل المنتجات', 'All products'))}</h2>
-              {!products.loading && <small role="status">{t(`عدد المنتجات: ${rows.length}`, `Products: ${rows.length}`)}</small>}
+              {!productsLoading && !productError && <small role="status">{t(`عدد المنتجات: ${resultCount}`, `Products: ${resultCount}`)}</small>}
             </div>
             <label className="field">
               {t('البحث في المنتجات', 'Search products')}
               <input
                 type="search"
                 value={productSearch}
-                onChange={(event) => setProductSearch(event.target.value)}
+                maxLength={120}
+                onChange={(event) => {
+                  setProductSearch(event.target.value);
+                  if (!categoryTreeEnabled) setPage(1);
+                }}
                 placeholder={t('اسم المنتج أو الكود', 'Product name or SKU')}
               />
             </label>
           </header>
-          {products.loading ? (
+          {productsLoading ? (
             <p role="status">{t('جارٍ تحميل المنتجات…', 'Loading products…')}</p>
-          ) : rows.length ? (
+          ) : productError && !visibleRows.length ? null : visibleRows.length ? (
             <>
               <div
                 className={styles.grid}
@@ -786,8 +837,8 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
               </div>
               <nav className={styles.pagination} aria-label={t('صفحات المنتجات', 'Product pages')}>
                 <span className={styles.pageRange} role="status">
-                  {firstRow + 1}–{Math.min(firstRow + pageSize, rows.length)} {t('من', 'of')}{' '}
-                  {rows.length} {t('منتج', 'products')}
+                  {firstRow + 1}–{Math.min(firstRow + pageSize, resultCount)} {t('من', 'of')}{' '}
+                  {resultCount} {t('منتج', 'products')}
                 </span>
                 <div className={styles.pageButtons}>
                   <button
@@ -827,12 +878,12 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
           ) : (
             <div className={styles.empty}>
               <h3>
-                {products.data.length
+                {productCount
                   ? t('لا توجد منتجات تطابق الفلاتر', 'No products match these filters')
                   : t('ابدأ بإضافة أول منتج', 'Start with your first product')}
               </h3>
               <p>
-                {products.data.length
+                {productCount
                   ? t(
                       'غيّر البحث أو اختر قسمًا آخر.',
                       'Try another search or category.',
@@ -845,9 +896,9 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
               <button
                 type="button"
                 className="btn btn-primary"
-                onClick={products.data.length ? resetFilters : () => openEditor(null)}
+                onClick={productCount ? resetFilters : () => openEditor(null)}
               >
-                {products.data.length
+                {productCount
                   ? t('مسح الفلاتر', 'Clear filters')
                   : t('إضافة منتج', 'Add product')}
               </button>

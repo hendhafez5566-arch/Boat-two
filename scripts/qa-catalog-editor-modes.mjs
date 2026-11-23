@@ -177,6 +177,43 @@ try {
     console.log(JSON.stringify({ language, width, idPreserved: true, hiddenFieldsSaved: true, invalidSwitchBlocked: true, preferenceReloaded: true, saveVisible: true, nestedCategoryCloned: true }));
     await page.close();
   }
+  if (process.env.CATALOG_QA_LARGE === 'true') {
+    const loadCategory = await api('/commerce/categories', token, { name: 'Catalog load QA' });
+    for (let n = 1; n <= 510; n++) {
+      const suffix = String(n).padStart(4, '0');
+      await api('/commerce/products', token, {
+        categoryId: loadCategory.id,
+        sku: 'LOAD-' + suffix,
+        name: 'Catalog load fixture ' + suffix,
+        priceCents: '1500',
+        currency: 'EGP',
+      });
+    }
+    const page = await browser.newPage();
+    await page.setViewportSize({ width: 390, height: 900 });
+    await page.addInitScript(({ session }) => {
+      localStorage.setItem('session', JSON.stringify(session));
+      localStorage.setItem('boat-language', 'en');
+    }, { session });
+    await page.goto('http://localhost:3000/dashboard/commerce');
+    await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
+    const categories = page.getByLabel('Choose product category', { exact: true });
+    await categories.selectOption(loadCategory.id);
+    await page.getByText('Products: 510', { exact: true }).waitFor();
+    const navigation = page.getByRole('navigation', { name: 'Product pages' });
+    await navigation.getByRole('button', { name: 'Page 51', exact: true }).click();
+    await page.getByRole('heading', { name: 'Catalog load fixture 0510', exact: true }).waitFor();
+    const search = page.getByRole('searchbox', { name: 'Search products' });
+    const start = performance.now();
+    await search.fill('LOAD-0510');
+    await page.getByText('Products: 1', { exact: true }).waitFor();
+    const searchMs = Math.round(performance.now() - start);
+    assert.equal(await page.getByRole('article').count(), 1);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    if (out) await page.screenshot({ path: out + '/catalog-en-390-after-cap.png' });
+    console.log(JSON.stringify({ language: 'en', width: 390, products: 510, lastPage: 51, searchMs }));
+    await page.close();
+  }
 } finally {
   await browser.close();
 }

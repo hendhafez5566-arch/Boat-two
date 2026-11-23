@@ -130,6 +130,46 @@ export class CommerceService {
         ).rows,
     );
   }
+  productScope(tenant: string) {
+    return this.db.withTenant(tenant, async (c) => (await c.query(
+      `SELECT category_id, count(*)::int AS count FROM catalog_products
+       WHERE tenant_id = $1 AND source_id IS NULL GROUP BY category_id`,
+      [tenant],
+    )).rows);
+  }
+  productPage(tenant: string, category: string, query: string, page: number) {
+    return this.db.withTenant(tenant, async (c) => {
+      const result = await c.query(
+        `WITH RECURSIVE branch AS (
+           SELECT id FROM product_categories WHERE tenant_id = $1 AND id = NULLIF(NULLIF($2, 'all'), 'none')::uuid
+           UNION
+           SELECT child.id FROM product_categories child
+           JOIN branch parent ON child.parent_id = parent.id WHERE child.tenant_id = $1
+         ), matches AS MATERIALIZED (
+           SELECT p.id, p.name FROM catalog_products p
+           WHERE p.tenant_id = $1 AND p.source_id IS NULL
+             AND ($2 = 'all' OR ($2 = 'none' AND p.category_id IS NULL)
+                  OR p.category_id IN (SELECT id FROM branch))
+             AND ($3 = '' OR strpos(lower(p.name), lower($3)) > 0
+                          OR strpos(lower(p.sku), lower($3)) > 0)
+         ), totals AS (SELECT count(*)::int AS total FROM matches),
+         scope AS (
+           SELECT total, LEAST($4, GREATEST(1, (total + 9) / 10)) AS page FROM totals
+         )
+         SELECT scope.total, scope.page, COALESCE(
+           (SELECT jsonb_agg(to_jsonb(p) ORDER BY selected.name, selected.id)
+            FROM (
+              SELECT id, name FROM matches ORDER BY name,id
+              LIMIT 10 OFFSET ((scope.page - 1) * 10)
+            ) selected
+            JOIN catalog_products p ON p.tenant_id = $1 AND p.id = selected.id),
+           '[]'::jsonb) AS rows
+         FROM scope`,
+        [tenant, category, query, page],
+      );
+      return result.rows[0];
+    });
+  }
   saveProduct(tenant: string, input: z.infer<typeof productSchema>, id?: string) {
     return this.db.withTenant(tenant, async (c) => {
       // Editing the Archived checkbox must protect active bot references too;
