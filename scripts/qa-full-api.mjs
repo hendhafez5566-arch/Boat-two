@@ -137,6 +137,9 @@ if (process.env.BOAT_TELEGRAM_QA === 'true') {
   if (process.env.BOAT_CLOUD_REVIEW === 'true') {
     const { CrmJobs } = local('./dist/business/crm-jobs');
     const { EventsService } = local('./dist/events/events.service');
+    const webhookWorker = process.env.CHECKOUT_QA_WHATSAPP === 'true'
+      ? app.get(local('./dist/messaging/webhooks.controller').WebhooksController)
+      : null;
     let running = false;
     setInterval(async () => {
       if (running) return;
@@ -148,6 +151,7 @@ if (process.env.BOAT_TELEGRAM_QA === 'true') {
         for (const job of jobs.rows)
           await app.get(CrmJobs).process({ tenantId: job.tenant_id, jobId: job.id });
         // Drain the real persisted event outbox; external/provider delivery stays disabled.
+        await webhookWorker?.tick();
         await app.get(EventsService).tick();
       } catch (e) {
         console.error('Review internal worker', e.message);

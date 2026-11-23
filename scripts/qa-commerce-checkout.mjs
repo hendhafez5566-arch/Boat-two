@@ -203,18 +203,27 @@ assert.deepEqual(recorded[0].origin, { conversationId: conversation.id, channelI
 console.log('PASS conversation order identity, authorization, channel binding, and retry');
 if (process.env.COMMERCE_QA_API_ONLY === 'true') process.exit(0);
 const { chromium } = createRequire(import.meta.url)(process.env.BOAT_PLAYWRIGHT_MODULE || 'playwright');
-const browser = await chromium.launchPersistentContext('', {
+const browser = await chromium.launch({
   executablePath: process.env.BOAT_CHROMIUM, args: ['--no-sandbox', '--disable-software-rasterizer'],
 });
 try {
   for (const [language, width] of [['ar',390],['en',1440]]) {
-    const page = await browser.newPage();
+    const context = await browser.newContext();
+    const page = await context.newPage();
     await page.setViewportSize({width,height:900});
     await page.addInitScript(({session,language}) => {
       localStorage.setItem('session', JSON.stringify(session));
       localStorage.setItem('boat-language', language);
     }, { session, language });
     const t = (ar,en) => language === 'ar' ? ar : en;
+    await page.goto('http://localhost:3000/dashboard/inbox?conversation=' + conversation.id);
+    const createOrder = page.getByRole('link', {name:t('إنشاء طلب','Create order'),exact:true});
+    await createOrder.waitFor();
+    if (out) await page.screenshot({path:out + '/inbox-order-link-' + width + '.png'});
+    await createOrder.click();
+    await page.getByRole('button',{name:t('الطلبات','Orders'),exact:true}).waitFor();
+    await page.getByRole('link',{name:t('المحادثة الأصلية','Original conversation')}).first().waitFor();
+    assert.ok(page.url().includes(conversation.id));
     await page.goto('http://localhost:3000/dashboard/commerce');
     await page.getByRole('button',{name:t('الطلبات','Orders'),exact:true}).click();
     await page.getByRole('link',{name:'Synthetic Buyer'}).first().waitFor();
@@ -242,7 +251,7 @@ try {
     await page.getByRole('button',{name:t('فحص الجاهزية','Check readiness'),exact:true}).click();
     const repair = page.getByRole('link',{name:t('إصلاح','Fix') + ' Checkout fixture · ' + t('التصنيف','Category')});
     const href = await repair.getAttribute('href');
-    const editor = await browser.newPage();
+    const editor = await context.newPage();
     await editor.goto('http://localhost:3000' + href);
     const field = editor.locator('dialog select[name=category]');
     await field.waitFor();
