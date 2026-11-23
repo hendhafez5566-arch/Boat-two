@@ -1,10 +1,7 @@
 .page {
   display: grid;
-  gap: 24px;
-  color: #293340;
-  font:
-    400 13px/1.5 Arial,
-    sans-serif;
+  gap: 16px;
+  color: var(--ink);
   min-width: 0;
 }
 .heading {
@@ -22,11 +19,11 @@
 .heading p {
   margin: 3px 0 0;
   font-size: 14px;
-  color: #6c7885;
+  color: var(--muted);
 }
 .refresh {
-  background: #fff;
-  border: 1px solid #e6eaf0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 8px;
   width: 36px;
   height: 36px;
@@ -42,12 +39,12 @@
 .filter {
   display: flex;
   gap: 8px;
-  margin-top: -8px;
+  margin-top: 0;
 }
 .filter select {
   width: 150px;
-  border: 1px solid #e2e6ec;
-  background: #fff;
+  border: 1px solid var(--line);
+  background: var(--surface);
   border-radius: 8px;
   padding: 8px 12px;
   color: #404955;
@@ -60,7 +57,7 @@
   border: 0;
   border-radius: 8px;
   padding: 8px 14px;
-  color: #fff;
+  color: var(--surface);
   background: var(--primary);
   font: inherit;
   cursor: pointer;
@@ -78,7 +75,7 @@
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 16px;
-  margin-top: -8px;
+  margin-top: 0;
 }
 .quick a {
   display: flex;
@@ -86,11 +83,11 @@
   gap: 9px;
   min-width: 0;
   min-height: 108px;
-  background: #fff;
-  border: 1px solid #edf0f3;
-  box-shadow: 0 1px 3px #2632450a;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
   padding: 16px 14px;
-  border-radius: 16px;
+  border-radius: var(--radius);
   text-decoration: none;
   color: inherit;
 }
@@ -151,8 +148,8 @@
 }
 .card {
   background: white;
-  border: 1px solid #edf0f3;
-  border-radius: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   padding: 14px 16px 22px;
   box-shadow: 0 1px 3px #26324508;
   min-width: 0;
@@ -176,9 +173,9 @@
 .distribution {
   padding: 16px;
   background: var(--surface-muted, #f3f6fa);
-  border: 1px solid #edf0f3;
+  border: 1px solid var(--line);
   box-shadow: 0 1px 5px #26324509;
-  border-radius: 16px;
+  border-radius: var(--radius);
 }
 .distribution > small,
 .trend > small {
@@ -247,7 +244,7 @@
 }
 .plot {
   min-height: 250px;
-  border: 1px solid #edf0f3;
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 10px 8px;
   display: flex;
@@ -418,4 +415,51 @@
   .quick strong { font-size: 15px; }
   .quick small { font-size: 13.5px; }
   .plot text { font-size: 13px; }
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  min-block-size: 216px;
+  padding: clamp(18px, 3vw, 28px);
+  border-radius: var(--radius);
+  background: linear-gradient(120deg, var(--primary-deep), var(--brand-accent));
+  color: var(--primary-ink);
+}
+.hero h2 {
+  margin: 0;
+  font-size: clamp(1.25rem, 2.25vw, 1.65rem);
+  overflow-wrap: anywhere;
+}
+.hero p {
+  margin-block: 12px 18px;
+  color: inherit;
+}
+.hero a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-block-size: 44px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--primary-deep);
+  font-weight: 700;
+  text-decoration: none;
+}
+.hero a svg {
+  width: 18px;
+  height: 18px;
+}
+.heroMark svg {
+  width: 64px;
+  height: 64px;
+}
+@media (max-width: 750px) {
+  .heroMark {
+    display: none;
+  }
 }

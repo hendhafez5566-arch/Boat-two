@@ -1,4 +1,5 @@
 const paths: Record<string, string> = {
+  bolt: 'M13 2 4 14h7l-1 8 10-12h-7l1-8Z',
   grid: 'M3 3h7v7H3V3Zm11 0h7v7h-7V3ZM3 14h7v7H3v-7Zm11 0h7v7h-7v-7Z',
   list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
   sort: 'M8 20V4m-4 4 4-4 4 4M16 4v16m-4-4 4 4 4-4',

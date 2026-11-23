@@ -83,16 +83,7 @@ export default function Dashboard() {
     <main className={styles.page}>
       <header className={`${styles.heading} workspace-heading`}>
         <div>
-          <h1>
-            {t('أهلًا بعودتك', 'Welcome Back')}
-            {summary.data?.userName ? `, ${summary.data.userName}` : ''}
-          </h1>
-          <p>
-            {t(
-              'إليك ما يحدث في مساحة عملك اليوم.',
-              "Here's what's happening with your workspace today.",
-            )}
-          </p>
+          <h1>{t('الرئيسية', 'Home')}</h1>
         </div>
         <button
           type="button"
@@ -104,6 +95,20 @@ export default function Dashboard() {
           <NavIcon name="refresh" />
         </button>
       </header>
+      <section className={styles.hero} aria-labelledby="dashboard-welcome">
+        <div>
+          <h2 id="dashboard-welcome">
+            {t('أهلًا بعودتك', 'Welcome back')}
+            {summary.data?.userName ? `, ${summary.data.userName}` : ''}
+          </h2>
+          <p>{t('إليك ما يحدث في مساحة عملك اليوم.', "Here's what's happening with your workspace today.")}</p>
+          <Link href="/dashboard/inbox">
+            <NavIcon name="inbox" />
+            {t('فتح صندوق الوارد', 'Open Inbox')}
+          </Link>
+        </div>
+        <span className={styles.heroMark} aria-hidden="true"><NavIcon name="bolt" /></span>
+      </section>
       <div className={styles.filter}>
         <select
           aria-label={t('المنصة', 'Platform')}

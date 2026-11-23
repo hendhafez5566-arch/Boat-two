@@ -29,7 +29,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="ar" dir="rtl">
       <body
-        style={brand ? ({ '--primary': brand.primaryColor } as React.CSSProperties) : undefined}
+        style={brand ? ({
+          '--primary': brand.primaryColor,
+          '--primary-soft': 'color-mix(in srgb, var(--primary) 8%, white)',
+          '--brand-accent': brand.primaryColor,
+          '--brand-gradient-end': 'color-mix(in srgb, var(--primary) 66%, white)',
+        } as React.CSSProperties) : undefined}
       >
         <LocaleProvider>
           <BrandProvider brand={brand}>{children}</BrandProvider>

@@ -123,7 +123,7 @@ function Shell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [mobile, setMobile] = useState(false);
   useEffect(() => {
-    const media = window.matchMedia('(max-width: 700px)');
+    const media = window.matchMedia('(max-width: 750px)');
     const update = () => {
       setMobile(media.matches);
       if (!media.matches) setOpen(false);
@@ -282,6 +282,13 @@ function Shell({ children }: { children: ReactNode }) {
         )
         .slice(0, 8)
     : [];
+  const mobileLinks = [
+    ['', 'grid', 'الرئيسية', 'Home'],
+    ['commerce', 'commerce', 'الخدمات', 'Catalog'],
+    ['flows', 'flows', 'البوت', 'Bots'],
+    ['inbox', 'inbox', 'الوارد', 'Inbox'],
+    ['crm', 'crm', 'العملاء', 'CRM'],
+  ].filter(([key]) => allowedKey(key));
   const accountLinks = [
     ['account', 'user', 'الحساب', 'Account'],
     ['billing', 'billing', 'الفوترة', 'Billing'],
@@ -293,7 +300,12 @@ function Shell({ children }: { children: ReactNode }) {
   return (
     <div
       className={`product-shell bs-shell ${isInbox ? 'inbox-shell' : ''} ${isFlowEditor ? 'flow-shell' : ''} ${(compactNavigation && !isInbox) || isFlowEditor ? 'nav-collapsed' : 'nav-expanded'}`}
-      style={brand ? ({ '--primary': brand.primary_color } as CSSProperties) : undefined}
+      style={brand ? ({
+        '--primary': brand.primary_color,
+        '--primary-soft': 'color-mix(in srgb, var(--primary) 8%, white)',
+        '--brand-accent': brand.primary_color,
+        '--brand-gradient-end': 'color-mix(in srgb, var(--primary) 66%, white)',
+      } as CSSProperties) : undefined}
     >
       {open && <div className="bs-scrim" aria-hidden="true" onClick={() => setOpen(false)} />}
       <aside
@@ -314,12 +326,13 @@ function Shell({ children }: { children: ReactNode }) {
           {brand?.logo_url ? (
             <img src={brand.logo_url} alt={brand.name} className="h-10 w-10 object-contain" />
           ) : (
-            <span className="brand-mark">B</span>
+            <span className="brand-mark" aria-hidden="true">B²</span>
           )}
           <span>
             {brand?.name || (
               <>
-                BOAT <b>TWO</b>
+                Bot Two
+                <small>{t('مساحة الأعمال', 'Business Studio')}</small>
               </>
             )}
           </span>
@@ -557,6 +570,20 @@ function Shell({ children }: { children: ReactNode }) {
           </div>
         )}
       </div>
+      {ready && !error && !isFlowEditor && !isInbox && (
+        <nav className="workspace-bottom-nav" aria-label={t('التنقل على الهاتف', 'Mobile navigation')}>
+          {mobileLinks.map(([key, icon, ar, en]) => (
+            <Link key={key} href={destination(key)} aria-current={isActive(key) ? 'page' : undefined}>
+              <NavIcon name={icon} />
+              {t(ar, en)}
+            </Link>
+          ))}
+          <button type="button" aria-controls="workspace-navigation" aria-expanded={open} onClick={() => setOpen(!open)}>
+            <NavIcon name="more" />
+            {t('المزيد', 'More')}
+          </button>
+        </nav>
+      )}
     </div>
   );
 }
