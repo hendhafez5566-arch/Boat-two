@@ -3,6 +3,8 @@
 import { createRequire } from 'node:module';
 import { readFileSync, readdirSync } from 'node:fs';
 import { setInterval } from 'node:timers';
+import { setImmediate as yieldToIo } from 'node:timers/promises';
+import { monitorEventLoopDelay } from 'node:perf_hooks';
 import { randomBytes } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { resolve } from 'node:path';
@@ -85,7 +87,13 @@ if (process.env.BOAT_TELEGRAM_QA === 'true') {
       if (actor?.tenantId === tenant)
         await tx.query("SELECT set_config('app.actor_id',$1,true)", [actor.userId]);
       const client = wrap(tx);
-      return scope.run({ tenant, client }, () => fn(client));
+      try {
+        return await scope.run({ tenant, client }, () => fn(client));
+      } finally {
+        // PGlite serializes work in-process. Let the HTTP loop accept pending
+        // sockets between transactions during the diagnostic load run.
+        if (process.env.BOAT_CRM_LOAD_YIELD === 'true') await yieldToIo();
+      }
     });
   DatabaseService.prototype.query = function (sql, args = []) {
     const active = scope.getStore();
@@ -203,6 +211,14 @@ if (process.env.BOAT_TELEGRAM_QA === 'true') {
         }));
         res.json({ failed, injected, ...counts });
       });
+  }
+  if (process.env.BOAT_CRM_LOAD_TIMING === 'true') {
+    const delay = monitorEventLoopDelay({ resolution: 10 });
+    delay.enable();
+    app.getHttpServer().prependListener('request', (req, res) => {
+      res.setHeader('x-qa-http-received-ms', String(performance.timeOrigin + performance.now()));
+      res.setHeader('x-qa-loop-p99-ms', String(delay.percentile(99) / 1e6));
+    });
   }
   await app.listen(4000, '127.0.0.1');
   console.log('FULL_APP_READY 4000');

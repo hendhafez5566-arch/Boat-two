@@ -307,31 +307,32 @@ export default function Inbox() {
   }
   // Reconcile missed SSE events after reconnects and while a tab is visible.
   useEffect(() => {
-    const sync = () => {
-      loadList();
-      loadCounts();
-      const id = selRef.current;
-      if (id) {
-        const last = msgsRef.current.reduce((n, x) => Math.max(n, Number(x.seq) || 0), 0);
-        catchUpMessages<any>(last, after => api(`/conversations/${id}/messages?afterSeq=${after}&limit=200`)).then(items => ({ items }))
-          .then((r) => {
-            if (selRef.current === id)
-              setMsgs((cur) => [
-                ...cur,
-                ...r.items.filter((x: any) => !cur.some((y) => y.id === x.id)),
-              ]);
-          })
-          .catch(() => {});
-        api<any>(`/conversations/${id}`)
-          .then((d) => {
-            if (selRef.current === id) setDetail(d);
-          })
-          .catch(() => {});
+    let syncing = false;
+    async function sync() {
+      if (syncing || document.hidden) return;
+      syncing = true;
+      try {
+        const requests = [loadList(), loadCounts()];
+        const id = selRef.current;
+        if (id) {
+          const last = msgsRef.current.reduce((n, x) => Math.max(n, Number(x.seq) || 0), 0);
+          requests.push(
+            catchUpMessages<any>(last, after => api(`/conversations/${id}/messages?afterSeq=${after}&limit=200`))
+              .then((items) => {
+                if (selRef.current === id)
+                  setMsgs((cur) => [...cur, ...items.filter((x: any) => !cur.some((y) => y.id === x.id))]);
+              }),
+            api<any>(`/conversations/${id}`).then((detail) => {
+              if (selRef.current === id) setDetail(detail);
+            }),
+          );
+        }
+        await Promise.allSettled(requests);
+      } finally {
+        syncing = false;
       }
-    };
-    const interval = setInterval(() => {
-      if (!document.hidden) sync();
-    }, 15000);
+    }
+    const interval = setInterval(sync, 15000);
     return () => clearInterval(interval);
   }, [loadList, loadCounts]);
 

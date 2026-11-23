@@ -101,6 +101,21 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
       return next;
     });
   const [q, setQ] = useState('');
+  const [searchDraft, setSearchDraft] = useState('');
+  const [statsOpen, setStatsOpen] = useState(false);
+  function applySearch(value: string) {
+    setQ(value);
+    setSearchDraft(value);
+    setPage(1);
+  }
+  useEffect(() => {
+    if (searchDraft === q) return;
+    const timer = setTimeout(() => {
+      setQ(searchDraft);
+      setPage(1);
+    }, 180);
+    return () => clearTimeout(timer);
+  }, [searchDraft, q]);
   const [channelId, setChannelId] = useChannelContext();
   const [listId, setListId] = useState(''),
     [sequenceId, setSequenceId] = useState(''),
@@ -267,7 +282,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     { items: [], total: 0 },
   );
   const [selectionPath, setSelectionPath] = useState('');
-  const canSelect = canManage && !contacts.loading && !contacts.error && contacts.loadedPath === contactsPath;
+  const canSelect = canManage && searchDraft === q && !contacts.loading && !contacts.error && contacts.loadedPath === contactsPath;
   const bulkContacts = canSelect && selectionPath === contactsPath
     ? contacts.data.items.filter((contact) => selectedBulkIds.includes(contact.id))
     : [];
@@ -290,7 +305,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     retained: number;
     subscribed: number;
     in_sequences: number;
-  }>(tab === 'contacts' ? '/crm/contacts-summary?' + filter : null, {
+  }>(tab === 'contacts' && statsOpen ? '/crm/contacts-summary?' + filter : null, {
     total: 0,
     retained: 0,
     subscribed: 0,
@@ -312,7 +327,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     pageSize,
     sort,
   ]);
-  const pipelines = useData<Pipeline[]>('/crm/pipelines', []);
+  const pipelines = useData<Pipeline[]>(tab === 'pipeline-settings' ? '/crm/pipelines' : null, []);
   const fields = useData<ContactField[]>('/crm/fields', []);
   const segments = useData<
     {
@@ -332,7 +347,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     }[]
   >('/crm/segments', []);
   const duplicates = useData<{ kind: string; value: string; ids: string[]; count: number }[]>(
-    '/crm/contacts/duplicates',
+    tab === 'config' ? '/crm/contacts/duplicates' : null,
     [],
   );
   const team = useData<{ members: { user_id: string; full_name: string; email: string }[] }>(
@@ -393,7 +408,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     setExporting(true);
     setExportError('');
     try {
-      const r = await api<{ items: Contact[]; total: number }>(`/crm/contacts/export?${filter}`);
+      const r = await api<{ items: Contact[]; total: number }>(`/crm/contacts/export?${new URLSearchParams({ ...Object.fromEntries(filter), q: searchDraft })}`);
       if (r.total > r.items.length)
         throw new Error(
           t(
@@ -654,10 +669,10 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                   'بحث بالاسم أو الهاتف أو البريد…',
                   'Search by name, phone or email…',
                 )}
-                value={q}
+                value={searchDraft}
                 onChange={(e) => {
-                  setQ(e.target.value);
-                  setPage(1);
+                  setSearchDraft(e.target.value);
+                  setBulkIds([]);
                 }}
               />
               <button
@@ -798,7 +813,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                   type="button"
                   className="btn"
                   onClick={() => {
-                    setQ('');
+                    applySearch('');
                     setRouteFilters({});
                     setQuickFilter('');
                     setStage('');
@@ -1042,7 +1057,12 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
               )}
             </Dialog>
             <div className={styles.workspace}>
-              <section className={styles.subscriberList} data-crm-customers data-view={viewMode}>
+              <section
+                className={styles.subscriberList}
+                data-crm-customers
+                data-view={viewMode}
+                aria-busy={contacts.loading || searchDraft !== q}
+              >
                 <div className={styles.listToolbar}>
                   <label>
                     <input
@@ -1248,7 +1268,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                 </footer>
               </section>
             </div>
-            <details className={design.customerStats}>
+            <details className={design.customerStats} onToggle={(event) => setStatsOpen(event.currentTarget.open)}>
               <summary>{t('إحصائيات العملاء', 'Customer statistics')}</summary>
               {summary.error && (
                 <p className="notice error" role="alert">
@@ -1542,7 +1562,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                   <div className="step" key={x.id}>
                     <button
                       onClick={() => {
-                        setQ(x.filters.q || '');
+                        applySearch(x.filters.q || '');
                         setChannelId(x.filters.channelId || '');
                         setListId(x.filters.listId || '');
                         setSequenceId(x.filters.sequenceId || '');
@@ -1586,7 +1606,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                   <input
                     value={q}
                     onChange={(e) => {
-                      setQ(e.target.value);
+                      applySearch(e.target.value);
                       setPage(1);
                     }}
                   />

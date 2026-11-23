@@ -24,6 +24,9 @@ function pooledRequest(path, token, body, method, extraHeaders) {
     }, (response) => {
       const firstByte = performance.now() - started;
       const received = Number(response.headers['x-qa-received-ms']);
+      const httpReceived = Number(response.headers['x-qa-http-received-ms']);
+      const loopP99 = Number(response.headers['x-qa-loop-p99-ms']);
+      const httpIngress = httpReceived > 0 ? Math.max(0, httpReceived - performance.timeOrigin - started) : undefined;
       const handling = Number(response.headers['x-qa-handling-ms']);
       const ingress = received > 0 ? Math.max(0, received - performance.timeOrigin - started) : undefined;
       const handlingMs = Number.isFinite(handling) ? handling : undefined;
@@ -35,7 +38,7 @@ function pooledRequest(path, token, body, method, extraHeaders) {
       response.on('data', (chunk) => { raw += chunk; });
       response.on('error', reject);
       response.on('end', () => {
-        try { resolve({ status: response.statusCode, data: JSON.parse(raw), socketWait, writeFinished, firstByte, ingress, handlingMs, responseWait }); }
+        try { resolve({ status: response.statusCode, data: JSON.parse(raw), socketWait, writeFinished, firstByte, ingress, httpIngress, loopP99, handlingMs, responseWait }); }
         catch (error) { reject(error); }
       });
     });
@@ -124,11 +127,11 @@ async function run(concurrency, count) {
       const workspaceIndex = includeWebchat ? Math.floor(i / workload.length) : i;
       const workspace = workspaces[workspaceIndex % workspaces.length];
       const before = performance.now();
-      let outcome, socketWait, writeFinished, firstByte, ingress, handlingMs, responseWait;
+      let outcome, socketWait, writeFinished, firstByte, ingress, httpIngress, loopP99, handlingMs, responseWait;
       try {
         const result = await request(operation.path(workspace, i), operation.visitor ? null : workspace.token, operation.body?.(i), undefined, operation.headers?.(workspace));
         const { status, data } = result;
-        ({ socketWait, writeFinished, firstByte, ingress, handlingMs, responseWait } = result);
+        ({ socketWait, writeFinished, firstByte, ingress, httpIngress, loopP99, handlingMs, responseWait } = result);
         if (status !== operation.expected) outcome = 'HTTP ' + status;
         else if (['firstPage', 'page100'].includes(operation.name) && data.total !== workspace.total) outcome = 'invalid total';
         else if (operation.name === 'profile' && data.contact.id !== workspace.contactId) outcome = 'incorrect record';
@@ -137,7 +140,7 @@ async function run(concurrency, count) {
       } catch (error) {
         outcome = error.name;
       }
-      records.push({ name: operation.name, elapsed: performance.now() - before, outcome, socketWait, writeFinished, firstByte, ingress, handlingMs, responseWait });
+      records.push({ name: operation.name, elapsed: performance.now() - before, outcome, socketWait, writeFinished, firstByte, ingress, httpIngress, loopP99, handlingMs, responseWait });
     }
   }));
   const summary = (rows) => {
@@ -154,6 +157,8 @@ async function run(concurrency, count) {
           writeFinishedP95ms: 'writeFinished',
           firstByteP95ms: 'firstByte',
           ingressP95ms: 'ingress',
+          httpIngressP95ms: 'httpIngress',
+          serverLoopP99ms: 'loopP99',
           serverHandlingP95ms: 'handlingMs',
           responseWaitP95ms: 'responseWait',
         }).map(([name, key]) => [name, percentile(
