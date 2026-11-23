@@ -108,19 +108,28 @@ await api('/commerce/orders/' + docOrder.id + '/status', token, { status:'comple
 
 const service = await api('/commerce/products', token, {sku:'ASSISTANT-QA', name:'Assistant fixture', priceCents:'100', checkout:{kind:'service'}});
 const setup = {name:'Isolated setup QA', welcome:'Welcome to QA', fallback:'Choose an item', channelId:channel.id, productIds:[service.id]};
+const members = await api('/crm/workspace/members', token);
+setup.assigneeId = members.currentUserId;
+const invalidAssignee = await api('/catalog-assistant/readiness', token, {...setup, assigneeId:randomUUID()});
+assert.ok(invalidAssignee.blockers.some((b) => b.includes('assignee')));
 const before = await api('/flows', token);
 const invalid = await api('/catalog-assistant/readiness', token, {...setup, channelId:randomUUID()});
 assert.ok(invalid.blockers.length);
 const check = await api('/catalog-assistant/readiness', token, setup);
 assert.deepEqual(check.blockers, []);
 assert.ok(check.warnings.length);
+assert.deepEqual(check.repairs, [{productId:service.id,name:service.name,field:'category'}]);
+await api('/commerce/products/' + service.id, foreignToken, undefined, 404);
 await api('/catalog-assistant/draft', token, {setup, revision:'0'.repeat(64)}, 409);
 const draft = await api('/catalog-assistant/draft', token, {setup, revision:check.revision});
 const stored = await api('/flows/' + draft.id, token);
+assert.ok(stored.draft_graph.nodes.some((n) => n.type === 'handoff' && n.data.assignTo === setup.assigneeId));
 assert.ok(stored.draft_graph.nodes.some((n) => n.type === 'catalog' && n.data.productIds.includes(service.id)));
 assert.equal(stored.published_version_id ?? null, null);
 const preview = await api('/flows/' + draft.id + '/test', token, {});
 assert.ok(preview.transcript.some((row) => JSON.stringify(row).includes('Welcome to QA')));
+const handoff = await api('/flows/' + draft.id + '/test', token, { state: preview.state, replyId: 'staff' });
+assert.equal(handoff.status, 'handed_off');
 const menu = await api('/flows/' + draft.id + '/test', token, { state: preview.state, replyId: 'browse' });
 assert.ok(menu.transcript.some((row) => JSON.stringify(row).includes(service.id)));
 const fallback = await api('/flows/' + draft.id + '/test', token, { state: preview.state, text: 'unknown' });
@@ -165,6 +174,7 @@ assert.ok(catalogNodes.every((n) => n.data.productIds.length <= 10));
 assert.equal(new Set(catalogNodes.flatMap((n) => n.data.productIds)).size, pagedReadiness.products.length);
 console.log('PASS checkout pricing, conditional fields, idempotency, stock, CRM link, tenant isolation, draft, preview, release, and stale readiness');
 
+if (process.env.COMMERCE_QA_API_ONLY === 'true') process.exit(0);
 const { chromium } = createRequire(import.meta.url)(process.env.BOAT_PLAYWRIGHT_MODULE || 'playwright');
 const browser = await chromium.launchPersistentContext('', {
   executablePath: process.env.BOAT_CHROMIUM, args: ['--no-sandbox', '--disable-software-rasterizer'],
@@ -203,6 +213,16 @@ try {
     await page.getByLabel(t('القناة','Channel'),{exact:true}).selectOption(channel.id);
     await page.getByRole('button',{name:t('متابعة','Continue'),exact:true}).click();
     await page.getByRole('button',{name:t('فحص الجاهزية','Check readiness'),exact:true}).click();
+    const repair = page.getByRole('link',{name:t('إصلاح','Fix') + ' Checkout fixture · ' + t('التصنيف','Category')});
+    const href = await repair.getAttribute('href');
+    const editor = await browser.newPage();
+    await editor.goto('http://localhost:3000' + href);
+    const field = editor.locator('dialog select[name=category]');
+    await field.waitFor();
+    await field.evaluate((el) => {
+      if (document.activeElement !== el) throw new Error('Repair did not focus the category field');
+    });
+    await editor.close();
     await page.getByRole('button',{name:t('إنشاء مسودة في محرر البوت','Create Flow Builder draft')}).click();
     await page.getByRole('button',{name:t('تشغيل المعاينة المعزولة','Run isolated preview')}).click();
     await page.getByText('أهلًا وسهلًا / Welcome',{exact:false}).waitFor();

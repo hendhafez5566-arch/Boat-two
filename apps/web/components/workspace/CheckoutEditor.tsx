@@ -29,14 +29,14 @@ export function CheckoutEditor({ value, onChange }: {
   const update = (patch: Partial<CheckoutConfig>) => onChange({ ...value, ...patch });
   return <fieldset className="stack">
     <legend>{t('إعدادات الطلب', 'Checkout settings')}</legend>
-    <label>{t('النوع', 'Type')} <select value={value.kind}
+    <label>{t('النوع', 'Type')} <select name="checkoutKind" value={value.kind}
       onChange={(e) => update({ kind: e.target.value as CheckoutConfig['kind'] })}>
       <option value="product">{t('منتج', 'Product')}</option><option value="service">{t('خدمة', 'Service')}</option>
       <option value="appointment">{t('موعد', 'Appointment')}</option><option value="quote">{t('عرض سعر', 'Quote request')}</option>
     </select></label>
     {value.kind === 'appointment' && <p>{t('إدارة الحجز من تبويب المواعيد.', 'Manage bookings from Appointments.')}</p>}
     {value.kind === 'product' && <label>{t('المخزون (فارغ = غير محدود)', 'Stock (blank = unlimited)')}
-      <input type="number" min="0" max="1000000" value={value.stock ?? ''}
+      <input name="checkoutStock" type="number" min="0" max="1000000" value={value.stock ?? ''}
         onChange={(e) => update({ stock: e.target.value === '' ? null : Number(e.target.value) })}/></label>}
     <div className="stack">
       {(['min', 'max', 'discountBps', 'taxBps'] as const).map((field) => {

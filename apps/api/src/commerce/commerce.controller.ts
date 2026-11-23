@@ -83,6 +83,10 @@ export class CommerceController {
     }), query);
     return this.commerce.productPage(r.user.tenantId, input.category, input.q, input.page);
   }
+  @Get('products/:id')
+  localProduct(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.commerce.localProduct(r.user.tenantId, id);
+  }
   @Post('products') product(@Req() r: AuthedRequest, @Body() body: unknown) {
     return this.commerce.saveProduct(r.user.tenantId, parse(productSchema, body));
   }

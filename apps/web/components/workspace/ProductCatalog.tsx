@@ -127,6 +127,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
         window.confirm(t('تجاهل تعديلات المنتج غير المحفوظة؟', 'Discard unsaved product changes?')))
     ) {
       setEditing(undefined);
+      setRepairField('');
       setEditorDirty(false);
       setError('');
     }
@@ -171,6 +172,30 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
   );
 
   const [checkout, setCheckout] = useState(defaultCheckout);
+
+  const repairAttempted = useRef(false);
+  const [repairField, setRepairField] = useState('');
+  useEffect(() => {
+    if (!checkoutEnabled || repairAttempted.current) return;
+    repairAttempted.current = true;
+    const query = new URLSearchParams(window.location.search);
+    const id = query.get('edit');
+    if (!id || !/^[a-f0-9-]{36}$/i.test(id)) return;
+    void api<CatalogProduct>('/commerce/products/' + id).then((product) => {
+      openEditor(product);
+      setRepairField(query.get('field') || '');
+    }).catch((error: Error) => setError(error.message));
+  });
+  useEffect(() => {
+    if (!repairField) return;
+    const selectors: Record<string, string> = { category: '[name="category"]', stock: '[name="checkoutStock"]', checkout: '[name="checkoutKind"]' };
+    const target = selectors[repairField];
+    if (!target) return;
+    const frame = window.requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>('dialog[open] ' + target)?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [repairField]);
 
   function openEditor(product: CatalogProduct | null) {
     setCheckout({ ...defaultCheckout, ...product?.checkout });
@@ -348,6 +373,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
       });
       await reloadProducts();
       setEditing(undefined);
+      setRepairField('');
       setEditorDirty(false);
       setSuccess(t('تم حفظ المنتج.', 'Product saved.'));
     } catch (e) {

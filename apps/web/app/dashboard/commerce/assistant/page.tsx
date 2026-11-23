@@ -11,7 +11,7 @@ import CheckoutSelection, { checkoutSelection, type CheckoutItem } from '../../.
 import { productPrice } from '../../../../lib/product-money';
 import styles from './assistant.module.css';
 
-type Readiness = { revision: string; blockers: string[]; warnings: string[]; products: { id: string; name: string }[] };
+type Readiness = { revision: string; blockers: string[]; warnings: string[]; repairs: { productId: string; name: string; field: string }[]; products: { id: string; name: string }[] };
 type Preview = {
   state: { vars?: { selectedProductId?: string } };
   transcript: { role: string; content: string | { text?: string; buttons?: { id: string; title: string }[]; list?: { sections: { rows: { id: string; title: string }[] }[] } } }[];
@@ -64,7 +64,7 @@ function Assistant() {
   const [manual, setManual] = useState(false);
   const [selected, setSelected] = useState<CatalogProduct[]>([]);
   const [settings, setSettings] = useState({
-    name: '', channelId: '', welcome: 'أهلًا وسهلًا / Welcome',
+    name: '', channelId: '', assigneeId: '', welcome: 'أهلًا وسهلًا / Welcome',
     fallback: 'اختَر عنصرًا من القائمة / Choose a catalog item',
   });
   const [readiness, setReadiness] = useState<Readiness | null>(null);
@@ -76,11 +76,12 @@ function Assistant() {
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   const channels = useData<{ id: string; name: string; status: string }[]>('/channels', []);
+  const staff = useData<{ members: {user_id: string; full_name: string}[] }>('/crm/workspace/members', { members: [] });
   const catalog = useData<{ rows: CatalogProduct[] }>('/commerce/products/page?q=' + encodeURIComponent(search), {rows: []});
   const releases = useData<Release[]>('/catalog-assistant/releases', []);
   const steps = [t('الكتالوج', 'Catalog'), t('الإعدادات', 'Settings'), t('المسودة', 'Draft'),
     t('الجاهزية', 'Readiness'), t('المعاينة', 'Preview'), t('النشر التجريبي', 'Demo release')];
-  const setup = { ...settings, productIds: manual ? selected.map((p) => p.id) : undefined };
+  const setup = { ...settings, assigneeId: settings.assigneeId || undefined, productIds: manual ? selected.map((p) => p.id) : undefined };
   function invalidate() {
     setDraft('');
     setReadiness(null);
@@ -147,6 +148,13 @@ function Assistant() {
         <option value="">{t('اختر قناة', 'Choose channel')}</option>
         {channels.data.filter((c) => c.status === 'active').map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select></label>
+      <label>{t('مسؤول التحويل', 'Handoff assignee')}
+        <select aria-label={t('مسؤول التحويل', 'Handoff assignee')} value={settings.assigneeId}
+          onChange={(e) => { invalidate(); setSettings({ ...settings, assigneeId: e.target.value }); }}>
+          <option value="">{t('بدون تحويل اختياري', 'No optional handoff')}</option>
+          {staff.data.members.map((member) => <option key={member.user_id} value={member.user_id}>{member.full_name}</option>)}
+        </select>
+      </label>
       <button className="btn btn-primary">{t('متابعة', 'Continue')}</button>
     </form>}
     {(step === 2 || step === 3) && <section className="card stack">
@@ -158,7 +166,13 @@ function Assistant() {
         <h3>{t('العوائق', 'Blockers')}</h3><ul>{readiness.blockers.map((m, i) => <li key={i}>{m}</li>)}</ul>
         <h3>{t('التحذيرات', 'Warnings')}</h3><ul>{readiness.warnings.map((m, i) => <li key={i}>{m}</li>)}</ul>
         <ul>{readiness.products.map((p) => <li key={p.id}>{p.name}</li>)}</ul>
-        <Link href="/dashboard/commerce">{t('فتح المنتجات للإصلاح', 'Open products to make corrections')}</Link>
+        {!!readiness.repairs.length && <ul>{readiness.repairs.map((repair) =>
+          <li key={repair.productId + repair.field}>
+            <Link target="_blank" rel="noopener" href={'/dashboard/commerce?' + new URLSearchParams({ edit: repair.productId, field: repair.field })}>
+              {t('إصلاح', 'Fix')} {repair.name} · {repair.field === 'category' ? t('التصنيف', 'Category')
+                : repair.field === 'stock' ? t('المخزون', 'Stock') : t('إعدادات الطلب', 'Checkout settings')}
+            </Link>
+          </li>)}</ul>}
         <button className="btn btn-primary" disabled={busy || !verified || !!draft} onClick={() => void act(async () => {
           const response = await post<{ id: string }>('/catalog-assistant/draft', { setup, revision: readiness.revision });
           setDraft(response.id);

@@ -15,6 +15,7 @@ const setupSchema = z.object({
   welcome: z.string().trim().min(1).max(1024),
   fallback: z.string().trim().min(1).max(1024),
   channelId: z.string().uuid(),
+  assigneeId: z.string().uuid().optional(),
   productIds: z.array(z.string().uuid()).min(1).max(1000).optional(),
 });
 const fingerprint = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -38,15 +39,30 @@ export class CatalogAssistantController {
       )).rows[0];
       const blockers: string[] = [];
       const warnings: string[] = [];
+      const repairs: { productId: string; name: string; field: 'category' | 'checkout' | 'stock' }[] = [];
+      const assignee = setup.assigneeId ? (await c.query(
+        `SELECT m.user_id FROM memberships m JOIN users u ON u.id=m.user_id
+         WHERE m.tenant_id=$1 AND m.user_id=$2 AND u.disabled_at IS NULL FOR SHARE OF m,u`,
+        [tenant, setup.assigneeId],
+      )).rows[0] : null;
+      if (setup.assigneeId && !assignee) blockers.push('Choose an active assignee in your workspace');
       if (!channel || channel.status !== 'active') blockers.push('Choose an active channel in your workspace');
       if (!products.length || (setup.productIds && new Set(setup.productIds).size !== products.length))
         blockers.push('Choose available catalog items');
       if (products.length > 1000) blockers.push('Choose at most 1,000 products');
       for (const p of products) {
-        if (!p.name.trim() || p.price_cents === null || !checkoutSchema.safeParse(p.checkout).success)
+        if (!p.name.trim() || p.price_cents === null || !checkoutSchema.safeParse(p.checkout).success) {
           blockers.push('Invalid checkout configuration: ' + p.name);
-        if (!p.category_id) warnings.push('No category: ' + p.name);
-        if (p.checkout?.stock === 0) blockers.push('Out of stock: ' + p.name);
+          repairs.push({ productId: p.id, name: p.name, field: 'checkout' });
+        }
+        if (!p.category_id) {
+          warnings.push('No category: ' + p.name);
+          repairs.push({ productId: p.id, name: p.name, field: 'category' });
+        }
+        if (p.checkout?.stock === 0) {
+          blockers.push('Out of stock: ' + p.name);
+          repairs.push({ productId: p.id, name: p.name, field: 'stock' });
+        }
       }
       const pages: { id: string; size: number; title: string }[] = [];
       const nodes: FlowNode[] = [];
@@ -86,14 +102,21 @@ export class CatalogAssistantController {
       }
       nodes.push(
         { id: 'welcome', type: 'interactive', position: { x: 80, y: 40 },
-          data: { text: setup.welcome, buttons: [{ id: 'browse', title: 'الكتالوج · Catalog' }] },
-          edges: { 'option:browse': browse, fallback: 'fallback' } },
+          data: { text: setup.welcome, buttons: [
+            { id: 'browse', title: 'الكتالوج · Catalog' },
+            ...(assignee ? [{ id: 'staff', title: 'موظف · Agent' }] : []),
+          ] },
+          edges: { 'option:browse': browse, fallback: 'fallback', ...(assignee ? { 'option:staff': 'staff' } : {}) } },
         { id: 'fallback', type: 'message', position: { x: 80, y: 360 }, data: { text: setup.fallback }, edges: { next: 'end' } },
         { id: 'end', type: 'end', position: { x: 80, y: 590 }, data: {}, edges: {} },
       );
+      if (assignee) nodes.push({
+        id: 'staff', type: 'handoff', position: { x: 360, y: 40 },
+        data: { assignTo: assignee.user_id }, edges: {},
+      });
       const graph = { startNodeId: 'welcome', nodes };
-      return { setup, products, channel: channel ?? null, graph, blockers, warnings,
-        revision: fingerprint({ setup, products, channel }) };
+      return { setup, products, channel: channel ?? null, graph, blockers, warnings, repairs,
+        revision: fingerprint({ setup, products, channel, assignee }) };
     });
   }
 

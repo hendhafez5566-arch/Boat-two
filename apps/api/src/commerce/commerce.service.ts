@@ -236,6 +236,17 @@ export class CommerceService {
       return result.rows[0];
     });
   }
+  localProduct(tenant: string, id: string) {
+    return this.db.withTenant(tenant, async (c) => {
+      const { rows: [product] } = await c.query(
+        'SELECT * FROM catalog_products WHERE tenant_id=$1 AND id=$2 AND source_id IS NULL',
+        [tenant, id],
+      );
+      if (!product) throw new NotFoundException('Product unavailable');
+      return product;
+    });
+  }
+
   activeCheckoutProduct(tenant: string, id: string) {
     return this.db.withTenant(tenant, async (c) => {
       const { rows: [product] } = await c.query(
