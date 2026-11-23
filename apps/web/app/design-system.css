@@ -47,7 +47,7 @@
   --text-caption: 0.75rem;
   --text-body: 0.925rem;
   --text-section: 1rem;
-  --text-page: 1.25rem;
+  --text-page: clamp(1.4rem, 1.25rem + .6vw, 1.85rem);
   --text-dialog: 1.1rem;
   --line-body: 1.5;
   --line-heading: 1.45;
@@ -2481,22 +2481,6 @@ button.underline {
 }
 
 /* Workspace navigation and shared product controls. */
-:root {
-  --primary: #17695c;
-  --ink: #1b2725;
-  --ink-2: #3b514b;
-  --muted: #536a63;
-  --faint: #637a72;
-  --line: #dce7e2;
-  --line-strong: #c8d8d0;
-  --surface-muted: #f0f6f3;
-  --surface-soft: #e8f2ed;
-  --canvas: #f6f9f7;
-  --text-page: clamp(1.4rem, 1.25rem + .6vw, 1.85rem);
-  --shadow-sm: 0 2px 4px rgb(23 54 45 / 4%);
-  --shadow-md: 0 8px 24px rgb(23 54 45 / 9%);
-}
-
 .bs-shell .product-sidebar {
   color: var(--ink-2);
   border-color: var(--line);
