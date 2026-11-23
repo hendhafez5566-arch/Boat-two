@@ -122,11 +122,31 @@ function Shell({ children }: { children: ReactNode }) {
   const [aiEnabled, setAiEnabled] = useState(false);
   const [open, setOpen] = useState(false);
   const [mobile, setMobile] = useState(false);
+  const drawerClose = useRef<HTMLButtonElement>(null);
+  const drawerTrigger = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (open && mobile) drawerClose.current?.focus();
+  }, [open, mobile]);
+  function dismissDrawer() {
+    setOpen(false);
+    drawerTrigger.current?.focus();
+    drawerTrigger.current = null;
+  }
+  function toggleDrawer(trigger: HTMLButtonElement) {
+    if (open) dismissDrawer();
+    else {
+      drawerTrigger.current = trigger;
+      setOpen(true);
+    }
+  }
   useEffect(() => {
     const media = window.matchMedia('(max-width: 750px)');
     const update = () => {
       setMobile(media.matches);
-      if (!media.matches) setOpen(false);
+      if (!media.matches) {
+        drawerTrigger.current = null;
+        setOpen(false);
+      }
     };
     update();
     media.addEventListener('change', update);
@@ -171,6 +191,7 @@ function Shell({ children }: { children: ReactNode }) {
   useEffect(() => {
     setAcctOpen(false);
     setQ('');
+    drawerTrigger.current = null;
     setOpen(false);
     setWorkspaceExpanded(false);
   }, [path]);
@@ -307,18 +328,19 @@ function Shell({ children }: { children: ReactNode }) {
         '--brand-gradient-end': 'color-mix(in srgb, var(--primary) 66%, white)',
       } as CSSProperties) : undefined}
     >
-      {open && <div className="bs-scrim" aria-hidden="true" onClick={() => setOpen(false)} />}
+      {open && <div className="bs-scrim" aria-hidden="true" onClick={dismissDrawer} />}
       <aside
         id="workspace-navigation"
         className={`product-sidebar ${open ? 'is-open' : ''}`}
         onKeyDown={(event) => {
-          if (event.key === 'Escape') setOpen(false);
+          if (open && event.key === 'Escape') dismissDrawer();
         }}
       >
         <button
+          ref={drawerClose}
           className="mobile-menu btn bs-close"
           aria-label={t('إغلاق القائمة', 'Close navigation')}
-          onClick={() => setOpen(false)}
+          onClick={dismissDrawer}
         >
           <NavIcon name="close" />
         </button>
@@ -352,7 +374,10 @@ function Shell({ children }: { children: ReactNode }) {
                     aria-label={t(titleAr, titleEn)}
                     aria-current={isActive(key) ? 'page' : undefined}
                     className={isActive(key) ? 'active' : ''}
-                    onClick={() => setOpen(false)}
+                    onClick={() => {
+                      drawerTrigger.current = null;
+                      setOpen(false);
+                    }}
                   >
                     <NavIcon name={key || 'grid'} />
                     <span className="nav-label">{t(titleAr, titleEn)}</span>
@@ -371,8 +396,8 @@ function Shell({ children }: { children: ReactNode }) {
               aria-expanded={mobile ? open : !compactNavigation}
               aria-controls="workspace-navigation"
               aria-label={t('القائمة', 'Navigation')}
-              onClick={() => {
-                if (mobile) setOpen(!open);
+              onClick={(event) => {
+                if (mobile) toggleDrawer(event.currentTarget);
                 else toggleSidebar();
               }}
             >
@@ -578,7 +603,7 @@ function Shell({ children }: { children: ReactNode }) {
               {t(ar, en)}
             </Link>
           ))}
-          <button type="button" aria-controls="workspace-navigation" aria-expanded={open} onClick={() => setOpen(!open)}>
+          <button type="button" aria-controls="workspace-navigation" aria-expanded={open} onClick={(event) => toggleDrawer(event.currentTarget)}>
             <NavIcon name="more" />
             {t('المزيد', 'More')}
           </button>

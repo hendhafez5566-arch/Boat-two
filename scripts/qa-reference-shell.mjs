@@ -45,7 +45,9 @@ const browser = await chromium.launchPersistentContext('', {
 try {
   for (const language of ['ar', 'en']) {
     const t = (ar, en) => language === 'ar' ? ar : en;
-    for (const width of [360, 390, 750, 768, 1024, 1440]) {
+    for (const width of [360, 390, 750, 768, 1024, 1440].filter(
+      (value) => !process.env.REFERENCE_QA_WIDTH || process.env.REFERENCE_QA_WIDTH.split(',').includes(String(value)),
+    )) {
       const page = await browser.newPage();
       await page.setViewportSize({ width, height: 900 });
       await page.addInitScript(({ session, language }) => {
@@ -72,9 +74,10 @@ try {
           if (width <= 750) {
             await nav.getByRole('button').click();
             await page.locator('.product-sidebar.is-open').waitFor();
-            await page.locator('.bs-close').focus();
+            assert.equal(await page.locator('.bs-close').evaluate((button) => button === document.activeElement), true);
             await page.keyboard.press('Escape');
             await page.locator('.product-sidebar.is-open').waitFor({ state: 'hidden' });
+            assert.equal(await nav.getByRole('button').evaluate((button) => button === document.activeElement), true);
           }
           assert.equal(await page.locator('#dashboard-welcome').evaluate((h) => getComputedStyle(h).color), 'rgb(255, 255, 255)');
           await page.getByRole('combobox', { name: t('المنصة', 'Platform') }).selectOption('whatsapp');

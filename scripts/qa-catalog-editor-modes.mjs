@@ -11,7 +11,7 @@ const { chromium } = createRequire(import.meta.url)(
 const out = process.env.CATALOG_QA_OUTPUT;
 if (out) mkdirSync(out, { recursive: true });
 
-async function api(path, token, body) {
+async function api(path, token, body, expectedStatus) {
   const response = await fetch('http://localhost:4000' + path, {
     method: body ? 'POST' : 'GET',
     headers: {
@@ -20,7 +20,8 @@ async function api(path, token, body) {
     },
     body: body && JSON.stringify(body),
   });
-  assert.ok(response.ok, path + ' ' + response.status);
+  if (expectedStatus) assert.equal(response.status, expectedStatus, path);
+  else assert.ok(response.ok, path + ' ' + response.status);
   return response.json();
 }
 
@@ -46,6 +47,28 @@ const product = await api('/commerce/products', token, {
   retailerId: 'reference-preview-merchant',
   linkUrl: 'https://example.test/travel',
 });
+
+const invite = await api('/team/invitations', token, {
+  role: 'agent',
+  email: 'catalog-agent-' + randomUUID() + '@example.test',
+  sendEmail: false,
+});
+const agent = await api('/auth/accept-invitation', null, {
+  token: new URL(invite.inviteUrl).searchParams.get('token'),
+  password: 'Synthetic-' + randomUUID(),
+  fullName: 'Catalog QA Agent',
+});
+await api('/commerce/products/page', agent.accessToken, undefined, 403);
+await api('/commerce/categories', agent.accessToken, { name: 'Restricted creation' }, 403);
+const foreign = await api('/auth/register', null, {
+  email: 'catalog-foreign-' + randomUUID() + '@example.test',
+  password: 'Synthetic-' + randomUUID(),
+  fullName: 'Catalog QA Owner',
+  workspaceName: 'Isolated second QA tenant',
+});
+assert.equal((await api('/commerce/products/page', foreign.accessToken)).total, 0);
+await api('/commerce/categories', foreign.accessToken, { name: 'Invalid parent', parentId: category.id }, 404);
+console.log(JSON.stringify({ agentDenied: true, foreignReadEmpty: true, foreignParentRejected: true }));
 
 const browser = await chromium.launchPersistentContext('', {
   executablePath: process.env.BOAT_CHROMIUM,
