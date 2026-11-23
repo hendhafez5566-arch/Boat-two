@@ -7,11 +7,13 @@ import { checkoutEnabled } from '../../../../components/workspace/CheckoutEditor
 import type { CatalogProduct } from '../../../../components/workspace/ProductCatalog';
 import { useData } from '../../../../components/business/useData';
 import { api } from '../../../../lib/api';
+import CheckoutSelection, { checkoutSelection, type CheckoutItem } from '../../../../components/workspace/CheckoutSelection';
+import { productPrice } from '../../../../lib/product-money';
 import styles from './assistant.module.css';
 
 type Readiness = { revision: string; blockers: string[]; warnings: string[]; products: { id: string; name: string }[] };
 type Preview = {
-  state: unknown;
+  state: { vars?: { selectedProductId?: string } };
   transcript: { role: string; content: string | { text?: string; buttons?: { id: string; title: string }[]; list?: { sections: { rows: { id: string; title: string }[] }[] } } }[];
 };
 type Release = { id: string; flow_id: string; created_at: string };
@@ -19,6 +21,42 @@ export default function AssistantPage() {
   if (!checkoutEnabled) notFound();
   return <Assistant/>;
 }
+function PreviewCheckout({ id }: { id: string }) {
+  const { t } = useLocale();
+  const product = useData<CheckoutItem | null>('/commerce/checkout/products/' + id, null);
+  const [packageId, setPackageId] = useState('');
+  const [quote, setQuote] = useState<{ totalCents: string | null; currency: string } | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const selectionRevision = useRef(0);
+  if (product.loading) return <p role="status">{t('جارٍ تحميل المنتج', 'Loading product')}</p>;
+  if (product.error || !product.data) return <p role="alert">{product.error}</p>;
+  const item = product.data;
+  return <form className="card stack" onChange={() => { selectionRevision.current++; setQuote(null); }}
+    onSubmit={async (event) => {
+      event.preventDefault();
+      const revision = selectionRevision.current;
+      const data = checkoutSelection(item, packageId, new FormData(event.currentTarget));
+      setBusy(true);
+      setError('');
+      try {
+        const response = await api<{ totalCents: string | null; currency: string }>('/commerce/checkout/quote', {
+          method: 'POST', body: JSON.stringify(data),
+        });
+        if (revision === selectionRevision.current) setQuote(response);
+      } catch (e) {
+        if (revision === selectionRevision.current) setError((e as Error).message);
+      } finally { setBusy(false); }
+    }}>
+    <h3>{item.name}</h3>
+    <CheckoutSelection product={item} packageId={packageId} onPackage={setPackageId}/>
+    <button className="btn btn-primary" disabled={busy}>{t('معاينة السعر', 'Preview price')}</button>
+    {quote && <p role="status">{quote.totalCents === null
+      ? t('بانتظار عرض سعر', 'Quote pending') : productPrice(quote.totalCents, quote.currency)}</p>}
+    {error && <p role="alert">{error}</p>}
+  </form>;
+}
+
 function Assistant() {
   const { t } = useLocale();
   const [step, setStep] = useState(0);
@@ -142,6 +180,9 @@ function Assistant() {
               setPreview(await post<Preview>('/flows/' + draft + '/test', { state: preview.state, replyId: choice.id }));
             })}>{choice.title}</button>)}
         </>}</li>)}</ul>}
+      {preview?.state.vars?.selectedProductId && <PreviewCheckout
+        key={preview.state.vars.selectedProductId} id={preview.state.vars.selectedProductId}/>}
+
     </section>}
     {step === 5 && <section className="card stack">
       <h2>{steps[5]}</h2>

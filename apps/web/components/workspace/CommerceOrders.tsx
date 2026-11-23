@@ -5,6 +5,7 @@ import { api, apiBlob } from '../../lib/api';
 import { useData } from '../business/useData';
 import { useLocale } from '../product/locale';
 import { productPrice } from '../../lib/product-money';
+import CheckoutSelection, { checkoutSelection } from './CheckoutSelection';
 import type { CatalogProduct } from './ProductCatalog';
 
 type Snapshot = {
@@ -85,15 +86,10 @@ export default function CommerceOrders({ contacts }: { contacts: { id: string; n
   const products = useData<{ rows: CatalogProduct[] }>('/commerce/products/page?q=' + encodeURIComponent(search), { rows: [] });
   const orders = useData<Order[]>('/commerce/orders?page=' + page, []);
   const [packageId, setPackageId] = useState('');
-  const questions = picked?.checkout?.questions?.filter((q) => !q.packageId || q.packageId === packageId) ?? [];
   async function submit(form: HTMLFormElement, save: boolean) {
     if (!picked || lock.current) return;
     const data = new FormData(form);
-    const selection = {
-      productId: picked.id, packageId: packageId || undefined, quantity: Number(data.get('quantity')),
-      options: data.getAll('option'),
-      answers: questions.flatMap((q) => data.get(q.id) ? [{ id: q.id, value: String(data.get(q.id)) }] : []),
-    };
+    const selection = checkoutSelection(picked, packageId, data);
     lock.current = true;
     setBusy(true);
     setError('');
@@ -199,24 +195,7 @@ export default function CommerceOrders({ contacts }: { contacts: { id: string; n
           <option value="">{t('اختر عميلاً', 'Choose customer')}</option>
           {contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select></label>
-        {!!picked.checkout?.packages?.length && <label>{t('الباقة', 'Package')} <select required value={packageId} onChange={(e) => setPackageId(e.target.value)}>
-          <option value="">{t('اختر الباقة', 'Choose package')}</option>
-          {picked.checkout.packages.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select></label>}
-        <label>{t('الكمية', 'Quantity')} <input name="quantity" type="number" min={picked.checkout?.min ?? 1}
-          max={picked.checkout?.max ?? 1000} defaultValue={picked.checkout?.min ?? 1} required/></label>
-        {picked.options?.map((o, i) => <label key={i}>
-          <input type="checkbox" name="option" value={o.name}/> {o.name} · {productPrice(o.priceCents, picked.currency)}
-        </label>)}
-        {questions.map((q) => <label key={q.id}>{q.label} {q.required && '*'}
-          {q.type === 'list' ? <select name={q.id}><option value="">—</option>
-            {q.choices.map((c) => <option key={c}>{c}</option>)}</select>
-            : q.type === 'textarea' ? <textarea name={q.id} maxLength={1500}/>
-            : <input name={q.id} type={q.type} step={q.type === 'number' ? 'any' : undefined} maxLength={1500}/>}
-        </label>)}
-        {!!picked.checkout?.documents?.length && <ul>
-          {picked.checkout.documents.map((d, i) => <li key={i}>{d}</li>)}
-        </ul>}
+        <CheckoutSelection product={picked} packageId={packageId} onPackage={setPackageId}/>
         <button className="btn" disabled={busy}>{t('معاينة السعر', 'Preview price')}</button>
         {preview && <p role="status">{amount(preview)}</p>}
         {picked.checkout?.kind === 'appointment'

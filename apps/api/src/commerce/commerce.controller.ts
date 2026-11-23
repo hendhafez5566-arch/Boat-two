@@ -117,6 +117,10 @@ export class CommerceController {
       .productContent(r.user.tenantId, id, false)
       .then((content) => ({ mock: true, sent: false, content }));
   }
+  @Get('checkout/products/:id')
+  checkoutProduct(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.commerce.activeCheckoutProduct(r.user.tenantId, id);
+  }
   @Post('checkout/quote') quote(@Req() r: AuthedRequest, @Body() body: unknown) {
     return this.commerce.quote(r.user.tenantId, parse(selectionSchema, body));
   }

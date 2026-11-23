@@ -196,8 +196,8 @@ try {
     await page.getByRole('heading',{name:t('مساعد إعداد البوت الذكي','Smart bot setup')}).waitFor();
     if (out) await page.screenshot({path:out + '/assistant-' + width + '.png'});
     await page.getByRole('checkbox',{name:t('تحديد المنتجات يدويًا','Select products manually')}).check();
-    await page.getByRole('textbox',{name:t('ابحث في الكتالوج','Search the catalog')}).fill('ASSISTANT-QA');
-    await page.getByRole('button',{name:'Assistant fixture · ASSISTANT-QA'}).click();
+    await page.getByRole('textbox',{name:t('ابحث في الكتالوج','Search the catalog')}).fill('CHECKOUT-QA');
+    await page.getByRole('button',{name:'Checkout fixture · CHECKOUT-QA'}).click();
     await page.getByRole('button',{name:t('متابعة','Continue'),exact:true}).click();
     await page.getByRole('textbox',{name:t('اسم المسار','Flow name')}).fill('Browser setup ' + language);
     await page.getByLabel(t('القناة','Channel'),{exact:true}).selectOption(channel.id);
@@ -206,6 +206,13 @@ try {
     await page.getByRole('button',{name:t('إنشاء مسودة في محرر البوت','Create Flow Builder draft')}).click();
     await page.getByRole('button',{name:t('تشغيل المعاينة المعزولة','Run isolated preview')}).click();
     await page.getByText('أهلًا وسهلًا / Welcome',{exact:false}).waitFor();
+    await page.getByRole('button',{name:'الكتالوج · Catalog',exact:true}).click();
+    await page.getByRole('button',{name:'Checkout fixture',exact:true}).click();
+    await page.locator('form select').selectOption(pack);
+    await page.locator('form input[type=date]').fill('2027-02-02');
+    await page.locator('form input[name=option]').check();
+    await page.getByRole('button',{name:t('معاينة السعر','Preview price'),exact:true}).click();
+    await page.getByText('30.24 EGP',{exact:true}).waitFor();
     if (out) await page.screenshot({path:out + '/assistant-preview-' + width + '.png'});
     await page.close();
   }
