@@ -1415,3 +1415,29 @@
 .editorDialog :is(.editorDisclosure, .archiveField)[hidden] {
   display: none;
 }
+
+.editorTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-block: 6px;
+  border-block-end: 1px solid #e4eaf1;
+}
+
+.editorTabs button { min-block-size: 44px; }
+.editorTabs button[aria-pressed="true"] {
+  background: #eaf7f4;
+  color: var(--primary, #096d69);
+  border-color: var(--primary, #096d69);
+}
+
+.editorFields[data-active-editor-tab] > [hidden],
+.editorFields[data-active-editor-tab] :is([data-editor-tab], [data-checkout-tab]) { display: none; }
+.editorFields[data-active-editor-tab="basic"] :is([data-editor-tab="basic"], [data-checkout-tab="basic"]),
+.editorFields[data-active-editor-tab="packages"] [data-checkout-tab="packages"],
+.editorFields[data-active-editor-tab="form"] [data-checkout-tab="form"],
+.editorFields[data-active-editor-tab="stock"] [data-checkout-tab="stock"],
+.editorFields[data-active-editor-tab="media"] [data-editor-tab="media"],
+.editorFields[data-active-editor-tab="option"] [data-editor-tab="option"],
+.editorFields[data-active-editor-tab="specification"] [data-editor-tab="specification"],
+.editorFields[data-active-editor-tab="advanced"] [data-editor-tab="advanced"] { display: revert; }
