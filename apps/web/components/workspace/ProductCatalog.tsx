@@ -296,7 +296,6 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
   const lock = useRef(false);
   const resetFilters = () => {
     changeCategory('all');
-    setCategorySearch('');
     setProductSearch('');
     setCatalogQuery('');
   };
