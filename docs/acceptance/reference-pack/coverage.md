@@ -122,3 +122,10 @@ Branch: `feat/reference-commerce-orders-20261124`, continued from `e60ce3d`. Its
 O05 and the visual/mobile acceptance rows remain open. CRM follow-up assignment is separate from order assignment. Completion still requires the saved document slots to be filled, and cancellation continues to use the existing stock restoration logic.
 
 **Final automated check for this continuation.** Next.js production build passed. The isolated API suite passed 288/288 after restoring the three unchanged WhatsApp files from `d57b434` into the verification worktree and matching their Git blob IDs. The first full run exposed a pre-existing Inbox test fixture missing `conversations.crm_initiated`, reproduced on the starting source and corrected only in the fixture. The full run includes the Preview all-conversation guard and the order workflow database test. The two required browser sizes, full automatic checkout to CRM in a real browser, and Railway Preview release remain unverified.
+
+### Reference review after 542978f
+
+- Verified the reference pack SHA-256 manifest and reviewed both original HTML implementations with the stored browser captures. The editor now follows the reference's three core sections in simple mode and keeps advanced fields mounted. Mobile tabs scroll in one row, and package actions sit together in the nested package card.
+- Order cards now put status and assignment before the order total. The expanded section groups answers, add-ons, documents, conversation and CRM links. The document request runs on expansion.
+- Re-ran the Migration 119 PostgreSQL fixture, including legacy confirmed orders, status history, tenant isolation and assignment. It passed. No migration or messaging files were changed in this pass.
+- Work Cloud Browser opened the current Railway Preview catalog. It could not reach the local reference server, so that check is evidence for the existing Preview only. The changed build still needs interactive 390px RTL and 1440px LTR verification, live test journeys and matched before/after captures. Those checks and deployment remain open.
