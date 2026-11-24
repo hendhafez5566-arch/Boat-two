@@ -1571,3 +1571,37 @@
 }
 .appointmentWorkspace > * { min-inline-size: 0; }
 .appointmentBookings { grid-column: 1 / -1; }
+
+.commerceWorkspace { display: grid; align-content: start; gap: 12px; min-inline-size: 0; }
+.commerceNavigation {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line, #e4eaf1);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+}
+.commerceNavigation > :global(.btn) { min-block-size: 44px; min-inline-size: 0; padding: 6px 8px; border-color: transparent; background: transparent; text-align: center; }
+.commerceNavigation > :global(.btn[aria-pressed="true"]) {
+  color: var(--primary, #096d69); background: var(--primary-softer, #eaf7f4);
+  border-color: var(--primary-line, #a9ded5); font-weight: 700;
+}
+.commerceContextActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.resultsHeader { padding: 0; align-items: center; }
+.catalogToolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
+  align-items: end;
+  column-gap: 10px;
+  row-gap: 8px;
+}
+.catalogToolbar > label { min-inline-size: 0; }
+.catalogToolbar :is(input, select) { width: 100%; min-inline-size: 0; }
+.categoryActions:empty { display: none; }
+.catalogTiles { align-items: start; }
+@media (max-width: 600px) {
+  .commerceNavigation { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .catalogToolbar { grid-template-columns: minmax(0, 1fr) auto; }
+  .catalogToolbar > label:first-child { grid-column: 1 / -1; }
+}
