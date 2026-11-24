@@ -1,4 +1,6 @@
 'use client';
+import { useState } from 'react';
+import { productDecimal, productMinorUnits } from '../../lib/product-money';
 import { useLocale } from '../product/locale';
 
 export const checkoutEnabled = process.env.NEXT_PUBLIC_COMMERCE_CHECKOUT === 'true';
@@ -21,6 +23,19 @@ export const defaultCheckout: CheckoutConfig = {
   min: 1, max: 1000, discountBps: 0, taxBps: 0,
 };
 
+function PackagePrice({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const { t } = useLocale();
+  const [draft, setDraft] = useState(() => value ? productDecimal(value) : '');
+  return <label>{t('سعر الباقة', 'Package price')}
+    <input dir="ltr" inputMode="decimal" placeholder="1500.00" value={draft} onChange={(event) => {
+      const next = event.target.value;
+      setDraft(next);
+      try { onChange(productMinorUnits(next)); }
+      catch { onChange(''); }
+    }}/>
+  </label>;
+}
+
 export function CheckoutEditor({ value, onChange }: {
   value: CheckoutConfig;
   onChange: (value: CheckoutConfig) => void;
@@ -29,16 +44,16 @@ export function CheckoutEditor({ value, onChange }: {
   const update = (patch: Partial<CheckoutConfig>) => onChange({ ...value, ...patch });
   return <fieldset className="stack">
     <legend>{t('إعدادات الطلب', 'Checkout settings')}</legend>
-    <label>{t('النوع', 'Type')} <select name="checkoutKind" value={value.kind}
+    <label data-checkout-tab="basic">{t('النوع', 'Type')} <select name="checkoutKind" value={value.kind}
       onChange={(e) => update({ kind: e.target.value as CheckoutConfig['kind'] })}>
       <option value="product">{t('منتج', 'Product')}</option><option value="service">{t('خدمة', 'Service')}</option>
       <option value="appointment">{t('موعد', 'Appointment')}</option><option value="quote">{t('عرض سعر', 'Quote request')}</option>
     </select></label>
-    {value.kind === 'appointment' && <p>{t('إدارة الحجز من تبويب المواعيد.', 'Manage bookings from Appointments.')}</p>}
-    {value.kind === 'product' && <label>{t('المخزون (فارغ = غير محدود)', 'Stock (blank = unlimited)')}
+    {value.kind === 'appointment' && <p data-checkout-tab="stock">{t('إدارة الحجز من تبويب المواعيد.', 'Manage bookings from Appointments.')}</p>}
+    {value.kind === 'product' && <label data-checkout-tab="stock">{t('المخزون (فارغ = غير محدود)', 'Stock (blank = unlimited)')}
       <input name="checkoutStock" type="number" min="0" max="1000000" value={value.stock ?? ''}
         onChange={(e) => update({ stock: e.target.value === '' ? null : Number(e.target.value) })}/></label>}
-    <div className="stack">
+    <div className="stack" data-checkout-tab="stock">
       {(['min', 'max', 'discountBps', 'taxBps'] as const).map((field) => {
         if (value.kind === 'quote' && (field === 'discountBps' || field === 'taxBps')) return null;
         const labels = { min: t('أقل كمية', 'Minimum quantity'), max: t('أعلى كمية', 'Maximum quantity'),
@@ -47,13 +62,13 @@ export function CheckoutEditor({ value, onChange }: {
           onChange={(e) => update({ [field]: Number(e.target.value) })}/></label>;
       })}
     </div>
-    <details open={value.packages.length > 0}>
+    <details open data-checkout-tab="packages">
       <summary>{t('الباقات', 'Packages')}</summary>
       {value.packages.map((pack) => <div key={pack.id} className="card stack">
         <label>{t('اسم الباقة', 'Package name')} <input value={pack.name} maxLength={120}
           onChange={(e) => update({ packages: value.packages.map((p) => p.id === pack.id ? {...p, name: e.target.value} : p) })}/></label>
-        <label>{t('السعر بأصغر وحدة', 'Price in minor currency units')} <input inputMode="numeric" value={pack.priceCents}
-          onChange={(e) => update({ packages: value.packages.map((p) => p.id === pack.id ? {...p, priceCents: e.target.value} : p) })}/></label>
+        <PackagePrice value={pack.priceCents} onChange={(priceCents) =>
+          update({ packages: value.packages.map((p) => p.id === pack.id ? { ...p, priceCents } : p) })}/>
         <button type="button" className="btn" disabled={value.packages.length >= 30} onClick={() => update({
           packages: [...value.packages, {...pack, id: crypto.randomUUID()}],
         })}>{t('نسخ الباقة', 'Duplicate package')}</button>
@@ -64,7 +79,7 @@ export function CheckoutEditor({ value, onChange }: {
         packages: [...value.packages, { id: crypto.randomUUID(), name: '', priceCents: '0' }],
       })}>{t('إضافة باقة', 'Add package')}</button>
     </details>
-    <details open={value.questions.length > 0}>
+    <details open data-checkout-tab="form">
       <summary>{t('أسئلة الطلب', 'Order questions')}</summary>
       {value.questions.map((q) => {
         const set = (patch: Partial<typeof q>) => update({ questions: value.questions.map((item) => item.id === q.id ? {...q, ...patch} : item) });
@@ -90,7 +105,7 @@ export function CheckoutEditor({ value, onChange }: {
         questions: [...value.questions, { id: crypto.randomUUID(), label: '', type: 'text', choices: [], required: false }],
       })}>{t('إضافة سؤال', 'Add question')}</button>
     </details>
-    <label>{t('أسماء المستندات المطلوبة (سطر لكل اسم)', 'Required document names (one per line)')}
+    <label data-checkout-tab="form">{t('أسماء المستندات المطلوبة (سطر لكل اسم)', 'Required document names (one per line)')}
       <textarea value={value.documents.join('\n')} onChange={(e) => update({ documents: e.target.value.split('\n') })}/>
     </label>
   </fieldset>;
