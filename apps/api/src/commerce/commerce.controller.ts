@@ -144,14 +144,20 @@ export class CommerceController {
     const { page, q, status } = parse(z.object({
       page: z.coerce.number().int().min(1).max(100000).default(1),
       q: z.string().trim().max(120).default(''),
-      status: z.enum(['new', 'confirmed', 'completed', 'cancelled']).optional(),
+      status: z.enum(['new', 'review', 'documents_required', 'processing', 'confirmed', 'completed', 'cancelled']).optional(),
     }), query);
     return this.commerce.orders(r.user.tenantId, page, q, status);
   }
   @Patch('orders/:id/status')
   orderStatus(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
-    const { status } = parse(z.object({ status: z.enum(['confirmed', 'completed', 'cancelled']) }), body);
+    const { status } = parse(z.object({ status: z.enum(['review', 'documents_required', 'processing', 'confirmed', 'completed', 'cancelled']) }), body);
     return this.commerce.changeOrderStatus(r.user.tenantId, r.user.userId, id, status);
+  }
+  @Patch('orders/:id/assignee')
+  @Roles('owner', 'admin')
+  orderAssignee(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    const { userId } = parse(z.object({ userId: z.string().uuid().nullable() }), body);
+    return this.commerce.assignOrder(r.user.tenantId, id, userId);
   }
   @Get('orders/:id/history')
   orderHistory(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
