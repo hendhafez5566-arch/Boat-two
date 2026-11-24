@@ -22,7 +22,7 @@ type Snapshot = {
   taxCents?: string | null;
 };
 type Origin = { conversationId: string; channelId: string };
-type Order = { origin?: Origin | null; id: string; contact_id: string; contact_name: string; created_at: string; status: string; snapshot: Snapshot };
+type Order = { origin?: Origin | null; id: string; contact_id: string; contact_name: string; created_at: string; status: string; assigned_to?: string | null; assignee_name?: string | null; snapshot: Snapshot };
 
 function OrderDetails({ snapshot }: { snapshot: Snapshot }) {
   const { t } = useLocale();
@@ -116,11 +116,12 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
   const [creating, setCreating] = useState(Boolean(origin));
   const [picked, setPicked] = useState<CatalogProduct | null>(null);
   const [preview, setPreview] = useState<Snapshot | null>(null);
+  const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const [followup, setFollowup] = useState<Order | null>(null);
   const [followupMessage, setFollowupMessage] = useState('');
   const followupRetry = useRef<{ key: string; id: string } | null>(null);
   const members = useData<{ members: { user_id: string; full_name: string }[] }>(
-    followup ? '/crm/workspace/members' : null, { members: [] },
+    (followup || assignmentId) ? '/crm/workspace/members' : null, { members: [] },
   );
   const [documentsId, setDocumentsId] = useState<string | null>(null);
   const [historyId, setHistoryId] = useState<string | null>(null);
@@ -214,8 +215,34 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
       lock.current = false;
     }
   }
+  async function assignOrder(id: string, userId: string | null) {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      await api('/commerce/orders/' + id + '/assignee', {
+        method: 'PATCH', body: JSON.stringify({ userId }),
+      });
+      await orders.reload();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+      lock.current = false;
+    }
+  }
+  const transitions: Record<string, string[]> = {
+    new: ['review', 'confirmed', 'cancelled'],
+    review: ['documents_required', 'processing', 'confirmed', 'cancelled'],
+    documents_required: ['review', 'processing', 'cancelled'],
+    processing: ['documents_required', 'completed', 'cancelled'],
+    confirmed: ['documents_required', 'processing', 'completed', 'cancelled'],
+  };
   const statusLabels: Record<string, string> = {
-    new: t('جديد', 'New'), confirmed: t('مؤكد', 'Confirmed'),
+    new: t('جديد', 'New'), review: t('قيد المراجعة', 'In review'),
+    documents_required: t('مطلوب مستندات', 'Documents required'), processing: t('قيد التنفيذ', 'In progress'),
+    confirmed: t('مؤكد', 'Confirmed'),
     completed: t('مكتمل', 'Completed'), cancelled: t('ملغى', 'Cancelled'),
   };
   const amount = (snapshot: Snapshot) => snapshot.totalCents === null
@@ -309,13 +336,33 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
         onClick={() => setDocumentsId(documentsId === o.id ? null : o.id)}>{t('المستندات', 'Documents')}</button>}
       {documentsId === o.id && <OrderDocuments order={o}/>}
 
-      {o.status === 'new' && <button className="btn" disabled={busy}
-        onClick={() => void changeStatus(o.id, 'confirmed')}>{t('تأكيد الطلب', 'Confirm order')}</button>}
-      {o.status === 'confirmed' && <button className="btn" disabled={busy}
-        onClick={() => void changeStatus(o.id, 'completed')}>{t('إكمال الطلب', 'Complete order')}</button>}
-      {['new', 'confirmed'].includes(o.status) && <button className="btn" disabled={busy} onClick={() => {
-        if (window.confirm(t('إلغاء الطلب؟', 'Cancel this order?'))) void changeStatus(o.id, 'cancelled');
-      }}>{t('إلغاء الطلب', 'Cancel order')}</button>}
+      <div className={styles.filters}>
+        {transitions[o.status] && <label>{t('حالة الطلب', 'Order status')}
+          <select value={o.status} disabled={busy} onChange={(e) => {
+            const status = e.target.value;
+            if (status !== 'cancelled' || window.confirm(t('إلغاء الطلب؟', 'Cancel this order?')))
+              void changeStatus(o.id, status);
+          }}>
+            <option value={o.status}>{statusLabels[o.status]}</option>
+            {transitions[o.status].map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}
+          </select>
+        </label>}
+        <div>
+          <button className="btn" aria-expanded={assignmentId === o.id}
+            onClick={() => setAssignmentId(assignmentId === o.id ? null : o.id)}>
+            {t('المسؤول', 'Assignee')} · {o.assignee_name ?? t('غير معيّن', 'Unassigned')}
+          </button>
+          {assignmentId === o.id && <label>{t('إسناد الطلب', 'Assign order')}
+            <select value={o.assignee_name ? o.assigned_to ?? '' : ''} disabled={busy || members.loading}
+              onChange={(e) => void assignOrder(o.id, e.target.value || null)}>
+              <option value="">{t('غير معيّن', 'Unassigned')}</option>
+              {members.data.members.map((member) =>
+                <option key={member.user_id} value={member.user_id}>{member.full_name}</option>)}
+            </select>
+            {members.error && <span role="alert">{members.error}</span>}
+          </label>}
+        </div>
+      </div>
       <button className="btn" aria-expanded={followup?.id === o.id} onClick={() => setFollowup(followup?.id === o.id ? null : o)}>
         {t('متابعة في CRM', 'CRM follow-up')}
       </button>
