@@ -6,14 +6,55 @@ import { useData } from '../business/useData';
 import { useLocale } from '../product/locale';
 import { productPrice } from '../../lib/product-money';
 import CheckoutSelection, { checkoutSelection } from './CheckoutSelection';
+import styles from './commerce-orders.module.css';
 import type { CatalogProduct } from './ProductCatalog';
 
 type Snapshot = {
   name: string; kind: string; currency: string; totalCents: string | null;
   package: { name: string } | null; quantity: number; documents: string[];
+  options?: { name: string; priceCents: string | number }[];
+  questions?: { id: string; label: string }[];
+  answers?: { id: string; value: string }[];
+  unitCents?: string | null;
+  subtotalCents?: string | null;
+  discountCents?: string | null;
+  taxCents?: string | null;
 };
 type Origin = { conversationId: string; channelId: string };
 type Order = { origin?: Origin | null; id: string; contact_id: string; contact_name: string; status: string; snapshot: Snapshot };
+
+function OrderDetails({ snapshot }: { snapshot: Snapshot }) {
+  const { t } = useLocale();
+  const answers = (snapshot.questions ?? []).flatMap((question) => {
+    const answer = snapshot.answers?.find(({ id }) => id === question.id);
+    return answer?.value ? [{ ...question, value: answer.value }] : [];
+  });
+  const amounts = [
+    [t('سعر الوحدة', 'Unit price'), snapshot.unitCents],
+    [t('المجموع الفرعي', 'Subtotal'), snapshot.subtotalCents],
+    [t('الخصم', 'Discount'), snapshot.discountCents],
+    [t('الضريبة', 'Tax'), snapshot.taxCents],
+    [t('الإجمالي', 'Total'), snapshot.totalCents],
+  ] as const;
+
+  return <div className="stack">
+    <section>
+      <h4>{t('الإجابات', 'Answers')}</h4>
+      {answers.length ? <dl>{answers.map((answer) =>
+        <div key={answer.id}><dt>{answer.label}</dt><dd>{answer.value}</dd></div>,
+      )}</dl> : <p>{t('لا توجد إجابات إضافية', 'No additional answers')}</p>}
+    </section>
+    <section>
+      <h4>{t('الإضافات', 'Add-ons')}</h4>
+      {snapshot.options?.length ? <ul>{snapshot.options.map((option) =>
+        <li key={option.name}>{option.name} · {productPrice(String(option.priceCents), snapshot.currency)}</li>,
+      )}</ul> : <p>{t('لا توجد إضافات', 'No add-ons')}</p>}
+    </section>
+    <dl>{amounts.map(([label, value]) => value != null &&
+      <div key={label}><dt>{label}</dt><dd>{productPrice(value, snapshot.currency)}</dd></div>,
+    )}</dl>
+  </div>;
+}
 
 function OrderDocuments({ order }: { order: Order }) {
   const { t } = useLocale();
@@ -219,6 +260,10 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
       </Link></p>}
       <p>{o.snapshot.quantity} × {o.snapshot.package?.name ?? o.snapshot.name} · {amount(o.snapshot)}</p>
       <p>{statusLabels[o.status]}</p>
+      <details className={styles.details}>
+        <summary>{t('تفاصيل الطلب', 'Order details')}</summary>
+        <OrderDetails snapshot={o.snapshot}/>
+      </details>
       {!!o.snapshot.documents.length && <button className="btn" aria-expanded={documentsId === o.id}
         onClick={() => setDocumentsId(documentsId === o.id ? null : o.id)}>{t('المستندات', 'Documents')}</button>}
       {documentsId === o.id && <OrderDocuments order={o}/>}
