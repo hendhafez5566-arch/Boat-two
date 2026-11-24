@@ -12,6 +12,7 @@ export default function Knowledge() {
     [tab, setTab] = useState<'text' | 'faq' | 'url' | 'file'>('text'),
     [faq, setFaq] = useState([{ question: '', answer: '' }]),
     [error, setError] = useState(''),
+    [feedback, setFeedback] = useState(''),
     [busy, setBusy] = useState(false),
     [loading, setLoading] = useState(true),
     [role, setRole] = useState(''),
@@ -36,8 +37,10 @@ export default function Knowledge() {
     e.preventDefault();
     const form = e.currentTarget,
       f = new FormData(form);
+    if (busy) return;
     setBusy(true);
     setError('');
+    setFeedback('');
     try {
       if (tab === 'file') await api('/ai/knowledge/upload', { method: 'POST', body: f });
       else
@@ -53,6 +56,10 @@ export default function Knowledge() {
         });
       form.reset();
       setFaq([{ question: '', answer: '' }]);
+      setFeedback(t(
+        'تم حفظ المصدر. راجع بطاقته لمعرفة حالة الفهرسة.',
+        'Source saved. Check its card for indexing status.',
+      ));
       await load();
     } catch (e) {
       setError((e as Error).message);
@@ -61,8 +68,10 @@ export default function Knowledge() {
     }
   }
   async function act(path: string, method = 'POST', body?: unknown) {
+    if (busy) return;
     setBusy(true);
     setError('');
+    setFeedback('');
     try {
       await api(path, { method, body: body ? JSON.stringify(body) : undefined });
       await load();
@@ -103,6 +112,7 @@ export default function Knowledge() {
           {error}
         </p>
       )}
+      {feedback && <p role="status" className="notice">{feedback}</p>}
       {canManage && (
         <>
           <details className="card workspace-disclosure">
@@ -226,13 +236,15 @@ export default function Knowledge() {
           </label>
         </div>
         {loading && <p role="status">{t('جارٍ تحميل المصادر…', 'Loading sources…')}</p>}
-        {!loading && !filtered.length && (
-          <p>
-            {t(
-              'لا توجد مصادر مطابقة. أضف نصًا أو ملفًا للبدء.',
-              'No matching sources. Add text or a file to get started.',
-            )}
-          </p>
+        {!loading && !filtered.length && !error && (
+          query.trim() ? <div className="form-actions">
+            <p>{t('لا توجد مصادر تطابق البحث.', 'No sources match your search.')}</p>
+            <button type="button" className="btn" onClick={() => setQuery('')}>
+              {t('مسح البحث', 'Clear search')}
+            </button>
+          </div> : <p>{canManage
+            ? t('لا توجد مصادر معروضة. أضف مصدرًا للبدء.', 'No sources shown. Add a source to get started.')
+            : t('لا توجد مصادر معروضة.', 'No sources to show.')}</p>
         )}
         <div className="card-grid">
           {filtered.map((source) => (

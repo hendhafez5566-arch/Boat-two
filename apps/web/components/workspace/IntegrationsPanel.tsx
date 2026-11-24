@@ -58,6 +58,7 @@ export default function Integrations() {
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   const [error, setError] = useState('');
+  const [feedback, setFeedback] = useState('');
   const [formError, setFormError] = useState('');
   const [search, setSearch] = useState('');
   const [size, setSize] = useState(5);
@@ -79,6 +80,7 @@ export default function Integrations() {
     setSearch('');
     setPage(1);
     setError('');
+    setFeedback('');
     const url = new URL(window.location.href);
     url.searchParams.set('tab', 'integrations');
     url.searchParams.set('action', key);
@@ -95,11 +97,15 @@ export default function Integrations() {
     lock.current = true;
     setBusy(true);
     setError('');
+    setFeedback('');
     try {
       await api(`/integrations/${connection.id}`, {
         method: 'PATCH',
         body: JSON.stringify({ enabled: !connection.enabled }),
       });
+      setFeedback(connection.enabled
+        ? t('تم إيقاف ملف الربط.', 'Integration profile disabled.')
+        : t('تم تفعيل ملف الربط.', 'Integration profile enabled.'));
       await list.reload();
     } catch (e) {
       setError((e as Error).message);
@@ -147,6 +153,7 @@ export default function Integrations() {
             {error || list.error}
           </p>
         )}
+        {feedback && <p role="status" className="notice">{feedback}</p>}
         <div className={styles.tools}>
           <input
             type="search"
@@ -267,12 +274,14 @@ export default function Integrations() {
               lock.current = true;
               setBusy(true);
               setFormError('');
+              setFeedback('');
               try {
                 await api(editing ? `/integrations/${editing.id}` : '/integrations', {
                   method: editing ? 'PATCH' : 'POST',
                   body: JSON.stringify(editing ? body : { ...body, provider }),
                 });
                 setOpen(false);
+                setFeedback(t('تم حفظ ملف الربط.', 'Integration profile saved.'));
                 await list.reload();
               } catch (e) {
                 setFormError((e as Error).message);

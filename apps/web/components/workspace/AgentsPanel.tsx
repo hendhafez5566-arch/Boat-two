@@ -65,10 +65,12 @@ export default function Agents() {
     isDefault: false,
   });
   const [error, setError] = useState('');
+  const [feedback, setFeedback] = useState('');
   const [busy, setBusy] = useState(false);
   async function act(path: string, body: unknown, method = 'POST') {
     setBusy(true);
     setError('');
+    setFeedback('');
     try {
       await api(path, { method, body: JSON.stringify(body) });
       data.reload();
@@ -94,7 +96,9 @@ export default function Agents() {
           'Paid provider calls are disabled by default. Do not enter production keys without authorization. Cost is shown only when verified pricing is available.',
         )}
       </p>
-      {(error || data.error) && <p className="notice error">{error || data.error}</p>}
+      {(error || data.error) && <p role="alert" className="notice error">{error || data.error}</p>}
+      {feedback && <p role="status" className="notice">{feedback}</p>}
+      {data.loading && <p role="status">{t('جارٍ تحميل المساعدين…', 'Loading agents…')}</p>}
       <div className="card-grid">
         {data.data.agents.map((a) => (
           <section className="card" key={a.id}>
@@ -152,6 +156,9 @@ export default function Agents() {
               enabled: false,
               isDefault: false,
             });
+            setFeedback(form.enabled
+              ? t('تم حفظ المساعد مفعّلًا.', 'Agent saved and enabled.')
+              : t('تم حفظ المساعد معطّلًا.', 'Agent saved as disabled.'));
           } catch {
             /* The action helper displays the error. */
           }
