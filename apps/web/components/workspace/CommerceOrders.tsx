@@ -64,9 +64,12 @@ function OrderDocuments({ order }: { order: Order }) {
   const files = useData<{ slot: number; filename: string }[]>(path, []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [uploadNotice, setUploadNotice] = useState('');
   const closed = ['completed', 'cancelled'].includes(order.status);
   return <section className="stack">
     {files.error && <p role="alert">{files.error}</p>}
+    {uploadNotice && <p role="status">{uploadNotice}</p>}
+    {!closed && <p className="muted">{t('PDF أو JPG أو PNG، حتى 2 ميجابايت لكل ملف.', 'PDF, JPG or PNG, up to 2 MB per file.')}</p>}
     {error && <p role="alert">{error}</p>}
     {order.snapshot.documents.map((name, slot) => {
       const file = files.data.find((f) => f.slot === slot);
@@ -76,12 +79,19 @@ function OrderDocuments({ order }: { order: Order }) {
             const input = e.currentTarget;
             const picked = input.files?.[0];
             if (!picked) return;
+            setUploadNotice('');
+            if (picked.size > 2 * 1024 * 1024) {
+              input.value = '';
+              setError(t('حجم الملف يتجاوز 2 ميجابايت.', 'The file exceeds 2 MB.'));
+              return;
+            }
             setBusy(true);
             setError('');
             try {
               const payload = new FormData();
               payload.append('file', picked);
               await api(path + '/' + slot, { method: 'POST', body: payload });
+              setUploadNotice(t('تم رفع المستند.', 'Document uploaded.'));
               await files.reload();
             } catch (e) {
               setError((e as Error).message);
@@ -119,7 +129,7 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
   const [preview, setPreview] = useState<Snapshot | null>(null);
   const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const [followup, setFollowup] = useState<Order | null>(null);
-  const [followupMessage, setFollowupMessage] = useState('');
+  const [notice, setNotice] = useState('');
   const followupRetry = useRef<{ key: string; id: string } | null>(null);
   const members = useData<{ members: { user_id: string; full_name: string }[] }>(
     (followup || assignmentId) ? '/crm/workspace/members' : null, { members: [] },
@@ -145,6 +155,7 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
     lock.current = true;
     setBusy(true);
     setError('');
+    setNotice('');
     try {
       if (save) {
         const payload = { ...selection, ...(origin ?? { contactId: data.get('contact') }) };
@@ -154,6 +165,7 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
           method: 'POST', body: JSON.stringify({ ...payload, requestId: retry.current.id }),
         });
         retry.current = null;
+        setNotice(t('تم حفظ الطلب.', 'Order saved.'));
         setPicked(null);
         if (!origin) setCreating(false);
         void summary.reload();
@@ -177,7 +189,7 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
     lock.current = true;
     setBusy(true);
     setError('');
-    setFollowupMessage('');
+    setNotice('');
     try {
       const data = new FormData(form);
       const payload = {
@@ -190,7 +202,7 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
       await api('/crm/tasks', { method:'POST', body:JSON.stringify({ ...payload, requestId:followupRetry.current.id }) });
       followupRetry.current = null;
       setFollowup(null);
-      setFollowupMessage(t('تم إنشاء متابعة في CRM.', 'CRM follow-up created.'));
+      setNotice(t('تم إنشاء متابعة في CRM.', 'CRM follow-up created.'));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -203,8 +215,10 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
     lock.current = true;
     setBusy(true);
     setError('');
+    setNotice('');
     try {
       await api('/commerce/orders/' + id + '/status', { method: 'PATCH', body: JSON.stringify({ status }) });
+      setNotice(t('تم تحديث حالة الطلب.', 'Order status updated.'));
       await orders.reload();
       void summary.reload();
       if (historyId === id) await history.reload();
@@ -221,6 +235,7 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
     lock.current = true;
     setBusy(true);
     setError('');
+    setNotice('');
     try {
       await api('/commerce/orders/' + id + '/assignee', {
         method: 'PATCH', body: JSON.stringify({ userId }),
@@ -318,7 +333,7 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
       {products.error && <p role="alert">{products.error}</p>}
     </div>
     {error && <p role="alert">{error}</p>}
-    {followupMessage && <p role="status">{followupMessage}</p>}
+    {notice && <p role="status">{notice}</p>}
     {orders.loading && <p role="status">{t('جارٍ تحميل الطلبات', 'Loading orders')}</p>}
     {orders.error && <p role="alert">{orders.error}</p>}
     {matches && orders.data.length === 0 && <p>{orderQuery || orderStatus

@@ -125,7 +125,7 @@ export function CrmWork({
   const activeStage = stages.includes(mobileStage)
     ? mobileStage
     : (stages.find((stage) => data.data.items.some((row) => row.stage === stage)) ?? stages[0]);
-  async function run(action: () => Promise<unknown>) {
+  async function run(action: () => Promise<unknown>, success = t('تم الحفظ', 'Saved')) {
     if (lock.current) return;
     lock.current = true;
     setBusy(true);
@@ -135,7 +135,7 @@ export function CrmWork({
       await action();
       await currentReload.current();
       onChanged?.();
-      setNotice(t('تم الحفظ', 'Saved'));
+      setNotice(success);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -159,12 +159,12 @@ export function CrmWork({
     setError('');
     setDialog(value);
   }
-  function update(row: Work, changes: Record<string, unknown>) {
+  function update(row: Work, changes: Record<string, unknown>, success?: string) {
     return run(() =>
       api(`/crm/${kind}/${row.id}`, {
         method: 'PATCH',
         body: JSON.stringify(editBody(row.id, { ...changes, expectedUpdatedAt: row.updated_at })),
-      }),
+      }), success,
     );
   }
   const canEdit = (row: Work) =>
@@ -306,7 +306,12 @@ export function CrmWork({
           <Button
             busy={busy}
             disabled={!canEdit(row)}
-            onClick={() => void update(row, { status: row.status === 'done' ? 'open' : 'done' })}
+            onClick={() => {
+              const reopening = row.status === 'done';
+              void update(row, { status: reopening ? 'open' : 'done' }, reopening
+                ? t('أُعيد فتح المتابعة. ستجدها ضمن «كل المفتوحة».', 'Follow-up reopened. Find it under “All open”.')
+                : t('تم إكمال المتابعة. ستجدها ضمن «مكتملة».', 'Follow-up completed. Find it under “Completed”.'));
+            }}
           >
             {row.status === 'done'
               ? t('إعادة فتح', 'Reopen')
@@ -675,8 +680,12 @@ export function CrmWork({
       ) : (
         <div className={styles.grid}>{data.data.items.map(card)}</div>
       )}
-      {!data.loading && !data.data.items.length && (
-        <p className={styles.empty}>{t('لا توجد نتائج مطابقة.', 'No matching results.')}</p>
+      {!data.loading && !data.error && !data.data.items.length && (
+        <p className={styles.empty}>{deals || q.trim() || resolvedOwner || period !== 'all' || Object.keys(routeDates).length
+          ? t('لا توجد نتائج مطابقة.', 'No matching results.')
+          : status === 'done'
+            ? t('لا توجد متابعات مكتملة بعد.', 'No completed follow-ups yet.')
+            : t('لا توجد متابعات مفتوحة. استخدم «إضافة متابعة» للبدء.', 'No open follow-ups. Use “Add follow-up” to get started.')}</p>
       )}
       <div className={styles.row}>
         <p>

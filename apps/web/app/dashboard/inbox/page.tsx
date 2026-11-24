@@ -602,6 +602,11 @@ export default function Inbox() {
     />
   );
 
+  const messageQuery = messageSearch.trim().toLocaleLowerCase();
+  const visibleMessages = messageQuery
+    ? msgs.filter((message) => preview(message.content).toLocaleLowerCase().includes(messageQuery))
+    : msgs;
+
   return (
     <div className={`premium-inbox ${styles.inbox} ${selId ? styles.threadActive : ''}`}>
       <nav className={styles.rail} aria-label={t('تصفية المحادثات', 'Filter conversations')}>
@@ -1090,15 +1095,13 @@ export default function Inbox() {
                       {t('تحميل رسائل أقدم', 'Load older messages')}
                     </button>
                   )}
-                  {msgs
-                    .filter(
-                      (m) =>
-                        !messageSearch.trim() ||
-                        preview(m.content)
-                          .toLocaleLowerCase()
-                          .includes(messageSearch.trim().toLocaleLowerCase()),
-                    )
-                    .map((m, index, visibleMessages) => {
+                  {messageQuery && !visibleMessages.length && (
+                    <p className="empty" role="status">{t(
+                      'لا توجد رسائل محمّلة تطابق البحث.',
+                      'No loaded messages match your search.',
+                    )}</p>
+                  )}
+                  {visibleMessages.map((m, index) => {
                       const created = new Date(m.created_at ?? m.createdAt);
                       const previous = index > 0
                         ? new Date(visibleMessages[index - 1].created_at ?? visibleMessages[index - 1].createdAt)
