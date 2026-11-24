@@ -96,11 +96,11 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
   }
   const catalogNavigation = (
     <nav
-      className={catalogStyles.catalogNavigation}
+      className={catalogStyles.commerceNavigation}
       aria-label={t('التنقل بين المنتجات ومصادرها', 'Product sections')}
     >
       {[
-        ['products', 'إدارة المنتجات', 'Manage products'],
+        ['products', 'المنتجات', 'Products'],
         ['sources', 'الاستيراد والمزامنة', 'Import & sync'],
         ['appointments', 'المواعيد', 'Appointments'],
         ...(checkoutEnabled ? [['orders', 'الطلبات', 'Orders']] : []),
@@ -111,6 +111,22 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
             {t(ar, en)}
           </button>
         ))}
+    </nav>
+  );
+  return (
+    <section className={`commerce-page ${catalogStyles.commerceWorkspace}`}>
+      <header className={catalogStyles.commerceHeader}>
+        <div>
+      <h1>
+        {initialTab === 'appointments'
+          ? t('حجز المواعيد', 'Appointment Booking')
+          : initialTab === 'products'
+            ? t('كتالوج المنتجات', 'Product Catalog')
+            : t('التجارة والمواعيد', 'Commerce and appointments')}
+      </h1>
+        </div>
+        {initialTab !== 'appointments' && catalogNavigation}
+        {initialTab && <div className={catalogStyles.commerceContextActions}>
       {(initialTab !== 'products' || !!channelId) && (
         <Link className="btn" href={channelHref('/dashboard/flows?section=bot_reply', channelId)}>
           {t('العودة إلى مدير البوت', 'Back to bot manager')}
@@ -126,21 +142,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
           {t('تفويض Calendar والتكاملات', 'Calendar authorization and integrations')}
         </Link>
       )}
-    </nav>
-  );
-  return (
-    <section className="stack commerce-page">
-      <header className={catalogStyles.commerceHeader}>
-        <div>
-      <h1>
-        {initialTab === 'appointments'
-          ? t('حجز المواعيد', 'Appointment Booking')
-          : initialTab === 'products'
-            ? t('كتالوج المنتجات', 'Product Catalog')
-            : t('التجارة والمواعيد', 'Commerce and appointments')}
-      </h1>
-        </div>
-        {initialTab !== 'appointments' && tab !== 'products' && catalogNavigation}
+        </div>}
       </header>
       {initialTab === 'products' ? null : initialTab ? (
         <ChannelScope
@@ -160,6 +162,23 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
             channels={channels.data}
             workspaceWide
           />
+          <div className={catalogStyles.commerceContextActions}>
+      {(initialTab !== 'products' || !!channelId) && (
+        <Link className="btn" href={channelHref('/dashboard/flows?section=bot_reply', channelId)}>
+          {t('العودة إلى مدير البوت', 'Back to bot manager')}
+        </Link>
+      )}
+      {initialTab === 'products' && (
+        <Link className="btn" href={channelHref('/dashboard/flows?section=bot_reply', channelId)}>
+          {t('الانتقال إلى ردود البوت', 'Go to bot replies')}
+        </Link>
+      )}
+      {tab === 'appointments' && (
+        <Link className="btn" href="/dashboard/integrations">
+          {t('تفويض Calendar والتكاملات', 'Calendar authorization and integrations')}
+        </Link>
+      )}
+          </div>
         </details>
       )}
       {(error || services.error) && (
@@ -169,7 +188,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
       )}
       {tab === 'sources' && <DataSourcesPanel />}
       {tab === 'orders' && checkoutEnabled && <CommerceOrders contacts={contacts.data.items} origin={orderOrigin}/>}
-      {tab === 'products' && <ProductCatalog navigation={catalogNavigation} />}
+      {tab === 'products' && <ProductCatalog />}
       {tab === 'appointments' && (
         <div className={catalogStyles.appointmentWorkspace}>
           <form
