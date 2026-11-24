@@ -1441,3 +1441,19 @@
 .editorFields[data-active-editor-tab="option"] [data-editor-tab="option"],
 .editorFields[data-active-editor-tab="specification"] [data-editor-tab="specification"],
 .editorFields[data-active-editor-tab="advanced"] [data-editor-tab="advanced"] { display: revert; }
+
+@media (max-width: 750px) {
+  .editorDialog[open] {
+    margin: 0;
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    border-radius: 0;
+  }
+
+  .editorDialog > :global(.dialog-body) { flex: 1; }
+  .editorDialog .productForm > :global(.form-actions) {
+    padding-block-end: max(11px, env(safe-area-inset-bottom));
+  }
+}
