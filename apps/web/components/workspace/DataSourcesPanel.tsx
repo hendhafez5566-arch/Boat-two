@@ -1,4 +1,5 @@
 'use client';
+import { NavIcon } from '../product/NavIcon';
 import styles from './commerce-wizard.module.css';
 import ImportSummary, { ImportCounts } from './ImportSummary';
 import { DisclosureSummary } from '../product/DisclosureSummary';
@@ -331,10 +332,13 @@ export default function DataSourcesPanel({
   return (
     <section
       dir={language === 'ar' ? 'rtl' : 'ltr'}
-      className={`panel ${styles.root}`}
+      className={styles.root}
       style={{ minWidth: 0 }}
     >
-      <h2>{t('مصادر البيانات والكتالوج الديناميكي', 'Data sources and dynamic catalog')}</h2>
+      <header className={styles.importHeader}>
+        <NavIcon name="upload"/>
+        <h2>{t('الاستيراد والمزامنة', 'Import & sync')}</h2>
+      </header>
       <ol className={styles.steps} aria-label={t('خطوات الاستيراد', 'Import steps')}>
         {[
           t('رفع الملف', 'Upload'),
@@ -360,7 +364,7 @@ export default function DataSourcesPanel({
           {error}
         </p>
       )}
-      <div className="form-actions">
+      <div className={styles.sourceToolbar}>
         <label>
           {t('المصدر', 'Source')}
           <select
@@ -596,7 +600,7 @@ export default function DataSourcesPanel({
           )}
           <div className={styles.actions}>
             <button
-              className="btn primary"
+              className="btn btn-primary"
               disabled={busy || !name.trim() || !headers.length}
               onClick={() => setStep(1)}
             >
@@ -754,7 +758,7 @@ export default function DataSourcesPanel({
             {t('السابق', 'Back')}
           </button>
           <button
-            className="btn primary"
+            className="btn btn-primary"
             disabled={
               busy || !name.trim() || !mapping.id || !mapping.name || (kind === 'file' && !file)
             }
@@ -810,7 +814,7 @@ export default function DataSourcesPanel({
                 {t('تعديل المطابقة', 'Edit mapping')}
               </button>
               <button
-                className="btn primary"
+                className="btn btn-primary"
                 disabled={busy || !preview.valid}
                 onClick={() => setStep(3)}
               >
@@ -854,7 +858,7 @@ export default function DataSourcesPanel({
                 </label>
               )}
               <button
-                className="btn primary"
+                className="btn btn-primary"
                 disabled={busy || (hiddenCount > 0 && !visibilityConfirmed)}
                 onClick={() =>
                   void act(async () => {
@@ -898,7 +902,7 @@ export default function DataSourcesPanel({
           {onApplied && editing && (
             <button
               type="button"
-              className="btn primary"
+              className="btn btn-primary"
               disabled={busy}
               onClick={() => onApplied(editing.id)}
             >
