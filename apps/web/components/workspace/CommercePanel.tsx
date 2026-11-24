@@ -107,7 +107,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
       ]
         .filter(([id]) => !initialTab || id !== 'appointments')
         .map(([id, ar, en]) => (
-          <button className="btn" key={id} aria-pressed={tab === id} onClick={() => setTab(id)}>
+          <button className={catalogStyles.commerceTab} key={id} aria-pressed={tab === id} onClick={() => setTab(id)}>
             {t(ar, en)}
           </button>
         ))}
