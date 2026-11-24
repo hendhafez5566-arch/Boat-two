@@ -1,4 +1,5 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
 import { useState } from 'react';
 import { productDecimal, productMinorUnits } from '../../lib/product-money';
 import { useLocale } from '../product/locale';
@@ -63,7 +64,7 @@ export function CheckoutEditor({ value, onChange }: {
       })}
     </div>
     <details open data-checkout-tab="packages">
-      <summary>{t('الباقات', 'Packages')}</summary>
+      <DisclosureSummary>{t('الباقات', 'Packages')}</DisclosureSummary>
       {value.packages.map((pack) => <div key={pack.id} className="card stack">
         <label>{t('اسم الباقة', 'Package name')} <input value={pack.name} maxLength={120}
           onChange={(e) => update({ packages: value.packages.map((p) => p.id === pack.id ? {...p, name: e.target.value} : p) })}/></label>
@@ -80,7 +81,7 @@ export function CheckoutEditor({ value, onChange }: {
       })}>{t('إضافة باقة', 'Add package')}</button>
     </details>
     <details open data-checkout-tab="form">
-      <summary>{t('أسئلة الطلب', 'Order questions')}</summary>
+      <DisclosureSummary>{t('أسئلة الطلب', 'Order questions')}</DisclosureSummary>
       {value.questions.map((q) => {
         const set = (patch: Partial<typeof q>) => update({ questions: value.questions.map((item) => item.id === q.id ? {...q, ...patch} : item) });
         return <div key={q.id} className="card stack">
