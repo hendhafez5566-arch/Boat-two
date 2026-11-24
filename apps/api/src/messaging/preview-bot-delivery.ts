@@ -84,6 +84,40 @@ export function previewAgentDeliveryAllowed(
     && now - inbound <= 15 * 60_000;
 }
 
+/**
+ * Preview-only opt-in for NEW replies in ALL WhatsApp conversations.
+ * EXTERNAL_DELIVERY_ENABLED stays false, so this does not open campaigns,
+ * templates, other messaging providers, or deliveries created before rollout.
+ * The normal blocked-contact, opt-in and WhatsApp window checks still apply.
+ */
+export function previewWhatsAppConversationsAllowed(
+  row: PreviewBotMessage | null | undefined,
+  marketing: boolean,
+  settings: Record<string, string | undefined> = process.env,
+  now = Date.now(),
+): boolean {
+  if (!row || marketing || settings.BOAT_PREVIEW_ONLY !== 'true'
+    || settings.WHATSAPP_PREVIEW_ALL_CONVERSATIONS_ENABLED !== 'true'
+    || !settings.WHATSAPP_PREVIEW_ALL_AFTER) return false;
+  const cutoff = Date.parse(settings.WHATSAPP_PREVIEW_ALL_AFTER);
+  const created = new Date(row.created_at).getTime();
+  const inbound = row.last_inbound_at ? new Date(row.last_inbound_at).getTime() : NaN;
+  const bot = row.sender_type === 'bot' && !!row.flow_id;
+  const agent = row.sender_type === 'agent' && !row.flow_id;
+  return row.channel_type === 'whatsapp'
+    && row.channel_status === 'active'
+    && (bot || agent)
+    && !row.content?.template
+    && Number.isFinite(cutoff)
+    && Number.isFinite(created)
+    && created >= cutoff
+    && created <= now
+    && now - created <= 10 * 60_000
+    && Number.isFinite(inbound)
+    && inbound <= now
+    && now - inbound <= (bot ? 15 : 24 * 60) * 60_000;
+}
+
 /** Preview QA may restart from ANY inbound content only in the designated
  * test conversation, while respecting an existing waiting flow session.
  */
