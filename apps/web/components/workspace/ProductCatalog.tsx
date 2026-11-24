@@ -141,7 +141,6 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
   const [category, setCategory] = useState('all');
   const [page, setPage] = useState(1);
   const listStart = useRef<HTMLDivElement>(null);
-  const [categorySearch, setCategorySearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
   const [catalogQuery, setCatalogQuery] = useState('');
   useEffect(() => {
@@ -532,19 +531,9 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
 
   return (
     <section className={styles.root} aria-label={t('إدارة المنتجات', 'Product management')}>
+      {navigation}
       {editing === undefined && (
         <>
-          <div className={styles.compactActions}>
-            {navigation}
-            <div className={styles.headerActions}>
-              <button type="button" className="btn btn-primary" onClick={() => openEditor(null)}>
-                {t('+ إضافة منتج', '+ Add product')}
-              </button>
-              <button type="button" className="btn" onClick={() => openCategory()}>
-                {t('إضافة قسم', 'Add category')}
-              </button>
-            </div>
-          </div>
           {success && (
             <div className={styles.successToast} role="status" aria-live="polite">
               <svg
@@ -569,105 +558,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
               </button>
             </p>
           )}
-          <section
-            className={styles.categoriesPanel}
-            aria-label={t('أقسام المنتجات', 'Product categories')}
-          >
-            <div className={styles.categoryHeading}>
-              <h3>
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  aria-hidden="true"
-                >
-                  <rect x="3" y="3" width="7" height="7" rx="2" />
-                  <rect x="14" y="3" width="7" height="7" rx="2" />
-                  <rect x="3" y="14" width="7" height="7" rx="2" />
-                  <rect x="14" y="14" width="7" height="7" rx="2" />
-                </svg>
-                {t('الأقسام', 'Categories')}
-              </h3>
-              <label className={styles.categorySearch}>
-                <span>{t('البحث في الأقسام', 'Find category')}</span>
-                <input
-                  type="search"
-                  aria-label={t('البحث في الأقسام', 'Find category')}
-                  value={categorySearch}
-                  onChange={(e) => setCategorySearch(e.target.value)}
-                  placeholder={t('اسم القسم…', 'Category name…')}
-                />
-              </label>
-            </div>
-            <div className={styles.categoryChooser}>
-              <label className={styles.categorySelect}>
-                <span>{t('عرض منتجات قسم', 'Show products in')}</span>
-                <select
-                  aria-label={t('اختر قسم المنتجات', 'Choose product category')}
-                  value={category}
-                  onChange={(event) => changeCategory(event.target.value)}
-                >
-                  {[
-                    { id: 'all', label: t('كل المنتجات', 'All products') },
-                    { id: 'none', label: t('دون قسم', 'Uncategorized') },
-                    ...orderedCategories,
-                  ]
-                    .filter(
-                      (item) =>
-                        item.id === 'all' ||
-                        item.id === 'none' ||
-                        item.id === category ||
-                        item.label
-                          .toLocaleLowerCase()
-                          .includes(categorySearch.trim().toLocaleLowerCase()),
-                    )
-                    .map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.label} ({categoryCounts.get(item.id) ?? 0})
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <div className={styles.categoryActions}>
-                {selectedCategory && (
-                  <>
-                    <button
-                      type="button"
-                      className="btn"
-                      onClick={() => openCategory(selectedCategory.id)}
-                    >
-                      {categoryTreeEnabled ? t('تعديل القسم', 'Edit category') : t('تعديل الاسم', 'Rename')}
-                    </button>
-                    {categoryTreeEnabled && (
-                      <button type="button" className="btn" onClick={() => openCategory('', false, selectedCategory.id)}>
-                        {t('إضافة قسم فرعي', 'Add subcategory')}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="btn"
-                      onClick={() => openCategory(selectedCategory.id, true)}
-                    >
-                      {t('نسخ القسم', 'Duplicate')}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-danger"
-                      onClick={() => {
-                        setError('');
-                        setCategoryDeleteConfirmed(false);
-                        setDeleteCategory(selectedCategory);
-                      }}
-                    >
-                      {t('حذف القسم', 'Delete category')}
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-            {categories.error && <p role="alert">{categories.error}</p>}
-          </section>
+          {categories.error && <p role="alert">{categories.error}</p>}
           <Dialog
             open={!!deleteCategory}
             onClose={() => {
@@ -840,6 +731,16 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
               <h2>{selectedCategory?.name ?? (category === 'none' ? t('دون قسم', 'Uncategorized') : t('كل المنتجات', 'All products'))}</h2>
               {!productsLoading && !productError && <small role="status">{t(`عدد المنتجات: ${resultCount}`, `Products: ${resultCount}`)}</small>}
             </div>
+            <div className={styles.headerActions}>
+              <button type="button" className="btn btn-primary" onClick={() => openEditor(null)}>
+                {t('+ إضافة منتج', '+ Add product')}
+              </button>
+              <button type="button" className="btn" onClick={() => openCategory()}>
+                {t('إضافة قسم', 'Add category')}
+              </button>
+            </div>
+          </header>
+          <div className={styles.catalogToolbar}>
             <label className="field">
               {t('البحث في المنتجات', 'Search products')}
               <input
@@ -853,6 +754,25 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                 placeholder={t('اسم المنتج أو الكود', 'Product name or SKU')}
               />
             </label>
+              <label className={styles.categorySelect}>
+                <span>{t('القسم', 'Category')}</span>
+                <select
+                  aria-label={t('اختر قسم المنتجات', 'Choose product category')}
+                  value={category}
+                  onChange={(event) => changeCategory(event.target.value)}
+                >
+                  {[
+                    { id: 'all', label: t('كل المنتجات', 'All products') },
+                    { id: 'none', label: t('دون قسم', 'Uncategorized') },
+                    ...orderedCategories,
+                  ]
+                    .map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label} ({categoryCounts.get(item.id) ?? 0})
+                      </option>
+                    ))}
+                </select>
+              </label>
             <div className={styles.viewSwitcher} role="group" aria-label={t('طريقة عرض المنتجات', 'Product view')}>
               <button className="btn" type="button" aria-pressed={catalogView === 'grid'} onClick={() => setCatalogView('grid')}>
                 <NavIcon name="grid"/> {t('شبكة', 'Grid')}
@@ -861,7 +781,43 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                 <NavIcon name="list"/> {t('جدول', 'Table')}
               </button>
             </div>
-          </header>
+          </div>
+              <div className={styles.categoryActions}>
+                {selectedCategory && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => openCategory(selectedCategory.id)}
+                    >
+                      {categoryTreeEnabled ? t('تعديل القسم', 'Edit category') : t('تعديل الاسم', 'Rename')}
+                    </button>
+                    {categoryTreeEnabled && (
+                      <button type="button" className="btn" onClick={() => openCategory('', false, selectedCategory.id)}>
+                        {t('إضافة قسم فرعي', 'Add subcategory')}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => openCategory(selectedCategory.id, true)}
+                    >
+                      {t('نسخ القسم', 'Duplicate')}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-danger"
+                      onClick={() => {
+                        setError('');
+                        setCategoryDeleteConfirmed(false);
+                        setDeleteCategory(selectedCategory);
+                      }}
+                    >
+                      {t('حذف القسم', 'Delete category')}
+                    </button>
+                  </>
+                )}
+              </div>
           {productsLoading ? (
             <p role="status">{t('جارٍ تحميل المنتجات…', 'Loading products…')}</p>
           ) : productError && !visibleRows.length ? null : visibleRows.length ? (
