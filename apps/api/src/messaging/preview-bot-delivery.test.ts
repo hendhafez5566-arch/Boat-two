@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   previewBotDeliveryAllowed,
   previewAgentDeliveryAllowed,
+  previewWhatsAppConversationsAllowed,
   isScopedPreviewConversation,
   selectPreviewWelcomeFlow,
   selectPreviewRestartFlow,
@@ -92,4 +93,32 @@ test('preview agent send is limited to fresh replies in the one authorized test 
   assert.equal(previewAgentDeliveryAllowed(agent, false, { ...settings, BOAT_PREVIEW_ONLY: 'false' }, now), false);
   assert.equal(previewAgentDeliveryAllowed(agent, false, { ...settings, WHATSAPP_PREVIEW_BOT_ENABLED: 'false' }, now), false);
   assert.equal(previewAgentDeliveryAllowed(agent, false, { ...settings, WHATSAPP_PREVIEW_BOT_CONVERSATION_ID: '' }, now), false);
+});
+
+test('opted-in preview WhatsApp replies work across conversations but never replay old sends or campaigns', () => {
+  const enabled = {
+    ...settings,
+    WHATSAPP_PREVIEW_ALL_CONVERSATIONS_ENABLED: 'true',
+    WHATSAPP_PREVIEW_ALL_AFTER: '2026-10-31T11:55:00Z',
+  };
+  const bot = { ...testMessage, channel_id: 'another-channel', conversation_id: 'another-conversation' };
+  const agent = { ...bot, sender_type: 'agent', flow_id: null };
+  assert.equal(previewWhatsAppConversationsAllowed(bot, false, enabled, now), true);
+  assert.equal(previewWhatsAppConversationsAllowed(agent, false, enabled, now), true);
+  assert.equal(previewWhatsAppConversationsAllowed(bot, true, enabled, now), false);
+  assert.equal(previewWhatsAppConversationsAllowed(bot, false, { ...enabled, BOAT_PREVIEW_ONLY: 'false' }, now), false);
+  assert.equal(previewWhatsAppConversationsAllowed(bot, false, { ...enabled, WHATSAPP_PREVIEW_ALL_CONVERSATIONS_ENABLED: 'false' }, now), false);
+  assert.equal(previewWhatsAppConversationsAllowed(bot, false, { ...enabled, WHATSAPP_PREVIEW_ALL_AFTER: '' }, now), false);
+  assert.equal(previewWhatsAppConversationsAllowed({ ...bot, channel_type: 'telegram' }, false, enabled, now), false);
+  assert.equal(previewWhatsAppConversationsAllowed({ ...bot, channel_status: 'disabled' }, false, enabled, now), false);
+  assert.equal(previewWhatsAppConversationsAllowed({ ...bot, sender_type: 'agent', flow_id: 'flow-id' }, false, enabled, now), false);
+  assert.equal(previewWhatsAppConversationsAllowed({ ...bot, flow_id: null }, false, enabled, now), false);
+  assert.equal(previewWhatsAppConversationsAllowed({ ...bot, content: { template: {} } }, false, enabled, now), false);
+  assert.equal(previewWhatsAppConversationsAllowed({ ...bot, created_at: '2026-10-31T11:54:59Z' }, false, enabled, now), false);
+  assert.equal(previewWhatsAppConversationsAllowed({ ...bot, created_at: '2026-10-31T11:49:00Z' }, false, enabled, now), false);
+  assert.equal(previewWhatsAppConversationsAllowed({ ...bot, last_inbound_at: '2026-10-31T11:40:00Z' }, false, enabled, now), false);
+  assert.equal(previewWhatsAppConversationsAllowed({ ...bot, created_at: '2026-10-31T12:01:00Z' }, false, enabled, now), false);
+  assert.equal(previewWhatsAppConversationsAllowed({ ...bot, last_inbound_at: '2026-10-31T12:01:00Z' }, false, enabled, now), false);
+  assert.equal(previewWhatsAppConversationsAllowed({ ...agent, last_inbound_at: '2026-10-30T12:01:00Z' }, false, enabled, now), true);
+  assert.equal(previewWhatsAppConversationsAllowed({ ...agent, last_inbound_at: '2026-10-30T11:59:00Z' }, false, enabled, now), false);
 });
