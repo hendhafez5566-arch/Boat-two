@@ -1,5 +1,6 @@
 'use client';
 import { useRef, useState } from 'react';
+import { NavIcon } from '../product/NavIcon';
 import Link from 'next/link';
 import { api, apiBlob } from '../../lib/api';
 import { useData } from '../business/useData';
@@ -21,7 +22,7 @@ type Snapshot = {
   taxCents?: string | null;
 };
 type Origin = { conversationId: string; channelId: string };
-type Order = { origin?: Origin | null; id: string; contact_id: string; contact_name: string; status: string; snapshot: Snapshot };
+type Order = { origin?: Origin | null; id: string; contact_id: string; contact_name: string; created_at: string; status: string; snapshot: Snapshot };
 
 function OrderDetails({ snapshot }: { snapshot: Snapshot }) {
   const { t } = useLocale();
@@ -110,6 +111,9 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
   const { t } = useLocale();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [orderQuery, setOrderQuery] = useState('');
+  const [orderStatus, setOrderStatus] = useState('');
+  const [creating, setCreating] = useState(Boolean(origin));
   const [picked, setPicked] = useState<CatalogProduct | null>(null);
   const [preview, setPreview] = useState<Snapshot | null>(null);
   const [followup, setFollowup] = useState<Order | null>(null);
@@ -126,7 +130,11 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
   const lock = useRef(false);
   const retry = useRef<{ key: string; id: string } | null>(null);
   const products = useData<{ rows: CatalogProduct[] }>('/commerce/products/page?q=' + encodeURIComponent(search), { rows: [] });
-  const orders = useData<Order[]>('/commerce/orders?page=' + page, []);
+  const orderParams = new URLSearchParams({ page: String(page), q: orderQuery });
+  if (orderStatus) orderParams.set('status', orderStatus);
+  const orderPath = '/commerce/orders?' + orderParams;
+  const orders = useData<Order[]>(orderPath, []);
+  const summary = useData<{ status: string; count: string }[]>(origin ? null : '/commerce/orders/summary', []);
   const [packageId, setPackageId] = useState('');
   async function submit(form: HTMLFormElement, save: boolean) {
     if (!picked || lock.current) return;
@@ -145,6 +153,8 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
         });
         retry.current = null;
         setPicked(null);
+        if (!origin) setCreating(false);
+        void summary.reload();
         setPreview(null);
         if (page === 1) await orders.reload();
         else setPage(1);
@@ -194,6 +204,7 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
     try {
       await api('/commerce/orders/' + id + '/status', { method: 'PATCH', body: JSON.stringify({ status }) });
       await orders.reload();
+      void summary.reload();
       if (historyId === id) await history.reload();
       await products.reload();
     } catch (e) {
@@ -209,9 +220,35 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
   };
   const amount = (snapshot: Snapshot) => snapshot.totalCents === null
     ? t('بانتظار عرض سعر', 'Quote pending') : productPrice(snapshot.totalCents, snapshot.currency);
-  return <section className="stack">
-    <header><h2>{t('الطلبات', 'Orders')}</h2></header>
-    <div className="card stack">
+  const matches = orders.loadedPath === orderPath && !orders.error;
+  const counts = new Map(summary.data.map(({ status, count }) => [status, Number(count)]));
+  return <section className={styles.workspace}>
+    <header className={styles.heading}>
+      <h2><NavIcon name="list"/> {t('الطلبات والحجوزات', 'Orders and bookings')}</h2>
+      {!origin && <button className="btn btn-primary" type="button" aria-expanded={creating}
+        onClick={() => setCreating(!creating)}><NavIcon name="plus"/>
+        {creating ? t('إخفاء النموذج', 'Hide form') : t('طلب جديد', 'New order')}
+      </button>}
+    </header>
+    {!origin && <div className={styles.metrics} aria-label={t('ملخص كل الطلبات', 'All orders summary')}>
+      {summary.error ? <p role="alert">{summary.error}</p> : Object.entries(statusLabels).map(([status, label]) =>
+        <button key={status} type="button" className={styles.metric} aria-pressed={orderStatus === status}
+          onClick={() => { setOrderStatus(orderStatus === status ? '' : status); setPage(1); }}>
+          <span>{label}</span><strong>{summary.loading ? '…' : (counts.get(status) ?? 0).toLocaleString()}</strong>
+        </button>,
+      )}
+    </div>}
+    <div className={styles.filters}>
+      <label><NavIcon name="search"/> {t('بحث في الطلبات', 'Search orders')}
+        <input type="search" value={orderQuery} maxLength={120} placeholder={t('العميل أو المنتج أو رقم الطلب', 'Customer, product or order ID')}
+          onChange={(e) => { setOrderQuery(e.target.value); setPage(1); }}/>
+      </label>
+      <label>{t('الحالة', 'Status')} <select value={orderStatus} onChange={(e) => { setOrderStatus(e.target.value); setPage(1); }}>
+        <option value="">{t('كل الحالات', 'All statuses')}</option>
+        {Object.entries(statusLabels).map(([status, label]) => <option key={status} value={status}>{label}</option>)}
+      </select></label>
+    </div>
+    <div className="card stack" hidden={!creating}>
       <h3>{t('طلب جديد', 'New order')}</h3>
       <label>{t('بحث بالمنتج أو SKU', 'Find product by name or SKU')}
         <input value={search} maxLength={120} onChange={(e) => setSearch(e.target.value)}/></label>
@@ -246,20 +283,24 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
           ? <p>{t('احجز عبر تبويب المواعيد.', 'Book from the Appointments tab.')}</p>
           : <button className="btn btn-primary" value="save" disabled={busy}>{t('حفظ الطلب', 'Save order')}</button>}
       </form>}
-      {(error || products.error) && <p role="alert">{error || products.error}</p>}
+      {products.error && <p role="alert">{products.error}</p>}
     </div>
+    {error && <p role="alert">{error}</p>}
     {followupMessage && <p role="status">{followupMessage}</p>}
     {orders.loading && <p role="status">{t('جارٍ تحميل الطلبات', 'Loading orders')}</p>}
     {orders.error && <p role="alert">{orders.error}</p>}
-    {!orders.loading && !orders.error && orders.data.length === 0 && <p>{t('لا توجد طلبات.', 'No orders.')}</p>}
-    {orders.data.slice(0, 50).map((o) => <article key={o.id} className="card">
-      <h3>{o.snapshot.name}</h3>
-      <Link href={'/dashboard/crm?contact=' + o.contact_id}>{o.contact_name}</Link>
+    {matches && orders.data.length === 0 && <p>{t('لا توجد طلبات.', 'No orders.')}</p>}
+    {matches && orders.data.slice(0, 50).map((o) => <article key={o.id} className={styles.order}>
+      <header className={styles.heading}>
+        <div><h3>{o.snapshot.name}</h3><Link href={'/dashboard/crm?contact=' + o.contact_id}>{o.contact_name}</Link>
+          {' · '}<time dateTime={o.created_at}>{new Date(o.created_at).toLocaleDateString()}</time></div>
+        <span className={styles.status} data-status={o.status}>{statusLabels[o.status]}</span>
+      </header>
       {o.origin && <p><Link href={'/dashboard/inbox?conversation=' + o.origin.conversationId}>
         {t('المحادثة الأصلية', 'Original conversation')}
       </Link></p>}
-      <p>{o.snapshot.quantity} × {o.snapshot.package?.name ?? o.snapshot.name} · {amount(o.snapshot)}</p>
-      <p>{statusLabels[o.status]}</p>
+      <div className={styles.heading}><strong>{o.snapshot.package?.name ?? o.snapshot.name} × {o.snapshot.quantity}</strong>
+        <strong>{amount(o.snapshot)}</strong></div>
       <details className={styles.details}>
         <summary>{t('تفاصيل الطلب', 'Order details')}</summary>
         <OrderDetails snapshot={o.snapshot}/>
@@ -296,6 +337,6 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
 
     </article>)}
     {page > 1 && <button className="btn" onClick={() => setPage(page-1)}>{t('السابق', 'Previous')}</button>}
-    {orders.data.length > 50 && <button className="btn" onClick={() => setPage(page+1)}>{t('التالي', 'Next')}</button>}
+    {matches && orders.data.length > 50 && <button className="btn" onClick={() => setPage(page+1)}>{t('التالي', 'Next')}</button>}
   </section>;
 }
