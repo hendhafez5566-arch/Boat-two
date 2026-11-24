@@ -106,3 +106,17 @@
 - Railway Preview browser check reached the authenticated Commerce page and its Orders tab. The existing page puts the manual order form before the list. The reference groups order status and commercial summary above expandable order details. This check used read-only navigation.
 - O05 remains open for this follow-up. The order list now exposes saved answers under their question labels, add-ons, and the price breakdown from the persisted order snapshot. Existing document, status, history and follow-up actions retain their entry points. Browser interaction with a populated order and matched RTL/LTR screenshots of the changed UI are still required.
 - The deployment branch is three commits ahead of the development branch at the baseline. The only differing paths are the outbound WhatsApp service and its Preview delivery helper and test. Use the deployment-branch ancestry for the release candidate so it retains those fixes.
+
+### Commerce review continuation (2026-11-24)
+
+Branch: `feat/reference-commerce-orders-20261124`, continued from `e60ce3d`. Its ancestry includes Preview fix `d57b434`. This review did not update the deployment branch or send messages.
+
+| Acceptance | Change and evidence | Remaining verification |
+|---|---|---|
+| O05 | Tenant-wide status totals, server-side search and status filters before pagination, collapsible manual creation, and an order card with saved checkout details. Added review, documents-required and processing transitions, retained confirmed for old orders, and added owner/admin assignment to active tenant members. PostgreSQL fixture checks 56 in-tenant orders, foreign isolation, both pages, literal search, Arabic customer search, assignment, migration of legacy rows, and transition history. | Browser operations with populated data, including Inbox, file upload, and the new assignment and status controls. |
+| C05, C07, C09 | Editor sections for basics, packages, order form, stock, media, options, specifications and channels/settings. Sections share the existing React form and checkout state. Package currency input uses the existing exact decimal helper. Checked zero-loss conversion of 1500.05 and rejection of excess fractional digits. | Browser persistence and mode switching on a live form. Full visual match and new catalog editor parity remain open. |
+| V01, V04, V05, D04 | Reviewed the source HTML and stored browser captures. Updated the React component layout and mobile editor styles. | Fresh baseline and after captures at 390 RTL and 1440 LTR. Local Chromium aborted at startup with a denied ProcessSingleton socket. |
+| D01 | 27 commerce tests passed via Node with the TSX loader, including the new PostgreSQL test. API and web TypeScript checks passed. | Repeat full functional browser journey with the release candidate. |
+| D03 | No deployment in this review. | Build and browser acceptance on the final candidate before Preview deployment. |
+
+O05 and the visual/mobile acceptance rows remain open. CRM follow-up assignment is separate from order assignment. Completion still requires the saved document slots to be filled, and cancellation continues to use the existing stock restoration logic.
