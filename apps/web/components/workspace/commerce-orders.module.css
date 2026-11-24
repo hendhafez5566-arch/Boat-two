@@ -1,0 +1,25 @@
+.details {
+  background: #f2f6fa;
+  border: 1px solid #e4eaf1;
+  border-radius: 10px;
+  padding: 12px;
+  overflow-wrap: anywhere;
+}
+
+.details > summary {
+  cursor: pointer;
+  min-block-size: 44px;
+  align-content: center;
+  font-weight: 600;
+}
+
+.details dl > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.details dd {
+  margin: 0;
+}
