@@ -187,7 +187,10 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
     void api<CatalogProduct>('/commerce/products/' + id).then((product) => {
       openEditor(product);
       const field = query.get('field') || '';
-      if (field === 'stock') setEditorTab('stock');
+      if (field === 'stock') {
+        setEditorMode('advanced');
+        setEditorTab('stock');
+      }
       setRepairField(field);
     }).catch((error: Error) => setError(error.message));
   });
@@ -344,10 +347,10 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
     ...(checkoutEnabled ? [
       { id: 'packages', label: t('الباقات', 'Packages') },
       { id: 'form', label: t('نموذج الطلب', 'Order form') },
-      { id: 'stock', label: t('المخزون والتسعير', 'Stock and pricing') },
     ] : []),
-    { id: 'media', label: t('الصور والروابط', 'Images and links') },
     ...(!catalogEditorModesEnabled || editorMode === 'advanced' ? [
+      ...(checkoutEnabled ? [{ id: 'stock', label: t('المخزون والتسعير', 'Stock and pricing') }] : []),
+      { id: 'media', label: t('الصور والروابط', 'Images and links') },
       { id: 'option', label: t('الإضافات', 'Add-ons') },
       { id: 'specification', label: t('المواصفات', 'Specifications') },
       { id: 'advanced', label: t('القنوات والإعدادات', 'Channels and settings') },
@@ -981,10 +984,15 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
             className={styles.productForm}
             onChange={() => setEditorDirty(true)}
             onInvalidCapture={(event) => {
-              const section = (event.target as HTMLElement).closest<HTMLElement>('[data-editor-tab]');
-              if (section?.dataset.editorTab) setEditorTab(section.dataset.editorTab);
+              const input = event.target as HTMLInputElement;
+              if (input.form?.querySelector(':invalid:not(fieldset):not(form)') !== input) return;
+              const section = input.closest<HTMLElement>('[data-editor-tab], [data-checkout-tab]');
+              const tab = section?.dataset.editorTab ?? section?.dataset.checkoutTab;
+              if (tab) {
+                if (!editorTabs.some(({ id }) => id === tab)) setEditorMode('advanced');
+                setEditorTab(tab);
+              }
               if (section instanceof HTMLDetailsElement) section.open = true;
-              const input = event.target as HTMLElement;
               window.requestAnimationFrame(() => input.focus());
             }}
             key={editing?.id ?? 'new'}
