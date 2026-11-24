@@ -351,9 +351,11 @@ export class CommerceService {
 
   orders(tenant: string, page: number, q = '', status?: string) {
     return this.db.withTenant(tenant, async (c) => (await c.query(
-      `SELECT o.id,o.contact_id,c.name AS contact_name,o.status,o.snapshot,o.created_at,
+      `SELECT o.id,o.contact_id,c.name AS contact_name,o.status,o.snapshot,o.created_at,o.assigned_to, u.full_name AS assignee_name,
               o.request->'origin' AS origin
        FROM commerce_orders o JOIN contacts c ON (o.tenant_id,o.contact_id)=(c.tenant_id,c.id)
+       LEFT JOIN memberships m ON (m.tenant_id,m.user_id)=(o.tenant_id,o.assigned_to)
+       LEFT JOIN users u ON u.id=m.user_id AND u.disabled_at IS NULL
        WHERE o.tenant_id=$1
          AND ($3='' OR strpos(lower(c.name), lower($3)) > 0
            OR strpos(lower(o.snapshot->>'name'), lower($3)) > 0
@@ -400,6 +402,22 @@ export class CommerceService {
     });
   }
 
+  assignOrder(tenant: string, id: string, userId: string | null) {
+    return this.db.withTenant(tenant, async (c) => {
+      if (userId && !(await c.query(
+        `SELECT 1 FROM memberships m JOIN users u ON u.id=m.user_id
+         WHERE m.tenant_id=$1 AND m.user_id=$2 AND u.disabled_at IS NULL FOR SHARE OF m,u`,
+        [tenant, userId],
+      )).rowCount) throw new NotFoundException('Assignee unavailable');
+      const { rows: [order] } = await c.query(
+        'UPDATE commerce_orders SET assigned_to=$3 WHERE tenant_id=$1 AND id=$2 RETURNING id,assigned_to',
+        [tenant, id, userId],
+      );
+      if (!order) throw new NotFoundException('Order unavailable');
+      return order;
+    });
+  }
+
   async changeOrderStatus(tenant: string, actor: string, id: string, status: string) {
     return this.db.withTenant(tenant, async (c) => {
       const { rows: [order] } = await c.query(
@@ -408,7 +426,13 @@ export class CommerceService {
       );
       if (!order) throw new NotFoundException('Order unavailable');
       if (order.status === status) return { id, status };
-      const transitions: Record<string, string[]> = { new: ['confirmed', 'cancelled'], confirmed: ['completed', 'cancelled'] };
+      const transitions: Record<string, string[]> = {
+        new: ['review', 'confirmed', 'cancelled'],
+        review: ['documents_required', 'processing', 'confirmed', 'cancelled'],
+        documents_required: ['review', 'processing', 'cancelled'],
+        processing: ['documents_required', 'completed', 'cancelled'],
+        confirmed: ['documents_required', 'processing', 'completed', 'cancelled'],
+      };
       if (!transitions[order.status]?.includes(status)) throw new ConflictException('Invalid order transition');
       if (status === 'completed' && order.snapshot.documents.length) {
         const { rows: [documents] } = await c.query(
