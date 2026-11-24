@@ -1584,8 +1584,8 @@
 }
 .commerceNavigation > :global(.btn) { min-block-size: 44px; min-inline-size: 0; padding: 6px 8px; border-color: transparent; background: transparent; text-align: center; }
 .commerceNavigation > :global(.btn[aria-pressed="true"]) {
-  color: var(--primary, #096d69); background: var(--primary-softer, #eaf7f4);
-  border-color: var(--primary-line, #a9ded5); font-weight: 700;
+  color: white; background: #09635e;
+  border-color: #09635e; font-weight: 700;
 }
 .commerceContextActions { display: flex; flex-wrap: wrap; gap: 8px; }
 .resultsHeader { padding: 0; align-items: center; }
@@ -1599,9 +1599,40 @@
 .catalogToolbar > label { min-inline-size: 0; }
 .catalogToolbar :is(input, select) { width: 100%; min-inline-size: 0; }
 .categoryActions:empty { display: none; }
-.catalogTiles { align-items: start; }
+
 @media (max-width: 600px) {
   .commerceNavigation { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .catalogToolbar { grid-template-columns: minmax(0, 1fr) auto; }
   .catalogToolbar > label:first-child { grid-column: 1 / -1; }
+}
+
+.catalogControls {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line, #e4eaf1);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+}
+.catalogControls .resultsHeader { gap: 6px; }
+.catalogControls .resultsHeader > div:first-child {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.catalogControls .resultsHeader h2 { margin: 0; font-size: 16px; }
+.catalogControls .resultsHeader button { min-block-size: 36px; }
+.catalogTile { grid-template-rows: auto 1fr auto auto; }
+.catalogTile p {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  line-height: 1.45;
+}
+.catalogTile .tileActions { align-self: end; }
+@media (max-width: 640px) {
+  .catalogTiles { grid-template-columns: minmax(0, 1fr); }
+  .catalogControls .resultsHeader button { min-block-size: 44px; }
 }
