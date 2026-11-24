@@ -1412,3 +1412,25 @@ textarea::placeholder {
 .channel-advanced { margin-block:16px; padding:12px; border:1px solid #e2e8f0; border-radius:12px; }
 .channel-advanced > summary { cursor:pointer; font-weight:600; padding:8px; }
 .catalog-source-dialog .form-grid { grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); }
+
+/* Keep native disclosure semantics and give older surfaces the same indicator. */
+details > summary { list-style: none; }
+details > summary::-webkit-details-marker { display: none; }
+details > summary::marker { content: ''; }
+:where(details > summary:not(:has(svg)))::after {
+  content: '';
+  display: inline-block;
+  inline-size: .45em;
+  block-size: .45em;
+  margin-inline-start: .65em;
+  border-inline-end: 1.5px solid currentColor;
+  border-block-end: 1.5px solid currentColor;
+  color: var(--muted, #64748b);
+  vertical-align: .2em;
+  transform: rotate(45deg);
+  transition: transform 150ms ease;
+}
+:where(details[open] > summary:not(:has(svg)))::after { transform: rotate(225deg); }
+@media (prefers-reduced-motion: reduce) {
+  :where(details > summary)::after { transition: none; }
+}
