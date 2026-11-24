@@ -129,3 +129,18 @@ O05 and the visual/mobile acceptance rows remain open. CRM follow-up assignment 
 - Order cards now put status and assignment before the order total. The expanded section groups answers, add-ons, documents, conversation and CRM links. The document request runs on expansion.
 - Re-ran the Migration 119 PostgreSQL fixture, including legacy confirmed orders, status history, tenant isolation and assignment. It passed. No migration or messaging files were changed in this pass.
 - Work Cloud Browser opened the current Railway Preview catalog. It could not reach the local reference server, so that check is evidence for the existing Preview only. The changed build still needs interactive 390px RTL and 1440px LTR verification, live test journeys and matched before/after captures. Those checks and deployment remain open.
+
+### Live Railway Preview acceptance — 2026-11-24 (`55fcdce`)
+
+Railway deployment history verified SUCCESS for both Web and API at this commit. The following checks used the authenticated Preview web UI and isolated QA records only.
+
+| Scope | Result | Evidence |
+|---|---|---|
+| Category hierarchy, new product, SKU search | PASS | Created root and child QA categories, saved SKU-D692ED7A into the child, reloaded, and found it by SKU. |
+| Editor modes, all editor tabs, persisted prices and conditional configuration | PASS for exercised interactions | Opened all eight tabs across the two modes; added QA Basic 199.99 EGP and QA Plus 250.05 EGP, a 12.34 EGP option, stock 5, one required question limited to QA Plus, and a required document name. After reload, verified saved package amounts, conditional question and document name in the editor, plus base price 150.29 EGP and option 12.34 EGP in product preview. |
+| Manual order, conditional question and total | PASS | Basic did not show the conditional question; Plus showed it. Saved a QA order with answer REF-55FCDCE and the paid option; quote and persisted order total were both 262.39 EGP. |
+| Order statistics, search, filter, assignment and history | PASS | New count went from 0 to 1. Moved New → In review → Documents required, checked history, assigned to the available member, and found the order with product search and status filter. |
+| Customer link and Inbox route | PASS for opening | Opened the expected isolated QA customer from the order in CRM and loaded the shared Inbox. The manual order did not originate from a conversation. |
+| Assistant catalog and readiness | PASS for exercised interactions | Selected the persisted QA product and isolated QA Webchat channel. Readiness returned with no listed blockers or warnings. |
+| Bot to Orders and CRM | BLOCKED | Draft creation returned `PLAN_LIMIT` after readiness. Isolated preview requires a draft. No active flow or plan was changed and no real message was sent. |
+| Remaining live checks | OPEN | Saved-product edits and duplication; customer search; document upload; permission boundaries, order duplication and stock protection; original conversation link and end-to-end test channel order; 390px Arabic and 1440px English matched HTML captures and visual fixes. |
