@@ -342,13 +342,25 @@ export class CommerceService {
     });
   }
 
-  orders(tenant: string, page: number) {
+  orderSummary(tenant: string) {
+    return this.db.withTenant(tenant, async (c) => (await c.query<{ status: string; count: string }>(
+      'SELECT status, count(*)::text AS count FROM commerce_orders WHERE tenant_id=$1 GROUP BY status',
+      [tenant],
+    )).rows);
+  }
+
+  orders(tenant: string, page: number, q = '', status?: string) {
     return this.db.withTenant(tenant, async (c) => (await c.query(
       `SELECT o.id,o.contact_id,c.name AS contact_name,o.status,o.snapshot,o.created_at,
               o.request->'origin' AS origin
        FROM commerce_orders o JOIN contacts c ON (o.tenant_id,o.contact_id)=(c.tenant_id,c.id)
-       WHERE o.tenant_id=$1 ORDER BY o.created_at DESC,o.id DESC LIMIT 51 OFFSET $2`,
-      [tenant, (page-1)*50],
+       WHERE o.tenant_id=$1
+         AND ($3='' OR strpos(lower(c.name), lower($3)) > 0
+           OR strpos(lower(o.snapshot->>'name'), lower($3)) > 0
+           OR strpos(o.id::text, lower($3)) > 0)
+         AND ($4::text IS NULL OR o.status::text=$4)
+       ORDER BY o.created_at DESC,o.id DESC LIMIT 51 OFFSET $2`,
+      [tenant, (page-1)*50, q, status ?? null],
     )).rows);
   }
   uploadOrderDocument(tenant: string, orderId: string, slot: number, file: { originalname: string; mimetype: string; buffer: Buffer }) {
