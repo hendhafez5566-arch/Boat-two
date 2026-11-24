@@ -14,7 +14,7 @@ import { MetaAdapter } from './adapters/meta.adapter';
 import { WhatsAppAdapter } from './adapters/whatsapp.adapter';
 import { TelegramAdapter } from './adapters/telegram.adapter';
 import { ProviderError, sendWithTyping } from './adapters/adapter';
-import { previewBotDeliveryAllowed, previewAgentDeliveryAllowed } from './preview-bot-delivery';
+import { previewBotDeliveryAllowed, previewAgentDeliveryAllowed, previewWhatsAppConversationsAllowed } from './preview-bot-delivery';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 @Injectable()
 export class OutboundService implements OnModuleInit, OnModuleDestroy {
@@ -129,7 +129,8 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
           }
           const previewDeliveryAllowed =
             previewBotDeliveryAllowed(message, !!marketing) ||
-            previewAgentDeliveryAllowed(message, !!marketing);
+            previewAgentDeliveryAllowed(message, !!marketing) ||
+            previewWhatsAppConversationsAllowed(message, !!marketing);
           if (
             !message ||
             message.channel_status !== 'active' ||
