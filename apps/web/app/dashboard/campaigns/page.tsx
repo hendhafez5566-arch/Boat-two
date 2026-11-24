@@ -290,8 +290,8 @@ export default function Campaigns() {
           <h1>{t('مركز البث', 'Broadcast Center')}</h1>
           <p>
             {t(
-              'إنشاء وإدارة وتتبع حملات البث عبر القنوات.',
-              'Create, manage and track all your broadcast campaigns across channels.',
+              'أرسل رسالة واحدة إلى جمهور تختاره، وتابع نتائج الإرسال.',
+              'Send one message to an audience you choose and track delivery.',
             )}
           </p>
         </div>

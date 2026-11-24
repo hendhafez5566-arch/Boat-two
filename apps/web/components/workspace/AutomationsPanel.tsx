@@ -91,7 +91,7 @@ export default function Automations() {
     <section className="stack">
       <WorkspaceHeading
         title={t('أتمتة الأعمال', 'Automations')}
-        description={t('اضبط القواعد وراجع نتائج تشغيلها.', 'Manage rules and review their runs.')}
+        description={t('نفّذ إجراءً تلقائيًا عند وقوع حدث يطابق شروطك، مثل إضافة وسم لعميل جديد.', 'Run an action when an event matches your conditions, such as tagging a new contact.')}
         actions={
           <button
             type="button"

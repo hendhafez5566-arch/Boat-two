@@ -55,8 +55,8 @@ export default function SequenceCenter({
           <h2>{t('تسلسلات المتابعة', 'Follow-up Sequences')}</h2>
           <p className="muted">
             {t(
-              'إدارة حملات المتابعة التلقائية للحساب المختار.',
-              'Manage automated sequence campaigns for the selected account.',
+              'أرسل سلسلة رسائل متابعة حسب التوقيت والشروط التي تضبطها.',
+              'Send a series of follow-up messages based on the timing and conditions you set.',
             )}
           </p>
         </div>
@@ -78,7 +78,7 @@ export default function SequenceCenter({
         <input
           type="search"
           aria-label={t('بحث التسلسلات', 'Search Sequences')}
-          placeholder={t('البحث باسم الحملة', 'Search Campaign Name')}
+          placeholder={t('البحث باسم التسلسل', 'Search by sequence name')}
           value={q}
           onChange={(e) => {
             setQ(e.target.value);

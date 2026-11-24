@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { CSSProperties, useEffect, useState } from 'react';
+import { useData } from '../../../components/business/useData';
 import { api } from '../../../lib/api';
 import { useLocale } from '../../../components/product/locale';
 import { NavIcon } from '../../../components/product/NavIcon';
@@ -17,26 +18,17 @@ export default function Onboarding() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [channels, setChannels] = useState<{ status: string; type: string; external_id: string }[]>([]);
-  const [receivedMessage, setReceivedMessage] = useState(false);
-  const [checkingMessage, setCheckingMessage] = useState(false);
-  const [messageFeedback, setMessageFeedback] = useState('');
+  const flows = useData<{ id: string; status: 'draft' | 'published'; published_version: number | null; is_component: boolean }[]>(
+    '/flows', [],
+  );
+  const usableFlows = flows.data.filter((flow) => !flow.is_component);
+  const published = usableFlows.find((flow) => flow.status === 'published' && flow.published_version !== null);
   const webChannel = channels.find((channel) => channel.status === 'active' && channel.type === 'web');
-  async function checkFirstMessage() {
-    setCheckingMessage(true);
-    setMessageFeedback('');
-    try {
-      const result = await api<{ received: boolean }>('/workspace/onboarding/message-check');
-      setReceivedMessage(result.received);
-      setMessageFeedback(result.received
-        ? t('تم استلام رسالة واردة.', 'An incoming message was received.')
-        : t('لم تصل رسالة واردة بعد.', 'No incoming message yet.'));
-    } catch {
-      setMessageFeedback(t('تعذّر التحقق. حاول مرة أخرى.', 'Could not check. Try again.'));
-    } finally {
-      setCheckingMessage(false);
-    }
-  }
   const hasActiveChannel = channels.some((channel) => channel.status === 'active');
+  const message = useData<{ received: boolean } | null>(
+    hasActiveChannel ? '/workspace/onboarding/message-check' : null, null,
+  );
+  const receivedMessage = message.data?.received === true && !message.error;
   useEffect(() => {
     Promise.all([api<NonNullable<typeof w>>('/workspace'), api<typeof channels>('/channels')])
       .then(([workspace, channelList]) => {
@@ -100,7 +92,7 @@ export default function Onboarding() {
         'A draft does not confirm testing or publication. Open the builder to test, then publish when ready.',
       ),
       href: '/dashboard/flows',
-      done: !!w?.usage.flows,
+      done: usableFlows.length > 0,
     },
     {
       key: 'try',
@@ -109,11 +101,31 @@ export default function Onboarding() {
       ar: 'جرّب البوت قبل النشر',
       en: 'Test your bot before publishing',
       hint: t(
-        'افتح المصمم وجرّب المحادثة ثم انشر عندما تكون جاهزًا. لا يمكن التحقق من التجربة تلقائيًا.',
-        'Open the builder, run a test chat, then publish when ready. Testing cannot be verified automatically.',
+        'افتح المحادثة التجريبية داخل المصمم وراجع رد البوت. هذه الخطوة تحتاج تحققًا منك.',
+        'Open the test chat in the builder and review the bot response. Check this step yourself.',
       ),
-      href: '/dashboard/flows',
+      href: usableFlows[0] ? `/dashboard/flows/${usableFlows[0].id}` : '/dashboard/flows',
       done: false,
+    },
+    {
+      key: 'publish',
+      kind: 'core',
+      icon: 'flows',
+      ar: 'انشر البوت',
+      en: 'Publish your bot',
+      hint: t('انشر نسخة من المصمم بعد مراجعة المحادثة التجريبية.', 'Publish a version from the builder after reviewing the test conversation.'),
+      href: usableFlows[0] ? `/dashboard/flows/${usableFlows[0].id}` : '/dashboard/flows',
+      done: !!published,
+    },
+    {
+      key: 'message',
+      kind: 'core',
+      icon: 'inbox',
+      ar: 'تحقق من وجود رسالة واردة',
+      en: 'Check for an incoming message',
+      hint: t('أرسل رسالة من القناة التجريبية وافتح صندوق الوارد للتأكد من الرسالة نفسها.', 'Send a message from the test channel and open the inbox to confirm that specific message.'),
+      href: hasActiveChannel ? '#first-message-heading' : '/dashboard/channels',
+      done: receivedMessage,
     },
     {
       key: 'team',
@@ -169,7 +181,11 @@ export default function Onboarding() {
           {error}
         </p>
       )}
-      {w && next && (
+      {flows.error && <div className="notice error" role="alert">
+        {t('تعذّر التحقق من حالة نشر البوت.', 'Could not verify bot publication.')}
+        {' '}<button className="btn" type="button" onClick={() => void flows.reload()}>{t('أعد المحاولة', 'Retry')}</button>
+      </div>}
+      {w && !flows.loading && next && (
         <section className="ob-next">
           <div>
             <small>{t('خطوتك التالية', 'Your next step')}</small>
@@ -235,18 +251,24 @@ export default function Onboarding() {
                 {t('افتح تجربة محادثة الموقع', 'Open website chat demo')}
               </a>
             )}
-            <button className="btn btn-primary" type="button" disabled={checkingMessage} onClick={checkFirstMessage}>
+            <button className="btn btn-primary" type="button" disabled={message.loading} onClick={() => void message.reload()}>
               {t('تحقق من الرسالة', 'Check for a message')}
             </button>
             {receivedMessage && <Link className="btn" href="/dashboard/inbox">{t('افتح صندوق الوارد', 'Open inbox')}</Link>}
           </div>
-          <p role="status">{messageFeedback}</p>
+          <p role="status">{message.loading
+            ? t('جارٍ التحقق من الرسائل…', 'Checking for messages…')
+            : message.error
+              ? t('تعذّر التحقق. أعد المحاولة.', 'Unable to check. Retry.')
+              : receivedMessage
+                ? t('توجد رسالة واردة في مساحة العمل. افتح صندوق الوارد للتأكد من رسالة الاختبار.', 'An incoming message exists in this workspace. Open the inbox to confirm your test message.')
+                : t('لم تصل رسالة واردة بعد.', 'No incoming message yet.')}</p>
         </section>
       )}
       <section className="ob-finish">
         <div className="form-actions">
           <button className="btn btn-primary" disabled={busy || !hasActiveChannel} onClick={finish}>
-            {t('إنهاء الإعداد والانتقال للوحة', 'Finish setup & open dashboard')}
+            {t('سجّل الإعداد الأولي وافتح اللوحة', 'Save initial setup and open dashboard')}
           </button>
           <Link className="btn" href="/dashboard">
             {t('المتابعة لاحقًا', 'Continue later')}
@@ -254,8 +276,8 @@ export default function Onboarding() {
         </div>
         <p className="muted">
           {t(
-            'إكمال الإعداد يتطلب قناة نشطة. نشر السيناريو خطوة مستقلة من المصمم.',
-            'An active channel is required to finish setup. Publish your flow separately in the builder.',
+            'يتطلب تسجيل الإعداد الأولي قناة نشطة. يعرض الدليل حالة النشر والرسائل الواردة بشكل مستقل.',
+            'Saving initial setup requires an active channel. The guide tracks publication and incoming messages separately.',
           )}
         </p>
       </section>
