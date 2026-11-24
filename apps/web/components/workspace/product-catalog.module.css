@@ -1443,6 +1443,16 @@
 .editorFields[data-active-editor-tab="advanced"] [data-editor-tab="advanced"] { display: revert; }
 
 @media (max-width: 750px) {
+  .editorTabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    max-inline-size: 100%;
+    min-inline-size: 0;
+  }
+
+  .editorTabs button { flex: 0 0 auto; }
+
   .editorDialog[open] {
     margin: 0;
     width: 100%;
@@ -1456,4 +1466,29 @@
   .editorDialog .productForm > :global(.form-actions) {
     padding-block-end: max(11px, env(safe-area-inset-bottom));
   }
+}
+
+
+.editorFields :is([data-checkout-tab="packages"], [data-checkout-tab="form"]) > :global(.card) {
+  background: #f2f6fa;
+  border: 1px solid #e4eaf1;
+  border-radius: 12px;
+  box-shadow: none;
+  margin-block: 10px;
+  padding: 12px;
+}
+
+.editorFields [data-checkout-tab="packages"] > :global(.card) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.editorFields [data-checkout-tab="packages"] > :global(.card) > label {
+  grid-column: 1 / -1;
+}
+
+.editorFields [data-checkout-tab="packages"] > :global(.card) > button:last-child {
+  background: #fcecef;
+  color: #8c3040;
 }
