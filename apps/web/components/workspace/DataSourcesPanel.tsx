@@ -204,7 +204,12 @@ export default function DataSourcesPanel({
     // A failed replacement must never leave an older preview available to apply.
     setPreview(null);
     setArchive(false);
-    setFile(null);
+    if (!worksheet) {
+      setFile(null);
+      setSheets([]);
+      setSheet('');
+    }
+    setHeaders([]);
     setSample([]);
     const data = new FormData();
     data.set('file', f);
@@ -341,7 +346,7 @@ export default function DataSourcesPanel({
       </header>
       <ol className={styles.steps} aria-label={t('خطوات الاستيراد', 'Import steps')}>
         {[
-          t('رفع الملف', 'Upload'),
+          t('اختيار المصدر', 'Choose source'),
           t('مطابقة الأعمدة', 'Map columns'),
           t('المعاينة', 'Preview'),
           t('الاستيراد', 'Import'),
@@ -430,7 +435,8 @@ export default function DataSourcesPanel({
                   type="file"
                   accept=".xlsx,.csv"
                   onChange={(e) => {
-                    const f = e.target.files?.[0];
+                    const f = e.currentTarget.files?.[0];
+                    e.currentTarget.value = '';
                     if (f) void act(() => upload(f));
                   }}
                 />
@@ -440,8 +446,8 @@ export default function DataSourcesPanel({
                   {t('ورقة العمل', 'Worksheet')}
                   <select
                     value={sheet}
+                    disabled={busy}
                     onChange={(e) => {
-                      setSheet(e.target.value);
                       if (file) void act(() => upload(file, e.target.value));
                     }}
                   >

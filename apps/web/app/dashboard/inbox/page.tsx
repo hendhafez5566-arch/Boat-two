@@ -979,7 +979,10 @@ export default function Inbox() {
                       type="button"
                       aria-label={t('بحث الرسائل', 'Search messages')}
                       aria-expanded={searchMessages}
-                      onClick={() => setSearchMessages((v) => !v)}
+                      onClick={() => {
+                        if (searchMessages) setMessageSearch('');
+                        setSearchMessages(!searchMessages);
+                      }}
                     >
                       <NavIcon name="search" />
                     </button>
@@ -1059,6 +1062,7 @@ export default function Inbox() {
                 {searchMessages && (
                   <input
                     className={styles.messageSearch}
+                    type="search"
                     aria-label={t('بحث داخل الرسائل المحملة', 'Search loaded messages')}
                     placeholder={t('بحث داخل الرسائل المحملة…', 'Search loaded messages…')}
                     value={messageSearch}
@@ -1209,7 +1213,7 @@ export default function Inbox() {
                       </button>
                     </div>
                   )}
-                  <div className="composer-row" hidden={replyUnavailable && !internal}>
+                  <div className={replyUnavailable && !internal ? undefined : 'composer-row'} hidden={replyUnavailable && !internal}>
                     <textarea
                       ref={composerInput}
                       aria-label={t('محرر الرد', 'Reply composer')}

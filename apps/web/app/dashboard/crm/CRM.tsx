@@ -1335,6 +1335,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                       edit ? editBody(edit, draft) : { ...draft, requestId: createRequestId.current },
                       edit ? 'PATCH' : 'POST',
                     );
+                    setMessage(edit ? t('تم تحديث بيانات العميل.', 'Customer details updated.') : t('تم إضافة العميل.', 'Customer added.'));
                     discardContact();
                     setContactDraft(null);
                     if (!edit) openRecord(saved as Contact);

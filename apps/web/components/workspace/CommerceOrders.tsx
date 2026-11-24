@@ -275,8 +275,12 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
         <option value="">{t('كل الحالات', 'All statuses')}</option>
         {Object.entries(statusLabels).map(([status, label]) => <option key={status} value={status}>{label}</option>)}
       </select></label>
+      {(orderQuery || orderStatus) && <button type="button" className="btn"
+        onClick={() => { setOrderQuery(''); setOrderStatus(''); setPage(1); }}>
+        {t('مسح البحث والتصفية', 'Clear search and filters')}
+      </button>}
     </div>
-    <div className="card stack" hidden={!creating}>
+    <div className={creating ? 'card stack' : undefined} hidden={!creating}>
       <h3>{t('طلب جديد', 'New order')}</h3>
       <label>{t('بحث بالمنتج أو SKU', 'Find product by name or SKU')}
         <input value={search} maxLength={120} onChange={(e) => setSearch(e.target.value)}/></label>
@@ -317,7 +321,9 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
     {followupMessage && <p role="status">{followupMessage}</p>}
     {orders.loading && <p role="status">{t('جارٍ تحميل الطلبات', 'Loading orders')}</p>}
     {orders.error && <p role="alert">{orders.error}</p>}
-    {matches && orders.data.length === 0 && <p>{t('لا توجد طلبات.', 'No orders.')}</p>}
+    {matches && orders.data.length === 0 && <p>{orderQuery || orderStatus
+      ? t('لا توجد طلبات مطابقة للبحث أو الحالة.', 'No orders match this search or status.')
+      : t('لا توجد طلبات بعد.', 'No orders yet.')}</p>}
     {matches && orders.data.slice(0, 50).map((o) => <article key={o.id} className={styles.order}>
       <header className={styles.heading}>
         <div><h3>{o.snapshot.name}</h3><Link href={'/dashboard/crm?contact=' + o.contact_id}>{o.contact_name}</Link>
