@@ -140,3 +140,22 @@
 .previewTable table { width: 100%; min-width: 520px; border-collapse: collapse; }
 .previewTable th, .previewTable td { padding: 12px; text-align: start; border-bottom: 1px solid #e2e8f0; vertical-align: top; overflow-wrap: anywhere; max-width: 260px; }
 .previewTable th { position: sticky; top: 0; background: var(--surface-muted, #f3f6fa); }
+
+.importHeader, .sourceToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.importHeader { align-items: center; }
+.importHeader h2 { font-size: 17px; margin: 0; }
+.importHeader svg { inline-size: 20px; block-size: 20px; color: #09635e; }
+.sourceToolbar {
+  align-items: end;
+  padding: 12px;
+  border: 1px solid var(--line, #e4eaf1);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+}
+.sourceToolbar label { flex: 1 1 200px; min-inline-size: 0; }
+.sourceToolbar select { width: 100%; }
+.root .steps [aria-current="step"] span { background: #09635e; color: #fff; }
