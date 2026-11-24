@@ -123,7 +123,7 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
   const members = useData<{ members: { user_id: string; full_name: string }[] }>(
     (followup || assignmentId) ? '/crm/workspace/members' : null, { members: [] },
   );
-  const [documentsId, setDocumentsId] = useState<string | null>(null);
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(() => new Set());
   const [historyId, setHistoryId] = useState<string | null>(null);
   const history = useData<{ status: string; created_at: string }[]>(historyId ? '/commerce/orders/' + historyId + '/history' : null, []);
   const [error, setError] = useState('');
@@ -323,19 +323,6 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
           {' · '}<time dateTime={o.created_at}>{new Date(o.created_at).toLocaleDateString()}</time></div>
         <span className={styles.status} data-status={o.status}>{statusLabels[o.status]}</span>
       </header>
-      {o.origin && <p><Link href={'/dashboard/inbox?conversation=' + o.origin.conversationId}>
-        {t('المحادثة الأصلية', 'Original conversation')}
-      </Link></p>}
-      <div className={styles.heading}><strong>{o.snapshot.package?.name ?? o.snapshot.name} × {o.snapshot.quantity}</strong>
-        <strong>{amount(o.snapshot)}</strong></div>
-      <details className={styles.details}>
-        <summary>{t('تفاصيل الطلب', 'Order details')}</summary>
-        <OrderDetails snapshot={o.snapshot}/>
-      </details>
-      {!!o.snapshot.documents.length && <button className="btn" aria-expanded={documentsId === o.id}
-        onClick={() => setDocumentsId(documentsId === o.id ? null : o.id)}>{t('المستندات', 'Documents')}</button>}
-      {documentsId === o.id && <OrderDocuments order={o}/>}
-
       <div className={styles.filters}>
         {transitions[o.status] && <label>{t('حالة الطلب', 'Order status')}
           <select value={o.status} disabled={busy} onChange={(e) => {
@@ -363,6 +350,29 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
           </label>}
         </div>
       </div>
+      <div className={styles.heading}><strong>{o.snapshot.package?.name ?? o.snapshot.name} × {o.snapshot.quantity}</strong>
+        <strong>{amount(o.snapshot)}</strong></div>
+      <details className={styles.details} onToggle={(event) => {
+        const open = event.currentTarget.open;
+        setExpandedOrders((current) => {
+          if (current.has(o.id) === open) return current;
+          const next = new Set(current);
+          if (open) next.add(o.id);
+          else next.delete(o.id);
+          return next;
+        });
+      }}>
+        <summary>{t('تفاصيل الطلب والعميل', 'Order and customer details')}</summary>
+        <OrderDetails snapshot={o.snapshot}/>
+        {!!o.snapshot.documents.length && expandedOrders.has(o.id) && <>
+          <h4>{t('المستندات', 'Documents')}</h4>
+          <OrderDocuments order={o}/>
+        </>}
+        {o.origin && <p><Link href={'/dashboard/inbox?conversation=' + o.origin.conversationId}>
+          {t('المحادثة الأصلية', 'Original conversation')}
+        </Link></p>}
+        <p><Link href={'/dashboard/crm?contact=' + o.contact_id}>{t('فتح ملف العميل', 'Open customer profile')}</Link></p>
+      </details>
       <button className="btn" aria-expanded={followup?.id === o.id} onClick={() => setFollowup(followup?.id === o.id ? null : o)}>
         {t('متابعة في CRM', 'CRM follow-up')}
       </button>
