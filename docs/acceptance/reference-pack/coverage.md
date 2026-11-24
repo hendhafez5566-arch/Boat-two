@@ -100,3 +100,9 @@
 مفتاحا إصدار الواجهة في بناء Next.js هما `NEXT_PUBLIC_CATALOG_EDITOR_MODES=true` و`NEXT_PUBLIC_CATALOG_CATEGORY_TREE=true`. المفتاح الثاني يتحكم في عرض شجرة الأقسام والتصفح من الخادم. عند الإيقاف يعود مسار الواجهة القديم، وتبقى البيانات الجديدة محفوظة. نشر نسخة API الجديدة يحتاج تطبيق Migration 115 الذي يحافظ على معرّفات الفئات والمنتجات القديمة ويترك أقسامها الحالية بلا أب. للإرجاع التشغيلي، أوقف المفتاحين وأعد بناء الويب مع ترك أعمدة وعلاقات الشجرة في قاعدة البيانات. لا تعكس Migration على قاعدة فيها فروع لأن ذلك يزيل معلومات الربط. لم تُطبّق Migration على أي قاعدة بيانات مستضافة في هذه الدفعة.
 
 الاختبارات خليط من Chromium محلي وNestJS وPGlite ببيانات اصطناعية. لم يُختبر جهاز هاتف فعلي، أو حساب مستقل لاختبار قابلية الفهم، أو إرسال واتساب أو الدفع لدى مزوّد حقيقي.
+
+### Products and Orders follow-up baseline
+
+- Railway Preview browser check reached the authenticated Commerce page and its Orders tab. The existing page puts the manual order form before the list. The reference groups order status and commercial summary above expandable order details. This check used read-only navigation.
+- O05 remains open for this follow-up. The order list now exposes saved answers under their question labels, add-ons, and the price breakdown from the persisted order snapshot. Existing document, status, history and follow-up actions retain their entry points. Browser interaction with a populated order and matched RTL/LTR screenshots of the changed UI are still required.
+- The deployment branch is three commits ahead of the development branch at the baseline. The only differing paths are the outbound WhatsApp service and its Preview delivery helper and test. Use the deployment-branch ancestry for the release candidate so it retains those fixes.
