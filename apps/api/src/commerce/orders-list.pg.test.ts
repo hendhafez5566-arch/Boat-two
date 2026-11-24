@@ -27,7 +27,10 @@ test('order totals are tenant-wide and search and status filter before paginatio
         id serial PRIMARY KEY, tenant_id text, order_id int, actor_id text,
         status text CHECK (status IN ('new','confirmed','completed','cancelled')), created_at timestamptz DEFAULT now()
       );
-      CREATE TABLE commerce_order_documents (tenant_id text, order_id int);
+      CREATE TABLE commerce_order_documents (
+        tenant_id text, order_id int, slot int, filename text, mime text, bytes bytea,
+        PRIMARY KEY (tenant_id, order_id, slot)
+      );
       INSERT INTO users VALUES ('11111111-1111-4111-8111-111111111111', 'Assignee', NULL),
         ('22222222-2222-4222-8222-222222222222', 'Other tenant', NULL);
       INSERT INTO memberships VALUES ('tenant-a', '11111111-1111-4111-8111-111111111111'),
@@ -36,7 +39,7 @@ test('order totals are tenant-wide and search and status filter before paginatio
       INSERT INTO commerce_orders (id, tenant_id, contact_id, status, snapshot)
       SELECT id, 'tenant-a', 1, 'new', '{"name":"Tour"}' FROM generate_series(1, 55) AS id;
       INSERT INTO commerce_orders (id, tenant_id, contact_id, status, snapshot) VALUES
-        (56, 'tenant-a', 1, 'confirmed', '{"name":"Service 100%","documents":[]}'),
+        (56, 'tenant-a', 1, 'confirmed', '{"name":"Service 100%","documents":["QA document"]}'),
         (57, 'tenant-b', 1, 'new', '{"name":"Hidden tour"}');
     `);
     await pg.exec(readFileSync('src/database/migrations/119_commerce_order_workflow.sql', 'utf8'));
@@ -57,10 +60,18 @@ test('order totals are tenant-wide and search and status filter before paginatio
     await service.assignOrder('tenant-a', '56', '11111111-1111-4111-8111-111111111111');
     assert.equal((await service.orders('tenant-a', 1, '', 'confirmed'))[0].assignee_name, 'Assignee');
     await service.changeOrderStatus('tenant-a', 'actor', '56', 'documents_required');
+    const document = { originalname: 'qa.png', mimetype: 'image/png', buffer: Buffer.from('synthetic') };
+    await assert.rejects(service.uploadOrderDocument('tenant-a', '56', 1, document), /Document slot unavailable/);
+    await service.uploadOrderDocument('tenant-a', '56', 0, document);
+    assert.deepEqual(await service.orderDocuments('tenant-a', '56'), [
+      { slot: 0, filename: 'qa.png', mime: 'image/png' },
+    ]);
     await assert.rejects(service.changeOrderStatus('tenant-a', 'actor', '56', 'completed'), /Invalid order transition/);
     await service.changeOrderStatus('tenant-a', 'actor', '56', 'processing');
     await service.changeOrderStatus('tenant-a', 'actor', '56', 'completed');
     assert.equal((await service.orderHistory('tenant-a', '56')).length, 3);
+    await assert.rejects(service.uploadOrderDocument('tenant-a', '56', 0, document), /Order is closed/);
+    assert.equal((await service.orderDocuments('tenant-a', '56')).length, 1);
     await service.assignOrder('tenant-a', '56', null);
     assert.equal((await service.orders('tenant-a', 1, '', 'completed'))[0].assigned_to, null);
   } finally {

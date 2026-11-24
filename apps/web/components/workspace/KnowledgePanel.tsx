@@ -214,7 +214,6 @@ export default function Knowledge() {
               </button>
             </form>
           </details>
-          <KnowledgeJobs />
         </>
       )}
       <section className="card stack">
@@ -307,6 +306,7 @@ export default function Knowledge() {
           ))}
         </div>
       </section>
+      {canManage && <KnowledgeJobs />}
       <KnowledgeRetention />
       {editing && canManage && (
         <KnowledgeSourceEditor id={editing} onClose={() => setEditing(null)} onSaved={load} />

@@ -924,19 +924,15 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                       'Try another search or category.',
                     )
                   : t(
-                      'أنشئ منتجًا يدويًا أو استخدم تبويب مصادر البيانات للاستيراد.',
-                      'Create a product or use Data sources to import products.',
+                      'اختر «إضافة منتج» بالأعلى، أو افتح «الاستيراد والمزامنة» لرفع ملف.',
+                      'Choose “Add product” above, or open “Import & sync” to upload a file.',
                     )}
               </p>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={productCount ? resetFilters : () => openEditor(null)}
-              >
-                {productCount
-                  ? t('مسح الفلاتر', 'Clear filters')
-                  : t('إضافة منتج', 'Add product')}
-              </button>
+              {!!productCount && (
+                <button type="button" className="btn" onClick={resetFilters}>
+                  {t('مسح الفلاتر', 'Clear filters')}
+                </button>
+              )}
             </div>
           )}
         </>

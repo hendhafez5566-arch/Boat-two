@@ -372,7 +372,7 @@ export class CommerceService {
         [tenant, orderId],
       );
       if (!order || !order.snapshot.documents[slot]) throw new NotFoundException('Document slot unavailable');
-      if (!['new','confirmed'].includes(order.status)) throw new ConflictException('Order is closed');
+      if (['completed', 'cancelled'].includes(order.status)) throw new ConflictException('Order is closed');
       const { rows: [document] } = await c.query(
         `INSERT INTO commerce_order_documents(tenant_id,order_id,slot,filename,mime,bytes)
          VALUES($1,$2,$3,$4,$5,$6)
