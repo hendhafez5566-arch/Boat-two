@@ -120,3 +120,5 @@ Branch: `feat/reference-commerce-orders-20261124`, continued from `e60ce3d`. Its
 | D03 | No deployment in this review. | Build and browser acceptance on the final candidate before Preview deployment. |
 
 O05 and the visual/mobile acceptance rows remain open. CRM follow-up assignment is separate from order assignment. Completion still requires the saved document slots to be filled, and cancellation continues to use the existing stock restoration logic.
+
+**Final automated check for this continuation.** Next.js production build passed. The isolated API suite passed 288/288 after restoring the three unchanged WhatsApp files from `d57b434` into the verification worktree and matching their Git blob IDs. The first full run exposed a pre-existing Inbox test fixture missing `conversations.crm_initiated`, reproduced on the starting source and corrected only in the fixture. The full run includes the Preview all-conversation guard and the order workflow database test. The two required browser sizes, full automatic checkout to CRM in a real browser, and Railway Preview release remain unverified.
