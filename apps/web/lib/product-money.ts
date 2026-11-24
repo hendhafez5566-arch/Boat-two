@@ -12,3 +12,15 @@ export function productDecimal(value: string): string {
 export function productPrice(value: string, currency: string): string {
   return `${productDecimal(value)} ${currency}`;
 }
+
+export function productRateBps(value: string): number {
+  const rate = Number(productMinorUnits(value));
+  if (rate > 10000) throw new Error('Enter a percentage between 0 and 100');
+  return rate;
+}
+
+export function productPriceAfterRates(price: string, discountBps: number, taxBps: number): string {
+  const subtotal = BigInt(price);
+  const discounted = subtotal - (subtotal * BigInt(discountBps) + 5000n) / 10000n;
+  return (discounted + (discounted * BigInt(taxBps) + 5000n) / 10000n).toString();
+}

@@ -2,6 +2,7 @@
 import { DisclosureSummary } from '../product/DisclosureSummary';
 import ProductCatalog from './ProductCatalog';
 import CommerceOrders from './CommerceOrders';
+import { AppointmentHours, readAppointmentHours } from './AppointmentHours';
 import { checkoutEnabled } from './CheckoutEditor';
 import catalogStyles from './product-catalog.module.css';
 
@@ -64,7 +65,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
       [],
     );
   const actionLock = useRef(false);
-  async function act(fn: () => Promise<unknown>) {
+  async function act(fn: () => Promise<unknown>, success?: string) {
     if (actionLock.current) return;
     actionLock.current = true;
     setBusy(true);
@@ -84,7 +85,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
               (response.start && response.end
                 ? ` ${new Date(response.start).toLocaleString()} — ${new Date(response.end).toLocaleString()}`
                 : '')
-          : response?.content?.text || t('تم تنفيذ الإجراء.', 'Action completed.'),
+          : success || response?.content?.text || t('تم تنفيذ الإجراء.', 'Action completed.'),
       );
       await Promise.all([services.reload(), bookings.reload()]);
     } catch (e) {
@@ -127,7 +128,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
         </div>
         {initialTab !== 'appointments' && catalogNavigation}
         {initialTab && <div className={catalogStyles.commerceContextActions}>
-      {(initialTab !== 'products' || !!channelId) && (
+      {initialTab !== 'products' && (
         <Link className="btn" href={channelHref('/dashboard/flows?section=bot_reply', channelId)}>
           {t('العودة إلى مدير البوت', 'Back to bot manager')}
         </Link>
@@ -163,7 +164,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
             workspaceWide
           />
           <div className={catalogStyles.commerceContextActions}>
-      {(initialTab !== 'products' || !!channelId) && (
+      {initialTab !== 'products' && (
         <Link className="btn" href={channelHref('/dashboard/flows?section=bot_reply', channelId)}>
           {t('العودة إلى مدير البوت', 'Back to bot manager')}
         </Link>
@@ -203,27 +204,25 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
                     name: f.get('name'),
                     durationMinutes: Number(f.get('duration')),
                     timezone: f.get('timezone'),
-                    schedule: JSON.parse(String(f.get('schedule') || '{}')),
+                    schedule: readAppointmentHours(f, t),
                     ...(f.get('connection') ? { calendarConnectionId: f.get('connection') } : {}),
                     calendarId: f.get('calendar') || 'primary',
                   }),
                 }),
+                t('تم حفظ خدمة المواعيد.', 'Appointment service saved.'),
               );
             }}
           >
             <h2>{t('إنشاء خدمة مواعيد', 'Create appointment service')}</h2>
             <label className="field">
               {t('اسم الخدمة', 'Service name')}
-              <input required name="name" />
+              <input required name="name" maxLength={120} />
             </label>
             <label className="field">
               {t('المدة بالدقائق', 'Duration in minutes')}
               <input name="duration" type="number" min={5} max={1440} defaultValue={30} required />
             </label>
-            <label className="field">
-              {t('المنطقة الزمنية', 'Timezone')}
-              <input name="timezone" defaultValue="Africa/Cairo" required />
-            </label>
+            <AppointmentHours />
             <label className="field">
               {t(
                 'حساب Calendar اختياري — المزامنة تحتاج أمرًا منفصلًا',
@@ -244,17 +243,6 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
               Calendar ID
               <input name="calendar" defaultValue="primary" />
             </label>
-            <details>
-              <DisclosureSummary>
-                {t('جدول أسبوعي اختياري JSON', 'Optional weekly schedule JSON')}
-              </DisclosureSummary>
-              <textarea
-                name="schedule"
-                rows={4}
-                dir="ltr"
-                defaultValue={'{"mon":[["09:00","17:00"]],"tue":[["09:00","17:00"]]}'}
-              />
-            </details>
             <button className="btn" disabled={busy}>
               {t('حفظ الخدمة', 'Save service')}
             </button>
@@ -277,6 +265,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
                     dryRun: !save,
                   }),
                 }),
+                save ? t('تم إنشاء الحجز المحلي.', 'Local booking created.') : undefined,
               );
             }}
           >

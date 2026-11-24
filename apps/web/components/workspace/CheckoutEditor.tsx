@@ -1,7 +1,7 @@
 'use client';
 import { DisclosureSummary } from '../product/DisclosureSummary';
 import { useState } from 'react';
-import { productDecimal, productMinorUnits } from '../../lib/product-money';
+import { productDecimal, productMinorUnits, productPrice, productPriceAfterRates, productRateBps } from '../../lib/product-money';
 import { useLocale } from '../product/locale';
 
 export const checkoutEnabled = process.env.NEXT_PUBLIC_COMMERCE_CHECKOUT === 'true';
@@ -37,8 +37,10 @@ function PackagePrice({ value, onChange }: { value: string; onChange: (value: st
   </label>;
 }
 
-export function CheckoutEditor({ value, onChange }: {
+export function CheckoutEditor({ value, onChange, price, currency }: {
   value: CheckoutConfig;
+  price: string;
+  currency: string;
   onChange: (value: CheckoutConfig) => void;
 }) {
   const { t } = useLocale();
@@ -55,13 +57,31 @@ export function CheckoutEditor({ value, onChange }: {
       <input name="checkoutStock" type="number" min="0" max="1000000" value={value.stock ?? ''}
         onChange={(e) => update({ stock: e.target.value === '' ? null : Number(e.target.value) })}/></label>}
     <div className="stack" data-checkout-tab="stock">
-      {(['min', 'max', 'discountBps', 'taxBps'] as const).map((field) => {
-        if (value.kind === 'quote' && (field === 'discountBps' || field === 'taxBps')) return null;
-        const labels = { min: t('أقل كمية', 'Minimum quantity'), max: t('أعلى كمية', 'Maximum quantity'),
-          discountBps: t('الخصم (نقاط أساس)', 'Discount (basis points)'), taxBps: t('الضريبة (نقاط أساس)', 'Tax (basis points)') };
-        return <label key={field}>{labels[field]} <input type="number" value={value[field]}
-          onChange={(e) => update({ [field]: Number(e.target.value) })}/></label>;
-      })}
+      {(['min', 'max'] as const).map((field) => (
+        <label key={field}>{field === 'min' ? t('أقل كمية', 'Minimum quantity') : t('أعلى كمية', 'Maximum quantity')}
+          <input type="number" min={field === 'min' ? 1 : value.min} max={1000} required value={value[field]}
+            onChange={(e) => update({ [field]: Number(e.target.value) })}/>
+        </label>
+      ))}
+      <div hidden={value.kind === 'quote'}>
+        <div className="stack">
+        {(['discountBps', 'taxBps'] as const).map((field) => (
+          <label key={field}>{field === 'discountBps' ? t('الخصم (%)', 'Discount (%)') : t('الضريبة (%)', 'Tax (%)')}
+            <input dir="ltr" inputMode="decimal" required disabled={value.kind === 'quote'} pattern="(?:[0-9]{1,2}([.][0-9]{1,2})?|100([.]0{1,2})?)"
+              defaultValue={productDecimal(String(Math.max(0, value[field])))}
+              onChange={(e) => {
+                try { update({ [field]: productRateBps(e.target.value) }); }
+                catch { update({ [field]: -1 }); }
+              }}/>
+          </label>
+        ))}
+        <small>{t('أدخل نسبة من 0 إلى 100، بمنزلتين عشريتين كحد أقصى.', 'Enter a percentage from 0 to 100, with up to two decimal places.')}</small>
+        {price && value.discountBps >= 0 && value.taxBps >= 0 && <output aria-live="polite">
+          {t('السعر الأساسي بعد الخصم والضريبة', 'Base price after discount and tax')}{' '}
+          <bdi>{productPrice(productPriceAfterRates(price, value.discountBps, value.taxBps), currency)}</bdi>
+        </output>}
+        </div>
+      </div>
     </div>
     <details open data-checkout-tab="packages">
       <DisclosureSummary>{t('الباقات', 'Packages')}</DisclosureSummary>

@@ -41,8 +41,8 @@ export default function Pricing() {
     <main className="stack">
       <div className="page-heading">
         <div>
-          <h1>{t('الترقية إلى Pro', 'Upgrade to Pro')}</h1>
-          <Link href="/dashboard/billing">{t('الفوترة', 'Billing')}</Link>
+          <h1>{t('الباقات والاشتراك', 'Plans and subscription')}</h1>
+          <Link href="/dashboard/billing">{t('الفواتير وسجل الدفع', 'Invoices and payment history')}</Link>
         </div>
         <button
           className="btn"

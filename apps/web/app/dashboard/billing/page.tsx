@@ -80,7 +80,7 @@ export default function Billing() {
     <main className={styles.page}>
       <header className={`${styles.heading} workspace-heading`}>
         <h1>{t('الفوترة', 'Billing')}</h1>
-        <p>{t('الخطة والإضافات وسجل الدفع', 'Plan, addons, and payment history')}</p>
+        <p>{t('راجع فواتيرك وسجل عمليات الدفع.', 'Review your invoices and payment history.')}</p>
       </header>
       {error && (
         <p role="alert" className="notice error">
@@ -101,7 +101,7 @@ export default function Billing() {
           <div>
             <small>{t('الباقة', 'Package')}</small>
             <strong>{ws.data?.plan.plan_name || '—'}</strong>
-            <Link className={styles.upgrade} href="/dashboard/pricing">
+            <Link className={styles.upgrade} href="/dashboard/packages">
               {t('الترقية إلى Pro', 'Upgrade to Pro')}
             </Link>
           </div>

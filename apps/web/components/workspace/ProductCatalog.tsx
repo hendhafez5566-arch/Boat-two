@@ -177,6 +177,8 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
   );
 
   const [checkout, setCheckout] = useState(defaultCheckout);
+  const [previewPrice, setPreviewPrice] = useState('');
+  const [previewCurrency, setPreviewCurrency] = useState('EGP');
 
   const repairAttempted = useRef(false);
   const [repairField, setRepairField] = useState('');
@@ -210,6 +212,8 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
   function openEditor(product: CatalogProduct | null) {
     setEditorTab('basic');
     setCheckout({ ...defaultCheckout, ...product?.checkout });
+    setPreviewPrice(product?.price_cents ?? '');
+    setPreviewCurrency(product?.currency ?? 'EGP');
     setDraftImage(product?.image_url ?? null);
     setExpandedSections({
       specification: !!product?.specifications?.length,
@@ -387,6 +391,8 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
             checkoutUpdatedAt: editing?.updated_at,
             checkout: {
               ...checkout,
+              discountBps: checkout.discountBps < 0 ? editing?.checkout?.discountBps ?? 0 : checkout.discountBps,
+              taxBps: checkout.taxBps < 0 ? editing?.checkout?.taxBps ?? 0 : checkout.taxBps,
               documents: checkout.documents.map((d) => d.trim()).filter(Boolean),
               questions: checkout.questions.map((q) => ({ ...q, choices: q.choices.map((c) => c.trim()).filter(Boolean) })),
             },
@@ -1024,6 +1030,10 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                     {t('السعر *', 'Price *')}
                     <input
                       name="price"
+                      onChange={(event) => {
+                        try { setPreviewPrice(productMinorUnits(event.target.value)); }
+                        catch { setPreviewPrice(''); }
+                      }}
                       inputMode="decimal"
                       pattern="[0-9]{1,13}([.][0-9]{1,2})?"
                       required
@@ -1036,6 +1046,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                     {t('العملة *', 'Currency *')}
                     <input
                       name="currency"
+                      onChange={(event) => setPreviewCurrency(event.target.value)}
                       pattern="[A-Z]{3}"
                       maxLength={3}
                       required
@@ -1083,7 +1094,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                 </label>
               </fieldset>
               {checkoutEnabled && <div hidden={!['basic', 'packages', 'form', 'stock'].includes(editorTab)}>
-                <CheckoutEditor value={checkout} onChange={(value) => {
+                <CheckoutEditor price={previewPrice} currency={previewCurrency} value={checkout} onChange={(value) => {
                   setCheckout(value);
                   setEditorDirty(true);
                 }}/></div>}
