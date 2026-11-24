@@ -725,10 +725,11 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
               </button>
             </form>
           </Dialog>
+          <div className={styles.catalogControls}>
           <header className={styles.resultsHeader}>
             <div>
               <h2>{selectedCategory?.name ?? (category === 'none' ? t('دون قسم', 'Uncategorized') : t('كل المنتجات', 'All products'))}</h2>
-              {!productsLoading && !productError && <small role="status">{t(`عدد المنتجات: ${resultCount}`, `Products: ${resultCount}`)}</small>}
+              {!productsLoading && !productError && <small role="status">{t(`${resultCount} منتج`, `Products: ${resultCount}`)}</small>}
             </div>
             <div className={styles.headerActions}>
               <button type="button" className="btn btn-primary" onClick={() => openEditor(null)}>
@@ -817,6 +818,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                   </>
                 )}
               </div>
+          </div>
           {productsLoading ? (
             <p role="status">{t('جارٍ تحميل المنتجات…', 'Loading products…')}</p>
           ) : productError && !visibleRows.length ? null : visibleRows.length ? (
@@ -852,7 +854,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                         <ProductImage key={product.image_url} product={product}/>
                         <div><h3>{product.name}</h3><small>{categoryName(product)} · <bdi>{product.sku}</bdi></small></div>
                       </div>
-                      {product.description && <p>{product.description}</p>}
+                      <p title={product.description || undefined}>{product.description}</p>
                       <div className={styles.tileSummary}>
                         <div><strong><bdi>{productPrice(product.price_cents, product.currency)}</bdi></strong>{optionCount(product)}</div>
                         {productStatus(product)}
