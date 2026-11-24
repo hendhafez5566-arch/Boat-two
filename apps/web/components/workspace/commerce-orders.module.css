@@ -44,10 +44,10 @@
 .heading h2, .heading button { display: inline-flex; align-items: center; gap: 8px; }
 
 .metrics, .filters { display: grid; gap: 10px; }
-.metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.metrics { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
 .filters { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 .filters label { display: grid; gap: 5px; min-width: 0; }
-.filters label:first-child { grid-template-columns: auto 1fr; align-items: center; }
+.filters label:has(input[type="search"]) { grid-template-columns: auto 1fr; align-items: center; }
 .filters input { grid-column: 1 / -1; min-width: 0; }
 
 .metric, .order {
