@@ -137,9 +137,16 @@ export class CommerceController {
       r.user.tenantId, r.user.userId, parse(conversationOrderSchema, body),
     );
   }
+  @Get('orders/summary') orderSummary(@Req() r: AuthedRequest) {
+    return this.commerce.orderSummary(r.user.tenantId);
+  }
   @Get('orders') orders(@Req() r: AuthedRequest, @Query() query: unknown) {
-    const { page } = parse(z.object({ page: z.coerce.number().int().min(1).max(100000).default(1) }), query);
-    return this.commerce.orders(r.user.tenantId, page);
+    const { page, q, status } = parse(z.object({
+      page: z.coerce.number().int().min(1).max(100000).default(1),
+      q: z.string().trim().max(120).default(''),
+      status: z.enum(['new', 'confirmed', 'completed', 'cancelled']).optional(),
+    }), query);
+    return this.commerce.orders(r.user.tenantId, page, q, status);
   }
   @Patch('orders/:id/status')
   orderStatus(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
