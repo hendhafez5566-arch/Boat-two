@@ -2706,3 +2706,21 @@ button.underline {
     color: var(--primary-deep);
   }
 }
+
+/* Keep the close action reachable beside long translated dialog titles. */
+.product-dialog > header {
+  gap: 12px;
+}
+.product-dialog > header h2 {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+.product-dialog .dialog-close {
+  flex: 0 0 44px;
+  inline-size: 44px;
+  min-block-size: 44px;
+}
+.workspace-heading-actions {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}

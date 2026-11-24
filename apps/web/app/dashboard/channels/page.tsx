@@ -395,8 +395,8 @@ export default function Channels() {
             <h2>{t('الحسابات المتصلة', 'Connected Accounts')}</h2>
             <p>
               {t(
-                'القنوات والبوتات المتصلة بمساحة عملك.',
-                'All connected channels and bots in your workspace.',
+                'راجع حالة قنواتك هنا. لإضافة قناة، اختر منصتها من الاتصالات المتاحة.',
+                'Check your channel status here. To add a channel, choose its platform under Available connections.',
               )}
             </p>
           </div>

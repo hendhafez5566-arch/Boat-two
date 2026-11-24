@@ -1509,6 +1509,20 @@ function Editor({ id }: { id: string }) {
           </svg>{' '}
           {saveState === 'saving' ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ', 'Save')}
         </button>
+        <button
+          type="button"
+          className={`${styles.toolButton} ${styles.previewButton}`}
+          aria-haspopup="dialog"
+          disabled={!loaded || busy}
+          onClick={() => {
+            if (previewOpen) closeReview();
+            else openReview();
+          }}
+          title={t('تجربة البوت', 'Preview')}
+          aria-label={t('تجربة البوت', 'Preview')}
+        >
+          <NavIcon name="play" /> <span>{t('جرّب', 'Preview')}</span>
+        </button>
         <div className={styles.more} ref={moreRef}>
           <button
             type="button"
@@ -1556,19 +1570,6 @@ function Editor({ id }: { id: string }) {
                             : t('محفوظ', 'Saved')}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  className={styles.toolButton}
-                  aria-pressed={previewOpen}
-                  onClick={() => {
-                    if (previewOpen) closeReview();
-                    else openReview();
-                  }}
-                  title={t('تجربة البوت', 'Preview')}
-                  aria-label={t('تجربة البوت', 'Preview')}
-                >
-                  <NavIcon name="play" /> <span>{t('تجربة البوت', 'Preview')}</span>
-                </button>
                 <button type="button" className={styles.toolButton} onClick={autoLayout}>
                   <NavIcon name="flows" /> {t('ترتيب العقد', 'Rearrange')}
                 </button>

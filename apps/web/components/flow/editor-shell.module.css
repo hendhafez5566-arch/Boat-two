@@ -1388,3 +1388,13 @@
 .toolbar[data-tools-open='true'] {
   z-index: 121;
 }
+
+.toolbar .previewButton {
+  inline-size: auto;
+  min-inline-size: 44px;
+  padding-inline: 10px;
+  gap: 6px;
+}
+@media (max-width: 420px) {
+  .toolbar .previewButton span { display: none; }
+}

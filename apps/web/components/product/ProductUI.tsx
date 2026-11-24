@@ -1,5 +1,6 @@
 'use client';
 import { ButtonHTMLAttributes, ReactNode, useEffect, useRef, useId } from 'react';
+import { useLocale } from './locale';
 import { NavIcon } from './NavIcon';
 export function Button({
   busy,
@@ -64,6 +65,7 @@ export function Dialog({
   children: ReactNode;
   className?: string;
 }) {
+  const { t } = useLocale();
   const ref = useRef<HTMLDialogElement>(null),
     heading = useId();
   useEffect(() => {
@@ -89,7 +91,7 @@ export function Dialog({
     >
       <header>
         <h2 id={heading}>{title}</h2>
-        <button className="btn dialog-close" aria-label="Close / إغلاق" onClick={onClose}>
+        <button type="button" className="btn dialog-close" aria-label={t('إغلاق', 'Close')} onClick={onClose}>
           ×
         </button>
       </header>
