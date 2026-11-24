@@ -130,6 +130,18 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
   );
   return (
     <section className="stack commerce-page">
+      <header className={catalogStyles.commerceHeader}>
+        <div>
+      <h1>
+        {initialTab === 'appointments'
+          ? t('حجز المواعيد', 'Appointment Booking')
+          : initialTab === 'products'
+            ? t('كتالوج المنتجات', 'Product Catalog')
+            : t('التجارة والمواعيد', 'Commerce and appointments')}
+      </h1>
+        </div>
+        {initialTab !== 'appointments' && tab !== 'products' && catalogNavigation}
+      </header>
       {initialTab === 'products' ? null : initialTab ? (
         <ChannelScope
           value={channelId}
@@ -150,14 +162,6 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
           />
         </details>
       )}
-      <h1>
-        {initialTab === 'appointments'
-          ? t('حجز المواعيد', 'Appointment Booking')
-          : initialTab === 'products'
-            ? t('كتالوج المنتجات', 'Product Catalog')
-            : t('التجارة والمواعيد', 'Commerce and appointments')}
-      </h1>
-      {initialTab !== 'appointments' && tab !== 'products' && catalogNavigation}
       {(error || services.error) && (
         <p className="notice error" role="alert">
           {error || services.error}
@@ -167,7 +171,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
       {tab === 'orders' && checkoutEnabled && <CommerceOrders contacts={contacts.data.items} origin={orderOrigin}/>}
       {tab === 'products' && <ProductCatalog navigation={catalogNavigation} />}
       {tab === 'appointments' && (
-        <>
+        <div className={catalogStyles.appointmentWorkspace}>
           <form
             className="card stack"
             onSubmit={(e) => {
@@ -295,7 +299,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
               </button>
             </div>
           </form>
-          <section className="card stack">
+          <section className={`card stack ${catalogStyles.appointmentBookings}`}>
             <h2>{t('الحجوزات', 'Bookings')}</h2>
             {bookings.error && <p role="alert">{bookings.error}</p>}
             {bookings.data.map((b) => (
@@ -348,7 +352,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
               </article>
             ))}
           </section>
-        </>
+        </div>
       )}
       {result && (
         <p role="status" style={{ whiteSpace: 'pre-wrap' }}>
