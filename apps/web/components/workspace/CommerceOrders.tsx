@@ -1,4 +1,5 @@
 'use client';
+import { DisclosureSummary } from '../product/DisclosureSummary';
 import { useRef, useState } from 'react';
 import { NavIcon } from '../product/NavIcon';
 import Link from 'next/link';
@@ -362,7 +363,7 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
           return next;
         });
       }}>
-        <summary>{t('تفاصيل الطلب والعميل', 'Order and customer details')}</summary>
+        <DisclosureSummary>{t('تفاصيل الطلب والعميل', 'Order and customer details')}</DisclosureSummary>
         <OrderDetails snapshot={o.snapshot}/>
         {!!o.snapshot.documents.length && expandedOrders.has(o.id) && <>
           <h4>{t('المستندات', 'Documents')}</h4>
