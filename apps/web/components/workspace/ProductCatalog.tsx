@@ -91,6 +91,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
   const { t } = useLocale();
   const categories = useData<Category[]>('/commerce/categories', []);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [editorTab, setEditorTab] = useState('basic');
   const [editorDirty, setEditorDirty] = useState(false);
   const [editorMode, setEditorMode] = useState<EditorMode>('simple');
 
@@ -114,6 +115,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
       }
     }
     setEditorMode(mode);
+    setEditorTab('basic');
     try {
       localStorage.setItem(editorModePreference, mode);
     } catch {
@@ -126,6 +128,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
       (!editorDirty ||
         window.confirm(t('تجاهل تعديلات المنتج غير المحفوظة؟', 'Discard unsaved product changes?')))
     ) {
+      setEditorTab('basic');
       setEditing(undefined);
       setRepairField('');
       setEditorDirty(false);
@@ -183,7 +186,9 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
     if (!id || !/^[a-f0-9-]{36}$/i.test(id)) return;
     void api<CatalogProduct>('/commerce/products/' + id).then((product) => {
       openEditor(product);
-      setRepairField(query.get('field') || '');
+      const field = query.get('field') || '';
+      if (field === 'stock') setEditorTab('stock');
+      setRepairField(field);
     }).catch((error: Error) => setError(error.message));
   });
   useEffect(() => {
@@ -198,6 +203,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
   }, [repairField]);
 
   function openEditor(product: CatalogProduct | null) {
+    setEditorTab('basic');
     setCheckout({ ...defaultCheckout, ...product?.checkout });
     setDraftImage(product?.image_url ?? null);
     setExpandedSections({
@@ -333,6 +339,20 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
     listStart.current?.scrollIntoView({ block: 'start' });
     listStart.current?.focus({ preventScroll: true });
   }
+  const editorTabs = [
+    { id: 'basic', label: t('الأساسيات', 'Basics') },
+    ...(checkoutEnabled ? [
+      { id: 'packages', label: t('الباقات', 'Packages') },
+      { id: 'form', label: t('نموذج الطلب', 'Order form') },
+      { id: 'stock', label: t('المخزون والتسعير', 'Stock and pricing') },
+    ] : []),
+    { id: 'media', label: t('الصور والروابط', 'Images and links') },
+    ...(!catalogEditorModesEnabled || editorMode === 'advanced' ? [
+      { id: 'option', label: t('الإضافات', 'Add-ons') },
+      { id: 'specification', label: t('المواصفات', 'Specifications') },
+      { id: 'advanced', label: t('القنوات والإعدادات', 'Channels and settings') },
+    ] : []),
+  ];
   async function save(form: HTMLFormElement) {
     if (lock.current) return;
     lock.current = true;
@@ -340,6 +360,10 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
     setError('');
     setSuccess('');
     try {
+      if (checkoutEnabled && checkout.packages.some((pack) => !pack.priceCents)) {
+        setEditorTab('packages');
+        throw new Error(t('أدخل سعرًا صالحًا لكل باقة.', 'Enter a valid price for each package.'));
+      }
       const f = new FormData(form);
       await api('/commerce/products' + (editing ? '/' + editing.id : ''), {
         method: editing ? 'PATCH' : 'POST',
@@ -956,13 +980,20 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
           <form
             className={styles.productForm}
             onChange={() => setEditorDirty(true)}
+            onInvalidCapture={(event) => {
+              const section = (event.target as HTMLElement).closest<HTMLElement>('[data-editor-tab]');
+              if (section?.dataset.editorTab) setEditorTab(section.dataset.editorTab);
+              if (section instanceof HTMLDetailsElement) section.open = true;
+              const input = event.target as HTMLElement;
+              window.requestAnimationFrame(() => input.focus());
+            }}
             key={editing?.id ?? 'new'}
             onSubmit={(e) => {
               e.preventDefault();
               void save(e.currentTarget);
             }}
           >
-            <div className={styles.editorFields}>
+            <div className={styles.editorFields} data-active-editor-tab={editorTab}>
               {error && (
                 <p role="alert" className="notice error">
                   {error}
@@ -984,24 +1015,11 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                   ))}
                 </div>
               )}
-              {checkoutEnabled && <CheckoutEditor value={checkout} onChange={(value) => {
-                setCheckout(value);
-                setEditorDirty(true);
-              }}/>}
-              <div className={styles.editorGuide}>
-                <strong>
-                  {editing
-                    ? t('تعديل بيانات المنتج', 'Edit product details')
-                    : t('إضافة منتج جديد', 'Create a product')}
-                </strong>
-                <p>
-                  {t(
-                    'املأ الاسم والقسم والسعر. باقي الحقول اختيارية ويمكن إضافتها لاحقًا.',
-                    'Enter a name, category and price. Other details can be added later.',
-                  )}
-                </p>
-              </div>
-              <fieldset className={styles.editorBlock}>
+              <nav className={styles.editorTabs} aria-label={t('أقسام محرر المنتج', 'Product editor sections')}>
+                {editorTabs.map((tab) => <button key={tab.id} type="button" className="btn"
+                  aria-pressed={editorTab === tab.id} onClick={() => setEditorTab(tab.id)}>{tab.label}</button>)}
+              </nav>
+              <fieldset className={styles.editorBlock} data-editor-tab="basic">
                 <legend>{t('المعلومات الأساسية', 'Basic information')}</legend>
                 <div className={styles.editorTwoColumns}>
                   <label className="field">
@@ -1094,10 +1112,16 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                   />
                 </label>
               </fieldset>
+              {checkoutEnabled && <div hidden={!['basic', 'packages', 'form', 'stock'].includes(editorTab)}>
+                <CheckoutEditor value={checkout} onChange={(value) => {
+                  setCheckout(value);
+                  setEditorDirty(true);
+                }}/></div>}
               {(['specification', 'option'] as const).map((kind) => (
                 <details
                   className={styles.editorDisclosure}
                   data-editor-advanced
+                  data-editor-tab={kind}
                   hidden={catalogEditorModesEnabled && editorMode === 'simple'}
                   key={kind}
                   open={expandedSections[kind]}
@@ -1189,7 +1213,8 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
               ))}
               <details
                 className={styles.editorDisclosure}
-                open={expandedSections.media}
+                data-editor-tab="media"
+                open={editorTab === 'media' || expandedSections.media}
                 onToggle={(event) => {
                   const isOpen = event.currentTarget.open;
                   setExpandedSections((current) =>
@@ -1229,7 +1254,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                 </div>
               </details>
               {draftImage && (
-                <div className={styles.preview}>
+                <div className={styles.preview} data-editor-tab="media">
                   <ProductImage
                     key={draftImage}
                     product={{ name: t('معاينة الصورة', 'Image preview'), image_url: draftImage }}
@@ -1239,6 +1264,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
               <details
                 className={styles.editorDisclosure}
                 data-editor-advanced
+                data-editor-tab="advanced"
                 hidden={catalogEditorModesEnabled && editorMode === 'simple'}
                 open={expandedSections.meta}
                 onToggle={(event) => {
@@ -1272,6 +1298,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
               </details>
               <label
                 className={styles.archiveField}
+                data-editor-tab="advanced"
                 hidden={catalogEditorModesEnabled && editorMode === 'simple'}
               >
                 <input type="checkbox" name="archived" defaultChecked={editing?.archived} />
