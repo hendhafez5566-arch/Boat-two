@@ -1,5 +1,7 @@
 'use client';
 import { CheckoutEditor, checkoutEnabled, defaultCheckout, type CheckoutConfig } from './CheckoutEditor';
+import { DisclosureSummary } from '../product/DisclosureSummary';
+import { NavIcon } from '../product/NavIcon';
 import { Dialog } from '../product/ProductUI';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../../lib/api';
@@ -91,6 +93,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
   const { t } = useLocale();
   const categories = useData<Category[]>('/commerce/categories', []);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [catalogView, setCatalogView] = useState<'grid' | 'table'>('grid');
   const [editorTab, setEditorTab] = useState('basic');
   const [editorDirty, setEditorDirty] = useState(false);
   const [editorMode, setEditorMode] = useState<EditorMode>('simple');
@@ -512,6 +515,21 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
     setPreviewLoading(false);
     setError('');
   }
+  const categoryName = (product: CatalogProduct) =>
+    categories.data.find(({ id }) => id === product.category_id)?.name ?? t('دون قسم', 'Uncategorized');
+  const productStatus = (product: CatalogProduct) =>
+    <span className="semantic-state" data-tone={product.archived ? 'danger' : 'active'}>
+      {product.archived ? t('مؤرشف', 'Archived') : t('نشط', 'Active')}
+    </span>;
+  const optionCount = (product: CatalogProduct) => product.options?.length
+    ? <small className={styles.optionCount}>{product.options.length} {t('خيارات إضافية', 'priced options')}</small>
+    : null;
+  const productActions = (product: CatalogProduct) => <div className={styles.tileActions}>
+    <button type="button" className="btn" onClick={() => openEditor(product)}><NavIcon name="edit"/>{t('تعديل', 'Edit')}</button>
+    <button type="button" className="btn" onClick={() => void previewSaved(product)}><NavIcon name="eye"/>{t('معاينة', 'Preview')}</button>
+    <button type="button" className="btn btn-danger" onClick={() => requestProductDelete(product)}><NavIcon name="trash"/>{t('حذف', 'Delete')}</button>
+  </div>;
+
   return (
     <section className={styles.root} aria-label={t('إدارة المنتجات', 'Product management')}>
       {editing === undefined && (
@@ -835,72 +853,59 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                 placeholder={t('اسم المنتج أو الكود', 'Product name or SKU')}
               />
             </label>
+            <div className={styles.viewSwitcher} role="group" aria-label={t('طريقة عرض المنتجات', 'Product view')}>
+              <button className="btn" type="button" aria-pressed={catalogView === 'grid'} onClick={() => setCatalogView('grid')}>
+                <NavIcon name="grid"/> {t('شبكة', 'Grid')}
+              </button>
+              <button className="btn" type="button" aria-pressed={catalogView === 'table'} onClick={() => setCatalogView('table')}>
+                <NavIcon name="list"/> {t('جدول', 'Table')}
+              </button>
+            </div>
           </header>
           {productsLoading ? (
             <p role="status">{t('جارٍ تحميل المنتجات…', 'Loading products…')}</p>
           ) : productError && !visibleRows.length ? null : visibleRows.length ? (
             <>
-              <div
-                className={styles.grid}
-                data-view="list"
-                ref={listStart}
-                tabIndex={-1}
-                aria-label={t('قائمة المنتجات', 'Product list')}
-              >
-                {visibleRows.map((p) => (
-                  <article className={styles.card} key={p.id}>
-                    <ProductImage key={p.image_url} product={p} />
-                    <div className={styles.body}>
-                      <div className={styles.productHeading}>
-                        <div>
-                          <h3>{p.name}</h3>
-                          <small>
-                            {categories.data.find((c) => c.id === p.category_id)?.name ??
-                              t('دون قسم', 'Uncategorized')}
-                            {' · SKU: '}
-                            {p.sku}
-                          </small>
-                        </div>
-                        <span
-                          className="semantic-state"
-                          data-tone={p.archived ? 'danger' : 'active'}
-                        >
-                          {p.archived ? t('مؤرشف', 'Archived') : t('نشط', 'Active')}
-                        </span>
+              <div className={styles.catalogResults} ref={listStart} tabIndex={-1}
+                aria-label={t('قائمة المنتجات', 'Product list')}>
+                {catalogView === 'table' ? (
+                  <div className={styles.tableViewport} tabIndex={0} role="region" aria-label={t('جدول المنتجات', 'Products table')}>
+                    <table className={styles.catalogTable}>
+                      <thead><tr>
+                        <th scope="col">{t('المنتج', 'Product')}</th>
+                        <th scope="col">{t('القسم', 'Category')}</th>
+                        <th scope="col">{t('الحالة', 'Status')}</th>
+                        <th scope="col">{t('السعر', 'Price')}</th>
+                        <th scope="col">{t('الإجراءات', 'Actions')}</th>
+                      </tr></thead>
+                      <tbody>{visibleRows.map((product) => <tr key={product.id}>
+                        <th scope="row"><div className={styles.catalogIdentity}>
+                          <ProductImage key={product.image_url} product={product}/>
+                          <div><strong>{product.name}</strong><small dir="auto">{product.sku}</small></div>
+                        </div></th>
+                        <td>{categoryName(product)}</td>
+                        <td>{productStatus(product)}</td>
+                        <td><bdi>{productPrice(product.price_cents, product.currency)}</bdi>{optionCount(product)}</td>
+                        <td>{productActions(product)}</td>
+                      </tr>)}</tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className={styles.catalogTiles}>
+                    {visibleRows.map((product) => <article className={styles.catalogTile} key={product.id}>
+                      <div className={styles.catalogIdentity}>
+                        <ProductImage key={product.image_url} product={product}/>
+                        <div><h3>{product.name}</h3><small>{categoryName(product)} · <bdi>{product.sku}</bdi></small></div>
                       </div>
-                      <p>{p.description || t('بدون وصف', 'No description')}</p>
-                      <div className={styles.productFooter}>
-                        <div className={styles.productPrice}>
-                          <strong dir="ltr">{productPrice(p.price_cents, p.currency)}</strong>
-                          {!!p.options?.length && (
-                            <small>
-                              {p.options.length} {t('خيارات إضافية', 'priced options')}
-                            </small>
-                          )}
-                        </div>
-                        <div className={styles.productActions}>
-                          <button type="button" className="btn" onClick={() => openEditor(p)}>
-                            {t('تعديل', 'Edit')}
-                          </button>
-                          <button
-                            type="button"
-                            className="btn"
-                            onClick={() => void previewSaved(p)}
-                          >
-                            {t('معاينة', 'Preview')}
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-danger"
-                            onClick={() => requestProductDelete(p)}
-                          >
-                            {t('حذف', 'Delete')}
-                          </button>
-                        </div>
+                      {product.description && <p>{product.description}</p>}
+                      <div className={styles.tileSummary}>
+                        <div><strong><bdi>{productPrice(product.price_cents, product.currency)}</bdi></strong>{optionCount(product)}</div>
+                        {productStatus(product)}
                       </div>
-                    </div>
-                  </article>
-                ))}
+                      {productActions(product)}
+                    </article>)}
+                  </div>
+                )}
               </div>
               <nav className={styles.pagination} aria-label={t('صفحات المنتجات', 'Product pages')}>
                 <span className={styles.pageRange} role="status">
@@ -1140,12 +1145,12 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                     );
                   }}
                 >
-                  <summary>
+                  <DisclosureSummary>
                     {kind === 'specification'
                       ? t('المواصفات الإضافية', 'Additional specifications')
                       : t('خيارات المنتج وأسعارها', 'Product options and prices')}
                     <span>{details.filter((item) => item.kind === kind).length}</span>
-                  </summary>
+                  </DisclosureSummary>
                   <div className={styles.editorDisclosureBody}>
                     {details
                       .filter((item) => item.kind === kind)
@@ -1230,9 +1235,9 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                   );
                 }}
               >
-                <summary>
+                <DisclosureSummary>
                   {t('صورة المنتج والروابط (اختياري)', 'Product image and links (optional)')}
-                </summary>
+                </DisclosureSummary>
                 <div className={styles.editorDisclosureBody}>
                   <label className="field">
                     {t('رابط الصورة', 'Image URL')}
@@ -1282,9 +1287,9 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                   );
                 }}
               >
-                <summary>
+                <DisclosureSummary>
                   {t('تكامل كتالوج Meta (متقدم)', 'Meta catalog integration (advanced)')}
-                </summary>
+                </DisclosureSummary>
                 <div className={styles.editorDisclosureBody}>
                   <p>
                     {t(
