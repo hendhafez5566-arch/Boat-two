@@ -65,7 +65,14 @@ export default function Automations() {
       list.reload();
       history.reload();
     } catch (e) {
-      setError((e as Error).message);
+      const failure = e as Error & { details?: { code?: string } };
+      const code = failure.details?.code ?? failure.message;
+      setError(code === 'FEATURE_UNAVAILABLE'
+        ? t(
+            'هذا الإجراء غير متاح في باقة مساحة العمل الحالية. راجع الباقات لمعرفة الإمكانات المتاحة.',
+            'This action is unavailable on the current workspace plan. Review plans for available features.',
+          )
+        : failure.message);
     } finally {
       setBusy(false);
     }
@@ -105,7 +112,7 @@ export default function Automations() {
           </button>
         }
       />
-      {(error || list.error) && <p className="notice error">{error || list.error}</p>}
+      {(error || list.error) && <p className="notice error" role="alert">{error || list.error}</p>}
       <div className="auto-stats">
         <div>
           <strong>{list.data.length}</strong>
