@@ -1,17 +1,26 @@
 .details {
-  background: #f2f6fa;
-  border: 1px solid #e4eaf1;
-  border-radius: 10px;
-  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e1e8f0;
+  border-radius: 12px;
+  overflow: hidden;
   overflow-wrap: anywhere;
 }
 
 .details > summary {
   cursor: pointer;
-  min-block-size: 44px;
-  align-content: center;
-  font-weight: 600;
+  min-block-size: 46px;
+  padding: 12px 15px;
+  font-weight: 650;
+  color: #344b60;
 }
+.details[open] > summary {
+  border-bottom: 1px solid #e1e8f0;
+  background: #eff4f8;
+}
+.details > :not(summary) {
+  margin-inline: 15px;
+}
+.details > :last-child:not(summary) { margin-block-end: 14px; }
 
 .details dl > div {
   display: flex;
@@ -44,7 +53,7 @@
 .heading h2, .heading button { display: inline-flex; align-items: center; gap: 8px; }
 
 .metrics, .filters { display: grid; gap: 10px; }
-.metrics { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
+.metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .filters { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 .filters label { display: grid; gap: 5px; min-width: 0; }
 .filters label:has(input[type="search"]) { grid-template-columns: auto 1fr; align-items: center; }
@@ -60,7 +69,18 @@
   overflow-wrap: anywhere;
 }
 
-.metric { display: grid; gap: 4px; text-align: start; cursor: pointer; }
+.metric {
+  display: grid;
+  gap: 6px;
+  min-height: 80px;
+  align-content: center;
+  text-align: start;
+  cursor: pointer;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgb(32 60 92 / 4%);
+}
+.metric span { font-size: .86rem; color: #506579; }
+.metric:hover { background: #f5f9fb; border-color: #b7cbd6; }
 .metric strong { font-size: 1.3rem; }
 .metric[aria-pressed="true"] { background: #eaf7f4; border-color: var(--primary, #096d69); }
 .status { border-radius: 99px; padding: 5px 10px; background: #eaf7f4; color: #096d69; }
@@ -68,7 +88,15 @@
 .status[data-status="cancelled"] { background: #fcecef; color: #8c3040; }
 .order > button { justify-self: start; }
 
+@media (max-width: 900px) {
+  .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 @media (max-width: 750px) {
   .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .filters { grid-template-columns: minmax(0, 1fr); }
+  .heading { align-items: flex-start; }
+  .order { padding: 14px; gap: 12px; }
+}
+@media (max-width: 350px) {
+  .metrics { grid-template-columns: minmax(0, 1fr); }
 }
