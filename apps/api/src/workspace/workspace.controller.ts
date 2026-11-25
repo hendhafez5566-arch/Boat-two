@@ -206,11 +206,14 @@ export class WorkspaceController {
         `SELECT m.user_id, m.role, m.available, m.created_at, u.email, u.full_name
          FROM memberships m JOIN users u ON u.id = m.user_id ORDER BY m.created_at`,
       );
-      const invites = await c.query(
-        `SELECT id, email, role, expires_at FROM invitations
-         WHERE accepted_at IS NULL AND expires_at > now() ORDER BY created_at DESC`,
-      );
-      return { members: members.rows, pendingInvitations: invites.rows };
+      // Agents need the assignee roster in Inbox and CRM, but not pending invites.
+      const pendingInvitations = ['owner', 'admin'].includes(req.user.role)
+        ? (await c.query(
+            `SELECT id, email, role, expires_at FROM invitations
+             WHERE accepted_at IS NULL AND expires_at > now() ORDER BY created_at DESC`,
+          )).rows
+        : [];
+      return { members: members.rows, pendingInvitations };
     });
   }
 
