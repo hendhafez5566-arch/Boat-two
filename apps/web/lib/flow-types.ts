@@ -86,7 +86,7 @@ export const NODE_META: Record<
     label: 'كتالوج / أقسام المنتجات',
     icon: '▦',
     color: '#188038',
-    defaults: () => ({ productIds: [], native: false, text: 'منتجاتنا' }),
+    defaults: () => ({ productIds: [], native: false, text: 'منتجاتنا', displayMode: 'list' }),
   },
   appointment: {
     label: 'حجز موعد',

@@ -102,7 +102,13 @@ export interface OutContent {
   };
   list?: {
     buttonText: string;
-    sections: { title?: string; rows: { id: string; title: string; description?: string }[] }[];
+    /** Bot Two visual cards for Webchat; provider adapters still use standard list rows. */
+    presentation?: 'cards';
+    cardAction?: 'select' | 'book';
+    sections: {
+      title?: string;
+      rows: { id: string; title: string; description?: string; fullTitle?: string; imageUrl?: string; price?: string }[];
+    }[];
   };
 }
 
@@ -200,6 +206,7 @@ export interface EngineDeps {
     native: boolean,
     text: string,
     selectable?: boolean,
+    showCards?: boolean,
   ): Promise<OutContent>;
   checkoutProduct?(id: string): Promise<CheckoutProduct>;
   quoteCheckout?(selection: Selection): Promise<CheckoutTerms>;

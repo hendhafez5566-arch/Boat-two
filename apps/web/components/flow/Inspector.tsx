@@ -533,11 +533,40 @@ export default function Inspector({
               />
               {type === 'catalog' && (
                 <>
+                  <fieldset style={{ border: '1px solid var(--border, #dbe4e6)', borderRadius: 12, padding: 12 }}>
+                    <legend>{t('طريقة العرض للعميل', 'Customer display')}</legend>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="radio"
+                        name="local-catalog-display"
+                        checked={data.displayMode !== 'cards'}
+                        onChange={() => set({ displayMode: 'list' })}
+                      />
+                      {t('قائمة المنتجات العادية', 'Standard product list')}
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="radio"
+                        name="local-catalog-display"
+                        checked={data.displayMode === 'cards'}
+                        onChange={() => set({ displayMode: 'cards', selectable: true, native: false })}
+                      />
+                      {t('بطاقات مصوّرة بالأسعار وزر اختيار / حجز', 'Photo cards with prices and Select / Book buttons')}
+                    </label>
+                    {data.displayMode === 'cards' && (
+                      <p role="status" style={{ fontSize: 12, lineHeight: 1.7, margin: '8px 0 0' }}>
+                        {t(
+                          'Webchat يعرض بطاقات داخل المحادثة. واتساب يرسل صورة لكل منتج متاح له صورة ثم قائمة اختيار، وقد تُحتسب كل صورة كرسالة. الحد 10 منتجات. زر الحجز لا ينشئ طلبًا إلا لو مسار الحجز مُفعّل.',
+                          'Webchat shows in-chat cards. WhatsApp sends each available product image then a selection list; each image may count as a message. Maximum 10 products. Booking creates an order only when the checkout flow is enabled.',
+                        )}
+                      </p>
+                    )}
+                  </fieldset>
                   <label>
                     <input
                       type="checkbox"
-                      checked={!!data.selectable}
-                      disabled={!!data.native}
+                      checked={!!data.selectable || data.displayMode === 'cards'}
+                      disabled={!!data.native || data.displayMode === 'cards'}
                       onChange={(e) => set({ selectable: e.target.checked })}
                     />
                     {t(
@@ -568,7 +597,7 @@ export default function Inspector({
                   onChange={(e) =>
                     set({
                       native: e.target.checked,
-                      ...(e.target.checked ? { selectable: false } : {}),
+                      ...(e.target.checked ? { selectable: false, displayMode: 'list' } : {}),
                     })
                   }
                 />

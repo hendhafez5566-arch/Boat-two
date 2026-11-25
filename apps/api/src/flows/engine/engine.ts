@@ -718,17 +718,36 @@ export class FlowEngine {
           throw new RunError(
             'Selectable catalogs use list rows; native catalogs return provider orders',
           );
+        const showCards = d.displayMode === 'cards';
+        if (showCards && d.native) throw new RunError('Photo cards require local products, not native Meta catalog');
+        const selectable = !!d.selectable || showCards;
         const content = await this.deps.catalogContent(
           d.productIds,
           !!d.native,
           interpolate(d.text, r),
-          !!d.selectable,
+          selectable,
+          showCards,
         );
+        if (showCards && content.list) {
+          content.list.cardAction = d.checkout ? 'book' : 'select';
+          // WhatsApp interactive lists cannot have an image in each row.
+          // Queue each image as a separate durable message before the final selection list.
+          // The standard list carries the same stable product IDs, so selection and checkout still work.
+          if (ctx.channel.type === 'whatsapp') {
+            for (const row of content.list.sections.flatMap((section) => section.rows)) {
+              if (!row.imageUrl) continue;
+              await this.send({
+                text: [row.fullTitle || row.title, row.price].filter(Boolean).join('\n'),
+                media: { kind: 'image', url: row.imageUrl },
+              });
+            }
+          }
+        }
         const choices = content.list?.sections.flatMap((s) => s.rows) ?? [];
-        if (d.selectable && !choices.length)
+        if (selectable && !choices.length)
           throw new RunError('Selectable catalog has no products');
         await this.send(content);
-        if (d.selectable) {
+        if (selectable) {
           state.waiting = {
             nodeId: node.id,
             kind: 'answer',

@@ -561,7 +561,10 @@ export class CommerceService {
     native: boolean,
     text: string,
     selectable = false,
+    showCards = false,
   ): Promise<OutContent> {
+    if (showCards && (!selectable || native))
+      throw new BadRequestException('Photo cards require a selectable, non-native catalog');
     if (native) {
       const rows = await this.db.withTenant(
         tenant,
@@ -612,6 +615,7 @@ export class CommerceService {
         text,
         list: {
           buttonText: 'Products',
+          ...(showCards ? { presentation: 'cards' as const } : {}),
           sections: [
             {
               title: 'Products',
@@ -624,6 +628,13 @@ export class CommerceService {
                       .join(' • ')
                   : priceText(p.price_cents, p.currency)
                 ).slice(0, 72),
+                ...(showCards
+                  ? {
+                      fullTitle: String(p.name).slice(0, 120),
+                      price: priceText(p.price_cents, p.currency).slice(0, 80),
+                      ...(p.image_url ? { imageUrl: p.image_url } : {}),
+                    }
+                  : {}),
               })),
             },
           ],

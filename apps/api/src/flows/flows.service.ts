@@ -630,10 +630,10 @@ export class FlowsService {
         transcript.push({ role: 'system', content: 'MOCK product preview; no external delivery' });
         return this.commerce.productContent(tenantId, id, native);
       },
-      catalogContent: async (ids, native, text, selectable) => {
+      catalogContent: async (ids, native, text, selectable, showCards) => {
         if (!this.commerce) throw new Error('Commerce unavailable');
         transcript.push({ role: 'system', content: 'MOCK catalog preview; no external delivery' });
-        return this.commerce.catalogContent(tenantId, ids, native, text, selectable);
+        return this.commerce.catalogContent(tenantId, ids, native, text, selectable, showCards);
       },
       bookAppointment: async (serviceId, start) => {
         transcript.push({

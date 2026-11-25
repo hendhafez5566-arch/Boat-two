@@ -9,6 +9,9 @@ const row = z.object({
   id: z.string().min(1).max(200),
   title: z.string().min(1).max(24),
   description: z.string().max(72).optional(),
+  fullTitle: z.string().max(120).optional(),
+  price: z.string().max(80).optional(),
+  imageUrl: httpUrl.optional(),
 });
 
 export const contentSchema = z
@@ -72,6 +75,8 @@ export const contentSchema = z
     list: z
       .object({
         buttonText: z.string().min(1).max(20),
+        presentation: z.literal('cards').optional(),
+        cardAction: z.enum(['select', 'book']).optional(),
         sections: z
           .array(
             z.object({ title: z.string().max(24).optional(), rows: z.array(row).min(1).max(10) }),
@@ -131,6 +136,9 @@ export function validateOutbound(c: MessageContent) {
   if (c.cta && (c.buttons || c.list)) throw new BadRequestException('CTA cannot be combined with buttons or list');
   if (c.media && !c.media.url) throw new BadRequestException('Outbound media requires a url');
   if (c.list) {
+    if (c.list.presentation === 'cards' && c.list.sections.some((section) =>
+      section.rows.some((row) => !row.fullTitle || !row.price)
+    )) throw new BadRequestException('Visual catalog cards require a product title and price');
     const total = c.list.sections.reduce((n, s) => n + s.rows.length, 0);
     if (total > 10) throw new BadRequestException('List supports at most 10 rows in total');
   }

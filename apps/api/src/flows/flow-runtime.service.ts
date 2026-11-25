@@ -620,10 +620,10 @@ export class FlowRuntimeService implements OnModuleInit, OnModuleDestroy {
           throw new Error('Native products require WhatsApp');
         return this.commerce.productContent(b.tenantId, id, native);
       },
-      catalogContent: (ids, native, text, selectable) => {
+      catalogContent: (ids, native, text, selectable, showCards) => {
         if (native && b.ctx.channel.type !== 'whatsapp')
           throw new Error('Native catalogs require WhatsApp');
-        return this.commerce.catalogContent(b.tenantId, ids, native, text, selectable);
+        return this.commerce.catalogContent(b.tenantId, ids, native, text, selectable, showCards);
       },
       checkoutProduct: (id) => this.commerce.activeCheckoutProduct(b.tenantId, id),
       quoteCheckout: (selection) => this.commerce.quote(b.tenantId, selection),
