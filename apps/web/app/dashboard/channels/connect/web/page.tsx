@@ -52,6 +52,14 @@ export default function WebchatConnectionPage() {
       value.toLowerCase().includes(search.trim().toLowerCase()),
     ),
   );
+  function previewHref(widget: Widget) {
+    if (widget.status !== 'active' || typeof window === 'undefined') return null;
+    const origins = widget.settings?.allowedOrigins ?? [];
+    if (origins.length && !origins.includes(window.location.origin)) return null;
+    const key = widget.widgetSnippet?.match(/data-key="([a-zA-Z0-9_-]+)"/)?.[1];
+    return key ? '/widget-demo.html?' + new URLSearchParams({ key, lang: language }) : null;
+  }
+
   function openForm(widget: Widget | null) {
     setSaved('');
     setEditing(widget);
@@ -188,26 +196,42 @@ export default function WebchatConnectionPage() {
               </tr>
             </thead>
             <tbody>
-              {visible.map((a) => (
-                <tr key={a.id}>
-                  <td>{a.name}</td>
-                  <td>{a.settings?.allowedOrigins?.join(', ') || '—'}</td>
-                  <td>{a.status === 'active' ? t('نشط', 'Active') : t('غير نشط', 'Inactive')}</td>
-                  <td>
-                    <button className="btn" onClick={() => openForm(a)}>
-                      {t('الإعدادات', 'Settings')}
-                    </button>
-                    {a.widgetSnippet && (
-                      <button className="btn" onClick={() => {
-                        setCopyMessage('');
-                        setCode(a);
-                      }}>
-                        {t('كود التضمين', 'Get Embed Code')}
+              {visible.map((a) => {
+                const preview = previewHref(a);
+                return (
+                  <tr key={a.id}>
+                    <td>{a.name}</td>
+                    <td>{a.settings?.allowedOrigins?.join(', ') || '—'}</td>
+                    <td>{a.status === 'active' ? t('نشط', 'Active') : t('غير نشط', 'Inactive')}</td>
+                    <td>
+                      <button className="btn" onClick={() => openForm(a)}>
+                        {t('الإعدادات', 'Settings')}
                       </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                      {preview && (
+                        <a
+                          className="btn btn-primary"
+                          href={preview}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {t('جرّب المحادثة', 'Try chat')}
+                        </a>
+                      )}
+                      {a.widgetSnippet && (
+                        <button
+                          className="btn"
+                          onClick={() => {
+                            setCopyMessage('');
+                            setCode(a);
+                          }}
+                        >
+                          {t('كود التضمين', 'Get Embed Code')}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -246,6 +270,16 @@ export default function WebchatConnectionPage() {
               onChange={(e) => set('website', e.target.value)}
             />
           </label>
+          {!editing && (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => set('website', window.location.origin)}
+            >
+              {t('استخدم هذا الموقع للتجربة', 'Use this site for testing')}
+            </button>
+          )}
+
           <div className={styles.filters}>
             {[
               ['themeBackground', t('خلفية المظهر', 'Theme Background')],
@@ -379,7 +413,9 @@ export default function WebchatConnectionPage() {
               await navigator.clipboard.writeText(code.widgetSnippet);
               setCopyMessage(t('تم نسخ الكود.', 'Code copied.'));
             } catch {
-              setCopyMessage(t('تعذر النسخ. حدّد الكود وانسخه يدويًا.', 'Select the code to copy it manually.'));
+              setCopyMessage(
+                t('تعذر النسخ. حدّد الكود وانسخه يدويًا.', 'Select the code to copy it manually.'),
+              );
             }
           }}
         >

@@ -508,7 +508,9 @@ export default function Channels() {
                     </td>
                     <td>
                       <span className={styles.healthBadge} data-state={stateOf(c)}>
-                        {stateLabels[stateOf(c)] || t('غير معروف', 'Unknown')}
+                        {c.connectionHealth?.reason === 'widget_installation_required'
+                          ? t('يتطلب تضمين الويدجت على الموقع', 'Widget installation required')
+                          : stateLabels[stateOf(c)] || t('غير معروف', 'Unknown')}
                       </span>
                       <small className={styles.localStatus}>{statusLabel(c.status, t)}</small>
                     </td>
