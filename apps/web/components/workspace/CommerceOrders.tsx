@@ -345,7 +345,7 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
         }}>
         {origin ? <p>{t('سيُربط الطلب بعميل المحادثة.', 'This order will use the conversation customer.')} {' '}
           <Link href={'/dashboard/inbox?conversation=' + origin.conversationId}>{t('فتح المحادثة', 'Open conversation')}</Link></p>
-        : <label>{t('العميل', 'Customer')} <select name="contact" defaultValue="">
+        : <label>{t('العميل', 'Customer')} <select name="contact" defaultValue="" required>
           <option value="">{t('اختر عميلاً', 'Choose customer')}</option>
           {contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select></label>}

@@ -25,7 +25,7 @@ test('photo catalog mode provides ordered safe image cards and leaves standard l
   ];
   const db = { withTenant: async (tenant: string, fn: (client: unknown) => Promise<unknown>) => {
     assert.equal(tenant, 'qa-travel');
-    return fn({ query: async () => ({ rows }) });
+    return fn({ query: async (_sql: string, [ids]: [string[]]) => ({ rows: rows.filter((row) => ids.includes(row.id)) }) });
   } };
   const commerce = new CommerceService(db as never, {} as never, {} as never);
   const rich = await commerce.catalogContent('qa-travel', ['a', 'b'], false, 'Choose a room', true, true);

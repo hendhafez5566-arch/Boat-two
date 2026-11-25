@@ -9,7 +9,8 @@ import { KnowledgeSourceEditor, Source } from '../business/KnowledgeSourceEditor
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 export default function Knowledge() {
-  const { t } = useLocale();
+  const { t, language } = useLocale();
+  const displayNumber = new Intl.NumberFormat(language === 'ar' ? 'ar-EG' : 'en');
   const [items, setItems] = useState<Source[]>([]),
     [tab, setTab] = useState<'text' | 'faq' | 'url' | 'file'>('text'),
     [faq, setFaq] = useState([{ question: '', answer: '' }]),
@@ -153,14 +154,14 @@ export default function Knowledge() {
         </div>
       </section>
       <div className={styles.stats} aria-label={t('حالة المعلومات', 'Knowledge summary')}>
-        <div><strong>{currentSources.length}</strong><span>{t('إجمالي المصادر', 'Total sources')}</span></div>
-        <div><strong>{readySources.length}</strong><span>{t('جاهزة للاستخدام', 'Ready to use')}</span></div>
-        <div><strong>{processingSources.length}</strong><span>{t('تحت المعالجة أو الانتظار', 'Pending or processing')}</span></div>
+        <div><strong>{loading ? '…' : error && !items.length ? '—' : displayNumber.format(currentSources.length)}</strong><span>{t('إجمالي المصادر', 'Total sources')}</span></div>
+        <div><strong>{loading ? '…' : error && !items.length ? '—' : displayNumber.format(readySources.length)}</strong><span>{t('جاهزة للاستخدام', 'Ready to use')}</span></div>
+        <div><strong>{loading ? '…' : error && !items.length ? '—' : displayNumber.format(processingSources.length)}</strong><span>{t('تحت المعالجة أو الانتظار', 'Pending or processing')}</span></div>
       </div>
       <p className={styles.safetyNote} role="note">
         {t(
-          'المعلومات مش هتظهر للعملاء بمجرد حفظها؛ لازم المصدر يبقى جاهز، وتختاره داخل إعداد المساعد، وتفعّل تشغيل الذكاء الاصطناعي.',
-          'Saving a source does not publish it to customers. It must become ready, be selected for an assistant and AI generation must be enabled.',
+          'لاستخدام مصدر جاهز، اختره في إعدادات المساعد وفعّل تشغيل الذكاء الاصطناعي.',
+          'To use a ready source, select it in the assistant settings and enable AI generation.',
         )}
       </p>
       {error && (

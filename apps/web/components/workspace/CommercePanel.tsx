@@ -54,15 +54,15 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
       setTab('orders');
     }
   }, [initialTab]);
-  const services = useData<Service[]>('/commerce/services', []),
-    bookings = useData<Booking[]>('/commerce/appointments', []),
+  const services = useData<Service[]>(tab === 'appointments' ? '/commerce/services' : null, []),
+    bookings = useData<Booking[]>(tab === 'appointments' ? '/commerce/appointments' : null, []),
     channels = useData<{ id: string; name: string; type: string }[]>('/channels', []),
     contacts = useData<{ items: { id: string; name: string; email: string | null }[] }>(
-      '/crm/contacts?limit=100',
+      tab === 'orders' || tab === 'appointments' ? '/crm/contacts?limit=100' : null,
       { items: [] },
     ),
     connections = useData<{ id: string; name: string; provider: string; enabled: boolean }[]>(
-      '/integrations',
+      tab === 'appointments' ? '/integrations' : null,
       [],
     );
   const actionLock = useRef(false);
@@ -183,7 +183,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
           </div>
         </details>
       )}
-      {(error || services.error) && (
+      {tab === 'appointments' && (error || services.error) && (
         <p className="notice error" role="alert">
           {error || services.error}
         </p>

@@ -14,7 +14,8 @@ type Attention = { counts: { status: string; count: number }[]; items: Order[]; 
 const openStatuses = ['new','review','documents_required','processing','confirmed'];
 
 export function OrdersAttention() {
-  const { t } = useLocale();
+  const { t, language } = useLocale();
+  const displayNumber = new Intl.NumberFormat(language === 'ar' ? 'ar-EG' : 'en');
   const workspace = useData<{ role: string } | null>('/workspace', null);
   const allowed = workspace.data?.role === 'owner' || workspace.data?.role === 'admin';
   const attention = useData<Attention | null>(allowed ? '/commerce/orders/attention' : null, null);
@@ -55,7 +56,7 @@ export function OrdersAttention() {
     confirmed: t('مؤكد', 'Confirmed'),
   };
   if (workspace.loading || !workspace.data || !allowed) return null;
-  const loading = attention.loading && !attention.data;
+  const loading = !attention.data && !attention.error;
   return <section className={styles.panel} data-attention={urgent > 0} aria-labelledby="orders-attention-title">
     <header className={styles.head}>
       <div>
@@ -63,12 +64,12 @@ export function OrdersAttention() {
         <h2 id="orders-attention-title">
           {loading ? t('جارٍ تحميل الطلبات…', 'Loading orders…') :
             attention.error && !attention.data ? t('تعذر تحميل الطلبات', 'Orders unavailable') :
-            opened ? t(`لديك ${opened} طلبات مفتوحة`, `${opened} open orders`) :
+            opened ? t(`الطلبات المفتوحة: ${displayNumber.format(opened)}`, `Open orders: ${displayNumber.format(opened)}`) :
               t('لا توجد طلبات تحتاج متابعة', 'No orders waiting for action')}
         </h2>
         {urgent > 0 && <p className={styles.warning} role="status">
           <span className={styles.dot} aria-hidden="true" />
-          {t(`${urgent} طلبات تحتاج إجراء`, `${urgent} orders need attention`)}
+          {t(`طلبات تحتاج إجراء: ${displayNumber.format(urgent)}`, `Orders needing action: ${displayNumber.format(urgent)}`)}
         </p>}
       </div>
       <Link className={styles.mainLink} href="/dashboard/commerce?tab=orders">
@@ -76,7 +77,9 @@ export function OrdersAttention() {
       </Link>
     </header>
     {attention.error && <p role="alert" className={styles.error}>
-      {t('تعذر تحديث الطلبات؛ الأرقام المعروضة قديمة.', 'Could not refresh orders; displayed counts may be outdated.')}
+      {attention.data
+        ? t('تعذّر تحديث الأرقام المعروضة.', 'Could not refresh the displayed counts.')
+        : t('تعذّر جلب عدادات الطلبات.', 'Could not load order counts.')}
       <button type="button" onClick={() => void attention.reload()}>{t('إعادة المحاولة', 'Retry')}</button>
     </p>}
     <div className={styles.metrics} aria-label={t('حالات الطلبات', 'Order statuses')}>
@@ -84,7 +87,7 @@ export function OrdersAttention() {
         href={`/dashboard/commerce?tab=orders&status=${metric.status}`}
         className={styles.metric} data-tone={metric.tone} data-has-orders={metric.count > 0}>
         <small>{metric.name}</small>
-        <strong aria-label={`${metric.name}: ${metric.count}`}>{loading ? '…' : metric.count.toLocaleString('en-US')}</strong>
+        <strong>{loading ? '…' : attention.data ? displayNumber.format(metric.count) : '—'}</strong>
       </Link>)}
     </div>
     {!!attention.data?.items.length && <div className={styles.recent}>
@@ -102,9 +105,5 @@ export function OrdersAttention() {
         </Link>)}
       </div>
     </div>}
-    <p className={styles.finePrint}>
-      {t('تتحدث العدادات تلقائيًا عند تغيير الطلب، مع مزامنة احتياطية. الطلبات المكتملة والملغاة ليست مفتوحة.',
-         'Counts refresh when orders change, with backup synchronization. Completed and cancelled orders are not open.')}
-    </p>
   </section>;
 }

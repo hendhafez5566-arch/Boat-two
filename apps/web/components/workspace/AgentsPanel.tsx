@@ -73,6 +73,9 @@ export default function Agents() {
   const readySources = sources.data.filter((source) => source.status === 'ready');
   const enabledAgents = data.data.agents.filter((agent) => agent.enabled);
   const activeProviders = data.data.providers.filter((provider) => provider.enabled && !provider.retired_at);
+  const agentCount = (count: number) => data.loadedPath ? count : data.error ? '—' : '…';
+  const sourceCount = sources.loadedPath ? readySources.length : sources.error ? '—' : '…';
+
   const blankAgent = {
     id: '',
     name: '',
@@ -164,10 +167,10 @@ export default function Agents() {
         </div>
       </section>
       <div className={styles.stats} aria-label={t('ملخص الإعداد', 'Setup overview')}>
-        <div><strong>{data.data.agents.length}</strong><span>{t('مساعد', 'Agents')}</span></div>
-        <div><strong>{enabledAgents.length}</strong><span>{t('مساعد مفعّل', 'Enabled agents')}</span></div>
-        <div><strong>{readySources.length}</strong><span>{t('مصدر معرفة جاهز', 'Ready knowledge sources')}</span></div>
-        <div><strong>{activeProviders.length}</strong><span>{t('مزود مفعّل داخل الشركة', 'Active workspace providers')}</span></div>
+        <div><strong>{agentCount(data.data.agents.length)}</strong><span>{t('مساعد', 'Agents')}</span></div>
+        <div><strong>{agentCount(enabledAgents.length)}</strong><span>{t('مساعد مفعّل', 'Enabled agents')}</span></div>
+        <div><strong>{sourceCount}</strong><span>{t('مصدر معرفة جاهز', 'Ready knowledge sources')}</span></div>
+        <div><strong>{agentCount(activeProviders.length)}</strong><span>{t('مزود مفعّل داخل الشركة', 'Active workspace providers')}</span></div>
       </div>
       <p className={styles.safetyNote} role="note">
         {t(
@@ -184,7 +187,7 @@ export default function Agents() {
           <p>{t('اختر مساعدًا لتعديل طريقة رده أو إنشاء مساعد جديد.', 'Choose an agent to edit how it responds, or create a new one.')}</p>
         </div>
       </div>
-      {!data.loading && data.data.agents.length === 0 && (
+      {!data.loading && !data.error && data.data.agents.length === 0 && (
         <section className={styles.empty}>
           <strong>{t('لسه مفيش مساعدين', 'No assistants yet')}</strong>
           <p>{t('ابدأ بمساعد لخدمة العملاء، وخلّيه معطّل لحد ما تجهّز المعرفة وتختبره.', 'Start with a customer-service assistant and leave it disabled until you test its knowledge.')}</p>

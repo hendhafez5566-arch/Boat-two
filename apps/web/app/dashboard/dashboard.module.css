@@ -422,7 +422,6 @@
   justify-content: space-between;
   align-items: center;
   gap: 24px;
-  min-block-size: 216px;
   padding: clamp(18px, 3vw, 28px);
   border-radius: var(--radius);
   background: linear-gradient(120deg, var(--primary-deep), var(--brand-accent));
@@ -435,7 +434,7 @@
   overflow-wrap: anywhere;
 }
 .hero p {
-  margin-block: 12px 18px;
+  margin-block: 8px 12px;
   color: inherit;
 }
 .hero a {

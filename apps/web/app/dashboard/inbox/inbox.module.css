@@ -2246,10 +2246,11 @@
   .threadHeader { gap:6px; padding:7px 8px; }
   .threadAvatar { width:35px; height:35px; flex:none; }
   .threadIdentity { flex:1 1 45%; min-width:0; }
-  .threadTools { order:3; width:100%; display:flex; flex-wrap:nowrap; justify-content:space-between; gap:3px; }
+  .threadTools { order:3; width:100%; display:flex; flex-wrap:wrap; justify-content:flex-start; gap:4px; }
   .threadTools .botHeaderControl { min-width:95px; flex:1 1 105px; padding-inline:5px; }
   .threadTools .threadActionTrigger { min-width:70px !important; padding-inline:5px !important; }
   .threadTools .actionLabel { font-size:10px; }
-  .threadTools button:not(.botHeaderControl):not(.threadActionTrigger) { min-width:32px; width:32px; padding:6px; }
+  .threadTools > button { min-height:44px; }
+  .threadTools > button:not(.botHeaderControl):not(.threadActionTrigger) { min-width:40px; width:40px; padding:6px; }
   .headerContext { order:2; flex:1 0 100%; }
 }
