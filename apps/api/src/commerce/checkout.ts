@@ -18,6 +18,10 @@ export const checkoutSchema = z.object({
   })).max(40).default([]),
   documents: z.array(label).max(20).default([]),
   stock: z.number().int().min(0).max(1_000_000).nullable().default(null),
+  quantityUnit: z.enum(['item', 'person', 'room', 'package']).default('item'),
+  language: z.enum(['ar','en']).default('ar'),
+  collectCustomerName: z.boolean().default(false),
+  askTravelers: z.boolean().default(false),
   min: z.number().int().min(1).max(1000).default(1),
   max: z.number().int().min(1).max(1000).default(1000),
   discountBps: z.number().int().min(0).max(10000).default(0),
@@ -38,6 +42,8 @@ const selection = {
   productId: key,
   packageId: key.optional(),
   quantity: z.number().int().min(1).max(1000),
+  customerName: z.string().trim().min(2).max(120).optional(),
+  travelers: z.number().int().min(1).max(1000).optional(),
   options: z.array(z.string().min(1).max(120)).max(100).default([]),
   answers: z.array(z.object({ id: key, value: z.string().trim().max(1500) })).max(40).default([]),
 };
@@ -94,6 +100,7 @@ export function calculateCheckout(product: CheckoutProduct, input: Selection, pr
   const priced = config.kind !== 'quote';
   return {
     productId: product.id, name: product.name, kind: config.kind, currency: product.currency,
+    quantityUnit: config.quantityUnit, customerName: input.customerName ?? null, travelers: input.travelers ?? null,
     package: pack ?? null, options, quantity: input.quantity, questions, answers: input.answers,
     documents: config.documents, stockTracked: config.stock !== null && config.kind !== 'quote', unitCents: priced ? unit.toString() : null,
     subtotalCents: priced ? subtotal.toString() : null, discountCents: priced ? discount.toString() : null,

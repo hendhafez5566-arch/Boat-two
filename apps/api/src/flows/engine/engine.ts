@@ -734,16 +734,27 @@ export class FlowEngine {
           // Queue each image as a separate durable message before the final selection list.
           // The standard list carries the same stable product IDs, so selection and checkout still work.
           if (ctx.channel.type === 'whatsapp') {
-            for (const row of content.list.sections.flatMap((section) => section.rows)) {
+            const rows = content.list.sections.flatMap((section) => section.rows);
+            for (const row of rows) {
               if (!row.imageUrl) continue;
               await this.send({
                 text: [row.fullTitle || row.title, row.price].filter(Boolean).join('\n'),
                 media: { kind: 'image', url: row.imageUrl },
               });
             }
+            // A single selected product does not need the extra WhatsApp "Products" list.
+            // Keep the same reply ID so the existing checkout/selection engine is unchanged.
+            if (rows.length === 1) {
+              const button = d.checkout ? 'احجز الآن' : 'اختيار المنتج';
+              content.buttons = [{ id: rows[0].id, title: button }];
+              delete content.list;
+            } else {
+              content.list.buttonText = 'المنتجات';
+            }
           }
         }
-        const choices = content.list?.sections.flatMap((s) => s.rows) ?? [];
+        const choices = content.list?.sections.flatMap((s) => s.rows) ??
+          content.buttons?.map((button) => ({ id: button.id, title: button.title })) ?? [];
         if (selectable && !choices.length)
           throw new RunError('Selectable catalog has no products');
         await this.send(content);

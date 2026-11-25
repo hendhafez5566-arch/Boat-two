@@ -211,7 +211,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
 
   function openEditor(product: CatalogProduct | null) {
     setEditorTab('basic');
-    setCheckout({ ...defaultCheckout, ...product?.checkout });
+    setCheckout({ ...defaultCheckout, ...(product ? { collectCustomerName: false } : {}), ...product?.checkout });
     setPreviewPrice(product?.price_cents ?? '');
     setPreviewCurrency(product?.currency ?? 'EGP');
     setDraftImage(product?.image_url ?? null);

@@ -14,6 +14,10 @@ export type CheckoutConfig = {
   }[];
   documents: string[];
   stock: number | null;
+  quantityUnit: 'item' | 'person' | 'room' | 'package';
+  language: 'ar' | 'en';
+  collectCustomerName: boolean;
+  askTravelers: boolean;
   min: number;
   max: number;
   discountBps: number;
@@ -22,6 +26,7 @@ export type CheckoutConfig = {
 export const defaultCheckout: CheckoutConfig = {
   kind: 'product', packages: [], questions: [], documents: [], stock: null,
   min: 1, max: 1000, discountBps: 0, taxBps: 0,
+  quantityUnit: 'item', language: 'ar', collectCustomerName: true, askTravelers: false,
 };
 
 function PackagePrice({ value, onChange }: { value: string; onChange: (value: string) => void }) {
@@ -52,6 +57,36 @@ export function CheckoutEditor({ value, onChange, price, currency }: {
       <option value="product">{t('منتج', 'Product')}</option><option value="service">{t('خدمة', 'Service')}</option>
       <option value="appointment">{t('موعد', 'Appointment')}</option><option value="quote">{t('عرض سعر', 'Quote request')}</option>
     </select></label>
+    <div className="stack" data-checkout-tab="form">
+      <label>{t('لغة رسائل طلب الحجز', 'Checkout message language')}
+        <select value={value.language ?? 'ar'}
+          onChange={(e) => update({ language: e.target.value as CheckoutConfig['language'] })}>
+          <option value="ar">{t('العربية', 'Arabic')}</option>
+          <option value="en">{t('الإنجليزية', 'English')}</option>
+        </select>
+      </label>
+      <label>{t('السعر يُحسب لكل', 'Price is charged per')}
+        <select value={value.quantityUnit ?? 'item'}
+          onChange={(e) => update({ quantityUnit: e.target.value as CheckoutConfig['quantityUnit'] })}>
+          <option value="item">{t('وحدة / منتج', 'Item / unit')}</option>
+          <option value="person">{t('فرد', 'Person')}</option>
+          <option value="room">{t('غرفة', 'Room')}</option>
+          <option value="package">{t('باقة', 'Package')}</option>
+        </select>
+      </label>
+      <small>{t('اختيار وحدة التسعير يغيّر وصف الكمية فقط، ولا يغيّر السعر أو طريقة الحساب. اختَر «غرفة» إذا كان السعر للغرفة كاملة، و«فرد» إذا كان للفرد.',
+                'The unit clarifies quantity only; it does not change pricing. Use Room for a whole-room price or Person for a per-person price.')}</small>
+      <label>
+        <input type="checkbox" checked={!!value.collectCustomerName}
+          onChange={(e) => update({ collectCustomerName: e.target.checked })}/>
+        {t('جمع اسم صاحب الطلب قبل التأكيد', 'Ask for the booker’s name before confirmation')}
+      </label>
+      <label>
+        <input type="checkbox" checked={!!value.askTravelers}
+          onChange={(e) => update({ askTravelers: e.target.checked })}/>
+        {t('سؤال مستقل عن عدد المسافرين (لا يغير السعر)', 'Ask separately for travelers (does not change the price)')}
+      </label>
+    </div>
     {value.kind === 'appointment' && <p data-checkout-tab="stock">{t('إدارة الحجز من تبويب المواعيد.', 'Manage bookings from Appointments.')}</p>}
     {value.kind === 'product' && <label data-checkout-tab="stock">{t('المخزون (فارغ = غير محدود)', 'Stock (blank = unlimited)')}
       <input name="checkoutStock" type="number" min="0" max="1000000" value={value.stock ?? ''}
