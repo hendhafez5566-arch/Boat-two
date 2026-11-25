@@ -453,6 +453,22 @@ export default function Inbox() {
     try {
       await api(path, { method, body: body ? JSON.stringify(body) : undefined });
       ok = true;
+      const stateChange = path.match(/^\/conversations\/([^/]+)(?:\/(read|unread))?$/);
+      if (stateChange && (body?.important !== undefined || stateChange[2])) {
+        const id = stateChange[1];
+        setItems((rows) => rows.map((item) => item.id !== id ? item : {
+          ...item,
+          ...(body?.important !== undefined ? { important: body.important } : {}),
+          ...(stateChange[2] === 'read' ? { unread_count: 0 } : {}),
+          ...(stateChange[2] === 'unread' ? { unread_count: Math.max(1, Number(item.unread_count) || 0) } : {}),
+        }));
+        if (selRef.current === id) setDetail((old: any) => old ? {
+          ...old,
+          ...(body?.important !== undefined ? { important: body.important } : {}),
+          ...(stateChange[2] === 'read' ? { unread_count: 0 } : {}),
+          ...(stateChange[2] === 'unread' ? { unread_count: Math.max(1, Number(old.unread_count) || 0) } : {}),
+        } : old);
+      }
       if (okMsg && selRef.current === actionConversationId) setNotice(okMsg);
     } catch (e: any) {
       if (selRef.current === actionConversationId) setError(e.message);
@@ -786,7 +802,7 @@ export default function Inbox() {
                       open(c.id);
                     }
                   }}
-                  className={`inbox-item cursor-pointer border-b px-3 py-2 hover:bg-gray-50 ${selId === c.id ? 'is-selected' : ''} ${c.unread_count > 0 ? 'is-unread' : ''}`}
+                  className={`inbox-item cursor-pointer border-b px-3 py-2 hover:bg-gray-50 ${selId === c.id ? 'is-selected' : ''} ${c.unread_count > 0 ? 'is-unread' : ''} ${c.important ? 'is-important' : ''}`}
                 >
                   <div className="inbox-row">
                     <span className="inbox-avatar" aria-hidden="true">
@@ -809,6 +825,11 @@ export default function Inbox() {
                     <div className="inbox-body">
                       <div className="inbox-line">
                         <strong className="inbox-name truncate">{title(c)}</strong>
+                        {c.important && (
+                          <span className={styles.importantTag} title={t('محادثة مهمة', 'Important conversation')}>
+                            <NavIcon name="star" />{t('مهمة', 'Important')}
+                          </span>
+                        )}
                         <time className="inbox-time" dateTime={c.last_message_at}>
                           {new Date(c.last_message_at).toLocaleString(
                             language === 'ar' ? 'ar-EG' : 'en-US',
@@ -960,6 +981,11 @@ export default function Inbox() {
                   <div className={styles.threadIdentity}>
                     <strong>
                       {title(detail)}
+                      {detail.important && (
+                        <span className={styles.importantTag} title={t('محادثة مهمة', 'Important conversation')}>
+                          <NavIcon name="star" />{t('مهمة', 'Important')}
+                        </span>
+                      )}
                       {workspaceRole !== 'agent' && (
                         <button
                           type="button"
@@ -979,52 +1005,9 @@ export default function Inbox() {
                       })}>{t('إنشاء طلب', 'Create order')}</Link>
                     )}
                   </div>
-                  <div className={styles.threadTools}>
-                    <button
-                      type="button"
-                      aria-label={t('بحث الرسائل', 'Search messages')}
-                      aria-expanded={searchMessages}
-                      onClick={() => {
-                        if (searchMessages) setMessageSearch('');
-                        setSearchMessages(!searchMessages);
-                      }}
-                    >
-                      <NavIcon name="search" />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={t('تعيين متابعة', 'Set Follow-up')}
-                      onClick={() => setFollowupOpen(true)}
-                    >
-                      <NavIcon name="stopwatch" />
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.threadActionTrigger}
-                      aria-label={t('إجراءات المحادثة', 'Chat actions')}
-                      title={t('فتح إجراءات المحادثة وبيانات العميل', 'Open chat actions and customer details')}
-                      aria-expanded={actionsOpen || showContext}
-                      onClick={() => {
-                        if (window.matchMedia('(min-width: 1024px)').matches)
-                          setActionsOpen((value) => !value);
-                        else setShowContext(true);
-                      }}
-                    >
-                      <NavIcon name="moreVertical" />
-                      <span aria-hidden="true" className={styles.actionLabel}>{t('إجراءات', 'Actions')}</span>
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={t('إظهار معلومات العميل', 'Toggle customer info')}
-                      aria-expanded={infoOpen}
-                      onClick={() => setInfoOpen((v) => !v)}
-                    >
-                      <NavIcon name="chevron" />
-                    </button>
-                  </div>
-                </header>
                 {infoOpen && (
-                  <dl className={styles.customerStrip}>
+                  <div className={styles.headerContext}>
+                    <dl className={styles.customerStrip}>
                     {[
                       [
                         t('عميل منذ', 'Customer Since'),
@@ -1062,8 +1045,86 @@ export default function Inbox() {
                         <dd title={value}>{value}</dd>
                       </div>
                     ))}
-                  </dl>
+                    </dl>
+                  </div>
                 )}
+                  <div className={styles.threadTools}>
+                    <button
+                      type="button"
+                      className={styles.botHeaderControl}
+                      data-bot-state={detail.handled_by === 'bot' ? 'running' : 'paused'}
+                      disabled={acting || detailLoading}
+                      aria-label={detail.handled_by === 'bot'
+                        ? t('إيقاف البوت لهذه المحادثة', 'Pause bot for this conversation')
+                        : t('تشغيل البوت لهذه المحادثة', 'Resume bot for this conversation')}
+                      title={t('التحكم في البوت لهذه المحادثة فقط', 'Bot control for this chat only')}
+                      onClick={() => void act(
+                        `/conversations/${detail.id}/${detail.handled_by === 'bot' ? 'takeover' : 'release'}`,
+                        'POST',
+                        undefined,
+                        t('تم تحديث البوت لهذه المحادثة.', 'Bot state updated for this conversation.'),
+                      )}
+                    >
+                      <NavIcon name={detail.handled_by === 'bot' ? 'pause' : 'play'} />
+                      <span>{detail.handled_by === 'bot'
+                        ? t('إيقاف البوت', 'Pause bot')
+                        : t('تشغيل البوت', 'Resume bot')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.starQuickControl}
+                      data-important={!!detail.important}
+                      disabled={acting}
+                      aria-pressed={!!detail.important}
+                      title={detail.important ? t('إلغاء التمييز', 'Remove important flag') : t('تمييز كمهمة', 'Mark important')}
+                      aria-label={detail.important ? t('إلغاء التمييز', 'Remove important flag') : t('تمييز كمهمة', 'Mark important')}
+                      onClick={() => void act(`/conversations/${detail.id}`, 'PATCH', { important: !detail.important })}
+                    >
+                      <NavIcon name="star" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t('بحث الرسائل', 'Search messages')}
+                      aria-expanded={searchMessages}
+                      onClick={() => {
+                        if (searchMessages) setMessageSearch('');
+                        setSearchMessages(!searchMessages);
+                      }}
+                    >
+                      <NavIcon name="search" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t('تعيين متابعة', 'Set Follow-up')}
+                      onClick={() => setFollowupOpen(true)}
+                    >
+                      <NavIcon name="stopwatch" />
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.threadActionTrigger}
+                      aria-label={t('ملف العميل وإجراءات المحادثة', 'Customer profile and chat actions')}
+                      title={t('فتح ملف العميل وإجراءات المحادثة', 'Open customer profile and chat actions')}
+                      aria-expanded={actionsOpen || showContext}
+                      onClick={() => {
+                        if (window.matchMedia('(min-width: 1024px)').matches)
+                          setActionsOpen((value) => !value);
+                        else setShowContext(true);
+                      }}
+                    >
+                      <NavIcon name="user" />
+                      <span className={styles.actionLabel}>{t('ملف العميل', 'Customer')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t('إظهار معلومات العميل', 'Toggle customer info')}
+                      aria-expanded={infoOpen}
+                      onClick={() => setInfoOpen((v) => !v)}
+                    >
+                      <NavIcon name="chevron" />
+                    </button>
+                  </div>
+                </header>
                 {searchMessages && (
                   <input
                     className={styles.messageSearch}
