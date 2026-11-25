@@ -1,6 +1,6 @@
 export const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
-export type Session = { accessToken: string; refreshToken: string };
+export type Session = { accessToken: string; refreshToken: string; generation?: string };
 
 export function getSession(): Session | null {
   if (typeof window === 'undefined') return null;
@@ -13,11 +13,15 @@ export function getSession(): Session | null {
   }
 }
 export function setSession(s: Session | null) {
-  if (s) localStorage.setItem('session', JSON.stringify(s));
+  if (s)
+    localStorage.setItem(
+      'session',
+      JSON.stringify({ ...s, generation: s.generation ?? crypto.randomUUID() }),
+    );
   else localStorage.removeItem('session');
 }
 
-let refreshPromise: Promise<Session | null> | null = null;
+let pendingRefresh: { token: string; promise: Promise<Session | null> } | null = null;
 
 async function raw(path: string, init: RequestInit, token?: string) {
   return fetch(`${API}${path}`, {
@@ -29,31 +33,64 @@ async function raw(path: string, init: RequestInit, token?: string) {
   });
 }
 
+async function refreshSession(previous: Session): Promise<Session | null> {
+  const sameLogin = (current: Session | null) =>
+    current && previous.generation && current.generation === previous.generation ? current : null;
+  const refresh = async () => {
+    const current = getSession();
+    if (!current || current.refreshToken !== previous.refreshToken) return sameLogin(current);
+
+    const response = await raw('/auth/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken: previous.refreshToken }),
+    });
+    // A sign-in, logout or refresh in another tab may have completed during the request.
+    const latest = getSession();
+    if (!latest || latest.refreshToken !== previous.refreshToken) return sameLogin(latest);
+    if (!response.ok) {
+      if (response.status === 401) setSession(null);
+      return null;
+    }
+    const payload = await response.json();
+    const next = {
+      accessToken: payload.accessToken,
+      refreshToken: payload.refreshToken,
+      generation: previous.generation ?? crypto.randomUUID(),
+    };
+    if (getSession()?.refreshToken === previous.refreshToken) {
+      setSession(next);
+      return next;
+    }
+    return sameLogin(getSession());
+  };
+
+  // Refresh tokens rotate once. Coordinate tabs on the same origin before using one.
+  return typeof navigator !== 'undefined' && navigator.locks
+    ? navigator.locks.request('boat-two-session-refresh', refresh)
+    : refresh();
+}
+
 export async function api<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
   let session = getSession();
   let res = await raw(path, init, session?.accessToken);
 
-  if (res.status === 401 && session) {
-    if (!refreshPromise) {
-      refreshPromise = (async () => {
-        const r = await raw('/auth/refresh', {
-          method: 'POST',
-          body: JSON.stringify({ refreshToken: session!.refreshToken }),
-        });
-        if (!r.ok) {
-          setSession(null);
-          return null;
-        }
-        const t = await r.json();
-        const next = { accessToken: t.accessToken, refreshToken: t.refreshToken };
-        setSession(next);
-        return next;
-      })().finally(() => {
-        refreshPromise = null;
+  if (res.status === 401 && session && !init.signal?.aborted) {
+    const previous = session;
+    if (pendingRefresh?.token !== previous.refreshToken) {
+      const promise = refreshSession(previous).finally(() => {
+        if (pendingRefresh?.promise === promise) pendingRefresh = null;
       });
+      pendingRefresh = { token: previous.refreshToken, promise };
     }
-    session = await refreshPromise;
-    if (session) res = await raw(path, init, session.accessToken);
+    session = await pendingRefresh.promise;
+    if (
+      session &&
+      (!previous.generation || previous.generation === session.generation) &&
+      !init.signal?.aborted &&
+      getSession()?.accessToken === session.accessToken
+    ) {
+      res = await raw(path, init, session.accessToken);
+    }
   }
 
   const data = await res.json().catch(() => ({}));
