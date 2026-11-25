@@ -25,12 +25,18 @@ export default function CheckoutSelection({ product, packageId, onPackage }: {
   product: CheckoutItem; packageId: string; onPackage: (id: string) => void;
 }) {
   const { t } = useLocale();
+  const selectedPackage = product.checkout?.packages?.find((pack) => pack.id === packageId);
   return <>
     {!!product.checkout?.packages?.length && <label>{t('الباقة', 'Package')}
       <select required value={packageId} onChange={(e) => onPackage(e.target.value)}>
         <option value="">{t('اختر الباقة', 'Choose package')}</option>
         {product.checkout.packages.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
       </select>
+      {selectedPackage && product.checkout?.kind !== 'quote' && (
+        <small>{t('سعر الباقة الأساسي', 'Base package price')}{' '}
+          <bdi>{productPrice(selectedPackage.priceCents, product.currency)}</bdi>
+        </small>
+      )}
     </label>}
     <label>{t('الكمية', 'Quantity')}
       <input name="quantity" type="number" min={product.checkout?.min ?? 1} max={product.checkout?.max ?? 1000}

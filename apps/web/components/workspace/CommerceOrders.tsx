@@ -153,6 +153,7 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
   }, []);
   const [picked, setPicked] = useState<CatalogProduct | null>(null);
   const [preview, setPreview] = useState<Snapshot | null>(null);
+  const selectionRevision = useRef(0);
   const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const [followup, setFollowup] = useState<Order | null>(null);
   const [notice, setNotice] = useState('');
@@ -176,6 +177,7 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
   const [packageId, setPackageId] = useState('');
   async function submit(form: HTMLFormElement, save: boolean) {
     if (!picked || lock.current) return;
+    const revision = selectionRevision.current;
     const data = new FormData(form);
     const selection = checkoutSelection(picked, packageId, data);
     lock.current = true;
@@ -202,12 +204,13 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
         setPreview(null);
         setPage(1);
       } else {
-        setPreview(await api<Snapshot>('/commerce/checkout/quote', {
+        const quote = await api<Snapshot>('/commerce/checkout/quote', {
           method: 'POST', body: JSON.stringify(selection),
-        }));
+        });
+        if (revision === selectionRevision.current) setPreview(quote);
       }
     } catch (e) {
-      setError((e as Error).message);
+      if (save || revision === selectionRevision.current) setError((e as Error).message);
     } finally {
       lock.current = false;
       setBusy(false);
@@ -340,7 +343,10 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
           {products.data.rows.filter((p) => !p.archived).map((p) => <option value={p.id} key={p.id}>{p.name}</option>)}
         </select>
       </label>
-      {picked && <form key={picked.id} className="stack" onChange={() => setPreview(null)}
+      {picked && <form key={picked.id} className="stack" onChange={() => {
+        selectionRevision.current++;
+        setPreview(null);
+      }}
         onSubmit={(e) => {
           e.preventDefault();
           const button = (e.nativeEvent as SubmitEvent).submitter;

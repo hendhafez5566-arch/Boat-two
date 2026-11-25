@@ -821,7 +821,8 @@
 .previewOptions { margin: 0; padding: 0; list-style: none; border: 1px solid #dce5eb; border-radius: 10px; overflow: hidden; }
 .previewOptions li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 13px; border-top: 1px solid #e7edf1; }
 .previewOptions li:first-child { border-top: 0; }
-.previewOptions bdi { color: #17583c; font-weight: 700; }
+.previewOptions li > span { min-width: 0; overflow-wrap: anywhere; }
+.previewOptions bdi { flex-shrink: 0; color: #17583c; font-weight: 700; }
 .previewResponse {
   padding: 12px;
   border-radius: 9px;

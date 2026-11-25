@@ -1387,11 +1387,30 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                   {preview.archived ? t('مؤرشف', 'Archived') : t('نشط', 'Active')}
                 </span>
                 <h3>{preview.name}</h3>
-                <strong dir="ltr">{productPrice(preview.price_cents, preview.currency)}</strong>
+                {preview.checkout?.kind === 'quote' ? (
+                  <strong>{t('السعر حسب عرض السعر', 'Price on request')}</strong>
+                ) : !preview.checkout?.packages?.length && (
+                  <strong dir="ltr">{productPrice(preview.price_cents, preview.currency)}</strong>
+                )}
                 <p>{preview.description || t('بدون وصف', 'No description')}</p>
                 <small>SKU: {preview.sku}</small>
               </div>
             </div>
+            {!!preview.checkout?.packages?.length && (
+              <section>
+                <h4>{t('الباقات', 'Packages')}</h4>
+                <ul className={styles.previewOptions}>
+                  {preview.checkout.packages.map((pack) => (
+                    <li key={pack.id}>
+                      <span>{pack.name}</span>
+                      {preview.checkout?.kind !== 'quote' && (
+                        <bdi>{productPrice(pack.priceCents, preview.currency)}</bdi>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
             {!!preview.specifications?.length && (
               <section>
                 <h4>{t('المواصفات', 'Specifications')}</h4>
@@ -1424,7 +1443,12 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                 {error}
               </p>
             )}
-            {serverPreview && <p className={styles.previewResponse}>{serverPreview}</p>}
+            {serverPreview && (
+              <details>
+                <DisclosureSummary>{t('معاينة رسالة المنتج', 'Product message preview')}</DisclosureSummary>
+                <p className={styles.previewResponse}>{serverPreview}</p>
+              </details>
+            )}
             <p className={styles.previewDisclaimer}>
               {t(
                 'دي معاينة للبيانات المحفوظة فقط؛ مش بيتم إرسال أي رسالة للعميل.',
