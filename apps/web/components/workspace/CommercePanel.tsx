@@ -11,7 +11,7 @@ import ChannelScope from '../product/ChannelScope';
 import { useChannelContext } from '../product/useChannelContext';
 import { channelHref } from '../../lib/channel-context';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useData } from '../business/useData';
 import { useLocale } from '../product/locale';
@@ -34,26 +34,20 @@ type Booking = {
   calendar_status: string;
   calendar_error: string | null;
 };
-export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
+export default function Commerce({
+  initialTab, openOrders, orderId, orderOrigin,
+}: {
+  initialTab?: string;
+  openOrders?: boolean;
+  orderId?: string;
+  orderOrigin?: { conversationId: string; channelId: string };
+} = {}) {
   const { t } = useLocale();
   const [channelId, setChannelId] = useChannelContext();
-  const [tab, setTab] = useState(initialTab ?? 'products'),
+  const [tab, setTab] = useState(initialTab ?? (checkoutEnabled && openOrders ? 'orders' : 'products')),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [result, setResult] = useState('');
-  const [orderOrigin, setOrderOrigin] = useState<{ conversationId: string; channelId: string }>();
-  useEffect(() => {
-    if (!checkoutEnabled || initialTab) return;
-    const query = new URLSearchParams(window.location.search);
-    if (query.get('tab') === 'orders') setTab('orders');
-    const conversationId = query.get('conversation');
-    const channelId = query.get('channel');
-    const uuid = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
-    if (conversationId && channelId && uuid.test(conversationId) && uuid.test(channelId)) {
-      setOrderOrigin({ conversationId, channelId });
-      setTab('orders');
-    }
-  }, [initialTab]);
   const services = useData<Service[]>(tab === 'appointments' ? '/commerce/services' : null, []),
     bookings = useData<Booking[]>(tab === 'appointments' ? '/commerce/appointments' : null, []),
     channels = useData<{ id: string; name: string; type: string }[]>('/channels', []),
@@ -159,7 +153,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
         </p>
       )}
       {tab === 'sources' && <DataSourcesPanel />}
-      {tab === 'orders' && checkoutEnabled && <CommerceOrders contacts={contacts.data.items} origin={orderOrigin}/>}
+      {tab === 'orders' && checkoutEnabled && <CommerceOrders contacts={contacts.data.items} origin={orderOrigin} orderId={orderId}/>}
       {tab === 'products' && <ProductCatalog />}
       {tab === 'appointments' && (
         <div className={catalogStyles.appointmentWorkspace}>

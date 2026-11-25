@@ -137,11 +137,11 @@ function OrderDocuments({ order }: { order: Order }) {
   </section>;
 }
 
-export default function CommerceOrders({ contacts, origin }: { contacts: { id: string; name: string }[]; origin?: Origin }) {
+export default function CommerceOrders({ contacts, origin, orderId }: { contacts: { id: string; name: string }[]; origin?: Origin; orderId?: string }) {
   const { t } = useLocale();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [orderQuery, setOrderQuery] = useState('');
+  const [orderQuery, setOrderQuery] = useState(orderId ?? '');
   const [orderStatus, setOrderStatus] = useState('');
   const [creating, setCreating] = useState(Boolean(origin));
   useEffect(() => {
@@ -167,7 +167,7 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   const retry = useRef<{ key: string; id: string } | null>(null);
-  const products = useData<{ rows: CatalogProduct[] }>('/commerce/products/page?q=' + encodeURIComponent(search), { rows: [] });
+  const products = useData<{ rows: CatalogProduct[] }>(creating ? '/commerce/products/page?q=' + encodeURIComponent(search) : null, { rows: [] });
   const orderParams = new URLSearchParams({ page: String(page), q: orderQuery });
   if (orderStatus) orderParams.set('status', orderStatus);
   const orderPath = '/commerce/orders?' + orderParams;
@@ -187,17 +187,20 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
         const payload = { ...selection, ...(origin ?? { contactId: data.get('contact') }) };
         const key = JSON.stringify(payload);
         if (retry.current?.key !== key) retry.current = { key, id: crypto.randomUUID() };
-        await api(origin ? '/commerce/orders/from-conversation' : '/commerce/orders', {
+        const saved = await api<{ id: string }>(origin ? '/commerce/orders/from-conversation' : '/commerce/orders', {
           method: 'POST', body: JSON.stringify({ ...payload, requestId: retry.current.id }),
         });
         retry.current = null;
         setNotice(t('تم حفظ الطلب.', 'Order saved.'));
         setPicked(null);
-        if (!origin) setCreating(false);
+        setCreating(false);
+        setSearch('');
+        setPackageId('');
+        setOrderStatus('');
+        setOrderQuery(saved.id);
         void summary.reload();
         setPreview(null);
-        if (page === 1) await orders.reload();
-        else setPage(1);
+        setPage(1);
       } else {
         setPreview(await api<Snapshot>('/commerce/checkout/quote', {
           method: 'POST', body: JSON.stringify(selection),
@@ -294,10 +297,10 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
   return <section className={styles.workspace}>
     <header className={styles.heading}>
       <h2><NavIcon name="list"/> {t('الطلبات والحجوزات', 'Orders and bookings')}</h2>
-      {!origin && <button className="btn btn-primary" type="button" aria-expanded={creating}
+      <button className="btn btn-primary" type="button" aria-expanded={creating}
         onClick={() => setCreating(!creating)}><NavIcon name="plus"/>
         {creating ? t('إخفاء النموذج', 'Hide form') : t('طلب جديد', 'New order')}
-      </button>}
+      </button>
     </header>
     {!origin && <div className={styles.metrics} aria-label={t('ملخص كل الطلبات', 'All orders summary')}>
       {summary.error ? <p role="alert">{summary.error}</p> : Object.entries(statusLabels).map(([status, label]) =>

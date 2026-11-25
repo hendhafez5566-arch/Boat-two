@@ -97,7 +97,7 @@ export function OrdersAttention() {
       </div>
       <div className={styles.orderList}>
         {attention.data.items.map((order) => <Link key={order.id}
-          href={`/dashboard/commerce?tab=orders&status=${order.status}`}
+          href={`/dashboard/commerce?tab=orders&order=${order.id}`}
           className={styles.order}>
           <div><strong dir="auto">{order.product_name || t('طلب', 'Order')}</strong>
             <span dir="auto">{order.contact_name}</span></div>
