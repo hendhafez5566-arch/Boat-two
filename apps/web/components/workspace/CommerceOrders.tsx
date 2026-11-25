@@ -14,6 +14,9 @@ import type { CatalogProduct } from './ProductCatalog';
 type Snapshot = {
   name: string; kind: string; currency: string; totalCents: string | null;
   package: { name: string } | null; quantity: number; documents: string[];
+  quantityUnit?: 'item' | 'room' | 'person' | 'package';
+  customerName?: string | null;
+  travelers?: number | null;
   options?: { name: string; priceCents: string | number }[];
   questions?: { id: string; label: string }[];
   answers?: { id: string; value: string }[];
@@ -31,6 +34,14 @@ function OrderDetails({ snapshot }: { snapshot: Snapshot }) {
     const answer = snapshot.answers?.find(({ id }) => id === question.id);
     return answer?.value ? [{ ...question, value: answer.value }] : [];
   });
+  const unit = snapshot.quantityUnit ?? 'item';
+  const unitNames = {
+    item: [t('وحدة', 'unit'), t('وحدات', 'units')],
+    person: [t('فرد', 'person'), t('أفراد', 'persons')],
+    room: [t('غرفة', 'room'), t('غرف', 'rooms')],
+    package: [t('باقة', 'package'), t('باقات', 'packages')],
+  };
+  const quantityName = (unitNames[unit] ?? unitNames.item)[snapshot.quantity === 1 ? 0 : 1];
   const amounts = [
     [t('سعر الوحدة', 'Unit price'), snapshot.unitCents],
     [t('المجموع الفرعي', 'Subtotal'), snapshot.subtotalCents],
@@ -40,6 +51,14 @@ function OrderDetails({ snapshot }: { snapshot: Snapshot }) {
   ] as const;
 
   return <div className="stack">
+    <section>
+      <h4>{t('تفاصيل الحجز', 'Booking details')}</h4>
+      <dl>
+        <div><dt>{t('العدد', 'Quantity')}</dt><dd>{snapshot.quantity} {quantityName}</dd></div>
+        {snapshot.customerName && <div><dt>{t('اسم الحاجز', 'Booker name')}</dt><dd>{snapshot.customerName}</dd></div>}
+        {snapshot.travelers && <div><dt>{t('عدد المسافرين', 'Travelers')}</dt><dd>{snapshot.travelers}</dd></div>}
+      </dl>
+    </section>
     <section>
       <h4>{t('الإجابات', 'Answers')}</h4>
       {answers.length ? <dl>{answers.map((answer) =>
@@ -379,8 +398,15 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
           </label>}
         </div>
       </div>
-      <div className={styles.heading}><strong>{o.snapshot.package?.name ?? o.snapshot.name} × {o.snapshot.quantity}</strong>
-        <strong>{amount(o.snapshot)}</strong></div>
+      <div className={styles.heading}>
+        <strong>{o.snapshot.package?.name ?? o.snapshot.name} × {o.snapshot.quantity}{' '}
+          {o.snapshot.quantityUnit === 'room' ? t('غرفة/غرف', 'rooms')
+            : o.snapshot.quantityUnit === 'person' ? t('فرد/أفراد', 'persons')
+            : o.snapshot.quantityUnit === 'package' ? t('باقة/باقات', 'packages')
+            : t('وحدة/وحدات', 'units')}
+        </strong>
+        <strong>{amount(o.snapshot)}</strong>
+      </div>
       <details className={styles.details} onToggle={(event) => {
         const open = event.currentTarget.open;
         setExpandedOrders((current) => {
