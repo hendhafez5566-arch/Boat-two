@@ -7,6 +7,8 @@ import { ProviderEditor } from '../business/ProviderEditor';
 import { AiToolAudit } from '../business/AiToolAudit';
 import { AgentRouting } from '../business/AgentRouting';
 import { useState } from 'react';
+import Link from 'next/link';
+import styles from './ai-workspace.module.css';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 import { useData } from '../business/useData';
@@ -67,6 +69,39 @@ export default function Agents() {
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState('');
   const [busy, setBusy] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const readySources = sources.data.filter((source) => source.status === 'ready');
+  const enabledAgents = data.data.agents.filter((agent) => agent.enabled);
+  const activeProviders = data.data.providers.filter((provider) => provider.enabled && !provider.retired_at);
+  const blankAgent = {
+    id: '',
+    name: '',
+    instructions: '',
+    providerId: '',
+    sourceIds: [] as string[],
+    allowedTools: ['handoff_to_human'],
+    enabled: false,
+    isDefault: false,
+  };
+  function showEditor(agent?: Agent) {
+    setError('');
+    setFeedback('');
+    setForm(agent ? {
+      id: agent.id,
+      name: agent.name,
+      instructions: agent.instructions,
+      providerId: agent.provider_id || '',
+      sourceIds: agent.source_ids,
+      allowedTools: agent.allowed_tools,
+      enabled: agent.enabled,
+      isDefault: agent.is_default,
+    } : blankAgent);
+    setEditorOpen(true);
+    window.setTimeout(() => document.getElementById('agent-editor')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    }), 0);
+  }
   async function act(path: string, body: unknown, method = 'POST') {
     setBusy(true);
     setError('');
@@ -83,53 +118,98 @@ export default function Agents() {
   }
   return (
     <section className="stack">
-      <WorkspaceHeading
-        title={t('مساعدو الذكاء الاصطناعي', 'AI Agents')}
-        description={t(
-          'اضبط المساعدين ومصادرهم وتابع استهلاكهم.',
-          'Configure your agents and their sources, and track usage.',
-        )}
-      />
-      <p className="notice">
+      <div className={styles.intro}>
+        <div className={styles.introText}>
+          <WorkspaceHeading
+            title={t('مساعدو الذكاء الاصطناعي', 'AI Agents')}
+            description={t(
+              'أنشئ مساعدًا يرد حسب تعليمات شركتك ومصادر المعرفة التي تختارها.',
+              'Create an assistant that follows your instructions and selected company knowledge.',
+            )}
+          />
+        </div>
+        <button type="button" className="btn btn-primary" onClick={() => showEditor()}>
+          + {t('إنشاء مساعد جديد', 'Create assistant')}
+        </button>
+      </div>
+      <section className={styles.guide} aria-label={t('كيف تبدأ', 'Getting started')}>
+        <div className={styles.guideHead}>
+          <strong>{t('ابدأ في 3 خطوات', 'Get started in 3 steps')}</strong>
+          <span>{t('مش لازم تضبط كل الإعدادات التقنية الآن', 'No need to configure everything at once')}</span>
+        </div>
+        <div className={styles.steps}>
+          <Link className={styles.step} href="/dashboard/knowledge">
+            <span className={styles.stepNumber}>1</span>
+            <span><strong>{t('أضف معلومات الشركة', 'Add company knowledge')}</strong>
+              <small>{t('الأسئلة الشائعة، السياسات والخدمات', 'FAQs, policies and services')}</small></span>
+          </Link>
+          <button className={styles.step} type="button" onClick={() => showEditor()}>
+            <span className={styles.stepNumber}>2</span>
+            <span><strong>{t('أنشئ المساعد', 'Create your assistant')}</strong>
+              <small>{t('اسمه وطريقة كلامه ومصادره', 'Name, instructions and sources')}</small></span>
+          </button>
+          <div className={styles.step}>
+            <span className={styles.stepNumber}>3</span>
+            <span><strong>{t('فعّله واربطه بالمحادثات', 'Enable and route to chats')}</strong>
+              <small>{t('بعد إعداد مزود AI والاختبار', 'After provider setup and testing')}</small></span>
+          </div>
+        </div>
+      </section>
+      <div className={styles.stats} aria-label={t('ملخص الإعداد', 'Setup overview')}>
+        <div><strong>{data.data.agents.length}</strong><span>{t('مساعد', 'Agents')}</span></div>
+        <div><strong>{enabledAgents.length}</strong><span>{t('مساعد مفعّل', 'Enabled agents')}</span></div>
+        <div><strong>{readySources.length}</strong><span>{t('مصدر معرفة جاهز', 'Ready knowledge sources')}</span></div>
+        <div><strong>{activeProviders.length}</strong><span>{t('مزود مفعّل داخل الشركة', 'Active workspace providers')}</span></div>
+      </div>
+      <p className={styles.safetyNote} role="note">
         {t(
-          'استدعاءات المزود المدفوعة معطلة افتراضيًا. لا تضع مفاتيح إنتاجية قبل التصريح. التكلفة تعرض فقط إن وُجدت بيانات تسعير موثقة.',
-          'Paid provider calls are disabled by default. Do not enter production keys without authorization. Cost is shown only when verified pricing is available.',
+          'تنبيه: حفظ المساعد أو تفعيله لا يشغّل مدفوعات AI تلقائيًا. يلزم مزود مهيأ، وسماح بالاستدعاءات، وربط المساعد بالقناة أو التدفق.',
+          'Saving or enabling an agent does not activate paid AI calls. A configured provider, enabled generation, and a chat/flow route are required.',
         )}
       </p>
       {(error || data.error) && <p role="alert" className="notice error">{error || data.error}</p>}
       {feedback && <p role="status" className="notice">{feedback}</p>}
       {data.loading && <p role="status">{t('جارٍ تحميل المساعدين…', 'Loading agents…')}</p>}
-      <div className="card-grid">
+      <div className={styles.sectionHeading}>
+        <div>
+          <h2>{t('مساعدوك', 'Your assistants')}</h2>
+          <p>{t('اختر مساعدًا لتعديل طريقة رده أو إنشاء مساعد جديد.', 'Choose an agent to edit how it responds, or create a new one.')}</p>
+        </div>
+      </div>
+      {!data.loading && data.data.agents.length === 0 && (
+        <section className={styles.empty}>
+          <strong>{t('لسه مفيش مساعدين', 'No assistants yet')}</strong>
+          <p>{t('ابدأ بمساعد لخدمة العملاء، وخلّيه معطّل لحد ما تجهّز المعرفة وتختبره.', 'Start with a customer-service assistant and leave it disabled until you test its knowledge.')}</p>
+          <button type="button" className="btn btn-primary" onClick={() => showEditor()}>{t('إنشاء أول مساعد', 'Create first agent')}</button>
+        </section>
+      )}
+      <div className={styles.agentGrid}>
         {data.data.agents.map((a) => (
-          <section className="card" key={a.id}>
-            <h2>{a.name}</h2>
-            <span className="badge">
-              {a.enabled ? t('مفعّل', 'Enabled') : t('معطّل', 'Disabled')}
-              {a.is_default ? ' · ' + t('افتراضي', 'Default') : ''}
-            </span>
-            <p className="muted mt-3">{a.instructions}</p>
-            <button
-              className="btn mt-3"
-              onClick={() =>
-                setForm({
-                  id: a.id,
-                  name: a.name,
-                  instructions: a.instructions,
-                  providerId: a.provider_id || '',
-                  sourceIds: a.source_ids,
-                  allowedTools: a.allowed_tools,
-                  enabled: a.enabled,
-                  isDefault: a.is_default,
-                })
-              }
-            >
-              {t('إدارة المساعد', 'Manage agent')}
-            </button>
-          </section>
+          <article className={styles.agentCard} key={a.id}>
+            <div className={styles.agentCardHead}>
+              <span className={styles.agentAvatar} aria-hidden="true">AI</span>
+              <div>
+                <h3>{a.name}</h3>
+                <span className={a.enabled ? styles.statusActive : styles.statusMuted}>
+                  {a.enabled ? t('مفعّل', 'Enabled') : t('غير مفعّل', 'Disabled')}
+                  {a.is_default ? ' · ' + t('افتراضي', 'Default') : ''}
+                </span>
+              </div>
+            </div>
+            <p className={styles.agentDescription}>
+              {a.instructions || t('لم تُضف تعليمات لهذا المساعد بعد.', 'No instructions added yet.')}
+            </p>
+            <div className={styles.agentMeta}>
+              <span>{a.source_ids.length} {t('مصدر معرفة', 'knowledge sources')}</span>
+              <span>{a.allowed_tools.length} {t('صلاحية إجراء', 'allowed actions')}</span>
+            </div>
+            <button type="button" className="btn" onClick={() => showEditor(a)}>{t('إعدادات المساعد', 'Configure agent')}</button>
+          </article>
         ))}
       </div>
-      <form
-        className="card stack"
+      {editorOpen && <form
+        id="agent-editor"
+        className={`card stack ${styles.editor}`}
         onSubmit={async (e) => {
           e.preventDefault();
           try {
@@ -146,30 +226,28 @@ export default function Agents() {
               },
               form.id ? 'PATCH' : 'POST',
             );
-            setForm({
-              id: '',
-              name: '',
-              instructions: '',
-              providerId: '',
-              sourceIds: [],
-              allowedTools: ['handoff_to_human'],
-              enabled: false,
-              isDefault: false,
-            });
-            setFeedback(form.enabled
-              ? t('تم حفظ المساعد مفعّلًا.', 'Agent saved and enabled.')
-              : t('تم حفظ المساعد معطّلًا.', 'Agent saved as disabled.'));
+            setForm(blankAgent);
+            setEditorOpen(false);
+            setFeedback(t('تم حفظ إعدادات المساعد. راجع حالة مزود الخدمة والربط قبل الاستخدام.', 'Agent saved. Check provider and routing status before use.'));
           } catch {
             /* The action helper displays the error. */
           }
         }}
       >
-        <h2>{form.id ? t('تعديل المساعد', 'Edit agent') : t('مساعد جديد', 'New agent')}</h2>
+        <div className={styles.sectionHeading}>
+          <div>
+            <h2>{form.id ? t('تعديل المساعد', 'Edit assistant') : t('مساعد جديد', 'New assistant')}</h2>
+            <p>{t('ابدأ بالاسم والتعليمات، ثم اختر مصادر المعرفة والإجراءات.', 'Start with a name and instructions, then choose sources and actions.')}</p>
+          </div>
+          <button type="button" className="btn" onClick={() => setEditorOpen(false)}>{t('إغلاق', 'Close')}</button>
+        </div>
         <div className="form-grid">
           <label className="field">
             {t('الاسم', 'Name')}
             <input
               required
+              placeholder={t('مثال: مساعد خدمة العملاء', 'e.g. Customer service assistant')}
+              maxLength={100}
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
@@ -196,18 +274,30 @@ export default function Agents() {
           <textarea
             rows={5}
             maxLength={4000}
+            placeholder={t(
+              'مثال: رد بالعربية بوضوح، واستخدم معلومات الشركة فقط، وحوّل الحالات غير الواضحة لموظف. لا تخترع أسعارًا أو مواعيد.',
+              'Example: Reply clearly using only verified company information. Escalate unknown questions. Never invent prices or dates.',
+            )}
             value={form.instructions}
             onChange={(e) => setForm({ ...form, instructions: e.target.value })}
           />
         </label>
-        <fieldset>
+        <fieldset className={styles.choiceGroup}>
           <legend className="font-bold mb-2">
-            {t('مصادر المعرفة المسموحة', 'Allowed knowledge sources')}
+            {t('المعلومات التي يقدر المساعد يستخدمها', 'Knowledge the assistant can use')}
           </legend>
+          <p className={styles.helper}>{t('اختار المصادر الجاهزة فقط. المصدر غير المحدد مش هيستخدمه المساعد.', 'Select ready sources. Unselected sources will not be used by this assistant.')}</p>
+          {sources.data.length === 0 && (
+            <p className={styles.inlineEmpty}>
+              {t('لسه مفيش مصادر معرفة.', 'No knowledge sources yet.')}{' '}
+              <Link href="/dashboard/knowledge">{t('اذهب لإضافة المعلومات', 'Add knowledge')}</Link>
+            </p>
+          )}
           {sources.data.map((s) => (
             <label className="flex gap-2 py-1" key={s.id}>
               <input
                 type="checkbox"
+                disabled={s.status !== 'ready' && !form.sourceIds.includes(s.id)}
                 checked={form.sourceIds.includes(s.id)}
                 onChange={(e) =>
                   setForm({
@@ -228,12 +318,12 @@ export default function Agents() {
             )}
           </p>
         </fieldset>
-        <fieldset>
+        <details className={styles.subsection}>
+          <summary>{t('إجراءات إضافية للمساعد (اختياري)', 'Additional assistant actions (optional)')}</summary>
+          <p className={styles.helper}>{t('دي صلاحيات في محادثة العميل الحالي فقط؛ مش صلاحية عامة لحساب الشركة.', 'These permissions affect only the current contact, not the entire workspace.')}</p>
+          <fieldset className={styles.choiceGroup}>
           <legend className="font-bold">
-            {t(
-              'أدوات مسموحة للمساعد في العميل الحالي فقط',
-              'Tools allowed for the current contact only',
-            )}
+            {t('اختر الإجراءات المسموحة', 'Select allowed actions')}
           </legend>
           {[
             ['handoff_to_human', t('تحويل لموظف', 'Human escalation')],
@@ -256,7 +346,9 @@ export default function Agents() {
               {label}
             </label>
           ))}
-        </fieldset>
+          </fieldset>
+        </details>
+        <div className={styles.toggleGroup}>
         <label className="flex gap-2">
           <input
             type="checkbox"
@@ -273,10 +365,15 @@ export default function Agents() {
           />
           {t('استخدامه كمساعد افتراضي في المحادثات', 'Use as default agent for conversations')}
         </label>
+        </div>
         <button className="btn btn-primary self-start" disabled={busy}>
           {t('حفظ المساعد', 'Save agent')}
         </button>
-      </form>
+      </form>}
+      <details className={styles.advanced}>
+        <summary>{t('إعدادات متقدمة: المزود والنماذج والميزانية والسجلات', 'Advanced: providers, models, budget and logs')}</summary>
+        <div className={styles.advancedBody}>
+          <p className={styles.helper}>{t('الأقسام دي لإدارة الربط التقني والتكاليف والتشخيص. مش محتاج تفتحها في كل زيارة.', 'These sections are for technical setup, costs and troubleshooting, not everyday use.')}</p>
       <details className="card workspace-disclosure">
         <summary>{t('مزودو الخدمة', 'Providers')}</summary>
         {data.data.providers.map((p) => (
@@ -424,6 +521,8 @@ export default function Agents() {
         )}
       </section>
       <AiToolAudit />
+        </div>
+      </details>
     </section>
   );
 }
