@@ -400,10 +400,13 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
       </div>
       <div className={styles.heading}>
         <strong>{o.snapshot.package?.name ?? o.snapshot.name} × {o.snapshot.quantity}{' '}
-          {o.snapshot.quantityUnit === 'room' ? t('غرفة/غرف', 'rooms')
-            : o.snapshot.quantityUnit === 'person' ? t('فرد/أفراد', 'persons')
-            : o.snapshot.quantityUnit === 'package' ? t('باقة/باقات', 'packages')
-            : t('وحدة/وحدات', 'units')}
+          {o.snapshot.quantityUnit === 'room'
+            ? o.snapshot.quantity === 1 ? t('غرفة', 'room') : t('غرف', 'rooms')
+            : o.snapshot.quantityUnit === 'person'
+              ? o.snapshot.quantity === 1 ? t('فرد', 'person') : t('أفراد', 'persons')
+              : o.snapshot.quantityUnit === 'package'
+                ? o.snapshot.quantity === 1 ? t('باقة', 'package') : t('باقات', 'packages')
+                : o.snapshot.quantity === 1 ? t('وحدة', 'unit') : t('وحدات', 'units')}
         </strong>
         <strong>{amount(o.snapshot)}</strong>
       </div>
