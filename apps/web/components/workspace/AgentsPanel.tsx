@@ -386,11 +386,31 @@ export default function Agents() {
         </div>
       </details>
       <details className={styles.advanced}>
-        <summary>{t('إعدادات متقدمة: المزود والنماذج والميزانية والسجلات', 'Advanced: providers, models, budget and logs')}</summary>
+        <summary>{t('إدارة تقنية اختيارية', 'Optional technical administration')}</summary>
         <div className={styles.advancedBody}>
-          <p className={styles.helper}>{t('الأقسام دي لإدارة الربط التقني والتكاليف والتشخيص. مش محتاج تفتحها في كل زيارة.', 'These sections are for technical setup, costs and troubleshooting, not everyday use.')}</p>
-      <details className="card workspace-disclosure">
-        <summary>{t('مزودو الخدمة', 'Providers')}</summary>
+          <p className={styles.helper}>
+            {t(
+              'الإعدادات دي لمسؤول الشركة فقط: ربط مزود AI، ضبط ميزانية الاستدعاءات، ومراجعة السجلات. مش ضرورية لإضافة المعلومات أو تعديل تعليمات المساعد.',
+              'For workspace administrators only: connect an AI provider, manage call budgets and inspect logs. Not needed to add knowledge or edit agent instructions.',
+            )}
+          </p>
+          <div className={styles.technicalGroups}>
+            <details className={styles.technicalGroup}>
+              <summary className={styles.technicalSummary}>
+                <span className={styles.technicalIcon} aria-hidden="true">1</span>
+                <span className={styles.technicalTitle}>
+                  <strong>{t('ربط خدمة الذكاء الاصطناعي', 'Connect an AI provider')}</strong>
+                  <small>{t('مفتاح الاتصال وإعداد النموذج — للمسؤول فقط', 'Connection key and model setup — administrators only')}</small>
+                </span>
+                <span className={styles.technicalCount}>
+                  {data.data.providers.filter((provider) => !provider.retired_at).length}
+                  {' '}{t('مزود', 'providers')}
+                </span>
+              </summary>
+              <div className={styles.technicalBody}>
+                <p className={styles.helper}>
+                  {t('المزود هو الخدمة اللي بتولّد الردود، زي OpenAI أو Anthropic. حفظ مزود جديد بيكون معطّلًا حتى تراجعه وتفعّله.', 'A provider generates the replies, such as OpenAI or Anthropic. Newly saved providers remain disabled until reviewed.')}
+                </p>
         {data.data.providers.map((p) => (
           <ProviderEditor key={p.id + ':' + p.revision} provider={p} busy={busy} act={act} />
         ))}
@@ -467,12 +487,45 @@ export default function Agents() {
             {t('حفظ المزود', 'Save provider')}
           </button>
         </form>
-      </details>
-      <ModelCatalog key={data.data.providers.map((p) => p.id + ':' + p.revision).join(',')} />
-      <GenerationBudgetPanel />
-      <section className="card table-wrap">
-        <h2>{t('آخر 100 استدعاء', 'Latest 100 calls')}</h2>
-        <table className="product-table">
+                <details className={styles.nestedTechnical}>
+                  <summary>{t('سجل النماذج وإصدارات التسعير', 'Model and pricing version history')}</summary>
+                  <div className={styles.nestedTechnicalBody}>
+                    <ModelCatalog key={data.data.providers.map((p) => p.id + ':' + p.revision).join(',')} />
+                  </div>
+                </details>
+              </div>
+            </details>
+            <details className={styles.technicalGroup}>
+              <summary className={styles.technicalSummary}>
+                <span className={styles.technicalIcon} aria-hidden="true">2</span>
+                <span className={styles.technicalTitle}>
+                  <strong>{t('حدود استخدام الذكاء الاصطناعي', 'AI usage limits')}</strong>
+                  <small>{t('عدد المحاولات والتوكنز والميزانية — مش فاتورة فعلية', 'Attempts, tokens and budget — not a provider invoice')}</small>
+                </span>
+              </summary>
+              <div className={styles.technicalBody}>
+                <p className={styles.helper}>
+                  {t('لو الميزانية أو الحد الشهري وصل للصفر المتبقي، النظام ممكن يمنع استدعاءات جديدة. غيّرها بحذر بعد مراجعة تكلفة المزود.', 'When monthly allowances are exhausted, new AI calls may be blocked. Review provider costs before changing limits.')}
+                </p>
+                <GenerationBudgetPanel />
+              </div>
+            </details>
+            <details className={styles.technicalGroup}>
+              <summary className={styles.technicalSummary}>
+                <span className={styles.technicalIcon} aria-hidden="true">3</span>
+                <span className={styles.technicalTitle}>
+                  <strong>{t('سجل التشغيل والمراجعة', 'Activity and audit logs')}</strong>
+                  <small>{t('تفاصيل المحاولات ونتائج الإجراءات عند تشخيص مشكلة', 'Call outcomes and action history for troubleshooting')}</small>
+                </span>
+                <span className={styles.technicalCount}>
+                  {data.data.runs.length}
+                  {' '}{t('استدعاء حديث', 'recent calls')}
+                </span>
+              </summary>
+              <div className={styles.technicalBody}>
+                <section className="card table-wrap">
+                  <h2>{t('آخر استدعاءات AI', 'Recent AI calls')}</h2>
+                  {data.data.runs.length > 0 && <table className="product-table">
           <thead>
             <tr>
               <th>{t('النموذج', 'Model')}</th>
@@ -527,14 +580,22 @@ export default function Agents() {
               </tr>
             ))}
           </tbody>
-        </table>
-        {!data.data.runs.length && (
-          <p className="empty">
-            {t('لم تحدث استدعاءات مزود في هذه الشركة.', 'No provider calls in this workspace.')}
-          </p>
-        )}
-      </section>
-      <AiToolAudit />
+                  </table>}
+                  {!data.data.runs.length && (
+                    <p className={styles.technicalEmpty}>
+                      {t('مافيش استدعاءات مسجلة حتى الآن. دي مش مشكلة لو المساعد لسه متفعّلش.', 'No AI calls recorded yet. This is expected before the assistant is used.')}
+                    </p>
+                  )}
+                </section>
+                <details className={styles.nestedTechnical}>
+                  <summary>{t('سجل أدوات المساعد', 'Assistant action audit')}</summary>
+                  <div className={styles.nestedTechnicalBody}>
+                    <AiToolAudit />
+                  </div>
+                </details>
+              </div>
+            </details>
+          </div>
         </div>
       </details>
     </section>
