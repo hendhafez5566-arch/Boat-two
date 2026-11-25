@@ -580,6 +580,27 @@ export default function Inspector({
                       'Wait for a product selection from list rows (up to 10 products)',
                     )}
                   </label>
+                  {(data.selectable || data.displayMode === 'cards') && !data.native && (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="checkbox"
+                        checked={!!data.checkout}
+                        onChange={(e) => set({ checkout: e.target.checked })}
+                      />
+                      {t(
+                        'بدء طلب أو حجز بعد اختيار المنتج (مع تأكيد العميل)',
+                        'Start checkout after product selection (customer confirmation required)',
+                      )}
+                    </label>
+                  )}
+                  {(data.selectable || data.displayMode === 'cards') && !data.native && data.checkout && (
+                    <p style={{ fontSize: 12, lineHeight: 1.7, margin: 0 }}>
+                      {t(
+                        'العميل يختار المنتج ثم يراجع بيانات الطلب ويؤكده. لا يُحصّل أي مبلغ تلقائيًا. المنتجات المخصصة للمواعيد تحتاج مسار حجز مواعيد.',
+                        'After selecting a product, the customer reviews and confirms the order. No payment is charged automatically. Appointment products require an appointment flow.',
+                      )}
+                    </p>
+                  )}
                   {data.selectable && (
                     <label>
                       {t('حفظ معرف المنتج في متغير', 'Save product ID to variable')}
