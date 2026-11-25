@@ -64,7 +64,8 @@
   background: linear-gradient(115deg, #087965, #066459);
   border-radius: 16px;
 }
-.hero h2 {
+.page .hero h2 {
+  color: #fff;
   font-size: 1.55rem;
   margin: 3px 0;
 }
