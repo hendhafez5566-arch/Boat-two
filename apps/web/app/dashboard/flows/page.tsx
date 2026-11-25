@@ -64,6 +64,8 @@ export default function BotManager() {
   const workspace = useData<{
     role: string;
     plan?: { plan_name: string; limits: Record<string, number> };
+    previewFlowQuotaAvailable?: boolean;
+    previewFlowQuotaExpiresAt?: string | null;
   }>('/workspace', { role: '' });
   const canManage = ['owner', 'admin'].includes(workspace.data.role);
   const canOpenSection = (key: string) => canManage || ['bot_reply', 'entry_points'].includes(key);
@@ -124,6 +126,8 @@ export default function BotManager() {
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const [previewError, setPreviewError] = useState('');
   const lock = useRef(false);
   useEffect(() => {
     if (
@@ -163,6 +167,20 @@ export default function BotManager() {
     : flowLimit === -1
       ? t('التدفقات: غير محدود', 'Flows: unlimited')
       : t(`التدفقات: ${flowUsed} من ${flowLimit}`, `Flows: ${flowUsed} of ${flowLimit}`);
+  async function activatePreviewFlowQuota() {
+    if (previewBusy || !workspace.data.previewFlowQuotaAvailable) return;
+    setPreviewBusy(true);
+    setPreviewError('');
+    try {
+      await api('/workspace/preview-flow-quota', { method: 'POST' });
+      await Promise.all([workspace.reload(), flows.reload()]);
+      setNotice(t('تم تفعيل سعة تجربة مؤقتة لـ20 تدفقًا.', 'Temporary 20-flow Preview allowance activated.'));
+    } catch (e) {
+      setPreviewError(managerError(e, t));
+    } finally {
+      setPreviewBusy(false);
+    }
+  }
   const folders = [
     ...new Set(flows.data.map((f) => f.folder_name).filter((f): f is string => !!f)),
   ];
@@ -529,6 +547,15 @@ export default function BotManager() {
                       {' · '}
                       {t('تشمل كل القنوات والمسودات والتدفقات الفرعية.', 'Includes all channels, drafts and reusable subflows.')}
                     </span>
+                    {flowLimitReached && workspace.data.previewFlowQuotaAvailable && (
+                      <button type="button" className="btn btn-primary"
+                        disabled={previewBusy} onClick={() => void activatePreviewFlowQuota()}>
+                        {previewBusy
+                          ? t('جارٍ التفعيل…', 'Activating…')
+                          : t('تفعيل تجربة 20 تدفقًا لمدة 7 أيام', 'Try 20 flows for 7 days')}
+                      </button>
+                    )}
+                    {previewError && <span role="alert">{previewError}</span>}
                     {flowLimitReached && (
                       <Link href="/dashboard/subscription?tab=plans" className="btn">
                         {t('عرض الباقات', 'View plans')}
@@ -942,6 +969,15 @@ export default function BotManager() {
                 {' · '}
                 {t('أي مسودة جديدة تستهلك مكانًا من حد التدفقات.', 'Every new draft uses one flow slot.')}
               </span>
+              {flowLimitReached && workspace.data.previewFlowQuotaAvailable && (
+                <button type="button" className="btn btn-primary" disabled={previewBusy}
+                  onClick={() => void activatePreviewFlowQuota()}>
+                  {previewBusy
+                    ? t('جارٍ التفعيل…', 'Activating…')
+                    : t('تفعيل تجربة 20 تدفقًا لمدة 7 أيام', 'Try 20 flows for 7 days')}
+                </button>
+              )}
+              {previewError && <span role="alert">{previewError}</span>}
               {flowLimitReached && (
                 <Link href="/dashboard/subscription?tab=plans" className="btn">
                   {t('مقارنة الباقات', 'Compare plans')}

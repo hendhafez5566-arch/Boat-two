@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PoolClient } from 'pg';
 import { env } from '../config/env';
 import { DatabaseService } from '../database/database.service';
+import { previewFlowAllowance, previewOnly } from './preview-flow-allowance';
 
 export interface TenantPlan {
   status: string;
@@ -27,6 +28,15 @@ export class PlansService {
     return r.rows;
   }
 
+  /** Preview-only opt-in applies to the current tenant, never the global plan catalog. */
+  private async withPreviewFlowAllowance(c: PoolClient, plan: TenantPlan): Promise<TenantPlan> {
+    if (!previewOnly() || plan.limits.flows === -1 || plan.limits.flows >= 20) return plan;
+    const settings = (await c.query('SELECT settings FROM tenants LIMIT 1')).rows[0]?.settings;
+    const granted = previewFlowAllowance(settings);
+    if (!granted || granted.limit <= (plan.limits.flows ?? 0)) return plan;
+    return { ...plan, limits: { ...plan.limits, flows: granted.limit } };
+  }
+
   /** الخطة الفعلية للشركة الحالية (يجب استدعاؤها داخل withTenant). التجربة المنتهية تُعامل كخطة free. */
   async getTenantPlan(c: PoolClient): Promise<TenantPlan> {
     const r = await c.query(
@@ -48,14 +58,14 @@ export class PlansService {
       const free = await c.query(
         "SELECT code AS plan_code, name AS plan_name, limits, features FROM plans WHERE code = 'free'",
       );
-      return {
+      return this.withPreviewFlowAllowance(c, {
         ...row,
         ...free.rows[0],
         trial_expired: !!trialExpired,
         delinquent_restricted: !!delinquentRestricted,
-      };
+      });
     }
-    return { ...row, trial_expired: false };
+    return this.withPreviewFlowAllowance(c, { ...row, trial_expired: false });
   }
 
   async assertFeature(c: PoolClient, key: string) {

@@ -4,6 +4,7 @@ import { InvitationMail } from '../mail/invitation-mail';
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
   Delete,
   ForbiddenException,
@@ -23,6 +24,7 @@ import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
 import { DatabaseService } from '../database/database.service';
 import { PlansService } from '../plans/plans.service';
+import { PREVIEW_FLOW_LIMIT, PREVIEW_FLOW_DAYS, previewOnly, previewFlowAllowance } from '../plans/preview-flow-allowance';
 import {env} from '../config/env';
 import {connectionHealth} from '../messaging/connection-health';
 
@@ -62,7 +64,54 @@ export class WorkspaceController {
       const ai=(await c.query('SELECT enabled FROM ai_settings')).rows[0];
       const aiEnabled=!!ai?.enabled&&env.AI_PROVIDER_CALLS_ENABLED==='true';
       const tokens=aiEnabled?(await c.query("SELECT COALESCE(sum(input_tokens+output_tokens),0)::text AS n FROM ai_usage WHERE period=date_trunc('month',now())::date")).rows[0].n:undefined;
-      return { tenant, role: req.user.role, plan, aiEnabled,usage: { agents, ...counts,...(aiEnabled?{ai_tokens:tokens}:{}) } };
+      const claimed = Boolean(
+        tenant?.settings &&
+        Object.prototype.hasOwnProperty.call(tenant.settings, 'previewFlowAllowance'),
+      );
+      return {
+        tenant,
+        role: req.user.role,
+        plan,
+        aiEnabled,
+        previewFlowQuotaAvailable:
+          previewOnly() && req.user.role === 'owner' &&
+          !claimed && plan.limits.flows !== -1 && (plan.limits.flows ?? 0) < PREVIEW_FLOW_LIMIT,
+        previewFlowQuotaExpiresAt: previewOnly()
+          ? previewFlowAllowance(tenant?.settings)?.expiresAt ?? null
+          : null,
+        usage: { agents, ...counts, ...(aiEnabled ? { ai_tokens: tokens } : {}) },
+      };
+    });
+  }
+
+  /** Explicit, one-time trial grant. Only the owner of a Preview workspace can opt in. */
+  @Roles('owner')
+  @Post('workspace/preview-flow-quota')
+  enablePreviewFlowQuota(@Req() req: AuthedRequest) {
+    if (!previewOnly()) throw new NotFoundException('Not available');
+    return this.db.withTenant(req.user.tenantId, async (c) => {
+      const tenant = (await c.query('SELECT id, settings FROM tenants FOR UPDATE')).rows[0];
+      if (!tenant) throw new NotFoundException('Workspace not found');
+      if (
+        tenant.settings &&
+        Object.prototype.hasOwnProperty.call(tenant.settings, 'previewFlowAllowance')
+      ) throw new ConflictException('Preview flow allowance was already claimed');
+      const plan = await this.plans.getTenantPlan(c);
+      if (plan.limits.flows === -1 || (plan.limits.flows ?? 0) >= PREVIEW_FLOW_LIMIT)
+        throw new BadRequestException('Current flow limit is already sufficient');
+
+      const grant = {
+        limit: PREVIEW_FLOW_LIMIT,
+        expiresAt: new Date(Date.now() + PREVIEW_FLOW_DAYS * 86400000).toISOString(),
+      };
+      await c.query(
+        `UPDATE tenants
+           SET settings=jsonb_set(COALESCE(settings, '{}'::jsonb),
+                                  '{previewFlowAllowance}', $1::jsonb, true)
+         WHERE id=$2`,
+        [JSON.stringify(grant), tenant.id],
+      );
+      return { limit: grant.limit, expiresAt: grant.expiresAt, previewOnly: true };
     });
   }
 
