@@ -4,9 +4,11 @@ import { useEffect, useRef } from 'react';
 import { API, api } from './api';
 
 /** اتصال SSE بالسيرفر مع إعادة الاتصال التلقائي (تذكرة جديدة في كل مرة) */
-export function useRealtime(onEvent: (e: any) => void) {
+export function useRealtime(onEvent: (e: any) => void, onConnection?: (connected: boolean) => void) {
   const handler = useRef(onEvent);
   handler.current = onEvent;
+  const connection = useRef(onConnection);
+  connection.current = onConnection;
 
   useEffect(() => {
     let es: EventSource | null = null;
@@ -24,6 +26,7 @@ export function useRealtime(onEvent: (e: any) => void) {
     async function connect() {
       try {
         const { ticket } = await api<{ ticket: string }>('/realtime/ticket', { method: 'POST' });
+        if (stopped) return;
         es = new EventSource(
           `${API}/realtime/stream?ticket=${encodeURIComponent(ticket)}${cursor ? `&after=${encodeURIComponent(cursor)}` : ''}`,
         );
@@ -39,12 +42,15 @@ export function useRealtime(onEvent: (e: any) => void) {
         }
         es.onopen = () => {
           delay = 1000;
+          connection.current?.(true);
         };
         es.onerror = () => {
           es?.close();
+          connection.current?.(false);
           retry();
         };
       } catch {
+        connection.current?.(false);
         retry();
       }
     }

@@ -1,6 +1,8 @@
 'use client';
 import { useRef, useState } from 'react';
 import Link from 'next/link';
+import styles from '../subscription/subscription.module.css';
+import { useSubscriptionUsage } from '../../../components/business/SubscriptionUsageProvider';
 import { api } from '../../../lib/api';
 import { useData } from '../../../components/business/useData';
 import { useLocale } from '../../../components/product/locale';
@@ -11,10 +13,13 @@ import {
   BillingStatus,
 } from '../../../lib/billing-display';
 export default function Pricing() {
-  const { t } = useLocale();
+  const { t, language } = useLocale();
+  const usage = useSubscriptionUsage()?.usage;
+  const format = new Intl.NumberFormat(language === 'ar' ? 'ar-EG' : 'en-GB');
   const plans = useData<BillingPlan[]>('/plans', []),
     ws = useData<BillingWorkspace | null>('/workspace', null),
     status = useData<BillingStatus | null>('/billing/status', null);
+  const currentPlan = usage?.plan.plan_code ?? ws.data?.plan.plan_code;
   const lock = useRef(false);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('');
@@ -42,7 +47,7 @@ export default function Pricing() {
       <div className="page-heading">
         <div>
           <h1>{t('الباقات والاشتراك', 'Plans and subscription')}</h1>
-          <Link href="/dashboard/billing">{t('الفواتير وسجل الدفع', 'Invoices and payment history')}</Link>
+          <Link href="/dashboard/subscription">{t('اشتراكي واستهلاكي', 'Subscription & usage')}</Link>{' · '}<Link href="/dashboard/billing">{t('الفواتير وسجل الدفع', 'Invoices and payment history')}</Link>
         </div>
         <button
           className="btn"
@@ -63,26 +68,37 @@ export default function Pricing() {
           {t('الاشتراك المدفوع غير متاح حاليًا.', 'Paid subscriptions are currently unavailable.')}
         </p>
       )}
-      <div className="card-grid">
+      <div className={styles.plans}>
         {plans.data.map((p) => (
-          <section className="card stack" key={p.code}>
-            <h2>{p.name}</h2>
-            <strong className="metric">
-              {billingMoney(p.price_cents, p.currency)}
+          <section className={styles.plan} data-current={currentPlan === p.code} key={p.code}>
+            <div className={styles.cardHeader}>
+              <h2>{p.name}</h2>
+              {currentPlan === p.code && <span className={styles.badge}>{t('باقتك الحالية', 'Current plan')}</span>}
+            </div>
+            <div className={styles.price}>
+              <bdi>{billingMoney(p.price_cents, p.currency)}</bdi>
               <small> / {p.interval === 'year' ? t('سنة', 'year') : t('شهر', 'month')}</small>
-            </strong>
-            <p>
-              {p.limits.agents === -1 ? '∞' : p.limits.agents} {t('موظف', 'agents')} ·{' '}
-              {p.limits.channels === -1 ? '∞' : p.limits.channels} {t('قنوات', 'channels')}
-            </p>
-            <button
+            </div>
+            <dl className={styles.planLimits}>
+              {([
+                ['messages_per_month', 'رسائل صادرة شهريًا', 'Monthly outbound messages'],
+                ['contacts', 'إجمالي جهات الاتصال', 'Total contacts'],
+                ['ai_credits', 'محاولات AI شهريًا', 'Monthly AI attempts'],
+                ['channels', 'القنوات', 'Channels'],
+                ['agents', 'الموظفون', 'Staff'],
+                ['flows', 'التدفقات', 'Flows'],
+              ] as const).map(([key, ar, en]) => <div key={key}>
+                <dt>{t(ar, en)}</dt><dd>{p.limits[key] === -1 ? t('غير محدود', 'Unlimited') :
+                  p.limits[key] == null ? '—' : format.format(p.limits[key])}</dd>
+              </div>)}
+            </dl>
+            {currentPlan !== p.code && <button
               className="btn btn-primary"
               disabled={
                 !status.data?.configured ||
                 busy ||
                 ws.data?.role !== 'owner' ||
                 !p.price_cents ||
-                ws.data?.plan.plan_code === p.code ||
                 !!(
                   status.data.subscription?.linked &&
                   ['active', 'trialing', 'past_due'].includes(status.data.subscription.status)
@@ -90,10 +106,8 @@ export default function Pricing() {
               }
               onClick={() => void pay('/billing/checkout', { planCode: p.code })}
             >
-              {ws.data?.plan.plan_code === p.code
-                ? t('الخطة الحالية', 'Current plan')
-                : t('اشتراك', 'Subscribe')}
-            </button>
+              {t('اشتراك', 'Subscribe')}
+            </button>}
           </section>
         ))}
       </div>

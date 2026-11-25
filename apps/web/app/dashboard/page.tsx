@@ -1,4 +1,5 @@
 'use client';
+import { SubscriptionSummary } from '../../components/business/SubscriptionSummary';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useData } from '../../components/business/useData';
@@ -95,6 +96,7 @@ export default function Dashboard() {
           <NavIcon name="refresh" />
         </button>
       </header>
+      <SubscriptionSummary />
       <section className={styles.hero} aria-labelledby="dashboard-welcome">
         <div>
           <h2 id="dashboard-welcome">

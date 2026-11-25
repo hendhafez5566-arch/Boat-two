@@ -16,7 +16,7 @@ import { Dialog } from '../../../components/product/ProductUI';
 import { NavIcon } from '../../../components/product/NavIcon';
 import MessageBubble from '../../../components/inbox/MessageBubble';
 import { api, getSession } from '../../../lib/api';
-import { useRealtime } from '../../../lib/realtime';
+import { useWorkspaceRealtime } from '../../../components/business/SubscriptionUsageProvider';
 
 type Tab =
   | 'active'
@@ -372,7 +372,7 @@ export default function Inbox() {
     }, 400);
   }, [loadList, loadCounts]);
 
-  useRealtime(async (e) => {
+  useWorkspaceRealtime(async (e) => {
     const cur = selRef.current;
     if (e.type === 'message') {
       const m = e.message;

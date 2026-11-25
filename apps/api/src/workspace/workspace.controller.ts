@@ -1,3 +1,4 @@
+import { subscriptionUsage, subscriptionHistory } from './subscription-usage';
 import { dashboardChannelSchema, dashboardSummary } from './dashboard-summary';
 import { InvitationMail } from '../mail/invitation-mail';
 import {
@@ -63,6 +64,18 @@ export class WorkspaceController {
       const tokens=aiEnabled?(await c.query("SELECT COALESCE(sum(input_tokens+output_tokens),0)::text AS n FROM ai_usage WHERE period=date_trunc('month',now())::date")).rows[0].n:undefined;
       return { tenant, role: req.user.role, plan, aiEnabled,usage: { agents, ...counts,...(aiEnabled?{ai_tokens:tokens}:{}) } };
     });
+  }
+
+  @Get('workspace/subscription-usage')
+  usage(@Req() req: AuthedRequest) {
+    return this.db.withTenant(req.user.tenantId, async (c) =>
+      subscriptionUsage(c, await this.plans.getTenantPlan(c)),
+    );
+  }
+
+  @Get('workspace/subscription-history')
+  usageHistory(@Req() req: AuthedRequest) {
+    return this.db.withTenant(req.user.tenantId, subscriptionHistory);
   }
 
   @Get('workspace/dashboard')

@@ -1,4 +1,5 @@
 'use client';
+import { SubscriptionUsageProvider } from '../../components/business/SubscriptionUsageProvider';
 import { SalesNotifications } from '../../components/business/SalesNotifications';
 import { statusLabel } from '../../components/product/status';
 import { NavIcon } from '../../components/product/NavIcon';
@@ -42,6 +43,7 @@ const navigation = [
     links: [
       ['team', 'الفريق', 'Team'],
       ['packages', 'الباقات', 'Packages'],
+      ['subscription', 'اشتراكي واستهلاكي', 'Subscription & usage'],
       ['billing', 'الفوترة', 'Billing'],
       ['settings', 'الإعدادات والتكاملات', 'Settings & Integration'],
       ['onboarding', 'دليل البداية', 'Getting Started'],
@@ -590,7 +592,7 @@ function Shell({ children }: { children: ReactNode }) {
                 </Link>
               </section>
             ) : (
-              children
+              <SubscriptionUsageProvider>{children}</SubscriptionUsageProvider>
             )}
           </div>
         )}
