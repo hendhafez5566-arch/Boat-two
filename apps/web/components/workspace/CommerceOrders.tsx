@@ -123,12 +123,15 @@ export default function CommerceOrders({ contacts, origin }: { contacts: { id: s
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [orderQuery, setOrderQuery] = useState('');
-  const [orderStatus, setOrderStatus] = useState(() => {
-    if (typeof window === 'undefined') return '';
-    const candidate = new URLSearchParams(window.location.search).get('status') ?? '';
-    return ['new','review','documents_required','processing','confirmed','completed','cancelled'].includes(candidate) ? candidate : '';
-  });
+  const [orderStatus, setOrderStatus] = useState('');
   const [creating, setCreating] = useState(Boolean(origin));
+  useEffect(() => {
+    const candidate = new URLSearchParams(window.location.search).get('status') ?? '';
+    if (['new','review','documents_required','processing','confirmed','completed','cancelled'].includes(candidate)) {
+      setOrderStatus(candidate);
+      setPage(1);
+    }
+  }, []);
   const [picked, setPicked] = useState<CatalogProduct | null>(null);
   const [preview, setPreview] = useState<Snapshot | null>(null);
   const [assignmentId, setAssignmentId] = useState<string | null>(null);

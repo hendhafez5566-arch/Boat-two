@@ -1648,8 +1648,9 @@ test('photo-card catalogs preserve selection, and WhatsApp queues images before 
   assert.equal(whatsapp.sent.length, 2);
   assert.equal(whatsapp.sent[0].media?.kind, 'image');
   assert.equal(whatsapp.sent[0].media?.url, 'https://example.test/room.jpg');
-  assert.equal(whatsapp.sent[1].list?.sections[0].rows[0].id, 'product:' + id);
-  assert.equal(whatsapp.sent[1].list?.presentation, 'cards');
+  assert.equal(whatsapp.sent[1].buttons?.[0].id, 'product:' + id);
+  assert.equal(whatsapp.sent[1].buttons?.[0].title, 'اختيار المنتج');
+  assert.equal(whatsapp.sent[1].list, undefined);
   const invalidGraph: FlowGraph = { startNodeId: 'catalog', nodes: [
     node('catalog', 'catalog', { productIds: [id], text: 'Rooms', selectable: true, native: true, displayMode: 'cards' }),
   ] };

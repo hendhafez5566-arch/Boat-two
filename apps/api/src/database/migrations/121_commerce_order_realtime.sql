@@ -1,9 +1,12 @@
--- Durable, tenant-scoped order changes for the dashboard.
+-- Durable tenant-scoped order notifications, published by the existing post-commit stream.
 CREATE FUNCTION record_commerce_order_change() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-  IF TG_OP = 'INSERT' OR OLD.status IS DISTINCT FROM NEW.status OR OLD.assigned_to IS DISTINCT FROM NEW.assigned_to THEN
-    INSERT INTO realtime_events(tenant_id, payload)
-    VALUES (NEW.tenant_id, '{"type":"orders_changed"}'::jsonb);
+  IF TG_OP = 'INSERT' THEN
+    INSERT INTO realtime_events(tenant_id,payload)
+    VALUES (NEW.tenant_id,'{"type":"orders_changed"}'::jsonb);
+  ELSIF OLD.status IS DISTINCT FROM NEW.status OR OLD.assigned_to IS DISTINCT FROM NEW.assigned_to THEN
+    INSERT INTO realtime_events(tenant_id,payload)
+    VALUES (NEW.tenant_id,'{"type":"orders_changed"}'::jsonb);
   END IF;
   RETURN NEW;
 END;
