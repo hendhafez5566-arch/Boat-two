@@ -342,6 +342,30 @@ export class CommerceService {
     });
   }
 
+  /** A single tenant-scoped snapshot for the dashboard attention panel. */
+  orderAttention(tenant: string) {
+    return this.db.withTenant(tenant, async (c) => {
+      const counts = (await c.query<{ status: string; count: number }>(
+        'SELECT status, count(*)::int AS count FROM commerce_orders WHERE tenant_id=$1 GROUP BY status',
+        [tenant],
+      )).rows;
+      const items = (await c.query<{
+        id: string; status: string; product_name: string; contact_name: string; created_at: string;
+      }>(
+        `SELECT o.id,o.status,left(coalesce(o.snapshot->>'name',''),120) AS product_name,
+                left(coalesce(ct.name,''),120) AS contact_name,o.created_at
+           FROM commerce_orders o JOIN contacts ct ON
+                (o.tenant_id,o.contact_id)=(ct.tenant_id,ct.id)
+          WHERE o.tenant_id=$1 AND o.status NOT IN ('completed','cancelled')
+          ORDER BY CASE o.status WHEN 'new' THEN 0 WHEN 'documents_required' THEN 1
+                    WHEN 'review' THEN 2 WHEN 'processing' THEN 3 ELSE 4 END,
+                   o.created_at,o.id
+          LIMIT 4`, [tenant],
+      )).rows;
+      return { counts, items, asOf: new Date().toISOString() };
+    });
+  }
+
   orderSummary(tenant: string) {
     return this.db.withTenant(tenant, async (c) => (await c.query<{ status: string; count: string }>(
       'SELECT status, count(*)::text AS count FROM commerce_orders WHERE tenant_id=$1 GROUP BY status',

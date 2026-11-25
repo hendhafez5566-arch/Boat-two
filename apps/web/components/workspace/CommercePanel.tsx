@@ -45,6 +45,7 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
   useEffect(() => {
     if (!checkoutEnabled || initialTab) return;
     const query = new URLSearchParams(window.location.search);
+    if (query.get('tab') === 'orders') setTab('orders');
     const conversationId = query.get('conversation');
     const channelId = query.get('channel');
     const uuid = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;

@@ -137,6 +137,9 @@ export class CommerceController {
       r.user.tenantId, r.user.userId, parse(conversationOrderSchema, body),
     );
   }
+  @Get('orders/attention') orderAttention(@Req() r: AuthedRequest) {
+    return this.commerce.orderAttention(r.user.tenantId);
+  }
   @Get('orders/summary') orderSummary(@Req() r: AuthedRequest) {
     return this.commerce.orderSummary(r.user.tenantId);
   }

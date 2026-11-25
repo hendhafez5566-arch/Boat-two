@@ -30,7 +30,7 @@ export function useRealtime(onEvent: (e: any) => void, onConnection?: (connected
         es = new EventSource(
           `${API}/realtime/stream?ticket=${encodeURIComponent(ticket)}${cursor ? `&after=${encodeURIComponent(cursor)}` : ''}`,
         );
-        for (const type of ['message', 'message_status', 'note_changed', 'conversation', 'usage_changed']) {
+        for (const type of ['message', 'message_status', 'note_changed', 'conversation', 'usage_changed', 'orders_changed']) {
           es.addEventListener(type, (ev) => {
             try {
               cursor = (ev as MessageEvent).lastEventId || cursor;

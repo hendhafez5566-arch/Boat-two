@@ -59,6 +59,7 @@ type WorkspaceEvent = { conversationId: string } & (
   | { type: 'note_changed'; source: string; noteId: string; text?: string }
   | { type: 'message_status'; messageId: string; status: string; error?: string }
   | { type: 'conversation' }
+  | { type: 'orders_changed' }
 );
 type Listener = (event: WorkspaceEvent) => void;
 

@@ -1,5 +1,6 @@
 'use client';
 import { SubscriptionSummary } from '../../components/business/SubscriptionSummary';
+import { OrdersAttention } from '../../components/business/OrdersAttention';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useData } from '../../components/business/useData';
@@ -111,6 +112,7 @@ export default function Dashboard() {
         </div>
         <span className={styles.heroMark} aria-hidden="true"><NavIcon name="bolt" /></span>
       </section>
+      <OrdersAttention />
       <div className={styles.filter}>
         <select
           aria-label={t('المنصة', 'Platform')}
