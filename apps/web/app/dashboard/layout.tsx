@@ -1,5 +1,5 @@
 'use client';
-import { SubscriptionUsageProvider } from '../../components/business/SubscriptionUsageProvider';
+import { SubscriptionUsageProvider, useSubscriptionUsage } from '../../components/business/SubscriptionUsageProvider';
 import { SalesNotifications } from '../../components/business/SalesNotifications';
 import { statusLabel } from '../../components/product/status';
 import { NavIcon } from '../../components/product/NavIcon';
@@ -42,9 +42,7 @@ const navigation = [
     label: ['الإدارة', 'Administration'],
     links: [
       ['team', 'الفريق', 'Team'],
-      ['packages', 'الباقات', 'Packages'],
-      ['subscription', 'اشتراكي واستهلاكي', 'Subscription & usage'],
-      ['billing', 'الفوترة', 'Billing'],
+      ['subscription', 'اشتراكي', 'My Subscription'],
       ['settings', 'الإعدادات والتكاملات', 'Settings & Integration'],
       ['onboarding', 'دليل البداية', 'Getting Started'],
     ],
@@ -56,7 +54,6 @@ const destination = (key: string) =>
 const restrictedForAgents = [
   'channels',
   'social',
-  'packages',
   'commerce',
   'integrations',
   'reports',
@@ -87,16 +84,16 @@ function Meter({
   const unlimited = limit === -1;
   const pct =
     typeof limit === 'number' && Number.isFinite(limit) && limit > 0
-      ? Math.min(100, Math.round((u / limit) * 100))
+      ? Math.floor((u / limit) * 100)
       : null;
-  const tone = pct !== null && pct >= 90 ? 'is-danger' : pct !== null && pct >= 70 ? 'is-warn' : '';
+  const tone = pct !== null && pct >= 95 ? 'is-danger' : pct !== null && pct >= 80 ? 'is-warn' : '';
   return (
     <Link
       className={`bs-meter ${tone}`}
       href={href}
       title={`${label}: ${used ?? '—'} / ${unlimited ? '∞' : (limit ?? '—')}`}
     >
-      <span className="bs-ring" style={{ '--p': pct ?? 0 } as CSSProperties}>
+      <span className="bs-ring" style={{ '--p': Math.min(100, pct ?? 0) } as CSSProperties}>
         <b>{unlimited ? '∞' : pct === null ? '—' : `${pct}%`}</b>
       </span>
       <span className="bs-meter-text">
@@ -108,7 +105,7 @@ function Meter({
     </Link>
   );
 }
-function Shell({ children }: { children: ReactNode }) {
+function DashboardShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const hostBrand = useBrand();
   const { t, toggle } = useLocale();
@@ -119,9 +116,7 @@ function Shell({ children }: { children: ReactNode }) {
     logo_url: string | null;
     primary_color: string;
   } | null>(null);
-  const [usage, setUsage] = useState<Record<string, string | number>>({});
-  const [limits, setLimits] = useState<Record<string, number>>({});
-  const [aiEnabled, setAiEnabled] = useState(false);
+  const usage = useSubscriptionUsage()?.usage;
   const [open, setOpen] = useState(false);
   const [mobile, setMobile] = useState(false);
   const drawerClose = useRef<HTMLButtonElement>(null);
@@ -219,9 +214,6 @@ function Shell({ children }: { children: ReactNode }) {
     api<{
       tenant: { id: string; name: string };
       role: string;
-      usage: Record<string, string | number>;
-      plan: { limits: Record<string, number> };
-      aiEnabled: boolean;
     }>('/workspace')
       .then((w) => {
         if (hostBrand && w.tenant.id !== hostBrand.tenantId)
@@ -229,42 +221,11 @@ function Shell({ children }: { children: ReactNode }) {
             t('سجّل الدخول إلى مساحة هذا النطاق', 'Sign in to this domain’s workspace'),
           );
         setName(w.tenant.name);
-        setUsage(w.usage);
-        setLimits(w.plan.limits);
-        setAiEnabled(w.aiEnabled);
         setRole(w.role);
         setReady(true);
       })
       .catch((e) => setError(e.message));
   }, []);
-  useEffect(() => {
-    let active = true;
-    let revision = 0;
-    const refreshUsage = async () => {
-      const current = ++revision;
-      try {
-        const result = await api<{
-          usage: Record<string, string | number>;
-          plan: { limits: Record<string, number> };
-        }>('/workspace');
-        if (active && current === revision) {
-          setUsage(result.usage);
-          setLimits(result.plan.limits);
-        }
-      } catch {
-        // An unavailable count is clearer than presenting an old count as current.
-        if (active && current === revision) setUsage({});
-      }
-    };
-    void refreshUsage();
-    window.addEventListener('boat:crm-changed', refreshUsage);
-    window.addEventListener('boat:crm-imported', refreshUsage);
-    return () => {
-      active = false;
-      window.removeEventListener('boat:crm-changed', refreshUsage);
-      window.removeEventListener('boat:crm-imported', refreshUsage);
-    };
-  }, [path]);
   async function logout() {
     const s = getSession();
     try {
@@ -314,9 +275,7 @@ function Shell({ children }: { children: ReactNode }) {
   ].filter(([key]) => allowedKey(key));
   const accountLinks = [
     ['account', 'user', 'الحساب', 'Account'],
-    ['billing', 'billing', 'الفوترة', 'Billing'],
     ['sessions', 'shield', 'الأمان', 'Security'],
-    ['pricing', 'upgrade', 'الترقية إلى Pro', 'Upgrade to Pro'],
     ['support', 'support', 'تذاكر الدعم', 'Support Ticket'],
     ['developer', 'developer', 'API للمطور', 'API Developer'],
   ].filter(([k]) => allowedKey(k));
@@ -406,26 +365,12 @@ function Shell({ children }: { children: ReactNode }) {
               <NavIcon name="menu" />
             </button>
             <div className="bs-meters usage-strip">
-              <Meter
-                label={t('عملاء', 'Contacts')}
-                used={usage.contacts}
-                limit={limits.contacts}
-                href="/dashboard/crm"
-              />
-              <Meter
-                label={t('رسائل', 'Messages')}
-                used={usage.messages_per_month}
-                limit={limits.messages_per_month}
-                href="/dashboard/billing"
-              />
-              {aiEnabled && (
-                <Meter
-                  label="AI Token"
-                  used={usage.ai_tokens}
-                  limit={limits.ai_tokens}
-                  href="/dashboard/billing"
-                />
-              )}
+              <Meter label={t('عملاء', 'Contacts')} used={usage?.contacts.used}
+                limit={usage?.contacts.limit} href="/dashboard/subscription" />
+              <Meter label={t('رسائل', 'Messages')} used={usage?.messages.used}
+                limit={usage?.messages.limit} href="/dashboard/subscription" />
+              <Meter label={t('محاولات AI', 'AI attempts')} used={usage?.ai.used}
+                limit={usage?.ai.limit} href="/dashboard/subscription" />
             </div>
             <div className="bs-spacer" />
             <div className="bs-search" role="search">
@@ -592,7 +537,7 @@ function Shell({ children }: { children: ReactNode }) {
                 </Link>
               </section>
             ) : (
-              <SubscriptionUsageProvider>{children}</SubscriptionUsageProvider>
+              children
             )}
           </div>
         )}
@@ -615,5 +560,5 @@ function Shell({ children }: { children: ReactNode }) {
   );
 }
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  return <Shell>{children}</Shell>;
+  return <SubscriptionUsageProvider><DashboardShell>{children}</DashboardShell></SubscriptionUsageProvider>;
 }

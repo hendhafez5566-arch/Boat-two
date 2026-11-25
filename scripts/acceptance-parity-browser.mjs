@@ -53,7 +53,7 @@ try{
   await writeFile(`${out}/layout-results.json`,JSON.stringify(views,null,2));assert.deepEqual(views.filter(v=>v.overflow),[], 'Page overflow after layout survey');
  });
  await page.evaluate(()=>localStorage.setItem('boat-language','en'));await page.setViewportSize({width:674,height:1000});
- await page.goto(web+'/dashboard/billing');await page.getByRole('heading',{name:'A plan that grows with you',exact:true}).waitFor();await shot('billing-en-reference-width');
+ await page.goto(web+'/dashboard/billing');await page.getByRole('heading',{name:'Payment history',exact:true}).waitFor();await shot('billing-en-reference-width');
  await page.goto(web+'/dashboard/commerce');await page.getByRole('button',{name:'Social publishing',exact:true}).click();await shot('social-en-reference-width');
  await page.goto(web+`/dashboard/flows/${flow.id}`);await page.locator('.premium-flow-node').first().waitFor();await page.getByRole('button',{name:/Add step/}).first().click();await page.getByRole('menuitem').first().waitFor();await shot('library-en-reference-width');
  await page.setViewportSize({width:320,height:844});await page.keyboard.press('Escape');await page.evaluate(()=>localStorage.setItem('boat-language','ar'));await page.reload();await open('step0');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);await shot('builder-ar-320');

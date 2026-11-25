@@ -102,8 +102,8 @@ export class BillingService {
       client_reference_id: tenantId,
       metadata: { tenantId, planCode: plan.code },
       subscription_data: { metadata: { tenantId, planCode: plan.code } },
-      success_url: `${env.APP_URL}/dashboard?billing=success`,
-      cancel_url: `${env.APP_URL}/dashboard?billing=cancelled`,
+      success_url: `${env.APP_URL}/dashboard/subscription?tab=billing&billing=success`,
+      cancel_url: `${env.APP_URL}/dashboard/subscription?tab=billing&billing=cancelled`,
     });
     return { url: session.url };
   }
@@ -122,7 +122,7 @@ export class BillingService {
     if (!row?.stripe_customer_id) throw new BadRequestException('No billing account yet');
     const session = await stripe.billingPortal.sessions.create({
       customer: row.stripe_customer_id,
-      return_url: `${env.APP_URL}/dashboard`,
+      return_url: `${env.APP_URL}/dashboard/subscription?tab=billing`,
     });
     return { url: session.url };
   }

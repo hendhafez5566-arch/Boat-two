@@ -97,33 +97,17 @@ try {
   );
   await page.goto(web + '/dashboard/billing');
   const invoices = page.locator('section').filter({
-    has: page.getByRole('heading', { name: 'Invoices and payment status', exact: true }),
+    has: page.getByRole('heading', { name: 'Payment history', exact: true }),
   });
   await invoices.getByRole('cell', { name: 'LOCAL-BROWSER-001', exact: true }).waitFor();
-  await invoices.getByRole('status').filter({ hasText: 'Payment failed' }).waitFor();
+  await invoices.getByText('Payment failed', { exact: true }).waitFor();
   assert.equal(
-    await invoices.getByRole('link', { name: 'View at Stripe', exact: true }).getAttribute('href'),
+    await invoices.getByRole('link', { name: 'View', exact: true }).getAttribute('href'),
     'https://invoice.stripe.com/i/local-browser',
   );
-  assert.equal(
-    await page
-      .getByRole('button', { name: 'Invoices & payment methods', exact: true })
-      .isDisabled(),
-    true,
-  );
-  const requests = page.locator('section').filter({
-    has: page.getByRole('heading', { name: 'Subscription change requests', exact: true }),
-  });
-  await requests
-    .getByRole('checkbox', { name: 'I confirm this change under the policy above', exact: true })
-    .check();
-  const [saved] = await Promise.all([
-    page.waitForResponse(
-      (r) => r.url().endsWith('/billing/subscription-requests') && r.request().method() === 'POST',
-    ),
-    requests.getByRole('button', { name: 'Save request', exact: true }).click(),
-  ]);
-  assert.equal(saved.status(), 201);
+  assert.match(page.url(), /subscription\?tab=billing/);
+  await page.getByRole('status', { name: 'Online payment availability' }).waitFor();
+  await call('/billing/subscription-requests', { kind: 'cancel' }, a.accessToken);
   const jobs = await call('/billing/subscription-requests', undefined, a.accessToken);
   assert.ok(jobs.some((j) => j.kind === 'cancel' && ['pending', 'blocked'].includes(j.status)));
   assert.equal(env.EXTERNAL_DELIVERY_ENABLED, 'false');

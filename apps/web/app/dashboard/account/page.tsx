@@ -121,7 +121,7 @@ export default function Account() {
           </span>
           <div>
             <small>{t('الفوترة', 'Billing')}</small>
-            <Link href="/dashboard/billing">{t('الانتقال إلى الفوترة', 'Go to Billing')} →</Link>
+            <Link href="/dashboard/subscription?tab=billing">{t('الانتقال إلى الفوترة', 'Go to Billing')} →</Link>
           </div>
         </div>
       </section>

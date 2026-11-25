@@ -67,6 +67,7 @@ export type BillingPlan = {
   currency: string;
   interval: string;
   limits: Record<string, number>;
+  features?: Record<string, boolean>;
 };
 export type BillingWorkspace = {
   role: string;

@@ -68,8 +68,14 @@ export class WorkspaceController {
 
   @Get('workspace/subscription-usage')
   usage(@Req() req: AuthedRequest) {
-    return this.db.withTenant(req.user.tenantId, async (c) =>
-      subscriptionUsage(c, await this.plans.getTenantPlan(c)),
+    return this.db.withTenant(req.user.tenantId, async (c) => {
+      const usage = await subscriptionUsage(c, await this.plans.getTenantPlan(c));
+      if (['owner', 'admin'].includes(req.user.role)) {
+        const result = await c.query('SELECT count(*)::int AS count FROM held_inbound_messages');
+        return { ...usage, heldInbound: result.rows[0].count };
+      }
+      return usage;
+    },
     );
   }
 

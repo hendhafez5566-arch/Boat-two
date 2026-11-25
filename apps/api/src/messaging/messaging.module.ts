@@ -1,3 +1,4 @@
+import { HeldInboundController } from './held-inbound.controller';
 import { WhatsAppFlowsController } from './whatsapp-flows.controller';
 import { WhatsAppFlowsService } from './whatsapp-flows.service';
 import { WhatsAppFlowsGateway } from './whatsapp-flows.gateway';
@@ -18,6 +19,7 @@ import { WidgetAssetController, WidgetController } from './widget.controller';
 
 @Module({
   controllers: [
+    HeldInboundController,
     WhatsAppFlowsController,
     MetaConnectController,
     TemplatesController,

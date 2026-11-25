@@ -28,8 +28,8 @@ export async function listInvoices(
 ) {
   const predicate = `($1='all' OR status=$1 OR ($1='failed' AND payment_failed AND status='open'))
     AND ($2='' OR strpos(lower(COALESCE(number,'') || ' ' || provider_id), lower($2))>0)
-    AND ($3::date IS NULL OR paid_at >= $3::date::timestamp AT TIME ZONE 'UTC')
-    AND ($4::date IS NULL OR paid_at < ($4::date + 1)::timestamp AT TIME ZONE 'UTC')`;
+    AND ($3::date IS NULL OR COALESCE(paid_at,to_timestamp(provider_created)) >= $3::date::timestamp AT TIME ZONE 'UTC')
+    AND ($4::date IS NULL OR COALESCE(paid_at,to_timestamp(provider_created)) < ($4::date + 1)::timestamp AT TIME ZONE 'UTC')`;
   const values = [q.status, q.search, q.from || null, q.to || null];
   const total = (
     await c.query('SELECT count(*)::int AS n FROM billing_invoices WHERE ' + predicate, values)

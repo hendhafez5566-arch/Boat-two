@@ -1,7 +1,7 @@
 import {assertOwnedUpload} from '../inbox/files/owned-upload';
 import { activeBotSettings } from './bot-runtime-settings';
 import { validateTemplateParameters } from './template-contract';
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventsService } from '../events/events.service';
 import { PlansService } from '../plans/plans.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -53,17 +53,22 @@ export class MessagingService {
   }
 
   /** رسالة واردة من أي قناة: ينشئ جهة الاتصال والمحادثة ويحفظ الرسالة ثم يطلق حدث message.received */
-  async receive(channel: ChannelRow, msg: InboundMessage) {
+  async receive(channel: ChannelRow, msg: InboundMessage, restore?: { id: string; createdAt: Date }) {
     const type = messageTypeOf(msg.content);
 
     const result = await this.db.withTenant(channel.tenant_id, async (c) => {
       await c.query('SELECT id FROM channels WHERE id=$1 FOR UPDATE', [channel.id]);
+      if (restore && !(await c.query('SELECT 1 FROM held_inbound_messages WHERE id=$1', [restore.id])).rowCount)
+        return { duplicate: true as const };
       if (msg.externalMessageId) {
         const existing = await c.query(
           'SELECT 1 FROM messages WHERE channel_id=$1 AND external_id=$2',
           [channel.id, msg.externalMessageId],
         );
-        if (existing.rowCount) return { duplicate: true as const };
+        if (existing.rowCount) {
+          if (restore) await c.query('DELETE FROM held_inbound_messages WHERE id=$1', [restore.id]);
+          return { duplicate: true as const };
+        }
       }
       // 1) جهة الاتصال
       let contactId: string | undefined = (
@@ -94,7 +99,24 @@ export class MessagingService {
         }
         if (!contactId) {
           const count = (await c.query('SELECT count(*)::int AS n FROM contacts')).rows[0].n;
-          await this.plans.assertWithinLimit(c, 'contacts', count);
+          try {
+            await this.plans.assertWithinLimit(c, 'contacts', count);
+          } catch (error) {
+            if (!(error instanceof ForbiddenException)) throw error;
+            const reason = error.getResponse();
+            if (typeof reason !== 'object' || !('code' in reason) || reason.code !== 'PLAN_LIMIT')
+              throw error;
+            if (restore) return { duplicate: false as const, held: true as const };
+            const held = await c.query(
+              `INSERT INTO held_inbound_messages
+                (tenant_id, channel_id, contact_external_id, contact_name, external_message_id, content)
+               VALUES ($1,$2,$3,$4,$5,$6)
+               ON CONFLICT (channel_id, external_message_id) DO NOTHING RETURNING id`,
+              [channel.tenant_id, channel.id, msg.contactExternalId, msg.contactName ?? null,
+                msg.externalMessageId ?? null, JSON.stringify(msg.content)],
+            );
+            return { duplicate: !held.rowCount, held: true as const };
+          }
           const created = await c.query(
             'INSERT INTO contacts (tenant_id, name, phone) VALUES ($1, $2, $3) RETURNING id',
             [
@@ -122,6 +144,13 @@ export class MessagingService {
         }
       }
 
+      if (restore) {
+        await c.query('DELETE FROM held_inbound_messages WHERE id=$1', [restore.id]);
+      } else if (msg.externalMessageId) {
+        await c.query('DELETE FROM held_inbound_messages WHERE channel_id=$1 AND external_message_id=$2',
+          [channel.id, msg.externalMessageId]);
+      }
+
       // Inbound opt-out is persisted before any bot/campaign reaction. Opt-in always requires explicit evidence elsewhere.
       const incomingText = msg.content.text?.normalize('NFKC').trim().toLowerCase();
       if (
@@ -137,8 +166,8 @@ export class MessagingService {
         ].includes(incomingText)
       ) {
         await c.query(
-          "INSERT INTO contact_consents(tenant_id,contact_id,channel_id,status,evidence) VALUES($1,$2,$3,'opted_out','Inbound channel opt-out keyword') ON CONFLICT(tenant_id,contact_id,channel_id) DO UPDATE SET status='opted_out',evidence=EXCLUDED.evidence,updated_at=now()",
-          [channel.tenant_id, contactId, channel.id],
+          "INSERT INTO contact_consents(tenant_id,contact_id,channel_id,status,evidence) VALUES($1,$2,$3,'opted_out','Inbound channel opt-out keyword') ON CONFLICT(tenant_id,contact_id,channel_id) DO UPDATE SET status='opted_out',evidence=EXCLUDED.evidence,updated_at=now() WHERE $4::timestamptz IS NULL OR contact_consents.updated_at <= $4",
+          [channel.tenant_id, contactId, channel.id, restore?.createdAt ?? null],
         );
       }
 
@@ -162,8 +191,8 @@ export class MessagingService {
 
       // 3) الرسالة (مع منع التكرار)
       const inserted = await c.query(
-        `INSERT INTO messages (tenant_id, conversation_id, channel_id, direction, sender_type, type, content, external_id, status)
-         VALUES ($1, $2, $3, 'in', 'contact', $4, $5, $6, 'received')
+        `INSERT INTO messages (tenant_id, conversation_id, channel_id, direction, sender_type, type, content, external_id, status, created_at)
+         VALUES ($1, $2, $3, 'in', 'contact', $4, $5, $6, 'received', COALESCE($7::timestamptz,now()))
          ON CONFLICT (channel_id, external_id) WHERE external_id IS NOT NULL DO NOTHING
          RETURNING id, seq`,
         [
@@ -173,16 +202,19 @@ export class MessagingService {
           type,
           JSON.stringify(msg.content),
           msg.externalMessageId ?? null,
+          restore?.createdAt ?? null,
         ],
       );
       if (!inserted.rows[0]) return { duplicate: true as const };
 
       await c.query(
-        `UPDATE conversations SET last_message_at = now(), last_inbound_at = now(), unread_count = unread_count + 1
+        `UPDATE conversations SET last_message_at = GREATEST(last_message_at, COALESCE($2::timestamptz,now())),
+          last_inbound_at = GREATEST(last_inbound_at, COALESCE($2::timestamptz,now())), unread_count = unread_count + 1
          WHERE id = $1`,
-        [conv.id],
+        [conv.id, restore?.createdAt ?? null],
       );
-      await this.outbox.publish(
+      // Restoring a backlog creates inbox records only. It must not trigger automated replies.
+      if (!restore) await this.outbox.publish(
         channel.tenant_id,
         'message.received',
         conv.id,
@@ -207,6 +239,7 @@ export class MessagingService {
       };
     });
 
+    if ('held' in result && result.held) return result;
     if (result.duplicate) return { duplicate: true as const };
 
     const event: MessageReceivedEvent = {
@@ -232,12 +265,38 @@ export class MessagingService {
         content: msg.content,
         status: 'received',
         isInternal: false,
-        createdAt: new Date().toISOString(),
+        createdAt: (restore?.createdAt ?? new Date()).toISOString(),
       },
     });
     // المعالجة اللاحقة (محرك الـ Flows والـ AI) تشترك في هذا الحدث
     void event; // Flow dispatch is persisted atomically with the incoming message.
     return result;
+  }
+
+  async restoreHeldInbound(tenantId: string) {
+    const rows = await this.db.withTenant(tenantId, async (c) =>
+      (await c.query<{
+        held_id: string; held_created_at: Date; contact_external_id: string;
+        contact_name: string | null; external_message_id: string | null; content: MessageContent;
+      } & ChannelRow>(
+        `SELECT ch.id, ch.tenant_id, ch.type, h.id AS held_id, h.created_at AS held_created_at,
+          h.contact_external_id, h.contact_name, h.external_message_id, h.content
+          FROM held_inbound_messages h JOIN channels ch ON ch.id=h.channel_id AND ch.tenant_id=h.tenant_id
+          WHERE ch.status = 'active'
+          ORDER BY h.created_at,h.id LIMIT 50`,
+      )).rows,
+    );
+    let restored = 0;
+    for (const row of rows) {
+      const result = await this.receive(row, {
+        contactExternalId: row.contact_external_id,
+        contactName: row.contact_name ?? undefined,
+        externalMessageId: row.external_message_id ?? `held:${row.held_id}`,
+        content: row.content,
+      }, { id: row.held_id, createdAt: row.held_created_at });
+      if (!('held' in result && result.held) && !result.duplicate) restored++;
+    }
+    return { restored };
   }
 
   /** رسالة صادرة (من بوت أو موظف أو النظام) */
