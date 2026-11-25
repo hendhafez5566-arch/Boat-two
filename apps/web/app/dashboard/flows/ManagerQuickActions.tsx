@@ -74,18 +74,25 @@ type Config = {
   actions: Record<string, { enabled: boolean; flowId: string | null }>;
 };
 
-export default function ManagerQuickActions({ channelId }: { channelId: string }) {
+export default function ManagerQuickActions({
+  channelId,
+  flowQuota,
+}: {
+  channelId: string;
+  flowQuota: { used: number; limit: number };
+}) {
   const { t, language } = useLocale();
   const config = useData<Config>(channelId ? `/channels/${channelId}/system-actions` : null, {
     revision: 0,
     actions: {},
   });
+  const atFlowLimit = flowQuota.limit >= 0 && flowQuota.used >= flowQuota.limit;
   const [advanced, setAdvanced] = useState(false);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const lock = useRef(false);
   async function create(kind: string) {
-    if (lock.current || !channelId) return;
+    if (lock.current || !channelId || atFlowLimit) return;
     lock.current = true;
     setBusy(kind);
     setError('');
@@ -130,6 +137,16 @@ export default function ManagerQuickActions({ channelId }: { channelId: string }
       {config.loading ? (
         <p role="status">{t('جارٍ تحميل الإجراءات…', 'Loading actions…')}</p>
       ) : (
+        <>
+        {atFlowLimit && (
+          <p className="notice" role="status">
+            {t(
+              'اكتملت سعة التدفقات في الباقة الحالية. يمكنك تعديل الإجراءات الموجودة أو مراجعة الباقات قبل إنشاء مسودة جديدة.',
+              'Your flow quota is full. You can edit existing actions or review plans before creating a new draft.',
+            )}{' '}
+            <Link href="/dashboard/subscription?tab=plans">{t('عرض الباقات', 'View plans')}</Link>
+          </p>
+        )}
         <div className={styles.actionCards}>
           {actions.map(([key, ar, en, descriptionAr, descriptionEn, icon]) => {
             const entry = config.data.actions[key];
@@ -161,7 +178,7 @@ export default function ManagerQuickActions({ channelId }: { channelId: string }
                 key={key}
                 className={styles.actionCard}
                 type="button"
-                disabled={!!busy || !channelId}
+                disabled={!!busy || !channelId || atFlowLimit}
                 onClick={() => void create(key)}
               >
                 {content}
@@ -169,6 +186,7 @@ export default function ManagerQuickActions({ channelId }: { channelId: string }
             );
           })}
         </div>
+        </>
       )}
       <p className={styles.actionHint}>
         {t(

@@ -1956,3 +1956,26 @@
   .content { padding: 12px; }
   .sections button { padding: 10px 12px; }
 }
+
+/* Workspace-wide flow allowance, shown before opening creation forms. */
+.quotaBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-block: 10px;
+  padding: 10px 12px;
+  border: 1px solid #c9e8de;
+  border-radius: 12px;
+  color: #12645b;
+  background: #f1faf7;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.quotaBar[data-full='true'] {
+  border-color: #eacb9b;
+  background: #fff9ec;
+  color: #7b4b10;
+}
+.quotaBar :global(.btn) { min-height: 36px; }

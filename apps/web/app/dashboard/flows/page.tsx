@@ -61,7 +61,10 @@ export default function BotManager() {
   const { t, language } = useLocale();
   const channels = useData<Channel[]>('/channels', []);
   const flows = useData<Flow[]>('/flows', []);
-  const workspace = useData<{ role: string }>('/workspace', { role: '' });
+  const workspace = useData<{
+    role: string;
+    plan?: { plan_name: string; limits: Record<string, number> };
+  }>('/workspace', { role: '' });
   const canManage = ['owner', 'admin'].includes(workspace.data.role);
   const canOpenSection = (key: string) => canManage || ['bot_reply', 'entry_points'].includes(key);
   function managementLink(href: string, label: string, icon: string, title: string) {
@@ -151,6 +154,15 @@ export default function BotManager() {
         (sort.ascending ? 1 : -1) *
         a[sort.key].localeCompare(b[sort.key], language, { numeric: true }),
     );
+  // Server quotas count all workspace flows, not only the visible channel or folder.
+  const flowLimit = workspace.data.plan?.limits?.flows;
+  const flowUsed = flows.data.length;
+  const flowLimitReached = typeof flowLimit === 'number' && flowLimit >= 0 && flowUsed >= flowLimit;
+  const quotaLabel = flowLimit == null
+    ? null
+    : flowLimit === -1
+      ? t('التدفقات: غير محدود', 'Flows: unlimited')
+      : t(`التدفقات: ${flowUsed} من ${flowLimit}`, `Flows: ${flowUsed} of ${flowLimit}`);
   const folders = [
     ...new Set(flows.data.map((f) => f.folder_name).filter((f): f is string => !!f)),
   ];
@@ -446,7 +458,11 @@ export default function BotManager() {
               ) : section === 'message_templates' && selected?.type === 'whatsapp' ? (
                 <ManagerTemplates key={channelId} channelId={channelId} />
               ) : section === 'action_buttons' ? (
-                <ManagerQuickActions key={channelId} channelId={channelId} />
+                <ManagerQuickActions
+                  key={channelId}
+                  channelId={channelId}
+                  flowQuota={{ used: flowUsed, limit: flowLimit ?? -1 }}
+                />
               ) : (
                 <AccountPanel
                   key={`${section}:${channelId}`}
@@ -496,7 +512,7 @@ export default function BotManager() {
                     <button
                       type="button"
                       className="btn btn-primary"
-                      disabled={!selected || busy || !canManage}
+                      disabled={!selected || busy || !canManage || flowLimitReached}
                       onClick={() => {
                         setError('');
                         setCreating(true);
@@ -506,6 +522,20 @@ export default function BotManager() {
                     </button>
                   </div>
                 </header>
+                {quotaLabel && (
+                  <div className={styles.quotaBar} data-full={flowLimitReached} role="status">
+                    <span>
+                      <strong>{quotaLabel}</strong>
+                      {' · '}
+                      {t('تشمل كل القنوات والمسودات والتدفقات الفرعية.', 'Includes all channels, drafts and reusable subflows.')}
+                    </span>
+                    {flowLimitReached && (
+                      <Link href="/dashboard/subscription?tab=plans" className="btn">
+                        {t('عرض الباقات', 'View plans')}
+                      </Link>
+                    )}
+                  </div>
+                )}
                 {notice && (
                   <p role="status" className={styles.feedback}>
                     {notice}
@@ -905,6 +935,20 @@ export default function BotManager() {
               {error}
             </p>
           )}
+          {quotaLabel && (
+            <div className={styles.quotaBar} data-full={flowLimitReached} role="status">
+              <span>
+                <strong>{quotaLabel}</strong>
+                {' · '}
+                {t('أي مسودة جديدة تستهلك مكانًا من حد التدفقات.', 'Every new draft uses one flow slot.')}
+              </span>
+              {flowLimitReached && (
+                <Link href="/dashboard/subscription?tab=plans" className="btn">
+                  {t('مقارنة الباقات', 'Compare plans')}
+                </Link>
+              )}
+            </div>
+          )}
           <label>
             {t('اسم التدفق', 'Flow name')}
             <input
@@ -925,7 +969,7 @@ export default function BotManager() {
             >
               {t('إلغاء', 'Cancel')}
             </button>
-            <button className="btn btn-primary" disabled={busy || !selected || !canManage}>
+            <button className="btn btn-primary" disabled={busy || !selected || !canManage || flowLimitReached}>
               {busy ? t('جارٍ الإنشاء…', 'Creating…') : t('فتح المصمم', 'Open Builder')}
             </button>
           </div>
