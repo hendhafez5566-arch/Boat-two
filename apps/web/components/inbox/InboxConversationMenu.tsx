@@ -14,6 +14,7 @@ export function InboxConversationMenu({
     archived_at?: string | null;
     blocked?: boolean;
     status: string;
+    unread_count?: number;
   };
   disabled: boolean;
   onAction: (path: string, method: string, body?: Record<string, unknown>) => Promise<boolean>;
@@ -46,10 +47,10 @@ export function InboxConversationMenu({
       window.removeEventListener('scroll', close, true);
     };
   }, [position]);
-  async function action(body?: Record<string, unknown>) {
+  async function action(kind: 'read' | 'unread' | 'update', body?: Record<string, unknown>) {
     const ok = await onAction(
-      `/conversations/${conversation.id}${body ? '' : '/read'}`,
-      body ? 'PATCH' : 'POST',
+      `/conversations/${conversation.id}${kind === 'update' ? '' : '/' + kind}`,
+      kind === 'update' ? 'PATCH' : 'POST',
       body,
     );
     if (ok) {
@@ -78,13 +79,14 @@ export function InboxConversationMenu({
           }
           const r = event.currentTarget.getBoundingClientRect();
           setPosition({
-            top: r.bottom + 280 < window.innerHeight ? r.bottom + 4 : Math.max(8, r.top - 280),
+            top: r.bottom + 340 < window.innerHeight ? r.bottom + 4 : Math.max(8, r.top - 340),
             left: Math.min(Math.max(8, r.left), window.innerWidth - 240),
           });
           setError('');
         }}
       >
-        <NavIcon name="more" />
+        <NavIcon name="menu" />
+        <span className={styles.triggerLabel}>{t('خيارات', 'Options')}</span>
       </button>
       {position && (
         <div
@@ -94,14 +96,18 @@ export function InboxConversationMenu({
           aria-label={t('حالات المحادثة', 'Conversation status actions')}
         >
           {error && <p role="alert">{error}</p>}
-          <button type="button" disabled={disabled} onClick={() => void action()}>
+          <button type="button" disabled={disabled || !(conversation.unread_count ?? 0)} onClick={() => void action('read')}>
+            <NavIcon name="eye" />
+            {t('تحديد كمقروءة', 'Mark as read')}
+          </button>
+          <button type="button" disabled={disabled || (conversation.unread_count ?? 0) > 0} onClick={() => void action('unread')}>
             <NavIcon name="mail" />
-            {t('تحديد كمقروءة', 'Mark As Read')}
+            {t('تحديد كغير مقروءة', 'Mark as unread')}
           </button>
           <button
             type="button"
             disabled={disabled}
-            onClick={() => void action({ important: !conversation.important })}
+            onClick={() => void action('update', { important: !conversation.important })}
           >
             <NavIcon name="star" />
             {conversation.important
@@ -111,7 +117,7 @@ export function InboxConversationMenu({
           <button
             type="button"
             disabled={disabled}
-            onClick={() => void action({ archived: !conversation.archived_at })}
+            onClick={() => void action('update', { archived: !conversation.archived_at })}
           >
             <NavIcon name="archive" />
             {conversation.archived_at
@@ -122,7 +128,7 @@ export function InboxConversationMenu({
             type="button"
             disabled={disabled}
             onClick={() =>
-              void action({ status: conversation.status === 'closed' ? 'open' : 'closed' })
+              void action('update', { status: conversation.status === 'closed' ? 'open' : 'closed' })
             }
           >
             <NavIcon name="check" />
@@ -133,7 +139,7 @@ export function InboxConversationMenu({
           <button
             type="button"
             disabled={disabled}
-            onClick={() => void action({ blocked: !conversation.blocked })}
+            onClick={() => void action('update', { blocked: !conversation.blocked })}
           >
             <NavIcon name="blocked" />
             {conversation.blocked

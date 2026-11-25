@@ -379,36 +379,6 @@ export function InboxCustomerPanel({
       <section className={styles.card}>
         <h3>{t('إجراءات سريعة', 'Quick Actions')}</h3>
         <div className={styles.quick}>
-          <button
-            type="button"
-            className={styles.botControl}
-            data-bot-state={detail.handled_by === 'bot' ? 'running' : 'paused'}
-            aria-label={detail.handled_by === 'bot'
-              ? t('إيقاف البوت', 'Pause Bot')
-              : t('استئناف البوت', 'Resume Bot')}
-            title={detail.handled_by === 'bot'
-              ? t('البوت يعمل الآن', 'Bot is running')
-              : t('البوت متوقف', 'Bot is paused')}
-            disabled={acting}
-            onClick={() =>
-              void act(
-                `/conversations/${detail.id}/${detail.handled_by === 'bot' ? 'takeover' : 'release'}`,
-                'POST',
-                undefined,
-                t('تم تحديث إدارة المحادثة.', 'Conversation handling updated.'),
-              )
-            }
-          >
-            <span className={styles.botIcon}>
-              <NavIcon name={detail.handled_by === 'bot' ? 'pause' : 'play'} />
-            </span>
-            <strong>{detail.handled_by === 'bot'
-              ? t('البوت يعمل', 'Bot running')
-              : t('البوت متوقف', 'Bot paused')}</strong>
-            <small>{detail.handled_by === 'bot'
-              ? t('إيقاف البوت', 'Pause bot')
-              : t('استئناف البوت', 'Resume bot')}</small>
-          </button>
           <button type="button" onClick={addNote} disabled={noteBusy || !!noteDraft}>
             <span>
               <NavIcon name="audit" />
