@@ -51,6 +51,11 @@ test('order totals are tenant-wide and search and status filter before paginatio
     assert.deepEqual(Object.fromEntries(counts.map(({ status, count }) => [status, count])), {
       new: '55', confirmed: '1',
     });
+    const attention = await service.orderAttention('tenant-a');
+    assert.equal(attention.counts.find((row) => row.status === 'new')?.count, 55);
+    assert.equal(attention.items.length, 4);
+    assert.ok(attention.items.every((row) => row.status === 'new' && row.product_name === 'Tour'));
+    assert.ok(attention.items.every((row) => row.contact_name === 'آية'));
     assert.equal((await service.orders('tenant-a', 1)).length, 51);
     assert.equal((await service.orders('tenant-a', 2, 'tOuR', 'new')).length, 5);
     assert.equal((await service.orders('tenant-a', 1, 'آية', 'confirmed')).length, 1);

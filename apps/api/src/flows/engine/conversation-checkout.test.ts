@@ -67,7 +67,7 @@ test('existing products keep a generic unit and do not require newly configured 
   };
   const next = await advanceConversationCheckout(state, '1', mock, false);
   assert.equal(state.step, 'confirm');
-  assert.match(next.text, /وحدات/);
+  assert.match(next.text, /وحدة/);
   assert.doesNotMatch(next.text, /Quantity|Confirm/);
 });
 
