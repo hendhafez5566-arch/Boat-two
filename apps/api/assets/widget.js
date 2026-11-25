@@ -62,6 +62,17 @@
       '.m.them{align-self:flex-start;background:' + (cfg.bubbleBackground || '#fff') + ';color:' + (cfg.bubbleText || '#111') + ';border:1px solid #e5e7eb}' +
       '.m.me{align-self:flex-end;background:' + cfg.color + ';color:#fff}' +
       '.m img{max-width:100%;border-radius:8px;display:block;margin-bottom:4px}' +
+      '.m.catalog-message{width:100%;max-width:100%;padding:12px}' +
+      '.catalog-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}' +
+      '.catalog-card{min-width:0;overflow:hidden;background:#fff;color:#26333a;border:1px solid #dfe9eb;border-radius:12px;display:flex;flex-direction:column}' +
+      '.catalog-photo{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:0;margin:0!important;background:#edf4f4}' +
+      '.catalog-photo-fallback{height:90px;display:flex;align-items:center;justify-content:center;background:#edf4f4;color:#64748b;font-size:12px}' +
+      '.catalog-body{display:flex;flex:1;flex-direction:column;gap:5px;padding:9px}' +
+      '.catalog-name{font-weight:700;font-size:13px;line-height:1.4;overflow-wrap:anywhere}' +
+      '.catalog-price{color:#0a695d;font-size:13px;font-weight:700;direction:ltr;text-align:start}' +
+      '.catalog-desc{color:#667585;font-size:11px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
+      '.catalog-select{margin-top:auto;border:1px solid ' + cfg.color + ';border-radius:9px;color:#fff;background:' + cfg.color + ';font-weight:700;min-height:40px;padding:7px 8px;cursor:pointer}' +
+      '.catalog-select[disabled]{opacity:.5;cursor:default}' +
       '.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}' +
       '.chip{border:1px solid ' + cfg.color + ';color:' + cfg.color + ';background:#fff;border-radius:16px;padding:5px 12px;font-size:13px;cursor:pointer}' +
       '.chip[disabled]{opacity:.45;cursor:default}' +
@@ -70,7 +81,7 @@
       'input{flex:1;min-width:0;border:0;padding:14px;font-size:14px;outline:none;background:transparent}' +
       '.send{border:0;background:none;color:' + cfg.color + ';font-weight:700;padding:0 16px;cursor:pointer;font-size:14px}' +
       '.close,.send,.chip{min-height:44px}' +
-      'input:focus-visible,.close:focus-visible,.send:focus-visible,.chip:focus-visible{outline:2px solid #2452ac;outline-offset:-3px}' +
+      'input:focus-visible,.close:focus-visible,.send:focus-visible,.chip:focus-visible,.catalog-select:focus-visible{outline:2px solid #2452ac;outline-offset:-3px}' +
       '@media(max-width:480px){.panel{left:12px;right:12px;width:auto;max-width:none;max-height:calc(100dvh - ' + (y+82) + 'px)}}';
     var style = h('style');
     style.textContent = css;
@@ -134,7 +145,7 @@
   }
 
   function disableChips() {
-    var all = ui.msgs.querySelectorAll('.chip');
+    var all = ui.msgs.querySelectorAll('.chip,.catalog-select');
     for (var i = 0; i < all.length; i++) all[i].disabled = true;
   }
 
@@ -145,6 +156,7 @@
     // Replaying history must consume earlier choices just like a live reply.
     if (who === 'me') disableChips();
     var b = h('div', 'm ' + who);
+    if (content && content.list && content.list.presentation === 'cards') b.classList.add('catalog-message');
     b.setAttribute('dir', 'auto');
     content = content || {};
     if (content.media) {
@@ -173,10 +185,50 @@
     if (content.buttons) options = options.concat(content.buttons.map(function (x) { return { id: x.id, title: x.title }; }));
     var chips = h('div', 'chips');
     if (content.list) {
-      content.list.sections.forEach(function (s) {
-        if (s.title) chips.appendChild(h('div', 'sec', s.title));
-        s.rows.forEach(function (r) { options.push({ id: r.id, title: r.title }); });
-      });
+      if (content.list.presentation === 'cards') {
+        disableChips();
+        var grid = h('div', 'catalog-grid');
+        content.list.sections.forEach(function (section) {
+          section.rows.forEach(function (row) {
+            var card = h('div', 'catalog-card');
+            var url = safeMediaUrl(row.imageUrl);
+            var placeholder = h('div', 'catalog-photo-fallback', st.cfg && st.cfg.direction === 'ltr' ? 'No photo' : 'لا توجد صورة');
+            if (url) {
+              var image = h('img', 'catalog-photo');
+              image.src = url;
+              image.alt = row.fullTitle || row.title;
+              image.loading = 'lazy';
+              image.onerror = function () {
+                if (image.parentNode) image.parentNode.replaceChild(placeholder, image);
+              };
+              card.appendChild(image);
+            } else card.appendChild(placeholder);
+            var details = h('div', 'catalog-body');
+            details.appendChild(h('div', 'catalog-name', row.fullTitle || row.title));
+            if (row.price) details.appendChild(h('div', 'catalog-price', row.price));
+            if (row.description && row.description !== row.price)
+              details.appendChild(h('div', 'catalog-desc', row.description));
+            var action = h('button', 'catalog-select',
+              content.list.cardAction === 'book'
+                ? (st.cfg && st.cfg.direction === 'ltr' ? 'Book now' : 'احجز الآن')
+                : (st.cfg && st.cfg.direction === 'ltr' ? 'Select' : 'اختيار'));
+            action.type = 'button';
+            action.onclick = function () {
+              disableChips();
+              send({ reply: { id: row.id, title: row.title } });
+            };
+            details.appendChild(action);
+            card.appendChild(details);
+            grid.appendChild(card);
+          });
+        });
+        b.appendChild(grid);
+      } else {
+        content.list.sections.forEach(function (s) {
+          if (s.title) chips.appendChild(h('div', 'sec', s.title));
+          s.rows.forEach(function (r) { options.push({ id: r.id, title: r.title }); });
+        });
+      }
     }
     if (options.length) {
       disableChips();

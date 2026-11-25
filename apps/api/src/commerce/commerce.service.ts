@@ -631,7 +631,9 @@ export class CommerceService {
                 ...(showCards
                   ? {
                       fullTitle: String(p.name).slice(0, 120),
-                      price: priceText(p.price_cents, p.currency).slice(0, 80),
+                      price: (p.price_cents == null
+                        ? 'Price on request'
+                        : priceText(String(p.price_cents), p.currency)).slice(0, 80),
                       ...(p.image_url ? { imageUrl: p.image_url } : {}),
                     }
                   : {}),

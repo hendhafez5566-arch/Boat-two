@@ -34,3 +34,27 @@ test('post-formatting validation rejects signature overflow for text and media c
  assert.throws(()=>validateOutbound({text:'x'.repeat(4097)}),/4096/);
  assert.throws(()=>validateOutbound({media:{kind:'image',url:'https://example.test/image.png',caption:'x'.repeat(1025)}}),/1024/);
 });
+
+
+test('visual catalog card metadata survives message validation without changing provider list IDs', () => {
+  const input = {
+    text: 'Select your room',
+    list: { buttonText: 'Rooms', presentation: 'cards' as const, cardAction: 'book' as const, sections: [{
+      rows: [{
+        id: 'product:00000000-0000-4000-8000-000000000001',
+        title: 'Room 4',
+        fullTitle: 'غرفة رباعي',
+        price: '60000.00 EGP',
+        imageUrl: 'https://example.test/room.png',
+      }],
+    }] },
+  };
+  const content = contentSchema.parse(input);
+  assert.equal(content.list?.sections[0].rows[0].imageUrl, 'https://example.test/room.png');
+  assert.equal(content.list?.cardAction, 'book');
+  assert.doesNotThrow(() => validateOutbound(content));
+  assert.equal(contentSchema.safeParse({
+    ...input,
+    list: { ...input.list, sections: [{ rows: [{ ...input.list.sections[0].rows[0], imageUrl: 'javascript:alert(1)' }] }] },
+  }).success, false);
+});

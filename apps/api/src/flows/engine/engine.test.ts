@@ -1611,3 +1611,47 @@ test('location with unresolved variables does not send an invented zero coordina
   const h=harness({startNodeId:'loc',nodes:[node('loc','location',{lat:'0',lng:'0'},{next:'end'}),node('end','end',{})]});
   assert.equal((await h.engine.start(h.ctx,newState())).status,'completed');assert.deepEqual(h.sent[0].location,{lat:0,lng:0});
 });
+
+
+test('photo-card catalogs preserve selection, and WhatsApp queues images before interactive choices', async () => {
+  const id = '00000000-0000-4000-8000-000000000008';
+  const richCatalog: EngineDeps['catalogContent'] = async (ids, native, text, selectable, showCards) => {
+    assert.deepEqual(ids, [id]);
+    assert.equal(native, false);
+    assert.equal(selectable, true);
+    assert.equal(showCards, true);
+    return {
+      text,
+      list: { buttonText: 'Products', presentation: 'cards', sections: [{
+        rows: [{ id: 'product:' + id, title: 'Quad room', fullTitle: 'Quad room',
+          price: '60000.00 EGP', imageUrl: 'https://example.test/room.jpg' }],
+      }] },
+    };
+  };
+  const graph: FlowGraph = { startNodeId: 'catalog', nodes: [
+    node('catalog', 'catalog', { productIds: [id], text: 'Rooms', selectable: true, displayMode: 'cards', saveAs: 'picked' }),
+  ] };
+  const web = harness(graph, { catalogContent: richCatalog });
+  const webResult = await web.engine.start(web.ctx, newState());
+  assert.equal(webResult.status, 'waiting');
+  assert.equal(web.sent.length, 1);
+  assert.equal(web.sent[0].list?.presentation, 'cards');
+  web.say('Quad room', 'product:' + id);
+  const selected = await web.engine.resume(web.ctx, JSON.parse(JSON.stringify(webResult.state)));
+  assert.equal(selected.status, 'completed');
+  assert.equal(selected.state.vars.picked, id);
+
+  const whatsapp = harness(graph, { catalogContent: richCatalog });
+  whatsapp.ctx.channel.type = 'whatsapp';
+  const waResult = await whatsapp.engine.start(whatsapp.ctx, newState());
+  assert.equal(waResult.status, 'waiting');
+  assert.equal(whatsapp.sent.length, 2);
+  assert.equal(whatsapp.sent[0].media?.kind, 'image');
+  assert.equal(whatsapp.sent[0].media?.url, 'https://example.test/room.jpg');
+  assert.equal(whatsapp.sent[1].list?.sections[0].rows[0].id, 'product:' + id);
+  assert.equal(whatsapp.sent[1].list?.presentation, 'cards');
+  const invalidGraph: FlowGraph = { startNodeId: 'catalog', nodes: [
+    node('catalog', 'catalog', { productIds: [id], text: 'Rooms', selectable: true, native: true, displayMode: 'cards' }),
+  ] };
+  assert.ok(validateGraph(invalidGraph).errors.some((issue) => /Photo cards/.test(issue.message)));
+});
