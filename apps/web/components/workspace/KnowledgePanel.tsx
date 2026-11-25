@@ -1,5 +1,7 @@
 'use client';
 import { WorkspaceHeading } from '../product/ProductUI';
+import Link from 'next/link';
+import styles from './ai-workspace.module.css';
 import { KnowledgeRetention } from '../business/KnowledgeRetention';
 import { useEffect, useState } from 'react';
 import { KnowledgeJobs } from '../business/KnowledgeJobs';
@@ -18,8 +20,19 @@ export default function Knowledge() {
     [role, setRole] = useState(''),
     [editing, setEditing] = useState<string | null>(null),
     [showArchived, setShowArchived] = useState(false),
-    [query, setQuery] = useState('');
+    [query, setQuery] = useState(''),
+    [createOpen, setCreateOpen] = useState(false);
   const canManage = role === 'owner' || role === 'admin';
+  const currentSources = items.filter((item) => !item.archived_at);
+  const readySources = currentSources.filter((item) => item.status === 'ready');
+  const processingSources = currentSources.filter((item) => ['pending', 'processing', 'blocked'].includes(item.status));
+  function openAddSource(type?: typeof tab) {
+    if (type) setTab(type);
+    setCreateOpen(true);
+    window.setTimeout(() => document.getElementById('knowledge-editor')?.scrollIntoView({
+      behavior: 'smooth', block: 'start',
+    }), 0);
+  }
   async function load() {
     setItems(await api<Source[]>('/ai/knowledge'));
   }
@@ -100,13 +113,56 @@ export default function Knowledge() {
   );
   return (
     <section className="stack">
-      <WorkspaceHeading
-        title={t('قاعدة المعرفة', 'Knowledge Base')}
-        description={t(
-          'راجع المصادر وحالة الفهرسة وأضف معلومات لمساعدك.',
-          'Manage sources, check indexing and add information for your assistant.',
+      <div className={styles.intro}>
+        <div className={styles.introText}>
+          <WorkspaceHeading
+            title={t('قاعدة المعرفة', 'Knowledge Base')}
+            description={t(
+              'ضيف معلومات شركتك مرة واحدة، والمساعد يستعين بالمصادر اللي تختارها له.',
+              'Add your company knowledge and choose which sources each AI assistant may use.',
+            )}
+          />
+        </div>
+        {canManage && (
+          <button type="button" className="btn btn-primary" onClick={() => openAddSource()}>
+            + {t('إضافة معلومات', 'Add knowledge')}
+          </button>
         )}
-      />
+      </div>
+      <section className={styles.guide} aria-label={t('كيف تعمل قاعدة المعرفة', 'How knowledge works')}>
+        <div className={styles.guideHead}>
+          <strong>{t('إزاي المساعد بيتعلم معلومات شركتك؟', 'How your assistant uses company knowledge')}</strong>
+          <span>{t('3 خطوات بسيطة', 'Three simple steps')}</span>
+        </div>
+        <div className={styles.steps}>
+          <button className={styles.step} type="button" onClick={() => openAddSource('faq')} disabled={!canManage}>
+            <span className={styles.stepNumber}>1</span>
+            <span><strong>{t('ضيف معلومات أو أسئلة شائعة', 'Add information or FAQs')}</strong>
+              <small>{t('الأسعار والسياسات والخدمات', 'Services, policies and prices')}</small></span>
+          </button>
+          <div className={styles.step}>
+            <span className={styles.stepNumber}>2</span>
+            <span><strong>{t('انتظر حالة «جاهز»', 'Wait for “Ready”')}</strong>
+              <small>{t('بعد معالجة المصدر وفهرسته', 'Once the source is processed and indexed')}</small></span>
+          </div>
+          <Link className={styles.step} href="/dashboard/agents">
+            <span className={styles.stepNumber}>3</span>
+            <span><strong>{t('اربط المصدر بالمساعد', 'Assign it to an assistant')}</strong>
+              <small>{t('المعلومات مش بتتربط تلقائيًا', 'Sources are not assigned automatically')}</small></span>
+          </Link>
+        </div>
+      </section>
+      <div className={styles.stats} aria-label={t('حالة المعلومات', 'Knowledge summary')}>
+        <div><strong>{currentSources.length}</strong><span>{t('إجمالي المصادر', 'Total sources')}</span></div>
+        <div><strong>{readySources.length}</strong><span>{t('جاهزة للاستخدام', 'Ready to use')}</span></div>
+        <div><strong>{processingSources.length}</strong><span>{t('تحت المعالجة أو الانتظار', 'Pending or processing')}</span></div>
+      </div>
+      <p className={styles.safetyNote} role="note">
+        {t(
+          'المعلومات مش هتظهر للعملاء بمجرد حفظها؛ لازم المصدر يبقى جاهز، وتختاره داخل إعداد المساعد، وتفعّل تشغيل الذكاء الاصطناعي.',
+          'Saving a source does not publish it to customers. It must become ready, be selected for an assistant and AI generation must be enabled.',
+        )}
+      </p>
       {error && (
         <p role="alert" className="notice error">
           {error}
@@ -115,33 +171,56 @@ export default function Knowledge() {
       {feedback && <p role="status" className="notice">{feedback}</p>}
       {canManage && (
         <>
-          <details className="card workspace-disclosure">
-            <summary>{t('إضافة مصدر', 'Add a source')}</summary>
+          <details
+            id="knowledge-editor"
+            className={styles.createDetails}
+            open={createOpen}
+            onToggle={(event) => setCreateOpen(event.currentTarget.open)}
+          >
+            <summary>{t('أضف معلومات جديدة للمساعد', 'Add a knowledge source')}</summary>
             <form className="stack" onSubmit={submit}>
-              <label className="field">
-                {t('1. اختر نوع المعلومات', '1. Choose the information type')}
-                <select value={tab} onChange={(e) => setTab(e.target.value as typeof tab)}>
+              <div className="field">
+                <strong>{t('اختار طريقة إضافة المعلومة', 'Choose how to add knowledge')}</strong>
+                <div className={styles.typePicker} role="group" aria-label={t('نوع المصدر', 'Source type')}>
                   {Object.entries(types).map(([key, label]) => (
-                    <option key={key} value={key}>
+                    <button
+                      key={key}
+                      type="button"
+                      className={tab === key ? styles.typeSelected : styles.typeOption}
+                      aria-pressed={tab === key}
+                      onClick={() => setTab(key as typeof tab)}
+                    >
                       {label}
-                    </option>
+                    </button>
                   ))}
-                </select>
-              </label>
+                </div>
+                <small className={styles.helper}>
+                  {tab === 'text'
+                    ? t('مناسب لتفاصيل الخدمات والسياسات المكتوبة.', 'Best for written service details and policies.')
+                    : tab === 'faq'
+                      ? t('مناسب لأسئلة العملاء المتكررة وإجاباتها.', 'Best for frequently asked customer questions.')
+                      : tab === 'url'
+                        ? t('استورد محتوى صفحة ويب عامة.', 'Import content from a public web page.')
+                        : t('ارفع ملف معلومات نصي. ملفات PDF المصوّرة غير مدعومة.', 'Upload a text-based document. Scanned PDFs are not supported.')}
+                </small>
+              </div>
               <label className="field">
                 {t('2. عنوان واضح للمصدر', '2. Give the source a clear title')}
-                <input name="title" maxLength={200} required={tab === 'text' || tab === 'faq'} />
+                <input name="title" maxLength={200} required={tab === 'text' || tab === 'faq'}
+                  placeholder={t('مثال: أسئلة العمرة أو سياسة الحجز', 'e.g. Booking policy or service FAQ')} />
               </label>
               {tab === 'text' && (
                 <label className="field">
                   {t('المعلومات التي يستند إليها المساعد', 'Information the assistant can use')}
-                  <textarea name="content" required minLength={20} maxLength={300000} rows={7} />
+                  <textarea name="content" required minLength={20} maxLength={300000} rows={6}
+                    placeholder={t('اكتب تفاصيل الخدمة أو السياسة بلغة واضحة. مثال: المستندات المطلوبة، المواعيد وشروط الإلغاء.', 'Describe the service or policy clearly. For example: required documents, schedules and cancellations.')} />
                 </label>
               )}
               {tab === 'url' && (
                 <label className="field">
                   {t('رابط الصفحة', 'Page URL')}
-                  <input name="url" type="url" maxLength={2000} required dir="ltr" />
+                  <input name="url" type="url" maxLength={2000} required dir="ltr"
+                    placeholder="https://example.com/faq" />
                 </label>
               )}
               {tab === 'file' && (
@@ -210,14 +289,17 @@ export default function Knowledge() {
               <button className="btn btn-primary" disabled={busy}>
                 {busy
                   ? t('جارٍ الحفظ…', 'Saving…')
-                  : t('3. حفظ ومتابعة الفهرسة', '3. Save and track indexing')}
+                  : t('حفظ المصدر', 'Save source')}
               </button>
             </form>
           </details>
         </>
       )}
-      <section className="card stack">
-        <h2>{t('مصادر المعرفة', 'Knowledge sources')}</h2>
+      <section className={styles.sourcesSection}>
+        <div className={styles.sectionHeading}>
+          <div><h2>{t('معلومات الشركة', 'Company knowledge')}</h2>
+            <p>{t('شوف المصادر الموجودة وحالة كل مصدر، وعدّل اللي محتاج تحديث.', 'Check each source status and update what needs changing.')}</p></div>
+        </div>
         <div className="form-actions">
           <input
             value={query}
@@ -236,78 +318,67 @@ export default function Knowledge() {
         </div>
         {loading && <p role="status">{t('جارٍ تحميل المصادر…', 'Loading sources…')}</p>}
         {!loading && !filtered.length && !error && (
-          query.trim() ? <div className="form-actions">
-            <p>{t('لا توجد مصادر تطابق البحث.', 'No sources match your search.')}</p>
-            <button type="button" className="btn" onClick={() => setQuery('')}>
-              {t('مسح البحث', 'Clear search')}
-            </button>
-          </div> : <p>{canManage
-            ? t('لا توجد مصادر معروضة. أضف مصدرًا للبدء.', 'No sources shown. Add a source to get started.')
-            : t('لا توجد مصادر معروضة.', 'No sources to show.')}</p>
+          query.trim() ? <div className={styles.empty}>
+            <p>{t('مافيش مصادر مطابقة للبحث.', 'No matching sources.')}</p>
+            <button type="button" className="btn" onClick={() => setQuery('')}>{t('مسح البحث', 'Clear search')}</button>
+          </div> : <div className={styles.empty}>
+            <strong>{t('لسه مفيش معلومات مضافة', 'No knowledge added yet')}</strong>
+            <p>{t('ابدأ بإضافة الأسئلة الشائعة أو معلومات الخدمة عشان المساعد يلاقي إجابات موثوقة.', 'Add FAQs or service details so your assistant can find reliable answers.')}</p>
+            {canManage && <button className="btn btn-primary" type="button" onClick={() => openAddSource('faq')}>{t('أضف أول سؤال وجواب', 'Add your first FAQ')}</button>}
+          </div>
         )}
-        <div className="card-grid">
+        <div className={styles.sourceGrid}>
           {filtered.map((source) => (
-            <article className="card stack" key={source.id}>
-              <h3>{source.title}</h3>
-              <span className="badge">
-                {source.archived_at
-                  ? t('مؤرشف', 'Archived')
-                  : (statuses[source.status] ?? source.status)}
+            <article className={styles.sourceCard} key={source.id}>
+              <div className={styles.sourceTitle}>
+                <span className={styles.sourceIcon} aria-hidden="true">{source.type === 'faq' ? '?' : source.type === 'file' ? '▤' : source.type === 'url' ? '↗' : '≡'}</span>
+                <div><h3>{source.title}</h3><small>{types[source.type]}</small></div>
+              </div>
+              <span className={source.archived_at ? styles.statusMuted : source.status === 'ready' ? styles.statusActive : source.status === 'failed' ? styles.statusError : styles.statusPending}>
+                {source.archived_at ? t('مؤرشف', 'Archived') : (statuses[source.status] ?? source.status)}
               </span>
-              <p className="muted">
-                {types[source.type]} · {t('إصدار', 'Revision')} {source.revision} ·{' '}
-                {source.chunk_count} {t('مقطع', 'chunks')} · {source.char_count}{' '}
-                {t('حرف', 'characters')}
-              </p>
-              {source.error && <p className="notice error">{source.error}</p>}
+              <p className={styles.sourceMeta}>{t('إصدار', 'Revision')} {source.revision}
+                {' · '}{source.chunk_count} {t('مقطع', 'chunks')}{' · '}{source.char_count} {t('حرف', 'characters')}</p>
+              {source.error && <p className="notice error" role="alert">{source.error}</p>}
               {canManage && (
-                <div className="form-actions">
-                  <button className="btn" disabled={busy} onClick={() => setEditing(source.id)}>
-                    {t('تحرير والإصدارات', 'Edit and history')}
+                <div className={styles.sourceActions}>
+                  <button type="button" className="btn" disabled={busy} onClick={() => setEditing(source.id)}>
+                    {t('تعديل المعلومات', 'Edit source')}
                   </button>
-                  <button
-                    className="btn"
-                    disabled={busy || !!source.archived_at}
-                    onClick={() => void act('/ai/knowledge/' + source.id + '/reindex')}
-                  >
-                    {t('إعادة الفهرسة', 'Reindex')}
-                  </button>
-                  <button
-                    className="btn"
-                    disabled={busy}
-                    onClick={() =>
-                      void act('/ai/knowledge/' + source.id + '/archive', 'PATCH', {
-                        archived: !source.archived_at,
-                      })
-                    }
-                  >
-                    {source.archived_at ? t('استعادة', 'Restore') : t('أرشفة', 'Archive')}
-                  </button>
-                  <button
-                    className="btn"
-                    disabled={busy}
-                    onClick={() => {
-                      if (
-                        confirm(
-                          t(
-                            'حذف المصدر والفهرس والإصدارات نهائيًا؟ الأرشفة تحفظها.',
-                            'Permanently delete this source, index and history? Archiving retains them.',
-                          ),
-                        )
-                      )
-                        void act('/ai/knowledge/' + source.id, 'DELETE');
-                    }}
-                  >
-                    {t('حذف نهائي', 'Delete permanently')}
-                  </button>
+                  <details className={styles.sourceMore}>
+                    <summary>{t('المزيد من الخيارات', 'More options')}</summary>
+                    <div className={styles.sourceMoreActions}>
+                      <button type="button" className="btn" disabled={busy || !!source.archived_at}
+                        onClick={() => void act('/ai/knowledge/' + source.id + '/reindex')}>
+                        {t('إعادة الفهرسة', 'Reindex')}
+                      </button>
+                      <button type="button" className="btn" disabled={busy}
+                        onClick={() => void act('/ai/knowledge/' + source.id + '/archive', 'PATCH', { archived: !source.archived_at })}>
+                        {source.archived_at ? t('استعادة', 'Restore') : t('أرشفة', 'Archive')}
+                      </button>
+                      <button type="button" className="btn" disabled={busy}
+                        onClick={() => {
+                          if (confirm(t('حذف المصدر والفهرس والإصدارات نهائيًا؟ الأرشفة تحفظها.', 'Permanently delete source and history? Archive keeps them.')))
+                            void act('/ai/knowledge/' + source.id, 'DELETE');
+                        }}>
+                        {t('حذف نهائي', 'Delete permanently')}
+                      </button>
+                    </div>
+                  </details>
                 </div>
               )}
             </article>
           ))}
         </div>
       </section>
-      {canManage && <KnowledgeJobs />}
-      <KnowledgeRetention />
+      <details className={styles.advanced}>
+        <summary>{t('الإدارة المتقدمة: معالجة المصادر والاحتفاظ بالبيانات', 'Advanced: processing and data retention')}</summary>
+        <div className={styles.advancedBody}>
+          <p className={styles.helper}>{t('دي أدوات لمتابعة المهام التقنية أو تنظيف بيانات المعالجة القديمة، مش ضرورية لإضافة المعلومات اليومية.', 'These tools manage technical processing and old job data; they are not needed for everyday knowledge updates.')}</p>
+          {canManage && <KnowledgeJobs />}
+          <KnowledgeRetention />
+        </div>
+      </details>
       {editing && canManage && (
         <KnowledgeSourceEditor id={editing} onClose={() => setEditing(null)} onSaved={load} />
       )}
