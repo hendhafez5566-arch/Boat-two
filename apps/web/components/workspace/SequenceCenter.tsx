@@ -109,7 +109,7 @@ export default function SequenceCenter({
             }}
           >
             <option value="latest">{t('آخر تعديل', 'Latest Updated')}</option>
-            <option value="name">{t('اسم الحملة', 'Campaign Name')}</option>
+            <option value="name">{t('اسم التسلسل', 'Sequence name')}</option>
             <option value="last_sent">{t('آخر إرسال', 'Last Sent')}</option>
           </select>
         </div>
@@ -125,7 +125,7 @@ export default function SequenceCenter({
               <tr>
                 {[
                   '#',
-                  t('اسم الحملة', 'Campaign Name'),
+                  t('اسم التسلسل', 'Sequence name'),
                   t('الإجراءات', 'Actions'),
                   t('المعالج', 'Processed'),
                   t('تم التسليم', 'Delivered'),
@@ -168,39 +168,43 @@ export default function SequenceCenter({
           </table>
         </div>
       )}
-      <div className={styles.toolbar}>
-        <span>
-          {data.data.total} {t('تسلسل', 'Sequences')} · {page} / {pages}
-        </span>
-        <label>
-          {t('عدد الصفوف', 'Rows')}{' '}
-          <select
-            value={limit}
-            onChange={(e) => {
-              setLimit(Number(e.target.value));
-              setPage(1);
-            }}
-          >
-            {[10, 25, 50, 100].map((value) => (
-              <option key={value}>{value}</option>
-            ))}
-          </select>
-        </label>
-        <div className={styles.actions}>
-          <Button disabled={page <= 1 || data.loading} onClick={() => setPage(page - 1)}>
-            {t('السابق', 'Previous')}
-          </Button>
-          <Button disabled={page >= pages || data.loading} onClick={() => setPage(page + 1)}>
-            {t('التالي', 'Next')}
-          </Button>
+      {data.data.total > 0 && (
+        <div className={styles.toolbar}>
+          <span>
+            {data.data.total} {t('تسلسل', 'Sequences')} · {page} / {pages}
+          </span>
+          <label>
+            {t('عدد الصفوف', 'Rows')}{' '}
+            <select
+              value={limit}
+              onChange={(e) => {
+                setLimit(Number(e.target.value));
+                setPage(1);
+              }}
+            >
+              {[10, 25, 50, 100].map((value) => (
+                <option key={value}>{value}</option>
+              ))}
+            </select>
+          </label>
+          <div className={styles.actions}>
+            <Button disabled={page <= 1 || data.loading} onClick={() => setPage(page - 1)}>
+              {t('السابق', 'Previous')}
+            </Button>
+            <Button disabled={page >= pages || data.loading} onClick={() => setPage(page + 1)}>
+              {t('التالي', 'Next')}
+            </Button>
+          </div>
         </div>
-      </div>
-      <small className="muted">
-        {t(
-          'المعالج يحسب سجلات الرسائل؛ التسليم والقراءة يعتمدان على إيصالات المزود ولا يمثلان عدد مشتركين فريدين.',
-          'Processed counts message records; delivery and opening use provider receipts and do not represent unique subscribers.',
-        )}
-      </small>
+      )}
+      {data.data.items.length > 0 && (
+        <small className="muted">
+          {t(
+            'المعالج يحسب سجلات الرسائل؛ التسليم والقراءة يعتمدان على إيصالات المزود ولا يمثلان عدد مشتركين فريدين.',
+            'Processed counts message records; delivery and opening use provider receipts and do not represent unique subscribers.',
+          )}
+        </small>
+      )}
       <Dialog
         open={bulk}
         onClose={() => {

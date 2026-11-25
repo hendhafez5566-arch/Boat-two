@@ -26,11 +26,10 @@ export default function ChannelScope({
       </p>
     ) : null;
   return (
-    <section className="card stack">
+    <section className="channel-scope">
       <label className="field">
         {t('سياق القناة', 'Channel context')}
         <select
-          aria-label={t('سياق القناة', 'Channel context')}
           value={value}
           onChange={(e) => onChange(e.target.value)}
         >
@@ -53,21 +52,23 @@ export default function ChannelScope({
           )}
         </p>
       )}
-      <div className="form-actions">
-        {[
-          ['/dashboard/flows', 'البوتات', 'Bots'],
-          ['/dashboard/crm', 'العملاء', 'Contacts'],
-          ['/dashboard/inbox', 'الوارد', 'Inbox'],
-          ['/dashboard/campaigns', 'الحملات', 'Campaigns'],
-          ['/dashboard/sequences', 'التسلسلات', 'Sequences'],
-          ['/dashboard/commerce', 'التجارة', 'Commerce'],
-          ['/dashboard/integrations', 'التكاملات', 'Integrations'],
-        ].map(([href, ar, en]) => (
-          <Link className="btn" href={channelHref(href, value)} key={href}>
-            {t(ar, en)}
-          </Link>
-        ))}
-      </div>
+      {value && (
+        <nav className="form-actions" aria-label={t('روابط القناة', 'Channel links')}>
+          {[
+            ['/dashboard/flows', 'البوتات', 'Bots'],
+            ['/dashboard/crm', 'العملاء', 'Contacts'],
+            ['/dashboard/inbox', 'الوارد', 'Inbox'],
+            ['/dashboard/campaigns', 'الحملات', 'Campaigns'],
+            ['/dashboard/sequences', 'التسلسلات', 'Sequences'],
+            ['/dashboard/commerce', 'التجارة', 'Commerce'],
+            ['/dashboard/integrations', 'التكاملات', 'Integrations'],
+          ].map(([href, ar, en]) => (
+            <Link className="btn" href={channelHref(href, value)} key={href}>
+              {t(ar, en)}
+            </Link>
+          ))}
+        </nav>
+      )}
     </section>
   );
 }

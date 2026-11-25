@@ -1434,3 +1434,37 @@ details > summary::marker { content: ''; }
 @media (prefers-reduced-motion: reduce) {
   :where(details > summary)::after { transition: none; }
 }
+
+.channel-scope {
+  display: grid;
+  gap: 12px;
+  padding-block: 8px;
+}
+
+.channel-scope > .field {
+  width: min(100%, 22rem);
+}
+
+.channel-scope > .muted {
+  margin: 0;
+}
+
+.product-dialog > header {
+  gap: 12px;
+}
+
+.product-dialog > header h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.product-dialog .dialog-close {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 600px) {
+  .product-dialog > header,
+  :where(.product-dialog > .dialog-body) {
+    padding-inline: 16px;
+  }
+}

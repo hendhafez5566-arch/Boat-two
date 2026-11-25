@@ -25,15 +25,6 @@ const quick = [
     'purple',
   ],
   [
-    '/dashboard/inbox',
-    'فتح الوارد',
-    'Open Inbox',
-    'inbox',
-    'عرض كل المحادثات',
-    'View all conversations',
-    'blue',
-  ],
-  [
     '/dashboard/flows',
     'مدير البوت',
     'Bot manager',
@@ -63,7 +54,6 @@ const quick = [
 ];
 export default function Dashboard() {
   const { t } = useLocale();
-  const [selected, setSelected] = useState('all');
   const [channel, setChannel] = useState('all');
   const summary = useData<Summary | null>('/workspace/dashboard?channel=' + channel, null);
   // Do not present the previous platform's values while the next filter is loading or failed.
@@ -77,10 +67,6 @@ export default function Dashboard() {
   const points = growth
     .map((d, i) => `${40 + (i * 600) / 29},${190 - (d.gain / maximum) * 170}`)
     .join(' ');
-  const filter = () => {
-    if (selected === channel) void summary.reload();
-    else setChannel(selected);
-  };
   return (
     <main className={styles.page}>
       <header className={`${styles.heading} workspace-heading`}>
@@ -113,24 +99,6 @@ export default function Dashboard() {
         <span className={styles.heroMark} aria-hidden="true"><NavIcon name="bolt" /></span>
       </section>
       <OrdersAttention />
-      <div className={styles.filter}>
-        <select
-          aria-label={t('المنصة', 'Platform')}
-          value={selected}
-          onChange={(e) => setSelected(e.target.value)}
-        >
-          <option value="all">{t('جميع القنوات', 'All channels')}</option>
-          <option value="web">Webchat</option>
-          <option value="whatsapp">WhatsApp</option>
-          <option value="telegram">Telegram</option>
-          <option value="facebook">Facebook</option>
-          <option value="instagram">Instagram</option>
-        </select>
-        <button type="button" disabled={summary.loading} onClick={filter}>
-          <NavIcon name="filter" />
-          {t('تصفية', 'Filter')}
-        </button>
-      </div>
       {summary.error && (
         <p className="notice error" role="alert">
           {summary.error}
@@ -154,6 +122,20 @@ export default function Dashboard() {
         <h2>
           {t('نمو جهات الاتصال', 'Contact growth')} <span>{t('(30 يومًا)', '(30 days)')}</span>
         </h2>
+        <div className={styles.filter}>
+          <select
+            aria-label={t('قناة تقرير نمو جهات الاتصال', 'Contact growth channel')}
+            value={channel}
+            onChange={(e) => setChannel(e.target.value)}
+          >
+            <option value="all">{t('جميع القنوات', 'All channels')}</option>
+            <option value="web">Webchat</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="telegram">Telegram</option>
+            <option value="facebook">Facebook</option>
+            <option value="instagram">Instagram</option>
+          </select>
+        </div>
         <div className={styles.growth}>
           <div className={styles.distribution}>
             <small>{t('آخر 30 يومًا — UTC', 'LAST 30 DAYS — UTC')}</small>

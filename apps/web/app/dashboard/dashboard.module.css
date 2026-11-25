@@ -39,7 +39,7 @@
 .filter {
   display: flex;
   gap: 8px;
-  margin-top: 0;
+  margin-block: 0 12px;
 }
 .filter select {
   width: 150px;
@@ -50,30 +50,13 @@
   color: #404955;
   font: inherit;
 }
-.filter button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 0;
-  border-radius: 8px;
-  padding: 8px 14px;
-  color: var(--surface);
-  background: var(--primary);
-  font: inherit;
-  cursor: pointer;
-}
-.filter svg {
-  width: 15px;
-  height: 15px;
-}
-.refresh:disabled,
-.filter button:disabled {
+.refresh:disabled {
   opacity: 0.5;
   cursor: default;
 }
 .quick {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin-top: 0;
 }

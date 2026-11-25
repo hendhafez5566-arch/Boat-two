@@ -115,72 +115,42 @@ export default function Commerce({ initialTab }: { initialTab?: string } = {}) {
         ))}
     </nav>
   );
+  const contextActions = (
+    <div className={catalogStyles.commerceContextActions}>
+      <Link className="btn" href={channelHref('/dashboard/flows?section=bot_reply', channelId)}>
+        {initialTab === 'products'
+          ? t('الانتقال إلى ردود البوت', 'Go to bot replies')
+          : t('العودة إلى مدير البوت', 'Back to bot manager')}
+      </Link>
+      {tab === 'appointments' && (
+        <Link className="btn" href="/dashboard/integrations">
+          {t('تفويض Calendar والتكاملات', 'Calendar authorization and integrations')}
+        </Link>
+      )}
+    </div>
+  );
+  const channelScope = (
+    <ChannelScope value={channelId} onChange={setChannelId} channels={channels.data} workspaceWide />
+  );
   return (
     <section className={`commerce-page ${catalogStyles.commerceWorkspace}`}>
       <header className={catalogStyles.commerceHeader}>
-        <div>
-      <h1>
-        {initialTab === 'appointments'
-          ? t('حجز المواعيد', 'Appointment Booking')
-          : initialTab === 'products'
-            ? t('كتالوج المنتجات', 'Product Catalog')
-            : t('التجارة والمواعيد', 'Commerce and appointments')}
-      </h1>
-        </div>
+        <h1>
+          {initialTab === 'appointments'
+            ? t('حجز المواعيد', 'Appointment Booking')
+            : initialTab === 'products'
+              ? t('كتالوج المنتجات', 'Product Catalog')
+              : t('التجارة والمواعيد', 'Commerce and appointments')}
+        </h1>
         {initialTab !== 'appointments' && catalogNavigation}
-        {initialTab && <div className={catalogStyles.commerceContextActions}>
-      {initialTab !== 'products' && (
-        <Link className="btn" href={channelHref('/dashboard/flows?section=bot_reply', channelId)}>
-          {t('العودة إلى مدير البوت', 'Back to bot manager')}
-        </Link>
-      )}
-      {initialTab === 'products' && (
-        <Link className="btn" href={channelHref('/dashboard/flows?section=bot_reply', channelId)}>
-          {t('الانتقال إلى ردود البوت', 'Go to bot replies')}
-        </Link>
-      )}
-      {tab === 'appointments' && (
-        <Link className="btn" href="/dashboard/integrations">
-          {t('تفويض Calendar والتكاملات', 'Calendar authorization and integrations')}
-        </Link>
-      )}
-        </div>}
+        {initialTab && contextActions}
       </header>
-      {initialTab === 'products' ? null : initialTab ? (
-        <ChannelScope
-          value={channelId}
-          onChange={setChannelId}
-          channels={channels.data}
-          workspaceWide
-        />
-      ) : (
+      {initialTab === 'appointments' && channelScope}
+      {!initialTab && (
         <details className="card">
-          <DisclosureSummary>
-            {t('سياق القناة والتنقل بين الأقسام', 'Channel context and workspace navigation')}
-          </DisclosureSummary>
-          <ChannelScope
-            value={channelId}
-            onChange={setChannelId}
-            channels={channels.data}
-            workspaceWide
-          />
-          <div className={catalogStyles.commerceContextActions}>
-      {initialTab !== 'products' && (
-        <Link className="btn" href={channelHref('/dashboard/flows?section=bot_reply', channelId)}>
-          {t('العودة إلى مدير البوت', 'Back to bot manager')}
-        </Link>
-      )}
-      {initialTab === 'products' && (
-        <Link className="btn" href={channelHref('/dashboard/flows?section=bot_reply', channelId)}>
-          {t('الانتقال إلى ردود البوت', 'Go to bot replies')}
-        </Link>
-      )}
-      {tab === 'appointments' && (
-        <Link className="btn" href="/dashboard/integrations">
-          {t('تفويض Calendar والتكاملات', 'Calendar authorization and integrations')}
-        </Link>
-      )}
-          </div>
+          <DisclosureSummary>{t('سياق القناة', 'Channel context')}</DisclosureSummary>
+          {channelScope}
+          {contextActions}
         </details>
       )}
       {tab === 'appointments' && (error || services.error) && (
