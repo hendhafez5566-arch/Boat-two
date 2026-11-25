@@ -13,7 +13,8 @@
 <p class="intro" id="intro">ابدأ محادثة، أجب عن أسئلة البوت، ثم تابع الطلب مع فريق العمل.</p>
 <section class="panel" aria-labelledby="steps-heading">
 <h2 id="steps-heading">من المحادثة إلى المتابعة</h2>
-<ol class="steps"><li id="step1">افتح نافذة المحادثة وأرسل رسالة ترحيب.</li><li id="step2">أجب عن الأسئلة باستخدام بيانات اصطناعية.</li><li id="step3">عند التحويل، يمكن للموظف متابعة نفس المحادثة داخل صندوق الوارد.</li></ol>
+<ol class="steps"><li id="step1">افتح نافذة المحادثة وأرسل رسالة ترحيب.</li><li id="step2">إذا طرح البوت سؤالًا، استخدم بيانات اصطناعية في الإجابة.</li><li id="step3">عند التحويل، يمكن للموظف متابعة نفس المحادثة داخل صندوق الوارد.</li></ol>
+<p id="locale-note">اختيار اللغة يغيّر واجهة المحادثة. يظهر اسم القناة ورسائل البوت كما أعدّها الفريق.</p>
 <p id="privacy">هذه صفحة تجربة. استخدم بيانات اختبار فقط، دون معلومات شخصية حقيقية.</p>
 <p class="notice" role="status" id="status">جارٍ تجهيز التجربة…</p>
 <button id="retry" hidden>إعادة المحاولة</button>
@@ -23,11 +24,11 @@
 (function(){
  var q=new URLSearchParams(location.search),english=q.get('lang')==='en',key=q.get('key'),status=document.getElementById('status'),retry=document.getElementById('retry'),language=document.getElementById('language');
  q.set('lang',english?'ar':'en');language.href='?'+q.toString();language.textContent=english?'العربية':'English';document.documentElement.lang=english?'en':'ar';document.documentElement.dir=english?'ltr':'rtl';
- if(english){var labels={heading:'Try the customer journey',intro:'Start a conversation, answer the bot, then continue with your team.','steps-heading':'From conversation to follow-up',step1:'Open the chat window and send a greeting.',step2:'Answer the questions using synthetic details.',step3:'After handoff, a team member can continue the same conversation in Inbox.',privacy:'Demo environment. Use test details only, without real personal information.',status:'Preparing the demo…',retry:'Try again'};Object.keys(labels).forEach(function(id){document.getElementById(id).textContent=labels[id];});}
+ if(english){var labels={heading:'Try the customer journey',intro:'Start a conversation, answer the bot, then continue with your team.','steps-heading':'From conversation to follow-up',step1:'Open the chat window and send a greeting.',step2:'If the bot asks a question, reply with synthetic details.',step3:'After handoff, a team member can continue the same conversation in Inbox.','locale-note':'Language selection changes the chat controls. The channel name and bot messages use the content configured by your team.',privacy:'Demo environment. Use test details only, without real personal information.',status:'Preparing the demo…',retry:'Try again'};Object.keys(labels).forEach(function(id){document.getElementById(id).textContent=labels[id];});}
  retry.onclick=function(){location.reload();};
  function failed(){status.textContent=english?'Chat could not load. Check the widget and allowed website settings, then try again.':'تعذر تحميل المحادثة. راجع إعدادات الويدجت والموقع المسموح، ثم أعد المحاولة.';retry.hidden=false;}
  if(!key||key.length>256||!/^[a-zA-Z0-9_-]+$/.test(key)){status.textContent=english?'Choose a Webchat widget from your workspace to start its preview.':'اختر ويدجت Webchat من مساحة عملك لبدء تجربته.';return;}
- fetch('/api/widget-config').then(function(r){if(!r.ok)throw Error('unavailable');return r.json();}).then(function(config){var s=document.createElement('script');s.src=config.scriptUrl;s.setAttribute('data-key',key);s.onload=function(){status.textContent=english?'Open the chat window to begin.':'افتح نافذة المحادثة لبدء التجربة.';};s.onerror=failed;document.body.appendChild(s);}).catch(failed);
+ fetch('/api/widget-config').then(function(r){if(!r.ok)throw Error('unavailable');return r.json();}).then(function(config){var s=document.createElement('script');s.src=config.scriptUrl;s.setAttribute('data-key',key);s.setAttribute('data-locale',english?'en':'ar');s.addEventListener('boat-widget-ready',function(){status.textContent=english?'Open the chat window to begin.':'افتح نافذة المحادثة لبدء التجربة.';});s.addEventListener('boat-widget-unavailable',failed);s.onerror=failed;document.body.appendChild(s);}).catch(failed);
 })();
 </script>
 </body></html>

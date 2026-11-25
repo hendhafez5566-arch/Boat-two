@@ -3,6 +3,7 @@
   var script = document.currentScript || document.querySelector('script[data-key][src*="widget.js"]');
   if (!script) return;
   var key = script.getAttribute('data-key');
+  var locale = script.getAttribute('data-locale');
   if (!key) return;
   var base = script.src.replace(/\/widget\.js.*$/, '');
   var STORE = 'cb_visitor_' + key;
@@ -66,8 +67,11 @@
       '.chip[disabled]{opacity:.45;cursor:default}' +
       '.sec{font-size:12px;color:#6b7280;width:100%;margin-top:4px}' +
       'form{display:flex;border-top:1px solid #e5e7eb;background:#fff}' +
-      'input{flex:1;border:0;padding:14px;font-size:14px;outline:none;background:transparent}' +
-      '.send{border:0;background:none;color:' + cfg.color + ';font-weight:700;padding:0 16px;cursor:pointer;font-size:14px}';
+      'input{flex:1;min-width:0;border:0;padding:14px;font-size:14px;outline:none;background:transparent}' +
+      '.send{border:0;background:none;color:' + cfg.color + ';font-weight:700;padding:0 16px;cursor:pointer;font-size:14px}' +
+      '.close,.send,.chip{min-height:44px}' +
+      'input:focus-visible,.close:focus-visible,.send:focus-visible,.chip:focus-visible{outline:2px solid #2452ac;outline-offset:-3px}' +
+      '@media(max-width:480px){.panel{left:12px;right:12px;width:auto;max-width:none;max-height:calc(100dvh - ' + (y+82) + 'px)}}';
     var style = h('style');
     style.textContent = css;
 
@@ -141,6 +145,7 @@
     // Replaying history must consume earlier choices just like a live reply.
     if (who === 'me') disableChips();
     var b = h('div', 'm ' + who);
+    b.setAttribute('dir', 'auto');
     content = content || {};
     if (content.media) {
       var u = safeMediaUrl(content.media.url);
@@ -276,12 +281,17 @@
   fetch(base + '/widget/' + key + '/config')
     .then(function (r) { if (!r.ok) throw new Error('config'); return r.json(); })
     .then(function (cfg) {
+      if (locale === 'ar' || locale === 'en') cfg.direction = locale === 'en' ? 'ltr' : 'rtl';
       st.cfg = cfg;
       setTimeout(function () {
         build(cfg);
+        script.dispatchEvent(new Event('boat-widget-ready'));
         if (cfg.startup === 'open') toggle(true);
         else if (store(true)) { start().then(schedule); }
       }, Math.min(30, Math.max(0, Number(cfg.loadingDelay) || 0)) * 1000);
     })
-    .catch(function () { host.remove(); });
+    .catch(function () {
+      host.remove();
+      script.dispatchEvent(new Event('boat-widget-unavailable'));
+    });
 })();
