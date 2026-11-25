@@ -567,6 +567,20 @@ export class InboxController {
     return { ok: true };
   }
 
+  /** Shared conversation unread marker; clears when the thread is opened again. */
+  @Post('conversations/:id/unread')
+  async unread(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    const result = await this.db.withTenant(req.user.tenantId, (c) =>
+      c.query(
+        'UPDATE conversations SET unread_count = GREATEST(unread_count, 1) WHERE id = $1 RETURNING unread_count',
+        [id],
+      ),
+    );
+    if (!result.rowCount) throw new NotFoundException('Conversation not found');
+    this.changed(req.user.tenantId, id, 'unread');
+    return { ok: true, unread_count: result.rows[0].unread_count };
+  }
+
   // ---------------------------------------------------------------- state changes
 
   private async assertConversationOwner(req: AuthedRequest, id: string, managerOverride = false) {
