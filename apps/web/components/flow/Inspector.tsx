@@ -533,6 +533,12 @@ export default function Inspector({
               />
               {type === 'catalog' && (
                 <>
+                  {data.displayMode === 'cards' && (data.productIds ?? []).length > 10 && (
+                    <p role="alert" style={{ color: '#9c5318', fontSize: 12 }}>
+                      {t('العرض المصوّر يدعم 10 منتجات في المرة الواحدة. قلّل العدد قبل حفظ التدفق أو نشره.',
+                         'Photo cards support up to 10 products at a time. Reduce the selection before saving or publishing.')}
+                    </p>
+                  )}
                   <fieldset style={{ border: '1px solid var(--border, #dbe4e6)', borderRadius: 12, padding: 12 }}>
                     <legend>{t('طريقة العرض للعميل', 'Customer display')}</legend>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

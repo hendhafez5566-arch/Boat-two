@@ -67,7 +67,7 @@ export default function DynamicCatalogSettings({
           onChange={(e) =>
             set(
               e.target.value === 'dynamic'
-                ? { sourceId: sources[0]?.id, selectable: true, native: false }
+                ? { sourceId: sources[0]?.id, selectable: true, native: false, displayMode: 'list' }
                 : { sourceId: undefined },
             )
           }
@@ -111,6 +111,7 @@ export default function DynamicCatalogSettings({
                   ...(sourceId !== data.sourceId ? { category: '', fields: [] } : {}),
                   native: false,
                   selectable: true,
+                  displayMode: 'list',
                 });
                 setManageOpen(false);
               }
@@ -135,6 +136,7 @@ export default function DynamicCatalogSettings({
                   fields: [],
                   native: false,
                   selectable: true,
+                  displayMode: 'list',
                 })
               }
             >
