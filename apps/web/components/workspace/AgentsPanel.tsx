@@ -148,11 +148,19 @@ export default function Agents() {
             <span><strong>{t('أنشئ المساعد', 'Create your assistant')}</strong>
               <small>{t('اسمه وطريقة كلامه ومصادره', 'Name, instructions and sources')}</small></span>
           </button>
-          <div className={styles.step}>
+          <button
+            className={styles.step}
+            type="button"
+            onClick={() => {
+              const target = document.getElementById('assistant-routing');
+              if (target instanceof HTMLDetailsElement) target.open = true;
+              target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+          >
             <span className={styles.stepNumber}>3</span>
             <span><strong>{t('فعّله واربطه بالمحادثات', 'Enable and route to chats')}</strong>
               <small>{t('بعد إعداد مزود AI والاختبار', 'After provider setup and testing')}</small></span>
-          </div>
+          </button>
         </div>
       </section>
       <div className={styles.stats} aria-label={t('ملخص الإعداد', 'Setup overview')}>
@@ -370,6 +378,13 @@ export default function Agents() {
           {t('حفظ المساعد', 'Save agent')}
         </button>
       </form>}
+      <details id="assistant-routing" className={styles.advanced}>
+        <summary>{t('ربط المساعد بقناة أو سيناريو', 'Connect an assistant to a channel or flow')}</summary>
+        <div className={styles.advancedBody}>
+          <p className={styles.helper}>{t('اختر المساعد والقناة أو التدفق اللي يشتغل فيه. تعيين المساعد مش بيبدأ الرد المدفوع إلا بعد تفعيل الخدمة وتجربتها.', 'Choose the assistant and its channel or flow. Assigning it does not enable paid generation until the service is configured and tested.')}</p>
+          <AgentRouting />
+        </div>
+      </details>
       <details className={styles.advanced}>
         <summary>{t('إعدادات متقدمة: المزود والنماذج والميزانية والسجلات', 'Advanced: providers, models, budget and logs')}</summary>
         <div className={styles.advancedBody}>
@@ -455,7 +470,6 @@ export default function Agents() {
       </details>
       <ModelCatalog key={data.data.providers.map((p) => p.id + ':' + p.revision).join(',')} />
       <GenerationBudgetPanel />
-      <AgentRouting />
       <section className="card table-wrap">
         <h2>{t('آخر 100 استدعاء', 'Latest 100 calls')}</h2>
         <table className="product-table">
