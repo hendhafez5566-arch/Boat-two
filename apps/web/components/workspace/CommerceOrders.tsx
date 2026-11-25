@@ -1,6 +1,6 @@
 'use client';
 import { DisclosureSummary } from '../product/DisclosureSummary';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavIcon } from '../product/NavIcon';
 import Link from 'next/link';
 import { api, apiBlob } from '../../lib/api';
