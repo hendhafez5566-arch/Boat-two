@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Bot Two Team",
+    "slug": "bot-two-team",
+    "scheme": "bottwoteam",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.bottwo.team"
+    },
+    "android": {
+      "package": "com.bottwo.team",
+      "adaptiveIcon": {
+        "backgroundColor": "#075E54"
+      }
+    },
+    "plugins": ["expo-secure-store"],
+    "extra": {
+      "purpose": "Internal workspace mobile companion; no customer channel connection or platform administration"
+    }
+  }
+}
