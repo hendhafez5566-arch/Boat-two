@@ -121,7 +121,7 @@ export default function Channels() {
   const [filter, setFilter] = useState('all');
   const [availableOpen, setAvailableOpen] = useState(true);
   const [platform, setPlatform] = useState('all');
-  const [guideOpen, setGuideOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const stateOf = channelConnectionState;
   const counts = connectionAccountCounts(accounts);
@@ -133,6 +133,7 @@ export default function Channels() {
     disconnected: t('متوقف', 'Disconnected'),
   };
   const visible = filterConnectionAccounts(accounts, platform, filter, search);
+  const filtersActive = Boolean(search.trim() || platform !== 'all' || filter !== 'all');
   async function verify(c: Channel) {
     setBusy(true);
     setError('');
@@ -322,73 +323,36 @@ export default function Channels() {
 
   return (
     <main className={`stack ${styles.page}`}>
-      <div className="page-heading workspace-heading">
-        <div>
-          <h1>{t('قنوات الاتصال', 'Channels')}</h1>
-        </div>
-        <div className="workspace-heading-actions">
-          <a className="btn btn-primary" href="#available-connections" onClick={() => setAvailableOpen(true)}>
-            <NavIcon name="plus" />
-            {t('ربط قناة', 'Connect a channel')}
-          </a>
-          <button
-            type="button"
-            className="btn"
-            aria-expanded={guideOpen}
-            aria-controls="channel-connection-guide"
-            onClick={() => setGuideOpen(!guideOpen)}
-          >
-            {t('دليل الربط', 'Connection Guide')}
-          </button>
-        </div>
-      </div>
+      <header className={styles.channelHeading}>
+        <h1>{t('قنوات الاتصال', 'Channels')}</h1>
+        <a className="btn btn-primary" href="#available-connections" onClick={() => setAvailableOpen(true)}>
+          <NavIcon name="plus" />{t('ربط قناة', 'Connect a channel')}
+        </a>
+      </header>
 
-      <section
-        id="channel-connection-guide"
-        hidden={!guideOpen}
-        className={`card ${styles.journey}`}
-        aria-label={t('خطوات تشغيل القناة', 'Channel launch steps')}
-      >
-        <div>
-          <h2>{t('دليل الربط', 'Connection Guide')}</h2>
-          <p className="muted">
-            {t(
-              'اختر المنصة من الاتصالات المتاحة. لحسابات Meta، أكمل التفويض واختر حساب شركتك. لتليجرام، استخدم رمز البوت من BotFather. تظهر حالة الحساب بعد التحقق من الاتصال.',
-              'Choose a platform from Available Connections. For Meta accounts, complete authorization and select your business account. For Telegram, use the bot token from BotFather. The account status appears after connection verification.',
-            )}
-          </p>
+      {!loading && !error && accounts.length > 0 && (
+        <div className={styles.connectionOverview} aria-label={t('ملخص حالة القنوات', 'Channel health summary')}>
+          {[
+            ['connected', 'circleCheck', counts.connected, t('قنوات متصلة', 'Connected')],
+            ['needs_action', 'flag', counts.needsAction, t('تحتاج إجراء', 'Need attention')],
+            ['disconnected', 'circleClose', counts.disconnected, t('قنوات متوقفة', 'Disconnected')],
+          ].map(([key, icon, count, label]) => (
+            <span key={key} data-state={key}><NavIcon name={String(icon)} /><strong>{count}</strong>{label}</span>
+          ))}
         </div>
-      </section>
-
-      <div
-        className={styles.statistics}
-        role="group"
-        aria-label={t('إحصاءات الاتصال', 'Connection statistics')}
-      >
-        {[
-          ['total', t('الإجمالي', 'Total'), counts.total, 'integrations'],
-          ['connected', t('متصل', 'Connected'), counts.connected, 'circleCheck'],
-          ['expiring', t('ينتهي قريبًا', 'Expiring Soon'), counts.expiring, 'sequences'],
-          ['disconnected', t('متوقف', 'Disconnected'), counts.disconnected, 'circleClose'],
-        ].map(([key, label, count, icon]) => (
-          <div key={key} data-stat={key}>
-            <span className={styles.statIcon} aria-hidden="true">
-              <NavIcon name={String(icon)} />
-            </span>
-            <span>{label}</span>
-            <strong>{loading ? '—' : count}</strong>
-          </div>
-        ))}
-      </div>
+      )}
       <section
         className={styles.connectedCard}
-        aria-label={t('الحسابات المتصلة', 'Connected Accounts')}
+        aria-labelledby="your-channels-title"
       >
         <header className={styles.connectedHeader}>
           <div>
-            <h2>{t('الحسابات المتصلة', 'Connected Accounts')}</h2>
+            <h2 id="your-channels-title">{t('قنواتك', 'Your channels')}</h2>
           </div>
-          <div className={styles.connectedFilters}>
+          {accounts.length > 0 && <button type="button" className="btn" aria-expanded={filtersOpen} aria-controls="channel-filters"
+            onClick={() => setFiltersOpen(!filtersOpen)}><NavIcon name="filter" />{filtersActive ? t('الفلاتر مفعّلة', 'Filters active') : t('بحث وتصفية', 'Search and filter')}</button>}
+        </header>
+          <div id="channel-filters" className={styles.connectedFilters} hidden={!filtersOpen}>
             <label>
               <span className={styles.srOnly}>{t('بحث الاتصالات', 'Search connections')}</span>
               <input
@@ -423,7 +387,6 @@ export default function Channels() {
               </select>
             </label>
           </div>
-        </header>
         {error && (
           <p className="notice error" role="alert">
             {error}{' '}
@@ -446,26 +409,17 @@ export default function Channels() {
         )}
         {loading && <p role="status">{t('جارٍ تحميل القنوات…', 'Loading channels…')}</p>}
 
-        <div className={styles.tableScroll}>
-          <table className={styles.connectionsTable} aria-busy={loading}>
-            <thead>
-              <tr>
-                <th scope="col">{t('الحساب', 'Account')}</th>
-                <th scope="col">{t('الحالة', 'Status')}</th>
-                <th scope="col">{t('الإجراءات', 'Actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className={styles.channelList} aria-busy={loading}>
               {visible.map((c) => (
                 <Fragment key={c.id}>
-                  <tr id={'channel-' + c.id}>
-                    <td>
+                  <article id={'channel-' + c.id} className={styles.channelRow} data-state={stateOf(c)}>
+                    <div>
                       <div className={styles.accountName}>
                         <span aria-hidden="true">
                           <ChannelLogo id={c.type} />
                         </span>
                         <div>
-                          <strong>{c.name}</strong>
+                          <strong><bdi>{c.name}</bdi></strong>
                           <small>
                             {CHANNEL_NAMES[c.type] || c.type}
                             {c.created_at && (
@@ -480,14 +434,15 @@ export default function Channels() {
                           </small>
                         </div>
                       </div>
-                    </td>
-                    <td>
+                    </div>
+                    <div>
                       <span className={styles.healthBadge} data-state={stateOf(c)}>
                         {c.connectionHealth?.reason === 'widget_installation_required'
                           ? t('يتطلب تضمين الويدجت على الموقع', 'Widget installation required')
                           : stateLabels[stateOf(c)] || t('غير معروف', 'Unknown')}
                       </span>
-                      <small className={styles.localStatus}>{statusLabel(c.status, t)}</small>
+                      {stateOf(c) === 'needs_action' && c.connectionHealth?.reason !== 'widget_installation_required' &&
+                        <small className={styles.localStatus}>{t('افتح تفاصيل القناة لمعرفة الخطوة المطلوبة.', 'Open channel details to see the next step.')}</small>}
                       {c.connectionHealth?.checkedAt && (
                         <small className={styles.localStatus}>
                           {t('آخر فحص', 'Last check')}{' '}
@@ -498,24 +453,24 @@ export default function Channels() {
                           </time>
                         </small>
                       )}
-                    </td>
-                    <td className={styles.accountActions}>
+                    </div>
+                    <div className={styles.channelActions}>
                       {c.widgetSnippet ? (
                         <button
-                          className="btn"
+                          className={stateOf(c) === 'needs_action' ? 'btn btn-primary' : 'btn'}
                           onClick={() => {
                             setCopied('');
                             setWidget(c);
                           }}
                         >
-                          {t('كود التضمين', 'Embed code')}
+                          {t('تثبيت على الموقع', 'Install on website')}
                         </button>
                       ) : null}
                       {['whatsapp', 'facebook', 'instagram', 'telegram', 'google', 'web'].includes(
                         c.type,
                       ) && (
-                        <Link className={styles.manageButton + ' btn'} href={'/dashboard/channels/connect/' + c.type}>
-                          {t('إدارة', 'Manage')}
+                        <Link className={'btn ' + (stateOf(c) !== 'connected' && !c.widgetSnippet ? styles.manageButton : '')} href={'/dashboard/channels/connect/' + c.type}>
+                          {t('إعدادات الربط', 'Connection setup')}
                         </Link>
                       )}
                       {c.type !== 'google' && (
@@ -529,14 +484,13 @@ export default function Channels() {
                           aria-controls={'channel-details-' + c.id}
                           onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}
                         >
-                          {t('المزيد', 'More')}
+                          {t('تفاصيل القناة', 'Channel details')}
                         </button>
                       )}
-                    </td>
-                  </tr>
+                    </div>
+                  </article>
                   {expandedId === c.id && (
-                    <tr id={'channel-details-' + c.id}>
-                      <td colSpan={3}>
+                    <div id={'channel-details-' + c.id}>
                         <section
                           className={styles.account}
                           aria-label={t('إدارة الحساب', 'Manage account') + ' ' + c.name}
@@ -1101,22 +1055,20 @@ export default function Channels() {
                             </Link>
                           )}
                         </section>
-                      </td>
-                    </tr>
+                    </div>
                   )}
                 </Fragment>
               ))}
               {!loading && !visible.length && (
-                <tr>
-                  <td colSpan={3} className="empty">
+                <div className="empty">
                     {accounts.length
                       ? t(
                           'لا توجد قنوات تطابق البحث أو التصفية.',
                           'No channels match your search or filters.',
                         )
                       : t(
-                          'لا توجد قنوات بعد. أضف ويدجت لتجربة أول محادثة.',
-                          'No channels yet. Add a website widget for your first conversation.',
+                          'لا توجد قنوات بعد. اختر منصة من القائمة بالأسفل للبدء.',
+                          'No channels yet. Choose a platform below to get started.',
                         )}
                     {accounts.length > 0 && (
                       <button
@@ -1130,17 +1082,14 @@ export default function Channels() {
                         {t('مسح البحث والتصفية', 'Clear search and filters')}
                       </button>
                     )}
-                  </td>
-                </tr>
+                </div>
               )}
-            </tbody>
-          </table>
         </div>
       </section>
 
       <section id="available-connections" className={styles.availableCard}>
         <header className="page-heading">
-          <h2>{t('الاتصالات المتاحة', 'Available Connections')}</h2>
+          <h2>{t('اختر منصة للربط', 'Choose a platform to connect')}</h2>
           <button
             type="button"
             className="btn"

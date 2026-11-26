@@ -314,3 +314,31 @@
   .accountActions { display: flex !important; flex-wrap: wrap; gap: 6px; }
   .accountActions > :is(a, button) { margin: 0; min-height: 44px; }
 }
+
+.channelHeading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.channelHeading h1 { margin: 0; font-size: clamp(20px, 3vw, 27px); }
+.page .channelHeading + * { margin-block-start: 0; }
+.connectionOverview { display: flex; flex-wrap: wrap; gap: 7px; }
+.connectionOverview > span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 8px; background: #e9eef5; color: #394d69; font-size: 13px; }
+.connectionOverview svg { width: 16px; height: 16px; flex: none; }
+.connectionOverview [data-state='connected'] { background: #e0f4eb; color: #115c43; }
+.connectionOverview [data-state='needs_action'] { background: #fff1d7; color: #764719; }
+.connectedFilters[hidden] { display: none; }
+.connectedFilters:not([hidden]) { padding: 10px; border-bottom: 1px solid #e4eaf2; }
+.channelList { display: grid; gap: 8px; padding: 10px; }
+.channelRow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(130px, .8fr) minmax(0, 1.2fr); align-items: center; gap: 10px; background: #fff; border: 1px solid #dce5ef; border-inline-start-width: 4px; border-radius: 10px; padding: 10px; min-width: 0; }
+.channelRow[data-state='connected'] { border-inline-start-color: #278363; }
+.channelRow:is([data-state='expiring'], [data-state='needs_action']) { border-inline-start-color: #ba7d24; }
+.channelRow:is([data-state='disconnected'], [data-state='expired']) { border-inline-start-color: #af5757; }
+.channelRow > div { min-width: 0; overflow-wrap: anywhere; }
+.channelActions { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
+.channelActions :global(.btn) { min-height: 38px; }
+@media (max-width: 750px) {
+  .channelRow { grid-template-columns: minmax(0,1fr); }
+  .channelActions { justify-content: flex-start; }
+  .channelActions :global(.btn) { min-height: 42px; }
+}
+
+.channelRow .healthBadge:is([data-state='needs_action'], [data-state='expiring']) { background: #fff1d7; color: #764719; }
+.channelRow .healthBadge:is([data-state='expired'], [data-state='disconnected']) { background: #fbe9e8; color: #8f2825; }
+.channelRow .healthBadge { white-space: normal; }

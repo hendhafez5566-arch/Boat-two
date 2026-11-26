@@ -37,3 +37,10 @@
   background: #f4f1ff;
 }
 .card footer .connectButton:hover { background: #eae4ff; }
+
+.catalog { gap: 8px; }
+.card { gap: 9px; padding: 11px; }
+.card header { align-items: center; gap: 8px; }
+.card header > span { width: 32px; height: 32px; }
+.card footer .connectButton { background: #eaf1fa; border-color: #cbd9eb; color: #294968; }
+.card footer .connectButton:hover { background: #dfeaf7; }
