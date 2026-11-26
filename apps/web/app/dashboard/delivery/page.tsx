@@ -16,6 +16,8 @@ type Job = {
 export default function Delivery() {
   const { t } = useLocale();
   const [page, setPage] = useState(1);
+  const [kind,setKind]=useState<'outbound'|'events'>('outbound');
+  const [attentionOnly,setAttentionOnly]=useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const data = useData<{ outbound: Job[]; events: Job[] }>('/delivery?page=' + page, {
@@ -51,7 +53,9 @@ export default function Delivery() {
         </button>
       </div>
       {(error || data.error) && <p className="notice error">{error || data.error}</p>}
-      {(['outbound', 'events'] as const).map((kind) => (
+      <nav className="workbench-tabs" aria-label={t('سجلات التسليم','Delivery records')}>{(['outbound','events'] as const).map(key=><button type="button" key={key} aria-pressed={kind===key} onClick={()=>{setKind(key);setPage(1);}}>{key==='outbound'?t('طابور الإرسال','Outbound queue'):t('سجل الأحداث','Event ledger')}</button>)}</nav>
+      <label><input type="checkbox" checked={attentionOnly} onChange={e=>setAttentionOnly(e.target.checked)}/> {t('تحتاج إجراء في الصفحة الحالية','Needs attention on this page')}</label>
+      {([kind]).map((kind) => (
         <section className="card table-wrap" key={kind}>
           <h2>
             {kind === 'outbound'
@@ -70,7 +74,7 @@ export default function Delivery() {
               </tr>
             </thead>
             <tbody>
-              {data.data[kind].map((j) => (
+              {data.data[kind].filter(j=>!attentionOnly||['failed','blocked','ambiguous'].includes(j.status)).map((j) => (
                 <tr key={j.id}>
                   <td>{new Date(j.created_at).toLocaleString()}</td>
                   <td>{j.type || 'message'}</td>
@@ -146,7 +150,7 @@ export default function Delivery() {
               ))}
             </tbody>
           </table>
-          {!data.data[kind].length && (
+          {!data.data[kind].some(j=>!attentionOnly||['failed','blocked','ambiguous'].includes(j.status)) && (
             <p className="empty">{t('لا توجد سجلات في هذه الصفحة.', 'No records on this page.')}</p>
           )}
         </section>

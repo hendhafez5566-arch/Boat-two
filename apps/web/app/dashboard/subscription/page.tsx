@@ -373,11 +373,8 @@ function SubscriptionContent() {
                   </Link>
                 </div>
               </section>
-              <section className={styles.panel}>
-                <div className={styles.sectionHeader}>
-                  <h2>{t('الرسائل خلال الدورة', 'Messages this cycle')}</h2>
-                  <NavIcon name="reports" />
-                </div>
+              <details className={styles.panel}>
+                <summary className="subscription-summary">{t('سجل الرسائل خلال الدورة','Message usage history')}</summary>
                 {history.error && (
                   <p role="alert">
                     {t('تعذّر تحميل سجل الاستخدام.', 'Unable to load usage history.')}
@@ -422,7 +419,7 @@ function SubscriptionContent() {
                     </dl>
                   </>
                 )}
-              </section>
+              </details>
             </div>
             <aside
               className={styles.content}

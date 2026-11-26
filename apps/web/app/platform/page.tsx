@@ -489,6 +489,7 @@ function Console() {
               {activeSection.id === 'overview' && (
                 <section className={styles.panel}>
                   <h2>{activeSection.label}</h2>
+                  <nav className="platform-quick" aria-label={t('إدارة المنصة','Platform operations')}>{sections.filter(item=>['companies','users','billing','plans','reports','audit'].includes(item.id)).map(item=><button type="button" key={item.id} onClick={()=>setSection(item.id)}><strong>{item.label}</strong><span aria-hidden="true">‹</span></button>)}</nav>
                   {reportError && (
                     <p role="alert" className="notice error">
                       {t(
