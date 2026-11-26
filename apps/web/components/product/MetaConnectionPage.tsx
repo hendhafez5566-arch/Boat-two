@@ -80,11 +80,11 @@ export default function MetaConnectionPage({
   return (
     <main className={`stack ${styles.page}`}>
       <nav aria-label={t('مسار الصفحة', 'Breadcrumb')}>
-        <Link href="/dashboard/channels">{t('ربط الحساب', 'Connect Account')}</Link> / {name}
+        <Link href="/dashboard/channels">{t('القنوات', 'Channels')}</Link> / {name}
       </nav>
       <header className={styles.heading}>
         <ChannelLogo id={kind} />
-        <h1>{title}</h1>
+        <div className={styles.headingCopy}><h1>{title}</h1><p>{t('اربط أرقامك وتابع حالة الاتصال من مكان واحد.', 'Connect accounts and manage connection health in one place.')}</p></div>
         {kind === 'whatsapp' && !!rows.length && (
           <button type="button" className="btn btn-primary" aria-expanded={connectOpen}
             aria-controls="meta-connect-methods" onClick={() => setConnectOpen(!connectOpen)}>
@@ -92,7 +92,6 @@ export default function MetaConnectionPage({
           </button>
         )}
       </header>
-      {kind === 'whatsapp' && connectionMethods}
       {kind === 'whatsapp' && (
         <>
           <div
@@ -117,6 +116,7 @@ export default function MetaConnectionPage({
           </div>
         </>
       )}
+      {kind === 'whatsapp' && connectionMethods}
       {saved && (
         <p role="status" className="notice">
           {t('تم حفظ الحساب. راجع حالته أدناه.', 'Account saved. Review its status below.')}
@@ -129,7 +129,7 @@ export default function MetaConnectionPage({
       )}
       {(kind === 'whatsapp' || rows.length > 0) && (
         <section className={styles.accounts}>
-          <h2>{t('الحسابات المتصلة', 'Connected accounts')}</h2>
+          <div className={styles.accountsHeading}><h2>{t('الحسابات المتصلة', 'Connected accounts')}</h2><span>{accounts.loading ? '—' : rows.length}</span></div>
           <div className={styles.filters}>
             <label>
               <span>{t('بحث الحسابات', 'Search accounts')}</span>

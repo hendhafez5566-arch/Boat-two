@@ -170,3 +170,17 @@
   .table tr > :first-child, .table tr > :last-child { grid-column: 1/-1; }
   .table td { min-width: 0; overflow-wrap: anywhere; }
 }
+
+/* Channel workspace header and compact account summary. */
+.heading { padding:14px 16px; border:1px solid #e1e8ef; border-radius:12px; background:#fff; }
+.headingCopy { flex:1; min-width:0; }
+.headingCopy h1 { font-size:22px; line-height:1.4; }
+.headingCopy p { margin:4px 0 0; color:#526177; font-size:12px; line-height:1.5; }
+.statistics { border-radius:12px; padding:10px 0; background:white; }
+.statistics > div { gap:3px; padding-inline:14px; }
+.statistics span { font-size:12px; }
+.statistics strong { font-size:20px; }
+.accountsHeading { display:flex; align-items:center; gap:9px; }
+.accountsHeading > span { border-radius:6px; padding:3px 8px; font-size:12px; color:#475569; background:#f1f5f9; }
+.accounts { padding:16px; }
+@media (max-width:480px) { .heading { padding:12px; } .headingCopy h1 { font-size:18px; } .heading > button { width:100%; } .statistics { gap:8px; } }

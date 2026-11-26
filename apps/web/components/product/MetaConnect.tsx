@@ -47,9 +47,7 @@ export default function MetaConnect({
   >('/channels/meta/connections', []);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [step, setStep] = useState(1);
   const [withCatalog, setWithCatalog] = useState(false);
-  const [whatsappMode, setWhatsappMode] = useState('coexistence');
   const [existingWabaId, setExistingWabaId] = useState('');
   const [existingToken, setExistingToken] = useState('');
   const [existingOpen, setExistingOpen] = useState(false);
@@ -84,7 +82,7 @@ export default function MetaConnect({
       setBusy(false);
     }
   }
-  async function connect(kind: string, withCatalog = false) {
+  async function connect(kind: string, withCatalog = false, whatsappMode: 'coexistence' | 'cloud' = 'cloud') {
     setBusy(true);
     setError('');
     try {
@@ -169,75 +167,63 @@ export default function MetaConnect({
   const kind = selectedKind || 'whatsapp';
   const enabled =
     config.data.configured && (config.data.connectEnabled ?? config.data.externalEnabled);
-  const signupConfigured = Boolean(config.data.embeddedConfigId || config.data.catalogConfigured);
+  const selectedCatalog = withCatalog || (!config.data.embeddedConfigId && !!config.data.catalogConfigured);
   const canAuthorizeWhatsApp = !config.loading && !config.error && enabled &&
-    Boolean(withCatalog ? config.data.catalogConfigured : config.data.embeddedConfigId);
+    Boolean(selectedCatalog ? config.data.catalogConfigured : config.data.embeddedConfigId);
   return (
     <div className="stack">
       {kind === 'whatsapp' ? (
         <div className={styles.setup}>
-          <section className={styles.wizard}>
-              <div className={styles.wizardIntro}>
-                <h2>{t('ربط WhatsApp Business', 'Connect WhatsApp Business')}</h2>
-                <p>{t('اختر الطريقة المناسبة لرقمك. سنرشدك خلال التفويض الرسمي لدى Meta دون الحاجة إلى نسخ مفاتيح API.', 'Choose the method for your number. We guide you through official Meta authorization without copying API keys.')}</p>
+          <section className={styles.connectPanel} aria-labelledby="whatsapp-methods-heading">
+            <div className={styles.panelHeading}>
+              <div>
+                <h2 id="whatsapp-methods-heading">{t('اختر طريقة الربط', 'Choose a connection method')}</h2>
+                <p>{t('رقمك الحالي أو رقم مخصص للمنصة، بتفويض رسمي من Meta.', 'Your current number or a dedicated number, with official Meta authorization.')}</p>
               </div>
-              {config.loading ? (
-                <p role="status">{t('جارٍ فحص جاهزية الربط…', 'Checking connection readiness…')}</p>
-              ) : (!enabled || !signupConfigured || config.error) ? (
-                <div className={styles.setupNotice} role="status">
-                  <strong>{t('استعرض طرق الربط الآن', 'Explore connection methods now')}</strong>
-                  <small>{t('يمكنك اختيار طريقة الربط ومراجعة الخطوات. التفويض الرسمي غير متاح حتى يكتمل إعداد Meta للمنصة. لن تتأثر قنواتك المتصلة.', 'Choose a connection method and review the steps. Official authorization is unavailable until platform Meta setup is complete. Existing channels are unaffected.')}</small>
-                </div>
-              ) : null}
-              <ol className={styles.progress}>
-                {[t('نوع الرقم', 'Number type'), t('الكتالوج', 'Catalog'), t('تفويض Meta', 'Meta authorization')].map((label, index) =>
-                  <li key={label} aria-current={step === index + 1 ? 'step' : undefined}><span>{index + 1}</span>{label}</li>)}
-              </ol>
-              {step === 1 && <fieldset className={styles.options}>
-                <legend>{t('أي رقم تريد ربطه؟', 'Which number are you connecting?')}</legend>
-                <label className={styles.modeCard}>
-                  <input type="radio" name="whatsappMode" disabled={busy} checked={whatsappMode === 'coexistence'} onChange={() => setWhatsappMode('coexistence')} />
-                  <span className={styles.modeCopy}>
-                    <strong>{t('استخدم رقم واتساب بيزنس الحالي', 'Keep your existing WhatsApp Business number')}</strong>
-                    <span className={styles.modeTag}>Coexistence</span>
-                    <small>{t('استمر في استخدام التطبيق على الموبايل، واربط نفس الرقم بالمنصة للأتمتة وصندوق الوارد إذا كان مؤهلًا لدى Meta.', 'Keep using the mobile app and connect the same number for automation and the inbox if Meta confirms eligibility.')}</small>
-                    <small>{t('لا تحذف حسابك أو تطبيقك قبل التحقق من أهلية الربط.', 'Do not delete your account or app before checking eligibility.')}</small>
-                  </span>
+              <span className={styles.secureLabel}>Meta · Official API</span>
+            </div>
+            <div className={styles.connectionCards}>
+              {([
+                { mode: 'coexistence', tag: 'Coexistence', ar: 'رقمي الحالي', en: 'My existing number',
+                  description: t('استخدم نفس رقم WhatsApp Business على هاتفك وعلى المنصة، حسب أهلية Meta.', 'Use the same WhatsApp Business number on your phone and the platform, subject to Meta eligibility.'),
+                  points: [t('استمر في الرد من الموبايل', 'Keep replying from your phone'), t('شغّل البوت وصندوق الوارد', 'Use bots and the shared inbox')] },
+                { mode: 'cloud', tag: 'Cloud API', ar: 'رقم مخصص للمنصة', en: 'Dedicated number',
+                  description: t('اربط رقمًا مؤهلًا لإدارة محادثات شركتك من المنصة.', 'Connect an eligible number to manage business conversations from the platform.'),
+                  points: [t('إدارة الرسائل وفريق العمل', 'Manage messages and your team'), t('أتمتة الردود والحملات المسموح بها', 'Automate replies and eligible campaigns')] },
+              ] as const).map((method) => (
+                <article className={styles.connectCard} data-mode={method.mode} key={method.mode}>
+                  <div className={styles.connectCardTop}>
+                    <span className={styles.connectIcon} aria-hidden="true">
+                      {method.mode === 'coexistence' ? (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M10 5h4M11 19h2"/><path d="M9 12l2 2 4-4"/></svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M7 18h11a4 4 0 0 0 0-8 6 6 0 0 0-11.5-1A4.5 4.5 0 0 0 7 18Z"/><path d="M10 13l2-2 2 2m-2-2v5"/></svg>
+                      )}
+                    </span>
+                    <span className={styles.connectTag}>{method.tag}</span>
+                  </div>
+                  <h3>{t(method.ar, method.en)}</h3>
+                  <p>{method.description}</p>
+                  <ul>{method.points.map((point) => <li key={point}>{point}</li>)}</ul>
+                  <button type="button" className={styles.connectAction} disabled={busy || !canAuthorizeWhatsApp}
+                    onClick={() => { if (canAuthorizeWhatsApp) void connect('whatsapp', selectedCatalog, method.mode); }}>
+                    {busy ? t('جارٍ الربط…', 'Connecting…') : t('ربط باستخدام Meta', 'Connect with Meta')} <span aria-hidden="true">↗</span>
+                  </button>
+                </article>
+              ))}
+            </div>
+            <div className={styles.connectFooter}>
+              {config.data.catalogConfigured && (
+                <label className={styles.catalogOption}>
+                  <input type="checkbox" checked={selectedCatalog} disabled={busy || !config.data.embeddedConfigId} onChange={(e) => setWithCatalog(e.target.checked)} />
+                  {t('ربط كتالوج المنتجات أيضًا', 'Also connect a product catalog')}
                 </label>
-                <label className={styles.modeCard}>
-                  <input type="radio" name="whatsappMode" disabled={busy} checked={whatsappMode === 'cloud'} onChange={() => setWhatsappMode('cloud')} />
-                  <span className={styles.modeCopy}>
-                    <strong>{t('اربط رقمًا مخصصًا للمنصة', 'Connect a dedicated business number')}</strong>
-                    <span className={styles.modeTag}>Cloud API</span>
-                    <small>{t('أدر الرسائل والبوت وفريق العمل عبر المنصة. اختر رقمًا مؤهلًا وأكمل التحقق الرسمي لدى Meta.', 'Manage messaging, bots and your team from the platform. Choose an eligible number and complete Meta verification.')}</small>
-                  </span>
-                </label>
-              </fieldset>}
-              {step === 2 && <fieldset className={styles.options}>
-                <legend>{t('هل تريد ربط كتالوج المنتجات؟', 'Do you want to connect a product catalog?')}</legend>
-                <label><input type="radio" name="whatsappCatalog" disabled={busy || (!config.data.embeddedConfigId && !!config.data.catalogConfigured)} checked={!withCatalog} onChange={() => setWithCatalog(false)} />
-                  {t('ربط الرسائل فقط', 'Connect messaging only')}</label>
-                <label><input type="radio" name="whatsappCatalog" disabled={busy || !config.data.catalogConfigured} checked={withCatalog} onChange={() => setWithCatalog(true)} />
-                  {t('ربط الرسائل والكتالوج', 'Connect messaging and catalog')}</label>
-                {!config.data.catalogConfigured && <small>{t('ربط الكتالوج يحتاج إعدادًا من مسؤول المنصة.', 'Catalog onboarding requires platform setup.')}</small>}
-              </fieldset>}
-              {step === 3 && <div className={styles.review}>
-                <h3>{t('راجع اختيارك قبل التفويض', 'Review your choice before authorization')}</h3>
-                <p><strong>{whatsappMode === 'coexistence' ? 'Coexistence' : 'Cloud API'}</strong> · {withCatalog ? t('الرسائل والكتالوج', 'Messaging and catalog') : t('الرسائل فقط', 'Messaging only')}</p>
-                <p>{t('سجّل الدخول في نافذة Meta الرسمية، واختر النشاط والرقم، ثم ارجع للتحقق من حالة القناة. إتمام التفويض لا يعني نجاح إرسال رسالة فعلية.', 'Sign in to the official Meta window, select your business and number, then return to check channel health. Authorization alone does not confirm live message delivery.')}</p>
-              </div>}
-              <div className={styles.wizardActions}>
-                {step > 1 && <button className="btn" disabled={busy} type="button" onClick={() => setStep(step - 1)}>{t('رجوع', 'Back')}</button>}
-                <button className="btn btn-primary" type="button" disabled={busy || (step === 3 && !canAuthorizeWhatsApp)}
-                  onClick={() => {
-                    if (step === 1 && !config.data.embeddedConfigId && config.data.catalogConfigured) setWithCatalog(true);
-                    if (step < 3) setStep(step + 1);
-                    else if (canAuthorizeWhatsApp) void connect('whatsapp', withCatalog);
-                  }}>
-                  {busy ? t('جارٍ الربط…', 'Connecting…') : step < 3 ? t('متابعة', 'Continue') : canAuthorizeWhatsApp ? t('المتابعة مع Meta', 'Continue with Meta') : t('التفويض غير متاح حاليًا', 'Authorization not available yet')}
-                </button>
-              </div>
-            </section>
+              )}
+              {config.loading ? <small role="status">{t('جارٍ التحقق من جاهزية Meta…', 'Checking Meta readiness…')}</small> :
+                !canAuthorizeWhatsApp ? <small className={styles.setupInline} role="status">{t('الربط الرسمي يحتاج استكمال إعداد Meta للمنصة. حساباتك الحالية لن تتأثر.', 'Official connection requires platform Meta setup. Existing accounts are unaffected.')}</small> :
+                <small>{t('لا تحذف رقمك الحالي قبل التحقق من أهلية الربط.', 'Do not delete your existing account before checking eligibility.')}</small>}
+            </div>
+          </section>
           {enabled && <section className={styles.manual}>
             <button type="button" className="btn" aria-expanded={existingOpen} aria-controls="whatsapp-api-form"
               disabled={busy} onClick={() => {
