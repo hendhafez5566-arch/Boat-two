@@ -206,7 +206,63 @@
   cursor: pointer;
   font-weight: 600;
 }
-.draftOptions > div { padding-block-end: 12px; }
+.draftOptions > div {
+  padding-block-end: 12px;
+}
 @media (max-width: 620px) {
-  .draftFields { grid-template-columns: minmax(0, 1fr); }
+  .draftFields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.draft {
+  display: grid;
+  gap: 18px;
+  padding: clamp(16px, 3vw, 28px);
+  border: 1px solid #dce5ec;
+  border-radius: 16px;
+  background: #fff;
+  min-width: 0;
+}
+.draft h1 {
+  margin: 0;
+  font-size: clamp(24px, 4vw, 32px);
+}
+.draft :global(.field) {
+  font-size: 15px;
+  font-weight: 600;
+  gap: 6px;
+}
+.draft :is(input, select, textarea) {
+  min-height: 46px;
+  font-size: 16px;
+}
+.draft textarea {
+  padding: 12px;
+}
+.draftOptions {
+  background: #f7f9fc;
+  padding-inline: 14px;
+}
+.draftOptions summary {
+  min-height: 44px;
+}
+.draftPreview > section {
+  background: #edf8f3;
+  border: 1px solid #d2e9df;
+}
+.draftActions {
+  border-top: 1px solid #e2e8f0;
+  padding-block-start: 14px;
+}
+.draftActions button {
+  min-height: 44px;
+}
+@media (max-width: 1040px) {
+  .draftFields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .draftActions button:first-child {
+    flex: 1;
+  }
 }

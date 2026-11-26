@@ -55,7 +55,7 @@ export class TemplatesController {
     @Param('channelId', ParseUUIDPipe) id: string,
   ) {
     const channel = await this.channel(r, id);
-    if (env.EXTERNAL_DELIVERY_ENABLED !== 'true') return { state: 'environment_disabled' };
+    if (!this.canManageTemplates(id)) return { state: 'environment_disabled' };
     return { state: this.channels.credentials(channel).wabaId ? 'ready' : 'account_required' };
   }
   @Post() async create(
@@ -121,15 +121,19 @@ export class TemplatesController {
       return row;
     });
   }
-  private requireExternal() {
-    if (env.EXTERNAL_DELIVERY_ENABLED !== 'true')
+  private canManageTemplates(channelId: string) {
+    return env.EXTERNAL_DELIVERY_ENABLED === 'true' ||
+      (process.env.BOAT_PREVIEW_ONLY === 'true' && env.WHATSAPP_PREVIEW_TEMPLATE_CHANNEL_ID === channelId);
+  }
+  private requireExternal(channelId: string) {
+    if (!this.canManageTemplates(channelId))
       throw new ServiceUnavailableException(
         'External provider access is disabled by the environment operator',
       );
   }
   @Post('sync') async sync(@Req() r: AuthedRequest, @Param('channelId', ParseUUIDPipe) id: string) {
     const ch = await this.channel(r, id);
-    this.requireExternal();
+    this.requireExternal(id);
     const creds = this.channels.credentials(ch);
     if (!creds.wabaId)
       throw new BadRequestException('Reconnect this channel with its WhatsApp Business Account ID');
@@ -187,7 +191,7 @@ export class TemplatesController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     const ch = await this.channel(r, channelId);
-    this.requireExternal();
+    this.requireExternal(channelId);
     const creds = this.channels.credentials(ch);
     if (!creds.wabaId) throw new BadRequestException('WABA ID required');
     // Durable claim prevents double submission and freezes edits across replicas.

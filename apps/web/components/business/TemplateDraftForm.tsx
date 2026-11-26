@@ -448,7 +448,7 @@ export function TemplateDraftForm({
   );
   return (
     <form
-      className={manager ? studio.form : 'card stack'}
+      className={manager ? studio.form : studio.draft}
       onInvalidCapture={(e) => {
         if (e.target instanceof HTMLElement) {
           const details = e.target.closest('details');
@@ -542,11 +542,11 @@ export function TemplateDraftForm({
           </>
         ) : (
           <>
-            <h2>
+            <h1>
               {initial
                 ? t('تعديل مسودة القالب', 'Edit template draft')
-                : t('مسودة قالب جديد', 'New template draft')}
-            </h2>
+                : t('قالب واتساب جديد', 'New WhatsApp template')}
+            </h1>
             <div className={studio.draftFields}>
               {basicFields}
               {categoryField}
@@ -560,8 +560,8 @@ export function TemplateDraftForm({
                 {buttonFields}
               </div>
             </details>
-            {body.trim() && previewFields}
-            {actionFields}
+            {body.trim() && <div className={studio.draftPreview}>{previewFields}</div>}
+            <div className={studio.draftActions}>{actionFields}</div>
           </>
         )}
       </fieldset>

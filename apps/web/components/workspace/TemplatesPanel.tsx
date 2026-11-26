@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import styles from './whatsapp-templates.module.css';
+import ChannelLogo from '../product/ChannelLogo';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 import { TemplateDraftForm, TemplateRow } from '../business/TemplateDraftForm';
@@ -54,20 +55,70 @@ export default function Templates({ params }: { params: { id: string } }) {
       setBusy(false);
     }
   }
+  if (creating || editing) {
+    return (
+      <section className={styles.editor}>
+        <button
+          type="button"
+          className={styles.back}
+          disabled={busy}
+          onClick={() => {
+            setCreating(false);
+            setEditing(undefined);
+            setError('');
+          }}
+        >
+          {t('العودة إلى القوالب', 'Back to templates')}
+        </button>
+        {error && (
+          <p className="notice error" role="alert">
+            {error}
+          </p>
+        )}
+        <TemplateDraftForm
+          key={editing ? editing.id + ':' + editing.revision : 'new'}
+          initial={editing}
+          busy={busy}
+          cancel={() => {
+            setCreating(false);
+            setEditing(undefined);
+            setError('');
+          }}
+          save={async (draft) => {
+            const ok = await act(
+              editing ? path + '/' + editing.id : path,
+              editing ? { revision: editing.revision, draft } : draft,
+              editing ? 'PATCH' : 'POST',
+            );
+            if (ok) {
+              setCreating(false);
+              setEditing(undefined);
+            }
+            return ok;
+          }}
+        />
+      </section>
+    );
+  }
   return (
     <section className={styles.page}>
       <Link className={styles.back} href={'/dashboard/channels?manage=' + params.id}>
         {t('العودة إلى قنوات الاتصال', 'Back to channels')}
       </Link>
       <header className={styles.heading}>
-        <div>
-          <h1>{t('قوالب واتساب', 'WhatsApp templates')}</h1>
-          <p>
-            {t(
-              'جهّز رسائل متكررة مثل تأكيد الحجز. راجع حالة موافقة Meta قبل استخدام القالب.',
-              'Prepare messages such as booking confirmations. Check Meta approval before using a template.',
-            )}
-          </p>
+        <div className={styles.title}>
+          <span aria-hidden="true">
+            <ChannelLogo id="whatsapp" />
+          </span>
+          <div>
+            <h1>{t('قوالب واتساب', 'WhatsApp templates')}</h1>
+            <p>
+              {t(
+                'جهّز رسائل متكررة مثل تأكيد الحجز. راجع حالة موافقة Meta قبل استخدام القالب.',
+                'Prepare messages such as booking confirmations. Check Meta approval before using a template.',
+              )}
+            </p>
+          </div>
         </div>
         <div className={styles.actions}>
           <button
@@ -107,6 +158,9 @@ export default function Templates({ params }: { params: { id: string } }) {
             'اربط القناة بحساب واتساب للأعمال لتتمكن من المزامنة والتقديم للمراجعة.',
             'Connect this channel to a WhatsApp Business account to sync and submit templates.',
           )}
+          <Link className="btn" href="/dashboard/channels/connect/whatsapp">
+            {t('إدارة اتصال واتساب', 'Manage WhatsApp connection')}
+          </Link>
         </div>
       )}
       {availability.error && (
@@ -131,30 +185,6 @@ export default function Templates({ params }: { params: { id: string } }) {
         <p className="notice error" role="alert">
           {error || data.error}
         </p>
-      )}
-      {(creating || editing) && (
-        <TemplateDraftForm
-          key={editing ? editing.id + ':' + editing.revision : 'new'}
-          initial={editing}
-          busy={busy}
-          cancel={() => {
-            setCreating(false);
-            setEditing(undefined);
-            setError('');
-          }}
-          save={async (draft) => {
-            const ok = await act(
-              editing ? path + '/' + editing.id : path,
-              editing ? { revision: editing.revision, draft } : draft,
-              editing ? 'PATCH' : 'POST',
-            );
-            if (ok) {
-              setCreating(false);
-              setEditing(undefined);
-            }
-            return ok;
-          }}
-        />
       )}
       <div className={styles.list}>
         {data.data.map((x) => (
@@ -193,9 +223,16 @@ export default function Templates({ params }: { params: { id: string } }) {
                 )}
               </p>
             )}
-            <h2 className="mt-3">{x.name}</h2>
-            <p className="muted">
-              {x.language} · {x.category}
+            <h2>
+              <bdi>{x.name}</bdi>
+            </h2>
+            <p className={styles.metadata}>
+              {x.language === 'ar' ? t('العربية', 'Arabic') : x.language} ·{' '}
+              {x.category === 'UTILITY'
+                ? t('خدمي', 'Utility')
+                : x.category === 'MARKETING'
+                  ? t('تسويقي', 'Marketing')
+                  : x.category}
             </p>
             {x.components
               .filter((c) => c.type === 'HEADER')
@@ -206,7 +243,9 @@ export default function Templates({ params }: { params: { id: string } }) {
                     : `${t('ترويسة وسائط', 'Media header')} · ${c.format}`}
                 </p>
               ))}
-            <p className="my-3 whitespace-pre-wrap">{x.body}</p>
+            <p dir="auto" className={styles.message}>
+              {x.body}
+            </p>
             {x.components
               .filter((c) => c.type === 'FOOTER')
               .map((c, i) => (
