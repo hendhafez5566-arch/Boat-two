@@ -91,8 +91,8 @@ export const ORDER_TRANSITIONS: Record<string, string[]> = {
   new: ['review', 'confirmed', 'cancelled'],
   review: ['documents_required', 'processing', 'confirmed', 'cancelled'],
   documents_required: ['review', 'processing', 'cancelled'],
-  processing: ['confirmed', 'completed', 'cancelled'],
-  confirmed: ['processing', 'completed', 'cancelled'],
+  processing: ['documents_required', 'completed', 'cancelled'],
+  confirmed: ['documents_required', 'processing', 'completed', 'cancelled'],
   completed: [],
   cancelled: [],
 };
