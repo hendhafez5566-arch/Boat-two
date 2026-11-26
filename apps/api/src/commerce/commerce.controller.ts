@@ -1,3 +1,4 @@
+import { OrderWorkflowsService, orderWorkflowSchema } from './order-workflows.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { sniffMatches } from '../inbox/files/storage';
@@ -38,6 +39,7 @@ export class CommerceController {
   constructor(
     private commerce: CommerceService,
     private social: SocialService,
+    private workflows: OrderWorkflowsService,
   ) {}
   @Get('categories') categories(@Req() r: AuthedRequest) {
     return this.commerce.categories(r.user.tenantId);
@@ -136,6 +138,29 @@ export class CommerceController {
     return this.commerce.createConversationOrder(
       r.user.tenantId, r.user.userId, parse(conversationOrderSchema, body),
     );
+  }
+  @Get('order-workflows') workflowDefinitions(@Req() r: AuthedRequest) {
+    return this.workflows.list(r.user.tenantId);
+  }
+  @Post('order-workflows') createWorkflow(@Req() r: AuthedRequest, @Body() body: unknown) {
+    return this.workflows.save(r.user.tenantId, parse(orderWorkflowSchema, body));
+  }
+  @Patch('order-workflows/:id') editWorkflow(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    return this.workflows.save(r.user.tenantId, parse(orderWorkflowSchema, body), id);
+  }
+  @Delete('order-workflows/:id') archiveWorkflow(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.workflows.archive(r.user.tenantId, id);
+  }
+  @Get('orders/:id/workflow') workflowState(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.workflows.state(r.user.tenantId, id);
+  }
+  @Post('orders/:id/workflow') progressWorkflow(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    const input = parse(z.discriminatedUnion('action', [
+      z.object({ action: z.literal('start'), definitionId: z.string().uuid() }),
+      z.object({ action: z.literal('advance'), revision: z.number().int().positive() }),
+      z.object({ action: z.literal('reassign'), revision: z.number().int().positive(), userId: z.string().uuid() }),
+    ]), body);
+    return this.workflows.run(r.user.tenantId, r.user.userId, id, input);
   }
   @Get('orders/attention') orderAttention(@Req() r: AuthedRequest) {
     return this.commerce.orderAttention(r.user.tenantId);

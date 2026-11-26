@@ -1,3 +1,4 @@
+import { OrderWorkflowsService } from '../commerce/order-workflows.service';
 import {
   BadRequestException,
   Body,
@@ -24,7 +25,7 @@ import { CrmService } from './crm.service';
 import { contactSchema, filtersSchema, pagination } from './schemas';
 @Controller('crm')
 export class CrmController {
-  constructor(private crm: CrmService) {}
+  constructor(private crm: CrmService, private orderWorkflows: OrderWorkflowsService) {}
   @Get('contacts') list(@Req() r: AuthedRequest, @Query() query: unknown) {
     const q = parse(
       pagination
@@ -996,6 +997,23 @@ export class CrmController {
       body,
     );
     const write = () => this.crm.db.withTenant(r.user.tenantId, async (c) => {
+      const { rows: [linked] } = await c.query(
+        `SELECT workflow_order_id,order_workflow,
+                ($2::timestamptz IS NULL OR date_trunc('milliseconds',updated_at)=$2) AS current
+         FROM crm_tasks WHERE id=$1 AND workflow_order_id IS NOT NULL`,
+        [id, b.expectedUpdatedAt ?? null],
+      );
+      if (linked && b.assignedTo !== undefined)
+        throw new BadRequestException('Reassign workflow work from the order workflow');
+      const run = linked?.order_workflow;
+      if (b.status === 'done' && run && !run.finished && run.stages[run.stage].autoAdvance) {
+        if (!linked.current || !b.expectedUpdatedAt) throw new BadRequestException('Task changed; refresh before saving');
+        await this.orderWorkflows.run(
+          r.user.tenantId, r.user.userId, linked.workflow_order_id,
+          { action: 'advance', revision: run.revision }, r.user.role === 'agent',
+        );
+        return (await c.query('SELECT * FROM crm_tasks WHERE id=$1', [id])).rows[0];
+      }
       if (r.user.role === 'agent') {
         const current = (
           await c.query('SELECT assigned_to FROM crm_tasks WHERE id=$1 FOR UPDATE', [id])

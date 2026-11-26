@@ -1,0 +1,14 @@
+.panel { display: grid; gap: .75rem; min-width: 0; padding: .875rem; border: 1px solid var(--line, #d8e2e5); border-radius: .75rem; }
+.panel h3, .panel p { margin: 0; overflow-wrap: anywhere; }
+.toolbar, .row { display: flex; align-items: center; gap: .625rem; flex-wrap: wrap; }
+.row { justify-content: space-between; }
+.row > div { min-width: 0; }
+.form { display: grid; gap: .875rem; }
+.form label, .toolbar label { display: grid; gap: .25rem; min-width: 0; }
+.panel input, .panel select { min-width: 0; max-width: 100%; }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: .75rem; min-width: 0; border: 1px solid var(--line, #d8e2e5); border-radius: .5rem; padding: .75rem; }
+.fields .check { display: flex; align-items: center; gap: .5rem; }
+.stages { display: flex; flex-wrap: wrap; gap: .375rem; padding-inline-start: 0; list-style: none; margin: 0; }
+.stages li, .state { border-radius: .5rem; padding: .35rem .65rem; background: #edf4f5; color: #174c51; overflow-wrap: anywhere; }
+.stages li[aria-current], .state[data-overdue='true'] { background: #0b605e; color: white; }
+.state[data-overdue='true'] { background: #9a3421; }

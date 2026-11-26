@@ -1,3 +1,4 @@
+import { OrderWorkflowsService } from './order-workflows.service';
 import { DataSourcesService } from './data-sources.service';
 import { DataSourcesController } from './data-sources.controller';
 import { Module } from '@nestjs/common';
@@ -8,7 +9,7 @@ import { SocialService } from './social.service';
 import { CommerceController } from './commerce.controller';
 @Module({
   imports: [MessagingModule, IntegrationsModule],
-  providers: [CommerceService, SocialService, DataSourcesService],
+  providers: [OrderWorkflowsService, CommerceService, SocialService, DataSourcesService],
   controllers: [CommerceController, DataSourcesController],
   exports: [CommerceService, DataSourcesService],
 })
