@@ -156,6 +156,11 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
   const [page, setPage] = useState(1);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  useEffect(() => {
+    if (!message) return;
+    const timeout = window.setTimeout(() => setMessage(''), 4000);
+    return () => window.clearTimeout(timeout);
+  }, [message]);
   const [error, setError] = useState('');
   const [edit, setEdit] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -509,6 +514,34 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
           </div>
           <div className={styles.headActions}>
             {tab === 'contacts' && (
+              <div className={`${styles.searchTools} ${design.searchBar} ${design.customerSearch}`}>
+                <NavIcon name="search" />
+                <input
+                  type="search"
+                  aria-label={t('بحث عن عميل', 'Search customers')}
+                  placeholder={t(
+                    'بحث بالاسم أو الهاتف أو البريد…',
+                    'Search by name, phone or email…',
+                  )}
+                  value={searchDraft}
+                  onChange={(e) => {
+                    setSearchDraft(e.target.value);
+                    setBulkIds([]);
+                  }}
+                />
+                <button
+                  type="button"
+                  className="btn"
+                  aria-expanded={filtersOpen}
+                  aria-controls="customer-filters"
+                  onClick={() => setFiltersOpen(!filtersOpen)}
+                >
+                  <NavIcon name="filter" />
+                  {t('التصفية', 'Filters')}
+                </button>
+              </div>
+            )}
+            {tab === 'contacts' && (
               <Link className="btn" href="/dashboard/crm/tasks?ownerId=me">
                 <NavIcon name="calendar" />
                 {t('مهامي', 'My tasks')}
@@ -659,9 +692,12 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
           </p>
         )}
         {message && (
-          <p className="notice" role="status">
-            {message}
-          </p>
+          <div className={design.customerToast}>
+            <NavIcon name="circleCheck" />
+            <span role="status">{message}</span>
+            <button className="btn" type="button" aria-label={t('إغلاق الإشعار', 'Dismiss notification')}
+              onClick={() => setMessage('')}><NavIcon name="close" /></button>
+          </div>
         )}
         {tab === 'contacts' &&
           Object.keys(routeFilters).some(
@@ -683,69 +719,6 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
           )}
         {tab === 'contacts' && (
           <>
-            <div className={`${styles.searchTools} ${design.searchBar}`}>
-              <NavIcon name="search" />
-              <input
-                type="search"
-                aria-label={t('بحث عن عميل', 'Search customers')}
-                placeholder={t(
-                  'بحث بالاسم أو الهاتف أو البريد…',
-                  'Search by name, phone or email…',
-                )}
-                value={searchDraft}
-                onChange={(e) => {
-                  setSearchDraft(e.target.value);
-                  setBulkIds([]);
-                }}
-              />
-              <button
-                type="button"
-                className="btn"
-                aria-expanded={filtersOpen}
-                aria-controls="customer-filters"
-                onClick={() => setFiltersOpen(!filtersOpen)}
-              >
-                <NavIcon name="filter" />
-                {t('التصفية', 'Filters')}
-              </button>
-            </div>
-            <div
-              className={design.quickFilters}
-              role="group"
-              aria-label={t('فلاتر سريعة', 'Quick filters')}
-            >
-              {[
-                ['', t('الكل', 'All')],
-                ['lead', t('عملاء محتملون', 'Leads')],
-                ['qualified', t('عملاء مؤهلون', 'Qualified')],
-                ['unassigned', t('دون مسؤول', 'Unassigned')],
-                ['withoutFollowup', t('دون متابعة مفتوحة', 'No open follow-up')],
-              ].map(([value, label]) => (
-                <button
-                  type="button"
-                  key={value}
-                  className="btn"
-                  aria-pressed={archiveFilter === 'active' && quickFilter === value && !stage}
-                  onClick={() => {
-                    setArchiveFilter('active');
-                    chooseQuickFilter(value);
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
-              <button
-                type="button"
-                className="btn"
-                aria-pressed={archiveFilter === 'archived'}
-                onClick={() => {
-                  chooseQuickFilter('');
-                  setArchiveFilter('archived');
-                }}
-              >
-                {t('الأرشيف', 'Archived')}
-              </button>
-            </div>
             <div className={design.filterPanel} id="customer-filters" hidden={!filtersOpen}>
               <section
                 className={styles.filters}
@@ -1086,7 +1059,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                 data-view={viewMode}
                 aria-busy={contacts.loading || searchDraft !== q}
               >
-                <div className={styles.listToolbar}>
+                <div className={`${styles.listToolbar} ${design.customerToolbar}`}>
                   <label>
                     <input
                       type="checkbox"
@@ -1115,6 +1088,43 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                     {t('خيارات', 'Options')}
                     <NavIcon name="chevron" />
                   </button>
+                  <div
+                    className={design.quickFilters}
+                    role="group"
+                    aria-label={t('فلاتر سريعة', 'Quick filters')}
+                  >
+                    {[
+                      ['', t('الكل', 'All'), 'list'],
+                      ['lead', t('عملاء محتملون', 'Leads'), 'user'],
+                      ['qualified', t('عملاء مؤهلون', 'Qualified'), 'flag'],
+                      ['unassigned', t('دون مسؤول', 'Unassigned'), 'userClock'],
+                      ['withoutFollowup', t('دون متابعة مفتوحة', 'No open follow-up'), 'calendar'],
+                    ].map(([value, label, icon]) => (
+                      <button
+                        type="button"
+                        key={value}
+                        className="btn"
+                        aria-pressed={archiveFilter === 'active' && quickFilter === value && !stage}
+                        onClick={() => {
+                          setArchiveFilter('active');
+                          chooseQuickFilter(value);
+                        }}
+                      >
+                        <NavIcon name={icon} />{label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className="btn"
+                      aria-pressed={archiveFilter === 'archived'}
+                      onClick={() => {
+                        chooseQuickFilter('');
+                        setArchiveFilter('archived');
+                      }}
+                    >
+                      <NavIcon name="archive" />{t('الأرشيف', 'Archived')}
+                    </button>
+                  </div>
                 </div>
                 <div className={styles.tableScroll}>
                   <table className="product-table">
@@ -1230,6 +1240,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                                 type="button"
                                 className="btn"
                                 aria-label={t('فتح ملف ', 'Open profile for ') + c.name}
+                                title={t('فتح الملف', 'Open profile')}
                                 onClick={() => {
                                   openRecord(c);
                                 }}
@@ -1241,6 +1252,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                                 type="button"
                                 className="btn"
                                 aria-label={t('تعديل: ', 'Edit: ') + c.name}
+                                title={t('تعديل', 'Edit')}
                                 onClick={() => editContact(c)}
                               >
                                 <NavIcon name="edit" />
@@ -1252,6 +1264,8 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                                   className="btn"
                                   data-customer-remove
                                   data-permanent={Boolean(c.archived_at)}
+                                  aria-label={c.archived_at ? t('حذف نهائي', 'Delete permanently') : t('أرشفة', 'Archive')}
+                                  title={c.archived_at ? t('حذف نهائي', 'Delete permanently') : t('أرشفة', 'Archive')}
                                   disabled={busy}
                                   onClick={() => void removeFromCustomers(c)}
                                 >

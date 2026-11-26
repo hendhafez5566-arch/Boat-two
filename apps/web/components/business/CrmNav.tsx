@@ -1,4 +1,5 @@
 'use client';
+import { NavIcon } from '../product/NavIcon';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocale } from '../product/locale';
@@ -10,13 +11,13 @@ export function CrmNav() {
   return (
     <nav className={styles.nav} aria-label={t('إدارة العملاء', 'CRM navigation')}>
       {[
-        ['/today', 'يوم العمل', 'Today'],
-        ['', 'العملاء', 'Customers'],
-        ['/tasks', 'المتابعات', 'Follow-ups'],
-        ['/pipeline', 'فرص البيع', 'Pipeline'],
-        ['/reports', 'التقارير', 'Reports'],
-        ['/tools', 'الأدوات', 'Tools'],
-      ].map(([suffix, ar, en]) => {
+        ['/today', 'يوم العمل', 'Today', 'calendar'],
+        ['', 'العملاء', 'Customers', 'crm'],
+        ['/tasks', 'المتابعات', 'Follow-ups', 'circleCheck'],
+        ['/pipeline', 'فرص البيع', 'Pipeline', 'flag'],
+        ['/reports', 'التقارير', 'Reports', 'reports'],
+        ['/tools', 'الأدوات', 'Tools', 'integrations'],
+      ].map(([suffix, ar, en, icon]) => {
         const href = '/dashboard/crm' + suffix;
         const current =
           path === href ||
@@ -25,7 +26,7 @@ export function CrmNav() {
             /\/crm\/(lists|segments|work|notifications|sales|advanced)$/.test(path));
         return (
           <Link key={href} href={href} aria-current={current ? 'page' : undefined}>
-            {t(ar, en)}
+            <NavIcon name={icon} />{t(ar, en)}
           </Link>
         );
       })}

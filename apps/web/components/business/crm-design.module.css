@@ -754,12 +754,125 @@ nav.nav .moreLinks a {
 .customerBrief[data-lifecycle='inactive'] { background: #edf0f3; color: #4b5563; }
 .workspace [data-crm-customers] :global(.product-table) th { background: #f0f4f8; color: #43556a; }
 .workspace [data-crm-customers] :global(.product-table) td:last-child { width: 1%; }
-.workspace [data-crm-customers] :global(.product-table) tr:has(input:checked) { background: #f0f8f7; }
-.workspace [data-crm-customers] [data-customer-actions] { flex-wrap: wrap; gap: 6px; }
 .workspace [data-crm-customers] [data-customer-actions] :global(.btn) { white-space: nowrap; flex: none; }
 .workspace [data-crm-customers] [data-customer-actions] :global(.btn) svg { flex: none; }
 .workspace [data-crm-customers] [data-customer-remove][data-permanent='true'] { color: #9b2b27; border-color: #f0ceca; background: #fff6f5; }
 .workspace [data-crm-customers][data-view='grid'] :global(.product-table) tr { min-height: 0; gap: 12px; }
-@media (min-width: 1100px) {
-  .workspace [data-crm-customers]:not([data-view='grid']) [data-customer-actions] { flex-wrap: nowrap; }
+/* Keep the customer toolbar and list compact without changing other CRM views. */
+.customerSearch {
+  flex: 1 1 16rem;
+  min-width: min(100%, 13rem);
+  gap: 7px;
+  border-radius: 9px;
+  padding: 0 7px;
+}
+.customerSearch input { min-height: 36px; }
+.workspace .heading:has(.customerSearch) {
+  column-gap: 12px;
+  row-gap: 6px;
+}
+.workspace .heading:has(.customerSearch) > :last-child {
+  flex: 1 1 32rem;
+  justify-content: flex-end;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.workspace .heading:has(.customerSearch) :global(.btn-primary) {
+  background: #3b527a;
+  border-color: #3b527a;
+  color: #fff;
+}
+.workspace .heading:has(.customerSearch) .headingIcon {
+  background: #e9eff8;
+  border-color: #d7e1ee;
+  color: #364f74;
+}
+.workspace [data-crm-customers] .customerToolbar {
+  gap: 6px 10px;
+  min-height: 0;
+  padding: 7px 10px;
+}
+.customerToolbar .quickFilters {
+  align-items: center;
+  flex: 1 1 20rem;
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 4px;
+  padding: 2px;
+}
+.workspace [data-crm-customers] .quickFilters :global(.btn) {
+  white-space: nowrap;
+  flex: none;
+  min-height: 36px !important;
+  background: transparent;
+  border-color: transparent;
+  color: #45566d;
+}
+.workspace [data-crm-customers] .quickFilters :global(.btn)[aria-pressed='true'] {
+  background: #e9eff8;
+  border-color: #d7e1ee;
+  color: #243e65;
+}
+.workspace [data-crm-customers] .quickFilters :global(.btn:hover) {
+  background: #f0f4f9;
+}
+.workspace [data-crm-customers] :global(.product-table) td {
+  padding: 9px 12px !important;
+}
+.workspace [data-crm-customers] [data-customer-actions] {
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+.workspace [data-crm-customers] [data-customer-actions] :global(.btn) {
+  padding: 5px 8px !important;
+  background: #f6f8fb;
+  border-color: #e0e6ef;
+  color: #344b6d;
+}
+.workspace [data-crm-customers] [data-customer-remove][data-permanent='true'] {
+  color: #9b2b27;
+  border-color: #f0ceca;
+  background: #fff6f5;
+}
+.workspace [data-crm-customers] [data-customer-avatar] {
+  background: #e9eff8;
+  color: #344f76;
+  border-color: #d7e1ee;
+}
+.workspace [data-crm-customers] :global(.product-table) tr:has(input:checked) { background: #edf3fb; }
+.workspace [data-crm-customers] [data-customer-state] [data-tone='green'] {
+  background: #edf0f4;
+  color: #384a61;
+}
+.customerToast {
+  position: fixed;
+  z-index: 70;
+  inset-block-end: max(4rem, calc(env(safe-area-inset-bottom) + 3.5rem));
+  inset-inline-end: 1rem;
+  max-width: calc(100vw - 2rem);
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 7px 10px;
+  border: 1px solid #d7e1ee;
+  border-radius: 10px;
+  background: #f6f9ff;
+  color: #233955;
+  box-shadow: 0 6px 24px #1a2e4a22;
+}
+.customerToast svg { inline-size: 17px; block-size: 17px; flex: none; }
+@media (max-width: 1100px) {
+  .workspace [data-crm-customers] [data-customer-actions] :global(.btn) > span { display: none; }
+  .workspace [data-crm-customers] [data-customer-actions] :global(.btn) { min-inline-size: 38px; }
+}
+@media (max-width: 760px) {
+  .workspace .heading:has(.customerSearch) > :last-child { justify-content: flex-start; }
+  .customerSearch { flex-basis: 100%; }
+  .workspace [data-crm-customers] :global(.product-table) tr { gap: 6px; padding: 9px; }
+  .workspace [data-crm-customers] :global(.product-table) td { padding: 0 !important; }
+}
+@media (pointer: coarse) {
+  .workspace [data-crm-customers] .quickFilters :global(.btn),
+  .workspace [data-crm-customers] [data-customer-actions] :global(.btn) { min-height: 42px !important; }
 }
