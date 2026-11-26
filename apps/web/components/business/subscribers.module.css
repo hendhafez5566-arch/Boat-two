@@ -1207,3 +1207,14 @@
   .subscriberList[data-view='grid'] table { min-width: 0; }
   .subscriberList[data-view='grid'] tbody { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Profile workbench: concise identity and actual content, advanced settings at the side. */
+.profileHeader { padding:16px!important; min-height:0!important; align-items:center; }
+.profileMeta { padding:8px 16px!important; min-height:0!important; }
+.quickActions { padding:8px 16px!important; gap:6px!important; }
+.profileSummary { padding:8px 16px!important; gap:6px!important; }
+.profileTabs { padding:4px 14px!important; gap:4px!important; border-bottom:1px solid #e0e5ef; }
+.profileTabs button { min-height:36px!important; }
+.profileBody { padding:14px!important; border:1px solid #e0e5ef; border-radius:10px; min-width:0; background:white; }
+.profileMore { margin:0!important; padding:0!important; min-width:0; }
+.profileMore > div { padding:8px!important; }

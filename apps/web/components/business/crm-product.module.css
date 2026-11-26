@@ -268,3 +268,8 @@
 .toolsPage .group h2 { background: #eaf1fa; color: #28466a; }
 .toolsPage .group a { min-height: 60px; }
 .toolsPage .group a:hover { background: #edf4fc; }
+
+.todayHint { margin:0; color:#64748b; font-size:13px; }
+.page [data-today-queue] { grid-template-columns:repeat(auto-fit,minmax(min(100%,235px),1fr)); align-items:start; }
+.page [data-today-queue] > section:first-child h2 { color:#9f3434; background:#fff2f2; }
+.page [data-today-queue] > section:nth-child(2) h2 { color:#875409; background:#fff7e3; }

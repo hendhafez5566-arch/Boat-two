@@ -288,7 +288,8 @@ export default function SubscriberProfile({
       <header className={styles.profileHeader}>
         <span className={styles.avatar}>{contact?.name?.slice(0, 2) || '?'}</span>
         <div>
-          <h2>{contact?.name || t('ملف العميل', 'Customer profile')}</h2>
+          <h2>{contact && /^(visitor|زائر)$/i.test(contact.name.trim()) ? t('زائر','Visitor') + ' #' + contact.id.slice(0,6) : contact?.name || t('ملف العميل', 'Customer profile')}</h2>
+          {contact && !contact.phone && !contact.email && <small>{t('لا توجد بيانات تواصل مسجلة','No contact details recorded')}</small>}
           <div>
             {contact?.phone && (
               <a href={'tel:' + contact.phone}>
@@ -394,8 +395,7 @@ export default function SubscriberProfile({
             {canManage && (
               <button
                 onClick={() => {
-                  setTab('overview');
-                  setOverviewEditing(true);
+                  if (setTab('overview')) setOverviewEditing(true);
                 }}
               >
                 <NavIcon name="edit" />
@@ -448,6 +448,14 @@ export default function SubscriberProfile({
               </button>
             )}
           </div>
+          <div className={design.profileCounters} aria-label={t('ملخص السجلات الحديثة','Recent records summary')}>
+            {([
+              [t('المحادثات الحديثة','Recent conversations'),profile.timeline.conversations.length,'overview'],
+              [t('فرص مفتوحة في السجل','Open deals in recent records'),profile.timeline.deals.filter(d=>d.status==='open').length,'deals'],
+              [t('متابعات مفتوحة في السجل','Open follow-ups in recent records'),profile.timeline.tasks.filter(task=>task.status==='open').length,'tasks'],
+              [t('ملاحظات حديثة','Recent notes'),profile.timeline.notes.length,'notes']
+            ] as const).map(([label,count,key])=><button type="button" key={key} onClick={()=>{if(setTab(key))setQuickCreate('');}}><span>{label}</span><strong>{count}</strong></button>)}
+          </div>
           <nav
             className={styles.profileTabs}
             aria-label={t('أقسام ملف العميل', 'Customer profile sections')}
@@ -470,59 +478,7 @@ export default function SubscriberProfile({
                 </button>
               ))}
           </nav>
-          <details className={styles.profileMore}>
-            <DisclosureSummary>
-              {t('بيانات وإعدادات إضافية', 'More details and settings')}
-            </DisclosureSummary>
-            <div className={styles.profileChannels}>
-              {profile.channels.map((channel) => (
-                <span key={channel.id}>
-                  {channel.type} · {channel.name}
-                </span>
-              ))}
-            </div>
-            <div className={product.columns}>
-              {[
-                {
-                  title: t('بيانات العميل', 'Customer details'),
-                  keys: ['company', 'agent', 'labels', 'fields', 'input'],
-                },
-                {
-                  title: t('التواصل والتسويق', 'Communication and marketing'),
-                  keys: ['lists', 'sequences', 'consent'],
-                },
-              ].map(({ title, keys }) => (
-                <section key={title} className={product.group}>
-                  <h2>{title}</h2>
-                  <div className={product.profileTools}>
-                    {tabs
-                      .filter(([key]) => keys.includes(key))
-                      .map(([key, ar, en]) => (
-                        <button
-                          className="btn"
-                          type="button"
-                          key={key}
-                          aria-pressed={tab === key}
-                          onClick={() => {
-                            setTab(key);
-                            setQuickCreate('');
-                          }}
-                        >
-                          {t(ar, en)}
-                        </button>
-                      ))}
-                  </div>
-                </section>
-              ))}
-            </div>
-            <details>
-              <summary>{t('التقييم ومرجع الدعم', 'Score and support reference')}</summary>
-              <CrmScore contactId={contactId} version={contact.updated_at} />
-              <small>
-                {t('مرجع العميل', 'Customer reference')} <bdi>{contact.id}</bdi>
-              </small>
-            </details>
-          </details>
+          <div className={design.profileLayout}>
           <div className={styles.profileBody}>
             {tab === 'deals' && (
               <CrmWork
@@ -1131,6 +1087,68 @@ export default function SubscriberProfile({
               </>
             )}
           </div>
+          <aside className={design.profileSidebar}>
+            <section className={design.profileFacts}><h3>{t('بيانات العميل','Customer details')}</h3>
+              <dl><div><dt>{t('المسؤول','Owner')}</dt><dd>{members.data.members.find(m=>m.user_id===contact.owner_id)?.full_name || (contact.owner_id?t('غير متاح','Unavailable'):t('دون مسؤول','Unassigned'))}</dd></div>
+              <div><dt>{t('المصدر','Source')}</dt><dd>{String(contact.attributes.source || profile.channels.map(c=>c.name).join('، ') || t('غير محدد','Not recorded'))}</dd></div>
+              <div><dt>{t('آخر تحديث للملف','Profile updated')}</dt><dd>{date(contact.updated_at)}</dd></div>
+              <div><dt>{t('الوسوم','Labels')}</dt><dd>{contact.tags.join('، ') || '—'}</dd></div></dl>
+            </section>
+                      <details className={styles.profileMore}>
+            <DisclosureSummary>
+              {t('بيانات وإعدادات إضافية', 'More details and settings')}
+            </DisclosureSummary>
+            <div className={styles.profileChannels}>
+              {profile.channels.map((channel) => (
+                <span key={channel.id}>
+                  {channel.type} · {channel.name}
+                </span>
+              ))}
+            </div>
+            <div className={product.columns}>
+              {[
+                {
+                  title: t('بيانات العميل', 'Customer details'),
+                  keys: ['company', 'agent', 'labels', 'fields', 'input'],
+                },
+                {
+                  title: t('التواصل والتسويق', 'Communication and marketing'),
+                  keys: ['lists', 'sequences', 'consent'],
+                },
+              ].map(({ title, keys }) => (
+                <section key={title} className={product.group}>
+                  <h2>{title}</h2>
+                  <div className={product.profileTools}>
+                    {tabs
+                      .filter(([key]) => keys.includes(key))
+                      .map(([key, ar, en]) => (
+                        <button
+                          className="btn"
+                          type="button"
+                          key={key}
+                          aria-pressed={tab === key}
+                          onClick={() => {
+                            setTab(key);
+                            setQuickCreate('');
+                          }}
+                        >
+                          {t(ar, en)}
+                        </button>
+                      ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+            <details>
+              <summary>{t('التقييم ومرجع الدعم', 'Score and support reference')}</summary>
+              <CrmScore contactId={contactId} version={contact.updated_at} />
+              <small>
+                {t('مرجع العميل', 'Customer reference')} <bdi>{contact.id}</bdi>
+              </small>
+            </details>
+          </details>
+
+          </aside></div>
         </>
       )}
     </aside>

@@ -924,3 +924,45 @@ nav.nav .moreLinks a {
 @media (min-width: 761px) and (max-width: 1100px) {
   .workspace [data-crm-customers]:not([data-view='grid']) :global(.product-table) :is(th,td):last-child { width: 145px; }
 }
+
+/* Unified compact CRM workspaces. */
+.customerStats { display:grid; gap:8px; margin-block:4px 12px; }
+.customerStats > div { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,155px),1fr)); gap:9px; }
+.customerStats article { min-height:76px; padding:11px; border-radius:10px; }
+.workspace [data-crm-customers] .contactTable { table-layout:auto!important; min-width:770px!important; }
+.workspace [data-crm-customers] .contactTable :is(th,td):nth-child(3),.workspace [data-crm-customers] .contactTable :is(th,td):last-child { width:auto!important; }
+.workspace [data-crm-customers] .contactTable :is(th,td) { padding:8px 10px!important; vertical-align:middle; }
+.workspace [data-crm-customers] .contactTable td:nth-child(2) { min-width:155px; }
+.workspace [data-crm-customers] .contactTable td:last-child { min-width:135px; }
+.workspace [data-crm-customers] .contactTable [data-customer-actions] { display:flex; align-items:center; gap:5px; flex-wrap:nowrap; }
+.contactActions { position:relative; }
+.contactActions > summary { cursor:pointer; }
+.contactActions > div { display:grid; gap:4px; padding:5px 0; }
+.customerOwner[data-unassigned=true] { color:#8b5a08; font-weight:600; }
+.sourceText { color:#526177; font-size:12px; }
+.profileCounters { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr)); gap:8px; padding:10px 14px; }
+.profileCounters button { display:grid; text-align:start; gap:4px; background:#f7f8fc; border:1px solid #e0e5ef; border-radius:8px; padding:10px; cursor:pointer; color:#19233c; font:inherit; }
+.profileCounters button span { font-size:12px; color:#526177; }
+.profileCounters button strong { font-size:22px; }
+.profileLayout { display:grid; grid-template-columns:minmax(0,2.3fr) minmax(210px,1fr); gap:12px; align-items:start; padding:12px; }
+.profileSidebar { display:grid; gap:10px; min-width:0; }
+.profileFacts { padding:13px; border:1px solid #e0e5ef; border-radius:10px; background:#fff; }
+.profileFacts h3 { margin:0 0 10px; font-size:15px; }
+.profileFacts dl { margin:0; display:grid; gap:10px; }
+.profileFacts dt { font-size:12px; color:#64748b; }
+.profileFacts dd { margin:2px 0 0; font-size:13px; overflow-wrap:anywhere; }
+.taskQueue { display:grid; gap:0; background:white; border:1px solid #e0e5ef; border-radius:12px; overflow:hidden; }
+.taskRow { display:grid; grid-template-columns:minmax(0,2fr) minmax(120px,1.2fr) minmax(80px,.8fr) minmax(65px,.6fr) minmax(75px,.65fr) auto; align-items:center; gap:12px; padding:12px; border-bottom:1px solid #e9edf3; min-width:0; }
+.taskRow:last-child { border-bottom:0; }
+.taskRow[data-overdue=true] { border-inline-start:3px solid #d44d4d; }
+.taskRow > div { display:grid; gap:4px; min-width:0; overflow-wrap:anywhere; }
+.taskRow small { color:#64748b; font-size:11px; }
+.taskRow time,.taskRow span { font-size:12px; }
+.taskTitle a { font-size:12px; color:#64748b; }
+.taskTitle button { text-align:start; }
+.dealValue { font-size:20px; font-weight:700; color:#19233c; }
+.dealControls { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.dealControls label { min-width:0; }
+.dealControls select { min-width:0; width:100%; }
+@media(max-width:1000px){ .profileLayout{grid-template-columns:1fr} .taskRow{grid-template-columns:repeat(2,minmax(0,1fr))} .taskRow .taskTitle{grid-column:1/-1} }
+@media(max-width:760px){ .workspace [data-crm-customers] .contactTable{min-width:0!important} .workspace [data-crm-customers] .contactTable tr{grid-template-columns:repeat(2,minmax(0,1fr))} .workspace [data-crm-customers] .contactTable td{min-width:0!important} .workspace [data-crm-customers] .contactTable td:nth-child(2),.workspace [data-crm-customers] .contactTable td:last-child{grid-column:1/-1} }

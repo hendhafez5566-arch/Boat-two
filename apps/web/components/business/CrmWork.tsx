@@ -209,7 +209,7 @@ export function CrmWork({
       >
         <div className={design.workCardHeader}>
           {deals ? (
-            dealStatus(row)
+            <span className={design.dealValue}>{amount(row)}</span>
           ) : (
             <span className={design.workStatus} data-state={overdue ? 'overdue' : row.status}>
               <NavIcon
@@ -252,9 +252,7 @@ export function CrmWork({
                   : t('أولوية عادية', 'Normal priority')}
             </span>
           )}
-          {deals ? (
-            <strong>{amount(row)}</strong>
-          ) : (
+          {deals ? null : (
             <p
               className={
                 row.status === 'open' && new Date(row.due_at) < new Date() ? styles.overdue : ''
@@ -289,7 +287,7 @@ export function CrmWork({
           )}
         </div>
         {deals ? (
-          <label className={styles.hint}>
+          <div className={design.dealControls}><label className={styles.hint}>{t('حالة الفرصة','Status')}{dealStatus(row)}</label><label className={styles.hint}>
             {t('المرحلة', 'Stage')}
             <select
               aria-label={t('مرحلة', 'Stage') + ': ' + row.title}
@@ -303,7 +301,7 @@ export function CrmWork({
                 <option key={s}>{s}</option>
               ))}
             </select>
-          </label>
+          </label></div>
         ) : (
           <Button
             busy={busy}
@@ -683,7 +681,20 @@ export function CrmWork({
           </table>
         </div>
       ) : (
-        <div className={styles.grid}>{data.data.items.map(card)}</div>
+        <div className={design.taskQueue}>
+          {data.data.items.map(row=>{
+            const overdue=row.status==='open' && Date.parse(row.due_at)<Date.now();
+            return <article key={row.id} className={design.taskRow} data-overdue={overdue}>
+              <div className={design.taskTitle}><button type="button" className={styles.linkButton} disabled={!canEdit(row)} onClick={()=>openEditor(row)}>{row.title}</button>
+                <Link href={'/dashboard/crm?contact='+row.contact_id}>{row.contact_name}</Link></div>
+              <div><small>{t('الموعد','Due')}</small><time dateTime={row.due_at} className={overdue?styles.overdue:undefined}>{new Date(row.due_at).toLocaleString(language==='ar'?'ar-EG':'en')}</time></div>
+              <div><small>{t('المسؤول','Assignee')}</small><span>{memberName(row.assigned_to)}</span></div>
+              <div><small>{t('الأولوية','Priority')}</small><span>{row.priority==='high'?t('عالية','High'):row.priority==='low'?t('منخفضة','Low'):t('عادية','Normal')}</span></div>
+              <div><span className={design.workStatus} data-state={overdue?'overdue':row.status}>{row.status==='done'?t('مكتملة','Completed'):overdue?t('متأخرة','Overdue'):t('مفتوحة','Open')}</span></div>
+              <Button busy={busy} disabled={!canEdit(row)} onClick={()=>void update(row,{status:row.status==='done'?'open':'done'},row.status==='done'?t('أُعيد فتح المتابعة.','Follow-up reopened.'):t('تم إكمال المتابعة.','Follow-up completed.'))}>{row.status==='done'?t('إعادة فتح','Reopen'):t('إكمال المتابعة','Complete follow-up')}</Button>
+            </article>;
+          })}
+        </div>
       )}
       {!data.loading && !data.error && !data.data.items.length && (
         <p className={styles.empty}>{deals || q.trim() || resolvedOwner || period !== 'all' || Object.keys(routeDates).length

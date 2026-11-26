@@ -880,3 +880,7 @@
 .page[data-crm-report] .stat { align-items: center; border-color: #dbe5f0; }
 .page[data-crm-report] .stat:hover { transform: none; background: #f6f9fd; }
 .page[data-crm-report] .panelTitle { flex-wrap: wrap; gap: 5px; }
+
+.page[data-crm-work='deals'] .column { min-height:260px; align-self:stretch; }
+.page[data-crm-work='deals'] .column > h2 { background:#e8e8f7; color:#393279; }
+.page[data-crm-work='deals'] .stageTotals { font-weight:650; color:#334155; }

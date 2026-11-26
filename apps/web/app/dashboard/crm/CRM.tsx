@@ -105,7 +105,6 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     });
   const [q, setQ] = useState('');
   const [searchDraft, setSearchDraft] = useState('');
-  const [statsOpen, setStatsOpen] = useState(false);
   function applySearch(value: string) {
     setQ(value);
     setSearchDraft(value);
@@ -271,7 +270,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
   }, []);
   const [viewMode, setViewMode] = useState('list');
   const [sort, setSort] = useState('latest');
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(25);
   const filter = new URLSearchParams({
     ...routeFilters,
     q,
@@ -313,7 +312,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
     retained: number;
     subscribed: number;
     in_sequences: number;
-  }>(tab === 'contacts' && statsOpen ? '/crm/contacts-summary?' + filter : null, {
+  }>(tab === 'contacts' ? '/crm/contacts-summary?' + filter : null, {
     total: 0,
     retained: 0,
     subscribed: 0,
@@ -719,6 +718,52 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
           )}
         {tab === 'contacts' && (
           <>
+            <section className={design.customerStats}>
+
+              {summary.error && (
+                <p className="notice error" role="alert">
+                  {summary.error}
+                </p>
+              )}
+              <div
+                className={styles.statistics}
+                aria-label={t('إحصائيات نتائج التصفية', 'Filtered customer statistics')}
+              >
+                {(
+                  [
+                    ['total', t('العملاء', 'Customers')],
+                    ['retained', t('النشطون', 'Retained')],
+                    ['subscribed', t('موافقة تسويق موثقة', 'Marketing Opt-ins')],
+                    ['in_sequences', t('في تسلسلات نشطة', 'In Active Sequences')],
+                  ] as const
+                ).map(([key, label]) => (
+                  <article key={key}>
+                    <span className={styles.statIcon} data-tone={key}>
+                      <NavIcon
+                        name={
+                          key === 'total'
+                            ? 'crm'
+                            : key === 'retained'
+                              ? 'check'
+                              : key === 'subscribed'
+                                ? 'user'
+                                : 'sequences'
+                        }
+                      />
+                    </span>
+                    <span>{label}</span>
+                    <strong>
+                      {summary.loading ? '…' : summary.error ? '—' : summary.data[key]}
+                    </strong>
+                    <small>
+                      {key === 'total'
+                        ? t('ضمن نتائج التصفية', 'Within current filters')
+                        : `${summary.data.total ? Math.round((summary.data[key] / summary.data.total) * 100) : 0}% ${t('من الإجمالي', 'of total')}`}
+                    </small>
+                  </article>
+                ))}
+              </div>
+            </section>
             <div className={design.filterPanel} id="customer-filters" hidden={!filtersOpen}>
               <section
                 className={styles.filters}
@@ -1127,12 +1172,15 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                   </div>
                 </div>
                 <div className={styles.tableScroll}>
-                  <table className="product-table">
+                  <table className={`product-table ${design.contactTable}`}>
                     <thead>
                       <tr>
                         <th>{t('تحديد', 'Select')}</th>
                         <th>{t('العميل', 'Customer')}</th>
-                        <th>{t('الحالة', 'Status')}</th>
+                        <th>{t('الحالة والمرحلة', 'Status and stage')}</th>
+                        <th>{t('المصدر', 'Source')}</th>
+                        <th>{t('المسؤول', 'Owner')}</th>
+                        <th>{t('آخر تحديث للملف', 'Profile updated')}</th>
                         <th>{t('الإجراءات', 'Actions')}</th>
                       </tr>
                     </thead>
@@ -1168,16 +1216,10 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                                     openRecord(c);
                                   }}
                                 >
-                                  {c.name}
+                                  {/^(visitor|زائر)$/i.test(c.name.trim()) ? t('زائر','Visitor') + ' #' + c.id.slice(0,6) : c.name}
                                 </button>
                                 {cols.includes('contact') && (
-                                  <small dir="ltr">{c.phone || c.email || '—'}</small>
-                                )}
-                                {cols.includes('lifecycle') && (
-                                  <span className={design.customerBrief} data-lifecycle={c.lifecycle}>
-                                    <NavIcon name={lifecycleIcons[c.lifecycle] ?? 'user'} />
-                                    {statusLabel(c.lifecycle, t)}
-                                  </span>
+                                  <small dir="auto">{c.phone || c.email || t('لا توجد بيانات تواصل','No contact details')}</small>
                                 )}
                                 {cols.includes('tags') && (
                                   <div className={styles.inlineTags} data-customer-tags>
@@ -1226,14 +1268,18 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                                     : t('موافقة غير موثقة', 'No opt-in')}
                                 </span>
                               )}
-                              <small className={design.customerOwner}>
-                                <NavIcon name="user" />
-                                {team.data.members.find((member) => member.user_id === c.owner_id)
-                                  ?.full_name ||
-                                  (c.owner_id ? t('—', '—') : t('دون مسؤول', 'Unassigned'))}
-                              </small>
+                                {cols.includes('lifecycle') && (
+                                  <span className={design.customerBrief} data-lifecycle={c.lifecycle}>
+                                    <NavIcon name={lifecycleIcons[c.lifecycle] ?? 'user'} />
+                                    {statusLabel(c.lifecycle, t)}
+                                  </span>
+                                )}
+
                             </div>
                           </td>
+                          <td><span className={design.sourceText}>{String(c.attributes?.source || t('غير محدد','Not recorded'))}</span></td>
+                          <td><span className={design.customerOwner} data-unassigned={!c.owner_id}>{team.data.members.find(m=>m.user_id===c.owner_id)?.full_name || (c.owner_id ? t('غير متاح','Unavailable') : t('دون مسؤول','Unassigned'))}</span></td>
+                          <td><time dateTime={c.updated_at}>{new Date(c.updated_at).toLocaleDateString()}</time></td>
                           <td>
                             <div className={styles.rowActions} data-customer-actions>
                               <button
@@ -1248,6 +1294,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                                 <NavIcon name="user" />
                                 <span>{t('الملف', 'Profile')}</span>
                               </button>
+                              <details className={design.contactActions}><DisclosureSummary className="btn">{t('المزيد','More')}</DisclosureSummary><div>
                               <button
                                 type="button"
                                 className="btn"
@@ -1273,6 +1320,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                                   <span>{c.archived_at ? t('حذف نهائي', 'Delete permanently') : t('أرشفة', 'Archive')}</span>
                                 </button>
                               )}
+                              </div></details>
                             </div>
                           </td>
                         </tr>
@@ -1327,52 +1375,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                 </footer>
               </section>
             </div>
-            <details className={design.customerStats} onToggle={(event) => setStatsOpen(event.currentTarget.open)}>
-              <DisclosureSummary>{t('إحصائيات العملاء', 'Customer statistics')}</DisclosureSummary>
-              {summary.error && (
-                <p className="notice error" role="alert">
-                  {summary.error}
-                </p>
-              )}
-              <div
-                className={styles.statistics}
-                aria-label={t('إحصائيات نتائج التصفية', 'Filtered customer statistics')}
-              >
-                {(
-                  [
-                    ['total', t('العملاء', 'Customers')],
-                    ['retained', t('النشطون', 'Retained')],
-                    ['subscribed', t('موافقة تسويق موثقة', 'Marketing Opt-ins')],
-                    ['in_sequences', t('في تسلسلات نشطة', 'In Active Sequences')],
-                  ] as const
-                ).map(([key, label]) => (
-                  <article key={key}>
-                    <span className={styles.statIcon} data-tone={key}>
-                      <NavIcon
-                        name={
-                          key === 'total'
-                            ? 'crm'
-                            : key === 'retained'
-                              ? 'check'
-                              : key === 'subscribed'
-                                ? 'user'
-                                : 'sequences'
-                        }
-                      />
-                    </span>
-                    <span>{label}</span>
-                    <strong>
-                      {summary.loading ? '…' : summary.error ? '—' : summary.data[key]}
-                    </strong>
-                    <small>
-                      {key === 'total'
-                        ? t('ضمن نتائج التصفية', 'Within current filters')
-                        : `${summary.data.total ? Math.round((summary.data[key] / summary.data.total) * 100) : 0}% ${t('من الإجمالي', 'of total')}`}
-                    </small>
-                  </article>
-                ))}
-              </div>
-            </details>
+
             <Dialog
               open={showCreate || !!edit}
               onClose={closeContact}

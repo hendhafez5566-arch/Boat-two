@@ -72,7 +72,8 @@ export default function TodayPage() {
           {member.error}
         </p>
       )}
-      <div className={styles.columns}>
+      <p className={styles.todayHint}>{t('ابدأ بالمتابعات المتأخرة، ثم مهام اليوم، ثم خطط للأيام القادمة.','Start with overdue follow-ups, then today’s work and upcoming tasks.')}</p>
+      <div className={styles.columns} data-today-queue>
         <Queue
           period="overdue"
           title={t('المتأخرة', 'Overdue')}
