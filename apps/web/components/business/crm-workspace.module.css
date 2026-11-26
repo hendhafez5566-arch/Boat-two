@@ -832,3 +832,43 @@
     white-space: nowrap;
   }
 }
+
+.page:is([data-crm-work], [data-crm-report]) {
+  --crm-brand: #355779;
+  width: 100%;
+  margin: 0;
+  gap: 13px;
+}
+.page:is([data-crm-work], [data-crm-report]) :global(.btn-primary) {
+  background: #355779;
+  border-color: #355779;
+  box-shadow: none;
+}
+.page:is([data-crm-work], [data-crm-report]) :global(.btn-primary:hover) {
+  background: #294665;
+}
+.page[data-crm-work] .board { align-items: start; gap: 10px; }
+.page[data-crm-work] .column { min-height: 0; background: #eff3f8; padding: 9px; }
+.page[data-crm-work] .column h2 { border-inline-start-color: #557393; margin: 0; }
+.page[data-crm-work] .stageTotals { padding-block-end: 5px; }
+.page[data-crm-work] .stageTotals:empty { display: none; }
+.page[data-crm-work='tasks'] .grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 23rem), 1fr)); gap: 10px; }
+.page[data-crm-work] .toolbar, .page[data-crm-report] .toolbar { padding: 8px; gap: 8px; }
+.page[data-crm-report] .metrics { grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: 8px; }
+.page[data-crm-report] .stat { padding: 11px; gap: 8px; border-radius: 11px; }
+.page[data-crm-report] .statIcon { width: 34px; height: 34px; border-radius: 8px; }
+.page[data-crm-report] .stat[data-tone='violet'] .statIcon { background: #e8eef6; color: #3b5579; }
+.page[data-crm-report] .stat strong { font-size: 23px; line-height: 1.3; }
+.page[data-crm-report] .panel { padding: 13px; border-radius: 12px; }
+.page[data-crm-report] .split { gap: 10px; }
+.page[data-crm-report] .chart a span { background: #5a7da4; }
+.page[data-crm-report] .chart small { writing-mode: horizontal-tb; height: 14px; white-space: nowrap; }
+.page[data-crm-report] .chart a { position: relative; padding-block-end: 17px; }
+.page[data-crm-report] .chart a small { position: absolute; bottom: 0; }
+@media (min-width: 850px) {
+  .page[data-crm-report] .split { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .page[data-crm-report] .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .page[data-crm-report] .stat > svg:last-child { display: none; }
+}

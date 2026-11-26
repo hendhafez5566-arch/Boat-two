@@ -234,58 +234,60 @@ export function CrmWork({
         >
           <h3>{row.title}</h3>
         </button>
-        <p>
-          <NavIcon name="user" />
-          <Link href={`/dashboard/crm?contact=${row.contact_id}`}>{row.contact_name}</Link>
-        </p>
-        {!deals && (
-          <span
-            className={styles.badge}
-            data-tone={row.priority === 'high' ? 'red' : row.priority === 'low' ? 'blue' : 'orange'}
-          >
-            <NavIcon name="flag" />
-            {row.priority === 'high'
-              ? t('أولوية عالية', 'High priority')
-              : row.priority === 'low'
-                ? t('أولوية منخفضة', 'Low priority')
-                : t('أولوية عادية', 'Normal priority')}
-          </span>
-        )}
-        {deals ? (
-          <strong>{amount(row)}</strong>
-        ) : (
-          <p
-            className={
-              row.status === 'open' && new Date(row.due_at) < new Date() ? styles.overdue : ''
-            }
-          >
-            {new Date(row.due_at).toLocaleString(language === 'ar' ? 'ar-EG' : 'en')}
-          </p>
-        )}
-        <p>
-          <NavIcon name="user" />
-          {memberName(deals ? row.owner_id : row.assigned_to)}
-        </p>
-        {deals && (
+        <div className={design.workDetails}>
           <p>
-            <NavIcon name="stopwatch" />
-            {t('آخر نشاط', 'Last activity')}{' '}
-            {new Date(row.updated_at).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en')}
+            <NavIcon name="user" />
+            <Link href={`/dashboard/crm?contact=${row.contact_id}`}>{row.contact_name}</Link>
           </p>
-        )}
-        {deals &&
-          row.status === 'open' &&
-          Date.now() - Date.parse(row.updated_at) > 14 * 86400000 && (
-            <span className={styles.badge} data-tone="orange">
-              <NavIcon name="userClock" />
-              {t('دون تحديث منذ 14 يومًا', 'No update for 14 days')}
+          {!deals && (
+            <span
+              className={styles.badge}
+              data-tone={row.priority === 'high' ? 'red' : row.priority === 'low' ? 'blue' : 'orange'}
+            >
+              <NavIcon name="flag" />
+              {row.priority === 'high'
+                ? t('أولوية عالية', 'High priority')
+                : row.priority === 'low'
+                  ? t('أولوية منخفضة', 'Low priority')
+                  : t('أولوية عادية', 'Normal priority')}
             </span>
           )}
-        {deals && row.expected_close && (
+          {deals ? (
+            <strong>{amount(row)}</strong>
+          ) : (
+            <p
+              className={
+                row.status === 'open' && new Date(row.due_at) < new Date() ? styles.overdue : ''
+              }
+            >
+              {new Date(row.due_at).toLocaleString(language === 'ar' ? 'ar-EG' : 'en')}
+            </p>
+          )}
           <p>
-            {t('الإغلاق المتوقع', 'Expected close')}: {row.expected_close.slice(0, 10)}
+            <NavIcon name="user" />
+            {memberName(deals ? row.owner_id : row.assigned_to)}
           </p>
-        )}
+          {deals && (
+            <p>
+              <NavIcon name="stopwatch" />
+              {t('آخر نشاط', 'Last activity')}{' '}
+              {new Date(row.updated_at).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en')}
+            </p>
+          )}
+          {deals &&
+            row.status === 'open' &&
+            Date.now() - Date.parse(row.updated_at) > 14 * 86400000 && (
+              <span className={styles.badge} data-tone="orange">
+                <NavIcon name="userClock" />
+                {t('دون تحديث منذ 14 يومًا', 'No update for 14 days')}
+              </span>
+            )}
+          {deals && row.expected_close && (
+            <p>
+              {t('الإغلاق المتوقع', 'Expected close')}: {row.expected_close.slice(0, 10)}
+            </p>
+          )}
+        </div>
         {deals ? (
           <label className={styles.hint}>
             {t('المرحلة', 'Stage')}
@@ -362,7 +364,7 @@ export function CrmWork({
     />
   );
   return (
-    <section className={`${compact ? '' : styles.page} ${design.workspace}`}>
+    <section className={`${compact ? '' : styles.page} ${design.workspace}`} data-crm-work={kind}>
       <header className={`${styles.heading} ${design.heading}`}>
         <div>
           <h1>
@@ -633,6 +635,9 @@ export function CrmWork({
                       </span>
                     ))}
                 </div>
+                {!data.loading && !data.error && data.data.items.length > 0 &&
+                  !data.data.items.some(item => item.stage === stage) &&
+                  <p className={design.stageEmpty}>{t('لا توجد فرص هنا في هذه الصفحة', 'No deals here on this page')}</p>}
                 {data.data.items.filter((d) => d.stage === stage).map(card)}
               </section>
             ))}
@@ -691,7 +696,7 @@ export function CrmWork({
         <p>
           {t('الإجمالي', 'Total')}: {data.data.total}
         </p>
-        <div className={styles.actions}>
+        {(page > 1 || data.data.total > 50) && <div className={styles.actions}>
           <Button disabled={page <= 1 || data.loading} onClick={() => setPage(page - 1)}>
             {t('السابق', 'Previous')}
           </Button>
@@ -702,7 +707,7 @@ export function CrmWork({
           >
             {t('التالي', 'Next')}
           </Button>
-        </div>
+        </div>}
       </div>
       {!compact && (
         <Dialog

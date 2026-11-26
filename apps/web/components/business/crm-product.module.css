@@ -250,3 +250,17 @@
   padding-inline: 0.65rem;
   background: white;
 }
+
+.toolsPage { gap: 12px; }
+.toolsPage h1 { font-size: clamp(19px, 4vw, 26px); }
+.toolsPage .columns { gap: 10px; }
+.toolsPage .group { border-color: #dfe7f0; border-radius: 12px; }
+.toolsPage .group h2 { margin: 0; padding: 10px 13px; background: #f1f5f9; color: #324b69; border-color: #e5ecf4; }
+.toolsPage .group a { justify-content: flex-start; gap: 10px; padding: 9px 13px; border-color: #e5ecf4; color: #263b55; }
+.toolsPage .group a:hover { background: #f4f7fc; }
+.toolIcon { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 8px; color: #355779; background: #e9eff7; }
+.toolIcon svg, .toolArrow svg { width: 16px; height: 16px; }
+.toolText { display: grid; gap: 2px; min-width: 0; }
+.toolText small { color: #526781; }
+.toolArrow { margin-inline-start: auto; color: #54677f; transform: rotate(-90deg); }
+:global([dir='rtl']) .toolArrow { transform: rotate(90deg); }

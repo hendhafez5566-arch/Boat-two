@@ -1292,10 +1292,16 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                     )
                   )}
                 </div>
-                <footer className={styles.listFooter}>
+                <footer className={`${styles.listFooter} ${design.customerPagination}`}>
+                  {!contacts.loading && <span>
+                    {t('النتائج', 'Results')} · {contacts.data.total.toLocaleString()}
+                  </span>}
                   <label>
                     {t('الصفوف', 'Rows')}{' '}
-                    <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
+                    <select value={pageSize} onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setPage(1);
+                    }}>
                       {[10, 25, 50, 100].map((size) => (
                         <option key={size}>{size}</option>
                       ))}
@@ -1322,7 +1328,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
               </section>
             </div>
             <details className={design.customerStats} onToggle={(event) => setStatsOpen(event.currentTarget.open)}>
-              <summary>{t('إحصائيات العملاء', 'Customer statistics')}</summary>
+              <DisclosureSummary>{t('إحصائيات العملاء', 'Customer statistics')}</DisclosureSummary>
               {summary.error && (
                 <p className="notice error" role="alert">
                   {summary.error}

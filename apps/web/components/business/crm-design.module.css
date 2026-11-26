@@ -876,3 +876,35 @@ nav.nav .moreLinks a {
   .workspace [data-crm-customers] .quickFilters :global(.btn),
   .workspace [data-crm-customers] [data-customer-actions] :global(.btn) { min-height: 42px !important; }
 }
+
+.workspace[data-crm-work] .headingIcon { background: #e9eff7; color: #355779; border-color: #dce6f1; }
+.workspace[data-crm-work] .workTabs { gap: 3px; padding: 3px; }
+.workspace[data-crm-work] .workTabs button[aria-pressed='true'] { background: #e8eff8; color: #2b4b6f; border-color: #d7e2ee; }
+.workspace[data-crm-work] .workCard {
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  margin-block-end: 5px;
+  min-width: 0;
+  border-radius: 11px;
+}
+.workspace[data-crm-work] .workCard h3 { margin: 0; overflow-wrap: anywhere; }
+.workspace[data-crm-work] .workCard > button:last-child { margin: 0; }
+.workDetails { display: flex; gap: 5px 12px; flex-wrap: wrap; align-items: center; min-width: 0; }
+.workDetails > :is(p, strong) { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.workDetails strong { color: #263c58; font-size: 17px; }
+.stageEmpty { color: #54667d; font-size: 13px; margin: 5px; }
+.workspace [data-crm-customers] tr [data-customer-avatar] {
+  background: #edf2f7;
+  border-color: #d9e3ed;
+  color: #375473;
+}
+.workspace .customerPagination {
+  background: #f4f7fb;
+  border-block-start: 1px solid #e1e8f1;
+  gap: 6px;
+  padding: 7px 10px;
+  flex-wrap: wrap;
+}
+.workspace .customerPagination > span:first-child { margin-inline-end: auto; }
+.workspace .customerStats > summary { padding: 7px 10px; background: #f4f7fb; border-radius: 9px; }

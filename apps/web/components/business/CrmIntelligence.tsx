@@ -240,7 +240,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
     );
   }
   return (
-    <main className={styles.page}>
+    <main className={styles.page} data-crm-report>
       <header className={styles.hero}>
         <div>
           <h1>
@@ -372,7 +372,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
                 className={styles.chart}
                 aria-label={t('عملاء جدد حسب اليوم', 'New customers by day')}
               >
-                {r.growth.map((g) => (
+                {r.growth.map((g, index) => (
                   <Link
                     key={g.day}
                     href={
@@ -390,7 +390,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
                         ),
                       }}
                     />
-                    <small>{g.day.slice(5)}</small>
+                    <small>{index === 0 || index === r.growth.length - 1 || (r.growth.length > 14 && index % 7 === 0) ? g.day.slice(5) : null}</small>
                   </Link>
                 ))}
               </div>
