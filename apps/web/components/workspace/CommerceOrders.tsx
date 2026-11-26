@@ -2,6 +2,7 @@
 import { OrderWorkflowProgress, OrderWorkflowSettings, WorkflowWorkspace } from './OrderWorkflow';
 import { QuoteDetails } from '../inbox/InboxQuoteDialog';
 import { DisclosureSummary } from '../product/DisclosureSummary';
+import { Dialog } from '../product/ProductUI';
 import { useEffect, useRef, useState } from 'react';
 import { NavIcon } from '../product/NavIcon';
 import Link from 'next/link';
@@ -168,6 +169,12 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
   );
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(() => new Set());
   const [historyId, setHistoryId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(orderId ?? null);
+  const [view, setView] = useState<'list' | 'cards'>('list');
+  const [ownership, setOwnership] = useState<'all' | 'unassigned' | 'mine'>('all');
+  const identity = useData<{ user: { id: string } } | null>('/auth/me', null);
+  const workspace = useData<{ role: string } | null>('/workspace', null);
+  const canAssign = ['owner', 'admin'].includes(workspace.data?.role ?? '');
   const history = useData<{ status: string; created_at: string }[]>(historyId ? '/commerce/orders/' + historyId + '/history' : null, []);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -206,6 +213,8 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
         setPackageId('');
         setOrderStatus('');
         setOrderQuery(saved.id);
+        setSelectedId(saved.id);
+        setOwnership('all');
         void summary.reload();
         setPreview(null);
         setPage(1);
@@ -303,6 +312,40 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
     ? t('بانتظار عرض سعر', 'Quote pending') : productPrice(snapshot.totalCents, snapshot.currency);
   const matches = orders.loadedPath === orderPath && !orders.error;
   const counts = new Map(summary.data.map(({ status, count }) => [status, Number(count)]));
+  const pageRows = matches ? orders.data.slice(0, 50) : [];
+  const visibleRows = pageRows.filter(o => ownership === 'all' ||
+    (ownership === 'unassigned' ? !o.assigned_to || !o.assignee_name : !!identity.data?.user?.id && o.assigned_to === identity.data.user.id));
+  const selected = pageRows.find(o => o.id === selectedId);
+  const nextAction = (o: Order) => {
+    if (['completed', 'cancelled'].includes(o.status)) return t('عرض التفاصيل', 'View details');
+    if (!o.assignee_name && canAssign) return t('تعيين مسؤول', 'Assign owner');
+    return ({new:t('ابدأ المراجعة', 'Start review'),review:t('راجع الطلب', 'Review order'),
+      documents_required:t('راجع المستندات', 'Review documents'),processing:t('تابع التنفيذ', 'Track progress'),
+      confirmed:t('تابع الطلب', 'Follow up')} as Record<string,string>)[o.status] ?? t('فتح الطلب', 'Open order');
+  };
+  function openOrder(o: Order, action = false) {
+    setSelectedId(o.id);
+    setAssignmentId(action && !o.assignee_name && canAssign && !['completed','cancelled'].includes(o.status) ? o.id : null);
+    setExpandedOrders(new Set([o.id]));
+    setWorkflowOrder(action && o.status === 'processing' ? o.id : null);
+    setLinkedWorkflowOrder(null);
+    setHistoryId(null);
+    setFollowup(null);
+    setError('');
+  }
+  function closeOrder() {
+    if (busy) return;
+    setSelectedId(null);
+    setAssignmentId(null);
+    setWorkflowOrder(null);
+    setLinkedWorkflowOrder(null);
+    setHistoryId(null);
+    setFollowup(null);
+    setExpandedOrders(new Set());
+  }
+  function selectStatus(status: string) {
+    setOrderStatus(status); setPage(1); setOrderQuery(''); setSelectedId(null); setOwnership('all');
+  }
   return <section className={styles.workspace}>
     <header className={styles.heading}>
       <h2><NavIcon name="list"/> {t('الطلبات والحجوزات', 'Orders and bookings')}</h2>
@@ -311,33 +354,29 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
         {creating ? t('إخفاء النموذج', 'Hide form') : t('طلب جديد', 'New order')}
       </button>
     </header>
-    {!origin && <details onToggle={e => setWorkflowSettings(e.currentTarget.open)}>
-      <DisclosureSummary>{t('إدارة سير العمل', 'Manage workflows')}</DisclosureSummary>
+    {!origin && <div className={styles.workspaceTools}><button className="btn" type="button" onClick={() => setWorkflowSettings(true)}>{t('إعدادات سير العمل', 'Workflow settings')}</button></div>}
+    <Dialog open={workflowSettings} onClose={() => setWorkflowSettings(false)} title={t('إدارة سير العمل', 'Manage workflows')} className={styles.workflowDialog}>
       {workflowSettings && <div className={styles.workflowWorkspace}><OrderWorkflowSettings/><WorkflowWorkspace/></div>}
-    </details>}
+    </Dialog>
     {!origin && <div className={styles.metrics} aria-label={t('ملخص كل الطلبات', 'All orders summary')}>
-      {summary.error ? <p role="alert">{summary.error}</p> : Object.entries(statusLabels).map(([status, label]) =>
-        <button key={status} type="button" className={styles.metric} aria-pressed={orderStatus === status}
-          onClick={() => {
-            setOrderQuery('');
-            setOrderStatus(orderStatus === status ? '' : status);
-            setPage(1);
-          }}>
-          <span>{label}</span><strong>{summary.loading ? '…' : (counts.get(status) ?? 0).toLocaleString()}</strong>
+      {summary.error ? <p role="alert">{summary.error}</p> : [['', t('كل الطلبات', 'All orders')], ...Object.entries(statusLabels)].map(([status, label]) =>
+        <button key={status} type="button" className={styles.metric} data-status={status || 'all'} aria-pressed={orderStatus === status}
+          onClick={() => selectStatus(orderStatus === status ? '' : status)}>
+          <span>{label}</span><strong>{summary.loading ? '…' : (status ? counts.get(status) ?? 0 : [...counts.values()].reduce((a,b)=>a+b,0)).toLocaleString()}</strong>
         </button>,
       )}
     </div>}
     {!origin && <div className={styles.filters}>
       <label><NavIcon name="search"/> {t('بحث في الطلبات', 'Search orders')}
         <input type="search" value={orderQuery} maxLength={120} placeholder={t('العميل أو المنتج أو رقم الطلب', 'Customer, product or order ID')}
-          onChange={(e) => { setOrderQuery(e.target.value); setPage(1); }}/>
+          onChange={(e) => { setOrderQuery(e.target.value); setSelectedId(null); setPage(1); }}/>
       </label>
-      <label>{t('الحالة', 'Status')} <select value={orderStatus} onChange={(e) => { setOrderStatus(e.target.value); setPage(1); }}>
+      <label>{t('الحالة', 'Status')} <select value={orderStatus} onChange={(e) => { setOrderStatus(e.target.value); setSelectedId(null); setPage(1); }}>
         <option value="">{t('كل الحالات', 'All statuses')}</option>
         {Object.entries(statusLabels).map(([status, label]) => <option key={status} value={status}>{label}</option>)}
       </select></label>
       {(orderQuery || orderStatus) && <button type="button" className="btn"
-        onClick={() => { setOrderQuery(''); setOrderStatus(''); setPage(1); }}>
+        onClick={() => { setOrderQuery(''); setOrderStatus(''); setOwnership('all'); setSelectedId(null); setPage(1); }}>
         {t('مسح البحث والتصفية', 'Clear search and filters')}
       </button>}
     </div>}
@@ -391,12 +430,66 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
     {matches && orders.data.length === 0 && <p>{orderQuery || orderStatus
       ? t('لا توجد طلبات مطابقة للبحث أو الحالة.', 'No orders match this search or status.')
       : t('لا توجد طلبات بعد.', 'No orders yet.')}</p>}
-    {matches && orders.data.slice(0, 50).map((o) => <article key={o.id} className={styles.order}>
+    {matches && pageRows.length > 0 && <section className={styles.queue} aria-label={t('قائمة الطلبات', 'Order list')}>
+      <div className={styles.queueToolbar}>
+        <div className={styles.queueFilters}>
+          <strong>{t('الطلبات', 'Orders')} <span className={styles.queueCount}>{visibleRows.length}</span></strong>
+          <label className={styles.ownershipLabel}>{t('المسؤول في الصفحة الحالية', 'Assignee on this page')}
+            <select value={ownership} onChange={e => setOwnership(e.target.value as typeof ownership)}>
+              <option value="all">{t('الكل', 'All')}</option>
+              <option value="unassigned">{t('بدون مسؤول', 'Unassigned')}</option>
+              <option value="mine" disabled={!identity.data?.user?.id}>{t('طلباتي', 'My orders')}</option>
+            </select>
+          </label>
+        </div>
+        <div className={styles.viewToggle} role="group" aria-label={t('طريقة العرض', 'View mode')}>
+          <button type="button" aria-pressed={view==='list'} onClick={()=>setView('list')}>{t('قائمة', 'List')}</button>
+          <button type="button" aria-pressed={view==='cards'} onClick={()=>setView('cards')}>{t('بطاقات', 'Cards')}</button>
+        </div>
+      </div>
+      {visibleRows.length === 0 ? <p className={styles.emptyQueue}>{t('لا توجد طلبات مطابقة في هذه الصفحة.', 'No matching orders on this page.')}</p> :
+      <div className={styles.orderTable} data-view={view}>
+        <table>
+          <thead><tr>
+            <th>{t('الطلب والعميل', 'Order and customer')}</th>
+            <th>{t('الحالة', 'Status')}</th>
+            <th>{t('الإجمالي', 'Total')}</th>
+            <th>{t('المسؤول', 'Assignee')}</th>
+            <th>{t('تاريخ الإنشاء', 'Created')}</th>
+            <th>{t('الإجراء التالي', 'Next action')}</th>
+          </tr></thead>
+          <tbody>{visibleRows.map(o => <tr key={o.id}>
+            <td><button className={styles.orderTitle} type="button" onClick={()=>openOrder(o)}>{o.snapshot.name}</button>
+              <small>{o.contact_name} · <bdi title={o.id}>#{o.id.slice(0,8)}</bdi></small>
+              <small>{o.snapshot.package?.name ?? ''}{o.snapshot.package ? ' · ' : ''}× {o.snapshot.quantity}</small>
+            </td>
+            <td data-label={t('الحالة', 'Status')}><span className={styles.status} data-status={o.status}>{statusLabels[o.status] ?? o.status}</span></td>
+            <td data-label={t('الإجمالي', 'Total')}><strong className={styles.money}><bdi>{amount(o.snapshot)}</bdi></strong></td>
+            <td data-label={t('المسؤول', 'Assignee')}><span className={!o.assignee_name ? styles.unassigned : undefined}>{o.assignee_name ?? t('غير معيّن', 'Unassigned')}</span></td>
+            <td data-label={t('التاريخ', 'Date')}><time dateTime={o.created_at}>{new Date(o.created_at).toLocaleDateString()}</time></td>
+            <td className={styles.rowActions}><button className="btn" type="button" onClick={()=>openOrder(o,true)}>{nextAction(o)}</button></td>
+          </tr>)}</tbody>
+        </table>
+      </div>}
+      <footer className={styles.queueFooter}>
+        <span>{t('صفحة', 'Page')} {page}</span>
+        <div><button type="button" className="btn" disabled={page <= 1 || orders.loading} onClick={()=>{setPage(page-1);setSelectedId(null)}}>{t('السابق', 'Previous')}</button>
+        <button type="button" className="btn" disabled={orders.data.length <= 50 || orders.loading} onClick={()=>{setPage(page+1);setSelectedId(null)}}>{t('التالي', 'Next')}</button></div>
+      </footer>
+    </section>}
+    {matches && !pageRows.length && page>1 && <button className="btn" onClick={()=>setPage(page-1)}>{t('السابق','Previous')}</button>}
+    <Dialog open={!!selected} onClose={closeOrder} title={t('إدارة الطلب', 'Manage order')} className={styles.orderDialog}>
+    {selected && [selected].map((o) => <article key={o.id} className={styles.order}>
+      {error && <p className="notice error" role="alert">{error}</p>}
+      {notice && <p className="notice" role="status">{notice}</p>}
       <header className={styles.heading}>
         <div><h3>{o.snapshot.name}</h3><Link href={'/dashboard/crm?contact=' + o.contact_id}>{o.contact_name}</Link>
           {' · '}<time dateTime={o.created_at}>{new Date(o.created_at).toLocaleDateString()}</time></div>
         <span className={styles.status} data-status={o.status}>{statusLabels[o.status]}</span>
       </header>
+      <div className={styles.detailNext}><div><small>{t('الإجراء المقترح', 'Suggested next action')}</small><strong>{nextAction(o)}</strong></div>
+        {o.status === 'new' && <button className="btn btn-primary" disabled={busy} onClick={()=>void changeStatus(o.id,'review')}>{t('ابدأ المراجعة','Start review')}</button>}
+      </div>
       <div className={styles.filters}>
         {transitions[o.status] && <label>{t('حالة الطلب', 'Order status')}
           <select value={o.status} disabled={busy} onChange={(e) => {
@@ -409,11 +502,11 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
           </select>
         </label>}
         <div>
-          <button className="btn" aria-expanded={assignmentId === o.id}
+          {canAssign ? <button className="btn" aria-expanded={assignmentId === o.id}
             onClick={() => setAssignmentId(assignmentId === o.id ? null : o.id)}>
             {t('المسؤول', 'Assignee')} · {o.assignee_name ?? t('غير معيّن', 'Unassigned')}
-          </button>
-          {assignmentId === o.id && <label>{t('إسناد الطلب', 'Assign order')}
+          </button> : <p>{t('المسؤول', 'Assignee')} · {o.assignee_name ?? t('غير معيّن', 'Unassigned')}</p>}
+          {canAssign && assignmentId === o.id && <label>{t('إسناد الطلب', 'Assign order')}
             <select value={o.assignee_name ? o.assigned_to ?? '' : ''} disabled={busy || members.loading}
               onChange={(e) => void assignOrder(o.id, e.target.value || null)}>
               <option value="">{t('غير معيّن', 'Unassigned')}</option>
@@ -436,7 +529,7 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
         </strong>
         <strong>{amount(o.snapshot)}</strong>
       </div>
-      <details className={styles.details} onToggle={(event) => {
+      <details className={styles.details} open={expandedOrders.has(o.id)} onToggle={(event) => {
         const open = event.currentTarget.open;
         setExpandedOrders((current) => {
           if (current.has(o.id) === open) return current;
@@ -486,7 +579,6 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
           <li key={i}>{statusLabels[event.status]} · {new Date(event.created_at).toLocaleString()}</li>)}</ol>)}
 
     </article>)}
-    {page > 1 && <button className="btn" onClick={() => setPage(page-1)}>{t('السابق', 'Previous')}</button>}
-    {matches && orders.data.length > 50 && <button className="btn" onClick={() => setPage(page+1)}>{t('التالي', 'Next')}</button>}
+    </Dialog>
   </section>;
 }
