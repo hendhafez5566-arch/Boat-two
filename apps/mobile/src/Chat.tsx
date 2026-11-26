@@ -22,8 +22,8 @@ function channelColor(type: string) {
   return type === 'whatsapp' ? '#21A659' : type === 'telegram' ? '#2AABEE' : type === 'instagram' ? '#D86DA4' : '#4C91C9';
 }
 
-export function ChatList({ onOpen, onExpired }: { onOpen: (item: Conversation) => void; onExpired: () => void }) {
-  const [filter, setFilter] = useState<InboxFilter>('mine');
+export function ChatList({ onOpen, onExpired, initialFilter = 'mine' }: { onOpen: (item: Conversation) => void; onExpired: () => void; initialFilter?: InboxFilter }) {
+  const [filter, setFilter] = useState<InboxFilter>(initialFilter);
   const [search, setSearch] = useState('');
   const [items, setItems] = useState<Conversation[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -50,8 +50,8 @@ export function ChatList({ onOpen, onExpired }: { onOpen: (item: Conversation) =
   }, [filter, search, cursor, onExpired]);
 
   // The first-page timer must not depend on the pagination cursor: don't reset the timer after every load.
-  const loadFirst = useCallback(async () => {
-    setRefreshing(true);
+  const loadFirst = useCallback(async (silent = false) => {
+    if (!silent) setRefreshing(true);
     try {
       const selected = filters.find(x => x.id === filter) || filters[0];
       const q = new URLSearchParams(selected.query);
@@ -64,12 +64,12 @@ export function ChatList({ onOpen, onExpired }: { onOpen: (item: Conversation) =
     } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذر تحميل المحادثات');
       if (!getSession()) onExpired();
-    } finally { setRefreshing(false); }
+    } finally { if (!silent) setRefreshing(false); }
   }, [filter, search, onExpired]);
 
   useEffect(() => {
     void loadFirst();
-    const timer = setInterval(() => { if (AppState.currentState === 'active') void loadFirst(); }, 7000);
+    const timer = setInterval(() => { if (AppState.currentState === 'active') void loadFirst(true); }, 7000);
     return () => clearInterval(timer);
   }, [loadFirst]);
 
@@ -157,6 +157,7 @@ export function ChatRoom({ conversation, onBack, onExpired }: {
   const [menuOpen, setMenuOpen] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const list = useRef<FlatList<Message>>(null);
+  const nearBottom = useRef(true);
   const id = conversation.id;
 
   const reload = useCallback(async () => {
@@ -261,7 +262,12 @@ export function ChatRoom({ conversation, onBack, onExpired }: {
         {loadingOlder ? <ActivityIndicator color={C.green} /> : <Text style={{ color: C.green }}>تحميل رسائل أقدم</Text>}
       </Pressable> : null}
       ListEmptyComponent={<Placeholder text="لا توجد رسائل في هذه المحادثة" />}
-      onContentSizeChange={() => { if (!loadingOlder && messages.length < 101) list.current?.scrollToEnd({ animated: false }); }}
+      onScroll={event => {
+        const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+        nearBottom.current = contentOffset.y + layoutMeasurement.height >= contentSize.height - 90;
+      }}
+      scrollEventThrottle={160}
+      onContentSizeChange={() => { if (!loadingOlder && nearBottom.current) list.current?.scrollToEnd({ animated: false }); }}
     />
     <View style={s.composerArea}>
       <Pressable accessibilityLabel="إرسال" accessibilityRole="button" onPress={() => void submit()}
