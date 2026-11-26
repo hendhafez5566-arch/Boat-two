@@ -473,7 +473,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
   return (
     <main className={`${styles.page} ${design.workspace}`}>
       {selected && (
-        <section className={product.record} aria-label={t('ملف العميل', 'Customer profile')}>
+        <section className={product.record} data-crm-record aria-label={t('ملف العميل', 'Customer profile')}>
           <header>
             <button className="btn" type="button" onClick={closeRecord}>
               {t('العودة للعملاء', 'Back to customers')}
@@ -482,6 +482,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
           <SubscriberProfile
             key={selected.id + recordSection}
             contactId={selected.id}
+            fullPage
             initialTab={recordSection}
             canManage={canManage}
             onDraftChange={setProfileDirty}

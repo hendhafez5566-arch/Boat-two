@@ -362,7 +362,7 @@ export function CrmWork({
     />
   );
   return (
-    <section className={`${compact ? '' : styles.page} ${design.workspace}`} data-crm-work={kind}>
+    <section className={`${compact ? '' : styles.page} ${design.workspace}`} data-crm-work={kind} data-crm-compact={compact ? 'true' : undefined}>
       <header className={`${styles.heading} ${design.heading}`}>
         <div>
           <h1>

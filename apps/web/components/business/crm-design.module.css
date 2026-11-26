@@ -966,3 +966,30 @@ nav.nav .moreLinks a {
 .dealControls select { min-width:0; width:100%; }
 @media(max-width:1000px){ .profileLayout{grid-template-columns:1fr} .taskRow{grid-template-columns:repeat(2,minmax(0,1fr))} .taskRow .taskTitle{grid-column:1/-1} }
 @media(max-width:760px){ .workspace [data-crm-customers] .contactTable{min-width:0!important} .workspace [data-crm-customers] .contactTable tr{grid-template-columns:repeat(2,minmax(0,1fr))} .workspace [data-crm-customers] .contactTable td{min-width:0!important} .workspace [data-crm-customers] .contactTable td:nth-child(2),.workspace [data-crm-customers] .contactTable td:last-child{grid-column:1/-1} }
+
+/* One coherent CRM theme, limited to the full-page customer record. */
+.profileTopActions { display:contents; }
+.profile[data-full-profile='true'] .profileTopActions { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; background:white; padding:12px 20px 16px; border:1px solid #e2e6ef; border-top:0; border-radius:0 0 12px 12px; }
+.profile[data-full-profile='true'] .summaryAction { background:#f3f1ff; border:1px solid #e0dafb; border-radius:9px; color:#43359e; font-size:13px; }
+.profile[data-full-profile='true'] .profileCounters { padding:0; gap:8px; }
+.profile[data-full-profile='true'] .profileCounters button { min-height:72px; padding:10px 14px; background:#fff; border-color:#e2e6ef; border-radius:10px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.profile[data-full-profile='true'] .profileCounters button:hover { border-color:#bcb2ed; background:#faf9ff; }
+.profile[data-full-profile='true'] .profileCounters button strong { color:#5140bc; font-size:22px; }
+.profile[data-full-profile='true'] .profileLayout { grid-template-columns:minmax(0,2.5fr) minmax(220px,1fr); padding:0; gap:0; border:1px solid #e2e6ef; border-top:0; border-radius:0 0 12px 12px; align-items:start; background:white; min-height:220px; }
+.profile[data-full-profile='true'] .profileSidebar { padding:14px; border-inline-start:1px solid #e7eaf0; background:#f8f9fc; border-end-end-radius:12px; }
+.profile[data-full-profile='true'] .profileFacts { padding:14px; border-color:#e2e6ef; }
+.profile[data-full-profile='true'] .profileFacts h3 { color:#19233c; font-size:15px; }
+.profile[data-full-profile='true'] .profileFacts dt { color:#64748b; }
+.profile[data-full-profile='true'] .profileFacts dd { color:#263650; font-size:13px; line-height:1.6; }
+.profile[data-full-profile='true'] [data-crm-compact=true] { display:grid; gap:10px; min-width:0; }
+.profile[data-full-profile='true'] [data-crm-compact=true] .heading h1 { font-size:17px!important; line-height:1.5; }
+.profile[data-full-profile='true'] [data-crm-compact=true] .headingIcon { display:none; }
+.profile[data-full-profile='true'] [data-crm-compact=true] .heading { gap:8px; flex-wrap:wrap; }
+.profile[data-full-profile='true'] [data-crm-compact=true] :global(.btn-primary) { background:#6050ce; border-color:#6050ce; color:white; }
+.profile[data-full-profile='true'] [data-crm-compact=true] .workTabs { flex-wrap:wrap; padding:4px; gap:4px; }
+.profile[data-full-profile='true'] [data-crm-compact=true] .workTabs button { min-height:34px; font-size:12px; padding:6px 8px; }
+.profile[data-full-profile='true'] [data-crm-compact=true] .workTabs button[aria-pressed=true] { background:#eeeaff; color:#5140bc; border-color:#e0dafb; }
+.profile[data-full-profile='true'] [data-crm-compact=true] .taskRow { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.profile[data-full-profile='true'] [data-crm-compact=true] .taskTitle { grid-column:1/-1; }
+@media(max-width:950px){.profile[data-full-profile='true'] .profileLayout{grid-template-columns:minmax(0,1fr)}.profile[data-full-profile='true'] .profileSidebar{border-inline-start:0;border-top:1px solid #e7eaf0}}
+@media(max-width:640px){.profile[data-full-profile='true'] .profileTopActions{padding:12px;gap:8px}.profile[data-full-profile='true'] .profileCounters{grid-template-columns:repeat(2,minmax(0,1fr))}.profile[data-full-profile='true'] .profileCounters button{flex-direction:column;align-items:flex-start;min-height:60px}}

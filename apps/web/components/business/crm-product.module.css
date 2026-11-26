@@ -273,3 +273,8 @@
 .page [data-today-queue] { grid-template-columns:repeat(auto-fit,minmax(min(100%,235px),1fr)); align-items:start; }
 .page [data-today-queue] > section:first-child h2 { color:#9f3434; background:#fff2f2; }
 .page [data-today-queue] > section:nth-child(2) h2 { color:#875409; background:#fff7e3; }
+
+.record[data-crm-record] { position:static; display:grid; gap:10px; overflow:visible; padding:0 0 20px; background:transparent; }
+.record[data-crm-record] > header { position:static; background:transparent; padding:0; border-radius:0; }
+.record[data-crm-record] > header button { min-height:34px; background:transparent; border-color:#dce1eb; color:#526177; box-shadow:none; }
+@media(max-width:760px){.record[data-crm-record]{position:static;inset:auto;overflow:visible;background:transparent;padding:0 0 16px;}}

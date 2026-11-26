@@ -86,6 +86,7 @@ const tabs = [
 
 export default function SubscriberProfile({
   contactId,
+  fullPage = false,
   initialTab = 'overview',
   canManage,
   onChanged,
@@ -93,6 +94,7 @@ export default function SubscriberProfile({
   onDeleted,
 }: {
   contactId: string;
+  fullPage?: boolean;
   initialTab?: string;
   canManage: boolean;
   onChanged: () => void;
@@ -283,10 +285,11 @@ export default function SubscriberProfile({
   return (
     <aside
       className={`${styles.profile} ${design.profile}`}
+      data-full-profile={fullPage ? 'true' : undefined}
       aria-label={t('ملف العميل', 'Customer profile')}
     >
       <header className={styles.profileHeader}>
-        <span className={styles.avatar}>{contact?.name?.slice(0, 2) || '?'}</span>
+        <span className={styles.avatar}>{contact && /^(visitor|زائر)$/i.test(contact.name.trim()) ? <NavIcon name="user"/> : contact?.name?.slice(0, 2) || '?'}</span>
         <div>
           <h2>{contact && /^(visitor|زائر)$/i.test(contact.name.trim()) ? t('زائر','Visitor') + ' #' + contact.id.slice(0,6) : contact?.name || t('ملف العميل', 'Customer profile')}</h2>
           {contact && !contact.phone && !contact.email && <small>{t('لا توجد بيانات تواصل مسجلة','No contact details recorded')}</small>}
@@ -321,6 +324,7 @@ export default function SubscriberProfile({
       )}
       {profile && contact && (
         <>
+          <div className={design.profileTopActions}>
           <div className={styles.profileMeta}>
             {canManage ? (
               <label className={design.lifecycleControl}>
@@ -403,8 +407,9 @@ export default function SubscriberProfile({
               </button>
             )}
           </div>
+          </div>
           <div className={styles.profileSummary}>
-            <div className={premium.actions}>
+            <div className={premium.actions} data-profile-identity>
               <span className={premium.badge}>
                 <NavIcon name="user" />
                 {members.data.members.find((m) => m.user_id === contact.owner_id)?.full_name ||
@@ -448,12 +453,12 @@ export default function SubscriberProfile({
               </button>
             )}
           </div>
-          <div className={design.profileCounters} aria-label={t('ملخص السجلات الحديثة','Recent records summary')}>
+          <div className={design.profileCounters} title={t('الأعداد تخص السجلات الحديثة المتاحة في الملف','Counts reflect recent records available in the profile')} aria-label={t('ملخص السجلات الحديثة','Recent records summary')}>
             {([
-              [t('المحادثات الحديثة','Recent conversations'),profile.timeline.conversations.length,'overview'],
-              [t('فرص مفتوحة في السجل','Open deals in recent records'),profile.timeline.deals.filter(d=>d.status==='open').length,'deals'],
-              [t('متابعات مفتوحة في السجل','Open follow-ups in recent records'),profile.timeline.tasks.filter(task=>task.status==='open').length,'tasks'],
-              [t('ملاحظات حديثة','Recent notes'),profile.timeline.notes.length,'notes']
+              [t('المحادثات','Conversations'),profile.timeline.conversations.length,'overview'],
+              [t('الفرص المفتوحة','Open deals'),profile.timeline.deals.filter(d=>d.status==='open').length,'deals'],
+              [t('المتابعات المفتوحة','Open follow-ups'),profile.timeline.tasks.filter(task=>task.status==='open').length,'tasks'],
+              [t('الملاحظات','Notes'),profile.timeline.notes.length,'notes']
             ] as const).map(([label,count,key])=><button type="button" key={key} onClick={()=>{if(setTab(key))setQuickCreate('');}}><span>{label}</span><strong>{count}</strong></button>)}
           </div>
           <nav
@@ -478,7 +483,7 @@ export default function SubscriberProfile({
                 </button>
               ))}
           </nav>
-          <div className={design.profileLayout}>
+          <div className={design.profileLayout} data-active-section={tab}>
           <div className={styles.profileBody}>
             {tab === 'deals' && (
               <CrmWork
@@ -1090,8 +1095,8 @@ export default function SubscriberProfile({
           <aside className={design.profileSidebar}>
             <section className={design.profileFacts}><h3>{t('بيانات العميل','Customer details')}</h3>
               <dl><div><dt>{t('المسؤول','Owner')}</dt><dd>{members.data.members.find(m=>m.user_id===contact.owner_id)?.full_name || (contact.owner_id?t('غير متاح','Unavailable'):t('دون مسؤول','Unassigned'))}</dd></div>
-              <div><dt>{t('المصدر','Source')}</dt><dd>{String(contact.attributes.source || profile.channels.map(c=>c.name).join('، ') || t('غير محدد','Not recorded'))}</dd></div>
-              <div><dt>{t('آخر تحديث للملف','Profile updated')}</dt><dd>{date(contact.updated_at)}</dd></div>
+              <div><dt>{t('المصدر','Source')}</dt><dd>{String(contact.attributes.source || t('غير محدد','Not recorded'))}</dd></div><div><dt>{t('القنوات المرتبطة','Linked channels')}</dt><dd>{profile.channels.map(c=>c.name).join('، ') || '—'}</dd></div>
+              <div><dt>{t('بيانات التواصل','Contact details')}</dt><dd>{contact.phone || contact.email || t('غير مسجلة','Not recorded')}</dd></div><div><dt>{t('آخر تحديث للملف','Profile updated')}</dt><dd>{date(contact.updated_at)}</dd></div>
               <div><dt>{t('الوسوم','Labels')}</dt><dd>{contact.tags.join('، ') || '—'}</dd></div></dl>
             </section>
                       <details className={styles.profileMore}>
