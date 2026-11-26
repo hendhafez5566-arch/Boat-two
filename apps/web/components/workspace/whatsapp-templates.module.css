@@ -78,7 +78,7 @@
 .editor {
   display: grid;
   gap: 14px;
-  width: min(100%, 760px);
+  width: min(100%, 1140px);
   margin-inline: auto;
 }
 .editor .back {

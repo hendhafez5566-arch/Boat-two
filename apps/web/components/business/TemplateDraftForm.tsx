@@ -408,7 +408,10 @@ export function TemplateDraftForm({
             </p>
           )
         )}
-        <p className="whitespace-pre-wrap">{body}</p>
+        <p className="whitespace-pre-wrap" dir="auto">
+          {body ||
+            (!manager && t('معاينة النص هتظهر هنا.', 'Your message preview will appear here.'))}
+        </p>
         {footer && <small>{footer}</small>}
         <div className="flex flex-wrap gap-2">
           {buttons.map((b, i) => (
@@ -487,7 +490,7 @@ export function TemplateDraftForm({
         });
       }}
     >
-      <fieldset disabled={busy} className={manager ? studio.layout : studio.defaultLayout}>
+      <fieldset disabled={busy} className={manager ? studio.layout : studio.draftLayout}>
         {manager ? (
           <>
             <div className={studio.main}>
@@ -547,20 +550,24 @@ export function TemplateDraftForm({
                 ? t('تعديل مسودة القالب', 'Edit template draft')
                 : t('قالب واتساب جديد', 'New WhatsApp template')}
             </h1>
-            <div className={studio.draftFields}>
-              {basicFields}
-              {categoryField}
-            </div>
-            {contentFields}
-            <details className={studio.draftOptions}>
-              <summary>{t('ترويسة وتذييل وأزرار', 'Header, footer and buttons')}</summary>
-              <div className="stack">
-                {headerFields}
-                {footerField}
-                {buttonFields}
+            <div className={studio.draftWorkspace}>
+              <div className={studio.draftInput}>
+                <div className={studio.draftFields}>
+                  {basicFields}
+                  {categoryField}
+                </div>
+                {contentFields}
+                <details className={studio.draftOptions}>
+                  <summary>{t('ترويسة وتذييل وأزرار', 'Header, footer and buttons')}</summary>
+                  <div className="stack">
+                    {headerFields}
+                    {footerField}
+                    {buttonFields}
+                  </div>
+                </details>
               </div>
-            </details>
-            {body.trim() && <div className={studio.draftPreview}>{previewFields}</div>}
+              <aside className={studio.draftPreview}>{previewFields}</aside>
+            </div>
             <div className={studio.draftActions}>{actionFields}</div>
           </>
         )}

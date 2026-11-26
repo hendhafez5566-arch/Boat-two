@@ -209,20 +209,35 @@
 .draftOptions > div {
   padding-block-end: 12px;
 }
-@media (max-width: 620px) {
-  .draftFields {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 .draft {
-  display: grid;
-  gap: 18px;
+  container: template-editor / inline-size;
   padding: clamp(16px, 3vw, 28px);
   border: 1px solid #dce5ec;
   border-radius: 16px;
   background: #fff;
   min-width: 0;
+}
+.draftLayout {
+  display: grid;
+  gap: 18px;
+  min-inline-size: 0;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.draftWorkspace,
+.draftInput {
+  display: grid;
+  align-items: start;
+  gap: 16px;
+  min-width: 0;
+}
+.draftPreview {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.draftPreview p {
+  white-space: pre-wrap;
 }
 .draft h1 {
   margin: 0;
@@ -258,7 +273,12 @@
 .draftActions button {
   min-height: 44px;
 }
-@media (max-width: 1040px) {
+@container template-editor (min-width: 760px) {
+  .draftWorkspace {
+    grid-template-columns: minmax(0, 1.9fr) minmax(235px, 1fr);
+  }
+}
+@container template-editor (max-width: 539px) {
   .draftFields {
     grid-template-columns: minmax(0, 1fr);
   }
