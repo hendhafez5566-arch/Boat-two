@@ -1,0 +1,245 @@
+.console {
+  --platform-ink: #19273d;
+  --platform-muted: #50617a;
+  --platform-accent: #225d68;
+  --platform-line: #dbe5ed;
+  background: #f2f6fa;
+  color: var(--platform-ink);
+  min-height: 100dvh;
+  padding: clamp(14px, 3vw, 40px);
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.signedIn > * {
+  width: min(100%, 1360px);
+  margin-inline: auto;
+}
+
+.signIn > * {
+  width: min(100%, 480px);
+  margin-inline: auto;
+}
+
+.signIn {
+  padding-block-start: clamp(24px, 10vh, 100px);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-radius: 18px;
+  background: #142e40;
+  color: white;
+  padding: clamp(16px, 3vw, 28px);
+}
+
+.header h1 {
+  margin: 3px 0 0;
+  font-size: clamp(1.35rem, 3vw, 2rem);
+}
+
+.brand {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  color: #b3e9e2;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(175px, 235px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.nav,
+.panel {
+  border: 1px solid var(--platform-line);
+  border-radius: 16px;
+  background: white;
+  display: grid;
+  gap: 10px;
+  padding: 15px;
+}
+
+.nav {
+  gap: 4px;
+  padding: 8px;
+}
+
+.nav button {
+  border: 0;
+  background: transparent;
+  color: var(--platform-ink);
+  font: inherit;
+  font-weight: 650;
+  min-height: 44px;
+  border-radius: 10px;
+  padding: 8px 12px;
+  text-align: start;
+}
+
+.nav button:hover,
+.nav button[aria-current] {
+  background: #def2ef;
+  color: #174954;
+}
+
+.content {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.panel h2 {
+  margin: 0 0 4px;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 155px), 1fr));
+  gap: 10px;
+}
+
+.metric {
+  border: 1px solid var(--platform-line);
+  border-radius: 14px;
+  background: #f7fbfc;
+  padding: 16px;
+  display: grid;
+  align-content: space-between;
+  gap: 8px;
+}
+
+.metric span,
+.secondary,
+.empty {
+  color: var(--platform-muted);
+}
+.metric strong {
+  color: var(--platform-accent);
+  font-size: 1.8rem;
+}
+
+.verification {
+  border: 1px solid var(--platform-line);
+  border-radius: 12px;
+  background: #eaf5f5;
+  padding: 10px 14px;
+}
+
+.verification label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.verification input {
+  width: 8rem;
+  direction: ltr;
+}
+
+.row {
+  border: 1px solid var(--platform-line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  min-width: 0;
+}
+
+.row summary {
+  min-height: 32px;
+}
+.row summary > span {
+  flex-wrap: wrap;
+}
+.rowTitle,
+.secondary {
+  overflow-wrap: anywhere;
+}
+.rowTitle {
+  font-weight: 700;
+}
+.rowBody,
+.row > form {
+  padding-block-start: 12px;
+}
+.rowBody {
+  display: grid;
+  gap: 12px;
+}
+.rowBody form + form {
+  border-block-start: 1px solid var(--platform-line);
+  padding-block-start: 12px;
+}
+
+.tag,
+.permissions li {
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-size: 0.82rem;
+  background: #edf4f9;
+  color: #304b68;
+}
+
+.permissions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0;
+  list-style: none;
+}
+.console :global(.card) {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.console :global(.form-actions) {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.console :is(input, select, textarea, pre) {
+  max-width: 100%;
+}
+.console pre {
+  overflow: auto;
+}
+.console :global(.btn) {
+  min-height: 42px;
+}
+.console :global(.btn-primary) {
+  background: var(--platform-accent);
+  color: white;
+}
+
+@media (max-width: 760px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .nav {
+    display: flex;
+    overflow-x: auto;
+  }
+  .nav button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  .panel {
+    padding: 12px;
+  }
+}
+
+.filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  justify-self: start;
+}
