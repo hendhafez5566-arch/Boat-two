@@ -25,7 +25,7 @@ test('manual unread marker is scoped to the workspace, idempotent, and emits upd
     }),
   };
   const events = { emit: (_event: string, data: typeof seen[number]) => seen.push(data) };
-  const inbox = new InboxController(db as never, {} as never, {} as never, {} as never, events as never);
+  const inbox = new InboxController(db as never, {} as never, {} as never, {} as never, events as never, {} as never);
   const request = (tenantId: string) => ({ user: { tenantId, userId: 'agent-1', role: 'agent' } }) as never;
   assert.deepEqual(await inbox.unread(request('company-a'), 'chat-1'), { ok: true, unread_count: 1 });
   assert.deepEqual(await inbox.unread(request('company-a'), 'chat-1'), { ok: true, unread_count: 1 });

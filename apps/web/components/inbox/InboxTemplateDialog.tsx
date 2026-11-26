@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { useData } from '../business/useData';
@@ -11,9 +12,11 @@ type ReplyTemplate = { id: string; name: string; language: string; body: string;
 export function InboxTemplateDialog({
   conversationId,
   close,
+  manageHref,
 }: {
   conversationId: string;
   close: () => void;
+  manageHref?: string;
 }) {
   const { t } = useLocale();
   const path = '/conversations/' + conversationId;
@@ -193,6 +196,7 @@ export function InboxTemplateDialog({
         )}
         {error && <p role="alert">{error}</p>}
       </div>
+      {manageHref && <Link className="btn" href={manageHref}>{t('إدارة قوالب واتساب', 'Manage WhatsApp templates')}</Link>}
     </Dialog>
   );
 }

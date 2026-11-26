@@ -1,5 +1,6 @@
 'use client';
 import { OrderWorkflowProgress, OrderWorkflowSettings, WorkflowWorkspace } from './OrderWorkflow';
+import { QuoteDetails } from '../inbox/InboxQuoteDialog';
 import { DisclosureSummary } from '../product/DisclosureSummary';
 import { useEffect, useRef, useState } from 'react';
 import { NavIcon } from '../product/NavIcon';
@@ -176,7 +177,8 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
   const orderParams = new URLSearchParams({ page: String(page), q: orderQuery });
   if (orderStatus) orderParams.set('status', orderStatus);
   const orderPath = '/commerce/orders?' + orderParams;
-  const orders = useData<Order[]>(orderPath, []);
+  const orders = useData<Order[]>(origin && !orderQuery ? null : orderPath, []);
+  const customer = useData<{ contact_name: string } | null>(origin ? '/conversations/' + origin.conversationId : null, null);
   const summary = useData<{ status: string; count: string }[]>(origin ? null : '/commerce/orders/summary', []);
   const [packageId, setPackageId] = useState('');
   async function submit(form: HTMLFormElement, save: boolean) {
@@ -325,7 +327,7 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
         </button>,
       )}
     </div>}
-    <div className={styles.filters}>
+    {!origin && <div className={styles.filters}>
       <label><NavIcon name="search"/> {t('بحث في الطلبات', 'Search orders')}
         <input type="search" value={orderQuery} maxLength={120} placeholder={t('العميل أو المنتج أو رقم الطلب', 'Customer, product or order ID')}
           onChange={(e) => { setOrderQuery(e.target.value); setPage(1); }}/>
@@ -338,9 +340,14 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
         onClick={() => { setOrderQuery(''); setOrderStatus(''); setPage(1); }}>
         {t('مسح البحث والتصفية', 'Clear search and filters')}
       </button>}
-    </div>
+    </div>}
     <div className={creating ? 'card stack' : undefined} hidden={!creating}>
       <h3>{t('طلب جديد', 'New order')}</h3>
+      {origin && <p>
+        {t('العميل', 'Customer')} <strong>{customer.data?.contact_name ?? (customer.loading ? '…' : t('تعذر تحديد العميل', 'Customer unavailable'))}</strong>
+        {' · '}<Link href={'/dashboard/inbox?conversation=' + origin.conversationId}>{t('فتح المحادثة', 'Open conversation')}</Link>
+      </p>}
+      {origin && customer.error && <p role="alert">{customer.error}</p>}
       <label>{t('بحث بالمنتج أو SKU', 'Find product by name or SKU')}
         <input value={search} maxLength={120} onChange={(e) => setSearch(e.target.value)}/></label>
       <label>{t('المنتج', 'Product')}
@@ -364,18 +371,16 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
           const button = (e.nativeEvent as SubmitEvent).submitter;
           void submit(e.currentTarget, button?.getAttribute('value') === 'save');
         }}>
-        {origin ? <p>{t('سيُربط الطلب بعميل المحادثة.', 'This order will use the conversation customer.')} {' '}
-          <Link href={'/dashboard/inbox?conversation=' + origin.conversationId}>{t('فتح المحادثة', 'Open conversation')}</Link></p>
-        : <label>{t('العميل', 'Customer')} <select name="contact" defaultValue="" required>
+        {!origin && <label>{t('العميل', 'Customer')} <select name="contact" defaultValue="" required>
           <option value="">{t('اختر عميلاً', 'Choose customer')}</option>
           {contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select></label>}
         <CheckoutSelection product={picked} packageId={packageId} onPackage={setPackageId}/>
         <button className="btn" disabled={busy}>{t('معاينة السعر', 'Preview price')}</button>
-        {preview && <p role="status">{amount(preview)}</p>}
+        {preview && <section className="card" role="status"><QuoteDetails quote={preview}/></section>}
         {picked.checkout?.kind === 'appointment'
           ? <p>{t('احجز عبر تبويب المواعيد.', 'Book from the Appointments tab.')}</p>
-          : <button className="btn btn-primary" value="save" disabled={busy}>{t('حفظ الطلب', 'Save order')}</button>}
+          : <button className="btn btn-primary" value="save" disabled={busy || Boolean(origin && !customer.data)}>{t('حفظ الطلب', 'Save order')}</button>}
       </form>}
       {products.error && <p role="alert">{products.error}</p>}
     </div>

@@ -97,6 +97,13 @@ export function TemplateDraftForm({
   ];
   const basicFields = (
     <div className={studio.draftFields}>
+      {!initial && !name && !body && <button type="button" className="btn" onClick={() => {
+        setName('booking_quote_follow_up');
+        setLanguage('ar');
+        setCategory('UTILITY');
+        setBody('مرحبًا {{1}}، بخصوص طلب عرض السعر الذي طلبته لخدمة {{2}}، الإجمالي {{3}}. إذا رغبت في المتابعة، يرجى الرد حتى نراجع التوفر معك.');
+        setExamples('محمد\nغرفة رباعية\n٤١٬٠٠٠ جنيه مصري');
+      }}>{t('ابدأ بقالب متابعة عرض سعر', 'Start with a quote follow-up template')}</button>}
       <label className="field">
         {t('اسم القالب بالإنجليزية', 'Template name in English')}
         <input

@@ -1,3 +1,5 @@
+import { CommerceService } from '../commerce/commerce.service';
+import { selectionSchema } from '../commerce/checkout';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   BadRequestException,
@@ -95,6 +97,7 @@ export class InboxController {
     private readonly assignment: AssignmentService,
     private readonly channels: ChannelsService,
     private readonly events: EventEmitter2,
+    private readonly commerce: CommerceService,
   ) {}
 
   private changed(tenantId: string, conversationId: string, reason: string) {
@@ -413,6 +416,24 @@ export class InboxController {
     });
     if (result.started) this.changed(tenantId, result.id, 'crm_started');
     return result;
+  }
+
+  @Get('conversations/:id/quote-products')
+  async quoteProducts(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string, @Query('q') query: unknown) {
+    const q = parse(z.string().trim().max(120).default(''), query);
+    return this.db.withTenant(req.user.tenantId, async () => {
+      await this.assertConversationOwner(req, id, true);
+      return this.commerce.quoteProducts(req.user.tenantId, q);
+    });
+  }
+
+  @Post('conversations/:id/quote-preview')
+  async quotePreview(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    const selection = parse(selectionSchema, body);
+    return this.db.withTenant(req.user.tenantId, async () => {
+      await this.assertConversationOwner(req, id, true);
+      return this.commerce.quote(req.user.tenantId, selection);
+    });
   }
 
   @Get('conversations/:id/templates')

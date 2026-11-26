@@ -1,5 +1,6 @@
 'use client';
 import { catchUpMessages } from '../../../lib/inbox-catchup';
+import { InboxQuoteDialog } from '../../../components/inbox/InboxQuoteDialog';
 import { InboxTemplateDialog } from '../../../components/inbox/InboxTemplateDialog';
 import { InboxConversationMenu } from '../../../components/inbox/InboxConversationMenu';
 import { InboxFilters, EMPTY_INBOX_FILTERS } from '../../../components/inbox/InboxFilters';
@@ -63,6 +64,7 @@ const preview = (c: any) =>
 
 export default function Inbox() {
   const { t, language } = useLocale();
+  const [quoteConversation, setQuoteConversation] = useState<string | null>(null);
   const [templateConversation, setTemplateConversation] = useState<string | null>(null);
   const [needsReply, setNeedsReply] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
@@ -1212,6 +1214,21 @@ export default function Inbox() {
                       {t('ملاحظة', 'Note')}
                     </button>
                   </div>
+                  {process.env.NEXT_PUBLIC_COMMERCE_CHECKOUT === 'true' && !internal && selId && (
+                    <button type="button" className="btn" onClick={() => setQuoteConversation(selId)}>
+                      <NavIcon name="commerce" />{t('عرض سعر من الكتالوج', 'Catalog quote')}
+                    </button>
+                  )}
+                  {quoteConversation && quoteConversation === selId && (
+                    <InboxQuoteDialog key={quoteConversation} conversationId={quoteConversation} customer={title(detail)}
+                      close={() => setQuoteConversation(null)}
+                      insert={replyUnavailable ? undefined : draft => {
+                        setInternal(false);
+                        setText(current => current.trim() ? current + '\n\n' + draft : draft);
+                        setQuoteConversation(null);
+                      }}
+                    />
+                  )}
                   {!internal && !detail.blocked && detail.channel_type === 'whatsapp' && selId && (
                     <button type="button" className="btn" onClick={() => setTemplateConversation(selId)}>
                       {t('استخدام قالب واتساب', 'Use WhatsApp template')}
@@ -1219,6 +1236,7 @@ export default function Inbox() {
                   )}
                   {templateConversation && templateConversation === selId && (
                     <InboxTemplateDialog key={selId} conversationId={selId}
+                      manageHref={['owner', 'admin'].includes(workspaceRole) ? `/dashboard/channels/${detail.channel_id}/templates` : undefined}
                       close={() => setTemplateConversation(null)} />
                   )}
                   {internal && (

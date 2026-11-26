@@ -259,6 +259,19 @@ export class CommerceService {
     });
   }
 
+  quoteProducts(tenant: string, search: string) {
+    return this.db.withTenant(tenant, async c => {
+      const { rows } = await c.query(
+        `SELECT id,name,currency,checkout,options FROM catalog_products
+         WHERE tenant_id=$1 AND NOT archived AND source_id IS NULL
+           AND ($2='' OR strpos(lower(name),lower($2))>0 OR strpos(lower(sku),lower($2))>0)
+         ORDER BY name,id LIMIT 50`,
+        [tenant, search],
+      );
+      return rows;
+    });
+  }
+
   async quote(tenant: string, input: Selection) {
     return this.db.withTenant(tenant, async (c) => {
       const { rows: [product] } = await c.query<CheckoutProduct>(

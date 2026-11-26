@@ -89,7 +89,7 @@ test('subscriber profiles and inbox views execute against PostgreSQL with tenant
       [conversation, tenant, account, contact],
     );
     const crm = new CrmService(db, { assertWithinLimit: async () => {} } as any);
-    const inbox = new InboxController(db, {} as any, {} as any, {} as any, { emit() {} } as any);
+    const inbox = new InboxController(db, {} as any, {} as any, {} as any, { emit() {} } as any, {} as any);
     const req: any = { user: { tenantId: tenant, userId: user } };
     await t.test(
       'system action configuration is versioned, tenant isolated and executes opt-out and handoff',
