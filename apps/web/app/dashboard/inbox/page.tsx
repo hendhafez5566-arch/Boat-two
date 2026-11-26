@@ -1,5 +1,6 @@
 'use client';
 import { catchUpMessages } from '../../../lib/inbox-catchup';
+import { InboxTemplateDialog } from '../../../components/inbox/InboxTemplateDialog';
 import { InboxConversationMenu } from '../../../components/inbox/InboxConversationMenu';
 import { InboxFilters, EMPTY_INBOX_FILTERS } from '../../../components/inbox/InboxFilters';
 import { InboxFollowupDialog } from '../../../components/inbox/InboxFollowupDialog';
@@ -62,6 +63,7 @@ const preview = (c: any) =>
 
 export default function Inbox() {
   const { t, language } = useLocale();
+  const [templateConversation, setTemplateConversation] = useState<string | null>(null);
   const [needsReply, setNeedsReply] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [showContext, setShowContext] = useState(false);
@@ -1210,6 +1212,16 @@ export default function Inbox() {
                       {t('ملاحظة', 'Note')}
                     </button>
                   </div>
+                  {!internal && !detail.blocked && detail.channel_type === 'whatsapp' && selId && (
+                    <button type="button" className="btn" onClick={() => setTemplateConversation(selId)}>
+                      {t('استخدام قالب واتساب', 'Use WhatsApp template')}
+                    </button>
+                  )}
+                  {templateConversation && templateConversation === selId && (
+                    <InboxTemplateDialog key={selId} conversationId={selId}
+                      contactName={detail.contact_name || ''}
+                      close={() => setTemplateConversation(null)} />
+                  )}
                   {internal && (
                     <p className="composer-note-banner" role="status">
                       {t(
@@ -1232,8 +1244,8 @@ export default function Inbox() {
                               'This conversation is blocked. You can add an internal note.',
                             )
                           : t(
-                              'انتهت نافذة واتساب. الرد الحر معطّل؛ يمكنك كتابة ملاحظة داخلية أو استخدام قالب معتمد من مسار الحملات.',
-                              'The WhatsApp window has expired. Free-form replies are disabled; add an internal note or use an approved template through campaigns.',
+                              'انتهت نافذة واتساب. استخدم قالبًا معتمدًا أو أضف ملاحظة داخلية.',
+                              'The WhatsApp window has expired. Use an approved template or add an internal note.',
                             )}
                       </p>
                       <button type="button" className="btn mt-2" onClick={() => setInternal(true)}>

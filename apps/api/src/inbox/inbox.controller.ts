@@ -24,6 +24,7 @@ import { z } from 'zod';
 import { Roles } from '../auth/decorators';
 import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
+import { env } from '../config/env';
 import { DatabaseService } from '../database/database.service';
 import { telegramFile } from '../messaging/adapters/telegram.adapter';
 import { GRAPH } from '../messaging/adapters/adapter';
@@ -413,6 +414,26 @@ export class InboxController {
     return result;
   }
 
+  @Get('conversations/:id/templates')
+  async replyTemplates(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    await this.assertConversationOwner(req, id);
+    return this.db.withTenant(req.user.tenantId, async (c) => {
+      const result = await c.query(
+        `SELECT t.id,t.name,t.language,t.body,t.category,
+          (SELECT part->>'text' FROM jsonb_array_elements(t.components) part WHERE part->>'type'='FOOTER') AS footer
+          FROM conversations cv JOIN channels ch ON ch.id=cv.channel_id
+          JOIN whatsapp_templates t ON t.channel_id=ch.id
+          WHERE cv.id=$1 AND ch.type='whatsapp' AND ch.status='active'
+            AND t.status='APPROVED' AND t.supported AND t.tenant_id=cv.tenant_id
+            AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(t.components) part
+              WHERE part->>'type' NOT IN ('BODY','FOOTER'))
+          ORDER BY t.name,t.language`,
+        [id],
+      );
+      return { templates: result.rows, deliveryEnabled: env.EXTERNAL_DELIVERY_ENABLED === 'true' };
+    });
+  }
+
   @Post('conversations/:id/messages')
   async send(
     @Req() req: AuthedRequest,
@@ -422,6 +443,8 @@ export class InboxController {
     return this.db.conversation(req.user.tenantId, id, async () => {
       await this.assertConversationOwner(req, id);
       const content = parse(contentSchema, body);
+      if (content.template && env.EXTERNAL_DELIVERY_ENABLED !== 'true')
+        throw new ForbiddenException('Template delivery is disabled in this environment');
       const result = await this.messaging.sendOutbound({
         tenantId: req.user.tenantId,
         conversationId: id,
