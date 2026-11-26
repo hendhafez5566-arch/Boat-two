@@ -128,7 +128,7 @@ export default function Commerce({
   );
   return (
     <section className={`commerce-page ${catalogStyles.commerceWorkspace}`}>
-      <header className={catalogStyles.commerceHeader}>
+      {!orderId && <header className={catalogStyles.commerceHeader}>
         <h1>
           {initialTab === 'appointments'
             ? t('حجز المواعيد', 'Appointment Booking')
@@ -138,9 +138,9 @@ export default function Commerce({
         </h1>
         {initialTab !== 'appointments' && catalogNavigation}
         {initialTab && contextActions}
-      </header>
+      </header>}
       {initialTab === 'appointments' && channelScope}
-      {!initialTab && (
+      {!initialTab && tab !== 'orders' && (
         <details className="card">
           <DisclosureSummary>{t('سياق القناة', 'Channel context')}</DisclosureSummary>
           {channelScope}

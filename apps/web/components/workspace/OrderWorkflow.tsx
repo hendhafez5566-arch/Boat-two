@@ -214,7 +214,7 @@ export function OrderWorkflowProgress({ id, closed, source = 'order' }: { id: st
         </span>
       </div>
       <ol className={styles.stages}>{work.workflow.stages.map((stage, index) =>
-        <li key={index} aria-current={!work.workflow.finished && index === work.workflow.stage ? 'step' : undefined}>{stage.name}</li>)}</ol>
+        <li key={index} aria-current={!work.workflow.finished && index === work.workflow.stage ? 'step' : undefined} data-stage-state={work.workflow.finished || index < work.workflow.stage ? 'done' : index === work.workflow.stage ? 'current' : 'pending'}><span>{work.workflow.finished || index < work.workflow.stage ? '✓' : index+1}</span><strong>{stage.name}</strong><small>{work.workflow.finished || index < work.workflow.stage ? t('مكتمل','Done') : index===work.workflow.stage ? t('المرحلة الحالية','Current stage') : t('بانتظار التنفيذ','Pending')}</small></li>)}</ol>
       <div className={styles.toolbar}>
         <span>{work.assignee_name ?? t('بدون مسؤول', 'Unassigned')} · {new Date(work.due_at).toLocaleString()}</span>
         <Link href={'/dashboard/crm/tasks?status=&id=' + work.id}>{t('فتح مهمة CRM', 'Open CRM task')}</Link>
