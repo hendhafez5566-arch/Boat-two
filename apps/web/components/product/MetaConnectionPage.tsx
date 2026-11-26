@@ -116,7 +116,6 @@ export default function MetaConnectionPage({
           </div>
         </>
       )}
-      {kind === 'whatsapp' && connectionMethods}
       {saved && (
         <p role="status" className="notice">
           {t('تم حفظ الحساب. راجع حالته أدناه.', 'Account saved. Review its status below.')}
@@ -130,10 +129,10 @@ export default function MetaConnectionPage({
       {(kind === 'whatsapp' || rows.length > 0) && (
         <section className={styles.accounts}>
           <div className={styles.accountsHeading}><h2>{t('الحسابات المتصلة', 'Connected accounts')}</h2><span>{accounts.loading ? '—' : rows.length}</span></div>
-          <div className={styles.filters}>
+          <div className={styles.filters} hidden={rows.length <= 1 && !search && filter === 'all'}>
             <label>
               <span>{t('بحث الحسابات', 'Search accounts')}</span>
-              <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <input type="search" placeholder={t('ابحث بالاسم أو المعرف', 'Search by name or ID')} value={search} onChange={(e) => setSearch(e.target.value)} />
             </label>
             <label>
               <span>{t('الحالة', 'Status')}</span>
@@ -243,7 +242,7 @@ export default function MetaConnectionPage({
           )}
         </section>
       )}
-      {kind !== 'whatsapp' && connectionMethods}
+      {connectionMethods}
     </main>
   );
 }

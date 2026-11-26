@@ -300,3 +300,17 @@
 .manual > button { min-height:36px; font-size:12px; }
 .manual > form { border:1px solid #dce5ed; border-radius:12px; padding:14px; background:white; }
 @media (max-width:660px) { .connectionCards { grid-template-columns:minmax(0,1fr); } .connectCard { padding:14px; } }
+
+/* Manual credentials stay in an explicit dialog, never the main account page. */
+.manualEntry { display:flex; align-items:center; justify-content:flex-start; flex-wrap:wrap; gap:8px; padding-block:4px; color:#526177; font-size:13px; }
+.manualEntry > button { min-height:38px; }
+.manualDialog { width:min(540px, calc(100% - 24px)); }
+.manualForm { display:grid; gap:16px; min-width:0; }
+.manualForm p { margin:0; line-height:1.6; color:#526177; font-size:13px; }
+.manualForm label small { color:#64748b; font-size:12px; }
+.manualForm input { width:100%; min-width:0; }
+.manualDetails { background:#f7f9fc; border:1px solid #e2e8f0; padding:10px; border-radius:8px; }
+.manualActions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+.connectAction:disabled { opacity:1; color:#53627b; background:#eef1f5; border:1px solid #dce2eb; }
+.connectFooter .setupInline { display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; width:100%; border:1px solid #e8ddc4; background:#fffaf0; color:#674b18; padding:9px 12px; border-radius:8px; line-height:1.6; }
+.connectFooter .setupInline span { font-size:12px; }

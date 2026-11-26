@@ -1,5 +1,6 @@
 'use client';
 import { DisclosureSummary } from './DisclosureSummary';
+import { Dialog } from './ProductUI';
 import styles from './meta-connect.module.css';
 
 import { useState, type FormEvent } from 'react';
@@ -51,10 +52,20 @@ export default function MetaConnect({
   const [existingWabaId, setExistingWabaId] = useState('');
   const [existingToken, setExistingToken] = useState('');
   const [existingOpen, setExistingOpen] = useState(false);
+  const [manualError, setManualError] = useState('');
+  const validManual = /^\d+$/.test(existingWabaId.trim()) && existingToken.trim().length >= 10 && !/\s/.test(existingToken.trim());
+  function closeManual() {
+    if (busy) return;
+    setExistingOpen(false);
+    setExistingWabaId('');
+    setExistingToken('');
+    setManualError('');
+  }
   async function attachExisting(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
+    if (busy || !validManual) return;
     setError('');
+    setManualError('');
     setBusy(true);
     try {
       const result = await api<{ accounts: { id: string; webhookReady: boolean }[] }>(
@@ -68,6 +79,8 @@ export default function MetaConnect({
         },
       );
       setExistingToken('');
+      setExistingWabaId('');
+      setExistingOpen(false);
       onSaved();
       if (result.accounts.some((a) => !a.webhookReady))
         setError(
@@ -77,7 +90,7 @@ export default function MetaConnect({
           ),
         );
     } catch (e) {
-      setError((e as Error).message);
+      setManualError((e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -207,7 +220,7 @@ export default function MetaConnect({
                   <ul>{method.points.map((point) => <li key={point}>{point}</li>)}</ul>
                   <button type="button" className={styles.connectAction} disabled={busy || !canAuthorizeWhatsApp}
                     onClick={() => { if (canAuthorizeWhatsApp) void connect('whatsapp', selectedCatalog, method.mode); }}>
-                    {busy ? t('جارٍ الربط…', 'Connecting…') : t('ربط باستخدام Meta', 'Connect with Meta')} <span aria-hidden="true">↗</span>
+                    {busy ? t('جارٍ الربط…', 'Connecting…') : config.loading ? t('جارٍ التحقق…', 'Checking…') : canAuthorizeWhatsApp ? t('ربط باستخدام Meta', 'Connect with Meta') : t('بانتظار إعداد Meta', 'Awaiting Meta setup')} <span aria-hidden="true">{canAuthorizeWhatsApp ? '↗' : '—'}</span>
                   </button>
                 </article>
               ))}
@@ -220,75 +233,52 @@ export default function MetaConnect({
                 </label>
               )}
               {config.loading ? <small role="status">{t('جارٍ التحقق من جاهزية Meta…', 'Checking Meta readiness…')}</small> :
-                !canAuthorizeWhatsApp ? <small className={styles.setupInline} role="status">{t('الربط الرسمي يحتاج استكمال إعداد Meta للمنصة. حساباتك الحالية لن تتأثر.', 'Official connection requires platform Meta setup. Existing accounts are unaffected.')}</small> :
+                !canAuthorizeWhatsApp ? <div className={styles.setupInline} role="status"><strong>{t('الربط التلقائي غير جاهز', 'Automatic connection unavailable')}</strong><span>{t('يجب استكمال إعداد التسجيل المضمّن لدى Meta مرة واحدة للمنصة. لا يلزم إعادة ربط حساباتك الحالية.', 'Complete the platform’s one-time Meta Embedded Signup setup. Existing accounts do not need reconnection.')}</span></div> :
                 <small>{t('لا تحذف رقمك الحالي قبل التحقق من أهلية الربط.', 'Do not delete your existing account before checking eligibility.')}</small>}
             </div>
           </section>
-          {enabled && <section className={styles.manual}>
-            <button type="button" className="btn" aria-expanded={existingOpen} aria-controls="whatsapp-api-form"
-              disabled={busy} onClick={() => {
-                setExistingOpen(!existingOpen);
-                if (existingOpen) setExistingToken('');
+          {enabled && <div className={styles.manualEntry}>
+            <span>{t('لديك إعداد API جاهز بالفعل؟', 'Already have API credentials?')}</span>
+            <button type="button" className="btn" aria-haspopup="dialog" disabled={busy}
+              onClick={() => {
+                setExistingWabaId('');
+                setExistingToken('');
+                setManualError('');
+                setExistingOpen(true);
               }}>
-              {t('خيارات متقدمة — الربط اليدوي باستخدام API', 'Advanced options — manual API connection')}
+              {t('ربط يدوي متقدم', 'Advanced manual connection')}
             </button>
+            <Dialog open={existingOpen} onClose={closeManual} title={t('ربط WhatsApp يدويًا', 'Connect WhatsApp manually')} className={styles.manualDialog}>
               {existingOpen && (
-                <form id="whatsapp-api-form" className="stack" onSubmit={attachExisting}>
-                  <h3>
-                    {t('معرّف حساب الأعمال + رمز الوصول', 'Business Account ID + Access Token')}
-                  </h3>
+                <form id="whatsapp-api-form" autoComplete="off" className={styles.manualForm} onSubmit={attachExisting}>
+                  <p>{t('استخدم بيانات تطبيق Meta فقط، وليس بريدك الإلكتروني أو كلمة مرور تسجيل الدخول.', 'Use Meta API credentials only, never your email or login password.')}</p>
                   <label className="field">
-                    {t('معرّف حساب WhatsApp Business', 'WhatsApp Business Account ID')}
-                    <input
-                      required
-                      pattern="[0-9]+"
-                      inputMode="numeric"
-                      value={existingWabaId}
-                      onChange={(e) => setExistingWabaId(e.target.value)}
-                      dir="ltr"
-                      autoComplete="off"
-                      disabled={busy}
-                    />
+                    {t('معرّف حساب WhatsApp Business (WABA ID)', 'WhatsApp Business Account ID (WABA ID)')}
+                    <input required pattern="[0-9]+" inputMode="numeric" name="meta-waba-id" type="text"
+                      placeholder="123456789012345" value={existingWabaId}
+                      onChange={(e) => setExistingWabaId(e.target.value)} dir="ltr" autoComplete="off" disabled={busy}/>
+                    <small>{t('أرقام فقط، من إعدادات نشاطك التجاري لدى Meta.', 'Digits only, from your Meta business settings.')}</small>
                   </label>
                   <label className="field">
-                    {t('رمز الوصول', 'Access Token')}
-                    <input
-                      required
-                      minLength={10}
-                      maxLength={4000}
-                      type="password"
-                      value={existingToken}
-                      onChange={(e) => setExistingToken(e.target.value)}
-                      dir="ltr"
-                      autoComplete="off"
-                      disabled={busy}
-                    />
+                    {t('رمز الوصول (Access Token)', 'Access Token')}
+                    <input required minLength={10} maxLength={4000} name="meta-api-access-token" type="password"
+                      placeholder={t('الصق رمز Meta هنا', 'Paste Meta token here')} value={existingToken}
+                      onChange={(e) => setExistingToken(e.target.value)} dir="ltr" autoComplete="new-password" disabled={busy}/>
                   </label>
-                  {config.data.webhookUrl && (
-                    <div>
-                      <strong>{t('عنوان استقبال Webhook', 'WEBHOOK CALLBACK URL')}</strong>
-                      <p className={styles.callback} dir="ltr">
-                        {config.data.webhookUrl}
-                      </p>
-                    </div>
-                  )}
-                  <details>
-                    <DisclosureSummary>
-                      {t('إعداد التحقق من Webhook', 'Webhook verification setup')}
-                    </DisclosureSummary>
-                    <p>
-                      {t(
-                        'يدير مسؤول المنصة رمز التحقق وعناوين السياسات الخاصة بتطبيق Meta. لا يتم كشف أسرار التطبيق في مساحة العمل.',
-                        'The platform administrator manages the verification token and Meta app policy URLs. App secrets are not exposed in the workspace.',
-                      )}
-                    </p>
+                  <details className={styles.manualDetails}>
+                    <DisclosureSummary>{t('إعدادات Webhook للمطورين', 'Webhook settings for developers')}</DisclosureSummary>
+                    {config.data.webhookUrl && <p className={styles.callback} dir="ltr">{config.data.webhookUrl}</p>}
+                    <p>{t('يدير مسؤول المنصة رمز التحقق وأسرار تطبيق Meta. لا تظهر هنا.', 'The platform administrator manages the verification token and Meta app secrets. They are not exposed here.')}</p>
                   </details>
-                  <button className="btn btn-primary" disabled={busy || !enabled}>
-                    {busy ? t('جارٍ الربط…', 'Connecting…') : t('ربط', 'Connect')}
-                  </button>
+                  {manualError && <p className="notice error" role="alert">{manualError}</p>}
+                  <div className={styles.manualActions}>
+                    <button type="button" className="btn" disabled={busy} onClick={closeManual}>{t('إلغاء', 'Cancel')}</button>
+                    <button type="submit" className="btn btn-primary" disabled={busy || !enabled || !validManual}>{busy ? t('جارٍ الربط…', 'Connecting…') : t('تحقق واربط', 'Verify and connect')}</button>
+                  </div>
                 </form>
               )}
-          </section>}
+            </Dialog>
+          </div>}
         </div>
       ) : (
         <div className={styles.socialSetup}>

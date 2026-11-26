@@ -184,3 +184,11 @@
 .accountsHeading > span { border-radius:6px; padding:3px 8px; font-size:12px; color:#475569; background:#f1f5f9; }
 .accounts { padding:16px; }
 @media (max-width:480px) { .heading { padding:12px; } .headingCopy h1 { font-size:18px; } .heading > button { width:100%; } .statistics { gap:8px; } }
+
+/* Connected accounts first; new account setup is secondary. */
+.filters[hidden] { display:none; }
+.page > section[id="meta-connect-methods"] { min-width:0; scroll-margin-block-start:16px; }
+.accounts .table td { vertical-align:middle; }
+.accounts .table tbody th small { display:inline-block; margin-inline-start:12px; }
+.accounts .table tbody th { font-weight:500; }
+.accounts .table tbody th strong { font-weight:650; }
