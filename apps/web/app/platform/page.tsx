@@ -229,6 +229,18 @@ function Console() {
     );
   }
 
+  const primaryLimits = {
+    messages_per_month: t('الرسائل شهريًا', 'Messages per month'),
+    contacts: t('الحد الإجمالي للعملاء', 'Total contact limit'),
+    ai_credits: t('رصيد الذكاء الاصطناعي الشهري', 'Monthly AI credits'),
+  };
+  const limitLabels: Record<string, string> = {
+    ...primaryLimits,
+    agents: t('مقاعد الفريق', 'Team seats'),
+    channels: t('القنوات', 'Channels'),
+    flows: t('التدفقات', 'Flows'),
+  };
+
   const sections = [
     { id: 'overview', label: t('نظرة عامة', 'Overview'), permission: '' },
     {
@@ -927,6 +939,70 @@ function Console() {
               {activeSection.id === 'plans' && (
                 <section className={styles.panel}>
                   <h2>{t('الباقات والحدود', 'Plans and limits')}</h2>
+                  {permissions.includes('plans.write') && data && data.plans.length > 0 && (
+                    <details className={styles.row}>
+                      <DisclosureSummary>{t('إنشاء باقة', 'Create plan')}</DisclosureSummary>
+                      <form
+                        className="stack"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          const form = new FormData(event.currentTarget);
+                          const limits = Object.fromEntries(
+                            Object.keys(primaryLimits).map((key) => [key, Number(form.get(key))]),
+                          );
+                          void act(() =>
+                            request('/plans', {
+                              code: form.get('code'),
+                              name: form.get('name'),
+                              templateCode: form.get('templateCode'),
+                              limits,
+                              reason: form.get('reason'),
+                            }),
+                          );
+                        }}
+                      >
+                        <div className="form-grid">
+                          <label className="field">
+                            {t('اسم الباقة', 'Plan name')}
+                            <input name="name" maxLength={100} required />
+                          </label>
+                          <label className="field">
+                            {t('رمز فريد بالإنجليزية', 'Unique plan code')}
+                            <input name="code" dir="ltr" pattern="[a-z][a-z0-9\-]{1,39}" required />
+                          </label>
+                          <label className="field">
+                            {t('نسخ باقي الإعدادات من', 'Copy other settings from')}
+                            <select name="templateCode">
+                              {data.plans.map((plan) => (
+                                <option key={plan.code} value={plan.code}>
+                                  {plan.name}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          {Object.entries(primaryLimits).map(([key, label]) => (
+                            <label className="field" key={key}>
+                              {label}
+                              <input name={key} type="number" min={-1} max={1000000000} required />
+                            </label>
+                          ))}
+                        </div>
+                        <p className="muted">
+                          {t(
+                            '٠ للمنع، و−١ لغير محدود. تُنشأ الباقة غير متاحة حتى تفعيلها.',
+                            'Use 0 to disable and −1 for unlimited. The plan starts unavailable until enabled.',
+                          )}
+                        </p>
+                        <label className="field">
+                          {t('سبب التغيير', 'Change reason')}
+                          <input name="reason" minLength={10} maxLength={1000} required />
+                        </label>
+                        <button className="btn btn-primary" disabled={busy}>
+                          {t('إنشاء باقة', 'Create plan')}
+                        </button>
+                      </form>
+                    </details>
+                  )}
                   {data?.plans.map((plan) => (
                     <details className={styles.row} key={plan.code}>
                       <DisclosureSummary>
@@ -981,7 +1057,7 @@ function Console() {
                         <div className="form-grid">
                           {Object.entries(plan.limits).map(([key, value]) => (
                             <label className="field" key={key}>
-                              {key}
+                              {limitLabels[key] ?? key}
                               <input
                                 name={'limit-' + key}
                                 type="number"
