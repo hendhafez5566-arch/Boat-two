@@ -9,8 +9,8 @@ const channels = [
   {
     id: 'whatsapp',
     name: 'WhatsApp',
-    ar: 'ربط رقم الأعمال عبر Meta',
-    en: 'Connect your business number through Meta',
+    ar: 'استخدم رقمك الحالي أو Cloud API من خلال Meta.',
+    en: 'Keep your current number or connect Cloud API through Meta.',
   },
   {
     id: 'facebook',
@@ -53,8 +53,14 @@ export default function ChannelCatalog() {
       {channels.map((c) => (
         <Link href={`/dashboard/channels/connect/${c.id}`} key={c.id} className={styles.platform} data-provider={c.id}>
           <span className={styles.platformLogo}><ChannelLogo id={c.id} /></span>
-          <span className={styles.platformText}><strong><bdi>{c.name}</bdi></strong><small>{t(c.ar, c.en)}</small></span>
-          <span className={styles.platformArrow}><NavIcon name="chevron" /></span>
+          <span className={styles.platformText}>
+            <strong><bdi>{c.name}</bdi></strong>
+            <small>{t(c.ar, c.en)}</small>
+          </span>
+          <span className={styles.platformAction}>
+            {c.id === 'google' ? t('إعداد التكامل', 'Set up integration') : t('خيارات الربط', 'Connection options')}
+            <span className={styles.platformArrow}><NavIcon name="chevron" /></span>
+          </span>
         </Link>
       ))}
     </section>

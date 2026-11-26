@@ -54,3 +54,18 @@
 .platformArrow { flex: none; margin-inline-start: auto; transform: rotate(-90deg); }
 .platformArrow svg { width: 15px; height: 15px; }
 :global([dir='rtl']) .platformArrow { transform: rotate(90deg); }
+
+/* Channel catalog: responsive cards; keep connection status in the account list. */
+.catalog { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 14px; }
+.platform { flex-direction: column; align-items: stretch; min-height: 166px; padding: 16px; border-radius: 14px; gap: 12px; box-shadow: 0 2px 8px rgba(15,23,42,.035); }
+.platform:focus-visible { outline: 2px solid var(--primary, #6154de); outline-offset: 3px; }
+.platformLogo { width: 46px; height: 46px; border-radius: 12px; }
+.platformLogo svg { width: 30px; height: 30px; }
+.platformText { gap: 4px; }
+.platformText strong { font-size: 15px; }
+.platformText small { line-height: 1.6; }
+.platformAction { margin-block-start: auto; display: flex; align-items: center; gap: 6px; border-top: 1px solid #e8edf3; padding-top: 10px; font-size: 12px; font-weight: 650; color: #334b72; }
+.platform[data-provider='whatsapp'] { border-color: #b9e3ce; }
+.platform[data-provider='whatsapp'] .platformLogo { background: #e5f8ed; }
+.platform[data-provider='whatsapp'] .platformAction { color: #166543; }
+@media (max-width: 480px) { .catalog { grid-template-columns: minmax(0,1fr); gap: 10px; } .platform { min-height: 0; padding: 13px; } }

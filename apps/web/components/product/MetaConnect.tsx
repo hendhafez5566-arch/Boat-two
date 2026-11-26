@@ -181,17 +181,33 @@ export default function MetaConnect({
             </section>
           ) : (
             <section className={styles.wizard}>
-              <h2>{t('ربط رقم واتساب', 'Connect a WhatsApp number')}</h2>
+              <div className={styles.wizardIntro}>
+                <h2>{t('ربط WhatsApp Business', 'Connect WhatsApp Business')}</h2>
+                <p>{t('اختر الطريقة المناسبة لرقمك. سنرشدك خلال التفويض الرسمي لدى Meta دون الحاجة إلى نسخ مفاتيح API.', 'Choose the method for your number. We guide you through official Meta authorization without copying API keys.')}</p>
+              </div>
               <ol className={styles.progress}>
                 {[t('نوع الرقم', 'Number type'), t('الكتالوج', 'Catalog'), t('تفويض Meta', 'Meta authorization')].map((label, index) =>
                   <li key={label} aria-current={step === index + 1 ? 'step' : undefined}><span>{index + 1}</span>{label}</li>)}
               </ol>
               {step === 1 && <fieldset className={styles.options}>
                 <legend>{t('أي رقم تريد ربطه؟', 'Which number are you connecting?')}</legend>
-                <label><input type="radio" name="whatsappMode" checked={whatsappMode === 'coexistence'} onChange={() => setWhatsappMode('coexistence')} />
-                  {t('رقم أستخدمه في تطبيق WhatsApp Business', 'A number I use in the WhatsApp Business app')}</label>
-                <label><input type="radio" name="whatsappMode" checked={whatsappMode === 'cloud'} onChange={() => setWhatsappMode('cloud')} />
-                  {t('رقم مخصص لـ WhatsApp Cloud API', 'A number for WhatsApp Cloud API')}</label>
+                <label className={styles.modeCard}>
+                  <input type="radio" name="whatsappMode" disabled={busy} checked={whatsappMode === 'coexistence'} onChange={() => setWhatsappMode('coexistence')} />
+                  <span className={styles.modeCopy}>
+                    <strong>{t('استخدم رقم واتساب بيزنس الحالي', 'Keep your existing WhatsApp Business number')}</strong>
+                    <span className={styles.modeTag}>Coexistence</span>
+                    <small>{t('استمر في استخدام التطبيق على الموبايل، واربط نفس الرقم بالمنصة للأتمتة وصندوق الوارد إذا كان مؤهلًا لدى Meta.', 'Keep using the mobile app and connect the same number for automation and the inbox if Meta confirms eligibility.')}</small>
+                    <small>{t('لا تحذف حسابك أو تطبيقك قبل التحقق من أهلية الربط.', 'Do not delete your account or app before checking eligibility.')}</small>
+                  </span>
+                </label>
+                <label className={styles.modeCard}>
+                  <input type="radio" name="whatsappMode" disabled={busy} checked={whatsappMode === 'cloud'} onChange={() => setWhatsappMode('cloud')} />
+                  <span className={styles.modeCopy}>
+                    <strong>{t('اربط رقمًا مخصصًا للمنصة', 'Connect a dedicated business number')}</strong>
+                    <span className={styles.modeTag}>Cloud API</span>
+                    <small>{t('أدر الرسائل والبوت وفريق العمل عبر المنصة. اختر رقمًا مؤهلًا وأكمل التحقق الرسمي لدى Meta.', 'Manage messaging, bots and your team from the platform. Choose an eligible number and complete Meta verification.')}</small>
+                  </span>
+                </label>
               </fieldset>}
               {step === 2 && <fieldset className={styles.options}>
                 <legend>{t('هل تريد ربط كتالوج المنتجات؟', 'Do you want to connect a product catalog?')}</legend>
@@ -201,7 +217,11 @@ export default function MetaConnect({
                   {t('ربط الرسائل والكتالوج', 'Connect messaging and catalog')}</label>
                 {!config.data.catalogConfigured && <small>{t('ربط الكتالوج يحتاج إعدادًا من مسؤول المنصة.', 'Catalog onboarding requires platform setup.')}</small>}
               </fieldset>}
-              {step === 3 && <p>{t('سجّل الدخول في نافذة Meta، واختر حساب النشاط والرقم، ثم ارجع لتراجع حالة الاتصال.', 'Sign in to Meta, choose your business account and number, then return to check the connection.')}</p>}
+              {step === 3 && <div className={styles.review}>
+                <h3>{t('راجع اختيارك قبل التفويض', 'Review your choice before authorization')}</h3>
+                <p><strong>{whatsappMode === 'coexistence' ? 'Coexistence' : 'Cloud API'}</strong> · {withCatalog ? t('الرسائل والكتالوج', 'Messaging and catalog') : t('الرسائل فقط', 'Messaging only')}</p>
+                <p>{t('سجّل الدخول في نافذة Meta الرسمية، واختر النشاط والرقم، ثم ارجع للتحقق من حالة القناة. إتمام التفويض لا يعني نجاح إرسال رسالة فعلية.', 'Sign in to the official Meta window, select your business and number, then return to check channel health. Authorization alone does not confirm live message delivery.')}</p>
+              </div>}
               <div className={styles.wizardActions}>
                 {step > 1 && <button className="btn" disabled={busy} type="button" onClick={() => setStep(step - 1)}>{t('رجوع', 'Back')}</button>}
                 <button className="btn btn-primary" type="button" disabled={busy}
@@ -210,7 +230,7 @@ export default function MetaConnect({
                     if (step < 3) setStep(step + 1);
                     else void connect('whatsapp', withCatalog);
                   }}>
-                  {step < 3 ? t('متابعة', 'Continue') : t('متابعة إلى Meta', 'Continue to Meta')}
+                  {busy ? t('جارٍ الربط…', 'Connecting…') : step < 3 ? t('متابعة', 'Continue') : t('المتابعة مع Meta', 'Continue with Meta')}
                 </button>
               </div>
             </section>
@@ -221,7 +241,7 @@ export default function MetaConnect({
                 setExistingOpen(!existingOpen);
                 if (existingOpen) setExistingToken('');
               }}>
-              {t('ربط يدوي باستخدام API', 'Manual API connection')}
+              {t('خيارات متقدمة — الربط اليدوي باستخدام API', 'Advanced options — manual API connection')}
             </button>
               {existingOpen && (
                 <form id="whatsapp-api-form" className="stack" onSubmit={attachExisting}>

@@ -241,3 +241,25 @@
 .options input { flex: none; width: 17px; height: 17px; }
 .wizardActions { display: flex; justify-content: flex-end; gap: 6px; }
 .manual > button { justify-self: start; }
+
+/* Redesign preview: keep authorization behavior unchanged. */
+.setup { width: min(100%, 62rem); gap: 16px; }
+.wizard { padding: clamp(16px, 3vw, 28px); gap: 20px; border-radius: 16px; box-shadow: 0 4px 20px rgba(15, 23, 42, .05); }
+.wizardIntro p { color: #526177; margin: 8px 0 0; line-height: 1.7; }
+.progress { gap: 8px; }
+.progress li { padding: 10px; }
+.progress li span { display: grid; place-items: center; min-width: 22px; height: 22px; border-radius: 50%; background: #fff; }
+.options { gap: 12px; }
+.options .modeCard { align-items: flex-start; padding: 16px; gap: 12px; border-radius: 12px; cursor: pointer; }
+.modeCard input { margin-block-start: 4px; }
+.modeCopy { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; gap: 7px; }
+.modeCopy strong { font-size: 15px; line-height: 1.5; }
+.modeCopy small { line-height: 1.65; color: #526177; }
+.modeTag { background: #e8eef9; color: #33476d; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 650; }
+.modeCard:has(input:checked) .modeTag { background: #d6f2e6; color: #14563d; }
+.options label:focus-within { outline: 2px solid var(--primary, #6154de); outline-offset: 2px; }
+.review { border: 1px solid #dce5ef; padding: 16px; border-radius: 12px; background: #f7fafc; }
+.review h3 { margin: 0 0 10px; font-size: 15px; }
+.review p { margin: 6px 0; color: #435770; line-height: 1.65; }
+.wizardActions .btn { min-height: 44px; }
+@media (max-width: 480px) { .progress li { flex-direction: column; align-items: center; text-align: center; font-size: 11px; padding: 8px 4px; } .options .modeCard { padding: 12px; } .wizardActions { flex-wrap: wrap; } }
