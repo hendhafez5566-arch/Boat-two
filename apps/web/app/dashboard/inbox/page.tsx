@@ -704,12 +704,10 @@ export default function Inbox() {
             className={`${selId ? 'hidden lg:flex' : 'flex'} inbox-list w-full flex-col border-l bg-white lg:w-80`}
           >
             <h1 className={styles.listTitle}>{t('المحادثات', 'Conversations')}</h1>
-            {needsReply && (
-              <button className="btn" onClick={() => setNeedsReply(false)}>
-                <NavIcon name="filter" />
-                {t('تنتظر ردًا · مسح الفلتر', 'Awaiting reply · clear filter')}
-              </button>
-            )}
+            <div className="inbox-quick-filters" aria-label={t('قائمة العمل','Work queue')}>
+              {(['active','mine','unassigned','unread'] as Tab[]).map(key=><button key={key} type="button" aria-pressed={tab===key&&!needsReply} onClick={()=>{setNeedsReply(false);selectTab(key);}}>{key==='active'?t('الكل','All'):key==='mine'?t('محادثاتي','Mine'):key==='unassigned'?t('غير مسندة','Unassigned'):t('غير مقروءة','Unread')}</button>)}
+              <button type="button" aria-pressed={needsReply} onClick={()=>setNeedsReply(!needsReply)}>{t('تنتظر الرد','Awaiting reply')}</button>
+            </div>
             <form
               className={styles.searchBar}
               onSubmit={(e) => {
@@ -999,7 +997,7 @@ export default function Inbox() {
                         </button>
                       )}
                     </strong>
-                    <small>{detail.contact_phone || detail.channel_name}</small>
+                    <small>{detail.contact_phone || detail.channel_name}</small><small className="inbox-handler" data-bot={detail.handled_by==='bot'}>{detail.handled_by==='bot'?t('يديرها البوت','Handled by bot'):t('يديرها الفريق','Handled by team')}</small>
                     {process.env.NEXT_PUBLIC_COMMERCE_CHECKOUT === 'true' &&
                       ['owner', 'admin'].includes(workspaceRole) && detail.channel_id && (
                       <Link href={'/dashboard/commerce?' + new URLSearchParams({

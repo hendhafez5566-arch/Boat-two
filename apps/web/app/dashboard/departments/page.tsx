@@ -1,4 +1,5 @@
 'use client';
+import { Dialog } from '../../../components/product/ProductUI';
 import { DisclosureSummary } from '../../../components/product/DisclosureSummary';
 
 import { useState } from 'react';
@@ -41,6 +42,7 @@ export default function Departments() {
   const [members, setMembers] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [createOpen,setCreateOpen]=useState(false);
   return (
     <main className="stack">
       <div className="page-heading">
@@ -54,6 +56,7 @@ export default function Departments() {
             )}
           </p>
         </div>
+        <button type="button" className="btn btn-primary" onClick={()=>{setMembers([]);setError('');setCreateOpen(true);}}>+ {t('قسم جديد','New department')}</button>
       </div>
       {(error || data.error || metrics.error) && (
         <p className="notice error">{error || data.error || metrics.error}</p>
@@ -66,12 +69,12 @@ export default function Departments() {
         />{' '}
         {t('عرض الأقسام المؤرشفة', 'Include archived departments')}
       </label>
-      <p className="notice">
+      <details className="card"><DisclosureSummary>{t('طريقة احتساب مستوى الخدمة','How service levels are measured')}</DisclosureSummary><p className="muted">
         {t(
           'المؤشرات لآخر 30 يومًا حسب تاريخ إنشاء المحادثة، بتوقيت UTC وزمن تقويمي. يُستخدم وقت إنشاء أول رسالة موظف عامة حالتها مرسلة؛ وليس وقت تأكيد المزود. المقارنة بهدف القسم وتعيين المحادثة الحاليين؛ ليست تقريرًا تاريخيًا لساعات العمل.',
           'Metrics cover conversations created in the last 30 days, in UTC wall-clock time. Response uses creation time of the first public staff message with sent status, not provider acknowledgement time. Targets and department assignments are current; this is not a historical business-hours SLA report.',
         )}
-      </p>
+      </p></details>
       <div className="card-grid">
         {data.data.map((d) => (
           <section className="card" key={d.id}>
@@ -195,8 +198,8 @@ export default function Departments() {
           </section>
         ))}
       </div>
-      <form
-        className="card stack"
+      <Dialog open={createOpen} onClose={()=>{if(!busy)setCreateOpen(false);}} title={t('قسم جديد','New department')}><form
+        className="stack"
         onSubmit={async (e) => {
           e.preventDefault();
           const form = e.currentTarget;
@@ -213,6 +216,7 @@ export default function Departments() {
             });
             form.reset();
             setMembers([]);
+            setCreateOpen(false);
             data.reload();
           } catch (e) {
             setError((e as Error).message);
@@ -221,7 +225,7 @@ export default function Departments() {
           }
         }}
       >
-        <h2>{t('قسم جديد', 'New department')}</h2>
+        {error&&<p className="notice error" role="alert">{error}</p>}
         <div className="form-grid">
           <label className="field">
             {t('الاسم', 'Name')}
@@ -252,7 +256,7 @@ export default function Departments() {
         <button disabled={busy} className="btn btn-primary self-start">
           {t('إنشاء القسم', 'Create department')}
         </button>
-      </form>
+      </form></Dialog>
     </main>
   );
 }

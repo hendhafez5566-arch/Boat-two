@@ -669,7 +669,7 @@ export default function BotManager() {
                           <td data-label="#">{(currentPage - 1) * pageSize + index + 1}</td>
                           {section === 'bot_reply' && (
                             <td title={f.id} data-label={t('المعرّف الفريد', 'Unique ID')}>
-                              <span className={styles.uniqueId}>{f.id}</span>
+                              <details className="flow-reference"><summary><bdi>{f.id.slice(0,8)}…</bdi></summary><code><bdi>{f.id}</bdi></code></details>
                             </td>
                           )}
                           <td data-label={t('الاسم المرجعي', 'Reference Name')}>
@@ -728,6 +728,8 @@ export default function BotManager() {
                                 </>
                               ) : (
                                 <>
+                              {managementLink(channelHref(`/dashboard/flows/${f.id}`, channelId), `${t('تعديل', 'Edit')}: ${f.name}`, "edit", t('تعديل', 'Edit'))}
+                              <details className="flow-more"><summary>{t('المزيد','More')}</summary><div>
                               <button
                                 type="button"
                                 className="btn"
@@ -741,7 +743,7 @@ export default function BotManager() {
                                   })
                                 }
                               >
-                                <NavIcon name="copy" />
+                                <NavIcon name="copy" /> {t('نسخ التدفق','Duplicate')}
                               </button>
 
                               <button
@@ -755,7 +757,7 @@ export default function BotManager() {
                                   setCopying(f);
                                 }}
                               >
-                                <NavIcon name="share" />
+                                <NavIcon name="share" /> {t('نسخ لبوت آخر','Copy to another bot')}
                               </button>
                               <button
                                 type="button"
@@ -767,7 +769,7 @@ export default function BotManager() {
                               >
                                 <NavIcon name="export" />
                               </button>
-                              {managementLink(channelHref(`/dashboard/flows/${f.id}`, channelId), `${t('تعديل', 'Edit')}: ${f.name}`, "edit", t('تعديل', 'Edit'))}
+
                               <button
                                 type="button"
                                 className="btn"
@@ -779,7 +781,7 @@ export default function BotManager() {
                                   setDeleting(f);
                                 }}
                               >
-                                <NavIcon name="trash" />
+                                <NavIcon name="trash" /> {t('حذف','Delete')}
                               </button>
                               <button
                                 type="button"
@@ -792,8 +794,8 @@ export default function BotManager() {
                                   setMoving(f);
                                 }}
                               >
-                                <NavIcon name="folder" />
-                              </button>
+                                <NavIcon name="folder" /> {t('نقل لمجلد','Move to folder')}
+                              </button></div></details>
                                 </>
                               )}
                             </div>

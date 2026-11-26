@@ -39,6 +39,7 @@ export default function AiPage() {
       null,
     ),
     workspace = useData<{ role: string }>('/workspace', { role: '' });
+  const [activePanel,setActivePanel]=useState<'settings'|'test'>('settings');
   const [draft, setDraft] = useState<Settings | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
@@ -77,7 +78,12 @@ export default function AiPage() {
           {t('المساعدون والميزانية', 'Agents & budget')}
         </Link>
       </div>
-      {!status.data?.generationEnabled && (
+      <div className="workbench-metrics">
+        <div><small>{t('إعداد المساعد','Assistant setting')}</small><strong>{s.enabled?t('مفعّل','Enabled'):t('متوقف','Disabled')}</strong></div>
+        <div><small>{t('اتصال المزود','Provider readiness')}</small><strong>{!status.data?'—':status.data.generationEnabled&&status.data.llmConfigured?t('جاهز للإعداد','Configured'):t('غير جاهز','Unavailable')}</strong></div>
+        <div><small>{t('محاولات هذا الشهر','Monthly attempts')}</small><strong>{usage.data?usage.data.attempts+' / '+(usage.data.limit===-1?'∞':usage.data.limit):'—'}</strong></div>
+      </div>
+      {!status.loading && !status.data?.generationEnabled && (
         <p className="notice">
           {t(
             'استدعاءات المزود معطّلة في هذه البيئة. حفظ الإعدادات لا يفعّل خدمة مدفوعة.',
@@ -94,8 +100,7 @@ export default function AiPage() {
         </p>
       )}
       {usage.data && (
-        <section className="card">
-          <h2>{t('استهلاك هذا الشهر', 'This month')}</h2>
+        <details className="card"><summary>{t('تفاصيل استهلاك هذا الشهر','Monthly usage details')}</summary>
           <p>
             {usage.data.attempts} / {usage.data.limit === -1 ? '∞' : usage.data.limit}{' '}
             {t(
@@ -107,7 +112,7 @@ export default function AiPage() {
             {t('رموز محجوزة: ', 'Reserved tokens: ')}
             {usage.data.reservedTokens}
           </p>
-        </section>
+        </details>
       )}
       {(error || settings.error) && (
         <p className="notice error" role="alert">
@@ -119,7 +124,8 @@ export default function AiPage() {
           {t('تم حفظ إعدادات المساعد.', 'Assistant settings saved.')}
         </p>
       )}
-      <form
+      <nav className="workbench-tabs" aria-label={t('أقسام المساعد','Assistant sections')}><button type="button" aria-pressed={activePanel==='settings'} onClick={()=>setActivePanel('settings')}>{t('إعداد المساعد','Configure assistant')}{draft?' •':''}</button><button type="button" aria-pressed={activePanel==='test'} onClick={()=>setActivePanel('test')}>{t('اختبار الرد','Test reply')}</button></nav>
+      <form hidden={activePanel!=='settings'}
         className="card stack"
         onSubmit={async (e) => {
           e.preventDefault();
@@ -138,7 +144,7 @@ export default function AiPage() {
         }}
       >
         <h2>{t('إعدادات الرد', 'Reply settings')}</h2>
-        <fieldset className="stack" disabled={!manage || busy}>
+        <fieldset className="stack" disabled={!manage || busy}><section className="settings-block">
           <label>
             <input
               type="checkbox"
@@ -163,7 +169,7 @@ export default function AiPage() {
             />{' '}
             {t('السماح بالتحويل البشري', 'Allow human escalation')}
           </label>
-          <label className="field">
+          </section><section className="settings-block"><h3>{t('هوية المساعد وأسلوبه','Assistant identity and tone')}</h3><label className="field">
             {t('اسم النشاط', 'Business name')}
             <input
               maxLength={120}
@@ -229,7 +235,7 @@ export default function AiPage() {
               />
             </label>
           </div>
-          <label className="field">
+          </section><section className="settings-block"><h3>{t('عند تعذّر الرد','Fallback and handoff')}</h3><label className="field">
             {t('رسالة تعذّر الرد', 'Fallback message')}
             <textarea
               maxLength={500}
@@ -247,13 +253,14 @@ export default function AiPage() {
               onChange={(e) => set({ handoff_message: e.target.value })}
             />
           </label>
-          <button className="btn btn-primary" disabled={busy}>
+          </section><button className="btn btn-primary self-start" disabled={busy || !draft}>
             {t('حفظ الإعدادات', 'Save settings')}
           </button>
         </fieldset>
       </form>
-      <section className="card stack">
+      <section className="card stack" hidden={activePanel!=='test'}>
         <h2>{t('تجربة المساعد', 'Test assistant')}</h2>
+        {draft&&<p className="muted">{t('الاختبار يستخدم الإعدادات المحفوظة؛ احفظ المسودة أولًا لتجربة التغييرات.','Tests use saved settings; save the draft to test your changes.')}</p>
         <p className="muted">
           {t(
             'التجربة تستخدم الميزانية نفسها عند السماح بالاتصال بالمزود.',
