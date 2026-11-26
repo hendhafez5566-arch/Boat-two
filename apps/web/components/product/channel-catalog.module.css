@@ -44,3 +44,13 @@
 .card header > span { width: 32px; height: 32px; }
 .card footer .connectButton { background: #eaf1fa; border-color: #cbd9eb; color: #294968; }
 .card footer .connectButton:hover { background: #dfeaf7; }
+
+.platform { display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 68px; padding: 10px; text-decoration: none; color: #21384f; border: 1px solid #dbe5ef; border-radius: 10px; background: #fff; }
+.platform:hover { background: #eff6fc; border-color: #a8bfd7; }
+.platformLogo { display: grid; place-items: center; width: 40px; height: 40px; background: #f5f8fb; border-radius: 9px; flex: none; }
+.platformLogo svg { width: 25px; height: 25px; }
+.platformText { display: grid; min-width: 0; overflow-wrap: anywhere; }
+.platformText small { color: #4e6278; font-size: 12px; }
+.platformArrow { flex: none; margin-inline-start: auto; transform: rotate(-90deg); }
+.platformArrow svg { width: 15px; height: 15px; }
+:global([dir='rtl']) .platformArrow { transform: rotate(90deg); }

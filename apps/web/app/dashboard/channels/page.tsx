@@ -119,7 +119,7 @@ export default function Channels() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
-  const [availableOpen, setAvailableOpen] = useState(true);
+  const [availableOpen, setAvailableOpen] = useState(false);
   const [platform, setPlatform] = useState('all');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -325,9 +325,9 @@ export default function Channels() {
     <main className={`stack ${styles.page}`}>
       <header className={styles.channelHeading}>
         <h1>{t('قنوات الاتصال', 'Channels')}</h1>
-        <a className="btn btn-primary" href="#available-connections" onClick={() => setAvailableOpen(true)}>
+        <button type="button" className="btn btn-primary" onClick={() => setAvailableOpen(true)}>
           <NavIcon name="plus" />{t('ربط قناة', 'Connect a channel')}
-        </a>
+        </button>
       </header>
 
       {!loading && !error && accounts.length > 0 && (
@@ -1067,8 +1067,8 @@ export default function Channels() {
                           'No channels match your search or filters.',
                         )
                       : t(
-                          'لا توجد قنوات بعد. اختر منصة من القائمة بالأسفل للبدء.',
-                          'No channels yet. Choose a platform below to get started.',
+                          'لا توجد قنوات بعد. اضغط «ربط قناة» للبدء.',
+                          'No channels yet. Select “Connect a channel” to get started.',
                         )}
                     {accounts.length > 0 && (
                       <button
@@ -1087,29 +1087,10 @@ export default function Channels() {
         </div>
       </section>
 
-      <section id="available-connections" className={styles.availableCard}>
-        <header className="page-heading">
-          <h2>{t('اختر منصة للربط', 'Choose a platform to connect')}</h2>
-          <button
-            type="button"
-            className="btn"
-            aria-expanded={availableOpen}
-            aria-label={
-              availableOpen
-                ? t('تصغير الاتصالات المتاحة', 'Minimize available connections')
-                : t('توسيع الاتصالات المتاحة', 'Expand available connections')
-            }
-            onClick={() => setAvailableOpen(!availableOpen)}
-          >
-            <span
-              style={{ display: 'flex', transform: availableOpen ? 'rotate(180deg)' : undefined }}
-            >
-              <NavIcon name="chevron" />
-            </span>
-          </button>
-        </header>
+      <Dialog open={availableOpen} onClose={() => setAvailableOpen(false)}
+        title={t('اختر منصة للربط', 'Choose a platform to connect')}>
         {availableOpen && <ChannelCatalog />}
-      </section>
+      </Dialog>
       <Dialog
         open={!!widget}
         onClose={() => {

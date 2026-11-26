@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useLocale } from './locale';
+import { NavIcon } from './NavIcon';
 import ChannelLogo from './ChannelLogo';
 import styles from './channel-catalog.module.css';
 
@@ -50,26 +51,11 @@ export default function ChannelCatalog() {
       aria-label={t('مكتبة القنوات والتكاملات', 'Channel and integration library')}
     >
       {channels.map((c) => (
-        <article key={c.id} className={styles.card} data-provider={c.id}>
-          <header>
-            <span aria-hidden="true">
-              <ChannelLogo id={c.id} />
-            </span>
-            <div>
-              <h3><bdi>{c.name}</bdi></h3>
-              <p>{t(c.ar, c.en)}</p>
-            </div>
-          </header>
-          <footer>
-            <Link
-              className={`btn ${styles.connectButton}`}
-              href={`/dashboard/channels/connect/${c.id}`}
-            >
-              {t('ربط ', 'Connect ')}
-              {c.name}
-            </Link>
-          </footer>
-        </article>
+        <Link href={`/dashboard/channels/connect/${c.id}`} key={c.id} className={styles.platform} data-provider={c.id}>
+          <span className={styles.platformLogo}><ChannelLogo id={c.id} /></span>
+          <span className={styles.platformText}><strong><bdi>{c.name}</bdi></strong><small>{t(c.ar, c.en)}</small></span>
+          <span className={styles.platformArrow}><NavIcon name="chevron" /></span>
+        </Link>
       ))}
     </section>
   );

@@ -222,3 +222,22 @@
 .method .body button { min-height: 40px; height: auto; }
 .method .body .apiButton { background: #eaf0f9; color: #27466c; border-color: #c8d8ed; }
 .method .body .apiButton:hover { background: #dce8f7; color: #203e62; }
+
+.setup { display: grid; gap: 10px; width: min(100%, 46rem); }
+.wizard, .blocked, .manual { padding: 14px; border: 1px solid #d8e3ed; border-radius: 12px; background: #fff; }
+.wizard, .manual { display: grid; gap: 12px; }
+.wizard h2, .blocked h2 { margin: 0; font-size: 17px; }
+.blocked { background: #fff6e6; border-color: #eedab3; color: #6b461a; }
+.blocked p { margin: 5px 0 0; }
+.progress { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); list-style: none; padding: 0; margin: 0; gap: 5px; }
+.progress li { display: flex; align-items: center; gap: 5px; padding: 7px; font-size: 12px; background: #f2f5f9; color: #435770; border-radius: 7px; }
+.progress li span { flex: none; font-weight: 750; }
+.progress li[aria-current='step'] { background: #dff3ed; color: #105f50; font-weight: 750; }
+.options { display: grid; gap: 6px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.options legend { font-weight: 700; margin-block-end: 7px; }
+.options label { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 7px 10px; border: 1px solid #dce5ef; border-radius: 8px; }
+.options label:has(input:checked) { border-color: #80b8a8; background: #eff9f6; }
+.options label:has(input:disabled) { opacity: .65; }
+.options input { flex: none; width: 17px; height: 17px; }
+.wizardActions { display: flex; justify-content: flex-end; gap: 6px; }
+.manual > button { justify-self: start; }
