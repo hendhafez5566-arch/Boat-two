@@ -260,7 +260,7 @@ export default function AiPage() {
       </form>
       <section className="card stack" hidden={activePanel!=='test'}>
         <h2>{t('تجربة المساعد', 'Test assistant')}</h2>
-        {draft&&<p className="muted">{t('الاختبار يستخدم الإعدادات المحفوظة؛ احفظ المسودة أولًا لتجربة التغييرات.','Tests use saved settings; save the draft to test your changes.')}</p>
+        {draft&&<p className="muted">{t('الاختبار يستخدم الإعدادات المحفوظة؛ احفظ المسودة أولًا لتجربة التغييرات.','Tests use saved settings; save the draft to test your changes.')}</p>}
         <p className="muted">
           {t(
             'التجربة تستخدم الميزانية نفسها عند السماح بالاتصال بالمزود.',
