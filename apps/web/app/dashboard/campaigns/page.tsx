@@ -371,7 +371,7 @@ export default function Campaigns() {
             </p>
           )}
 
-          <p className={styles.period}>
+          <details className="card campaign-summary"><summary>{t('أداء الحملات خلال آخر 30 يومًا','Campaign performance — last 30 days')}</summary><p className={styles.period}>
             {t(
               'إحصاءات آخر 30 يومًا للحساب المختار',
               'Statistics for the last 30 days for the selected account',
@@ -422,7 +422,7 @@ export default function Campaigns() {
                 <small>{t('آخر 30 يومًا', 'Last 30 days')}</small>
               </article>
             ))}
-          </section>
+          </section></details>
           {!channels.loading && !activeChannelId && (
             <p className="notice">
               {platform === 'sms' ? (

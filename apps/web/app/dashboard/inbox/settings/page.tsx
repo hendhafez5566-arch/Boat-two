@@ -8,6 +8,7 @@ type Settings = {signature_enabled:boolean;signature_template:string;human_sessi
 type Reply = { id: string; shortcut: string; title: string; content: string };
 export default function InboxSettings() {
   const { t } = useLocale();
+  const [section,setSection]=useState<'routing'|'replies'>('routing');
   const [team,setTeam]=useState<{user_id:string;full_name:string;email:string}[]>([]);
   useEffect(()=>{api<{members:typeof team}>('/team').then(r=>setTeam(r.members)).catch(()=>{});},[]);
   const [settings, setSettings] = useState<Settings | null>(null),
@@ -51,7 +52,7 @@ export default function InboxSettings() {
     }
   }
   return (
-    <main className="stack">
+    <main className="stack" data-workbench="inbox-settings">
       <div className="page-heading">
         <div>
           <p className="eyebrow">{t('إدارة المحادثات', 'CONVERSATION OPERATIONS')}</p>
@@ -81,7 +82,8 @@ export default function InboxSettings() {
         </p>
       )}
       {loading && <p role="status">{t('جارٍ التحميل…', 'Loading…')}</p>}
-      {settings && (
+      <nav className="workbench-tabs" aria-label={t('أقسام الإعدادات','Settings sections')}><button type="button" aria-pressed={section==='routing'} onClick={()=>setSection('routing')}>{t('التوزيع والجلسات','Routing and sessions')}</button><button type="button" aria-pressed={section==='replies'} onClick={()=>setSection('replies')}>{t('الردود الجاهزة','Saved replies')}</button></nav>
+      {settings && section==='routing' && (
         <form
           className="card stack"
           onSubmit={(e) => {
@@ -100,8 +102,8 @@ export default function InboxSettings() {
             );
           }}
         >
-          <h2>{t('التوقيع والجلسات وأخطاء التسليم','Signature, sessions and delivery errors')}</h2><label><input type="checkbox" checked={settings.signature_enabled} onChange={e=>setSettings({...settings,signature_enabled:e.target.checked})}/>{t('توقيع الموظف على الرسائل العادية','Employee signature on regular messages')}</label><label className="field">{t('نص التوقيع — {{agent.name}} لاسم الموظف','Signature template — {{agent.name}} inserts the employee name')}<input maxLength={200} value={settings.signature_template} onChange={e=>setSettings({...settings,signature_template:e.target.value})}/></label><label className="field">{t('مدة جلسة الموظف بالدقائق (0 = دون انتهاء تلقائي)','Human session minutes (0 = no automatic expiry)')}<input type="number" min={0} max={10080} value={settings.human_session_minutes} onChange={e=>setSettings({...settings,human_session_minutes:Number(e.target.value)})}/></label><label className="field">{t('وسم عند فشل تسليم رسالة (فارغ للتعطيل)','Delivery failure label (empty disables)')}<input maxLength={50} value={settings.delivery_error_tag} onChange={e=>setSettings({...settings,delivery_error_tag:e.target.value})}/></label><label><input type="checkbox" checked={settings.sla_escalation_enabled} onChange={e=>setSettings({...settings,sla_escalation_enabled:e.target.checked})}/>{t('تصعيد تجاوز SLA للقسم عند غياب رد موظف','Escalate a department SLA breach without an employee response')}</label><label className="field">{t('موظف التصعيد (فارغ يسجل التجاوز دون تغيير التعيين)','Escalation employee (empty records a breach without reassigning)')}<select value={settings.escalation_user_id??''} onChange={e=>setSettings({...settings,escalation_user_id:e.target.value||null})}><option value="">{t('دون تعيين جديد','No reassignment')}</option>{team.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name||m.email}</option>)}</select></label>
-          <h2>{t('التوزيع التلقائي', 'Automatic assignment')}</h2>
+          <section className="settings-block"><h2>{t('توقيع الموظف وإدارة الجلسات','Employee signature and sessions')}</h2><label><input type="checkbox" checked={settings.signature_enabled} onChange={e=>setSettings({...settings,signature_enabled:e.target.checked})}/>{t('توقيع الموظف على الرسائل العادية','Employee signature on regular messages')}</label><label className="field">{t('نص التوقيع — {{agent.name}} لاسم الموظف','Signature template — {{agent.name}} inserts the employee name')}<input maxLength={200} value={settings.signature_template} onChange={e=>setSettings({...settings,signature_template:e.target.value})}/></label><label className="field">{t('مدة جلسة الموظف بالدقائق (0 = دون انتهاء تلقائي)','Human session minutes (0 = no automatic expiry)')}<input type="number" min={0} max={10080} value={settings.human_session_minutes} onChange={e=>setSettings({...settings,human_session_minutes:Number(e.target.value)})}/></label><label className="field">{t('وسم عند فشل تسليم رسالة (فارغ للتعطيل)','Delivery failure label (empty disables)')}<input maxLength={50} value={settings.delivery_error_tag} onChange={e=>setSettings({...settings,delivery_error_tag:e.target.value})}/></label></section><section className="settings-block"><h2>{t('التصعيد عند تأخر الرد','Response escalation')}</h2><label><input type="checkbox" checked={settings.sla_escalation_enabled} onChange={e=>setSettings({...settings,sla_escalation_enabled:e.target.checked})}/>{t('تصعيد تجاوز SLA للقسم عند غياب رد موظف','Escalate a department SLA breach without an employee response')}</label><label className="field">{t('موظف التصعيد (فارغ يسجل التجاوز دون تغيير التعيين)','Escalation employee (empty records a breach without reassigning)')}<select value={settings.escalation_user_id??''} onChange={e=>setSettings({...settings,escalation_user_id:e.target.value||null})}><option value="">{t('دون تعيين جديد','No reassignment')}</option>{team.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name||m.email}</option>)}</select></label>
+          </section><section className="settings-block"><h2>{t('التوزيع التلقائي', 'Automatic assignment')}</h2>
           <label className="flex items-start gap-2">
             <input
               type="checkbox"
@@ -132,12 +134,10 @@ export default function InboxSettings() {
               'Unavailable agents are excluded. Agents can change availability in Inbox.',
             )}
           </p>
-          <button className="btn btn-primary" disabled={busy}>
-            {t('حفظ إعدادات التوزيع', 'Save assignment settings')}
-          </button>
+          </section><div className="workbench-toolbar"><button className="btn btn-primary" disabled={busy}>{t('حفظ إعدادات المحادثات','Save conversation settings')}</button></div>
         </form>
       )}
-      <section className="card stack">
+      <section className="card stack" hidden={section!=='replies'}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2>{t('الردود الجاهزة', 'Saved replies')}</h2>
           <button

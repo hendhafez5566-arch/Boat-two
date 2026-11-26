@@ -331,13 +331,13 @@ export default function Channels() {
       </header>
 
       {!loading && !error && accounts.length > 0 && (
-        <div className={styles.connectionOverview} aria-label={t('ملخص حالة القنوات', 'Channel health summary')}>
+        <div className={styles.connectionOverview} data-channel-overview aria-label={t('ملخص حالة القنوات', 'Channel health summary')}>
           {[
             ['connected', 'circleCheck', counts.connected, t('قنوات متصلة', 'Connected')],
             ['needs_action', 'flag', counts.needsAction, t('تحتاج إجراء', 'Need attention')],
             ['disconnected', 'circleClose', counts.disconnected, t('قنوات متوقفة', 'Disconnected')],
           ].map(([key, icon, count, label]) => (
-            <span key={key} data-state={key}><NavIcon name={String(icon)} /><strong>{count}</strong>{label}</span>
+            <button type="button" key={key} data-state={key} aria-pressed={filter===key} onClick={()=>{setFilter(filter===key?'all':String(key));setFiltersOpen(true);}}><NavIcon name={String(icon)} /><strong>{count}</strong>{label}</button>
           ))}
         </div>
       )}

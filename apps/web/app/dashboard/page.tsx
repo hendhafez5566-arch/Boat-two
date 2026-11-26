@@ -95,9 +95,13 @@ export default function Dashboard() {
             {t('فتح صندوق الوارد', 'Open Inbox')}
           </Link>
         </div>
-        <SubscriptionSummary />
+        <nav className={styles.workLinks} aria-label={t('العمل اليومي','Daily work')}>
+          <Link href="/dashboard/crm/today"><NavIcon name="crm"/><span>{t('يوم العمل والمتابعات','Daily work & follow-ups')}</span></Link>
+          <Link href="/dashboard/commerce?tab=orders"><NavIcon name="commerce"/><span>{t('الطلبات والحجوزات','Orders & bookings')}</span></Link>
+        </nav>
       </section>
       <OrdersAttention />
+      <div className={styles.sectionHeading}><h2>{t('اختصارات التشغيل','Quick actions')}</h2></div>
       {summary.error && (
         <p className="notice error" role="alert">
           {summary.error}
@@ -261,6 +265,7 @@ export default function Dashboard() {
           </div>
         </dl>
       </section>
+      <details className="card"><summary>{t('الاشتراك والاستخدام','Subscription and usage')}</summary><SubscriptionSummary/></details>
     </main>
   );
 }

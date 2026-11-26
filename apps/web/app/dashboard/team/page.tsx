@@ -1,5 +1,5 @@
 'use client';
-import { WorkspaceHeading } from '../../../components/product/ProductUI';
+import { WorkspaceHeading, Dialog } from '../../../components/product/ProductUI';
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { statusLabel } from '../../../components/product/status';
@@ -23,6 +23,10 @@ export default function Team() {
   const [mailQueued, setMailQueued] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [tab,setTab]=useState<'members'|'invites'>('members');
+  const [inviteOpen,setInviteOpen]=useState(false);
+  const [search,setSearch]=useState('');
+  const visibleMembers=members.filter(m=>`${m.full_name} ${m.email}`.toLowerCase().includes(search.toLowerCase().trim()));
   async function load() {
     try {
       const [team, w] = await Promise.all([
@@ -84,13 +88,12 @@ export default function Team() {
     }
   }
   return (
-    <main className="stack">
+    <main className="stack" data-workbench="team">
       <WorkspaceHeading
         title={t('الفريق والصلاحيات', 'Team & permissions')}
         description={t('راجع أعضاء الفريق وأدوارهم ودعواتهم.', 'Manage team members, roles and invitations.')}
         actions={<>
-            <span className="badge">{members.length} {t('عضو', 'members')}</span>
-            {role && role !== 'agent' && <a className="btn" href="#team-invitations">{t('الدعوات', 'Invitations')}</a>}
+            {['owner','admin'].includes(role)&&<button className="btn btn-primary" type="button" onClick={()=>{setUrl('');setInviteOpen(true);}}>+ {t('دعوة موظف','Invite teammate')}</button>}
           </>}
       />
       {error && (
@@ -98,7 +101,10 @@ export default function Team() {
           {error}
         </p>
       )}
-      <section className="card table-wrap">
+      <div className="workbench-metrics">{[[t('أعضاء الفريق','Team members'),members.length],[t('متاحون الآن','Available now'),members.filter(m=>m.available).length],[t('دعوات معلقة','Pending invitations'),invites.length]].map(([label,n])=><div key={String(label)}><small>{label}</small><strong>{loading?'…':n}</strong></div>)}</div>
+      <nav className="workbench-tabs" aria-label={t('إدارة الفريق','Team management')}><button type="button" aria-pressed={tab==='members'} onClick={()=>setTab('members')}>{t('أعضاء الفريق','Members')}</button>{role&&role!=='agent'&&<button type="button" aria-pressed={tab==='invites'} onClick={()=>setTab('invites')}>{t('الدعوات','Invitations')}</button>}</nav>
+      {tab==='members'&&<section className="card table-wrap">
+        <div className="workbench-toolbar"><h2>{t('أعضاء الفريق','Team members')}</h2><input type="search" aria-label={t('بحث في الفريق','Search team')} placeholder={t('ابحث بالاسم أو البريد','Search name or email')} value={search} onChange={e=>setSearch(e.target.value)}/></div>
         <table className="product-table">
           <thead>
             <tr>
@@ -109,7 +115,7 @@ export default function Team() {
             </tr>
           </thead>
           <tbody>
-            {members.map((m) => (
+            {visibleMembers.map((m) => (
               <tr key={m.user_id}>
                 <td>
                   <strong>{m.full_name}</strong>
@@ -132,7 +138,7 @@ export default function Team() {
                     statusLabel(m.role, t)
                   )}
                 </td>
-                <td>{m.available ? t('متاح', 'Available') : t('غير متاح', 'Away')}</td>
+                <td><span className="workbench-state" data-active={m.available}>{m.available ? t('متاح', 'Available') : t('غير متاح', 'Away')}</span></td>
                 <td>
                   {m.role !== 'owner' &&
                     (role === 'owner' || (role === 'admin' && m.role === 'agent')) && (
@@ -153,10 +159,10 @@ export default function Team() {
           </tbody>
         </table>
         {loading && <p className="empty">{t('جارٍ التحميل…', 'Loading…')}</p>}
-      </section>
-      {role !== 'agent' && (
-        <section className="card">
-          <h2>{t('دعوة موظف', 'Invite a teammate')}</h2>
+        {!loading&&!visibleMembers.length&&<p className="empty">{t('لا توجد نتائج مطابقة','No matching members')}</p>}
+      </section>}
+      {['owner','admin'].includes(role) && (
+        <Dialog open={inviteOpen} onClose={()=>{if(!busy){setInviteOpen(false);setUrl('');}}} title={t('دعوة موظف','Invite a teammate')}>
           <form id="team-invitations" onSubmit={invite}>
             <div className="form-grid">
               <label className="field">
@@ -203,9 +209,10 @@ export default function Team() {
               />
             </div>
           )}
-        </section>
+          {error&&<p className="notice error" role="alert">{error}</p>}
+        </Dialog>
       )}
-      {role && role !== 'agent' && <InvitationMailPanel refreshKey={url} />}
+      {tab==='invites'&&role&&role!=='agent'&&<>
       <section className="card">
         <h2>{t('الدعوات المعلّقة', 'Pending invitations')}</h2>
         {!invites.length ? (
@@ -222,7 +229,7 @@ export default function Team() {
               <button
                 disabled={busy}
                 className="btn btn-danger"
-                onClick={() => action('/team/invitations/' + i.id, 'DELETE')}
+                onClick={() => {if(confirm(t('إلغاء هذه الدعوة؟','Revoke this invitation?')))void action('/team/invitations/' + i.id, 'DELETE');}}
               >
                 {t('إلغاء الدعوة', 'Revoke')}
               </button>
@@ -230,6 +237,8 @@ export default function Team() {
           ))
         )}
       </section>
+      <InvitationMailPanel refreshKey={url}/>
+      </>}
     </main>
   );
 }
