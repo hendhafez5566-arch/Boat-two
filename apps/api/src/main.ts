@@ -19,7 +19,7 @@ async function bootstrap() {
   );
   app.enableShutdownHooks();
   app.useLogger(app.get(Logger));
-  app.enableCors();
+  app.enableCors({ maxAge: 600 });
   await app.listen(env.API_PORT);
 }
 bootstrap();

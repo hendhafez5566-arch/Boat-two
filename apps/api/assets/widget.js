@@ -7,7 +7,7 @@
   if (!key) return;
   var base = script.src.replace(/\/widget\.js.*$/, '');
   var STORE = 'cb_visitor_' + key;
-  var st = { open: false, visitorId: null, token: null, lastSeq: 0, cfg: null, started: false, unread: 0, timer: null };
+  var st = { open: false, visitorId: null, token: null, lastSeq: 0, cfg: null, unread: 0, timer: null };
 
   function store(get, val) {
     try { return get ? localStorage.getItem(STORE) : localStorage.setItem(STORE, val); } catch { return null; }
@@ -18,7 +18,8 @@
     return Array.prototype.map.call(a, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
   }
   function req(path, method, body) {
-    var headers = { 'Content-Type': 'application/json' };
+    var headers = {};
+    if (body) headers['Content-Type'] = 'application/json';
     if (st.token) headers['x-visitor-token'] = st.token;
     return fetch(base + path, { method: method || 'GET', headers: headers, body: body ? JSON.stringify(body) : undefined })
       .then(function (r) {
@@ -271,7 +272,11 @@
       return req('/widget/' + key + '/messages?visitorId=' + encodeURIComponent(st.visitorId) + '&after=' + before)
         .then(function (d) {
           var fresh = 0;
-          (d.messages || []).forEach(function (m) {
+          var messages = d.messages || [];
+          if (historyLoading && !before && !messages.length) {
+            addBubble('them', { text: st.cfg.welcomeMessage });
+          }
+          messages.forEach(function (m) {
             if (m.seq <= st.lastSeq) return;
             st.lastSeq = m.seq;
             if (historyLoading) historyBoundary = Math.max(historyBoundary, m.seq);
@@ -295,7 +300,9 @@
 
   function send(payload) {
     payload.clientMsgId = uid();
-    req('/widget/' + key + '/messages?visitorId=' + encodeURIComponent(st.visitorId), 'POST', payload).then(function () {
+    start().then(function () {
+      return req('/widget/' + key + '/messages?visitorId=' + encodeURIComponent(st.visitorId), 'POST', payload);
+    }).then(function () {
       replyCheckUntil = Date.now() + 2500;
       return poll().then(schedule);
     }).catch(function () {
@@ -303,20 +310,18 @@
     });
   }
 
+  var starting = null;
   function start() {
-    if (st.started) return Promise.resolve();
-    st.started = true;
-    return req('/widget/' + key + '/session', 'POST', { visitorId: store(true) || undefined }).then(function (d) {
+    if (st.token) return Promise.resolve();
+    if (starting) return starting;
+    starting = req('/widget/' + key + '/session', 'POST', { visitorId: store(true) || undefined }).then(function (d) {
       st.visitorId = d.visitorId;
       st.token = d.token;
       store(false, d.visitorId);
       historyLoading = true;
-      return req('/widget/' + key + '/messages?visitorId=' + encodeURIComponent(st.visitorId)).then(function (r) {
-        historyBoundary = Math.max.apply(null, [0].concat((r.messages || []).map(function(m) { return m.seq; })));
-        if (!r.messages || !r.messages.length) addBubble('them', { text: st.cfg.welcomeMessage });
-        return poll();
-      });
-    }).catch(function () { st.started = false; });
+      void poll();
+    }).finally(function () { starting = null; });
+    return starting;
   }
 
   function schedule() {
@@ -332,7 +337,10 @@
     if (open) {
       st.unread = 0;
       ui.badge.style.display = 'none';
-      start().then(function () { ui.input.focus(); });
+      start().then(function () {
+        if (st.open) ui.input.focus();
+        return poll();
+      }).catch(function () {});
     }
     schedule();
   }
@@ -346,7 +354,7 @@
         build(cfg);
         script.dispatchEvent(new Event('boat-widget-ready'));
         if (cfg.startup === 'open') toggle(true);
-        else if (store(true)) { start().then(schedule); }
+        else if (store(true)) { start().then(schedule).catch(function () {}); }
       }, Math.min(30, Math.max(0, Number(cfg.loadingDelay) || 0)) * 1000);
     })
     .catch(function () {
