@@ -263,3 +263,11 @@
 .review p { margin: 6px 0; color: #435770; line-height: 1.65; }
 .wizardActions .btn { min-height: 44px; }
 @media (max-width: 480px) { .progress li { flex-direction: column; align-items: center; text-align: center; font-size: 11px; padding: 8px 4px; } .options .modeCard { padding: 12px; } .wizardActions { flex-wrap: wrap; } }
+
+/* Keep connection choices visible, even before Meta authorization is configured. */
+.setupNotice { display: grid; gap: 5px; padding: 12px 14px; border: 1px solid #e5d3a8; border-radius: 10px; background: #fffbef; color: #674b18; }
+.setupNotice small { line-height: 1.65; color: #674b18; }
+.wizardIntro h2 { font-size: clamp(19px, 2.2vw, 25px); }
+.wizard .modeCard { min-height: 100px; }
+@media (min-width: 700px) { .options:has(.modeCard) { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.wizardActions :global(.btn) { min-height: 44px; }

@@ -32,7 +32,7 @@ export default function MetaConnectionPage({
   const [search, setSearch] = useState(''),
     [filter, setFilter] = useState('all'),
     [saved, setSaved] = useState(false);
-  const [connectOpen, setConnectOpen] = useState(false);
+  const [connectOpen, setConnectOpen] = useState(kind === 'whatsapp');
   const groups = [...new Set(rows.map((c) => c.businessAccountId || c.id))];
   const visible = rows.filter(
     (c) =>
@@ -69,6 +69,14 @@ export default function MetaConnectionPage({
       : kind === 'facebook'
         ? t('تكامل Facebook', 'Facebook Integration')
         : t('تكامل Instagram', 'Instagram Integration');
+  const connectionMethods = (
+      <section id="meta-connect-methods" hidden={kind === 'whatsapp' && !!rows.length && !connectOpen}>
+        <MetaConnect selectedKind={kind} onSaved={() => {
+          setSaved(true);
+          void accounts.reload();
+        }} />
+      </section>
+  );
   return (
     <main className={`stack ${styles.page}`}>
       <nav aria-label={t('مسار الصفحة', 'Breadcrumb')}>
@@ -84,6 +92,7 @@ export default function MetaConnectionPage({
           </button>
         )}
       </header>
+      {kind === 'whatsapp' && connectionMethods}
       {kind === 'whatsapp' && (
         <>
           <div
@@ -234,12 +243,7 @@ export default function MetaConnectionPage({
           )}
         </section>
       )}
-      <section id="meta-connect-methods" hidden={kind === 'whatsapp' && !!rows.length && !connectOpen}>
-        <MetaConnect selectedKind={kind} onSaved={() => {
-          setSaved(true);
-          void accounts.reload();
-        }} />
-      </section>
+      {kind !== 'whatsapp' && connectionMethods}
     </main>
   );
 }
