@@ -308,7 +308,11 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
     {!origin && <div className={styles.metrics} aria-label={t('ملخص كل الطلبات', 'All orders summary')}>
       {summary.error ? <p role="alert">{summary.error}</p> : Object.entries(statusLabels).map(([status, label]) =>
         <button key={status} type="button" className={styles.metric} aria-pressed={orderStatus === status}
-          onClick={() => { setOrderStatus(orderStatus === status ? '' : status); setPage(1); }}>
+          onClick={() => {
+            setOrderQuery('');
+            setOrderStatus(orderStatus === status ? '' : status);
+            setPage(1);
+          }}>
           <span>{label}</span><strong>{summary.loading ? '…' : (counts.get(status) ?? 0).toLocaleString()}</strong>
         </button>,
       )}
