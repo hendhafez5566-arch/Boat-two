@@ -56,24 +56,11 @@ export default function ChannelCatalog() {
               <ChannelLogo id={c.id} />
             </span>
             <div>
-              <h3 dir="ltr">
-                {c.name}{' '}
-                {c.id === 'whatsapp' && (
-                  <small className={styles.recommended}>{t('موصى به', 'Recommended')}</small>
-                )}
-              </h3>
+              <h3><bdi>{c.name}</bdi></h3>
               <p>{t(c.ar, c.en)}</p>
             </div>
           </header>
-          <div className={styles.hero} aria-hidden="true">
-            <span className={styles.heroIcon}>
-              <ChannelLogo id={c.id} />
-            </span>
-          </div>
           <footer>
-            <p className={styles.secure}>
-              <span aria-hidden="true">✓</span> {t('اتصال آمن', 'Secure connection')}
-            </p>
             <Link
               className={`btn ${styles.connectButton}`}
               href={`/dashboard/channels/connect/${c.id}`}

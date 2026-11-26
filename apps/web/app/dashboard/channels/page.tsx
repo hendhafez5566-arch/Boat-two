@@ -324,13 +324,7 @@ export default function Channels() {
     <main className={`stack ${styles.page}`}>
       <div className="page-heading workspace-heading">
         <div>
-          <h1>{t('ربط الحساب', 'Connect Account')}</h1>
-          <p>
-            {t(
-              'اربط منصاتك وابدأ أتمتة المحادثات.',
-              'Connect your favorite platforms and start automating conversations.',
-            )}
-          </p>
+          <h1>{t('قنوات الاتصال', 'Channels')}</h1>
         </div>
         <div className="workspace-heading-actions">
           <a className="btn btn-primary" href="#available-connections" onClick={() => setAvailableOpen(true)}>
@@ -393,12 +387,6 @@ export default function Channels() {
         <header className={styles.connectedHeader}>
           <div>
             <h2>{t('الحسابات المتصلة', 'Connected Accounts')}</h2>
-            <p>
-              {t(
-                'راجع حالة قنواتك هنا. لإضافة قناة، اختر منصتها من الاتصالات المتاحة.',
-                'Check your channel status here. To add a channel, choose its platform under Available connections.',
-              )}
-            </p>
           </div>
           <div className={styles.connectedFilters}>
             <label>
@@ -424,7 +412,7 @@ export default function Channels() {
             <label>
               <span className={styles.srOnly}>{t('تصفية الحالة', 'Status filter')}</span>
               <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-                <option value="all">{t('كل الحالات', 'All status')}</option>
+                <option value="all">{t('كل الحالات', 'All statuses')}</option>
                 {['connected', 'expiring', 'needs_action', 'expired', 'disconnected'].map(
                   (value) => (
                     <option key={value} value={value}>
@@ -464,19 +452,6 @@ export default function Channels() {
               <tr>
                 <th scope="col">{t('الحساب', 'Account')}</th>
                 <th scope="col">{t('الحالة', 'Status')}</th>
-                <th scope="col">{t('المنصة', 'Platform')}</th>
-                <th scope="col">{t('آخر فحص', 'Last check')}</th>
-                <th scope="col">
-                  <abbr
-                    title={t(
-                      'أهلية الرسائل التسويقية غير متاحة من المزود',
-                      'Provider marketing-message eligibility is unavailable',
-                    )}
-                  >
-                    {t('حالة MM', 'MM Status')}
-                  </abbr>
-                </th>
-                <th scope="col">{t('كود التضمين', 'Get Embed Code')}</th>
                 <th scope="col">{t('الإجراءات', 'Actions')}</th>
               </tr>
             </thead>
@@ -513,30 +488,18 @@ export default function Channels() {
                           : stateLabels[stateOf(c)] || t('غير معروف', 'Unknown')}
                       </span>
                       <small className={styles.localStatus}>{statusLabel(c.status, t)}</small>
-                    </td>
-                    <td>{CHANNEL_NAMES[c.type] || c.type}</td>
-                    <td>
-                      {c.connectionHealth?.checkedAt ? (
-                        <time dateTime={c.connectionHealth.checkedAt}>
-                          {new Date(c.connectionHealth.checkedAt).toLocaleString(
-                            language === 'ar' ? 'ar-EG' : 'en-GB',
-                          )}
-                        </time>
-                      ) : (
-                        '—'
+                      {c.connectionHealth?.checkedAt && (
+                        <small className={styles.localStatus}>
+                          {t('آخر فحص', 'Last check')}{' '}
+                          <time dateTime={c.connectionHealth.checkedAt}>
+                            {new Date(c.connectionHealth.checkedAt).toLocaleString(
+                              language === 'ar' ? 'ar-EG' : 'en-GB',
+                            )}
+                          </time>
+                        </small>
                       )}
                     </td>
-                    <td>
-                      <span
-                        aria-label={t(
-                          'أهلية الرسائل التسويقية غير متاحة',
-                          'Marketing-message eligibility unavailable',
-                        )}
-                      >
-                        —
-                      </span>
-                    </td>
-                    <td>
+                    <td className={styles.accountActions}>
                       {c.widgetSnippet ? (
                         <button
                           className="btn"
@@ -545,24 +508,15 @@ export default function Channels() {
                             setWidget(c);
                           }}
                         >
-                          {t('الكود', 'Get code')}
+                          {t('كود التضمين', 'Embed code')}
                         </button>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td>
+                      ) : null}
                       {['whatsapp', 'facebook', 'instagram', 'telegram', 'google', 'web'].includes(
                         c.type,
                       ) && (
-                        <Link className="btn" href={'/dashboard/channels/connect/' + c.type}>
+                        <Link className={styles.manageButton + ' btn'} href={'/dashboard/channels/connect/' + c.type}>
                           {t('إدارة', 'Manage')}
                         </Link>
-                      )}
-                      {c.type !== 'google' && c.status === 'active' && (
-                        <button className="btn" disabled={busy} onClick={() => setDeleting(c)}>
-                          {t('فصل الاتصال', 'Disconnect')}
-                        </button>
                       )}
                       {c.type !== 'google' && (
                         <button
@@ -582,7 +536,7 @@ export default function Channels() {
                   </tr>
                   {expandedId === c.id && (
                     <tr id={'channel-details-' + c.id}>
-                      <td colSpan={7}>
+                      <td colSpan={3}>
                         <section
                           className={styles.account}
                           aria-label={t('إدارة الحساب', 'Manage account') + ' ' + c.name}
@@ -1132,6 +1086,12 @@ export default function Channels() {
                             </p>
                           )}
                           <ChannelSettings channel={c} onSaved={load} />
+                      {c.type !== 'google' && c.status === 'active' && (
+                        <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setDeleting(c)}>
+                          {t('فصل الاتصال', 'Disconnect')}
+                        </button>
+                      )}
+
                           {c.type === 'whatsapp' && (
                             <Link
                               className="btn mt-3"
@@ -1148,7 +1108,7 @@ export default function Channels() {
               ))}
               {!loading && !visible.length && (
                 <tr>
-                  <td colSpan={7} className="empty">
+                  <td colSpan={3} className="empty">
                     {accounts.length
                       ? t(
                           'لا توجد قنوات تطابق البحث أو التصفية.',
@@ -1178,7 +1138,7 @@ export default function Channels() {
         </div>
       </section>
 
-      <section id="available-connections" className="card stack">
+      <section id="available-connections" className={styles.availableCard}>
         <header className="page-heading">
           <h2>{t('الاتصالات المتاحة', 'Available Connections')}</h2>
           <button

@@ -242,16 +242,6 @@ export class MessagingService {
     if ('held' in result && result.held) return result;
     if (result.duplicate) return { duplicate: true as const };
 
-    const event: MessageReceivedEvent = {
-      tenantId: channel.tenant_id,
-      channelId: channel.id,
-      channelType: channel.type,
-      conversationId: result.conversationId,
-      contactId: result.contactId,
-      messageId: result.messageId,
-      handledBy: result.handledBy,
-      content: msg.content,
-    };
     this.events.emit('message.created', {
       tenantId: channel.tenant_id,
       conversationId: result.conversationId,
@@ -268,8 +258,8 @@ export class MessagingService {
         createdAt: (restore?.createdAt ?? new Date()).toISOString(),
       },
     });
-    // المعالجة اللاحقة (محرك الـ Flows والـ AI) تشترك في هذا الحدث
-    void event; // Flow dispatch is persisted atomically with the incoming message.
+    // The durable event is visible after the inbound transaction commits.
+    if (!restore) this.events.emit('inbound.committed');
     return result;
   }
 

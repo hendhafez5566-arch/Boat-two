@@ -1,5 +1,5 @@
 import { Global, Injectable, Logger, Module, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { randomUUID } from 'node:crypto';
 import { env } from '../config/env';
 import { ExternalEffects } from './external-effect';
@@ -14,6 +14,7 @@ export interface DomainEvent {
 export class EventsService implements OnModuleInit, OnModuleDestroy {
   private timer?: NodeJS.Timeout;
   private running = false;
+  private wakeTask?: NodeJS.Immediate;
   private nextBillingSchedule = 0;
   private nextCrmSchedule = 0;
   private log = new Logger(EventsService.name);
@@ -44,6 +45,16 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
   }
   onModuleDestroy() {
     if (this.timer) clearInterval(this.timer);
+    if (this.wakeTask) clearImmediate(this.wakeTask);
+  }
+  @OnEvent('inbound.committed')
+  wakeAfterInbound() {
+    if (!this.timer || this.running || this.wakeTask) return;
+    this.wakeTask = setImmediate(() => {
+      this.wakeTask = undefined;
+      void this.tick();
+    });
+    this.wakeTask.unref();
   }
   async tick() {
     if (this.running) return;

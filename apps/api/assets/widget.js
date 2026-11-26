@@ -262,6 +262,7 @@
   }
 
   var polling = null;
+  var replyCheckUntil = 0;
   function poll() {
     if (!st.token) return Promise.resolve();
     if (polling) return polling;
@@ -277,6 +278,7 @@
             displayMessage(m);
             if (m.senderType !== 'contact') fresh++;
           });
+          if (fresh && !historyLoading) replyCheckUntil = 0;
           if (fresh && !st.open) {
             st.unread += fresh;
             ui.badge.textContent = String(st.unread);
@@ -293,7 +295,10 @@
 
   function send(payload) {
     payload.clientMsgId = uid();
-    req('/widget/' + key + '/messages?visitorId=' + encodeURIComponent(st.visitorId), 'POST', payload).then(poll).catch(function () {
+    req('/widget/' + key + '/messages?visitorId=' + encodeURIComponent(st.visitorId), 'POST', payload).then(function () {
+      replyCheckUntil = Date.now() + 2500;
+      return poll().then(schedule);
+    }).catch(function () {
       addBubble('them', { text: '\u26A0 Message not sent, please try again.' });
     });
   }
@@ -316,7 +321,9 @@
 
   function schedule() {
     clearTimeout(st.timer);
-    st.timer = setTimeout(function () { poll().then(schedule); }, st.open ? 3000 : 15000);
+    var waitingForReply = st.open && !document.hidden && Date.now() < replyCheckUntil;
+    var delay = waitingForReply ? 350 : st.open ? 3000 : 15000;
+    st.timer = setTimeout(function () { poll().then(schedule); }, delay);
   }
 
   function toggle(open) {
