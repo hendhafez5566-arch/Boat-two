@@ -10,22 +10,22 @@ type ReplyTemplate = { id: string; name: string; language: string; body: string;
 
 export function InboxTemplateDialog({
   conversationId,
-  contactName,
   close,
 }: {
   conversationId: string;
-  contactName: string;
   close: () => void;
 }) {
   const { t } = useLocale();
   const path = '/conversations/' + conversationId;
-  const options = useData<{ templates: ReplyTemplate[]; deliveryEnabled: boolean }>(
-    path + '/templates',
-    {
-      templates: [],
-      deliveryEnabled: false,
-    },
-  );
+  const options = useData<{
+    templates: ReplyTemplate[];
+    deliveryEnabled: boolean;
+    fields: Record<string, string | undefined>;
+  }>(path + '/templates', {
+    templates: [],
+    fields: {},
+    deliveryEnabled: false,
+  });
   const [id, setId] = useState('');
   const [values, setValues] = useState<Record<number, string>>({});
   const [review, setReview] = useState(false);
@@ -38,12 +38,17 @@ export function InboxTemplateDialog({
       [...(selected?.body.matchAll(/\{\{(\d+)\}\}/g) ?? [])].map((match) => Number(match[1])),
     ),
   ].sort((a, b) => a - b);
+  const fields = options.data.fields ?? {};
+  const resolve = (value: string | undefined) => {
+    const key = /^\{\{([a-z.]+)\}\}$/.exec(value?.trim() ?? '')?.[1];
+    return key ? fields[key]?.trim() : value?.trim();
+  };
   const preview = selected?.body.replace(
     /\{\{(\d+)\}\}/g,
-    (token, index) => values[Number(index)]?.trim() || token,
+    (token, index) => resolve(values[Number(index)]) || token,
   );
   const complete =
-    !!selected && indices.every((index, i) => index === i + 1 && values[index]?.trim());
+    !!selected && indices.every((index, i) => index === i + 1 && resolve(values[index]));
   async function send() {
     if (!selected || !review || !complete || !options.data.deliveryEnabled || lock.current) return;
     lock.current = true;
@@ -122,18 +127,29 @@ export function InboxTemplateDialog({
                     }}
                   />
                 </label>
-                {contactName.trim() && (
-                  <button
-                    type="button"
-                    className="btn"
+                <label className="field">
+                  {t('ربط بحقل', 'Bind field')} {index}
+                  <select
                     disabled={busy}
-                    onClick={() => {
-                      setValues({ ...values, [index]: contactName.trim().slice(0, 1024) });
+                    value={/^\{\{[a-z.]+\}\}$/.test(values[index] ?? '') ? values[index] : ''}
+                    onChange={(event) => {
+                      setValues({ ...values, [index]: event.target.value });
                       setReview(false);
                     }}
                   >
-                    {t('استخدم اسم العميل الحالي', 'Use current contact name')}
-                  </button>
+                    <option value="">{t('قيمة ثابتة', 'Literal value')}</option>
+                    <option value="{{contact.name}}">{t('اسم العميل', 'Contact name')}</option>
+                    <option value="{{order.id}}">{t('رقم الطلب', 'Order ID')}</option>
+                    <option value="{{order.status}}">{t('حالة الطلب', 'Order status')}</option>
+                  </select>
+                </label>
+                {values[index] && !resolve(values[index]) && (
+                  <p role="status">
+                    {t(
+                      'قيمة الحقل غير متاحة لهذه المحادثة.',
+                      'This field is unavailable for this conversation.',
+                    )}
+                  </p>
                 )}
               </div>
             ))}

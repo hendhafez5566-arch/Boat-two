@@ -1,5 +1,6 @@
 export function automationLabel(value: string, t: (ar: string, en: string) => string) {
   const labels: Record<string, [string, string]> = {
+    whatsapp_template: ['إرسال قالب واتساب', 'Send WhatsApp template'],
     note: ['ملاحظة', 'Note'],
     assign: ['تعيين موظف', 'Assign employee'],
     notify: ['تنبيه داخلي', 'Internal notification'],

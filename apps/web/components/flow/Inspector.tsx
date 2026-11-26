@@ -1,4 +1,5 @@
 'use client';
+import { ApprovedTemplatePicker } from '../business/ApprovedTemplatePicker';
 import ProductPicker from './ProductPicker';
 import type { CatalogProduct } from '../workspace/ProductCatalog';
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -772,26 +773,8 @@ export default function Inspector({
         )}
 
         {type === 'template' && (
-          <>
-            <F
-              label={t('اسم القالب المعتمد', 'Approved template name')}
-              hint={t(
-                'حروف إنجليزية صغيرة وأرقام و _ فقط. يعمل على واتساب فقط.',
-                'Lowercase letters, digits and _ only. WhatsApp only.',
-              )}
-            >
-              <In v={data.name} on={(v) => set({ name: v })} dir="ltr" />
-            </F>
-            <F label={t('اللغة', 'Language')}>
-              <In v={data.language} on={(v) => set({ language: v })} ph="ar" dir="ltr" />
-            </F>
-            <F label={t('متغيّرات النص (واحد في كل سطر)', 'Body variables (one per line)')}>
-              <Txt
-                v={(data.bodyParams ?? []).join('\n')}
-                on={(v) => set({ bodyParams: v.split('\n').filter((x) => x.trim()) })}
-              />
-            </F>
-          </>
+          <ApprovedTemplatePicker channelIds={channelIds} value={{ ...data, bodyParams: data.bodyParams ?? [] }}
+            onChange={(next) => set({ ...next, header: next.header, buttonParams: next.buttonParams })} />
         )}
 
         {type === 'question' && (

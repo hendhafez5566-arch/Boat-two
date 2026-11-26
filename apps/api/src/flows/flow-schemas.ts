@@ -218,6 +218,7 @@ export const nodeSchema = z.discriminatedUnion('type', [
         .regex(/^[a-z]{2,3}(?:_[A-Z]{2})?$/)
         .default('ar'),
       bodyParams: z.array(z.string().max(1024)).max(20).default([]),
+      buttonParams: z.array(z.object({ index: z.number().int().min(0).max(9), type: z.enum(['quick_reply', 'url']), value: z.string().max(1024) })).max(10).optional(),
       header: z
         .discriminatedUnion('type', [
           z.object({ type: z.literal('text'), text: z.string().max(60) }),
@@ -570,6 +571,7 @@ export const updateFlowSchema = z.object({
 });
 
 export const testFlowSchema = z.object({
+  templateOrder: z.object({ id: z.string().trim().min(1).max(100), status: z.string().trim().min(1).max(40) }).optional(),
   contactAttributes: z
     .record(
       z.string(), z.union([

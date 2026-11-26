@@ -1,3 +1,6 @@
+import type { PoolClient } from 'pg';
+import { validateCampaignContent } from './campaign-content';
+import type { AutomationAction } from './schemas';
 import {
   BadRequestException,
   ConflictException,
@@ -22,6 +25,17 @@ import { EventsService } from '../events/events.service';
 import { OutboundService } from '../messaging/outbound.service';
 import { pagination, ruleSchema, conditionWhere, contactSchema } from './schemas';
 import { randomUUID } from 'node:crypto';
+async function validateAutomationTemplates(c: PoolClient, actions: AutomationAction[]) {
+  for (const action of actions) {
+    if (action.type === 'whatsapp_template')
+      await validateCampaignContent(c, action.channelId, { template: action.template });
+    else if (action.type === 'branch')
+      await validateAutomationTemplates(c, [...action.then, ...action.otherwise]);
+    else if (action.type === 'delay')
+      await validateAutomationTemplates(c, action.actions);
+  }
+}
+
 @Controller()
 @Roles('owner', 'admin')
 export class OperationsController {
@@ -71,6 +85,7 @@ export class OperationsController {
     return this.db.withTenant(r.user.tenantId, async (c) => {
       await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
       await this.plans.assertFeature(c, 'automations');
+      await validateAutomationTemplates(c, b.actions);
       await this.plans.assertWithinLimit(
         c,
         'automation_rules',
@@ -121,6 +136,7 @@ export class OperationsController {
       if (b.expectedRevision !== undefined && b.expectedRevision !== current.revision)
         throw new ConflictException('Workflow changed; reload before saving');
       if (b.enabled) await this.plans.assertFeature(c, 'automations');
+      await validateAutomationTemplates(c, b.actions);
       const row = (
         await c.query(
           'UPDATE automation_rules SET name=$2,enabled=$3,trigger=$4,conditions=$5,actions=$6,canvas_positions=COALESCE($7,canvas_positions) WHERE id=$1 RETURNING *',

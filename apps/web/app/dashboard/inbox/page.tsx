@@ -1219,7 +1219,6 @@ export default function Inbox() {
                   )}
                   {templateConversation && templateConversation === selId && (
                     <InboxTemplateDialog key={selId} conversationId={selId}
-                      contactName={detail.contact_name || ''}
                       close={() => setTemplateConversation(null)} />
                   )}
                   {internal && (

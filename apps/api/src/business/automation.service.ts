@@ -7,7 +7,8 @@ import { ExternalEffects } from '../events/external-effect';
 import { env } from '../config/env';
 import { z } from 'zod';
 import { EventsService } from '../events/events.service';
-import { Injectable } from '@nestjs/common';
+import { MessagingService } from '../messaging/messaging.service';
+import { Injectable, Optional } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PlansService } from '../plans/plans.service';
 import { DatabaseService } from '../database/database.service';
@@ -31,6 +32,7 @@ export class AutomationService {
     private effects: ExternalEffects,
     private crypto: CryptoService,
     private notifications?: NotificationsService,
+    @Optional() private messaging?: MessagingService,
   ) {}
   @OnEvent('domain.event', { suppressErrors: false }) async handle(event: DomainEvent) {
     const contactId = event.payload.contactId;
@@ -153,6 +155,24 @@ export class AutomationService {
           );
           if (!receipt.rowCount) continue;
           switch (action.type) {
+            case 'whatsapp_template': {
+              if (env.EXTERNAL_DELIVERY_ENABLED !== 'true' || !this.messaging)
+                throw new Error('Automation template delivery disabled in this environment');
+              const conversation = (await c.query(
+                `SELECT cv.id FROM conversations cv JOIN channels ch ON ch.id=cv.channel_id
+                 JOIN contact_consents s ON s.contact_id=cv.contact_id AND s.channel_id=cv.channel_id
+                 WHERE cv.contact_id=$1 AND cv.channel_id=$2 AND cv.status<>'closed'
+                   AND ch.type='whatsapp' AND ch.status='active' AND s.status='opted_in'
+                 ORDER BY cv.created_at DESC,cv.id DESC LIMIT 1`,
+                [contactId,action.channelId],
+              )).rows[0];
+              if (!conversation) throw new Error('Active WhatsApp conversation and customer opt-in required');
+              await this.messaging.sendOutbound({
+                tenantId: tenant, conversationId: conversation.id,
+                content: { template: action.template }, senderType: 'system',
+              });
+              break;
+            }
             case 'assign': {
               if (
                 !(

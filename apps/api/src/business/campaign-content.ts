@@ -1,3 +1,4 @@
+import { validateTemplateBindings } from '../messaging/template-bindings';
 import { validateTemplateParameters } from '../messaging/template-contract';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PoolClient } from 'pg';
@@ -49,6 +50,8 @@ export async function validateCampaignContent(
     ).rows[0];
     if (!row)
       throw new BadRequestException('Select an approved supported template for this channel');
+    validateTemplateBindings(content.template.bodyParams);
     validateTemplateParameters(row, content.template);
+    return row as { body: string };
   }
 }

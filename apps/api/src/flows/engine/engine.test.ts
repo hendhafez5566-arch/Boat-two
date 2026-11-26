@@ -846,7 +846,7 @@ test('location, cta_url and template nodes send rich content and continue', asyn
   assert.deepEqual(h.sent[0].location, { lat: 30.0444, lng: 31.2357, name: 'Cairo' });
   assert.equal(h.sent[1].text, 'Hi Ali');
   assert.deepEqual(h.sent[1].cta, { text: 'Open', url: 'https://x.test/Ali' });
-  assert.deepEqual(h.sent[2].template?.bodyParams, ['Ali']);
+  assert.deepEqual(h.sent[2].template?.bodyParams, ['{{contact.name}}']);
 });
 
 test('validate: new nodes require their key fields', () => {

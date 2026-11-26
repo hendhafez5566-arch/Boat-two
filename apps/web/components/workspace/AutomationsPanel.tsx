@@ -1,4 +1,6 @@
 'use client';
+import { AutomationTemplateAction } from '../business/AutomationTemplateAction';
+import type { TemplateValue } from '../business/TemplateParameters';
 import { WorkspaceHeading } from '../product/ProductUI';
 import { AUTOMATION_EVENTS, eventLabel } from '../../lib/business-events';
 import { statusLabel } from '../product/status';
@@ -10,6 +12,8 @@ import { useLocale } from '../product/locale';
 import { useData } from '../business/useData';
 type Action = {
   type: string;
+  channelId?: string;
+  template?: TemplateValue;
   tag?: string;
   value?: string;
   title?: string;
@@ -93,6 +97,7 @@ export default function Automations() {
       note: t('ملاحظة', 'Note'),
       branch: t('تفرع', 'Branch'),
       http: 'Webhook',
+      whatsapp_template: t('قالب واتساب', 'WhatsApp template'),
     })[type] || type;
   return (
     <section className="stack">
@@ -382,7 +387,9 @@ export default function Automations() {
                         setActions((xs) =>
                           xs.map((x, n) =>
                             n === i
-                              ? e.target.value === 'tag'
+                              ? e.target.value === 'whatsapp_template'
+                                ? { type: 'whatsapp_template' }
+                                : e.target.value === 'tag'
                                 ? { type: 'tag', tag: '' }
                                 : e.target.value === 'lifecycle'
                                   ? { type: 'lifecycle', value: 'qualified' }
@@ -406,9 +413,14 @@ export default function Automations() {
                       <option value="delay">
                         {t('متابعة مؤجلة من الحدث', 'Delayed follow-up from event')}
                       </option>
+                      <option value="whatsapp_template">{t('إرسال قالب واتساب', 'Send WhatsApp template')}</option>
                       <option value="note">{t('تسجيل ملاحظة', 'Add note')}</option>
                     </select>
                   </label>
+                  {a.type === 'whatsapp_template' ? (
+                    <AutomationTemplateAction channelId={a.channelId} template={a.template}
+                      change={(update) => setActions((rows) => rows.map((row, n) => n === i ? { ...row, ...update } : row))} />
+                  ) : (
                   <label className="field">
                     {t('التفاصيل', 'Details')}
                     {a.type === 'lifecycle' ? (
@@ -460,6 +472,7 @@ export default function Automations() {
                       />
                     )}
                   </label>
+                  )}
                   {(a.type === 'task' || a.type === 'delay') && (
                     <label className="field">
                       {t('موعد المتابعة بعد (دقائق)', 'Follow-up due after (minutes)')}

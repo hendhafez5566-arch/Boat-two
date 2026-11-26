@@ -26,6 +26,10 @@ function count(text = '') {
   return new Set(text.match(/\{\{\d+\}\}/g) ?? []).size;
 }
 export function validTemplateValue(def: ApprovedTemplate, value: TemplateValue) {
+  if (def.status !== 'APPROVED' || !def.supported || def.name !== value.name || def.language !== value.language)
+    return false;
+  if (value.bodyParams.some((v) => /\{\{|\}\}/.test(v) && !/^\{\{\s*(contact\.name|order\.(id|status))\s*\}\}$/.test(v.trim())))
+    return false;
   if (count(def.body) !== value.bodyParams.length || value.bodyParams.some((v) => !v.trim()))
     return false;
   const h = def.components?.find((c) => c.type === 'HEADER');
@@ -52,10 +56,12 @@ export function TemplateParameters({
   definition,
   value,
   onChange,
+  bindings = false,
 }: {
   definition: ApprovedTemplate;
   value: TemplateValue;
   onChange: (v: TemplateValue) => void;
+  bindings?: boolean;
 }) {
   const { t } = useLocale(),
     h = definition.components?.find((c) => c.type === 'HEADER');
@@ -72,16 +78,51 @@ export function TemplateParameters({
   return (
     <div className="stack">
       <p className="notice whitespace-pre-wrap">{definition.body}</p>
-      <label className="field">
-        {t('قيم القالب، قيمة في كل سطر', 'Template values, one per line')}
-        <textarea
-          value={value.bodyParams.join('\n')}
-          onChange={(e) =>
-            onChange({ ...value, bodyParams: e.target.value ? e.target.value.split('\n') : [] })
-          }
-          rows={Math.max(2, count(definition.body))}
-        />
-      </label>
+      {Array.from({ length: count(definition.body) }, (_, index) => {
+        const raw = value.bodyParams[index] ?? '';
+        const fields = [
+          ['{{contact.name}}', t('اسم العميل', 'Contact name')],
+          ['{{order.id}}', t('رقم الطلب المرتبط بالمحادثة', 'Order ID linked to the conversation')],
+          [
+            '{{order.status}}',
+            t('حالة الطلب المرتبط بالمحادثة', 'Order status linked to the conversation'),
+          ],
+        ];
+        const currentBinding = bindings && fields.some(([key]) => key === raw) ? raw : '';
+        const update = (text: string) => {
+          const bodyParams = Array.from({ length: count(definition.body) }, (_, i) =>
+            i === index ? text : (value.bodyParams[i] ?? ''),
+          );
+          onChange({ ...value, bodyParams });
+        };
+        return (
+          <div className="stack" key={index}>
+            {bindings && (
+              <label className="field">
+                {t('مصدر المتغير', 'Variable source')} {index + 1}
+                <select value={currentBinding} onChange={(event) => update(event.target.value)}>
+                  <option value="">{t('قيمة ثابتة', 'Literal value')}</option>
+                  {fields.map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {!currentBinding && (
+              <label className="field">
+                {t('قيمة المتغير', 'Variable value')} {index + 1}
+                <input
+                  value={raw}
+                  maxLength={1024}
+                  onChange={(event) => update(event.target.value)}
+                />
+              </label>
+            )}
+          </div>
+        );
+      })}
       {h?.format === 'TEXT' &&
         (count(h.text) ? (
           <label className="field">
@@ -189,7 +230,16 @@ export function TemplatePreview({
       <p>
         {definition?.body.replace(
           /\{\{(\d+)\}\}/g,
-          (m, n) => value.bodyParams[Number(n) - 1] || m,
+          (m, n) =>
+            (
+              ({
+                '{{contact.name}}': t('[اسم العميل]', '[Contact name]'),
+                '{{order.id}}': t('[رقم الطلب]', '[Order ID]'),
+                '{{order.status}}': t('[حالة الطلب]', '[Order status]'),
+              }) as Record<string, string>
+            )[value.bodyParams[Number(n) - 1]] ||
+            value.bodyParams[Number(n) - 1] ||
+            m,
         ) ?? value.name}
       </p>
       {definition?.components?.find((c) => c.type === 'FOOTER')?.text && (

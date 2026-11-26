@@ -1,4 +1,6 @@
 'use client';
+import { AutomationTemplateAction } from './AutomationTemplateAction';
+import type { TemplateValue } from './TemplateParameters';
 import { DisclosureSummary } from '../product/DisclosureSummary';
 
 import { automationLabel } from './automation-labels';
@@ -24,6 +26,8 @@ type Conditions = {
 };
 type Action = {
   type: string;
+  channelId?: string;
+  template?: TemplateValue;
   userId?: string;
   key?: string;
   linkDeal?: boolean;
@@ -222,6 +226,7 @@ function Steps({
                   'notify',
                   'field',
                   'moveDeal',
+                  'whatsapp_template',
                 ]
               : [
                   'note',
@@ -236,6 +241,7 @@ function Steps({
                   'notify',
                   'field',
                   'moveDeal',
+                  'whatsapp_template',
                 ]
             ).map((type) => (
               <option key={type} value={type}>
@@ -243,6 +249,8 @@ function Steps({
               </option>
             ))}
           </select>
+          {action.type === 'whatsapp_template' && <AutomationTemplateAction channelId={action.channelId}
+            template={action.template} change={(update) => patch(index, update)} />}
           {['deal', 'moveDeal'].includes(action.type) && (
             <div className="form-grid">
               <label>

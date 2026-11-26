@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 import { DisclosureSummary } from '../product/DisclosureSummary';
+import { ApprovedTemplatePicker } from '../business/ApprovedTemplatePicker';
 import SequenceCenter from './SequenceCenter';
 import ChannelScope from '../product/ChannelScope';
 import { useChannelContext } from '../product/useChannelContext';
@@ -692,49 +693,8 @@ function SequenceWorkspace({
                       </div>
                     )}
                     {kind === 'template' && (
-                      <div className="sq-grid3">
-                        <input
-                          className="sq-in"
-                          dir="ltr"
-                          placeholder="template_name"
-                          value={s.content.template.name}
-                          onChange={(e) =>
-                            patchStep(i, {
-                              content: {
-                                template: { ...s.content.template, name: e.target.value },
-                              },
-                            })
-                          }
-                        />
-                        <input
-                          className="sq-in"
-                          dir="ltr"
-                          placeholder="ar"
-                          value={s.content.template.language}
-                          onChange={(e) =>
-                            patchStep(i, {
-                              content: {
-                                template: { ...s.content.template, language: e.target.value },
-                              },
-                            })
-                          }
-                        />
-                        <input
-                          className="sq-in"
-                          placeholder={t('متغيّرات مفصولة بـ |', 'Variables separated by |')}
-                          value={(s.content.template.bodyParams ?? []).join('|')}
-                          onChange={(e) =>
-                            patchStep(i, {
-                              content: {
-                                template: {
-                                  ...s.content.template,
-                                  bodyParams: e.target.value.split('|').filter(Boolean),
-                                },
-                              },
-                            })
-                          }
-                        />
-                      </div>
+                      <ApprovedTemplatePicker channelIds={cur.channelId ? [cur.channelId] : []}
+                        value={s.content.template} onChange={(template) => patchStep(i, { content: { template } })} />
                     )}
                     <div className="sq-foot">
                       <span>💬 {t('الرسالة', 'Message')}</span>

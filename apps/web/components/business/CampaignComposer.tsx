@@ -118,7 +118,6 @@ export function CampaignComposer({
     };
   const selectedTemplate = templates.find((x) => x.name + '|' + x.language === template);
   const validContent =
-    reference &&
     selectedChannel?.type === 'whatsapp' &&
     broadcastMode === 'template' &&
     !selectedTemplate
@@ -443,7 +442,7 @@ export function CampaignComposer({
           {loading && <p role="status">{t('تحميل القوالب…', 'Loading templates…')}</p>}
           {template ? (
             selectedTemplate && (
-              <TemplateParameters
+              <TemplateParameters bindings
                 definition={selectedTemplate}
                 value={templateValue}
                 onChange={setTemplateValue}

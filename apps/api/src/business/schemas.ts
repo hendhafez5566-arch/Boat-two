@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { contentSchema } from '../messaging/message-content';
 export const filtersSchema = z.object({
   channelId: z.string().uuid().optional(),
   listId: z.string().uuid().optional(),
@@ -136,6 +137,7 @@ export const baseActionSchema = z.discriminatedUnion('type', [
       .regex(/^[A-Z]{3}$/)
       .default('USD'),
   }),
+  z.object({ type: z.literal('whatsapp_template'), channelId: z.string().uuid(), template: contentSchema.shape.template.unwrap() }),
   z.object({ type: z.literal('note'), text: z.string().min(1).max(4000) }),
 ]);
 export type AutomationAction =

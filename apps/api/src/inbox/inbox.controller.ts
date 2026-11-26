@@ -25,6 +25,7 @@ import { Roles } from '../auth/decorators';
 import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
 import { env } from '../config/env';
+import { conversationTemplateFields } from '../messaging/template-bindings';
 import { DatabaseService } from '../database/database.service';
 import { telegramFile } from '../messaging/adapters/telegram.adapter';
 import { GRAPH } from '../messaging/adapters/adapter';
@@ -430,7 +431,7 @@ export class InboxController {
           ORDER BY t.name,t.language`,
         [id],
       );
-      return { templates: result.rows, deliveryEnabled: env.EXTERNAL_DELIVERY_ENABLED === 'true' };
+      return { templates: result.rows, fields: result.rows.length ? await conversationTemplateFields(c, id, true) : {}, deliveryEnabled: env.EXTERNAL_DELIVERY_ENABLED === 'true' };
     });
   }
 

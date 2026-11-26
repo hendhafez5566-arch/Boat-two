@@ -2,11 +2,10 @@
 import { DisclosureSummary } from '../product/DisclosureSummary';
 
 import {
-  TemplateParameters,
-  TemplatePreview,
   ApprovedTemplate,
   validTemplateValue,
 } from './TemplateParameters';
+import { ApprovedTemplatePicker } from './ApprovedTemplatePicker';
 import { useState } from 'react';
 import { RichCampaignContent, CampaignContent } from './RichCampaignContent';
 import { useData } from './useData';
@@ -43,7 +42,7 @@ export function CampaignDraftEditor({
     [],
   );
   const definition = templates.data.find(
-    (x) => x.name === draft.template?.name && x.language === draft.template?.language,
+    (x) => x.status === 'APPROVED' && x.supported && x.name === draft.template?.name && x.language === draft.template?.language,
   );
   return (
     <details open={expanded || undefined}>
@@ -87,28 +86,8 @@ export function CampaignDraftEditor({
           />
         </label>
         {draft.template ? (
-          <>
-            <p>
-              {draft.template.name} · {draft.template.language}
-            </p>
-            {definition ? (
-              <>
-                <TemplateParameters
-                  definition={definition}
-                  value={draft.template}
-                  onChange={(template) => setDraft({ template })}
-                />
-                <TemplatePreview definition={definition} value={draft.template} />
-              </>
-            ) : (
-              <p role="status">
-                {t(
-                  'تحميل تعريف القالب؛ إذا تعذر التحميل فأعد المحاولة.',
-                  'Loading template definition; retry if unavailable.',
-                )}
-              </p>
-            )}
-          </>
+          <ApprovedTemplatePicker channelIds={[campaign.channel_id]} value={draft.template}
+            onChange={(template) => setDraft({ template })} />
         ) : (
           <RichCampaignContent value={draft} onChange={setDraft} />
         )}

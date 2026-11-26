@@ -1,3 +1,6 @@
+import { templateBinding } from '../messaging/template-bindings';
+import { validateCampaignContent } from '../business/campaign-content';
+import type { MessageContent } from '../messaging/message-content';
 import { DataSourcesService } from '../commerce/data-sources.service';
 import {
   BadRequestException,
@@ -442,6 +445,18 @@ export class FlowsService {
         errors.push({ message: 'Add at least one trigger before publishing' });
       if (errors.length) throw new BadRequestException({ code: 'FLOW_INVALID', errors, warnings });
 
+      const templateNodes = [...expanded.nodes, ...(expanded.policy?.businessHours?.offHoursGraph?.nodes ?? [])]
+        .filter((node) => node.type === 'template');
+      if (templateNodes.length) {
+        if (!f.channel_ids?.length)
+          throw new BadRequestException('Select explicit WhatsApp channels before publishing template nodes');
+        for (const node of templateNodes) {
+          const { name, language, bodyParams, header, buttonParams } = node.data;
+          const content = { template: { name, language: language || 'ar', bodyParams: bodyParams || [], header, buttonParams } } as MessageContent;
+          for (const channelId of f.channel_ids) await validateCampaignContent(c, channelId, content);
+        }
+      }
+
       const version = (
         await c.query(
           'SELECT COALESCE(MAX(version), 0) + 1 AS v FROM flow_versions WHERE flow_id = $1',
@@ -673,7 +688,34 @@ export class FlowsService {
         });
         return { text: r.text, handoff: r.handoff, failed: r.failed };
       },
-      send: async (content) => void transcript.push({ role: 'bot', content }),
+      send: async (content) => {
+        if (content.template) {
+          const channels: string[] = flow.channel_ids ?? [];
+          if (!channels.length) throw new BadRequestException('Select explicit WhatsApp channels to test this template');
+          const definition = await this.db.withTenant(tenantId, async (c) => {
+            const rows = [];
+            for (const channel of channels) rows.push(await validateCampaignContent(c, channel, content));
+            return rows[0];
+          });
+          const fixture = {
+            'contact.name': String(attrs['system.name'] ?? 'Test User'),
+            'order.id': input.templateOrder?.id,
+            'order.status': input.templateOrder?.status,
+          };
+          const bodyParams = content.template.bodyParams.map((value) => {
+            const binding = templateBinding(value);
+            if (!binding) return value;
+            const resolved = fixture[binding]?.trim();
+            if (!resolved) throw new BadRequestException('Missing synthetic value for ' + binding);
+            return resolved;
+          });
+          content = {
+            ...content, template: { ...content.template, bodyParams },
+            text: definition?.body.replace(/\{\{(\d+)\}\}/g, (token, index) => bodyParams[Number(index) - 1] ?? token),
+          };
+        }
+        transcript.push({ role: 'bot', content });
+      },
       http: async (spec) => {
         // قراءة Google Sheet العام GET فقط ومن مضيف Google فقط، فنسمح بها في وضع التجربة ليرى المستخدم النتيجة الحقيقية
         let sheetRead = false;

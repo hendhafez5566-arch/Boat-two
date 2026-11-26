@@ -1,3 +1,4 @@
+import { validateCampaignContent } from '../business/campaign-content';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   BadRequestException,
@@ -146,6 +147,8 @@ export class SequencesService implements OnModuleInit, OnModuleDestroy {
             },
           ],
         });
+      for (const step of input.steps)
+        if (step.content.template) await validateCampaignContent(c, input.channelId, step.content as MessageContent);
       return (
         await c.query(
           `INSERT INTO sequences (tenant_id, name, channel_id, timezone, delivery_time, stop_on_reply, steps)
@@ -183,6 +186,8 @@ export class SequencesService implements OnModuleInit, OnModuleDestroy {
             },
           ],
         });
+      for (const step of input.steps)
+        if (step.content.template) await validateCampaignContent(c, input.channelId, step.content as MessageContent);
       const row = (
         await c.query(
           `UPDATE sequences SET name=$2, timezone=$3, delivery_time=$4, stop_on_reply=$5, steps=$6, revision=revision+1, updated_at=now()

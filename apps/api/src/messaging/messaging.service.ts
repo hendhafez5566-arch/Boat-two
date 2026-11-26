@@ -1,6 +1,7 @@
 import {assertOwnedUpload} from '../inbox/files/owned-upload';
 import { activeBotSettings } from './bot-runtime-settings';
 import { validateTemplateParameters } from './template-contract';
+import { resolveTemplateBody } from './template-bindings';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventsService } from '../events/events.service';
 import { PlansService } from '../plans/plans.service';
@@ -398,7 +399,12 @@ export class MessagingService {
           )
         ).rows[0];
         if (!template) throw new BadRequestException('Template is not approved for this channel');
-        validateTemplateParameters(template, p.content.template);
+        const resolvedTemplate = {
+          ...p.content.template,
+          bodyParams: await resolveTemplateBody(c, p.conversationId, p.content.template.bodyParams),
+        };
+        validateTemplateParameters(template, resolvedTemplate);
+        p.content = { ...p.content, template: resolvedTemplate };
       }
       await assertOwnedUpload(c,p.content.media?.url);
       const msg = (

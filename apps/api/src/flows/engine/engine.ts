@@ -870,7 +870,8 @@ export class FlowEngine {
           template: {
             name: String(d.name),
             language: String(d.language || 'ar'),
-            bodyParams: (d.bodyParams ?? []).map((x: string) => interpolate(String(x), r)),
+            bodyParams: (d.bodyParams ?? []).map(String),
+            ...(d.buttonParams ? { buttonParams: d.buttonParams } : {}),
             ...(hdr?.type === 'text'
               ? { header: { type: 'text' as const, text: interpolate(String(hdr.text), r) } }
               : hdr?.url

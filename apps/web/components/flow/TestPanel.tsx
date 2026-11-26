@@ -33,6 +33,8 @@ export default function TestPanel({
   const [mediaKind, setMediaKind] = useState('');
   const [mediaUrl, setMediaUrl] = useState('');
   const [allowHttp, setAllowHttp] = useState(false);
+  const [orderId, setOrderId] = useState('');
+  const [orderStatus, setOrderStatus] = useState('');
   const [simulateAt, setSimulateAt] = useState('');
   const [contactAttributes, setContactAttributes] = useState<Record<string, unknown>>({});
   const [error, setError] = useState('');
@@ -56,6 +58,7 @@ export default function TestPanel({
           ...body,
           contactAttributes: body.state ? contactAttributes : {},
           allowHttp,
+          ...(orderId.trim() && orderStatus.trim() ? { templateOrder: { id: orderId.trim(), status: orderStatus.trim() } } : {}),
           ...(simulateAt ? { simulateAt: new Date(simulateAt).toISOString() } : {}),
         }),
       });
@@ -175,6 +178,15 @@ export default function TestPanel({
           'Logic test — message appearance is approximate and varies by channel. No customer messages are sent.',
         )}
       </p>
+      <details className="stack">
+        <summary>{t('بيانات طلب تجريبية للقالب', 'Synthetic template order fields')}</summary>
+        <label className="field">{t('رقم الطلب التجريبي', 'Test order ID')}
+          <input maxLength={100} value={orderId} onChange={(event) => setOrderId(event.target.value)} />
+        </label>
+        <label className="field">{t('حالة الطلب التجريبية', 'Test order status')}
+          <input maxLength={40} value={orderStatus} onChange={(event) => setOrderStatus(event.target.value)} />
+        </label>
+      </details>
       {error && (
         <div role="alert" className="tp-error">
           <strong>{friendly(error)}</strong>
