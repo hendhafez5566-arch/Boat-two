@@ -71,6 +71,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       }
       if (Date.now() >= this.nextCrmSchedule) {
         await this.db.query('SELECT crm_v3_schedule_due(100)');
+        await this.db.query('SELECT workflow_schedule_maintenance(100)');
         this.nextCrmSchedule = Date.now() + 60_000;
       }
       await this.db.query('SELECT crm_history_drain(1000)');

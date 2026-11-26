@@ -12,3 +12,6 @@
 .stages li, .state { border-radius: .5rem; padding: .35rem .65rem; background: #edf4f5; color: #174c51; overflow-wrap: anywhere; }
 .stages li[aria-current], .state[data-overdue='true'] { background: #0b605e; color: white; }
 .state[data-overdue='true'] { background: #9a3421; }
+
+.item { display: grid; gap: .625rem; padding-block: .4rem; border-block-end: 1px solid var(--line, #d8e2e5); }
+.toolbar .filter { display: flex; align-items: center; gap: .375rem; }

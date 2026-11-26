@@ -100,3 +100,10 @@
 @media (max-width: 350px) {
   .metrics { grid-template-columns: minmax(0, 1fr); }
 }
+
+.workflowWorkspace {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
+  align-items: start;
+  gap: .875rem;
+}

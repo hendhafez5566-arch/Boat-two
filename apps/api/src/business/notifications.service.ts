@@ -84,7 +84,7 @@ export class NotificationsService {
       if (!s.enabled) return;
       const tasks = (
         await c.query(
-          `SELECT t.*,ct.name FROM crm_tasks t JOIN contacts ct ON ct.id=t.contact_id WHERE t.status='open' AND t.due_at<=now()+make_interval(mins=>$1) AND (t.assigned_to=$2 OR t.assigned_to IS NULL) AND ct.archived_at IS NULL AND ct.merged_into_id IS NULL AND NOT EXISTS(SELECT 1 FROM crm_notifications n WHERE n.user_id=$2 AND n.dedupe_key=(CASE WHEN t.due_at<now() THEN 'task_overdue' ELSE 'task_due' END)||':'||t.id::text||':'||to_char(t.due_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')) ORDER BY t.due_at LIMIT 100`,
+          `SELECT t.*,ct.name FROM crm_tasks t JOIN contacts ct ON ct.id=t.contact_id WHERE t.status='open' AND (t.order_workflow IS NULL OR t.due_at>=now()) AND t.due_at<=now()+make_interval(mins=>$1) AND (t.assigned_to=$2 OR t.assigned_to IS NULL) AND ct.archived_at IS NULL AND ct.merged_into_id IS NULL AND NOT EXISTS(SELECT 1 FROM crm_notifications n WHERE n.user_id=$2 AND n.dedupe_key=(CASE WHEN t.due_at<now() THEN 'task_overdue' ELSE 'task_due' END)||':'||t.id::text||':'||to_char(t.due_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')) ORDER BY t.due_at LIMIT 100`,
           [s.dueMinutes, user],
         )
       ).rows;

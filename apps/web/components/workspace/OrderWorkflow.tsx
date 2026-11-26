@@ -15,7 +15,27 @@ type Stage = {
   priority: 'low' | 'normal' | 'high';
   autoAdvance: boolean;
 };
-type Definition = { id?: string; name: string; stages: Stage[] };
+type Source = 'order' | 'conversation' | 'contact' | 'task';
+type Condition = 'manual' | 'created' | 'unassigned';
+type Definition = { id?: string; name: string; stages: Stage[]; source?: Source; start_condition?: Condition };
+type WorkflowItem = { id: string; name: string; workflow: string | null; due_at: string | null; task_status: string | null };
+const sources: Record<Source, [string, string]> = {
+  order: ['الطلبات', 'Orders'],
+  conversation: ['المحادثات', 'Conversations'],
+  contact: ['العملاء', 'Customers'],
+  task: ['مهام CRM', 'CRM tasks'],
+};
+const sourceLinks: Record<Source, string> = {
+  order: '/dashboard/commerce?order=',
+  conversation: '/dashboard/inbox?conversation=',
+  contact: '/dashboard/crm?contact=',
+  task: '/dashboard/crm/tasks?status=&id=',
+};
+const conditions: Record<Condition, [string, string]> = {
+  manual: ['يدوي فقط', 'Manual only'],
+  created: ['عند الإنشاء', 'When created'],
+  unassigned: ['عند الإنشاء بدون مسؤول', 'When created without an assignee'],
+};
 type Work = {
   id: string; assigned_to: string | null; due_at: string; assignee_name: string | null;
   workflow: Definition & { stage: number; revision: number; finished: boolean;
@@ -53,7 +73,7 @@ export function OrderWorkflowSettings() {
     setError('');
     try {
       await api(draft.id ? definitionsPath + '/' + draft.id : definitionsPath, {
-        method: draft.id ? 'PATCH' : 'POST', body: JSON.stringify({ name: draft.name, stages: draft.stages }),
+        method: draft.id ? 'PATCH' : 'POST', body: JSON.stringify({ name: draft.name, stages: draft.stages, source: draft.source, start_condition: draft.start_condition }),
       });
       setDraft(null);
       await definitions.reload();
@@ -73,7 +93,7 @@ export function OrderWorkflowSettings() {
   }
   return <section className={styles.panel}>
     <div className={styles.toolbar}>
-      <h3>{t('سير عمل الطلبات', 'Order workflows')}</h3>
+      <h3>{t('مسارات العمل', 'Workflows')}</h3>
       <button className="btn btn-primary" type="button" disabled={busy}
         onClick={() => setDraft({ name: '', stages: [blankStage()] })}>{t('سير عمل جديد', 'New workflow')}</button>
     </div>
@@ -83,7 +103,7 @@ export function OrderWorkflowSettings() {
     {!definitions.loading && !definitions.error && !definitions.data.length && !draft &&
       <p>{t('لا توجد مسارات عمل بعد.', 'No workflows yet.')}</p>}
     {definitions.data.map(item => <article className={styles.row} key={item.id}>
-      <div><strong>{item.name}</strong><p>{item.stages.map(stage => stage.name).join(' · ')}</p></div>
+      <div><strong>{item.name}</strong><p>{t(...sources[item.source ?? 'order'])} · {t(...conditions[item.start_condition ?? 'manual'])}</p><p>{item.stages.map(stage => stage.name).join(' · ')}</p></div>
       <div className={styles.toolbar}>
         <button type="button" className="btn" disabled={busy} onClick={() => setDraft(item)}>{t('تعديل', 'Edit')}</button>
         <button type="button" className="btn" disabled={busy} onClick={() => void archive(item.id!)}>{t('أرشفة', 'Archive')}</button>
@@ -93,6 +113,16 @@ export function OrderWorkflowSettings() {
       <label>{t('اسم سير العمل', 'Workflow name')}
         <input required maxLength={64} value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })}/>
       </label>
+      <div className={styles.fields}>
+        <label>{t('نوع العمل', 'Work type')}<select value={draft.source ?? 'order'}
+          onChange={e => setDraft({ ...draft, source: e.target.value as Source })}>
+          {Object.entries(sources).map(([value, name]) => <option key={value} value={value}>{t(...name)}</option>)}
+        </select></label>
+        <label>{t('بدء التشغيل', 'Start condition')}<select value={draft.start_condition ?? 'manual'}
+          onChange={e => setDraft({ ...draft, start_condition: e.target.value as Condition })}>
+          {Object.entries(conditions).map(([value, name]) => <option key={value} value={value}>{t(...name)}</option>)}
+        </select></label>
+      </div>
       {draft.stages.map((stage, index) => {
         const department = departments.data.find(item => item.id === stage.departmentId);
         const candidates = members.data.members.filter(member => !stage.departmentId || department?.members.includes(member.user_id));
@@ -142,9 +172,9 @@ export function OrderWorkflowSettings() {
   </section>;
 }
 
-export function OrderWorkflowProgress({ id, closed }: { id: string; closed: boolean }) {
+export function OrderWorkflowProgress({ id, closed, source = 'order' }: { id: string; closed?: boolean; source?: Source }) {
   const { t } = useLocale();
-  const path = '/commerce/orders/' + id + '/workflow';
+  const path = '/commerce/workflow-items/' + source + '/' + id;
   const state = useData<{ work: Work | null }>(path, { work: null });
   const definitions = useData<Definition[]>(state.loadedPath && !state.data.work && !closed ? definitionsPath : null, []);
   const { members } = useWorkflowPeople();
@@ -173,7 +203,7 @@ export function OrderWorkflowProgress({ id, closed }: { id: string; closed: bool
     {!work && state.loadedPath && (closed ? <p>{t('الطلب مغلق', 'Order closed')}</p> : <div className={styles.toolbar}>
       <label>{t('سير العمل', 'Workflow')}<select value={definition} onChange={e => setDefinition(e.target.value)}>
         <option value="">{t('اختر سير عمل', 'Select a workflow')}</option>
-        {definitions.data.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+        {definitions.data.filter(item => (item.source ?? 'order') === source).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
       </select></label>
       <button type="button" className="btn btn-primary" disabled={busy || !definition} onClick={() => void act('start')}>{t('بدء العمل', 'Start workflow')}</button>
     </div>)}
@@ -209,5 +239,50 @@ export function OrderWorkflowProgress({ id, closed }: { id: string; closed: bool
         </li>)}</ol>
       </details>
     </>}
+  </section>;
+}
+
+export function WorkflowWorkspace() {
+  const { t } = useLocale();
+  const [source, setSource] = useState<Source>('conversation');
+  const [search, setSearch] = useState('');
+  const [active, setActive] = useState<string | null>(null);
+  const [onlyOverdue, setOnlyOverdue] = useState(false);
+  const path = '/commerce/workflow-items/' + source + '?q=' + encodeURIComponent(search.trim().slice(0, 100));
+  const items = useData<WorkflowItem[]>(path, []);
+  const visibleItems = items.data.filter(item => !onlyOverdue ||
+    (!!item.due_at && +new Date(item.due_at) < Date.now() && item.task_status === 'open'));
+
+  return <section className={styles.panel}>
+    <div className={styles.toolbar}>
+      <h3>{t('متابعة العمل', 'Track work')}</h3>
+      <label>{t('نوع العمل', 'Work type')}<select value={source} onChange={e => {
+        setSource(e.target.value as Source);
+        setActive(null);
+      }}>
+        {Object.entries(sources).map(([value, name]) => <option key={value} value={value}>{t(...name)}</option>)}
+      </select></label>
+      <label>{t('بحث', 'Search')}<input type="search" value={search} onChange={e => setSearch(e.target.value)}/></label>
+      <label className={styles.filter}><input type="checkbox" checked={onlyOverdue}
+        onChange={e => setOnlyOverdue(e.target.checked)}/>{t('المتأخر فقط', 'Overdue only')}</label>
+    </div>
+    {items.error && <p role="alert">{items.error}</p>}
+    {items.loading && <p role="status">{t('جارٍ التحميل', 'Loading')}</p>}
+    {items.loadedPath === path && !items.loading && !visibleItems.length &&
+      <p>{t('لا توجد نتائج.', 'No matching work.')}</p>}
+    {items.loadedPath === path && visibleItems.map(item =>
+      <article className={styles.item} key={item.id}>
+        <div className={styles.row}>
+          <div>
+            <Link href={sourceLinks[source] + item.id}>{item.name || t('بدون اسم', 'Unnamed')}</Link>
+            {item.workflow && <p>{item.workflow}</p>}
+          </div>
+          <button type="button" className="btn" aria-expanded={active === item.id}
+            onClick={() => setActive(active === item.id ? null : item.id)}>
+            {active === item.id ? t('إخفاء', 'Hide') : t('سير العمل', 'Workflow')}
+          </button>
+        </div>
+        {active === item.id && <OrderWorkflowProgress id={item.id} source={source}/>}
+      </article>)}
   </section>;
 }

@@ -1,4 +1,4 @@
-import { OrderWorkflowsService } from '../commerce/order-workflows.service';
+import { OrderWorkflowsModule } from '../commerce/order-workflows.module';
 import { InboxModule } from '../inbox/inbox.module';
 import { SalesController } from './sales.controller';
 import { NotificationsService } from './notifications.service';
@@ -19,9 +19,9 @@ import { CampaignsController } from './campaigns.controller';
 import { AutomationService } from './automation.service';
 import { OperationsController } from './operations.controller';
 @Module({
-  imports: [MessagingModule, InboxModule],
+  imports: [MessagingModule, InboxModule, OrderWorkflowsModule],
   providers: [
-    OrderWorkflowsService,
+
     NotificationsService,
     CryptoService,
     CrmJobs,

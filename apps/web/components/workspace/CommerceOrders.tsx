@@ -1,5 +1,5 @@
 'use client';
-import { OrderWorkflowProgress, OrderWorkflowSettings } from './OrderWorkflow';
+import { OrderWorkflowProgress, OrderWorkflowSettings, WorkflowWorkspace } from './OrderWorkflow';
 import { DisclosureSummary } from '../product/DisclosureSummary';
 import { useEffect, useRef, useState } from 'react';
 import { NavIcon } from '../product/NavIcon';
@@ -156,6 +156,7 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
   const [preview, setPreview] = useState<Snapshot | null>(null);
   const selectionRevision = useRef(0);
   const [workflowSettings, setWorkflowSettings] = useState(false);
+  const [linkedWorkflowOrder, setLinkedWorkflowOrder] = useState<string | null>(null);
   const [workflowOrder, setWorkflowOrder] = useState<string | null>(null);
   const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const [followup, setFollowup] = useState<Order | null>(null);
@@ -310,7 +311,7 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
     </header>
     {!origin && <details onToggle={e => setWorkflowSettings(e.currentTarget.open)}>
       <DisclosureSummary>{t('إدارة سير العمل', 'Manage workflows')}</DisclosureSummary>
-      {workflowSettings && <OrderWorkflowSettings/>}
+      {workflowSettings && <div className={styles.workflowWorkspace}><OrderWorkflowSettings/><WorkflowWorkspace/></div>}
     </details>}
     {!origin && <div className={styles.metrics} aria-label={t('ملخص كل الطلبات', 'All orders summary')}>
       {summary.error ? <p role="alert">{summary.error}</p> : Object.entries(statusLabels).map(([status, label]) =>
@@ -462,6 +463,12 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
         </select></label>
         <button className="btn btn-primary" disabled={busy}>{t('إنشاء المتابعة', 'Create follow-up')}</button>
       </form>}
+      {o.origin && <button type="button" className="btn" aria-expanded={linkedWorkflowOrder === o.id}
+        onClick={() => setLinkedWorkflowOrder(linkedWorkflowOrder === o.id ? null : o.id)}>
+        {t('سير عمل المحادثة المرتبطة', 'Linked conversation workflow')}
+      </button>}
+      {o.origin && linkedWorkflowOrder === o.id &&
+        <OrderWorkflowProgress key={o.origin.conversationId} id={o.origin.conversationId} source="conversation"/>}
       <button type="button" className="btn" aria-expanded={workflowOrder === o.id}
         onClick={() => setWorkflowOrder(workflowOrder === o.id ? null : o.id)}>{t('سير العمل', 'Workflow')}</button>
       {workflowOrder === o.id && <OrderWorkflowProgress key={o.id} id={o.id} closed={['completed','cancelled'].includes(o.status)}/>}

@@ -25,6 +25,7 @@ export function noticeLabel(kind: string, t: (ar: string, en: string) => string)
     unassigned: ['عميل دون مسؤول', 'Unassigned lead'],
     task_due: ['اقترب موعد المتابعة', 'Follow-up due soon'],
     task_overdue: ['متابعة متأخرة', 'Overdue follow-up'],
+    workflow_escalated: ['تصعيد مهمة متأخرة', 'Overdue workflow escalated'],
     awaiting_reply: ['محادثة تنتظر الرد', 'Conversation awaiting reply'],
     stale_deal: ['صفقة تحتاج نشاطًا', 'Inactive deal'],
     closing_deal: ['اقترب إغلاق الصفقة', 'Deal closing soon'],
