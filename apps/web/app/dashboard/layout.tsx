@@ -365,14 +365,14 @@ function DashboardShell({ children }: { children: ReactNode }) {
             >
               <NavIcon name="menu" />
             </button>
-            <div className="bs-meters usage-strip">
+            <details className="workspace-usage"><summary><NavIcon name="reports"/><span>{t('الاستخدام','Usage')}</span><span className="usage-caret" aria-hidden="true">⌄</span></summary><div className="bs-meters usage-strip">
               <Meter label={t('عملاء', 'Contacts')} used={usage?.contacts.used}
                 limit={usage?.contacts.limit} href="/dashboard/subscription" />
               <Meter label={t('رسائل', 'Messages')} used={usage?.messages.used}
                 limit={usage?.messages.limit} href="/dashboard/subscription" />
               <Meter label={t('محاولات AI', 'AI attempts')} used={usage?.ai.used}
                 limit={usage?.ai.limit} href="/dashboard/subscription" />
-            </div>
+            <Link className="usage-details-link" href="/dashboard/subscription">{t('تفاصيل الاشتراك','Subscription details')}</Link></div></details>
             <div className="bs-spacer" />
             <div className="bs-search" role="search">
               <NavIcon name="search" />

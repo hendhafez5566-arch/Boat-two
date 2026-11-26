@@ -99,3 +99,17 @@ body { font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif; f
 
 /* Expand onboarding help only on request, keep day-to-day lists in view. */
 .bs-shell details>summary{cursor:pointer}.bs-shell details>summary:focus-visible{outline:2px solid var(--primary);outline-offset:3px}.bs-shell .workbench-toolbar>select{min-width:120px}.bs-shell .workbench-toolbar>input[type=search]{min-width:min(100%,220px)}
+
+/* Workspace v3: one compact usage control, not three persistent meters. */
+.bs-shell .workspace-usage{position:relative;flex:none}
+.bs-shell .workspace-usage>summary{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:8px;padding:8px 11px;background:var(--surface);color:var(--ink-2);font-size:12px;font-weight:650;list-style:none;min-height:38px;cursor:pointer}
+.bs-shell .workspace-usage>summary::-webkit-details-marker{display:none}
+.bs-shell .workspace-usage>summary::after{display:none}
+.bs-shell .workspace-usage>summary svg{width:17px;height:17px}
+.bs-shell .workspace-usage .usage-caret{font-size:15px;line-height:1;color:var(--muted)}
+.bs-shell .workspace-usage[open]>summary{border-color:var(--primary);background:var(--primary-soft)}
+.bs-shell .workspace-usage .bs-meters{position:absolute;inset-inline-start:0;top:calc(100% + 8px);display:grid!important;gap:10px;min-width:220px;width:max-content;max-width:calc(100vw - 32px);padding:14px;border:1px solid var(--line);border-radius:12px;background:white;box-shadow:0 10px 30px #19233c18;z-index:70}
+.bs-shell .workspace-usage .bs-meter{display:flex!important;justify-content:space-between;padding:4px 0;min-width:0}
+.bs-shell .workspace-usage .usage-details-link{color:var(--primary-deep,var(--primary));font-weight:650;font-size:12px;border-top:1px solid var(--line);padding-top:10px;text-decoration:none}
+.workday-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.workday-actions svg{width:16px;height:16px}
+@media(max-width:480px){.bs-shell .workspace-usage>summary>span:not(.usage-caret){display:none}.bs-shell .workspace-usage>summary{padding:8px}.bs-shell .workspace-usage .bs-meters{position:fixed;top:68px;inset-inline:12px;width:auto;max-width:none}}

@@ -1,0 +1,14 @@
+.queues{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:start;min-width:0}
+.queues[data-compact=true]{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.queue{display:grid;gap:9px;background:white;border:1px solid var(--line,#e0e5ee);border-radius:11px;padding:13px;min-width:0}
+.queue header{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.queue header>div{display:flex;align-items:center;gap:7px;min-width:0}.queue h3{font-size:14px;margin:0;font-weight:700;letter-spacing:0}
+.queue header>strong{font-size:23px;line-height:1.2;font-variant-numeric:tabular-nums;color:var(--ink)}
+.marker{width:8px;height:8px;flex:none;background:#64748b;border-radius:50%}
+.queue[data-period=overdue] .marker{background:var(--danger,#b82e42)}.queue[data-period=today] .marker{background:#b7791f}.queue[data-period=upcoming] .marker{background:var(--primary)}
+.list{display:grid;gap:0}.task{display:flex;align-items:center;gap:7px;border-top:1px solid var(--line);padding:10px 0;text-decoration:none;color:var(--ink);min-width:0}.task>div{flex:1;min-width:0;overflow-wrap:anywhere}.task strong{display:block;font-size:13px;line-height:1.5;font-weight:650}.task small{display:block;color:var(--muted);font-size:11px;line-height:1.5;margin-top:4px}.task time{font-size:11px;color:var(--muted);max-width:86px;line-height:1.45;text-align:end}.task>span{font-size:20px;color:var(--muted)}.task:hover strong{color:var(--primary)}
+.queue[data-period=overdue] .task time{color:var(--danger,#b82e42)}
+.all{display:flex;justify-content:space-between;align-items:center;color:var(--primary-deep,var(--primary));text-decoration:none;font-size:12px;font-weight:650;padding-block:8px 0;border-top:1px solid var(--line)}.all:hover{text-decoration:underline}.all span{font-size:18px;line-height:1}
+.empty{margin:0;color:var(--muted);font-size:12px;display:flex;align-items:center;gap:7px;padding:14px 0}.empty svg{width:17px;height:17px;color:var(--success)}.error{margin:0;color:var(--danger);font-size:12px}.error button{background:none;border:0;color:inherit;text-decoration:underline;font:inherit;cursor:pointer}
+@media(max-width:900px){.queues{grid-template-columns:repeat(auto-fit,minmax(min(100%,225px),1fr))}}
+@media(max-width:560px){.queues,.queues[data-compact=true]{grid-template-columns:1fr}.task time{max-width:100px}}
