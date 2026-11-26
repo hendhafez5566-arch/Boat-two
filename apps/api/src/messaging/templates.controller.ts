@@ -50,6 +50,14 @@ export class TemplatesController {
         ).rows,
     );
   }
+  @Get('availability') async availability(
+    @Req() r: AuthedRequest,
+    @Param('channelId', ParseUUIDPipe) id: string,
+  ) {
+    const channel = await this.channel(r, id);
+    if (env.EXTERNAL_DELIVERY_ENABLED !== 'true') return { state: 'environment_disabled' };
+    return { state: this.channels.credentials(channel).wabaId ? 'ready' : 'account_required' };
+  }
   @Post() async create(
     @Req() r: AuthedRequest,
     @Param('channelId', ParseUUIDPipe) id: string,

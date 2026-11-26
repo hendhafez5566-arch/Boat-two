@@ -52,6 +52,7 @@ export function TemplateDraftForm({
 }) {
   const { t, language: uiLanguage } = useLocale();
   const mediaHintId = useId();
+  const languageListId = useId();
   const h = initial?.components.find((c) => c.type === 'HEADER');
   const [format, setFormat] = useState(h?.format || 'NONE');
   const [name, setName] = useState(initial?.name || '');
@@ -79,10 +80,11 @@ export function TemplateDraftForm({
         <label className="field">
           {manager
             ? t('اسم القالب', 'Template Name')
-            : t('معرّف إنجليزي صغير', 'Lowercase identifier')}
+            : t('اسم القالب بالإنجليزية', 'Template name in English')}
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
+            placeholder="booking_confirmation"
             pattern="[a-z0-9_]+"
             maxLength={512}
             required
@@ -111,10 +113,18 @@ export function TemplateDraftForm({
               <input
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
+                list={languageListId}
                 pattern="[a-z]{2,3}(_[A-Z]{2})?"
                 required
                 dir="ltr"
               />
+              <datalist id={languageListId}>
+                {templateLocales.map(([code, label]) => (
+                  <option key={code} value={code}>
+                    {label}
+                  </option>
+                ))}
+              </datalist>
             </>
           )}
         </label>
@@ -158,19 +168,22 @@ export function TemplateDraftForm({
   const contentFields = (
     <>
       <label className="field">
-        {t('النص: المتغيرات بالشكل {{1}}', 'Text: variables use {{1}}')}
+        {t('نص الرسالة', 'Message text')}
         <textarea
           required
           value={body}
           onChange={(e) => setBody(e.target.value)}
           maxLength={1024}
           rows={4}
+          placeholder={t('مثال: تم تأكيد حجزك رقم {{1}}.', 'Example: Booking {{1}} is confirmed.')}
         />
       </label>
-      <label className="field">
-        {t('مثال لكل متغير، سطر لكل مثال', 'One example per variable, one per line')}
-        <textarea value={examples} onChange={(e) => setExamples(e.target.value)} rows={3} />
-      </label>
+      {(manager || /\{\{\d+\}\}/.test(body)) && (
+        <label className="field">
+          {t('مثال لكل متغير، سطر لكل مثال', 'One example per variable, one per line')}
+          <textarea value={examples} onChange={(e) => setExamples(e.target.value)} rows={3} />
+        </label>
+      )}
     </>
   );
   const headerFields = (
@@ -420,7 +433,7 @@ export function TemplateDraftForm({
         )}
         {cancel && (
           <button type="button" className="btn" onClick={cancel} disabled={busy}>
-            {t('إلغاء التعديل', 'Cancel editing')}
+            {t('إلغاء', 'Cancel')}
           </button>
         )}
       </div>
@@ -436,6 +449,12 @@ export function TemplateDraftForm({
   return (
     <form
       className={manager ? studio.form : 'card stack'}
+      onInvalidCapture={(e) => {
+        if (e.target instanceof HTMLElement) {
+          const details = e.target.closest('details');
+          if (details) details.open = true;
+        }
+      }}
       onSubmit={async (e) => {
         e.preventDefault();
         if (busy) return;
@@ -528,15 +547,20 @@ export function TemplateDraftForm({
                 ? t('تعديل مسودة القالب', 'Edit template draft')
                 : t('مسودة قالب جديد', 'New template draft')}
             </h2>
-            <div className="form-grid">
+            <div className={studio.draftFields}>
               {basicFields}
               {categoryField}
             </div>
             {contentFields}
-            {headerFields}
-            {footerField}
-            {buttonFields}
-            {previewFields}
+            <details className={studio.draftOptions}>
+              <summary>{t('ترويسة وتذييل وأزرار', 'Header, footer and buttons')}</summary>
+              <div className="stack">
+                {headerFields}
+                {footerField}
+                {buttonFields}
+              </div>
+            </details>
+            {body.trim() && previewFields}
             {actionFields}
           </>
         )}

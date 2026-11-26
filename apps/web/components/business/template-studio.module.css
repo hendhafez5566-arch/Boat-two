@@ -189,3 +189,24 @@
     gap: 6px;
   }
 }
+
+.draftFields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.draftOptions {
+  border: 1px solid #dce5ec;
+  border-radius: 10px;
+  padding: 0 12px;
+  min-width: 0;
+}
+.draftOptions summary {
+  padding-block: 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.draftOptions > div { padding-block-end: 12px; }
+@media (max-width: 620px) {
+  .draftFields { grid-template-columns: minmax(0, 1fr); }
+}

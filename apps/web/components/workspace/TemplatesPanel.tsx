@@ -1,5 +1,7 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
+import styles from './whatsapp-templates.module.css';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 import { TemplateDraftForm, TemplateRow } from '../business/TemplateDraftForm';
@@ -8,48 +10,120 @@ export default function Templates({ params }: { params: { id: string } }) {
   const { t } = useLocale();
   const path = `/channels/${params.id}/templates`;
   const data = useData<TemplateRow[]>(path, []);
+  const availability = useData<{ state: string } | null>(path + '/availability', null);
+  const state = availability.data?.state;
+  const metaBlocked = state !== 'ready';
+  const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<TemplateRow | undefined>();
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState<'draft' | 'sync' | 'submit' | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  async function act(url: string, body?: unknown, method = 'POST') {
+  async function act(
+    url: string,
+    body?: unknown,
+    method = 'POST',
+    action: 'draft' | 'sync' | 'submit' = 'draft',
+  ) {
     setBusy(true);
     setError('');
-    setSaved(false);
+    setSaved(null);
     try {
       await api(url, { method, body: body ? JSON.stringify(body) : undefined });
       await data.reload();
-      setSaved(true);
+      setSaved(action);
       return true;
     } catch (e) {
-      setError((e as Error).message);
+      if (action === 'submit') await data.reload();
+      const message = (e as Error).message;
+      setError(
+        message === 'External provider access is disabled by the environment operator'
+          ? t(
+              'ربط Meta متوقف في هذه البيئة. يمكنك حفظ المسودات محليًا.',
+              'Meta access is disabled in this environment. You can still save drafts locally.',
+            )
+          : message ===
+              'Submission outcome requires provider synchronization; automatic retry is disabled'
+            ? t(
+                'تعذّر تأكيد التقديم لدى Meta. زامن القوالب قبل إعادة المحاولة.',
+                'Meta submission could not be confirmed. Sync templates before retrying.',
+              )
+            : message,
+      );
       return false;
     } finally {
       setBusy(false);
     }
   }
   return (
-    <section className="stack">
-      <div className="page-heading">
+    <section className={styles.page}>
+      <Link className={styles.back} href={'/dashboard/channels?manage=' + params.id}>
+        {t('العودة إلى قنوات الاتصال', 'Back to channels')}
+      </Link>
+      <header className={styles.heading}>
         <div>
-          <p className="eyebrow">{t('قوالب واتساب', 'WHATSAPP TEMPLATES')}</p>
-          <h1>
-            {t('قوالب رسمية، بحالة اعتماد واضحة', 'Official templates, explicit approval status')}
-          </h1>
+          <h1>{t('قوالب واتساب', 'WhatsApp templates')}</h1>
           <p>
             {t(
-              'المسودة ليست قالبًا معتمدًا. تتم الموافقة لدى Meta ثم تُزامن حالتها هنا.',
-              'A draft is not an approved template. Meta approves it; synchronization imports its status.',
+              'جهّز رسائل متكررة مثل تأكيد الحجز. راجع حالة موافقة Meta قبل استخدام القالب.',
+              'Prepare messages such as booking confirmations. Check Meta approval before using a template.',
             )}
           </p>
         </div>
-        <button className="btn" disabled={busy} onClick={() => act(path + '/sync')}>
-          {t('مزامنة من Meta', 'Sync from Meta')}
-        </button>
-      </div>
+        <div className={styles.actions}>
+          <button
+            className="btn btn-primary"
+            disabled={busy || creating || !!editing}
+            onClick={() => {
+              setError('');
+              setSaved(null);
+              setCreating(true);
+            }}
+          >
+            {t('+ قالب جديد', '+ New template')}
+          </button>
+          <button
+            className="btn"
+            disabled={busy || metaBlocked}
+            onClick={() => void act(path + '/sync', undefined, 'POST', 'sync')}
+          >
+            {t('مزامنة من Meta', 'Sync from Meta')}
+          </button>
+        </div>
+      </header>
+      {state === 'environment_disabled' && (
+        <div className={styles.info} role="status">
+          <strong>{t('اتصال Meta غير متاح هنا', 'Meta connection unavailable here')}</strong>
+          <p>
+            {t(
+              'مزامنة القوالب وإرسالها للمراجعة متوقّفان في هذه البيئة. يمكنك إنشاء المسودات وتعديلها.',
+              'Sync and submission are disabled in this environment. You can create and edit drafts.',
+            )}
+          </p>
+        </div>
+      )}
+      {state === 'account_required' && (
+        <div className={styles.info} role="status">
+          {t(
+            'اربط القناة بحساب واتساب للأعمال لتتمكن من المزامنة والتقديم للمراجعة.',
+            'Connect this channel to a WhatsApp Business account to sync and submit templates.',
+          )}
+        </div>
+      )}
+      {availability.error && (
+        <div className={styles.info}>
+          {t('تعذّر التحقق من اتصال Meta.', 'Could not check the Meta connection.')}
+          <button type="button" className="btn" onClick={() => void availability.reload()}>
+            {t('إعادة المحاولة', 'Retry')}
+          </button>
+        </div>
+      )}
       {saved && (
         <p className="notice" role="status">
-          {t('حُفظ التغيير.', 'Change saved.')}
+          {saved === 'sync'
+            ? t('تمت المزامنة.', 'Templates synced.')
+            : saved === 'submit'
+              ? t('تم تقديم القالب للمراجعة.', 'Template submitted for review.')
+              : t('تم حفظ المسودة.', 'Draft saved.')}
         </p>
       )}
       {data.loading && <p role="status">{t('جارٍ تحميل القوالب…', 'Loading templates…')}</p>}
@@ -58,15 +132,33 @@ export default function Templates({ params }: { params: { id: string } }) {
           {error || data.error}
         </p>
       )}
-      <p className="notice">
-        {t(
-          'المزامنة والتقديم يحتاجان WABA ID وصلاحيات Meta وتفعيل الوصول الخارجي بواسطة المشغّل. لا تُرسل القوالب من هذه الصفحة.',
-          'Sync and submission require a WABA ID, Meta permissions and operator-enabled external access. This page does not send messages.',
-        )}
-      </p>
-      <div className="card-grid">
+      {(creating || editing) && (
+        <TemplateDraftForm
+          key={editing ? editing.id + ':' + editing.revision : 'new'}
+          initial={editing}
+          busy={busy}
+          cancel={() => {
+            setCreating(false);
+            setEditing(undefined);
+            setError('');
+          }}
+          save={async (draft) => {
+            const ok = await act(
+              editing ? path + '/' + editing.id : path,
+              editing ? { revision: editing.revision, draft } : draft,
+              editing ? 'PATCH' : 'POST',
+            );
+            if (ok) {
+              setCreating(false);
+              setEditing(undefined);
+            }
+            return ok;
+          }}
+        />
+      )}
+      <div className={styles.list}>
         {data.data.map((x) => (
-          <section className="card" key={x.id}>
+          <section className={styles.template} key={x.id}>
             <span className="badge">
               {(
                 {
@@ -132,15 +224,24 @@ export default function Templates({ params }: { params: { id: string } }) {
                 ))}
             </div>
             {x.status === 'DRAFT' && (
-              <button className="btn" disabled={busy} onClick={() => setEditing(x)}>
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() => {
+                  setCreating(false);
+                  setError('');
+                  setSaved(null);
+                  setEditing(x);
+                }}
+              >
                 {t('تعديل المسودة', 'Edit draft')}
               </button>
             )}
             {x.status === 'DRAFT' && (
               <button
                 className="btn"
-                disabled={busy}
-                onClick={() => act(path + '/' + x.id + '/submit')}
+                disabled={busy || metaBlocked}
+                onClick={() => void act(path + '/' + x.id + '/submit', undefined, 'POST', 'submit')}
               >
                 {t('تقديم للموافقة لدى Meta', 'Submit for Meta approval')}
               </button>
@@ -148,26 +249,12 @@ export default function Templates({ params }: { params: { id: string } }) {
           </section>
         ))}
       </div>
-      {!data.loading && !data.data.length && (
-        <p className="empty">
-          {t('أنشئ مسودة أو زامن القوالب المعتمدة.', 'Create a draft or sync approved templates.')}
-        </p>
+      {!data.loading && !data.error && !data.data.length && !creating && (
+        <div className={styles.empty}>
+          <h2>{t('لا توجد قوالب بعد', 'No templates yet')}</h2>
+          <p>{t('ابدأ بقالب جديد واحفظه كمسودة.', 'Create a template and save it as a draft.')}</p>
+        </div>
       )}
-      <TemplateDraftForm
-        key={editing ? editing.id + ':' + editing.revision : 'new'}
-        initial={editing}
-        busy={busy}
-        cancel={editing ? () => setEditing(undefined) : undefined}
-        save={async (draft) => {
-          const ok = await act(
-            editing ? path + '/' + editing.id : path,
-            editing ? { revision: editing.revision, draft } : draft,
-            editing ? 'PATCH' : 'POST',
-          );
-          if (ok) setEditing(undefined);
-          return ok;
-        }}
-      />
     </section>
   );
 }
