@@ -66,12 +66,12 @@ export default function Reports() {
           setError('');
           setReport(null);
           try {
-            setReport(
-              await api<Report>(
+            const result = await api<Report>(
                 '/reports?' +
                   new URLSearchParams(reportRange(from,to,timezone)),
-              ),
-            );
+              );
+            setReport(result);
+            setActiveReport(result.firstResponse ? 'response' : sections.find(([key])=>result[key].length>0)?.[0] ?? 'daily');
           } catch (err) {
             setError((err as Error).message);
           } finally {

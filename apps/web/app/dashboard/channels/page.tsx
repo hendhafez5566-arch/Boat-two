@@ -126,6 +126,7 @@ export default function Channels() {
   const stateOf = channelConnectionState;
   const counts = connectionAccountCounts(accounts);
   const stateLabels: Record<string, string> = {
+    attention: t('تحتاج إجراء (الكل)', 'All needing attention'),
     connected: t('متصل', 'Connected'),
     expiring: t('ينتهي قريبًا', 'Expiring soon'),
     needs_action: t('يحتاج إجراء', 'Needs action'),
@@ -334,10 +335,10 @@ export default function Channels() {
         <div className={styles.connectionOverview} data-channel-overview aria-label={t('ملخص حالة القنوات', 'Channel health summary')}>
           {[
             ['connected', 'circleCheck', counts.connected, t('قنوات متصلة', 'Connected')],
-            ['needs_action', 'flag', counts.needsAction, t('تحتاج إجراء', 'Need attention')],
+            ['attention', 'flag', counts.needsAction, t('تحتاج إجراء', 'Need attention')],
             ['disconnected', 'circleClose', counts.disconnected, t('قنوات متوقفة', 'Disconnected')],
           ].map(([key, icon, count, label]) => (
-            <button type="button" key={key} data-state={key} aria-pressed={filter===key} onClick={()=>{setFilter(filter===key?'all':String(key));setFiltersOpen(true);}}><NavIcon name={String(icon)} /><strong>{count}</strong>{label}</button>
+            <button type="button" key={key} data-state={key} aria-pressed={filter===key} onClick={()=>{setFilter(filter===key?'all':String(key));setPlatform('all');setSearch('');setFiltersOpen(true);}}><NavIcon name={String(icon)} /><strong>{count}</strong>{label}</button>
           ))}
         </div>
       )}
@@ -377,7 +378,7 @@ export default function Channels() {
               <span className={styles.srOnly}>{t('تصفية الحالة', 'Status filter')}</span>
               <select value={filter} onChange={(e) => setFilter(e.target.value)}>
                 <option value="all">{t('كل الحالات', 'All statuses')}</option>
-                {['connected', 'expiring', 'needs_action', 'expired', 'disconnected'].map(
+                {['connected', 'attention', 'expiring', 'needs_action', 'expired', 'disconnected'].map(
                   (value) => (
                     <option key={value} value={value}>
                       {stateLabels[value]}

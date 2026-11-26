@@ -25,7 +25,7 @@ export function filterConnectionAccounts<T extends ConnectionAccount>(
   return accounts.filter(
     (account) =>
       (platform === 'all' || account.type === platform) &&
-      (status === 'all' || channelConnectionState(account) === status) &&
+      (status === 'all' || (status === 'attention' ? !['connected', 'disconnected'].includes(channelConnectionState(account)) : channelConnectionState(account) === status)) &&
       `${account.name} ${account.type} ${account.external_id}`.toLocaleLowerCase().includes(query),
   );
 }
