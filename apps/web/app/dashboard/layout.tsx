@@ -14,9 +14,9 @@ const navigation = [
     label: ['مساحة العمل', 'Workspace'],
     links: [
       ['', 'لوحة المعلومات', 'Dashboard'],
-      ['inbox', 'صندوق الوارد المشترك', 'Shared Inbox'],
+      ['inbox', 'صندوق الوارد', 'Inbox'],
       ['crm', 'إدارة العملاء', 'CRM'],
-      ['commerce', 'المنتجات', 'Products'],
+      ['commerce', 'التجارة والطلبات', 'Commerce & orders'],
       ['reports', 'التقارير', 'Reports'],
     ],
   },
@@ -150,7 +150,7 @@ function DashboardShell({ children }: { children: ReactNode }) {
     return () => media.removeEventListener('change', update);
   }, []);
   const [collapsed, setCollapsed] = useState(false);
-  const compactWorkspace = path === '/dashboard/flows' || path.startsWith('/dashboard/crm');
+  const compactWorkspace = path === '/dashboard/flows';
   const [workspaceExpanded, setWorkspaceExpanded] = useState(false);
   useEffect(() => {
     try {
@@ -281,6 +281,7 @@ function DashboardShell({ children }: { children: ReactNode }) {
   ].filter(([k]) => allowedKey(k));
   return (
     <div
+      data-custom-brand={brand || hostBrand ? 'true' : undefined}
       className={`product-shell bs-shell ${isInbox ? 'inbox-shell' : ''} ${isFlowEditor ? 'flow-shell' : ''} ${(compactNavigation && !isInbox) || isFlowEditor ? 'nav-collapsed' : 'nav-expanded'}`}
       style={brand ? ({
         '--primary': brand.primary_color,

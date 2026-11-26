@@ -71,7 +71,7 @@ export default function Dashboard() {
     <main className={styles.page}>
       <header className={`${styles.heading} workspace-heading`}>
         <div>
-          <h1>{t('الرئيسية', 'Home')}</h1>
+          <h1>{t('لوحة المعلومات', 'Dashboard')}</h1>
         </div>
         <button
           type="button"

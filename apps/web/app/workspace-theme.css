@@ -1,0 +1,89 @@
+/* Boat Two workspace visual foundation. Loaded last. Tenant branding remains authoritative. */
+:root {
+  --primary:#6050ce; --primary-ink:#fff; --primary-soft:#eeebfc;
+  --brand-accent:#6050ce; --brand-gradient-end:#8071e5;
+  --ink:#19233c; --ink-2:#394760; --muted:#56657b; --faint:#64748b;
+  --line:#e0e5ee; --line-strong:#cdd5e1;
+  --surface:#fff; --surface-muted:#f5f6fa; --surface-soft:#eef0f6; --canvas:#f4f6fa;
+  --success:#16734a; --success-soft:#e9f7ee;
+  --warning:#94600e; --warning-soft:#fff5df;
+  --danger:#b82e42; --danger-soft:#fff0f2;
+  --radius:12px; --radius-md:10px; --radius-sm:8px;
+  --shadow-xs:0 1px 2px #19233c08; --shadow-sm:0 2px 10px #19233c08;
+  --text-caption:.8125rem; --text-body:.9375rem; --text-section:1.0625rem;
+  --text-page:clamp(1.375rem,1.2rem + .5vw,1.75rem); --text-dialog:1.125rem;
+  --line-body:1.65; --line-heading:1.45;
+}
+body { font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif; font-size:var(--text-body); line-height:var(--line-body); }
+[lang='ar'] body {font-family:Tahoma,"Segoe UI",Arial,sans-serif;}
+.bs-shell {font-family:inherit; font-size:var(--text-body); color:var(--ink); background:var(--canvas); }
+.bs-shell[data-custom-brand] {--primary-soft:color-mix(in srgb,var(--primary) 8%,white);}
+.bs-shell :where(button,input,select,textarea) {font-family:inherit;}
+.bs-shell:not(.flow-shell) .page-workspace {padding:clamp(16px,2.1vw,28px); min-width:0;}
+.bs-shell:not(.flow-shell) .page-workspace :where(h1,h2,h3) {letter-spacing:normal; overflow-wrap:anywhere; text-wrap:wrap;}
+.bs-shell .workspace-heading h1,.bs-shell .page-heading h1 {font-size:var(--text-page);font-weight:700;line-height:var(--line-heading);margin:0;}
+.bs-shell .workspace-heading p,.bs-shell .page-heading p {font-size:14px;color:var(--muted);margin:4px 0 0;line-height:1.65;}
+.bs-shell .page-heading {margin-block-end:16px;gap:12px;}
+.bs-shell .stack {gap:16px;}
+.bs-shell .card {border-color:var(--line);border-radius:var(--radius);box-shadow:none;padding:18px;min-width:0;}
+.bs-shell .card h2 {font-size:var(--text-section);font-weight:700;line-height:1.45;}
+.bs-shell .btn,.product-dialog .btn {font-size:13px;font-weight:600;min-height:38px;border-radius:8px;box-shadow:none;padding:8px 12px;line-height:1.5;}
+.bs-shell .btn:hover:not(:disabled),.product-dialog .btn:hover:not(:disabled){box-shadow:none;}
+.bs-shell .btn-primary,.product-dialog .btn-primary {background:var(--primary);color:var(--primary-ink);border-color:var(--primary);box-shadow:none;}
+.bs-shell .btn-primary:hover:not(:disabled),.product-dialog .btn-primary:hover:not(:disabled){background:var(--primary-deep);border-color:var(--primary-deep);color:white;}
+.bs-shell .btn:disabled,.product-dialog .btn:disabled {opacity:.65;cursor:not-allowed;}
+.bs-shell :where(input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=range]):not([type=file]),select,textarea) {font-size:14px;border-radius:8px;color:var(--ink);}
+.bs-shell :where(input,textarea)::placeholder {color:var(--muted);opacity:1;}
+.bs-shell .field {gap:6px;font-size:13px;}
+.bs-shell .notice {margin:8px 0;padding:10px 12px;border-radius:8px;background:var(--success-soft);color:var(--success);}
+.bs-shell .notice.error {background:var(--danger-soft);color:var(--danger);}
+.bs-shell .product-table {font-size:13px;}
+.bs-shell .product-table th {padding:10px 12px;background:var(--surface-muted);color:var(--ink-2);font-size:12px;font-weight:650;}
+.bs-shell .product-table td {padding:10px 12px;vertical-align:middle;border-color:var(--line);}
+.bs-shell .product-table tbody tr:hover {background:#f9faff;}
+.bs-shell .product-table td .btn {font-size:12px;min-height:32px;padding:5px 9px;}
+.bs-shell .product-table td :where(small,time) {color:var(--muted);}
+.bs-shell .empty,.bs-shell .product-empty {color:var(--muted);}
+.bs-shell .product-empty {padding:24px 16px;}
+/* Dark navigation rail; page and control styles remain neutral. */
+.product-shell.bs-shell:not(.flow-shell) .product-sidebar {background:#19233c;color:#e4e8f3;border-color:#29354f;box-shadow:none;font-family:inherit;}
+.bs-shell .product-sidebar .brand {color:#fff;border-color:#303c55;padding-block:14px;letter-spacing:0;min-height:64px;}
+.bs-shell .product-sidebar .brand small {color:#b8c2d6;font-size:11px;}
+.bs-shell .product-sidebar .brand-mark {background:var(--primary);color:white;border-radius:11px;width:40px;height:40px;}
+.bs-shell .product-sidebar nav {gap:13px;padding:14px 10px 20px;scrollbar-color:#52617b transparent;}
+.bs-shell .workspace-nav-group {gap:3px;}
+.bs-shell .workspace-nav-group h2 {border:0;border-radius:0;background:transparent;color:#b4bfd3;font-size:11px;line-height:1.6;font-weight:600;padding:6px 10px;margin:0;}
+.bs-shell .product-sidebar nav .workspace-nav-group a {color:#e3e8f4;border-radius:8px;min-height:40px;font-size:13px;font-weight:500;padding:9px 10px;line-height:1.6;}
+.bs-shell .product-sidebar nav .workspace-nav-group a svg {color:#b9c4da;width:18px;height:18px;}
+.bs-shell .product-sidebar nav .workspace-nav-group a:hover {background:#2a3650;color:white;}
+.bs-shell .product-sidebar nav .workspace-nav-group a.active {background:#3c386a;color:#fff;font-weight:700;}
+.bs-shell .product-sidebar nav .workspace-nav-group a:is(.active,:hover) svg {color:#fff;}
+.bs-shell.nav-collapsed:not(.inbox-shell) .workspace-nav-group {border-color:#34415a;}
+.bs-shell .product-sidebar .bs-close {background:#303c55;color:white;border:0;}
+.bs-shell .product-topbar.bs-topbar {background:#fff;border-bottom:1px solid var(--line);color:var(--ink-2);gap:12px;min-height:64px;box-shadow:none;}
+.bs-shell .bs-search {background:var(--surface-muted);border-color:var(--line);border-radius:8px;}
+.bs-shell .bs-search input {font-size:13px;}
+.bs-shell .bs-search input::placeholder {color:var(--muted);}
+.bs-shell .bs-meter {gap:6px;}
+.bs-shell .bs-meter-text small {font-size:11px;font-weight:500;color:var(--muted);}
+.bs-shell .bs-meter-text strong {font-size:13px;font-weight:650;color:var(--ink);}
+.bs-shell .bs-ring {--c:var(--primary);width:36px;height:36px;}
+.bs-shell .bs-ring b {font-size:11px;font-weight:700;color:var(--ink);}
+.bs-shell .bs-meter.is-warn .bs-ring {--c:#b7791f;}
+.bs-shell .bs-meter.is-danger .bs-ring {--c:#b82e42;}
+.bs-shell .bs-avatar {background:var(--primary-soft);color:var(--primary-deep);}
+.bs-shell .bs-menu {border-color:var(--line);border-radius:12px;}
+.bs-shell .workspace-bottom-nav {border-color:var(--line);background:white;}
+/* Dialogs scroll within their own body and retain their dismissal action. */
+.product-dialog {color:var(--ink);border:1px solid var(--line);border-radius:14px;max-width:calc(100vw - 24px);}
+.product-dialog > header {background:white;border-bottom:1px solid var(--line);padding:12px 16px;gap:12px;}
+.product-dialog > header h2 {font-size:var(--text-dialog);font-weight:700;line-height:1.5;}
+.product-dialog .dialog-close {min-block-size:38px;inline-size:38px;flex-basis:38px;}
+.product-dialog > .dialog-body {overscroll-behavior:contain;}
+/* Native details should have one disclosure marker, never two overlapping arrows. */
+.product-shell details > summary:not(:has(> svg))::after {border:0;vertical-align:middle;}
+/* Keep programmatic hidden content hidden even when a component declares display:grid. */
+.bs-shell [hidden],.product-dialog [hidden] {display:none!important;}
+@media(max-width:1100px){.product-shell.bs-shell:not(.inbox-shell):not(.flow-shell) .product-sidebar{background:#19233c;}.bs-shell .product-sidebar .brand{padding-inline-end:56px;}.bs-shell .product-topbar.bs-topbar{gap:8px;}}
+@media(max-width:700px){.bs-shell:not(.flow-shell) .page-workspace{padding:14px;}.bs-shell .card{padding:13px;}.bs-shell .btn,.product-dialog .btn{min-height:40px;}.bs-shell .product-table th,.bs-shell .product-table td{padding:9px;}.bs-shell .bs-ring{width:32px;height:32px;}.bs-shell .product-topbar.bs-topbar{padding-inline:12px;}.product-dialog>header{padding:10px 12px;}}
+@media(prefers-reduced-motion:reduce){.bs-shell .btn,.bs-shell .product-sidebar nav a {transition:none;}}
