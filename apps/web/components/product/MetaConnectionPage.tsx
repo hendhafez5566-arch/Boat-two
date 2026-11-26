@@ -1,6 +1,7 @@
 'use client';
-import { Fragment, useRef, useState } from 'react';
+import { Fragment, useState } from 'react';
 import Link from 'next/link';
+import ChannelLogo from './ChannelLogo';
 import MetaConnect from './MetaConnect';
 import { useLocale } from './locale';
 import { useData } from '../business/useData';
@@ -31,7 +32,7 @@ export default function MetaConnectionPage({
   const [search, setSearch] = useState(''),
     [filter, setFilter] = useState('all'),
     [saved, setSaved] = useState(false);
-  const connectRef = useRef<HTMLDivElement>(null);
+  const [connectOpen, setConnectOpen] = useState(false);
   const groups = [...new Set(rows.map((c) => c.businessAccountId || c.id))];
   const visible = rows.filter(
     (c) =>
@@ -73,22 +74,16 @@ export default function MetaConnectionPage({
       <nav aria-label={t('مسار الصفحة', 'Breadcrumb')}>
         <Link href="/dashboard/channels">{t('ربط الحساب', 'Connect Account')}</Link> / {name}
       </nav>
-      <div className="page-heading">
-        <div>
-          <h1>{title}</h1>
-          <p>
-            {kind === 'whatsapp'
-              ? t(
-                  'اربط حسابات WhatsApp Business وأرقام الهاتف وأدرها.',
-                  'Connect and manage your WhatsApp Business Accounts and phone numbers.',
-                )
-              : t(
-                  'أدر حسابات المراسلة والأتمتة في مكان واحد.',
-                  'Manage messaging accounts and automation in one place.',
-                )}
-          </p>
-        </div>
-      </div>
+      <header className={styles.heading}>
+        <ChannelLogo id={kind} />
+        <h1>{title}</h1>
+        {kind === 'whatsapp' && !!rows.length && (
+          <button type="button" className="btn btn-primary" aria-expanded={connectOpen}
+            aria-controls="meta-connect-methods" onClick={() => setConnectOpen(!connectOpen)}>
+            {connectOpen ? t('إخفاء خيارات الربط', 'Hide connection options') : t('ربط حساب جديد', 'Connect account')}
+          </button>
+        )}
+      </header>
       {kind === 'whatsapp' && (
         <>
           <div
@@ -111,29 +106,6 @@ export default function MetaConnectionPage({
               </div>
             ))}
           </div>
-          {!!rows.length && (
-            <section className={`card ${styles.another}`}>
-              <div>
-                <h2>
-                  {t('ربط حساب WhatsApp Business آخر', 'Connect Another WhatsApp Business Account')}
-                </h2>
-                <p>
-                  {t(
-                    'اربط حسابات أعمال إضافية لإدارة أرقام وعلامات تجارية متعددة.',
-                    'You can connect more WhatsApp Business Accounts to manage multiple numbers and brands.',
-                  )}
-                </p>
-              </div>
-              <button
-                className="btn btn-primary"
-                onClick={() =>
-                  connectRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                }
-              >
-                {t('ربط حساب جديد', 'Connect New Account')}
-              </button>
-            </section>
-          )}
         </>
       )}
       {saved && (
@@ -141,33 +113,14 @@ export default function MetaConnectionPage({
           {t('تم حفظ الحساب. راجع حالته أدناه.', 'Account saved. Review its status below.')}
         </p>
       )}
-      <section ref={connectRef} className={kind === 'whatsapp' ? styles.business : ''}>
-        {kind === 'whatsapp' && (
-          <header>
-            <h2>{t('حسابات الأعمال', 'Business Accounts')}</h2>
-            <p>
-              {t(
-                'أدر الأرقام ومعلومات الاتصال.',
-                'Manage numbers, sync info, and connection health.',
-              )}
-            </p>
-          </header>
-        )}
-        <MetaConnect
-          selectedKind={kind}
-          onSaved={() => {
-            setSaved(true);
-            void accounts.reload();
-          }}
-        />
-      </section>
       {accounts.error && (
         <p role="alert" className="notice error">
           {accounts.error}
         </p>
       )}
       {(kind === 'whatsapp' || rows.length > 0) && (
-        <section className="card stack">
+        <section className={styles.accounts}>
+          <h2>{t('الحسابات المتصلة', 'Connected accounts')}</h2>
           <div className={styles.filters}>
             <label>
               <span>{t('بحث الحسابات', 'Search accounts')}</span>
@@ -230,7 +183,7 @@ export default function MetaConnectionPage({
                               {c.external_id}
                             </small>
                           </td>
-                          <td>
+                          <td><span className={styles.health} data-state={channelConnectionState(c)}>
                             {
                               (
                                 {
@@ -241,7 +194,7 @@ export default function MetaConnectionPage({
                                   needs_action: t('يحتاج إجراء', 'Needs action'),
                                 } as Record<string, string>
                               )[channelConnectionState(c)]
-                            }
+                            }</span>
                           </td>
                           <td>
                             {c.connectionHealth?.checkedAt
@@ -250,7 +203,7 @@ export default function MetaConnectionPage({
                                 )
                               : '—'}
                           </td>
-                          <td>
+                          <td><div className={styles.actions}>
                             {kind === 'whatsapp' && c.status === 'active' && (
                               <button
                                 className="btn"
@@ -266,9 +219,10 @@ export default function MetaConnectionPage({
                             <Link className="btn" href={`/dashboard/flows?channelId=${c.id}`}>
                               {t('إدارة', 'Manage')}
                             </Link>
-                            <Link href={`/dashboard/channels?manage=${encodeURIComponent(c.id)}`}>
+                            <Link className="btn" href={`/dashboard/channels?manage=${encodeURIComponent(c.id)}`}>
                               {t('إعدادات الاتصال', 'Connection settings')}
                             </Link>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -280,6 +234,12 @@ export default function MetaConnectionPage({
           )}
         </section>
       )}
+      <section id="meta-connect-methods" hidden={kind === 'whatsapp' && !!rows.length && !connectOpen}>
+        <MetaConnect selectedKind={kind} onSaved={() => {
+          setSaved(true);
+          void accounts.reload();
+        }} />
+      </section>
     </main>
   );
 }

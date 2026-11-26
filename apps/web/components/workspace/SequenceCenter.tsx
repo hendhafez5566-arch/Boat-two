@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useData } from '../business/useData';
 import { useLocale } from '../product/locale';
+import { NavIcon } from '../product/NavIcon';
 import { statusLabel } from '../product/status';
 import { Button, Dialog, EmptyState } from '../product/ProductUI';
 import SequenceBulkAssign from './SequenceBulkAssign';
@@ -52,13 +53,7 @@ export default function SequenceCenter({
     <section className="stack">
       <div className={`${styles.toolbar} workspace-heading`}>
         <div>
-          <h2>{t('تسلسلات المتابعة', 'Follow-up Sequences')}</h2>
-          <p className="muted">
-            {t(
-              'أرسل سلسلة رسائل متابعة حسب التوقيت والشروط التي تضبطها.',
-              'Send a series of follow-up messages based on the timing and conditions you set.',
-            )}
-          </p>
+          <h2 className={styles.centerTitle}><NavIcon name="sequences" />{t('تسلسلات المتابعة', 'Follow-up sequences')}</h2>
         </div>
         <div className={styles.actions}>
           <Button disabled={busy} onClick={() => setBulk(true)}>
@@ -144,9 +139,9 @@ export default function SequenceCenter({
                   <td>
                     <strong>{row.name}</strong>
                     <small>
-                      {row.channel_name} · {row.step_count} {t('خطوات', 'Steps')} ·{' '}
-                      {statusLabel(row.status, t)}
+                      {row.channel_name} · {row.step_count} {t('خطوات', 'Steps')}
                     </small>
+                    <span className={styles.centerStatus} data-status={row.status}>{statusLabel(row.status, t)}</span>
                     <small>
                       {t('نشط', 'Active')}: {row.active} · {t('مكتمل', 'Completed')}:{' '}
                       {row.completed}

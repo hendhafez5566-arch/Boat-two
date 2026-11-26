@@ -74,3 +74,9 @@
     grid-template-columns: 1fr;
   }
 }
+
+.centerTitle { display: flex; align-items: center; gap: 8px; margin: 0; }
+.centerTitle svg { width: 22px; height: 22px; color: #34597f; }
+.centerStatus { display: inline-block; border-radius: 6px; padding: 3px 7px; background: #edf2fa; color: #354d70; font-weight: 650; }
+.centerStatus[data-status='active'] { background: #e2f4eb; color: #176449; }
+.centerStatus[data-status='paused'] { background: #fff0d6; color: #784919; }

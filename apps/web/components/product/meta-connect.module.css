@@ -215,3 +215,10 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.method { align-self: start; }
+.method header { padding: 12px 14px; }
+.method .body { display: grid; align-content: start; gap: 8px; padding: 12px 14px; }
+.method .body button { min-height: 40px; height: auto; }
+.method .body .apiButton { background: #eaf0f9; color: #27466c; border-color: #c8d8ed; }
+.method .body .apiButton:hover { background: #dce8f7; color: #203e62; }

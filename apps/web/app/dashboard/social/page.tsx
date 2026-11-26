@@ -11,25 +11,20 @@ export default function Page() {
     <main className={styles.page}>
       <ExternalDeliveryNotice publishing />
       <header className={styles.heading}>
-        <h1>{t('النشر على Facebook وInstagram', 'Facebook & Instagram Poster')}</h1>
-        <p>
-          {t(
-            'جهّز محتواك ومسوداتك، واربط الحسابات المصرح بها قبل النشر.',
-            'Prepare content and drafts, and connect authorized accounts before publishing.',
-          )}
-        </p>
+        <h1><NavIcon name="social" /> {t('النشر الاجتماعي', 'Social publishing')}</h1>
+        <span>Facebook · Instagram</span>
       </header>
       <div className={styles.formats}>
         {(Object.keys(SOCIAL_FORMATS) as SocialFormat[]).map((key) => {
           const f = SOCIAL_FORMATS[key];
           return (
-            <Link href={'/dashboard/social/' + key} key={key}>
+            <Link href={'/dashboard/social/' + key} key={key} data-format={key}>
               <span className={styles.formatIcon}>
                 <NavIcon name={f.icon} />
               </span>
               <h2>{t(f.ar, f.en)}</h2>
               <p>{t(f.descriptionAr, f.descriptionEn)}</p>
-              <strong>{t('فتح', 'Open')} <span className={styles.cardArrow}><NavIcon name="chevron" /></span></strong>
+              <span className={styles.cardArrow}><NavIcon name="chevron" /></span>
             </Link>
           );
         })}

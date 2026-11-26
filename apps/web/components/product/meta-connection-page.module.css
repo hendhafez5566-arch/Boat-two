@@ -144,3 +144,29 @@
     min-width: 620px;
   }
 }
+
+.page { margin: 0; background: transparent; box-shadow: none; gap: 12px; }
+.heading { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.heading h1 { margin: 0; flex: 1; font-size: clamp(20px, 3vw, 26px); }
+.heading > svg { width: 28px; height: 28px; }
+.statistics { padding: 12px 0; background: #f8fbfd; }
+.statistics > div { padding-inline: 12px; }
+.statistics strong { font-size: 21px; }
+.accounts { min-width: 0; display: grid; gap: 12px; background: white; border: 1px solid #dce5ed; border-radius: 12px; padding: 14px; }
+.accounts h2 { margin: 0; font-size: 17px; }
+.filters { gap: 8px; }
+.table th, .table td { padding: 9px 8px; }
+.table thead, .table tbody th { background: #f2f6fa; }
+.health { display: inline-block; background: #eef2f7; color: #425673; border-radius: 6px; padding: 4px 7px; font-weight: 650; }
+.health[data-state='connected'] { background: #dcf5e9; color: #116347; }
+.health[data-state='expiring'], .health[data-state='needs_action'] { background: #fff0d2; color: #804517; }
+.health[data-state='expired'], .health[data-state='disconnected'] { background: #fbe9e8; color: #8f2825; }
+.actions { display: flex; flex-wrap: wrap; gap: 5px; }
+.table .actions a { margin: 0; }
+@media (max-width: 767px) {
+  .table table { min-width: 0; }
+  .table thead { display: none; }
+  .table tr { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .table tr > :first-child, .table tr > :last-child { grid-column: 1/-1; }
+  .table td { min-width: 0; overflow-wrap: anywhere; }
+}

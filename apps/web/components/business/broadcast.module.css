@@ -354,3 +354,11 @@
   color: #5141e3;
   opacity: 1;
 }
+
+.page .heading { margin-block-end: 0; gap: 10px; }
+.heading h1 { display: flex; align-items: center; gap: 8px; }
+.heading h1 svg { width: 24px; height: 24px; color: #34597f; }
+.campaignStatus { display: inline-block; border-radius: 6px; padding: 4px 7px; background: #edf2fa; color: #354d70; font-weight: 650; }
+.campaignStatus:is([data-status='completed'], [data-status='sent']) { background: #e2f4eb; color: #176449; }
+.campaignStatus:is([data-status='failed'], [data-status='cancelled']) { background: #fbe9e8; color: #952f2b; }
+.campaignStatus:is([data-status='sending'], [data-status='scheduled']) { background: #fff0d6; color: #784919; }

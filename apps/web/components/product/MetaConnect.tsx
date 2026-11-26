@@ -1,7 +1,6 @@
 'use client';
 import { DisclosureSummary } from './DisclosureSummary';
 import styles from './meta-connect.module.css';
-import ConnectionIllustration from './ConnectionIllustration';
 
 import { useState, type FormEvent } from 'react';
 import { api } from '../../lib/api';
@@ -175,7 +174,7 @@ export default function MetaConnect({
         <div className={styles.methods}>
           <section className={styles.method}>
             <header data-variant="embedded">
-              <h2>{t('الربط المضمّن (بضغطة واحدة)', 'Embedded Onboarding (One Click)')}</h2>
+              <h2>{t('الربط عبر Meta', 'Connect through Meta')}</h2>
               <span>{t('موصى به', 'Recommended')}</span>
               <p>
                 {t(
@@ -185,16 +184,6 @@ export default function MetaConnect({
               </p>
             </header>
             <div className={styles.body}>
-              <div className={styles.overview}>
-                {' '}
-                <ul>
-                  <li>{t('اتصال آمن بضغطة واحدة', 'One-click secure connection')}</li>
-                  <li>{t('WhatsApp Cloud API الرسمي', 'Official WhatsApp Cloud API')}</li>
-                  <li>{t('مزامنة أرقام الهاتف تلقائيًا', 'Automatic number sync')}</li>
-                  <li>{t('إعداد موجّه عبر Meta', 'Guided Meta setup')}</li>
-                </ul>
-                <ConnectionIllustration mode="embedded" />
-              </div>
               {!embeddedOpen ? (
                 <button
                   className={`btn ${styles.embeddedButton}`}
@@ -258,7 +247,7 @@ export default function MetaConnect({
           </section>
           <section className={styles.method}>
             <header data-variant="api">
-              <h2>{t('إنشاء اتصال API خاص بك', 'Create Your Own API Connection')}</h2>
+              <h2>{t('الربط اليدوي عبر API', 'Manual API connection')}</h2>
               <span>{t('بديل', 'Alternative')}</span>
               <p>
                 {t(
@@ -268,16 +257,6 @@ export default function MetaConnect({
               </p>
             </header>
             <div className={styles.body}>
-              <div className={styles.overview}>
-                {' '}
-                <ul>
-                  <li>{t('رمز الوصول الخاص بك', 'Your own access token')}</li>
-                  <li>Cloud API</li>
-                  <li>{t('مرونة كاملة', 'Full flexibility')}</li>
-                  <li>{t('إعداد Webhook', 'Webhook setup')}</li>
-                </ul>
-                <ConnectionIllustration mode="api" />
-              </div>
               <button
                 className={`btn ${styles.apiButton}`}
                 disabled={busy}

@@ -287,13 +287,7 @@ export default function Campaigns() {
     <main className={styles.page}>
       <header className={styles.heading}>
         <div>
-          <h1>{t('مركز البث', 'Broadcast Center')}</h1>
-          <p>
-            {t(
-              'أرسل رسالة واحدة إلى جمهور تختاره، وتابع نتائج الإرسال.',
-              'Send one message to an audience you choose and track delivery.',
-            )}
-          </p>
+          <h1><NavIcon name="campaigns" /> {t('الحملات', 'Campaigns')}</h1>
         </div>
         <div className={styles.headActions}>
           <nav className={styles.mode} aria-label={t('أقسام البث', 'Broadcast sections')}>
@@ -584,7 +578,7 @@ export default function Campaigns() {
                             <strong>{c.name}</strong>
                           </td>
                           <td>
-                            <span className="badge">{statusLabel(c.status, t)}</span>
+                            <span className={styles.campaignStatus} data-status={c.status}>{statusLabel(c.status, t)}</span>
                           </td>
                           <td>
                             <div className="flex flex-wrap gap-2">

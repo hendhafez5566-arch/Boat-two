@@ -266,3 +266,17 @@
 .cardArrow { display: inline-flex; width: 18px; height: 18px; transform: rotate(-90deg); }
 .cardArrow svg { width: 18px; height: 18px; }
 :global([dir='rtl']) .cardArrow { transform: rotate(90deg); }
+
+.page { gap: 12px; }
+.heading { flex-wrap: wrap; gap: 6px; }
+.heading h1 { display: flex; align-items: center; gap: 8px; }
+.heading h1 svg { width: 22px; height: 22px; color: #34597f; }
+.heading > span { color: #4d6273; }
+.formats { grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 10px; }
+.formats > a { position: relative; padding: 14px 32px 14px 14px; padding-inline: 14px 32px; gap: 7px; }
+.formats > a:hover { background: #f5f8fd; border-color: #c3d3e9; }
+.formats p { min-height: 0; }
+.formats .formatIcon { width: 38px; height: 38px; background: #e7eff9; color: #34597f; }
+.formats > a:nth-child(2n) .formatIcon { background: #e3f3ee; color: #17664f; }
+.formats .cardArrow { position: absolute; inset-inline-end: 12px; inset-block-start: 18px; }
+.formats .cardArrow svg { width: 16px; height: 16px; }
