@@ -233,6 +233,7 @@ export class CrmController {
              OR EXISTS (SELECT 1 FROM crm_notes WHERE contact_id=$1)
              OR EXISTS (SELECT 1 FROM flow_sessions WHERE contact_id=$1)
              OR EXISTS (SELECT 1 FROM appointments WHERE contact_id=$1)
+             OR EXISTS (SELECT 1 FROM commerce_orders WHERE contact_id=$1)
              OR EXISTS (SELECT 1 FROM campaign_recipients WHERE contact_id=$1 OR canonical_contact_id=$1)
              OR EXISTS (SELECT 1 FROM sequence_enrollments WHERE contact_id=$1)
              OR EXISTS (SELECT 1 FROM contact_consents WHERE contact_id=$1)

@@ -733,3 +733,33 @@ nav.nav .moreLinks a {
 .summaryAction time {
   color: var(--muted);
 }
+
+.customerBrief {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  max-width: 100%;
+  margin-block-start: 6px;
+  padding: 3px 8px;
+  border-radius: 7px;
+  background: #eef3fa;
+  color: #334f75;
+  font-size: 12px;
+  font-weight: 650;
+}
+.customerBrief svg { inline-size: 14px; block-size: 14px; flex: none; }
+.customerBrief[data-lifecycle='qualified'] { background: #fff1d6; color: #794719; }
+.customerBrief[data-lifecycle='customer'] { background: #e0f4ec; color: #155942; }
+.customerBrief[data-lifecycle='inactive'] { background: #edf0f3; color: #4b5563; }
+.workspace [data-crm-customers] :global(.product-table) th { background: #f0f4f8; color: #43556a; }
+.workspace [data-crm-customers] :global(.product-table) td:last-child { width: 1%; }
+.workspace [data-crm-customers] :global(.product-table) tr:has(input:checked) { background: #f0f8f7; }
+.workspace [data-crm-customers] [data-customer-actions] { flex-wrap: wrap; gap: 6px; }
+.workspace [data-crm-customers] [data-customer-actions] :global(.btn) { white-space: nowrap; flex: none; }
+.workspace [data-crm-customers] [data-customer-actions] :global(.btn) svg { flex: none; }
+.workspace [data-crm-customers] [data-customer-remove][data-permanent='true'] { color: #9b2b27; border-color: #f0ceca; background: #fff6f5; }
+.workspace [data-crm-customers][data-view='grid'] :global(.product-table) tr { min-height: 0; gap: 12px; }
+@media (min-width: 1100px) {
+  .workspace [data-crm-customers]:not([data-view='grid']) [data-customer-actions] { flex-wrap: nowrap; }
+}

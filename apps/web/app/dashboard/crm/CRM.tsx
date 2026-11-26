@@ -49,6 +49,9 @@ type Pipeline = {
   owner_id: string | null;
   ownership_revision: number;
 };
+const lifecycleIcons: Record<string, string> = {
+  lead: 'user', qualified: 'flag', customer: 'circleCheck', inactive: 'userClock',
+};
 const COLUMNS = ['contact', 'lifecycle', 'tags', 'id'] as const;
 type Column = (typeof COLUMNS)[number];
 
@@ -384,6 +387,26 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
       throw e;
     } finally {
       setBusy(false);
+    }
+  }
+  async function removeFromCustomers(contact: Contact) {
+    const permanently = Boolean(contact.archived_at);
+    if (busy || !window.confirm(permanently
+      ? t('حذف هذا العميل نهائيًا؟ لا يمكن استعادته بعد الحذف.', 'Permanently delete this customer? This cannot be undone.')
+      : t('نقل هذا العميل إلى الأرشيف؟ يمكنك استعادته لاحقًا.', 'Move this customer to the archive? You can restore them later.')))
+      return;
+    const path = '/crm/contacts/' + contact.id;
+    try {
+      if (permanently) await act(path, undefined, 'DELETE');
+      else await act(path + '/archive', { archived: true }, 'PATCH');
+      selectBulk(ids => ids.filter(id => id !== contact.id));
+      if (contacts.data.items.length === 1 && page > 1) setPage(page - 1);
+      setMessage(permanently
+        ? t('تم حذف العميل نهائيًا.', 'Customer permanently deleted.')
+        : t('تم نقل العميل إلى الأرشيف.', 'Customer moved to the archive.'));
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('linked history'))
+        setError(t('العميل له سجلات مرتبطة. يمكنك إبقاؤه في الأرشيف.', 'This customer has linked history. Keep the customer archived.'));
     }
   }
   const exportOptions = [
@@ -1140,6 +1163,12 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                                 {cols.includes('contact') && (
                                   <small dir="ltr">{c.phone || c.email || '—'}</small>
                                 )}
+                                {cols.includes('lifecycle') && (
+                                  <span className={design.customerBrief} data-lifecycle={c.lifecycle}>
+                                    <NavIcon name={lifecycleIcons[c.lifecycle] ?? 'user'} />
+                                    {statusLabel(c.lifecycle, t)}
+                                  </span>
+                                )}
                                 {cols.includes('tags') && (
                                   <div className={styles.inlineTags} data-customer-tags>
                                     {c.tags.map((x) => (
@@ -1187,9 +1216,6 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                                     : t('موافقة غير موثقة', 'No opt-in')}
                                 </span>
                               )}
-                              {cols.includes('lifecycle') && (
-                                <small>{statusLabel(c.lifecycle, t)}</small>
-                              )}
                               <small className={design.customerOwner}>
                                 <NavIcon name="user" />
                                 {team.data.members.find((member) => member.user_id === c.owner_id)
@@ -1209,7 +1235,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                                 }}
                               >
                                 <NavIcon name="user" />
-                                <span>{t('فتح الملف', 'Open profile')}</span>
+                                <span>{t('الملف', 'Profile')}</span>
                               </button>
                               <button
                                 type="button"
@@ -1220,6 +1246,19 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                                 <NavIcon name="edit" />
                                 <span>{t('تعديل', 'Edit')}</span>
                               </button>
+                              {(!c.archived_at ? canManage : workspace.data.role === 'owner') && (
+                                <button
+                                  type="button"
+                                  className="btn"
+                                  data-customer-remove
+                                  data-permanent={Boolean(c.archived_at)}
+                                  disabled={busy}
+                                  onClick={() => void removeFromCustomers(c)}
+                                >
+                                  <NavIcon name={c.archived_at ? 'trash' : 'archive'} />
+                                  <span>{c.archived_at ? t('حذف نهائي', 'Delete permanently') : t('أرشفة', 'Archive')}</span>
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
