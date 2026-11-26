@@ -908,3 +908,19 @@ nav.nav .moreLinks a {
 }
 .workspace .customerPagination > span:first-child { margin-inline-end: auto; }
 .workspace .customerStats > summary { padding: 7px 10px; background: #f4f7fb; border-radius: 9px; }
+
+@media (min-width: 761px) {
+  .workspace [data-crm-customers]:not([data-view='grid']) :global(.product-table) {
+    table-layout: fixed;
+    min-width: 0;
+    width: 100%;
+  }
+  .workspace [data-crm-customers]:not([data-view='grid']) :global(.product-table) :is(th,td):first-child { width: 52px; }
+  .workspace [data-crm-customers]:not([data-view='grid']) :global(.product-table) :is(th,td):nth-child(3) { width: 24%; }
+  .workspace [data-crm-customers]:not([data-view='grid']) :global(.product-table) :is(th,td):last-child { width: 260px; }
+  .workspace [data-crm-customers]:not([data-view='grid']) :global(.product-table) td { min-width: 0; overflow-wrap: anywhere; }
+  .workspace [data-crm-customers]:not([data-view='grid']) [data-customer-actions] { flex-wrap: wrap; }
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+  .workspace [data-crm-customers]:not([data-view='grid']) :global(.product-table) :is(th,td):last-child { width: 145px; }
+}

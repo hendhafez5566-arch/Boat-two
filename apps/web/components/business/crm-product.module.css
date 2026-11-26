@@ -264,3 +264,7 @@
 .toolText small { color: #526781; }
 .toolArrow { margin-inline-start: auto; color: #54677f; transform: rotate(-90deg); }
 :global([dir='rtl']) .toolArrow { transform: rotate(90deg); }
+
+.toolsPage .group h2 { background: #eaf1fa; color: #28466a; }
+.toolsPage .group a { min-height: 60px; }
+.toolsPage .group a:hover { background: #edf4fc; }

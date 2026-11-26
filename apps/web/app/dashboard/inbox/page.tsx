@@ -100,9 +100,8 @@ export default function Inbox() {
     setTab(next);
   }
   const [q, setQ] = useState('');
-  const [search, setSearch] = useState('');
   const [filters, setFilters] = useState(EMPTY_INBOX_FILTERS);
-  const [infoOpen, setInfoOpen] = useState(true);
+  const [infoOpen, setInfoOpen] = useState(false);
   const [messageSearch, setMessageSearch] = useState('');
   const [searchMessages, setSearchMessages] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -715,19 +714,19 @@ export default function Inbox() {
               className={styles.searchBar}
               onSubmit={(e) => {
                 e.preventDefault();
-                setQ(search);
               }}
             >
               <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                type="search"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
                 aria-label={t('بحث المحادثات', 'Search conversations')}
                 placeholder={t('ابحث في المحادثات…', 'Search conversations…')}
                 className="inbox-search w-full rounded border p-1.5"
               />
-              {search.trim() && (
-                <button type="submit" aria-label={t('تنفيذ البحث', 'Submit search')}>
-                  <NavIcon name="search" />
+              {q && (
+                <button type="button" onClick={() => setQ('')} aria-label={t('مسح البحث', 'Clear search')}>
+                  <NavIcon name="close" />
                 </button>
               )}
               <button
@@ -893,7 +892,6 @@ export default function Inbox() {
                         className="btn"
                         onClick={() => {
                           setQ('');
-                          setSearch('');
                           setFilters(EMPTY_INBOX_FILTERS);
                           setChannelId('');
                           selectTab('active');
@@ -1023,7 +1021,7 @@ export default function Inbox() {
                         'userClock',
                       ],
                       [
-                        t('آخر ظهور', 'Last Seen'),
+                        t('آخر رسالة واردة', 'Last incoming message'),
                         detail.last_inbound_at
                           ? new Date(detail.last_inbound_at).toLocaleString(
                               language === 'ar' ? 'ar-EG' : 'en-US',
@@ -1042,7 +1040,7 @@ export default function Inbox() {
                         detail.contact_attributes?.timezone || '—',
                         'sessions',
                       ],
-                    ].map(([label, value, icon]) => (
+                    ].filter(([, value]) => value !== '—').map(([label, value, icon]) => (
                       <div key={label}>
                         <NavIcon name={icon} />
                         <dt>{label}</dt>
@@ -1192,6 +1190,7 @@ export default function Inbox() {
                 </div>
 
                 <div className={`composer border-t bg-white p-2 ${internal ? 'is-note' : ''}`}>
+                  <div className={styles.composerToolbar}>
                   <div
                     className="composer-modes"
                     role="group"
@@ -1239,6 +1238,7 @@ export default function Inbox() {
                       manageHref={['owner', 'admin'].includes(workspaceRole) ? `/dashboard/channels/${detail.channel_id}/templates` : undefined}
                       close={() => setTemplateConversation(null)} />
                   )}
+                  </div>
                   {internal && (
                     <p className="composer-note-banner" role="status">
                       {t(

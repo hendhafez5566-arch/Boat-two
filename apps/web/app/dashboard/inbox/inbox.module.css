@@ -2254,3 +2254,18 @@
   .threadTools > button:not(.botHeaderControl):not(.threadActionTrigger) { min-width:40px; width:40px; padding:6px; }
   .headerContext { order:2; flex:1 0 100%; }
 }
+
+.composerToolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 7px; }
+.inbox .composerToolbar :global(.composer-modes) { flex: 0 0 auto; margin: 0; }
+.inbox .composerToolbar > :global(.btn) { min-height: 34px; padding: 4px 9px; font-size: 12px; }
+.inbox .composerToolbar > :global(.btn) svg { width: 15px; height: 15px; }
+.threadHeader { padding-block: 5px; }
+.headerContext .customerStrip { gap: 5px; padding: 0; border: 0; background: transparent; }
+.headerContext .customerStrip > div { padding: 4px 7px; border: 1px solid #dce6ea; border-radius: 8px; background: #f7fafb; min-height: 0; }
+.headerContext .customerStrip > div:last-child { border-inline-end: 1px solid #dce6ea; }
+.inbox :global(.composer-row) { min-height: 0; margin-block-start: 4px; }
+.inbox :global(.composer-input) { min-height: 40px; }
+@media (max-width: 520px) {
+  .inbox .composerToolbar > :global(.btn) { min-height: 38px; }
+  .threadTools .botHeaderControl { flex: 0 1 auto; }
+}

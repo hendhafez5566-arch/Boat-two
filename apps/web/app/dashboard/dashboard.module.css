@@ -446,3 +446,6 @@
     display: none;
   }
 }
+
+.hero { flex-wrap: wrap; gap: 12px 24px; }
+.hero :global(.dashboard-plan) { display: grid; gap: 7px; justify-items: start; }

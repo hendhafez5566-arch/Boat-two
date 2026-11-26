@@ -83,7 +83,6 @@ export default function Dashboard() {
           <NavIcon name="refresh" />
         </button>
       </header>
-      <SubscriptionSummary />
       <section className={styles.hero} aria-labelledby="dashboard-welcome">
         <div>
           <h2 id="dashboard-welcome">
@@ -96,7 +95,7 @@ export default function Dashboard() {
             {t('فتح صندوق الوارد', 'Open Inbox')}
           </Link>
         </div>
-        <span className={styles.heroMark} aria-hidden="true"><NavIcon name="bolt" /></span>
+        <SubscriptionSummary />
       </section>
       <OrdersAttention />
       {summary.error && (

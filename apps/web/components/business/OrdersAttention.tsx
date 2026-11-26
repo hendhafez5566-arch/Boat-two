@@ -45,7 +45,7 @@ export function OrdersAttention() {
   const metrics = [
     { status: 'new', name: t('جديد', 'New'), count: number('new'), tone: 'urgent' },
     { status: 'documents_required', name: t('مطلوب مستندات', 'Documents needed'), count: number('documents_required'), tone: 'warning' },
-    { status: 'review', name: t('قيد المراجعة', 'Under review'), count: number('review'), tone: 'warning' },
+    { status: 'review', name: t('قيد المراجعة', 'Under review'), count: number('review'), tone: 'review' },
     { status: 'processing', name: t('قيد التنفيذ', 'In progress'), count: number('processing'), tone: 'active' },
   ];
   const labels: Record<string, string> = {

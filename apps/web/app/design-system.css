@@ -2724,3 +2724,12 @@ button.underline {
   min-inline-size: 0;
   max-inline-size: 100%;
 }
+
+.workspace-nav-group h2 {
+  margin-block: 3px 5px;
+  border-inline-start: 3px solid #5b769a;
+  border-radius: 5px;
+  background: #eef3f9;
+  color: #233f61;
+  font-weight: 800;
+}

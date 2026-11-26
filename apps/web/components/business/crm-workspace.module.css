@@ -872,3 +872,11 @@
   .page[data-crm-report] .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .page[data-crm-report] .stat > svg:last-child { display: none; }
 }
+
+.page[data-crm-work='deals'] .board { padding-block-end: 6px; }
+.page[data-crm-work='deals'] .column { background: #f3f6fa; border-color: #d9e3ef; border-radius: 12px; }
+.page[data-crm-work='deals'] .column > h2 { background: #e6eef8; color: #29496c; border-radius: 6px; }
+.page[data-crm-work='deals'] .table th { background: #eaf0f8; color: #344e6b; }
+.page[data-crm-report] .stat { align-items: center; border-color: #dbe5f0; }
+.page[data-crm-report] .stat:hover { transform: none; background: #f6f9fd; }
+.page[data-crm-report] .panelTitle { flex-wrap: wrap; gap: 5px; }

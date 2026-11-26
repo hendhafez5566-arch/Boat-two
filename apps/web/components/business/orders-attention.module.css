@@ -30,3 +30,8 @@
 .error{color:#af2d2d;font-size:12px}
 .error button{background:transparent;border:0;text-decoration:underline;color:inherit;cursor:pointer;margin-inline:6px}
 @media(max-width:720px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.orderList{grid-template-columns:1fr}.panel{padding:14px}.head{align-items:flex-start}.mainLink{width:100%;justify-content:center}.metric{padding:12px;min-height:68px}.metric strong{font-size:22px}}
+
+.metric[data-tone='review']{background:#eef0ff;border-color:#cbd2f8;color:#3a4799}
+.metric[data-tone='active']{background:#ecf8f4;border-color:#b6ded6;color:#11675d}
+.orderStatus[data-status='review']{background:#eef0ff;color:#3a4799}
+.orderStatus[data-status='processing']{background:#ecf8f4;color:#11675d}

@@ -1,4 +1,7 @@
 export default function ChannelLogo({ id }: { id: string }) {
+  const colors: Record<string, string> = {
+    facebook: '#0866ff', whatsapp: '#128847', telegram: '#168ac0', instagram: '#c13584', web: '#466681',
+  };
   const shape =
     id === 'facebook' ? (
       <path
@@ -35,7 +38,7 @@ export default function ChannelLogo({ id }: { id: string }) {
       </g>
     );
   return (
-    <svg width="36" height="36" viewBox="0 0 24 24" aria-hidden="true">
+    <svg style={{ color: colors[id] }} width="36" height="36" viewBox="0 0 24 24" aria-hidden="true">
       {shape}
     </svg>
   );
