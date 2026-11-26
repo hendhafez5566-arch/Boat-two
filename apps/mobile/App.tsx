@@ -145,7 +145,7 @@ function Workspace({ session, onSession, onExpired }: {
   }
   return <View style={{ flex: 1 }}>
     <View style={{ flex: 1 }}>
-      {tab === 'chats' ? <ChatList onOpen={setConversation} onExpired={onExpired} /> : null}
+      {tab === 'chats' ? <ChatList onOpen={setConversation} onExpired={onExpired} initialFilter={isManager ? 'all' : 'mine'} /> : null}
       {tab === 'tasks' ? <TasksScreen onExpired={onExpired} /> : null}
       {tab === 'orders' && isManager ? <OrdersScreen onExpired={onExpired} /> : null}
       {tab === 'account' ? <AccountScreen session={session} onChanged={onSession} onExpired={onExpired} /> : null}
