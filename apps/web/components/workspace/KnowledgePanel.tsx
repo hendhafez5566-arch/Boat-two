@@ -23,6 +23,7 @@ export default function Knowledge() {
     [showArchived, setShowArchived] = useState(false),
     [query, setQuery] = useState(''),
     [createOpen, setCreateOpen] = useState(false);
+  const [sourceStatus,setSourceStatus]=useState('all');
   const canManage = role === 'owner' || role === 'admin';
   const currentSources = items.filter((item) => !item.archived_at);
   const readySources = currentSources.filter((item) => item.status === 'ready');
@@ -110,7 +111,7 @@ export default function Knowledge() {
     file: t('ملف', 'File'),
   };
   const filtered = items.filter(
-    (i) => (showArchived || !i.archived_at) && i.title.toLowerCase().includes(query.toLowerCase()),
+    (i) => (showArchived || !i.archived_at) && (sourceStatus==='all'||(sourceStatus==='processing'?['pending','processing','blocked'].includes(i.status):i.status===sourceStatus)) && i.title.toLowerCase().includes(query.toLowerCase().trim()),
   );
   return (
     <section className="stack">
@@ -130,7 +131,7 @@ export default function Knowledge() {
           </button>
         )}
       </div>
-      <section className={styles.guide} aria-label={t('كيف تعمل قاعدة المعرفة', 'How knowledge works')}>
+      <details className={styles.guide} aria-label={t('كيف تعمل قاعدة المعرفة', 'How knowledge works')}><summary>{t('دليل إعداد المعرفة','Knowledge setup guide')}</summary>
         <div className={styles.guideHead}>
           <strong>{t('إزاي المساعد بيتعلم معلومات شركتك؟', 'How your assistant uses company knowledge')}</strong>
           <span>{t('3 خطوات بسيطة', 'Three simple steps')}</span>
@@ -152,7 +153,7 @@ export default function Knowledge() {
               <small>{t('المعلومات مش بتتربط تلقائيًا', 'Sources are not assigned automatically')}</small></span>
           </Link>
         </div>
-      </section>
+      </details>
       <div className={styles.stats} aria-label={t('حالة المعلومات', 'Knowledge summary')}>
         <div><strong>{loading ? '…' : error && !items.length ? '—' : displayNumber.format(currentSources.length)}</strong><span>{t('إجمالي المصادر', 'Total sources')}</span></div>
         <div><strong>{loading ? '…' : error && !items.length ? '—' : displayNumber.format(readySources.length)}</strong><span>{t('جاهزة للاستخدام', 'Ready to use')}</span></div>
@@ -308,6 +309,7 @@ export default function Knowledge() {
             aria-label={t('بحث في المصادر', 'Search sources')}
             placeholder={t('ابحث بالعنوان', 'Search by title')}
           />
+          <select value={sourceStatus} onChange={e=>setSourceStatus(e.target.value)} aria-label={t('حالة المصدر','Source status')}><option value="all">{t('كل الحالات','All statuses')}</option><option value="ready">{t('جاهز','Ready')}</option><option value="processing">{t('قيد المعالجة','Processing')}</option><option value="failed">{t('فشل','Failed')}</option></select>
           <label>
             <input
               type="checkbox"
@@ -319,9 +321,9 @@ export default function Knowledge() {
         </div>
         {loading && <p role="status">{t('جارٍ تحميل المصادر…', 'Loading sources…')}</p>}
         {!loading && !filtered.length && !error && (
-          query.trim() ? <div className={styles.empty}>
+          query.trim()||sourceStatus!=='all' ? <div className={styles.empty}>
             <p>{t('مافيش مصادر مطابقة للبحث.', 'No matching sources.')}</p>
-            <button type="button" className="btn" onClick={() => setQuery('')}>{t('مسح البحث', 'Clear search')}</button>
+            <button type="button" className="btn" onClick={() => {setQuery('');setSourceStatus('all');}}>{t('مسح التصفية', 'Clear filters')}</button>
           </div> : <div className={styles.empty}>
             <strong>{t('لسه مفيش معلومات مضافة', 'No knowledge added yet')}</strong>
             <p>{t('ابدأ بإضافة الأسئلة الشائعة أو معلومات الخدمة عشان المساعد يلاقي إجابات موثوقة.', 'Add FAQs or service details so your assistant can find reliable answers.')}</p>

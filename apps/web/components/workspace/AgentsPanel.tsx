@@ -70,6 +70,7 @@ export default function Agents() {
   const [feedback, setFeedback] = useState('');
   const [busy, setBusy] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [agentQuery,setAgentQuery]=useState('');
   const readySources = sources.data.filter((source) => source.status === 'ready');
   const enabledAgents = data.data.agents.filter((agent) => agent.enabled);
   const activeProviders = data.data.providers.filter((provider) => provider.enabled && !provider.retired_at);
@@ -135,7 +136,7 @@ export default function Agents() {
           + {t('إنشاء مساعد جديد', 'Create assistant')}
         </button>
       </div>
-      <section className={styles.guide} aria-label={t('كيف تبدأ', 'Getting started')}>
+      <details className={styles.guide} aria-label={t('كيف تبدأ', 'Getting started')}><summary>{t('دليل إعداد المساعد','Assistant setup guide')}</summary>
         <div className={styles.guideHead}>
           <strong>{t('ابدأ في 3 خطوات', 'Get started in 3 steps')}</strong>
           <span>{t('مش لازم تضبط كل الإعدادات التقنية الآن', 'No need to configure everything at once')}</span>
@@ -165,7 +166,7 @@ export default function Agents() {
               <small>{t('بعد إعداد مزود AI والاختبار', 'After provider setup and testing')}</small></span>
           </button>
         </div>
-      </section>
+      </details>
       <div className={styles.stats} aria-label={t('ملخص الإعداد', 'Setup overview')}>
         <div><strong>{agentCount(data.data.agents.length)}</strong><span>{t('مساعد', 'Agents')}</span></div>
         <div><strong>{agentCount(enabledAgents.length)}</strong><span>{t('مساعد مفعّل', 'Enabled agents')}</span></div>
@@ -186,6 +187,7 @@ export default function Agents() {
           <h2>{t('مساعدوك', 'Your assistants')}</h2>
           <p>{t('اختر مساعدًا لتعديل طريقة رده أو إنشاء مساعد جديد.', 'Choose an agent to edit how it responds, or create a new one.')}</p>
         </div>
+        {data.data.agents.length>0&&<input type="search" value={agentQuery} onChange={e=>setAgentQuery(e.target.value)} placeholder={t('بحث عن مساعد','Search assistants')} aria-label={t('بحث المساعدين','Search assistants')}/>}
       </div>
       {!data.loading && !data.error && data.data.agents.length === 0 && (
         <section className={styles.empty}>
@@ -195,7 +197,7 @@ export default function Agents() {
         </section>
       )}
       <div className={styles.agentGrid}>
-        {data.data.agents.map((a) => (
+        {data.data.agents.filter(a=>a.name.toLowerCase().includes(agentQuery.toLowerCase().trim())).map((a) => (
           <article className={styles.agentCard} key={a.id}>
             <div className={styles.agentCardHead}>
               <span className={styles.agentAvatar} aria-hidden="true">AI</span>
@@ -218,6 +220,7 @@ export default function Agents() {
           </article>
         ))}
       </div>
+      {agentQuery.trim()&&!data.data.agents.some(a=>a.name.toLowerCase().includes(agentQuery.toLowerCase().trim()))&&<p className="empty">{t('لا توجد نتائج مطابقة','No matching assistants')}</p>}
       {editorOpen && <form
         id="agent-editor"
         className={`card stack ${styles.editor}`}

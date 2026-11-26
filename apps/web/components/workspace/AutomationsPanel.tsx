@@ -61,6 +61,7 @@ export default function Automations() {
   const [actions, setActions] = useState<Action[]>([{ type: 'tag', tag: '' }]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [ruleQuery,setRuleQuery]=useState('');const [ruleStatus,setRuleStatus]=useState('all');
   async function act(fn: () => Promise<unknown>) {
     setBusy(true);
     setError('');
@@ -159,7 +160,8 @@ export default function Automations() {
       </nav>
       {tab === 'rules' && (
         <section className="stack">
-          {list.data.map((r) => (
+          <div className="workbench-toolbar"><input type="search" value={ruleQuery} onChange={e=>setRuleQuery(e.target.value)} placeholder={t('بحث عن قاعدة','Search rules')} aria-label={t('بحث القواعد','Search rules')}/><select value={ruleStatus} onChange={e=>setRuleStatus(e.target.value)} aria-label={t('حالة القاعدة','Rule status')}><option value="all">{t('الكل','All')}</option><option value="active">{t('مفعلة','Enabled')}</option><option value="inactive">{t('معطلة','Disabled')}</option></select></div>
+          {list.data.filter(r=>r.name.toLowerCase().includes(ruleQuery.toLowerCase().trim())&&(ruleStatus==='all'||r.enabled===(ruleStatus==='active'))).map((r) => (
             <article className={`auto-card ${r.enabled ? 'is-on' : ''}`} key={r.id}>
               <div className="auto-card-main">
                 <div>

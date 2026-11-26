@@ -44,6 +44,7 @@ export default function Commerce({
 } = {}) {
   const { t } = useLocale();
   const [channelId, setChannelId] = useChannelContext();
+  const [appointmentTab,setAppointmentTab]=useState<'bookings'|'book'|'services'>('bookings');
   const [tab, setTab] = useState(initialTab ?? (checkoutEnabled && openOrders ? 'orders' : 'products')),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
@@ -156,8 +157,15 @@ export default function Commerce({
       {tab === 'orders' && checkoutEnabled && <CommerceOrders contacts={contacts.data.items} origin={orderOrigin} orderId={orderId}/>}
       {tab === 'products' && <ProductCatalog />}
       {tab === 'appointments' && (
-        <div className={catalogStyles.appointmentWorkspace}>
-          <form
+        <div className="stack">
+          <nav className="workbench-tabs" aria-label={t('إدارة المواعيد','Appointment management')}>{([['bookings',t('الحجوزات','Bookings')],['book',t('حجز موعد','Book appointment')],['services',t('الخدمات','Services')]] as const).map(([key,label])=><button key={key} type="button" aria-pressed={appointmentTab===key} onClick={()=>setAppointmentTab(key)}>{label}</button>)}</nav>
+          <section className="card stack" hidden={appointmentTab!=='services'}>
+            <h2>{t('الخدمات الحالية','Existing services')}</h2>
+            {services.loading&&<p role="status">{t('جارٍ التحميل…','Loading…')}</p>}
+            {!services.loading&&!services.error&&!services.data.length&&<p className="muted">{t('لم تُضف خدمات بعد','No services yet')}</p>}
+            {services.data.map(s=><div key={s.id} className="workbench-toolbar"><strong>{s.name}</strong><span>{s.duration_minutes} {t('دقيقة','min')} · {s.timezone}</span><span className="workbench-state" data-active={s.enabled}>{s.enabled?t('مفعّلة','Enabled'):t('متوقفة','Disabled')}</span></div>)}
+          </section>
+          <form hidden={appointmentTab!=='services'}
             className="card stack"
             onSubmit={(e) => {
               e.preventDefault();
@@ -212,7 +220,7 @@ export default function Commerce({
               {t('حفظ الخدمة', 'Save service')}
             </button>
           </form>
-          <form
+          <form hidden={appointmentTab!=='book'}
             className="card stack"
             onSubmit={(e) => {
               e.preventDefault();
@@ -272,8 +280,9 @@ export default function Commerce({
               </button>
             </div>
           </form>
-          <section className={`card stack ${catalogStyles.appointmentBookings}`}>
-            <h2>{t('الحجوزات', 'Bookings')}</h2>
+          <section hidden={appointmentTab!=='bookings'} className="card stack">
+            <div className="workbench-toolbar"><h2>{t('الحجوزات', 'Bookings')}</h2><button className="btn btn-primary" type="button" onClick={()=>setAppointmentTab('book')}>+ {t('حجز موعد','Book appointment')}</button></div>
+            {!bookings.loading&&!bookings.error&&!bookings.data.length&&<p className="muted">{t('لا توجد حجوزات مسجلة','No bookings recorded')}</p>}
             {bookings.error && <p role="alert">{bookings.error}</p>}
             {bookings.data.map((b) => (
               <article className="card stack" key={b.id}>
@@ -289,11 +298,11 @@ export default function Commerce({
                   <button
                     className="btn"
                     disabled={busy || b.status !== 'confirmed'}
-                    onClick={() =>
-                      void act(() =>
+                    onClick={() => {
+                      if(confirm(t('إلغاء هذا الحجز المحلي؟','Cancel this local booking?')))void act(() =>
                         api(`/commerce/appointments/${b.id}/cancel`, { method: 'POST' }),
-                      )
-                    }
+                      );
+                    }}
                   >
                     {t('إلغاء الحجز المحلي', 'Cancel local booking')}
                   </button>
