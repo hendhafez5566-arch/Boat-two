@@ -691,6 +691,29 @@ class PlatformController {
     return { updated: true, providerUpdated: false };
   }
   @Permission('plans.write')
+  @Post('plans')
+  async createPlan(@Req() r: PlatformRequest, @Body() body: unknown) {
+    const quota = z.number().int().min(-1).max(1000000000);
+    const b = parse(
+      z.object({
+        code: z.string().regex(/^[a-z][a-z0-9-]{1,39}$/),
+        name: z.string().trim().min(1).max(100),
+        templateCode: z.string().min(1).max(50),
+        limits: z.object({ messages_per_month: quota, contacts: quota, ai_credits: quota }),
+        reason: z.string().trim().min(10).max(1000),
+      }),
+      body,
+    );
+    const [result] = await this.access.query(
+      'SELECT platform_create_plan($1,$2,$3,$4,$5,$6) AS created',
+      [r.platformActor, b.code, b.name, b.templateCode, JSON.stringify(b.limits), b.reason],
+    );
+    if (!result.created)
+      throw new BadRequestException('Plan code already exists or template is missing');
+    return { created: true };
+  }
+
+  @Permission('plans.write')
   @Patch('plans/:code')
   async plan(@Req() r: PlatformRequest, @Param('code') code: string, @Body() body: unknown) {
     const b = parse(
