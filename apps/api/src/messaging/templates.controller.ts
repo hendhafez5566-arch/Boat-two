@@ -13,8 +13,13 @@ import {
   Post,
   Req,
   ServiceUnavailableException,
+  UploadedFile,
+  UseInterceptors,
+  Query,
 } from '@nestjs/common';
 import { z } from 'zod';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { sniffMatches } from '../inbox/files/storage';
 import { Roles } from '../auth/decorators';
 import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
@@ -56,8 +61,86 @@ export class TemplatesController {
   ) {
     const channel = await this.channel(r, id);
     if (!this.canManageTemplates(id)) return { state: 'environment_disabled' };
-    return { state: this.channels.credentials(channel).wabaId ? 'ready' : 'account_required' };
+    const creds = this.channels.credentials(channel);
+    const ready = !!creds.wabaId && !!creds.accessToken;
+    return {
+      state: ready ? 'ready' : 'account_required',
+      mediaUpload: ready && /^\d+$/.test(env.META_APP_ID || ''),
+    };
   }
+  @Post('media')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 16 * 1024 * 1024, files: 1 } }))
+  async uploadMedia(
+    @Req() r: AuthedRequest,
+    @Param('channelId', ParseUUIDPipe) id: string,
+    @Query('format') requestedFormat: unknown,
+    @UploadedFile() file?: { originalname: string; mimetype: string; buffer: Buffer },
+  ) {
+    const channel = await this.channel(r, id);
+    this.requireExternal(id);
+    const format = parse(z.enum(['IMAGE', 'VIDEO', 'DOCUMENT']), requestedFormat);
+    const mimeTypes = {
+      IMAGE: ['image/jpeg', 'image/png'],
+      VIDEO: ['video/mp4'],
+      DOCUMENT: ['application/pdf'],
+    };
+    const limit = (format === 'VIDEO' ? 16 : 5) * 1024 * 1024;
+    if (
+      !file ||
+      !mimeTypes[format].includes(file.mimetype) ||
+      file.buffer.length > limit ||
+      !sniffMatches(file.mimetype, file.buffer)
+    )
+      throw new BadRequestException('Invalid template media file');
+    const appId = env.META_APP_ID || '';
+    const { wabaId, accessToken } = this.channels.credentials(channel);
+    if (!/^\d+$/.test(appId) || !wabaId || !accessToken)
+      throw new ServiceUnavailableException('Meta template media upload is not configured');
+    const query = new URLSearchParams({
+      file_name: file.originalname.replace(/[\r\n]/g, '').slice(0, 160) || 'sample',
+      file_length: String(file.buffer.length),
+      file_type: file.mimetype,
+    });
+    const providerPost = async (url: string, headers: Record<string, string>, body?: BodyInit) => {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body,
+        redirect: 'error',
+        signal: AbortSignal.timeout(30000),
+      });
+      if (!response.ok) throw new Error('Meta rejected upload');
+      return response.json() as Promise<unknown>;
+    };
+    try {
+      const session = z
+        .object({
+          id: z
+            .string()
+            .max(3000)
+            .regex(/^upload:[a-zA-Z0-9_+=-]+(?:\?sig=[a-zA-Z0-9_+=%-]+)?$/),
+        })
+        .parse(
+          await providerPost(`${GRAPH}/${appId}/uploads?${query}`, {
+            Authorization: `Bearer ${accessToken}`,
+          }),
+        );
+      return z.object({ h: z.string().min(1).max(4096) }).parse(
+        await providerPost(
+          `${GRAPH}/${session.id}`,
+          {
+            Authorization: `OAuth ${accessToken}`,
+            file_offset: '0',
+            'Content-Type': file.mimetype,
+          },
+          new Blob([new Uint8Array(file.buffer)], { type: file.mimetype }),
+        ),
+      );
+    } catch {
+      throw new ServiceUnavailableException('Meta could not complete the template media upload');
+    }
+  }
+
   @Post() async create(
     @Req() r: AuthedRequest,
     @Param('channelId', ParseUUIDPipe) id: string,
@@ -121,9 +204,49 @@ export class TemplatesController {
       return row;
     });
   }
+  @Post(':id/archive') async archive(
+    @Req() r: AuthedRequest,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.changeDraftVisibility(r, channelId, id, body, 'DRAFT', 'ARCHIVED');
+  }
+
+  @Post(':id/restore') async restore(
+    @Req() r: AuthedRequest,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.changeDraftVisibility(r, channelId, id, body, 'ARCHIVED', 'DRAFT');
+  }
+
+  private async changeDraftVisibility(
+    r: AuthedRequest,
+    channelId: string,
+    id: string,
+    body: unknown,
+    from: string,
+    to: string,
+  ) {
+    await this.channel(r, channelId);
+    const { revision } = parse(z.object({ revision: z.number().int().positive() }).strict(), body);
+    const result = await this.db.withTenant(r.user.tenantId, (c) =>
+      c.query(
+        'UPDATE whatsapp_templates SET status=$5,revision=revision+1,updated_at=now() WHERE id=$1 AND channel_id=$2 AND revision=$3 AND status=$4 AND provider_id IS NULL RETURNING id',
+        [id, channelId, revision, from, to],
+      ),
+    );
+    if (!result.rowCount) throw new ConflictException('Draft changed or is no longer available');
+    return { id, status: to };
+  }
   private canManageTemplates(channelId: string) {
-    return env.EXTERNAL_DELIVERY_ENABLED === 'true' ||
-      (process.env.BOAT_PREVIEW_ONLY === 'true' && env.WHATSAPP_PREVIEW_TEMPLATE_CHANNEL_ID === channelId);
+    return (
+      env.EXTERNAL_DELIVERY_ENABLED === 'true' ||
+      (process.env.BOAT_PREVIEW_ONLY === 'true' &&
+        env.WHATSAPP_PREVIEW_TEMPLATE_CHANNEL_ID === channelId)
+    );
   }
   private requireExternal(channelId: string) {
     if (!this.canManageTemplates(channelId))
@@ -139,10 +262,12 @@ export class TemplatesController {
       throw new BadRequestException('Reconnect this channel with its WhatsApp Business Account ID');
     let next: string | undefined = `${GRAPH}/${creds.wabaId}/message_templates?limit=100`;
     let count = 0;
+    let skippedDrafts = 0;
     for (let page = 0; page < 20 && next; page++) {
       const response = await fetch(next, {
         headers: { Authorization: `Bearer ${creds.accessToken}` },
         signal: AbortSignal.timeout(30000),
+        redirect: 'error',
       });
       const data = (await response.json()) as {
         data?: {
@@ -152,6 +277,7 @@ export class TemplatesController {
           category: string;
           status: string;
           components: TemplateComponent[];
+          rejected_reason?: unknown;
         }[];
         error?: { message: string };
         paging?: { cursors?: { after?: string } };
@@ -159,31 +285,50 @@ export class TemplatesController {
       if (!response.ok)
         throw new BadRequestException(data.error?.message || 'Template sync failed');
       for (const template of data.data || []) {
-        await this.db.withTenant(r.user.tenantId, (c) =>
+        const body = template.components.find((component) => component.type === 'BODY') as
+          (TemplateComponent & { example?: { body_text?: unknown } }) | undefined;
+        const values = body?.example?.body_text;
+        const examples =
+          Array.isArray(values) && Array.isArray(values[0])
+            ? values[0].filter((value): value is string => typeof value === 'string').slice(0, 20)
+            : [];
+        const reason =
+          template.status === 'REJECTED' && typeof template.rejected_reason === 'string'
+            ? template.rejected_reason.slice(0, 500)
+            : null;
+        const result = await this.db.withTenant(r.user.tenantId, (c) =>
           c.query(
-            `INSERT INTO whatsapp_templates(tenant_id,channel_id,name,language,category,body,status,provider_id,supported,components) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(channel_id,name,language) DO UPDATE SET status=$7,provider_id=$8,body=$6,supported=$9,components=$10,category=$5,revision=whatsapp_templates.revision+1,error=NULL,updated_at=now()`,
+            `INSERT INTO whatsapp_templates(tenant_id,channel_id,name,language,category,body,status,provider_id,supported,components,examples,error)
+             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+             ON CONFLICT(channel_id,name,language) DO UPDATE
+                SET status=$7,provider_id=$8,body=$6,supported=$9,components=$10,category=$5,examples=$11,error=$12,
+                    revision=whatsapp_templates.revision+1,updated_at=now()
+              WHERE whatsapp_templates.status NOT IN ('DRAFT','ARCHIVED')`,
             [
               r.user.tenantId,
               id,
               template.name,
               template.language,
               template.category,
-              template.components.find((x) => x.type === 'BODY')?.text || '',
+              body?.text || '',
               template.status,
               template.id,
               supportedTemplate(template.category, template.components),
               JSON.stringify(template.components),
+              JSON.stringify(examples),
+              reason,
             ],
           ),
         );
-        count++;
+        if (result.rowCount) count++;
+        else skippedDrafts++;
       }
       next =
         data.paging?.cursors?.after && data.data?.length === 100
           ? `${GRAPH}/${creds.wabaId}/message_templates?limit=100&after=${encodeURIComponent(data.paging.cursors.after)}`
           : undefined;
     }
-    return { synced: count, moreAvailable: !!next };
+    return { synced: count, skippedDrafts, moreAvailable: !!next };
   }
   @Post(':id/submit') async submit(
     @Req() r: AuthedRequest,

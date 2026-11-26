@@ -60,7 +60,13 @@ const schema = z
   .strict();
 export function parseTemplateDraft(input: unknown) {
   const b = parse(schema, input);
-  if (variableCount(b.body) !== b.examples.length)
+  const orderedIndices = [
+    ...new Set([...b.body.matchAll(/\{\{(\d+)\}\}/g)].map((match) => match[1])),
+  ];
+  if (
+    variableCount(b.body) !== b.examples.length ||
+    orderedIndices.some((index, i) => index !== String(i + 1))
+  )
     throw new BadRequestException('Provide one example per BODY variable in contiguous order');
   if (
     b.header?.format === 'TEXT' &&

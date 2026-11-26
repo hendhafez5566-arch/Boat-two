@@ -1,5 +1,5 @@
 'use client';
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState } from 'react';
 import studio from './template-studio.module.css';
 import { templateLocales } from './template-locales';
 import { useLocale } from '../product/locale';
@@ -27,7 +27,7 @@ export type TemplateRow = {
     type: string;
     format?: string;
     text?: string;
-    example?: Header['example'];
+    example?: Header['example'] & { body_text?: string[][] };
     buttons?: DraftButton[];
   }[];
   status: string;
@@ -40,19 +40,18 @@ export function TemplateDraftForm({
   busy,
   save,
   cancel,
-  mode = 'default',
   saveAndReview,
+  uploadMedia,
 }: {
-  mode?: 'default' | 'manager';
   initial?: TemplateRow;
   busy: boolean;
   save: (draft: unknown) => Promise<boolean>;
+  uploadMedia?: (file: File, format: string) => Promise<string>;
   saveAndReview?: (draft: unknown) => Promise<boolean>;
   cancel?: () => void;
 }) {
   const { t, language: uiLanguage } = useLocale();
   const mediaHintId = useId();
-  const languageListId = useId();
   const h = initial?.components.find((c) => c.type === 'HEADER');
   const [format, setFormat] = useState(h?.format || 'NONE');
   const [name, setName] = useState(initial?.name || '');
@@ -64,6 +63,15 @@ export function TemplateDraftForm({
   const [headerSample, setHeaderSample] = useState(
     h?.example?.header_text?.[0] || h?.example?.header_handle?.[0] || '',
   );
+  const [filePreview, setFilePreview] = useState<string>();
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  useEffect(
+    () => () => {
+      if (filePreview) URL.revokeObjectURL(filePreview);
+    },
+    [filePreview],
+  );
   const [footer, setFooter] = useState(
     initial?.components.find((c) => c.type === 'FOOTER')?.text || '',
   );
@@ -73,89 +81,50 @@ export function TemplateDraftForm({
   function update(index: number, next: Partial<DraftButton>) {
     setButtons(buttons.map((b, i) => (i === index ? { ...b, ...next } : b)));
   }
-  const manager = mode === 'manager';
+  const [step, setStep] = useState(0);
+  const [designError, setDesignError] = useState('');
+  const samples = examples.split('\n');
+  const tokens = [...new Set([...body.matchAll(/\{\{(\d+)\}\}/g)].map((match) => match[1]))];
+  const numbered =
+    tokens.length <= 20 &&
+    tokens.every((token, index) => token === String(index + 1)) &&
+    !/\{\{|\}\}/.test(body.replace(/\{\{\d+\}\}/g, ''));
+
+  const steps = [
+    t('معلومات القالب', 'Template details'),
+    t('تصميم الرسالة', 'Message design'),
+    t('المعاينة والمراجعة', 'Preview and review'),
+  ];
   const basicFields = (
-    <>
-      <div className={manager ? 'form-grid' : studio.defaultLayout}>
-        <label className="field">
-          {manager
-            ? t('اسم القالب', 'Template Name')
-            : t('اسم القالب بالإنجليزية', 'Template name in English')}
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="booking_confirmation"
-            pattern="[a-z0-9_]+"
-            maxLength={512}
-            required
-            dir="ltr"
-          />
-        </label>
-        <label className="field">
-          {t('اللغة', 'Language')}
-          {manager ? (
-            <select value={language} onChange={(e) => setLanguage(e.target.value)} required>
-              {!templateLocales.some(([code]) => code === language) && (
-                <option value={language}>{language}</option>
-              )}
-              {templateLocales.map(([code, label]) => (
-                <option key={code} value={code}>
-                  {uiLanguage === 'ar'
-                    ? new Intl.DisplayNames(['ar'], { type: 'language' }).of(
-                        code.replace('_', '-'),
-                      ) || label
-                    : label}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <>
-              <input
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                list={languageListId}
-                pattern="[a-z]{2,3}(_[A-Z]{2})?"
-                required
-                dir="ltr"
-              />
-              <datalist id={languageListId}>
-                {templateLocales.map(([code, label]) => (
-                  <option key={code} value={code}>
-                    {label}
-                  </option>
-                ))}
-              </datalist>
-            </>
+    <div className={studio.draftFields}>
+      <label className="field">
+        {t('اسم القالب بالإنجليزية', 'Template name in English')}
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="booking_confirmation"
+          pattern="[a-z0-9_]+"
+          maxLength={512}
+          required
+          dir="ltr"
+        />
+      </label>
+      <label className="field">
+        {t('اللغة', 'Language')}
+        <select value={language} onChange={(e) => setLanguage(e.target.value)}>
+          {!templateLocales.some(([code]) => code === language) && (
+            <option value={language}>{language}</option>
           )}
-        </label>
-      </div>
-    </>
-  );
-  const categoryField = manager ? (
-    <>
-      <fieldset className={studio.choices} aria-label={t('تصنيف القالب', 'Template Category')}>
-        {['UTILITY', 'MARKETING'].map((value) => (
-          <label key={value}>
-            <input
-              type="radio"
-              name="templateCategory"
-              value={value}
-              checked={category === value}
-              onChange={() => setCategory(value)}
-            />
-            {value === 'UTILITY' ? t('خدمي', 'Utility') : t('تسويقي', 'Marketing')}
-          </label>
-        ))}
-      </fieldset>
-      <p className={studio.unavailable}>
-        {t(
-          'قوالب المصادقة وOTP غير مدعومة حاليًا.',
-          'Authentication and OTP templates are not currently supported.',
-        )}
-      </p>
-    </>
-  ) : (
-    <>
+          {templateLocales.map(([code, label]) => (
+            <option key={code} value={code}>
+              {uiLanguage === 'ar'
+                ? new Intl.DisplayNames(['ar'], { type: 'language' }).of(code.replace('_', '-')) ||
+                  label
+                : label}
+            </option>
+          ))}
+        </select>
+      </label>
       <label className="field">
         {t('التصنيف', 'Category')}
         <select value={category} onChange={(e) => setCategory(e.target.value)}>
@@ -163,7 +132,7 @@ export function TemplateDraftForm({
           <option value="MARKETING">{t('تسويقي', 'Marketing')}</option>
         </select>
       </label>
-    </>
+    </div>
   );
   const contentFields = (
     <>
@@ -178,65 +147,50 @@ export function TemplateDraftForm({
           placeholder={t('مثال: تم تأكيد حجزك رقم {{1}}.', 'Example: Booking {{1}} is confirmed.')}
         />
       </label>
-      {(manager || /\{\{\d+\}\}/.test(body)) && (
-        <label className="field">
-          {t('مثال لكل متغير، سطر لكل مثال', 'One example per variable, one per line')}
-          <textarea value={examples} onChange={(e) => setExamples(e.target.value)} rows={3} />
-        </label>
-      )}
+      {numbered &&
+        tokens.map((token, index) => (
+          <label className="field" key={token}>
+            {t('مثال المتغير', 'Variable example')} <bdi>{'{{' + token + '}}'}</bdi>
+            <input
+              required
+              maxLength={500}
+              value={samples[index] || ''}
+              onChange={(event) => {
+                const next = [...samples];
+                next[index] = event.target.value;
+                setExamples(next.join('\n'));
+              }}
+            />
+          </label>
+        ))}
     </>
   );
   const headerFields = (
     <>
-      {manager ? (
-        <fieldset
-          className={`${studio.choices} ${studio.headerChoices}`}
-          aria-label={t('نوع الترويسة', 'Header Type')}
+      <label className="field">
+        {t('نوع الترويسة', 'Header type')}
+        <select
+          value={format}
+          onChange={(e) => {
+            setFormat(e.target.value);
+            setHeaderSample('');
+            setFilePreview(undefined);
+            setUploadError('');
+          }}
         >
-          {(['NONE', 'TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT'] as const).map((value) => (
-            <label key={value}>
-              <input
-                type="radio"
-                name="templateHeader"
-                value={value}
-                checked={format === value}
-                onChange={() => {
-                  setFormat(value);
-                  setHeaderSample('');
-                }}
-              />
-              {
-                {
-                  NONE: t('بدون', 'None'),
-                  TEXT: t('نص', 'Text'),
-                  IMAGE: t('صورة', 'Image'),
-                  VIDEO: t('فيديو', 'Video'),
-                  DOCUMENT: t('مستند', 'Document'),
-                }[value]
-              }
-            </label>
-          ))}
-        </fieldset>
-      ) : (
-        <>
-          <label className="field">
-            {t('نوع الترويسة', 'Header type')}
-            <select
-              value={format}
-              onChange={(e) => {
-                setFormat(e.target.value);
-                setHeaderSample('');
-              }}
-            >
-              <option value="NONE">{t('بدون ترويسة', 'No header')}</option>
-              <option value="TEXT">{t('نص', 'Text')}</option>
-              <option value="IMAGE">{t('صورة', 'Image')}</option>
-              <option value="VIDEO">{t('فيديو', 'Video')}</option>
-              <option value="DOCUMENT">{t('مستند', 'Document')}</option>
-            </select>
-          </label>
-        </>
-      )}
+          <option value="NONE">{t('بدون ترويسة', 'No header')}</option>
+          <option value="TEXT">{t('نص', 'Text')}</option>
+          <option value="IMAGE" disabled={!uploadMedia && format !== 'IMAGE'}>
+            {t('صورة', 'Image')}
+          </option>
+          <option value="VIDEO" disabled={!uploadMedia && format !== 'VIDEO'}>
+            {t('فيديو', 'Video')}
+          </option>
+          <option value="DOCUMENT" disabled={!uploadMedia && format !== 'DOCUMENT'}>
+            {t('مستند', 'Document')}
+          </option>
+        </select>
+      </label>
       {format === 'TEXT' && (
         <label className="field">
           {t('نص الترويسة', 'Header text')}
@@ -248,32 +202,70 @@ export function TemplateDraftForm({
           />
         </label>
       )}
-      {format !== 'NONE' && (format !== 'TEXT' || headerText.includes('{{1}}')) && (
+      {format === 'TEXT' && headerText.includes('{{1}}') && (
         <label className="field">
-          {format === 'TEXT'
-            ? t('مثال متغير الترويسة', 'Header variable example')
-            : t('معرّف رفع عينة الوسائط من Meta', 'Meta sample media upload handle')}
+          {t('مثال متغير الترويسة', 'Header variable example')}
           <input
-            aria-label={
-              format === 'TEXT'
-                ? t('مثال متغير الترويسة', 'Header variable example')
-                : t('معرّف رفع عينة الوسائط من Meta', 'Meta sample media upload handle')
-            }
-            aria-describedby={format !== 'TEXT' ? mediaHintId : undefined}
             value={headerSample}
             onChange={(e) => setHeaderSample(e.target.value)}
-            maxLength={4096}
+            maxLength={500}
             required
           />
-          {format !== 'TEXT' && (
-            <span className="muted" id={mediaHintId}>
-              {t(
-                'استخدم معرّف عينة من رفع Meta القابل للاستئناف، وليس رابط إرسال الوسائط. يلزم حساب خارجي للحصول عليه.',
-                'Use a sample handle from Meta resumable upload, rather than a message media URL. Obtaining it requires your external account.',
-              )}
-            </span>
-          )}
         </label>
+      )}
+      {format !== 'NONE' && format !== 'TEXT' && (
+        <>
+          {uploadMedia && (
+            <label className="field">
+              {t('رفع عينة الوسائط إلى Meta', 'Upload a media sample to Meta')}
+              <input
+                type="file"
+                accept={
+                  {
+                    IMAGE: 'image/jpeg,image/png',
+                    VIDEO: 'video/mp4',
+                    DOCUMENT: 'application/pdf',
+                  }[format]
+                }
+                required={!headerSample}
+                onChange={async (e) => {
+                  const input = e.currentTarget;
+                  const file = input.files?.[0];
+                  if (!file) return;
+                  setUploading(true);
+                  setUploadError('');
+                  try {
+                    setHeaderSample(await uploadMedia(file, format));
+                    setFilePreview(URL.createObjectURL(file));
+                  } catch {
+                    input.value = '';
+                    setUploadError(
+                      t(
+                        'تعذّر رفع العينة إلى Meta. تحقق من نوع الملف وحجمه وصلاحيات الربط.',
+                        'Meta upload failed. Check the file type, size and connection permissions.',
+                      ),
+                    );
+                  } finally {
+                    setUploading(false);
+                  }
+                }}
+              />
+            </label>
+          )}
+          {uploading && <p role="status">{t('جارٍ رفع العينة…', 'Uploading sample…')}</p>}
+          {headerSample && (
+            <p role="status">{t('عينة الوسائط جاهزة.', 'Media sample is ready.')}</p>
+          )}
+          {uploadError && <p role="alert">{uploadError}</p>}
+        </>
+      )}
+      {!uploadMedia && (
+        <p id={mediaHintId} className="muted">
+          {t(
+            'رفع عينة جديدة يتطلب اتصال Meta مفعّلًا لتلك القناة.',
+            'A new sample requires an enabled Meta connection for this channel.',
+          )}
+        </p>
       )}
     </>
   );
@@ -395,63 +387,46 @@ export function TemplateDraftForm({
       </fieldset>
     </>
   );
-  const previewFields = (
-    <>
-      <section className="card stack" aria-label={t('معاينة القالب', 'Template preview')}>
-        <h3>{t('معاينة البنية', 'Structure preview')}</h3>
-        {format === 'TEXT' ? (
-          <strong>{headerText}</strong>
-        ) : (
-          format !== 'NONE' && (
-            <p>
-              {t('ترويسة وسائط', 'Media header')} · {format}
-            </p>
-          )
+  const preview = (
+    <section className={studio.chatPreview} aria-label={t('معاينة القالب', 'Template preview')}>
+      <h2>{t('معاينة الرسالة', 'Message preview')}</h2>
+      <div className={studio.chatBubble} dir="auto">
+        {format === 'TEXT' && (
+          <strong>{headerText.replace('{{1}}', () => headerSample || '{{1}}')}</strong>
         )}
-        <p className="whitespace-pre-wrap" dir="auto">
-          {body ||
-            (!manager && t('معاينة النص هتظهر هنا.', 'Your message preview will appear here.'))}
+        {format !== 'NONE' && format !== 'TEXT' && (
+          <div className={studio.mediaTile}>
+            {filePreview && format === 'IMAGE' && (
+              <img src={filePreview} alt={t('عينة الترويسة', 'Header sample')} />
+            )}
+            {filePreview && format === 'VIDEO' && <video controls src={filePreview} />}
+            {
+              {
+                IMAGE: t('صورة', 'Image'),
+                VIDEO: t('فيديو', 'Video'),
+                DOCUMENT: t('مستند', 'Document'),
+              }[format]
+            }
+          </div>
+        )}
+        <p>
+          {body.replace(
+            /\{\{(\d+)\}\}/g,
+            (token, index) => samples[Number(index) - 1]?.trim() || token,
+          ) || t('معاينة النص هتظهر هنا.', 'Your message preview will appear here.')}
         </p>
         {footer && <small>{footer}</small>}
-        <div className="flex flex-wrap gap-2">
-          {buttons.map((b, i) => (
-            <span className="badge" key={i}>
-              {b.text || t('زر', 'Button')}
-            </span>
-          ))}
-        </div>
-      </section>
-    </>
-  );
-  const actionFields = (
-    <>
-      <div className="flex flex-wrap gap-2">
-        <button className="btn btn-primary" disabled={busy}>
-          {busy ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ المسودة', 'Save draft')}
-        </button>
-        {manager && saveAndReview && (
-          <button type="submit" name="intent" value="review" className="btn" disabled={busy}>
-            {t('حفظ / تقديم القالب', 'Save / Submit Template')}
-          </button>
-        )}
-        {cancel && (
-          <button type="button" className="btn" onClick={cancel} disabled={busy}>
-            {t('إلغاء', 'Cancel')}
-          </button>
-        )}
+        {buttons.map((button, i) => (
+          <span className={studio.chatButton} key={i}>
+            {button.text || t('زر', 'Button')}
+          </span>
+        ))}
       </div>
-    </>
-  );
-  const card = (title: string, description: string, children: ReactNode) => (
-    <section className={studio.card}>
-      <h3>{title}</h3>
-      <p className={studio.description}>{description}</p>
-      {children}
     </section>
   );
   return (
     <form
-      className={manager ? studio.form : studio.draft}
+      className={studio.draft}
       onInvalidCapture={(e) => {
         if (e.target instanceof HTMLElement) {
           const details = e.target.closest('details');
@@ -460,7 +435,23 @@ export function TemplateDraftForm({
       }}
       onSubmit={async (e) => {
         e.preventDefault();
-        if (busy) return;
+        if (busy || uploading) return;
+        if (step === 1 && (!numbered || !body.trim())) {
+          setDesignError(
+            !numbered
+              ? t(
+                  'رتّب المتغيرات في النص بدءًا من {{1}} ثم {{2}} بدون تخطي رقم.',
+                  'Use consecutive variables in order, starting with {{1}} then {{2}}.',
+                )
+              : t('اكتب نص الرسالة.', 'Enter the message text.'),
+          );
+          return;
+        }
+        setDesignError('');
+        if (step < 2) {
+          setStep(step + 1);
+          return;
+        }
         const review = (e.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'review';
         const persist = review && saveAndReview ? saveAndReview : save;
         await persist({
@@ -468,7 +459,7 @@ export function TemplateDraftForm({
           language,
           category,
           body,
-          examples: examples.split('\n').filter(Boolean),
+          examples: tokens.map((_, index) => samples[index]?.trim() || ''),
           ...(format !== 'NONE'
             ? {
                 header: {
@@ -490,74 +481,37 @@ export function TemplateDraftForm({
         });
       }}
     >
-      <fieldset disabled={busy} className={manager ? studio.layout : studio.draftLayout}>
-        {manager ? (
-          <>
-            <div className={studio.main}>
-              {card(
-                t('المعلومات الأساسية', 'Basic Information'),
-                t(
-                  'سمّ القالب واختر اللغة المستهدفة.',
-                  'Give your template a name and choose the target locale.',
-                ),
-                basicFields,
+      <fieldset disabled={busy || uploading} className={studio.draftLayout}>
+        <h1>
+          {initial
+            ? t('تعديل مسودة القالب', 'Edit template draft')
+            : t('قالب واتساب جديد', 'New WhatsApp template')}
+        </h1>
+        <ol className={studio.wizardSteps}>
+          {steps.map((label, index) => (
+            <li key={label} aria-current={step === index ? 'step' : undefined}>
+              {index < step ? (
+                <button type="button" onClick={() => setStep(index)}>
+                  {label}
+                </button>
+              ) : (
+                label
               )}
-              {card(
-                t('تصنيف القالب', 'Template Category'),
-                t('اختر التصنيف المناسب لرسالتك.', 'Choose the best category for your message.'),
-                categoryField,
-              )}
-              {card(
-                t('نوع الترويسة', 'Header Type'),
-                t('أضف ترويسة إلى القالب (اختياري).', 'Add a header to your template (optional).'),
-                headerFields,
-              )}
-              {card(
-                t('محتوى الرسالة', 'Message Content'),
-                t('اكتب رسالتك باستخدام المتغيرات.', 'Write your message using variables.'),
-                contentFields,
-              )}
-              {card(
-                t('نص التذييل (اختياري)', 'Footer Text (Optional)'),
-                t(
-                  'أضف معلومات في نهاية الرسالة.',
-                  'Add additional information at the end of your message.',
-                ),
-                footerField,
-              )}
-              {card(
-                t('الأزرار (اختياري)', 'Buttons (Optional)'),
-                t('أضف أزرارًا تفاعلية إلى القالب.', 'Add interactive buttons to your template.'),
-                buttonFields,
-              )}
-              <div className={studio.actions}>{actionFields}</div>
-            </div>
-            <aside className={studio.preview}>
-              <h3>{t('معاينة مباشرة', 'Live Preview')}</h3>
-              <p className={studio.description}>
-                {t(
-                  'هكذا يظهر محتوى الرسالة. قد يختلف العرض حسب الجهاز.',
-                  'This is how your message content appears. Actual appearance may vary across devices.',
-                )}
-              </p>
-              {previewFields}
-            </aside>
-          </>
-        ) : (
-          <>
-            <h1>
-              {initial
-                ? t('تعديل مسودة القالب', 'Edit template draft')
-                : t('قالب واتساب جديد', 'New WhatsApp template')}
-            </h1>
-            <div className={studio.draftWorkspace}>
-              <div className={studio.draftInput}>
-                <div className={studio.draftFields}>
-                  {basicFields}
-                  {categoryField}
-                </div>
+            </li>
+          ))}
+        </ol>
+        <div className={studio.draftWorkspace}>
+          <div className={studio.draftInput}>
+            <h2>{steps[step]}</h2>
+            {step === 0 && basicFields}
+            {step === 1 && (
+              <>
                 {contentFields}
-                <details className={studio.draftOptions}>
+                {designError && <p role="alert">{designError}</p>}
+                <details
+                  className={studio.draftOptions}
+                  open={format !== 'NONE' || !!footer || buttons.length > 0}
+                >
                   <summary>{t('ترويسة وتذييل وأزرار', 'Header, footer and buttons')}</summary>
                   <div className="stack">
                     {headerFields}
@@ -565,12 +519,45 @@ export function TemplateDraftForm({
                     {buttonFields}
                   </div>
                 </details>
-              </div>
-              <aside className={studio.draftPreview}>{previewFields}</aside>
-            </div>
-            <div className={studio.draftActions}>{actionFields}</div>
-          </>
-        )}
+              </>
+            )}
+            {step === 2 && (
+              <p className="muted">
+                <bdi>{name}</bdi> · <bdi>{language}</bdi> ·{' '}
+                {category === 'UTILITY' ? t('خدمي', 'Utility') : t('تسويقي', 'Marketing')}
+              </p>
+            )}
+          </div>
+          <aside className={studio.draftPreview}>{preview}</aside>
+        </div>
+        <div className={studio.draftActions}>
+          <div className="flex flex-wrap gap-2">
+            {step > 0 && (
+              <button type="button" className="btn" onClick={() => setStep(step - 1)}>
+                {t('السابق', 'Back')}
+              </button>
+            )}
+            {step < 2 ? (
+              <button className="btn btn-primary">{t('التالي', 'Next')}</button>
+            ) : (
+              <>
+                <button className="btn btn-primary">
+                  {busy ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ المسودة', 'Save draft')}
+                </button>
+                {saveAndReview && (
+                  <button type="submit" name="intent" value="review" className="btn">
+                    {t('حفظ ثم مراجعة التقديم', 'Save and review submission')}
+                  </button>
+                )}
+              </>
+            )}
+            {cancel && (
+              <button type="button" className="btn" onClick={cancel}>
+                {t('إلغاء', 'Cancel')}
+              </button>
+            )}
+          </div>
+        </div>
       </fieldset>
     </form>
   );

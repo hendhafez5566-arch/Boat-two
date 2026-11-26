@@ -1,5 +1,6 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { Dialog } from '../product/ProductUI';
 import Link from 'next/link';
 import styles from './whatsapp-templates.module.css';
 import ChannelLogo from '../product/ChannelLogo';
@@ -7,31 +8,90 @@ import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 import { TemplateDraftForm, TemplateRow } from '../business/TemplateDraftForm';
 import { useData } from '../business/useData';
-export default function Templates({ params }: { params: { id: string } }) {
-  const { t } = useLocale();
+export default function Templates({
+  params,
+  embedded,
+}: {
+  params: { id: string };
+  embedded?: boolean;
+}) {
+  const { t, language } = useLocale();
   const path = `/channels/${params.id}/templates`;
   const data = useData<TemplateRow[]>(path, []);
-  const availability = useData<{ state: string } | null>(path + '/availability', null);
+  const availability = useData<{ state: string; mediaUpload?: boolean } | null>(
+    path + '/availability',
+    null,
+  );
   const state = availability.data?.state;
   const metaBlocked = state !== 'ready';
+  const [page, setPage] = useState(1);
+  const [syncCount, setSyncCount] = useState<{
+    synced?: number;
+    skippedDrafts?: number;
+    moreAvailable?: boolean;
+  }>({});
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [order, setOrder] = useState('recent');
+  const [copy, setCopy] = useState<TemplateRow>();
+  const [confirmation, setConfirmation] = useState<{
+    row: TemplateRow;
+    action: 'submit' | 'archive';
+  }>();
+  const lock = useRef(false);
+  const label = (value: string) =>
+    (
+      ({
+        DRAFT: t('مسودة', 'Draft'),
+        PENDING: t('قيد المراجعة', 'Pending review'),
+        APPROVED: t('معتمد', 'Approved'),
+        REJECTED: t('مرفوض', 'Rejected'),
+        ARCHIVED: t('في سلة المسودات', 'In draft trash'),
+        SUBMITTING: t('جارٍ التقديم', 'Submitting'),
+        SUBMISSION_UNKNOWN: t('تحتاج مزامنة', 'Sync required'),
+      }) as Record<string, string>
+    )[value] || value;
+  const visible = data.data.filter(
+    (row) =>
+      (filter === 'all' ? row.status !== 'ARCHIVED' : row.status === filter) &&
+      [row.name, row.body, row.language, row.category, label(row.status), ...row.examples]
+        .join(' ')
+        .toLowerCase()
+        .includes(search.trim().toLowerCase()),
+  );
+  if (order === 'name') visible.sort((a, b) => a.name.localeCompare(b.name, language));
+  const pages = Math.max(1, Math.ceil(visible.length / 12));
+  const currentPage = Math.min(page, pages);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<TemplateRow | undefined>();
-  const [saved, setSaved] = useState<'draft' | 'sync' | 'submit' | null>(null);
+  const [saved, setSaved] = useState<'draft' | 'sync' | 'submit' | 'archive' | 'restore' | null>(
+    null,
+  );
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   async function act(
     url: string,
     body?: unknown,
     method = 'POST',
-    action: 'draft' | 'sync' | 'submit' = 'draft',
+    action: 'draft' | 'sync' | 'submit' | 'archive' | 'restore' = 'draft',
+    onSuccess?: (row: TemplateRow) => void,
   ) {
+    if (lock.current) return false;
+    lock.current = true;
     setBusy(true);
     setError('');
     setSaved(null);
     try {
-      await api(url, { method, body: body ? JSON.stringify(body) : undefined });
+      const result = await api<
+        TemplateRow & { synced?: number; skippedDrafts?: number; moreAvailable?: boolean }
+      >(url, {
+        method,
+        body: body ? JSON.stringify(body) : undefined,
+      });
       await data.reload();
       setSaved(action);
+      if (action === 'sync') setSyncCount(result);
+      onSuccess?.(result);
       return true;
     } catch (e) {
       if (action === 'submit') await data.reload();
@@ -52,22 +112,32 @@ export default function Templates({ params }: { params: { id: string } }) {
       );
       return false;
     } finally {
+      lock.current = false;
       setBusy(false);
     }
   }
-  if (creating || editing) {
+  function closeEditor() {
+    setCreating(false);
+    setEditing(undefined);
+    setCopy(undefined);
+    setError('');
+  }
+  function saveDraft(draft: unknown, review = false) {
+    return act(
+      editing ? path + '/' + editing.id : path,
+      editing ? { revision: editing.revision, draft } : draft,
+      editing ? 'PATCH' : 'POST',
+      'draft',
+      (row) => {
+        closeEditor();
+        if (review) setConfirmation({ row, action: 'submit' });
+      },
+    );
+  }
+  if (creating || editing || copy) {
     return (
       <section className={styles.editor}>
-        <button
-          type="button"
-          className={styles.back}
-          disabled={busy}
-          onClick={() => {
-            setCreating(false);
-            setEditing(undefined);
-            setError('');
-          }}
-        >
+        <button type="button" className={styles.back} disabled={busy} onClick={closeEditor}>
           {t('العودة إلى القوالب', 'Back to templates')}
         </button>
         {error && (
@@ -76,35 +146,36 @@ export default function Templates({ params }: { params: { id: string } }) {
           </p>
         )}
         <TemplateDraftForm
-          key={editing ? editing.id + ':' + editing.revision : 'new'}
-          initial={editing}
+          key={editing ? editing.id + ':' + editing.revision : copy ? 'copy:' + copy.id : 'new'}
+          initial={editing || copy}
           busy={busy}
-          cancel={() => {
-            setCreating(false);
-            setEditing(undefined);
-            setError('');
-          }}
-          save={async (draft) => {
-            const ok = await act(
-              editing ? path + '/' + editing.id : path,
-              editing ? { revision: editing.revision, draft } : draft,
-              editing ? 'PATCH' : 'POST',
-            );
-            if (ok) {
-              setCreating(false);
-              setEditing(undefined);
-            }
-            return ok;
-          }}
+          cancel={closeEditor}
+          uploadMedia={
+            availability.data?.mediaUpload
+              ? async (file, format) => {
+                  const form = new FormData();
+                  form.set('file', file);
+                  const result = await api<{ h: string }>(
+                    path + '/media?format=' + encodeURIComponent(format),
+                    { method: 'POST', body: form },
+                  );
+                  return result.h;
+                }
+              : undefined
+          }
+          save={saveDraft}
+          saveAndReview={metaBlocked ? undefined : (draft) => saveDraft(draft, true)}
         />
       </section>
     );
   }
   return (
     <section className={styles.page}>
-      <Link className={styles.back} href={'/dashboard/channels?manage=' + params.id}>
-        {t('العودة إلى قنوات الاتصال', 'Back to channels')}
-      </Link>
+      {!embedded && (
+        <Link className={styles.back} href={'/dashboard/channels?manage=' + params.id}>
+          {t('العودة إلى قنوات الاتصال', 'Back to channels')}
+        </Link>
+      )}
       <header className={styles.heading}>
         <div className={styles.title}>
           <span aria-hidden="true">
@@ -174,10 +245,30 @@ export default function Templates({ params }: { params: { id: string } }) {
       {saved && (
         <p className="notice" role="status">
           {saved === 'sync'
-            ? t('تمت المزامنة.', 'Templates synced.')
+            ? t(
+                `تمت مزامنة ${syncCount.synced ?? 0} قالب.`,
+                `Synced ${syncCount.synced ?? 0} templates.`,
+              )
             : saved === 'submit'
               ? t('تم تقديم القالب للمراجعة.', 'Template submitted for review.')
-              : t('تم حفظ المسودة.', 'Draft saved.')}
+              : saved === 'archive'
+                ? t('نُقلت المسودة إلى السلة.', 'Draft moved to trash.')
+                : saved === 'restore'
+                  ? t('تمت استعادة المسودة.', 'Draft restored.')
+                  : t('تم حفظ المسودة.', 'Draft saved.')}
+        </p>
+      )}
+      {saved === 'sync' && !!syncCount.skippedDrafts && (
+        <p role="status">
+          {t(
+            'تُركت المسودات المحلية اللي لها نفس أسماء قوالب Meta من غير تعديل.',
+            'Local drafts matching Meta template names were preserved.',
+          )}
+        </p>
+      )}
+      {saved === 'sync' && syncCount.moreAvailable && (
+        <p role="status">
+          {t('وصلت المزامنة للحد الأقصى من الصفحات.', 'The sync reached its page limit.')}
         </p>
       )}
       {data.loading && <p role="status">{t('جارٍ تحميل القوالب…', 'Loading templates…')}</p>}
@@ -186,28 +277,62 @@ export default function Templates({ params }: { params: { id: string } }) {
           {error || data.error}
         </p>
       )}
+      <div className={styles.filters}>
+        <label className="field">
+          {t('بحث القوالب', 'Search templates')}
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
+          />
+        </label>
+        <label className="field">
+          {t('الحالة', 'Status')}
+          <select
+            value={filter}
+            onChange={(event) => {
+              setFilter(event.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="all">{t('كل القوالب', 'All templates')}</option>
+            {[
+              'DRAFT',
+              'PENDING',
+              'APPROVED',
+              'REJECTED',
+              'SUBMITTING',
+              'SUBMISSION_UNKNOWN',
+              'ARCHIVED',
+            ].map((value) => (
+              <option value={value} key={value}>
+                {label(value)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          {t('الترتيب', 'Sort')}
+          <select
+            value={order}
+            onChange={(event) => {
+              setOrder(event.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="recent">{t('الأحدث أولًا', 'Newest first')}</option>
+            <option value="name">{t('حسب الاسم', 'By name')}</option>
+          </select>
+        </label>
+      </div>
       <div className={styles.list}>
-        {data.data.map((x) => (
+        {visible.slice((currentPage - 1) * 12, currentPage * 12).map((x) => (
           <section className={styles.template} key={x.id}>
-            <span className="badge">
-              {(
-                {
-                  DRAFT: t('مسودة', 'Draft'),
-                  PENDING: t('قيد المراجعة', 'Pending review'),
-                  APPROVED: t('معتمد', 'Approved'),
-                  REJECTED: t('مرفوض', 'Rejected'),
-                  SUBMITTING: t(
-                    'قيد التقديم؛ زامن إذا تعطل الطلب',
-                    'Submitting; sync if interrupted',
-                  ),
-                  SUBMISSION_UNKNOWN: t(
-                    'نتيجة غير مؤكدة؛ زامن قبل المتابعة',
-                    'Unknown outcome; sync before continuing',
-                  ),
-                } as Record<string, string>
-              )[x.status] || x.status}
-            </span>
-            {x.error && (
+            <span className="badge">{label(x.status)}</span>
+            {x.error && x.status !== 'REJECTED' && (
               <p className="notice" role="status">
                 {t(
                   'تحتاج نتيجة التقديم إلى المزامنة قبل أي محاولة أخرى.',
@@ -215,6 +340,7 @@ export default function Templates({ params }: { params: { id: string } }) {
                 )}
               </p>
             )}
+            {x.status === 'REJECTED' && x.error && <p role="status">{x.error}</p>}
             {!x.supported && (
               <p className="notice">
                 {t(
@@ -262,6 +388,71 @@ export default function Templates({ params }: { params: { id: string } }) {
                   </span>
                 ))}
             </div>
+            {x.examples.length > 0 && (
+              <details>
+                <summary>{t('أمثلة المتغيرات', 'Variable examples')}</summary>
+                <ol>
+                  {x.examples.map((example, index) => (
+                    <li key={index}>
+                      <bdi>{example}</bdi>
+                    </li>
+                  ))}
+                </ol>
+              </details>
+            )}
+            {x.supported &&
+              x.status !== 'ARCHIVED' &&
+              ['UTILITY', 'MARKETING'].includes(x.category) && (
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy}
+                  onClick={() => {
+                    setSaved(null);
+                    setError('');
+                    setCopy({
+                      ...x,
+                      name: x.name.slice(0, 507) + '_copy',
+                      examples: x.examples.length
+                        ? x.examples
+                        : x.components.find((c) => c.type === 'BODY')?.example?.body_text?.[0] ||
+                          [],
+                    });
+                  }}
+                >
+                  {t('نسخ إلى مسودة', 'Copy to draft')}
+                </button>
+              )}
+            {x.status === 'DRAFT' && (
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={() => {
+                  setError('');
+                  setConfirmation({ row: x, action: 'archive' });
+                }}
+              >
+                {t('نقل إلى السلة', 'Move to trash')}
+              </button>
+            )}
+            {x.status === 'ARCHIVED' && (
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={() =>
+                  void act(
+                    path + '/' + x.id + '/restore',
+                    { revision: x.revision },
+                    'POST',
+                    'restore',
+                  )
+                }
+              >
+                {t('استعادة المسودة', 'Restore draft')}
+              </button>
+            )}
             {x.status === 'DRAFT' && (
               <button
                 className="btn"
@@ -280,7 +471,10 @@ export default function Templates({ params }: { params: { id: string } }) {
               <button
                 className="btn"
                 disabled={busy || metaBlocked}
-                onClick={() => void act(path + '/' + x.id + '/submit', undefined, 'POST', 'submit')}
+                onClick={() => {
+                  setError('');
+                  setConfirmation({ row: x, action: 'submit' });
+                }}
               >
                 {t('تقديم للموافقة لدى Meta', 'Submit for Meta approval')}
               </button>
@@ -288,12 +482,96 @@ export default function Templates({ params }: { params: { id: string } }) {
           </section>
         ))}
       </div>
-      {!data.loading && !data.error && !data.data.length && !creating && (
+      {!data.loading && !data.error && !visible.length && !creating && (
         <div className={styles.empty}>
-          <h2>{t('لا توجد قوالب بعد', 'No templates yet')}</h2>
-          <p>{t('ابدأ بقالب جديد واحفظه كمسودة.', 'Create a template and save it as a draft.')}</p>
+          <h2>{t('لا توجد قوالب مطابقة', 'No matching templates')}</h2>
         </div>
       )}
+      {pages > 1 && (
+        <nav className={styles.actions} aria-label={t('صفحات القوالب', 'Template pages')}>
+          <button
+            className="btn"
+            disabled={currentPage === 1}
+            onClick={() => setPage(currentPage - 1)}
+          >
+            {t('السابق', 'Previous')}
+          </button>
+          <span>
+            {currentPage} / {pages}
+          </span>
+          <button
+            className="btn"
+            disabled={currentPage === pages}
+            onClick={() => setPage(currentPage + 1)}
+          >
+            {t('التالي', 'Next')}
+          </button>
+        </nav>
+      )}
+      <Dialog
+        open={!!confirmation}
+        onClose={() => {
+          if (!busy) setConfirmation(undefined);
+        }}
+        title={
+          confirmation?.action === 'submit'
+            ? t('تأكيد تقديم القالب إلى Meta', 'Confirm submission to Meta')
+            : t('نقل المسودة إلى السلة', 'Move draft to trash')
+        }
+      >
+        {confirmation && (
+          <>
+            <p>
+              <bdi>{confirmation.row.name}</bdi>
+            </p>
+            <p>
+              {confirmation.action === 'submit'
+                ? t(
+                    'سيُرسل محتوى القالب إلى Meta للمراجعة. الإجراء لا يرسل رسالة إلى العملاء.',
+                    'The template content will be sent to Meta for review. This does not send a message to customers.',
+                  )
+                : t(
+                    'تقدر تستعيد المسودة من فلتر «في سلة المسودات».',
+                    'Restore the draft from the draft trash filter.',
+                  )}
+            </p>
+            {error && (
+              <p className="notice error" role="alert">
+                {error}
+              </p>
+            )}
+            <div className={styles.actions}>
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={() => setConfirmation(undefined)}
+              >
+                {t('إلغاء', 'Cancel')}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={busy}
+                onClick={() => {
+                  const { action, row } = confirmation;
+                  void act(
+                    path + '/' + row.id + '/' + action,
+                    action === 'archive' ? { revision: row.revision } : undefined,
+                    'POST',
+                    action,
+                    () => setConfirmation(undefined),
+                  );
+                }}
+              >
+                {confirmation.action === 'submit'
+                  ? t('تأكيد التقديم', 'Confirm submission')
+                  : t('تأكيد النقل', 'Confirm move')}
+              </button>
+            </div>
+          </>
+        )}
+      </Dialog>
     </section>
   );
 }
