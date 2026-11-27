@@ -161,3 +161,24 @@ body { font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif; f
     scroll-padding-block-start:72px;
   }
 }
+
+/* Compact professional automation workspace. */
+.automation-professional{min-width:0;gap:12px}
+.automation-professional .auto-stats{gap:8px}
+.automation-professional .auto-stats>div{padding:12px;border:1px solid var(--line);border-inline-start:3px solid var(--primary);border-radius:12px;background:var(--surface);min-width:0}
+.automation-professional .auto-stats>div:nth-child(2){border-inline-start-color:#15803d}
+.automation-professional .auto-stats>div:nth-child(3){border-inline-start-color:#be123c}
+.automation-professional .auto-stats strong{font-size:24px;color:var(--ink)}
+.automation-professional .auto-tabs,.automation-professional .auto-seg{gap:6px;flex-wrap:wrap;min-width:0}
+.automation-professional .auto-tabs button,.automation-professional .auto-seg button{font-family:inherit;min-height:40px;border-radius:8px}
+.automation-professional .auto-tabs button[aria-selected=true],.automation-professional .auto-seg button[aria-pressed=true]{color:var(--primary-deep);background:var(--primary-soft);border-color:var(--primary)}
+.automation-professional .auto-card{padding:12px;border-color:var(--line);border-radius:12px;box-shadow:0 2px 7px #19233c0b}
+.automation-professional .auto-card.is-on{border-inline-start:3px solid #15803d}
+.automation-professional .auto-switch[aria-checked=true]{background:#15803d}
+.automation-professional .auto-chip{background:var(--primary-soft);color:var(--primary-deep);font-size:12px}
+.automation-professional .btn-primary{background:linear-gradient(160deg,var(--brand-gradient-end,#8071e5),var(--primary,#6050ce));box-shadow:inset 0 1px 0 #ffffff45}
+.automation-professional .card,.automation-professional .form-grid{min-width:0}
+.automation-professional :is(button,input,select,textarea,summary):focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.automation-professional :is(input,select,textarea){max-width:100%;min-width:0}
+.automation-professional .table-wrap{overflow:auto}
+@media(max-width:600px){.automation-professional .auto-stats>div{padding:8px;overflow-wrap:anywhere}.automation-professional .auto-stats strong{font-size:20px}.automation-professional .auto-card-main{flex-wrap:wrap}.automation-professional .auto-tabs button{white-space:normal}.automation-professional fieldset{min-width:0}.automation-professional .form-grid{grid-template-columns:minmax(0,1fr)}}
