@@ -346,7 +346,7 @@ export class KnowledgeService {
       await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,41))', [id]);
       const row = (
         await c.query(
-          'UPDATE knowledge_sources SET archived_at=CASE WHEN $2 THEN COALESCE(archived_at,now()) ELSE NULL END,status=CASE WHEN $2 AND status IN ('pending','processing','blocked','failed') THEN CASE WHEN chunk_count>0 THEN 'ready' ELSE 'canceled' END ELSE status END,updated_at=now() WHERE id=$1 RETURNING ' +
+          "UPDATE knowledge_sources SET archived_at=CASE WHEN $2 THEN COALESCE(archived_at,now()) ELSE NULL END,status=CASE WHEN $2 AND status IN ('pending','processing','blocked','failed') THEN CASE WHEN chunk_count>0 THEN 'ready' ELSE 'canceled' END ELSE status END,updated_at=now() WHERE id=$1 RETURNING " +
             COLS,
           [id, archived],
         )
