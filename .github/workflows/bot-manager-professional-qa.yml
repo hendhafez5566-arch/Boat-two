@@ -37,6 +37,7 @@ jobs:
           BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
           BOAT_QA_BROWSER_SCRIPT: scripts/${{ matrix.script }}.mjs
           BOAT_CHROMIUM: /usr/bin/google-chrome
+          BOAT_CLOUD_REVIEW: ${{ matrix.script == 'qa-flow-version-browser' && 'true' || 'false' }}
         run: python3 scripts/run-connect-browser-qa.py
       - uses: actions/upload-artifact@v4
         if: always()
