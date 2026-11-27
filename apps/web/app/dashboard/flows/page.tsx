@@ -82,6 +82,8 @@ export default function BotManager() {
   }
   const [channelId, setChannelId] = useChannelContext();
   const [section, setSection] = useState('bot_reply');
+  const settingsDirty=useRef(false);
+  const confirmSettingsLeave=()=>!settingsDirty.current||window.confirm(t('توجد تعديلات غير محفوظة في إعدادات البوت. هل تريد تجاهلها؟','Bot settings have unsaved changes. Discard them?'));
   useEffect(() => {
     const read = () => {
       const next = accountSection(window.location.search);
@@ -96,6 +98,7 @@ export default function BotManager() {
     return () => window.removeEventListener('popstate', read);
   }, [searchQuery]);
   const selectSection = (value: string) => {
+    if(value!==section&&!confirmSettingsLeave())return;
     if (['autoresponder', 'integrations'].includes(value)) {
       window.location.assign('/dashboard/settings?tab=integrations&action=emailauto-tab');
       return;
@@ -369,7 +372,7 @@ export default function BotManager() {
               className={styles.account}
               key={c.id}
               aria-pressed={channelId === c.id}
-              onClick={() => setChannelId(c.id)}
+              onClick={() => {if(c.id!==channelId&&confirmSettingsLeave())setChannelId(c.id);}}
             >
               <span className={styles.avatar} data-channel={c.type}>
                 <ChannelLogo id={c.type} />
@@ -485,7 +488,7 @@ export default function BotManager() {
           {!isFlowList && canManage && (
             <fieldset disabled={!canManage} className={styles.panelSurface}>
               {section === 'settings' ? (
-                <ManagerSettings key={channelId} channelId={channelId} canManage={canManage} />
+                <ManagerSettings key={channelId} channelId={channelId} canManage={canManage} onDirtyChange={value=>{settingsDirty.current=value;}} />
               ) : section === 'message_templates' && selected?.type === 'whatsapp' ? (
                 <ManagerTemplates key={channelId} channelId={channelId} />
               ) : section === 'action_buttons' ? (
