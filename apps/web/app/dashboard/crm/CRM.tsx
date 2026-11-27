@@ -1272,7 +1272,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                                 <NavIcon name="user" />
                                 <span>{t('فتح الملف', 'Open profile')}</span>
                               </button>
-                              <details className={design.contactActions}><DisclosureSummary className="btn"><NavIcon name="moreVertical"/>{t('المزيد','More')}</DisclosureSummary><div>
+                              <details data-action-menu className={design.contactActions}><DisclosureSummary className="btn"><NavIcon name="moreVertical"/>{t('المزيد','More')}</DisclosureSummary><div>
                               <button
                                 type="button"
                                 className="btn"

@@ -1,4 +1,5 @@
 'use client';
+import { useTransientNotice } from '../product/useTransientNotice';
 import product from './crm-product.module.css';
 import { DisclosureSummary } from '../product/DisclosureSummary';
 
@@ -341,7 +342,7 @@ export default function SubscriberProfile({
                 {t('إضافة متابعة', 'Add follow-up')}
               </button>
             )}
-{fullPage?<details className={design.profileActionMenu}><summary aria-label={t('المزيد من الإجراءات','More actions')}><NavIcon name="moreVertical"/><span>{t('المزيد','More')}</span></summary><div>            {tab !== 'deals' && (
+{fullPage?<details data-action-menu className={design.profileActionMenu}><summary aria-label={t('المزيد من الإجراءات','More actions')}><NavIcon name="moreVertical"/><span>{t('المزيد','More')}</span></summary><div>            {tab !== 'deals' && (
               <button
                 onClick={() => {
                   if (setTab('deals')) setQuickCreate('deals');

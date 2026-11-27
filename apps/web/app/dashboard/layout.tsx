@@ -107,6 +107,16 @@ function Meter({
 }
 function DashboardShell({ children }: { children: ReactNode }) {
   const path = usePathname();
+  // Close only floating action menus; leave normal accordion sections untouched.
+  useEffect(()=>{
+    const selector='details[data-action-menu][open],details.col-picker[open],details.flow-more[open]';
+    const close=(except?:Element)=>document.querySelectorAll<HTMLDetailsElement>(selector).forEach(menu=>{if(menu!==except)menu.open=false;});
+    const pointer=(event:PointerEvent)=>{const target=event.target;if(target instanceof Element)close(target.closest(selector)||undefined);else close();};
+    const activate=(event:MouseEvent)=>{const target=event.target;if(!(target instanceof Element))return;const menu=target.closest<HTMLDetailsElement>(selector);if(menu&&target.closest('a,button')&&!target.closest('summary'))menu.open=false;};
+    const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'){const active=document.activeElement?.closest<HTMLDetailsElement>(selector);close();active?.querySelector('summary')?.focus();}};
+    close();document.addEventListener('pointerdown',pointer);document.addEventListener('click',activate);document.addEventListener('keydown',escape);
+    return()=>{document.removeEventListener('pointerdown',pointer);document.removeEventListener('click',activate);document.removeEventListener('keydown',escape);};
+  },[path]);
   const hostBrand = useBrand();
   const { t, toggle } = useLocale();
   const [name, setName] = useState('ELHAFEZ BOAT');
