@@ -414,7 +414,7 @@ export default function Agents() {
         <summary>{t('ربط المساعد بقناة أو سيناريو', 'Connect an assistant to a channel or flow')}</summary>
         <div className={styles.advancedBody}>
           <p className={styles.helper}>{t('اختر المساعد والقناة أو التدفق اللي يشتغل فيه. تعيين المساعد مش بيبدأ الرد المدفوع إلا بعد تفعيل الخدمة وتجربتها.', 'Choose the assistant and its channel or flow. Assigning it does not enable paid generation until the service is configured and tested.')}</p>
-          <AgentRouting />
+          <AgentRouting agentChoices={data.data.agents} />
         </div>
       </details>
       <details className={styles.advanced}>
