@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect,useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 export type Source = {
@@ -35,11 +35,12 @@ export function parseFaq(content: string) {
 export function KnowledgeSourceEditor({
   id,
   onClose,
-  onSaved,
+  onSaved,onDraftState,
 }: {
   id: string;
   onClose: () => void;
   onSaved: () => Promise<void>;
+  onDraftState?:(dirty:boolean,busy:boolean)=>void;
 }) {
   const { t } = useLocale();
   const [file, setFile] = useState<File | null>(null),
@@ -54,6 +55,14 @@ export function KnowledgeSourceEditor({
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState('');
+  const lock=useRef(false);
+  const [snapshot,setSnapshot]=useState('');
+  const [loadError,setLoadError]=useState(false);
+  const fingerprint=JSON.stringify([title,content,url,faq]);
+  const dirty=!!source&&(snapshot!==fingerprint||!!file);
+  const canLeave=()=>!lock.current&&(!dirty||window.confirm(t('تجاهل التعديلات غير المحفوظة؟','Discard unsaved changes?')));
+  useEffect(()=>{onDraftState?.(dirty,busy);},[dirty,busy,onDraftState]);
+  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4000);return()=>clearTimeout(timer);},[notice]);
   function fill(value: { title: string; content?: string | null; source_ref: string | null }) {
     setTitle(value.title);
     setContent(value.content ?? '');
@@ -65,7 +74,8 @@ export function KnowledgeSourceEditor({
       '/ai/knowledge/' + id + '/edit',
     );
     setExtractions(await api<Extraction[]>('/ai/knowledge/' + id + '/extractions'));
-    setFile(null);
+    setFile(null);setLoadError(false);setExtractedPreview('');
+    setSnapshot(JSON.stringify([result.source.title,result.source.content??'',result.source.source_ref??'',parseFaq(result.source.content??'')]));
     setSource(result.source);
     setHistory(result.history);
     fill(result.source);
@@ -74,10 +84,11 @@ export function KnowledgeSourceEditor({
     setSource(null);
     setError('');
     setExtractedPreview('');
-    void load().catch((e) => setError(e.message));
+    void load().catch((e) => {setLoadError(true);setError(e.message);});
   }, [id]);
   async function restore(revision: number) {
-    setBusy(true);
+    if(!canLeave())return;
+    lock.current=true;setBusy(true);
     setError('');
     try {
       const result = await api<{
@@ -95,13 +106,15 @@ export function KnowledgeSourceEditor({
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      lock.current=false;setBusy(false);
     }
   }
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!source) return;
-    setBusy(true);
+    if(!source||lock.current||!dirty||source.archived_at||loadError)return;
+    if(!title.trim()||(source.type==='text'&&!content.trim())||(source.type==='faq'&&(!faq.length||faq.some(x=>!x.question.trim()||!x.answer.trim())))){setError(t('أكمل الحقول المطلوبة.','Complete required fields.'));return;}
+    if(source.type==='file'&&(!file||!file.size||file.size>5*1024*1024||!/[.](txt|md|csv|pdf|docx)$/i.test(file.name))){setError(t('اختر ملفًا مدعومًا حتى 5MB.','Choose a supported file up to 5MB.'));return;}
+    lock.current=true;setBusy(true);
     setError('');
     try {
       if (source.type === 'file') {
@@ -125,7 +138,8 @@ export function KnowledgeSourceEditor({
                 : { url }),
           }),
         });
-      await load();
+      setSnapshot(fingerprint);setFile(null);
+      try{await load();}catch(e){setLoadError(true);setError(t('تم الحفظ لكن تعذر تحديث الإصدار. أعد تحميله قبل أي تعديل.','Saved, but revision refresh failed. Reload before editing again.')+' '+(e as Error).message);return;}
       await onSaved();
       setNotice(
         t('حُفظ الإصدار وأضيفت مهمة فهرسة جديدة.', 'Revision saved and a new indexing job queued.'),
@@ -133,25 +147,26 @@ export function KnowledgeSourceEditor({
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      lock.current=false;setBusy(false);
     }
   }
   return (
-    <section className="card stack" aria-label={t('تحرير مصدر المعرفة', 'Edit knowledge source')}>
+    <section className="card stack knowledge-editor" aria-busy={busy} aria-label={t('تحرير مصدر المعرفة', 'Edit knowledge source')}>
       <div className="page-heading">
         <h2>{t('تحرير المصدر والإصدارات', 'Source editor and history')}</h2>
-        <button className="btn" onClick={onClose}>
+        <button className="btn" disabled={busy} onClick={()=>{if(canLeave())onClose();}}>
           {t('إغلاق', 'Close')}
         </button>
       </div>
       {error && (
         <p role="alert" className="notice error">
-          {error}
+          {error} {loadError&&<button type="button" className="btn" disabled={busy} onClick={()=>{if(!canLeave())return;lock.current=true;setBusy(true);setError('');void load().catch(e=>{setLoadError(true);setError(e.message);}).finally(()=>{lock.current=false;setBusy(false);});}}>{t('إعادة تحميل المصدر','Reload source')}</button>}
         </p>
       )}
-      {notice && <p className="notice">{notice}</p>}
+      {notice && <p className="notice" role="status">{notice}</p>}
+      {dirty&&<p className="notice" role="status">{t('تغييرات غير محفوظة','Unsaved changes')}</p>}
       {!source ? (
-        <p role="status">{t('جارٍ تحميل المصدر…', 'Loading source…')}</p>
+        !loadError&&<p role="status">{t('جارٍ تحميل المصدر…', 'Loading source…')}</p>
       ) : (
         <>
           <p className="muted">
@@ -162,6 +177,7 @@ export function KnowledgeSourceEditor({
             )}
           </p>
           <form className="stack" onSubmit={save}>
+            <fieldset className="knowledge-fields" disabled={busy||!!source.archived_at||loadError}>
             <label className="field">
               {t('العنوان', 'Title')}
               <input
@@ -260,7 +276,7 @@ export function KnowledgeSourceEditor({
                 <label>
                   {t('الملف البديل', 'Replacement file')}
                   <input
-                    type="file"
+                    key={source.revision} type="file"
                     accept=".txt,.md,.csv,.pdf,.docx"
                     required
                     onChange={(e) => setFile(e.target.files?.[0] ?? null)}
@@ -268,9 +284,10 @@ export function KnowledgeSourceEditor({
                 </label>
               </>
             )}
-            <button className="btn btn-primary" disabled={busy || !!source.archived_at}>
+            <button className="btn btn-primary" disabled={busy||!!source.archived_at||!dirty||loadError}>
               {t('حفظ إصدار وإعادة الفهرسة', 'Save revision and reindex')}
             </button>
+            </fieldset>
           </form>
           {extractions.length > 0 && (
             <section className="stack">
@@ -283,9 +300,9 @@ export function KnowledgeSourceEditor({
                   </span>
                   <button
                     className="btn"
-                    disabled={busy}
+                    disabled={busy||!!row.purged_at}
                     onClick={async () => {
-                      setBusy(true);
+                      if(lock.current)return;lock.current=true;setExtractedPreview('');setBusy(true);
                       setError('');
                       try {
                         const snapshot = await api<{ content: string }>(
@@ -302,7 +319,7 @@ export function KnowledgeSourceEditor({
                       } catch (e) {
                         setError((e as Error).message);
                       } finally {
-                        setBusy(false);
+                        lock.current=false;setBusy(false);
                       }
                     }}
                   >
@@ -334,7 +351,7 @@ export function KnowledgeSourceEditor({
                 </span>
                 <button
                   className="btn"
-                  disabled={busy || source.type === 'file'}
+                  disabled={busy||source.type==='file'||!!source.archived_at||loadError}
                   onClick={() => void restore(row.revision)}
                 >
                   {t('تحميل للمراجعة', 'Load for review')}

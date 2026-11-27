@@ -3,57 +3,65 @@ import { WorkspaceHeading } from '../product/ProductUI';
 import Link from 'next/link';
 import styles from './ai-workspace.module.css';
 import { KnowledgeRetention } from '../business/KnowledgeRetention';
-import { useEffect, useState } from 'react';
+import { useEffect,useRef, useState } from 'react';
 import { KnowledgeJobs } from '../business/KnowledgeJobs';
 import { KnowledgeSourceEditor, Source } from '../business/KnowledgeSourceEditor';
+import { useData } from '../business/useData';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 export default function Knowledge() {
   const { t, language } = useLocale();
   const displayNumber = new Intl.NumberFormat(language === 'ar' ? 'ar-EG' : 'en');
-  const [items, setItems] = useState<Source[]>([]),
-    [tab, setTab] = useState<'text' | 'faq' | 'url' | 'file'>('text'),
+  const [tab, setTab] = useState<'text' | 'faq' | 'url' | 'file'>('text'),
     [faq, setFaq] = useState([{ question: '', answer: '' }]),
     [error, setError] = useState(''),
     [feedback, setFeedback] = useState(''),
     [busy, setBusy] = useState(false),
-    [loading, setLoading] = useState(true),
-    [role, setRole] = useState(''),
+
     [editing, setEditing] = useState<string | null>(null),
     [showArchived, setShowArchived] = useState(false),
     [query, setQuery] = useState(''),
     [createOpen, setCreateOpen] = useState(false);
   const [sourceStatus,setSourceStatus]=useState('all');
-  const canManage = role === 'owner' || role === 'admin';
-  const currentSources = items.filter((item) => !item.archived_at);
-  const readySources = currentSources.filter((item) => item.status === 'ready');
-  const processingSources = currentSources.filter((item) => ['pending', 'processing', 'blocked'].includes(item.status));
+  const [page,setPage]=useState(1),[sourceType,setSourceType]=useState('');
+  const path='/ai/knowledge/index?'+new URLSearchParams({q:query,status:sourceStatus,archived:String(showArchived),page:String(page),limit:'12',...(sourceType?{type:sourceType}:{})});
+  const index=useData<{items:Source[];total:number;summary:{total:number;ready:number;processing:number;running:number}}>(path,{items:[],total:0,summary:{total:0,ready:0,processing:0,running:0}});
+  const workspace=useData<{role:string}>('/workspace',{role:''});
+  const canManage=workspace.data.role==='owner'||workspace.data.role==='admin';
+  const ready=index.loadedPath===path&&!index.error;
+  const loading=!ready&&!index.error;
+  const items=ready?index.data.items:[];
+  const pages=Math.max(1,Math.ceil(index.data.total/12));
+  const lock=useRef(false),editorState=useRef({dirty:false,busy:false});
+  const [createDirty,setCreateDirty]=useState(false);
+  const [menu,setMenu]=useState<string|null>(null);
+  const formRef=useRef<HTMLFormElement>(null);
+  const canLeave=()=>!lock.current&&!editorState.current.busy&&(!(createDirty||editorState.current.dirty)||window.confirm(t('تجاهل تغييرات المعرفة غير المحفوظة؟','Discard unsaved knowledge changes?')));
+  useEffect(()=>{setPage(1);setMenu(null);},[query,sourceStatus,sourceType,showArchived]);
+  useEffect(()=>{if(ready&&page>pages)setPage(pages);},[ready,page,pages]);
+  useEffect(()=>{if(!feedback)return;const timer=setTimeout(()=>setFeedback(''),4000);return()=>clearTimeout(timer);},[feedback]);
+  useEffect(()=>{const close=(e:MouseEvent)=>{if(!(e.target as Element)?.closest?.('[data-source-menu]'))setMenu(null);};const key=(e:KeyboardEvent)=>{if(e.key==='Escape')setMenu(null);};document.addEventListener('click',close);document.addEventListener('keydown',key);return()=>{document.removeEventListener('click',close);document.removeEventListener('keydown',key);};},[]);
+  useEffect(()=>{const unload=(e:BeforeUnloadEvent)=>{if(createDirty||lock.current||editorState.current.dirty||editorState.current.busy){e.preventDefault();e.returnValue='';}};const click=(e:MouseEvent)=>{if(e.button!==0||e.ctrlKey||e.metaKey||e.altKey||e.shiftKey)return;const a=(e.target as Element)?.closest?.('a[href]') as HTMLAnchorElement|null;if(!a||a.download||a.target==='_blank'||a.href===location.href)return;if(!canLeave()){e.preventDefault();e.stopPropagation();}};window.addEventListener('beforeunload',unload);document.addEventListener('click',click,true);return()=>{window.removeEventListener('beforeunload',unload);document.removeEventListener('click',click,true);};},[createDirty,t]);
+  function switchTab(type:typeof tab){if(type===tab)return;if(!canLeave())return;formRef.current?.reset();setFaq([{question:'',answer:''}]);setCreateDirty(false);setTab(type);}
+  function openEditor(id:string){if(editing===id)return;if(!canLeave())return;formRef.current?.reset();setFaq([{question:'',answer:''}]);setCreateDirty(false);setCreateOpen(false);editorState.current={dirty:false,busy:false};setEditing(id);}
   function openAddSource(type?: typeof tab) {
-    if (type) setTab(type);
+    if(editing){if(!canLeave())return;editorState.current={dirty:false,busy:false};setEditing(null);}
+    if(type&&type!==tab){if(!canLeave())return;formRef.current?.reset();setFaq([{question:'',answer:''}]);setCreateDirty(false);setTab(type);}
     setCreateOpen(true);
     window.setTimeout(() => document.getElementById('knowledge-editor')?.scrollIntoView({
       behavior: 'smooth', block: 'start',
     }), 0);
   }
-  async function load() {
-    setItems(await api<Source[]>('/ai/knowledge'));
-  }
-  useEffect(() => {
-    Promise.all([load(), api<{ role: string }>('/workspace').then((w) => setRole(w.role))])
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
-  useEffect(() => {
-    if (!items.some((i) => !i.archived_at && ['pending', 'processing'].includes(i.status))) return;
-    const timer = setTimeout(() => void load().catch((e) => setError(e.message)), 3000);
-    return () => clearTimeout(timer);
-  }, [items]);
+  async function load(){await index.reload();}
+  useEffect(()=>{if(!index.data.summary.running)return;const timer=setTimeout(()=>void index.reload(),3000);return()=>clearTimeout(timer);},[index.data,path]);
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget,
       f = new FormData(form);
-    if (busy) return;
-    setBusy(true);
+    if(lock.current||!canManage)return;
+    if(tab==='file'){const file=f.get('file');if(!(file instanceof File)||!file.size||file.size>5*1024*1024||!/[.](txt|md|csv|pdf|docx)$/i.test(file.name)){setError(t('اختر ملفًا مدعومًا حتى 5MB.','Choose a supported file up to 5MB.'));return;}}
+    if(tab==='faq'&&faq.some(x=>!x.question.trim()||!x.answer.trim())){setError(t('أكمل كل الأسئلة والإجابات.','Complete every question and answer.'));return;}
+    lock.current=true;setBusy(true);
     setError('');
     setFeedback('');
     try {
@@ -69,7 +77,7 @@ export default function Knowledge() {
                 : { type: tab, url: f.get('url'), title: f.get('title') || undefined },
           ),
         });
-      form.reset();
+      form.reset();setCreateDirty(false);
       setFaq([{ question: '', answer: '' }]);
       setFeedback(t(
         'تم حفظ المصدر. راجع بطاقته لمعرفة حالة الفهرسة.',
@@ -79,21 +87,22 @@ export default function Knowledge() {
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      lock.current=false;setBusy(false);
     }
   }
   async function act(path: string, method = 'POST', body?: unknown) {
-    if (busy) return;
-    setBusy(true);
+    if(lock.current||!canManage||editorState.current.busy)return;
+    if(editing&&path.startsWith('/ai/knowledge/'+editing)&&(method==='DELETE'||path.endsWith('/archive')||path.endsWith('/reindex'))){if(!canLeave())return;setEditing(null);editorState.current={dirty:false,busy:false};}
+    lock.current=true;setBusy(true);setMenu(null);
     setError('');
     setFeedback('');
     try {
       await api(path, { method, body: body ? JSON.stringify(body) : undefined });
-      await load();
+      await load();setFeedback(t('تم تنفيذ الإجراء.','Action completed.'));
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      lock.current=false;setBusy(false);
     }
   }
   const statuses: Record<string, string> = {
@@ -110,11 +119,9 @@ export default function Knowledge() {
     url: t('صفحة ويب', 'Web page'),
     file: t('ملف', 'File'),
   };
-  const filtered = items.filter(
-    (i) => (showArchived || !i.archived_at) && (sourceStatus==='all'||(sourceStatus==='processing'?['pending','processing','blocked'].includes(i.status):i.status===sourceStatus)) && i.title.toLowerCase().includes(query.toLowerCase().trim()),
-  );
+  const filtered=items;
   return (
-    <section className="stack">
+    <section className={"stack "+styles.knowledgeProfessional} aria-busy={busy}>
       <div className={styles.intro}>
         <div className={styles.introText}>
           <WorkspaceHeading
@@ -155,9 +162,9 @@ export default function Knowledge() {
         </div>
       </details>
       <div className={styles.stats} aria-label={t('حالة المعلومات', 'Knowledge summary')}>
-        <div><strong>{loading ? '…' : error && !items.length ? '—' : displayNumber.format(currentSources.length)}</strong><span>{t('إجمالي المصادر', 'Total sources')}</span></div>
-        <div><strong>{loading ? '…' : error && !items.length ? '—' : displayNumber.format(readySources.length)}</strong><span>{t('جاهزة للاستخدام', 'Ready to use')}</span></div>
-        <div><strong>{loading ? '…' : error && !items.length ? '—' : displayNumber.format(processingSources.length)}</strong><span>{t('تحت المعالجة أو الانتظار', 'Pending or processing')}</span></div>
+        <div><strong>{ready?displayNumber.format(index.data.summary.total):loading?'…':'—'}</strong><span>{t('إجمالي المصادر', 'Total sources')}</span></div>
+        <div><strong>{ready?displayNumber.format(index.data.summary.ready):loading?'…':'—'}</strong><span>{t('جاهزة للاستخدام', 'Ready to use')}</span></div>
+        <div><strong>{ready?displayNumber.format(index.data.summary.processing):loading?'…':'—'}</strong><span>{t('تحت المعالجة أو الانتظار', 'Pending or processing')}</span></div>
       </div>
       <p className={styles.safetyNote} role="note">
         {t(
@@ -165,9 +172,9 @@ export default function Knowledge() {
           'To use a ready source, select it in the assistant settings and enable AI generation.',
         )}
       </p>
-      {error && (
+      {(error||index.error||workspace.error) && (
         <p role="alert" className="notice error">
-          {error}
+          {error||index.error||workspace.error} {(index.error||workspace.error)&&<button className="btn" onClick={()=>void Promise.all([index.reload(),workspace.reload()])}>{t('إعادة المحاولة','Retry')}</button>}
         </p>
       )}
       {feedback && <p role="status" className="notice">{feedback}</p>}
@@ -180,7 +187,8 @@ export default function Knowledge() {
             onToggle={(event) => setCreateOpen(event.currentTarget.open)}
           >
             <summary>{t('أضف معلومات جديدة للمساعد', 'Add a knowledge source')}</summary>
-            <form className="stack" onSubmit={submit}>
+            <form ref={formRef} className="stack" onSubmit={submit} onChange={()=>setCreateDirty(true)}>
+              <fieldset disabled={busy} className="knowledge-fields">
               <div className="field">
                 <strong>{t('اختار طريقة إضافة المعلومة', 'Choose how to add knowledge')}</strong>
                 <div className={styles.typePicker} role="group" aria-label={t('نوع المصدر', 'Source type')}>
@@ -190,7 +198,7 @@ export default function Knowledge() {
                       type="button"
                       className={tab === key ? styles.typeSelected : styles.typeOption}
                       aria-pressed={tab === key}
-                      onClick={() => setTab(key as typeof tab)}
+                      onClick={() => switchTab(key as typeof tab)}
                     >
                       {label}
                     </button>
@@ -272,7 +280,7 @@ export default function Knowledge() {
                         className="btn"
                         type="button"
                         disabled={faq.length <= 1}
-                        onClick={() => setFaq(faq.filter((_, i) => i !== index))}
+                        onClick={() => {setFaq(faq.filter((_, i) => i !== index));setCreateDirty(true);}}
                       >
                         {t('إزالة السؤال', 'Remove question')}
                       </button>
@@ -282,7 +290,7 @@ export default function Knowledge() {
                     className="btn"
                     type="button"
                     disabled={faq.length >= 300}
-                    onClick={() => setFaq([...faq, { question: '', answer: '' }])}
+                    onClick={() => {setFaq([...faq, { question: '', answer: '' }]);setCreateDirty(true);}}
                   >
                     {t('إضافة سؤال', 'Add question')}
                   </button>
@@ -293,6 +301,7 @@ export default function Knowledge() {
                   ? t('جارٍ الحفظ…', 'Saving…')
                   : t('حفظ المصدر', 'Save source')}
               </button>
+              </fieldset>
             </form>
           </details>
         </>
@@ -304,12 +313,14 @@ export default function Knowledge() {
         </div>
         <div className="form-actions">
           <input
-            value={query}
+            type="search" maxLength={200} value={query}
             onChange={(e) => setQuery(e.target.value)}
             aria-label={t('بحث في المصادر', 'Search sources')}
             placeholder={t('ابحث بالعنوان', 'Search by title')}
           />
           <select value={sourceStatus} onChange={e=>setSourceStatus(e.target.value)} aria-label={t('حالة المصدر','Source status')}><option value="all">{t('كل الحالات','All statuses')}</option><option value="ready">{t('جاهز','Ready')}</option><option value="processing">{t('قيد المعالجة','Processing')}</option><option value="failed">{t('فشل','Failed')}</option></select>
+          <select aria-label={t('نوع المصدر','Source type')} value={sourceType} onChange={e=>setSourceType(e.target.value)}><option value="">{t('كل الأنواع','All types')}</option>{Object.entries(types).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select>
+          <button className="btn" onClick={()=>{setQuery('');setSourceStatus('all');setSourceType('');setShowArchived(false);}}>{t('مسح التصفية','Clear filters')}</button><button className="btn" disabled={index.loading||busy} onClick={()=>void load()}>{t('تحديث','Refresh')}</button>
           <label>
             <input
               type="checkbox"
@@ -319,11 +330,12 @@ export default function Knowledge() {
             {t('إظهار المؤرشف', 'Include archived')}
           </label>
         </div>
+        {ready&&index.loading&&<small role="status">{t('جارٍ تحديث المصادر…','Refreshing sources…')}</small>}
         {loading && <p role="status">{t('جارٍ تحميل المصادر…', 'Loading sources…')}</p>}
-        {!loading && !filtered.length && !error && (
-          query.trim()||sourceStatus!=='all' ? <div className={styles.empty}>
+        {ready && !filtered.length && !error && (
+          query.trim()||sourceStatus!=='all'||sourceType||showArchived ? <div className={styles.empty}>
             <p>{t('مافيش مصادر مطابقة للبحث.', 'No matching sources.')}</p>
-            <button type="button" className="btn" onClick={() => {setQuery('');setSourceStatus('all');}}>{t('مسح التصفية', 'Clear filters')}</button>
+            
           </div> : <div className={styles.empty}>
             <strong>{t('لسه مفيش معلومات مضافة', 'No knowledge added yet')}</strong>
             <p>{t('ابدأ بإضافة الأسئلة الشائعة أو معلومات الخدمة عشان المساعد يلاقي إجابات موثوقة.', 'Add FAQs or service details so your assistant can find reliable answers.')}</p>
@@ -345,18 +357,17 @@ export default function Knowledge() {
               {source.error && <p className="notice error" role="alert">{source.error}</p>}
               {canManage && (
                 <div className={styles.sourceActions}>
-                  <button type="button" className="btn" disabled={busy} onClick={() => setEditing(source.id)}>
+                  <button type="button" className="btn" disabled={busy} onClick={() => openEditor(source.id)}>
                     {t('تعديل المعلومات', 'Edit source')}
                   </button>
-                  <details className={styles.sourceMore}>
-                    <summary>{t('المزيد من الخيارات', 'More options')}</summary>
-                    <div className={styles.sourceMoreActions}>
+                  <div className={styles.sourceMore} data-source-menu><button className="btn" type="button" aria-expanded={menu===source.id} onClick={()=>setMenu(v=>v===source.id?null:source.id)}>{t('المزيد من الخيارات', 'More options')}</button>
+                    {menu===source.id&&<div className={styles.sourceMoreActions}>
                       <button type="button" className="btn" disabled={busy || !!source.archived_at}
                         onClick={() => void act('/ai/knowledge/' + source.id + '/reindex')}>
                         {t('إعادة الفهرسة', 'Reindex')}
                       </button>
                       <button type="button" className="btn" disabled={busy}
-                        onClick={() => void act('/ai/knowledge/' + source.id + '/archive', 'PATCH', { archived: !source.archived_at })}>
+                        onClick={() => {if(window.confirm(source.archived_at?t('استعادة المصدر؟','Restore source?'):t('أرشفة المصدر تستبعده من إجابات المساعد. متابعة؟','Archiving excludes this source from assistant answers. Continue?')))void act('/ai/knowledge/' + source.id + '/archive', 'PATCH', { archived: !source.archived_at });}}>
                         {source.archived_at ? t('استعادة', 'Restore') : t('أرشفة', 'Archive')}
                       </button>
                       <button type="button" className="btn" disabled={busy}
@@ -366,13 +377,14 @@ export default function Knowledge() {
                         }}>
                         {t('حذف نهائي', 'Delete permanently')}
                       </button>
-                    </div>
-                  </details>
+                    </div>}
+                  </div>
                 </div>
               )}
             </article>
           ))}
         </div>
+        {ready&&index.data.total>0&&<div className="form-actions"><span>{index.data.total} · {page}/{pages}</span><button className="btn" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>{t('السابق','Previous')}</button><button className="btn" disabled={page>=pages} onClick={()=>setPage(p=>p+1)}>{t('التالي','Next')}</button></div>}
       </section>
       <details className={styles.advanced}>
         <summary>{t('الإدارة المتقدمة: معالجة المصادر والاحتفاظ بالبيانات', 'Advanced: processing and data retention')}</summary>
@@ -383,7 +395,7 @@ export default function Knowledge() {
         </div>
       </details>
       {editing && canManage && (
-        <KnowledgeSourceEditor id={editing} onClose={() => setEditing(null)} onSaved={load} />
+        <KnowledgeSourceEditor key={editing} id={editing} onClose={() => {editorState.current={dirty:false,busy:false};setEditing(null);}} onSaved={load} onDraftState={(dirty,busy)=>{editorState.current={dirty,busy};}} />
       )}
     </section>
   );
