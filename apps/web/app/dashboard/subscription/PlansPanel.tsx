@@ -4,6 +4,7 @@ import styles from './subscription.module.css';
 import { api } from '../../../lib/api';
 import { Dialog } from '../../../components/product/ProductUI';
 import { useLocale } from '../../../components/product/locale';
+import { NavIcon } from '../../../components/product/NavIcon';
 import {
   billingDocument,
   billingMoney,
@@ -67,6 +68,8 @@ export default function PlansPanel({
           {t('الاشتراك المدفوع غير متاح حاليًا.', 'Paid subscriptions are currently unavailable.')}
         </p>
       )}
+      {!loading&&!requestError&&!plans.length&&<p role="status">{t('لا توجد باقات متاحة حاليًا.','No plans available.')}</p>}
+      {role&&role!=='owner'&&<p className={styles.muted}>{t('مالك مساحة العمل فقط يمكنه تغيير الباقة.','Only the workspace owner can change the plan.')}</p>}
       <div className={styles.plans}>
         {plans.map((p) => (
           <section className={styles.plan} data-current={currentPlan === p.code} key={p.code}>
@@ -115,7 +118,7 @@ export default function PlansPanel({
                 )
                   .filter(([key]) => p.features?.[key])
                   .map(([key, ar, en]) => (
-                    <li key={key}>{t(ar, en)}</li>
+                    <li key={key}><NavIcon name="circleCheck"/>{t(ar, en)}</li>
                   ))}
               </ul>
             )}
@@ -123,7 +126,7 @@ export default function PlansPanel({
               <button
                 className="btn btn-primary"
                 disabled={
-                  busy ||
+                  busy || loading || !!requestError ||
                   role !== 'owner' ||
                   !status?.configured ||
                   !p.price_cents ||
@@ -134,13 +137,13 @@ export default function PlansPanel({
                   setSelected(p);
                 }}
               >
-                {linked ? t('إدارة تغيير الباقة', 'Manage plan change') : t('اشتراك', 'Subscribe')}
+                <NavIcon name="upgrade"/>{linked ? t('إدارة تغيير الباقة', 'Manage plan change') : t('اشتراك', 'Subscribe')}
               </button>
             )}
           </section>
         ))}
       </div>
-      <Dialog
+      <Dialog className={styles.reviewDialog}
         open={!!selected}
         onClose={() => {
           if (!busy) setSelected(null);
@@ -187,7 +190,7 @@ export default function PlansPanel({
             <button
               className="btn btn-primary"
               type="button"
-              disabled={busy}
+              disabled={busy||loading||!!requestError||role!=='owner'||!status?.configured||Boolean(linked&&!status.portalAvailable)}
               onClick={() =>
                 void pay(
                   linked ? '/billing/portal' : '/billing/checkout',
@@ -195,7 +198,7 @@ export default function PlansPanel({
                 )
               }
             >
-              {t('المتابعة إلى بوابة الدفع', 'Continue to billing provider')}
+              <NavIcon name="billing"/>{busy?t('جارٍ فتح البوابة…','Opening portal…'):t('المتابعة إلى بوابة الدفع', 'Continue to billing provider')}
             </button>
           </div>
         )}

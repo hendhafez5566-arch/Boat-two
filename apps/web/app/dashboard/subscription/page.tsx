@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { useTransientNotice } from '../../../components/product/useTransientNotice';
 import { useSearchParams } from 'next/navigation';
 import { api } from '../../../lib/api';
 import PlansPanel from './PlansPanel';
@@ -107,7 +108,11 @@ function SubscriptionContent() {
   const [restoreResult, setRestoreResult] = useState<{ count?: number; error?: boolean } | null>(
     null,
   );
+  const restoreLock=useRef(false);
+  useTransientNotice(restoreResult?.count?String(restoreResult.count):'',()=>setRestoreResult(null));
   async function restoreInbound() {
+    if(restoreLock.current)return;
+    restoreLock.current=true;
     setRestoring(true);
     setRestoreResult(null);
     try {
@@ -118,6 +123,7 @@ function SubscriptionContent() {
     } catch {
       setRestoreResult({ error: true });
     } finally {
+      restoreLock.current=false;
       setRestoring(false);
     }
   }
@@ -136,7 +142,7 @@ function SubscriptionContent() {
   useEffect(() => {
     if (usage?.plan.plan_code) void reloadBilling();
   }, [usage?.plan.plan_code, usage?.plan.status, usage?.plan.current_period_end, reloadBilling]);
-  const plan = plans.data.find((item) => item.code === usage?.plan.plan_code);
+  const plan = !plans.error&&!plans.loading?plans.data.find((item) => item.code === usage?.plan.plan_code):undefined;
   const n = new Intl.NumberFormat(language === 'ar' ? 'ar-EG' : 'en-GB');
   const date = (value: string | null | undefined) =>
     value ? billingDate(value, language, 'UTC') : '—';
@@ -144,7 +150,7 @@ function SubscriptionContent() {
     const value = usage?.plan.limits[key];
     return value === -1 ? t('غير محدود', 'Unlimited') : value == null ? '—' : n.format(value);
   };
-  const subscription = billing.data?.subscription;
+  const subscription = !billing.error&&!billing.loading?billing.data?.subscription:undefined;
   const renewal =
     subscription?.linked &&
     ['active', 'trialing'].includes(subscription.status) &&
@@ -170,12 +176,7 @@ function SubscriptionContent() {
         <NavIcon name="reports" />
         <div>
           <h1>{t('اشتراكي', 'My Subscription')}</h1>
-          <p>
-            {t(
-              'تابع حدود باقتك واستخدامها ومواعيد التجديد.',
-              'Track your limits, usage, and renewal dates.',
-            )}
-          </p>
+ 
         </div>
       </header>
       <nav className={styles.tabs} aria-label={t('أقسام الاشتراك', 'Subscription sections')}>
@@ -192,7 +193,7 @@ function SubscriptionContent() {
             scroll={false}
             aria-current={tab === key ? 'page' : undefined}
           >
-            {t(ar, en)}
+            <NavIcon name={key==='usage'?'reports':key==='plans'?'upgrade':'billing'}/>{t(ar, en)}
           </Link>
         ))}
       </nav>
@@ -254,14 +255,14 @@ function SubscriptionContent() {
                   ))}
                 </dl>
                 <Link className="btn" href="/dashboard/subscription?tab=plans">
-                  {t('إدارة الاشتراك', 'Manage subscription')}
+                  <NavIcon name="settings"/>{t('إدارة الاشتراك', 'Manage subscription')}
                 </Link>
               </section>
               <section className={styles.panel} aria-labelledby="usage-heading">
                 <div className={styles.sectionHeader}>
                   <h2 id="usage-heading">{t('الاستخدام الحالي', 'Current usage')}</h2>
                   <span className={styles.connection} data-live={Boolean(live)}>
-                    {live ? t('متصل', 'Connected') : t('جارٍ إعادة الاتصال', 'Reconnecting')} ·{' '}
+                    {live ? t('متصل', 'Connected') : snapshot?.stale?t('آخر بيانات متاحة','Last available data'):t('جارٍ إعادة الاتصال', 'Reconnecting')} ·{' '}
                     <bdi>
                       {new Date(usage.asOf).toLocaleTimeString(
                         language === 'ar' ? 'ar-EG' : 'en-GB',
@@ -347,7 +348,7 @@ function SubscriptionContent() {
                   </div>
                 )}
                 {restoreResult && (
-                  <p role="status">
+                  <p role={restoreResult.error?'alert':'status'}>
                     {restoreResult.error
                       ? t(
                           'تعذّرت استعادة الرسائل. حاول مرة أخرى.',
@@ -366,10 +367,10 @@ function SubscriptionContent() {
                 )}
                 <div className={styles.actions}>
                   <Link className="btn btn-primary" href="/dashboard/subscription?tab=plans">
-                    {t('عرض الباقات والترقية', 'Compare and upgrade plans')}
+                    <NavIcon name="upgrade"/>{t('عرض الباقات والترقية', 'Compare and upgrade plans')}
                   </Link>
                   <Link className="btn" href="/dashboard/subscription?tab=plans#additional-credit">
-                    {t('خيارات شحن الرصيد', 'Top-up options')}
+                    <NavIcon name="coins"/>{t('حالة الرصيد الإضافي', 'Top-up availability')}
                   </Link>
                 </div>
               </section>
@@ -380,7 +381,8 @@ function SubscriptionContent() {
                     {t('تعذّر تحميل سجل الاستخدام.', 'Unable to load usage history.')}
                   </p>
                 )}
-                {history.data && (
+                {history.loading&&<p role="status">{t('جارٍ تحميل السجل…','Loading history…')}</p>}
+                {history.data&&!history.error&&!history.loading && (
                   <>
                     <div
                       className={styles.chart}
@@ -394,7 +396,7 @@ function SubscriptionContent() {
                         <div
                           key={day}
                           title={`${day}: ${n.format(count)}`}
-                          style={{ height: `${Math.max(2, (count / max) * 100)}%` }}
+                          style={{ height: `${(count / max) * 100}%` }}
                         />
                       ))}
                     </div>
@@ -486,13 +488,13 @@ function SubscriptionContent() {
                   </p>
                 )}
                 <Link className="btn" href="/dashboard/subscription?tab=billing">
-                  {t('عرض سجل الفواتير', 'Invoice history')}
+                  <NavIcon name="billing"/>{t('عرض سجل الفواتير', 'Invoice history')}
                 </Link>
               </section>
               <section className={styles.panel}>
                 <h2>{t('مساعدة الاشتراك', 'Subscription support')}</h2>
                 <Link className="btn" href="/dashboard/support">
-                  {t('تواصل مع الدعم', 'Contact support')}
+                  <NavIcon name="support"/>{t('تواصل مع الدعم', 'Contact support')}
                 </Link>
               </section>
             </aside>

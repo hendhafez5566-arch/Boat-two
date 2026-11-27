@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useData } from '../../../components/business/useData';
 import { useLocale } from '../../../components/product/locale';
 import { Dialog } from '../../../components/product/ProductUI';
@@ -103,7 +103,10 @@ export default function BillingPanel({
   const [portalError, setPortalError] = useState('');
   const [portalBusy, setPortalBusy] = useState(false);
   const error = requestError || log.error || portalError;
+  const portalLock=useRef(false);
   async function openPortal() {
+    if(portalLock.current||role!=='owner'||!status?.portalAvailable)return;
+    portalLock.current=true;
     setPortalBusy(true);
     setPortalError('');
     try {
@@ -113,6 +116,7 @@ export default function BillingPanel({
       window.location.assign(url);
     } catch (reason) {
       setPortalError((reason as Error).message);
+      portalLock.current=false;
       setPortalBusy(false);
     }
   }
@@ -134,11 +138,11 @@ export default function BillingPanel({
       )}
       {status?.portalAvailable && role === 'owner' && (
         <button className="btn" disabled={portalBusy} onClick={() => void openPortal()}>
-          {t('إدارة وسيلة الدفع والتجديد', 'Manage payment method and renewal')}
+          <NavIcon name="billing"/>{portalBusy?t('جارٍ فتح البوابة…','Opening portal…'):t('إدارة وسيلة الدفع والتجديد', 'Manage payment method and renewal')}
         </button>
       )}
       <section className={shared.panel} aria-busy={log.loading || loading}>
-        <h2>{t('سجل المدفوعات', 'Payment history')}</h2>
+        <header className={shared.sectionHeader}><h2><NavIcon name="billing"/>{t('سجل المدفوعات', 'Payment history')}</h2><button className="btn" type="button" disabled={!allowed||log.loading} onClick={()=>void log.reload()}><NavIcon name="refresh"/>{t('تحديث','Refresh')}</button></header>
         <div className={styles.tools}>
           <form
             onSubmit={(e) => {
@@ -155,7 +159,7 @@ export default function BillingPanel({
               onChange={(e) => setDraftSearch(e.target.value)}
               placeholder={t('ابحث واضغط Enter…', 'Search & Enter…')}
               aria-label={t('البحث في المعاملات', 'Search transactions')}
-            />
+            /><button className="btn" type="submit" disabled={log.loading||!allowed}>{t('بحث','Search')}</button>{(draftSearch||search)&&<button className="btn" type="button" aria-label={t('مسح البحث','Clear search')} onClick={()=>{setDraftSearch('');setSearch('');setPage(1)}}><NavIcon name="close"/></button>}
           </form>
           <button
             type="button"
@@ -214,7 +218,7 @@ export default function BillingPanel({
                       )}
                     </td>
                     <td>
-                      <span className={shared.badge}>{invoiceStatus(row, t)}</span>
+                      <span className={shared.badge} data-status={row.payment_failed&&row.status==='open'?'failed':row.status}>{invoiceStatus(row, t)}</span>
                     </td>
                     <td>
                       {billingDate(
@@ -226,7 +230,7 @@ export default function BillingPanel({
                     <td>
                       {document ? (
                         <a href={document} target="_blank" rel="noopener noreferrer">
-                          {t('عرض', 'View')}
+                          <NavIcon name="eye"/>{t('عرض', 'View')}
                         </a>
                       ) : (
                         '—'
@@ -244,7 +248,7 @@ export default function BillingPanel({
                         ? t('جارٍ التحميل…', 'Loading…')
                         : error
                           ? '—'
-                          : t('لا توجد بيانات في الجدول', 'No data available in table')}
+                          : t('لا توجد فواتير مطابقة','No matching invoices')}
                   </td>
                 </tr>
               )}
@@ -287,14 +291,14 @@ export default function BillingPanel({
           </div>
         </footer>
       </section>
-      <Dialog
+      <Dialog className={shared.reviewDialog}
         open={datesOpen}
         title={t('تصفية التاريخ', 'Date Filter')}
         onClose={() => setDatesOpen(false)}
       >
         <form
           key={`${datesOpen}:${from}:${to}`}
-          className="stack"
+          className={styles.dateForm}
           onSubmit={(e) => {
             e.preventDefault();
             const values = new FormData(e.currentTarget),
@@ -319,7 +323,7 @@ export default function BillingPanel({
             {t('إلى', 'To')}
             <input type="date" name="to" defaultValue={to} />
           </label>
-          <button className="btn btn-primary">{t('تطبيق', 'Apply')}</button>
+          <div className={styles.dateActions}><button className="btn" type="button" onClick={()=>setDatesOpen(false)}>{t('إلغاء','Cancel')}</button><button className="btn btn-primary"><NavIcon name="check"/>{t('تطبيق', 'Apply')}</button></div>
         </form>
       </Dialog>
     </section>
