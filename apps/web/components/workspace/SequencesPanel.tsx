@@ -76,6 +76,15 @@ function SequenceWorkspace({
   const operationLock = useRef(false);
   const opening = useRef(0);
   const [busy, setBusy] = useState(false);
+  const [success,setSuccess]=useState(false);
+  const [savedSnapshot,setSavedSnapshot]=useState('');
+  const [statsError,setStatsError]=useState('');
+  const [statsLoading,setStatsLoading]=useState(false);
+  const [statsAttempt,setStatsAttempt]=useState(0);
+  const dirty=!!cur&&JSON.stringify(cur)!==savedSnapshot;
+  const mayLeave=()=>!operationLock.current&&!busy&&(!dirty||window.confirm(t('توجد تغييرات غير محفوظة. هل تريد تجاهلها؟','Unsaved sequence changes. Discard them?')));
+  useEffect(()=>{if(!success||!msg)return;const timer=setTimeout(()=>{setMsg('');setSuccess(false);},4000);return()=>clearTimeout(timer);},[success,msg]);
+  useEffect(()=>{if(!dirty&&!busy)return;const unload=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue='';};const click=(event:MouseEvent)=>{if(event.button!==0||event.ctrlKey||event.metaKey||event.altKey||event.shiftKey)return;const a=(event.target as Element)?.closest?.('a[href]') as HTMLAnchorElement|null;if(!a||a.download||a.target==='_blank'||a.href===location.href)return;if(!mayLeave()){event.preventDefault();event.stopPropagation();}};window.addEventListener('beforeunload',unload);document.addEventListener('click',click,true);return()=>{window.removeEventListener('beforeunload',unload);document.removeEventListener('click',click,true);};},[dirty,busy,t]);
   const [fieldErrors, setFieldErrors] = useState<{ path: (string | number)[]; message: string }[]>(
     [],
   );
@@ -100,26 +109,27 @@ function SequenceWorkspace({
   useEffect(() => {
     if (!cur?.id) return setStats({});
     let active = true;
-    setStats({});
+    setStats({});setStatsError('');setStatsLoading(true);
     api<Stats>(`/sequences/${cur.id}/stats`)
       .then((result) => {
         if (active) setStats(result);
       })
-      .catch(() => {});
+      .catch(e=>{if(active)setStatsError((e as Error).message);})
+      .finally(()=>{if(active)setStatsLoading(false);});
     return () => {
       active = false;
     };
-  }, [cur?.id]);
+  }, [cur?.id,statsAttempt]);
 
   async function open(id: string) {
     if (operationLock.current) return;
     const generation = ++opening.current;
     setBusy(true);
-    setMsg('');
+    setMsg('');setSuccess(false);setFieldErrors([]);setCondFor(null);
     try {
       const r = await api<any>(`/sequences/${id}`);
       if (opening.current !== generation) return;
-      setCur({
+      const next:Seq={
         id: r.id,
         name: r.name,
         channelId: r.channel_id,
@@ -129,7 +139,7 @@ function SequenceWorkspace({
         steps: r.steps,
         status: r.status,
         revision: r.revision,
-      });
+      };setCur(next);setSavedSnapshot(JSON.stringify(next));
     } catch (e) {
       if (opening.current === generation) setMsg((e as Error).message);
     } finally {
@@ -141,10 +151,10 @@ function SequenceWorkspace({
     operationLock.current = true;
     setBusy(true);
     setMsg('');
-    setFieldErrors([]);
+    setFieldErrors([]);setSuccess(false);
     try {
       await fn();
-      setMsg(ok);
+      setSuccess(true);setMsg(ok);
     } catch (e) {
       const details = (
         e as Error & { details?: { issues?: { path: (string | number)[]; message: string }[] } }
@@ -191,6 +201,8 @@ function SequenceWorkspace({
               'Add and select a WhatsApp, Messenger or Instagram channel; website channels do not support sequences.',
             ),
           });
+        if(cur.name.trim().length>120)problems.push({path:['name'],message:t('الاسم بحد أقصى 120 حرفًا','Name must be at most 120 characters')});
+        cur.steps.forEach((step,index)=>{const kind=kindOf(step.content);const badDelay=!Number.isInteger(step.delay.amount)||step.delay.amount<0||step.delay.amount>525600;let badContent=kind==='template'?!step.content.template?.name:!step.content.text?.trim()||step.content.text.length>(kind==='cta'?1024:4096);if(kind==='cta'){try{const url=new URL(step.content.cta.url);badContent=badContent||!['https:','http:'].includes(url.protocol)||!!url.username||!!url.password||!step.content.cta.text?.trim();}catch{badContent=true;}}if(badDelay||badContent||(step.sendAt!==undefined&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(step.sendAt)))problems.push({path:['steps',index],message:t('راجع مدة الانتظار ومحتوى الرسالة والتوقيت.','Check the delay, message content and timing.')});});
         if (!cur.steps.length)
           problems.push({
             path: ['steps'],
@@ -200,7 +212,7 @@ function SequenceWorkspace({
           throw Object.assign(new Error('VALIDATION'), { details: { issues: problems } });
         const body = JSON.stringify({
           expectedRevision: cur.id ? cur.revision : undefined,
-          name: cur.name,
+          name: cur.name.trim(),
           channelId: cur.channelId,
           timezone: cur.timezone,
           deliveryTime: cur.deliveryTime || null,
@@ -209,26 +221,28 @@ function SequenceWorkspace({
         });
         if (cur.id) {
           const result = await api<any>(`/sequences/${cur.id}`, { method: 'PUT', body });
-          setCur({ ...cur, revision: result.revision });
+          const next={...cur,name:cur.name.trim(),revision:result.revision};setCur(next);setSavedSnapshot(JSON.stringify(next));
         } else {
           const r = await api<any>('/sequences', { method: 'POST', body });
-          setCur({ ...cur, id: r.id, status: r.status, revision: r.revision });
+          const next={...cur,name:cur.name.trim(),id:r.id,status:r.status,revision:r.revision};setCur(next);setSavedSnapshot(JSON.stringify(next));
         }
       },
       t('تم الحفظ', 'Saved'),
     );
-  const setStatus = (status: 'active' | 'paused') =>
-    run(
+  const setStatus = (status: 'active' | 'paused') => {
+    if(!cur?.id||dirty||operationLock.current)return;
+    if(!window.confirm(status==='active'?t('تأكيد تفعيل التسلسل المحفوظ؟','Activate the saved sequence?'):t('إيقاف إرسال الخطوات التالية مؤقتًا؟','Pause upcoming sequence steps?')))return;
+    return run(
       async () => {
         if (!cur?.id) return;
         const result = await api<{ revision: number }>(`/sequences/${cur.id}/status`, {
           method: 'PATCH',
           body: JSON.stringify({ status, expectedRevision: cur.revision }),
         });
-        setCur({ ...cur, status, revision: result.revision });
+        const next={...cur,status,revision:result.revision};setCur(next);setSavedSnapshot(JSON.stringify(next));
       },
       status === 'active' ? t('تم التفعيل', 'Activated') : t('تم الإيقاف المؤقت', 'Paused'),
-    );
+    );};
 
   const patchStep = (i: number, patch: Partial<Step>) =>
     cur && setCur({ ...cur, steps: cur.steps.map((s, k) => (k === i ? { ...s, ...patch } : s)) });
@@ -262,8 +276,8 @@ function SequenceWorkspace({
           error={msg}
           onOpen={(id) => void open(id)}
           onCreate={() => {
-            setMsg('');
-            setCur(blank(eligibleChannels[0]?.id));
+            setMsg('');setSuccess(false);setFieldErrors([]);setCondFor(null);
+            const next=blank(eligibleChannels[0]?.id);setCur(next);setSavedSnapshot(JSON.stringify(next));
           }}
         />
       </div>
@@ -271,24 +285,24 @@ function SequenceWorkspace({
 
   return (
     <div className="sq-page">
-      <ChannelScope value={channelId} onChange={setChannelId} channels={channels.data} />
+      <ChannelScope value={channelId} onChange={value=>{if(value!==channelId&&mayLeave())setChannelId(value);}} channels={channels.data} />
       <div className="sq-top">
-        <button disabled={busy} className="sq-link" onClick={() => setCur(null)}>
+        <button disabled={busy} className="sq-link" onClick={() => {if(mayLeave()){setCur(null);setMsg('');setFieldErrors([]);setCondFor(null);}}}>
           ← {t('رجوع', 'Back')}
         </button>
         <h1>{cur.name || t('تسلسل جديد', 'New sequence')}</h1>
         {cur.status && <span className="text-xs opacity-60">{statusLabel(cur.status, t)}</span>}
         <div className="sq-actions">
           <button
-            disabled={busy || !eligibleChannels.some((c) => c.id === cur.channelId)}
-            className="sq-btn"
+            disabled={busy || (!!cur.id&&!dirty) || !eligibleChannels.some((c) => c.id === cur.channelId)}
+            className="sq-btn sq-btn-primary"
             onClick={save}
           >
             {t('حفظ', 'Save')}
           </button>
           {cur.id && cur.status !== 'active' && (
             <button
-              disabled={busy}
+              disabled={busy||dirty}
               className="sq-btn sq-btn-success"
               onClick={() => setStatus('active')}
             >
@@ -296,14 +310,17 @@ function SequenceWorkspace({
             </button>
           )}
           {cur.id && cur.status === 'active' && (
-            <button disabled={busy} className="sq-btn" onClick={() => setStatus('paused')}>
+            <button disabled={busy||dirty} className="sq-btn" onClick={() => setStatus('paused')}>
               {t('إيقاف مؤقت', 'Pause')}
             </button>
           )}
         </div>
       </div>
+      {dirty&&<p className="notice" role="status">{t('تغييرات غير محفوظة — احفظ قبل تغيير الحالة.','Unsaved changes — save before changing status.')}</p>}
+      {statsLoading&&cur.id&&<p role="status">{t('جارٍ تحميل الإحصائيات…','Loading statistics…')}</p>}
+      {statsError&&cur.id&&<p role="alert" className="notice error">{statsError} <button className="btn" onClick={()=>setStatsAttempt(n=>n+1)}>{t('إعادة المحاولة','Retry')}</button></p>}
       {msg && (
-        <p className="sq-msg" role="status">
+        <p className={success?'sq-msg notice':'sq-msg notice error'} role={success?'status':'alert'}>
           {msg}
         </p>
       )}
@@ -337,6 +354,7 @@ function SequenceWorkspace({
                 {t('الاسم', 'Name')}
                 <input
                   value={cur.name}
+                  maxLength={120}
                   placeholder={t('أول تسلسل تسويقي', 'First Marketing Sequence')}
                   onChange={(e) => setCur({ ...cur, name: e.target.value })}
                 />
@@ -515,7 +533,7 @@ function SequenceWorkspace({
                         {t('بعد', 'After')}
                         <input
                           type="number"
-                          min={0}
+                          min={0} max={525600} step={1}
                           value={s.delay.amount}
                           onChange={(e) =>
                             patchStep(i, {
@@ -596,9 +614,8 @@ function SequenceWorkspace({
                       </button>
                       <button
                         className="sq-link sq-link-danger"
-                        onClick={() =>
-                          setCur({ ...cur, steps: cur.steps.filter((_, k) => k !== i) })
-                        }
+                        disabled={cur.steps.length<=1}
+                        onClick={() => {if(window.confirm(t('حذف هذه الخطوة من المسودة؟','Delete this step from the draft?')))setCur({...cur,steps:cur.steps.filter((_,k)=>k!==i)});}}
                       >
                         ✕ {t('حذف الخطوة', 'Delete step')}
                       </button>
@@ -624,7 +641,7 @@ function SequenceWorkspace({
                         </small>
                       </div>
                     </div>
-                    {cur.id && st && st.sent + st.delivered + st.subscribers + st.errors > 0 && (
+                    {cur.id && !statsLoading && !statsError && (
                       <details>
                         <DisclosureSummary>
                           {t('إحصاءات الرسالة', 'Message statistics')}
@@ -653,6 +670,7 @@ function SequenceWorkspace({
                       <div className="sq-body">
                         <textarea
                           rows={3}
+                          maxLength={kind==='cta'?1024:4096}
                           placeholder={t('نص الرسالة', 'Message text')}
                           value={s.content.text ?? ''}
                           onChange={(e) =>
@@ -707,7 +725,7 @@ function SequenceWorkspace({
                       >
                         <option value="text">{t('نص', 'Text')}</option>
                         <option value="cta">{t('نص + زر رابط', 'Text + link button')}</option>
-                        <option value="template">{t('قالب واتساب', 'WhatsApp template')}</option>
+                        {(eligibleChannels.find(c=>c.id===cur.channelId)?.type==='whatsapp'||kind==='template')&&<option value="template">{t('قالب واتساب', 'WhatsApp template')}</option>}
                       </select>
                     </div>
                   </div>
@@ -716,7 +734,7 @@ function SequenceWorkspace({
             })}
             <div>
               <button
-                className="sq-btn sq-add"
+                className="sq-btn sq-add" disabled={cur.steps.length>=30}
                 onClick={() => setCur({ ...cur, steps: [...cur.steps, blankStep()] })}
               >
                 {t('+ خطوة', '+ Step')}

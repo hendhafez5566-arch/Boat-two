@@ -205,3 +205,26 @@
 .fn-bcard .react-flow__handle{width:13px;height:13px;border:2px solid #2563eb;background:#fff}
 .fn-bcard.is-open .react-flow__handle.source{background:#2563eb}
 .fn-bcard-stats .is-err b{color:#d6303f}
+
+/* Sequence-specific professional workspace, without changing canvas node styles. */
+.sq-page{padding:12px;background:var(--canvas);min-width:0;color:var(--ink)}
+.sq-page .sq-top{gap:8px;margin-block:12px}
+.sq-page .sq-card,.sq-page nav.card{border:1px solid var(--line);border-radius:12px;box-shadow:0 2px 8px #19233c0a;padding:12px;min-width:0}
+.sq-page .sq-card h3{color:var(--ink);font-size:15px}
+.sq-page .sq-sub,.sq-page .sq-note{font-size:12px;line-height:1.6}
+.sq-page .sq-field{font-size:13px;color:var(--ink-2)}
+.sq-page .sq-field>input,.sq-page .sq-field>select,.sq-page .sq-in{min-height:40px;border-color:var(--line);font-family:inherit}
+.sq-page .sq-btn,.sq-page .sq-link{min-height:36px;font-family:inherit}
+.sq-page .sq-btn-primary{background:linear-gradient(160deg,var(--brand-gradient-end,#8071e5),var(--primary,#6050ce));color:white;box-shadow:inset 0 1px 0 #ffffff45}
+.sq-page .sq-ico-blue{background:var(--primary-soft,#f0edfc);color:var(--primary)}
+.sq-page .sq-pill{background:#eff6ff;color:#1d4ed8}
+.sq-page .sq-cond{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;border-radius:8px;padding:8px}
+.sq-page .sq-stats{gap:6px}
+.sq-page .sq-stats>div{padding:8px 3px;background:var(--surface-muted,#f5f7fa);border-radius:8px;overflow-wrap:anywhere}
+.sq-page .sq-body textarea{min-height:100px;font-family:inherit}
+.sq-page .sequence-path button{border-color:var(--line);text-align:start}
+.sq-page .sequence-path button:hover{border-color:var(--primary);background:var(--primary-soft)}
+.sq-page .sq-row{scroll-margin-block:90px;min-width:0}
+.sq-page :is(button,a,input,select,textarea,summary):focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+@media(max-width:1100px){.sq-page .sq-layout{grid-template-columns:minmax(0,1fr)}.sq-page .sq-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}.sq-page .sq-row::before,.sq-page .sq-row::after{display:none}}
+@media(max-width:700px){.sq-page{padding:10px 8px 108px}.sq-page .sq-row{grid-template-columns:minmax(0,1fr);padding-inline-start:8px;border-inline-start:2px solid var(--primary)}.sq-page .sq-grid3,.sq-page .sq-grid2{grid-template-columns:minmax(0,1fr)}.sq-page .sq-top .sq-actions{margin-inline-start:0}.sq-page .sq-body textarea{font-size:16px}}

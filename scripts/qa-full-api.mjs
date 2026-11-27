@@ -130,6 +130,10 @@ if (process.env.BOAT_TELEGRAM_QA === 'true') {
     const { installTemplateFixtures } = await import('./qa-template-fixtures.mjs');
     installTemplateFixtures(app, local);
   }
+  if (process.env.BOAT_SEQUENCE_QA === 'true') {
+    const { installSequenceWorkerFixtures } = await import('./qa-sequence-worker-fixtures.mjs');
+    installSequenceWorkerFixtures(app, local);
+  }
   if (process.env.BOAT_CRM_QA === 'true') {
     const { installCrmFixtures } = await import('./qa-crm-fixtures.mjs');
     installCrmFixtures(app, local);

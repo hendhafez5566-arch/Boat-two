@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import {randomUUID as uuid} from 'node:crypto';
+import {mkdirSync,writeFileSync} from 'node:fs';
+import {assertLocalAcceptance} from './acceptance-local.mjs';
+assertLocalAcceptance();
+const base='http://localhost:4000',out='docs/p0-evidence/sequences-worker';mkdirSync(out,{recursive:true});
+async function api(path,token,body,method=body?'POST':'GET'){const r=await fetch(base+path,{method,headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});const d=await r.json();assert.ok(r.ok,path+' '+r.status+' '+JSON.stringify(d));return d;}
+const session=await api('/auth/register',null,{email:uuid()+'@example.test',password:'Synthetic-'+uuid(),fullName:'Sequence runtime QA',workspaceName:'Isolated sequence worker'}),token=session.accessToken;
+const channel=await api('/channels',token,{type:'facebook',name:'Synthetic runtime account',credentials:{pageId:uuid(),pageAccessToken:'not-a-real-provider-token'}});
+const fixture=(op,data={})=>api('/__qa/sequence-worker',null,{op,tenantId:session.tenantId,channelId:channel.id,...data});
+const linked=await fixture('receive');
+await api('/crm/contacts/'+linked.contactId+'/consent',token,{channelId:channel.id,status:'opted_in',evidence:'Synthetic sequence runtime consent'},'PUT');
+await api('/delivery/policies/'+channel.id,token,{marketingEnabled:true,intervalMs:1000},'PUT');
+const marker='Synthetic local queued sequence '+uuid();
+const step=(id,text,amount=0,condition)=>({id,delay:{amount,unit:'minutes'},content:{text},...(condition?{condition}:{})});
+const seq=await api('/sequences',token,{name:'Runtime queue QA',channelId:channel.id,timezone:'Africa/Cairo',stopOnReply:true,steps:[step('first',marker),step('second','MUST NOT SEND AFTER REPLY',60)]});
+await api('/sequences/'+seq.id+'/status',token,{status:'active',expectedRevision:seq.revision},'PATCH');
+await api('/sequences/'+seq.id+'/enroll',token,{contactId:linked.contactId});
+const snapshot=()=>fixture('snapshot',{sequenceId:seq.id,contactId:linked.contactId});
+await fixture('tick');
+let state=await snapshot();assert.equal(state.enrollment.step_index,1);assert.equal(state.enrollment.status,'active');assert.equal(state.messages.length,1);assert.equal(state.messages[0].status,'queued');assert.equal(state.messages[0].content.text,marker);
+await fixture('tick');assert.equal((await snapshot()).messages.length,1);
+await fixture('receive',{externalId:linked.externalId});
+for(let i=0;i<30;i++){state=await snapshot();if(state.enrollment.status==='stopped')break;await new Promise(r=>setTimeout(r,100));}
+assert.equal(state.enrollment.status,'stopped');assert.equal(state.enrollment.stop_reason,'replied');
+const without=await fixture('receive');const seq2=await api('/sequences',token,{name:'Consent guard QA',channelId:channel.id,timezone:'UTC',steps:[step('first','NEVER QUEUE WITHOUT CONSENT')]});
+await api('/sequences/'+seq2.id+'/status',token,{status:'active',expectedRevision:seq2.revision},'PATCH');
+await api('/sequences/'+seq2.id+'/enroll',token,{contactId:without.contactId});await fixture('tick');
+const denied=await fixture('snapshot',{sequenceId:seq2.id,contactId:without.contactId});assert.equal(denied.enrollment.status,'stopped');assert.equal(denied.enrollment.stop_reason,'no_consent');assert.equal(denied.messages.length,0);
+writeFileSync(out+'/results.json',JSON.stringify({status:'PASS',checks:['real sequence claim and processing','queued once','delay preserved','stop on reply','no consent blocks sending'],externalProviderDelivery:false},null,2));
+console.log('PASS isolated real sequence worker, single queued message, reply stop and consent guard');
