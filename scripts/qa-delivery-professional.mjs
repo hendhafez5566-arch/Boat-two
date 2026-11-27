@@ -1,0 +1,65 @@
+import assert from 'node:assert/strict';
+import {randomUUID as uuid} from 'node:crypto';
+import {createRequire} from 'node:module';
+import {mkdirSync,writeFileSync} from 'node:fs';
+import {assertLocalAcceptance} from './acceptance-local.mjs';
+assertLocalAcceptance();
+const base='http://localhost:4000',web='http://localhost:3000',out='docs/p0-evidence/delivery-professional';mkdirSync(out,{recursive:true});
+const {chromium}=createRequire(import.meta.url)(process.env.BOAT_PLAYWRIGHT_MODULE||'playwright');
+async function api(path,token,body,method=body?'POST':'GET',status){const r=await fetch(base+path,{method,headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});const d=await r.json();if(status)assert.equal(r.status,status,path+' '+JSON.stringify(d));else assert.ok(r.ok,path+' '+r.status+' '+JSON.stringify(d));return d;}
+const register=()=>api('/auth/register',null,{email:uuid()+'@example.test',password:'Synthetic-'+uuid(),fullName:'Delivery QA',workspaceName:'Isolated delivery QA'});
+const browser=await chromium.launch({executablePath:process.env.BOAT_CHROMIUM||'/usr/bin/google-chrome',args:['--no-sandbox']}),results=[];
+try{for(const language of ['ar','en'])for(const width of [390,1366]){
+ const t=(ar,en)=>language==='ar'?ar:en,session=await register(),token=session.accessToken;
+ const ch=await api('/channels',token,{type:'web',name:'QA pacing A'}),second=await api('/channels',token,{type:'web',name:'QA pacing B'});
+ await api('/workspace/onboarding/complete',token,{});
+ const visitor=await api('/widget/'+ch.external_id+'/session',null,{});
+ const inbound=await fetch(base+'/widget/'+ch.external_id+'/messages?visitorId='+visitor.visitorId,{method:'POST',headers:{'content-type':'application/json','x-visitor-token':visitor.token},body:JSON.stringify({text:'Synthetic visitor',clientMsgId:uuid()})});assert.ok(inbound.ok);
+ const conv=(await api('/conversations',token)).items[0];
+ const fixture=(op,data={})=>api('/__qa/delivery',null,{op,tenantId:session.tenantId,...data});
+ const {jobs,old}=await fixture('seed',{channelId:ch.id,conversationId:conv.id});
+ const index=(kind,q='',status='all',page=1)=>api('/delivery/index?'+new URLSearchParams({kind,q,status,page:String(page),limit:'10'}),token);
+ assert.equal((await index('events','literal_%','attention')).items[0].id,old);
+ assert.equal((await index('events','qa.newer')).total,31);assert.equal((await index('events','qa.newer','all',4)).items.length,1);
+ const other=await register();assert.equal((await api('/delivery/index?kind=outbound',other.accessToken)).total,0);await api('/delivery/'+jobs.confirmed+'/retry',other.accessToken,{},'POST',400);
+ await api('/delivery/'+jobs.uncertain+'/retry',token,{},'POST',400);
+ await api('/delivery/'+jobs.uncertain+'/reconcile',token,{result:'sent',evidence:'synthetic provider verification'},'POST',400);
+ const context=await browser.newContext({viewport:{width,height:936}});await context.addInitScript(({session,language})=>{localStorage.setItem('session',JSON.stringify(session));localStorage.setItem('boat-language',language);},{session,language});
+ const page=await context.newPage();page.setDefaultTimeout(25000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>['localhost','127.0.0.1'].includes(new URL(r.request().url()).hostname)?r.continue():r.abort());
+ await page.goto(web+'/dashboard/delivery');
+ const row=id=>page.getByRole('row').filter({hasText:id});
+ const search=page.getByRole('searchbox',{name:t('بحث السجلات','Search records')});
+ await search.fill(jobs.uncertain);await row(jobs.uncertain).waitFor();
+ assert.equal(await row(jobs.uncertain).getByRole('button',{name:t('إعادة المحاولة','Retry'),exact:true}).count(),0);
+ await row(jobs.uncertain).getByRole('button',{name:t('عرض التفاصيل','View details')}).click();
+ const dialog=page.getByRole('dialog',{name:t('تفاصيل التسليم','Delivery details')});
+ await dialog.getByRole('combobox').selectOption('sent');
+ await dialog.getByRole('textbox',{name:t('دليل المراجعة (يُسجّل في Audit)','Reconciliation evidence (audited)')}).fill('Synthetic verified provider result');
+ const record=dialog.getByRole('button',{name:t('تسجيل نتيجة المراجعة','Record reconciliation')});
+ assert.ok(await record.isDisabled());await dialog.getByRole('textbox',{name:t('معرّف رسالة المزود','Provider message ID')}).fill('qa-'+uuid());
+ let prompted=false;page.once('dialog',d=>{prompted=true;return d.dismiss();});await page.keyboard.press('Escape');assert.ok(prompted);await dialog.waitFor();
+ page.once('dialog',d=>d.accept());await record.click();await dialog.waitFor({state:'hidden'});
+ let state=await fixture('snapshot',{jobId:jobs.uncertain});assert.equal(state.job.status,'sent');assert.equal(state.job.message_status,'sent');assert.ok(state.job.external_id);assert.equal(state.audit,1);await api('/delivery/'+jobs.uncertain+'/retry',token,{},'POST',400);
+ await search.fill(jobs.notSent);await row(jobs.notSent).getByRole('button',{name:t('عرض التفاصيل','View details')}).click();await dialog.getByRole('textbox',{name:t('دليل المراجعة (يُسجّل في Audit)','Reconciliation evidence (audited)')}).fill('Synthetic confirmed provider did not send');page.once('dialog',d=>d.accept());await record.click();await dialog.waitFor({state:'hidden'});
+ state=await fixture('snapshot',{jobId:jobs.notSent});assert.equal(state.job.status,'failed');assert.equal(state.audit,1);
+ for(const id of [jobs.confirmed,jobs.notSent,jobs.blocked]){await search.fill(id);const retry=row(id).getByRole('button',{name:t('إعادة المحاولة','Retry'),exact:true});await retry.waitFor();page.once('dialog',d=>d.accept());await retry.click();await retry.waitFor({state:'hidden'});state=await fixture('snapshot',{jobId:id});assert.equal(state.job.status,'pending');assert.equal(state.job.message_status,'queued');assert.equal(state.job.attempts,0);await api('/delivery/'+id+'/retry',token,{},'POST',400);}
+ await page.getByRole('button',{name:t('سجل الأحداث','Event ledger'),exact:true}).click();
+ await page.getByRole('combobox',{name:t('الحالة','Status'),exact:true}).selectOption('attention');await row(old).waitFor();page.once('dialog',d=>d.accept());await row(old).getByRole('button',{name:t('إعادة المحاولة','Retry'),exact:true}).click();await row(old).waitFor({state:'hidden'});await api('/events/'+old+'/retry',token,{},'POST',404);
+ await page.getByRole('button',{name:t('مسح الفلاتر','Clear filters')}).click();await search.fill('qa.newer');await page.getByRole('combobox',{name:t('عدد الصفوف','Rows per page')}).selectOption('10');
+ const table=page.locator('table');await page.waitForFunction(()=>document.querySelectorAll('table tbody tr').length===10);
+ const ledger=page.locator('section').filter({has:table}).first();await ledger.getByRole('button',{name:t('التالي','Next'),exact:true}).click();await ledger.getByText('31 · 2/4',{exact:true}).waitFor();
+ await page.getByText(t('مجموعة جديدة','New account group'),{exact:true}).click();
+ const form=page.locator('details').filter({has:page.getByText(t('مجموعة جديدة','New account group'),{exact:true})}).locator('form');
+ await form.getByRole('textbox',{name:t('اسم مجموعة حساب المزود','Provider account group name')}).fill('QA shared');
+ await form.getByRole('combobox',{name:t('المزود','Provider')}).selectOption('web');
+ await form.getByRole('spinbutton',{name:t('الفاصل المشترك بالمللي ثانية','Shared interval in milliseconds')}).fill('100');
+ const daily=form.getByRole('spinbutton',{name:t('محاولات يومية UTC، ‎-1 دون حد','Daily UTC attempts, -1 unlimited')});await daily.fill('0');const save=form.getByRole('button',{name:t('حفظ المجموعة','Save group')});assert.ok(await save.isDisabled());await daily.fill('1');await save.click();await page.getByText(t('تم حفظ المجموعة','Account group saved'),{exact:true}).waitFor();
+ const account=(await api('/delivery/policies/accounts',token)).find(a=>a.name==='QA shared');assert.ok(account);
+ for(const c of [ch,second]){const policy=page.locator('form').filter({has:page.getByText(c.name+' · web · '+c.id.slice(0,8),{exact:true})});await policy.getByRole('checkbox').check();await policy.getByRole('combobox',{name:t('مجموعة الحساب المشتركة','Shared account group')}).selectOption(account.id);await policy.getByRole('spinbutton').fill('100');page.once('dialog',d=>d.accept());await policy.getByRole('button',{name:t('حفظ','Save'),exact:true}).click();await policy.getByRole('button',{name:t('حفظ','Save'),exact:true}).waitFor();await page.waitForFunction(()=>!document.querySelector('form:focus-within button.btn-primary:not(:disabled)'));}
+ const attempts=await fixture('take',{channels:[ch.id,second.id]});assert.equal(attempts.filter(a=>a.allowed).length,1);assert.ok(attempts.some(a=>a.reason==='Shared daily attempt cap'));
+ await api('/delivery/policies/accounts/'+account.id,token,{name:'QA shared',provider:'web',intervalMs:1000,dailyLimit:10,enabled:true},'PUT');await fixture('reset',{accountId:account.id});
+ const pacing=await fixture('take',{channels:[ch.id,second.id]});assert.equal(pacing.filter(a=>a.allowed).length,1);assert.ok(pacing.some(a=>a.reason==='Shared send pacing'));
+ await api('/delivery/policies/accounts/'+account.id,token,{name:'QA shared',provider:'web',intervalMs:1000,dailyLimit:10,enabled:false},'PUT');assert.equal((await fixture('take',{channels:[ch.id]}))[0].blocked,true);
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'delivery viewport overflow');assert.deepEqual(errors,[]);await page.screenshot({path:out+'/delivery-'+language+'-'+width+'.png',fullPage:true});results.push({language,width,status:'PASS'});await context.close();
+}}finally{await browser.close();writeFileSync(out+'/results.json',JSON.stringify(results,null,2)+'\n');}
+console.log('PASS delivery ledger, reconciliation, duplicate retry rejection, event paging, shared cap and pacing journeys',results.length);
