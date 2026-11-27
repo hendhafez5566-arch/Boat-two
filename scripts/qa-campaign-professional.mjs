@@ -30,7 +30,40 @@ try{for(const language of ['ar','en'])for(const width of [390,1366]){
  const updated=page.getByRole('row').filter({hasText:'Campaign QA updated'});await updated.waitFor();const search=page.getByRole('searchbox',{name:t('البحث في الحملات','Search campaigns'),exact:true});await search.fill('nonexistent-campaign-qa');await search.press('Enter');await updated.waitFor({state:'hidden'});await page.getByRole('button',{name:t('مسح الفلاتر','Clear filters'),exact:true}).click();await updated.waitFor();
  await updated.getByRole('button',{name:t('جدولة','Schedule'),exact:true}).click();dialog=page.getByRole('dialog');await dialog.getByRole('button',{name:t('مراجعة أسباب أهلية الجمهور','Review audience eligibility'),exact:true}).click();await dialog.getByText(t('المطابقون للتصفية','Matching filters'),{exact:false}).first().waitFor();assert.ok(await dialog.getByRole('button',{name:t('جدولة','Schedule'),exact:true}).isDisabled(),'no consent or enabled marketing policy must block schedule');await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});
  await updated.getByRole('button',{name:t('النتائج','Results'),exact:true}).click();await page.getByText(t('لا يوجد مستلمون يطابقون الفلاتر.','No recipients match these filters.'),{exact:true}).waitFor();await page.getByRole('button',{name:t('مسح فلاتر المستلمين','Clear recipient filters'),exact:true}).click();await page.getByText(t('لا يوجد مستلمون يطابقون الفلاتر.','No recipients match these filters.'),{exact:true}).waitFor();await page.getByRole('button',{name:t('إغلاق النتائج','Close results'),exact:true}).click();
+ // Use only synthetic local consent and a future date, then cancel before any delivery.
+ const conversations=await api('/conversations',token);
+ const contactId=conversations.items[0].contact_id;
+ assert.ok(contactId,'synthetic visitor contact must exist');
+ await api('/crm/contacts/'+contactId+'/consent',token,{channelId:channel.id,status:'opted_in',evidence:'Synthetic isolated QA consent'},'PUT');
+ await api('/delivery/policies/'+channel.id,token,{intervalMs:1000,marketingEnabled:true},'PUT');
+ await updated.getByRole('button',{name:t('جدولة','Schedule'),exact:true}).click();
+ dialog=page.getByRole('dialog');
+ await dialog.getByRole('button',{name:t('مراجعة أسباب أهلية الجمهور','Review audience eligibility'),exact:true}).click();
+ const schedule=dialog.getByRole('button',{name:t('جدولة','Schedule'),exact:true});
+ await dialog.getByText(t('المطابقون للتصفية','Matching filters'),{exact:false}).first().waitFor();
+ const future=await page.evaluate(()=>{const d=new Date(Date.now()+86400000);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);});
+ await dialog.locator('input[type=datetime-local]').fill(future);
+ page.once('dialog',d=>d.accept());await schedule.click();await dialog.waitFor({state:'hidden'});
+ assert.equal((await api('/campaigns?channelId='+channel.id,token)).find(x=>x.id===saved.id).status,'scheduled');
+ await updated.getByRole('button',{name:t('إعادة الجدولة','Reschedule'),exact:true}).waitFor();
+ page.once('dialog',d=>d.accept());await updated.getByRole('button',{name:t('إلغاء','Cancel'),exact:true}).click();
+ await updated.getByRole('button',{name:t('إعادة الجدولة','Reschedule'),exact:true}).waitFor({state:'hidden'});
+ assert.equal((await api('/campaigns?channelId='+channel.id,token)).find(x=>x.id===saved.id).status,'canceled');
+ for(const mode of ['buttons','list','media']){
+  await create.click();dialog=page.getByRole('dialog');
+  await dialog.getByRole('textbox',{name:t('اسم الحملة','Campaign name'),exact:true}).fill('QA '+mode);
+  await dialog.getByRole('combobox',{name:t('نوع الرسالة','Message type'),exact:true}).selectOption(mode);
+  await dialog.getByRole('textbox',{name:t('محتوى الرسالة','Message content'),exact:true}).fill('Synthetic '+mode);
+  if(mode==='media'){await dialog.locator('input[type=url]').fill('https://example.test/qa-image.png');}
+  else {await dialog.getByRole('textbox',{name:t('اختيار 1','Choice 1'),exact:true}).fill('Option one');}
+  await dialog.getByRole('button',{name:t('مراجعة الجمهور','Review audience'),exact:true}).click();
+  await dialog.getByText(t('المطابقون للتصفية','Matching filters'),{exact:false}).first().waitFor();
+  await dialog.getByRole('button',{name:t('حفظ المسودة','Save draft'),exact:true}).click();
+  await dialog.waitFor({state:'hidden'});
+  const draft=(await api('/campaigns?channelId='+channel.id,token)).find(x=>x.name==='QA '+mode);
+  assert.ok(draft?.content[mode]);assert.equal(draft.status,'draft');
+ }
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'campaign viewport overflow');assert.deepEqual(errors,[]);
  await page.screenshot({path:out+'/campaign-'+language+'-'+width+'.png',fullPage:true});results.push({language,width,status:'PASS'});await context.close();
 }}finally{await browser.close();writeFileSync(out+'/results.json',JSON.stringify(results,null,2)+'\n');}
-console.log('PASS campaign draft, edit, search, protected schedule and recipient journeys',results.length);
+console.log('PASS campaign draft, edit, search, schedule/cancel, rich content and recipient journeys',results.length);
