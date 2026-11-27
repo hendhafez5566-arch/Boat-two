@@ -176,6 +176,14 @@ export class CommerceController {
   @Get('orders/attention') orderAttention(@Req() r: AuthedRequest) {
     return this.commerce.orderAttention(r.user.tenantId);
   }
+  @Get('customer-records/:id')
+  customerRecords(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string, @Query() query: unknown) {
+    const { page, kind } = parse(z.object({
+      page: z.coerce.number().int().min(1).max(100000).default(1),
+      kind: z.enum(['orders','appointments']).default('orders'),
+    }), query);
+    return this.commerce.customerRecords(r.user.tenantId, id, page, kind);
+  }
   @Get('orders/summary') orderSummary(@Req() r: AuthedRequest) {
     return this.commerce.orderSummary(r.user.tenantId);
   }
