@@ -60,6 +60,8 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
   const workspace = useData<{ role: string }>('/workspace', { role: '' });
   const canManage = ['owner', 'admin'].includes(workspace.data.role);
   const [tab, setTab] = useState(initialTab);
+  const [configTab,setConfigTab]=useState('fields');
+  const [fieldOpen,setFieldOpen]=useState(false);
   const overview = useData<{contacts:{total:number;qualified:number;unassigned:number;unattended:number}}|null>(tab==='contacts'?'/crm/workspace/analytics':null,null);
   const [headMenu, setHeadMenu] = useState<string | null>(null);
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -702,9 +704,9 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                   ['qualified',t('عملاء مؤهلون','Qualified customers'),'flag','qualified'],
                   ['unassigned',t('دون مسؤول','Unassigned'),'userClock','unassigned'],
                   ['unattended',t('دون متابعة','No open follow-up'),'calendar','unattended']
-                ] as const).map(([key,label,icon,preset])=><Link key={key} className={design.metricTile} data-tone={key} href={'/dashboard/crm'+(preset?'?preset='+preset:'?preset=all')}>
+                ] as const).map(([key,label,icon,preset])=><button type="button" key={key} className={design.metricTile} data-tone={key} onClick={()=>{applySearch('');setChannelId('');setListId('');setSequenceId('');setSequenceStatus('');setConsentStatus('');setTag('');setArchiveFilter('active');setRouteFilters(preset==='qualified'?{lifecycle:'qualified'}:preset==='unassigned'?{unassigned:'true'}:preset==='unattended'?{withoutFollowup:'true'}:{});setStage('');setQuickFilter(preset==='unattended'?'withoutFollowup':preset);setPage(1);}}>
                   <span><NavIcon name={icon}/>{label}</span><strong>{overview.loading?'…':overview.error||!overview.data?'—':overview.data.contacts[key].toLocaleString()}</strong>
-                </Link>)}
+                </button>)}
               </div>
               <details className={design.marketingSummary}><DisclosureSummary>{t('إحصائيات التسويق ضمن نتائج التصفية','Marketing statistics for filtered results')}</DisclosureSummary>
                 {summary.error&&<p className="notice error">{summary.error}</p>}
@@ -1561,10 +1563,11 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                 {t('قوائم العملاء', 'Contact lists')}
               </Link>
             </div>
-            {canManage && (
+            <nav className="workbench-tabs" aria-label={t('إعدادات العملاء','CRM settings')}>{[['fields',t('الحقول','Fields'),'list'],['segments',t('الشرائح','Segments'),'filter'],['automation',t('الأتمتة والتقييم','Automation & scoring'),'bolt'],['duplicates',t('السجلات المكررة','Duplicates'),'copy']].map(([key,label,icon])=><button type="button" key={key} aria-pressed={configTab===key} onClick={()=>setConfigTab(key)}><NavIcon name={icon}/>{label}</button>)}</nav>
+            <div hidden={configTab!=='automation'} className="stack">{canManage && (
               <>
                 <details className={product.group}>
-                  <summary>{t('تقييم العملاء', 'Customer scoring')}</summary>
+                  <summary><NavIcon name="star"/>{t('تقييم العملاء', 'Customer scoring')}</summary>
                   <CrmScoring />
                 </details>
                 <details className={product.group}>
@@ -1577,9 +1580,8 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                 </details>
               </>
             )}
-            <div className="card-grid">
-              <section className="card">
-                <h2>{t('الحقول المخصصة', 'Custom fields')}</h2>
+            </div><section hidden={configTab!=='fields'} className="card">
+                <div className="workbench-toolbar"><h2><NavIcon name="list"/>{t('الحقول المخصصة', 'Custom fields')}</h2>{canManage&&<button type="button" className="btn btn-primary" onClick={()=>setFieldOpen(true)}><NavIcon name="plus"/>{t('إضافة حقل','Add field')}</button>}</div>
                 {fields.data.map((x) => (
                   <p className="muted" key={x.id}>
                     {x.label} ·{' '}
@@ -1595,8 +1597,8 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                   </p>
                 ))}
               </section>
-              <section className="card">
-                <h2>{t('الشرائح المحفوظة', 'Saved segments')}</h2>
+              <div hidden={configTab!=='segments'} className="stack"><section className="card">
+                <h2><NavIcon name="filter"/>{t('الشرائح المحفوظة', 'Saved segments')}</h2>
                 {segments.data.map((x) => (
                   <div className="step" key={x.id}>
                     <button
@@ -1628,8 +1630,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                   </div>
                 ))}
               </section>
-            </div>
-            {canManage && <CustomFieldForm onSave={(body) => act('/crm/fields', body)} />}
+            {canManage&&<Dialog open={fieldOpen} onClose={()=>setFieldOpen(false)} title={t('إضافة حقل مخصص','Add custom field')}>{fieldOpen&&<CustomFieldForm onSave={async body=>{await act('/crm/fields',body);setFieldOpen(false);}}/>}</Dialog>}
             <section className="card stack">
               <h2>{t('مراجعة شروط الشريحة', 'Review segment conditions')}</h2>
               <p>
@@ -1702,8 +1703,8 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                 act('/crm/segments', { name: b.name, filters: Object.fromEntries(filter) })
               }
             />
-            <section className="card">
-              <h2>{t('بريد مكرر', 'Duplicate emails')}</h2>
+            </div><section hidden={configTab!=='duplicates'} className="card">
+              <div className="workbench-toolbar"><h2><NavIcon name="copy"/>{t('السجلات المكررة','Duplicate records')}</h2>{canManage&&<button type="button" className="btn" onClick={()=>setDuplicateOpen(true)}><NavIcon name="copy"/>{t('مراجعة ودمج','Review and merge')}</button>}</div>
               {duplicates.data.map((x) => (
                 <p className="muted" key={x.kind + x.value}>
                   {x.kind}: {x.value} · {x.count}

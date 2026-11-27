@@ -1,4 +1,5 @@
 'use client';
+import { NavIcon } from '../product/NavIcon';
 import { useEffect, useRef, useState } from 'react';
 import { useLocale } from '../product/locale';
 import { LabelEditor } from '../product/LabelEditor';
@@ -174,7 +175,7 @@ export function ContactEditor({
             {error}
           </p>
         )}
-        <fieldset className={styles.section} disabled={busy}>
+        <fieldset className={styles.section} disabled={busy}><legend className={product.editorLegend}><NavIcon name="user"/>{t('البيانات الأساسية والتواصل','Identity and contact details')}</legend>
           <div className={product.formFields}>
             <label data-wide>
               {t('اسم العميل', 'Customer name')}
@@ -210,7 +211,7 @@ export function ContactEditor({
           </div>
         </fieldset>
         <details className={product.formGroup}>
-          <summary>{t('تنظيم العميل والوسوم', 'Customer organization and labels')}</summary>
+          <summary><NavIcon name="list"/>{t('تنظيم العميل والوسوم', 'Customer organization and labels')}</summary>
           <fieldset className={styles.section} disabled={busy}>
             <div className={product.formFields}>
               <label>
@@ -260,7 +261,7 @@ export function ContactEditor({
         </details>
         {!!fields.length && (
           <details className={product.formGroup}>
-            <summary>{t('الحقول المخصصة', 'Custom fields')}</summary>
+            <summary><NavIcon name="list"/>{t('الحقول المخصصة', 'Custom fields')}</summary>
             <fieldset className={styles.section} disabled={busy}>
               <div className={product.formFields}>
                 {fields.map((field) => (
@@ -306,7 +307,7 @@ export function ContactEditor({
           </details>
         )}
         <details className={product.formGroup}>
-          <summary>{t('بيانات إضافية', 'Additional fields')}</summary>
+          <summary><NavIcon name="settings"/>{t('بيانات إضافية', 'Additional fields')}</summary>
           {extraRows.map((row, index) => (
             <fieldset className={product.formFields} disabled={busy} key={row.id}>
               <label>
@@ -386,7 +387,7 @@ export function ContactEditor({
           {t('إلغاء', 'Cancel')}
         </button>
         <button className="btn btn-primary" disabled={busy || !name.trim()}>
-          {busy ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ العميل', 'Save contact')}
+          <NavIcon name="check"/>{busy ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ العميل', 'Save contact')}
         </button>
       </footer>
     </form>

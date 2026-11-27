@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 import { Button } from '../product/ProductUI';
+import { NavIcon } from '../product/NavIcon';
 import styles from './crm-workspace.module.css';
 import { parseCsvRows } from './csv';
 const fields = [
@@ -218,7 +219,7 @@ export function CrmImport() {
   }
   return (
     <section className={styles.card}>
-      <h2>{t('استيراد عملاء من Excel أو CSV أو JSON', 'Import customers from Excel, CSV or JSON')}</h2>
+      <h2><NavIcon name="list"/>{t('استيراد عملاء من Excel أو CSV أو JSON', 'Import customers from Excel, CSV or JSON')}</h2><div className="crm-import-steps">{[[t('رفع الملف','Upload file'),'export'],[t('المعاينة والتحقق','Preview & validate'),'eye'],[t('تأكيد الاستيراد','Confirm import'),'circleCheck']].map(([label,icon],i)=><div key={label} data-current={i===(progress?2:rows.length||jsonContacts.length?1:0)}><NavIcon name={icon}/><span>{i+1}. {label}</span></div>)}</div>
       <label>
         {t('اختر الملف (Excel حتى 5 MB، CSV وJSON حتى 10 MB)', 'Choose file (Excel up to 5 MB, CSV and JSON up to 10 MB)')}
         <input
@@ -247,7 +248,7 @@ export function CrmImport() {
         <div>
           <p>{jsonContacts.length} {t('عميل', 'customers')}</p>
           <Button busy={busy} onClick={() => void submit()}>
-            {t('تأكيد وبدء الاستيراد', 'Confirm and start import')}
+            <NavIcon name="check"/>{t('تأكيد وبدء الاستيراد', 'Confirm and start import')}
           </Button>
         </div>
       )}
@@ -338,7 +339,7 @@ export function CrmImport() {
             disabled={!mapped.length || invalidRows.length > 0}
             onClick={() => void submit()}
           >
-            {t('تأكيد وبدء الاستيراد', 'Confirm and start import')}
+            <NavIcon name="check"/>{t('تأكيد وبدء الاستيراد', 'Confirm and start import')}
           </Button>
         </>
       )}

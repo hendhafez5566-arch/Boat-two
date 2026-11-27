@@ -101,7 +101,7 @@ export function SalesNotifications({ compact = false }: { compact?: boolean }) {
           {t('مركز التنبيهات', 'Notifications')}
         </h2>
         <button className="btn" disabled={marking || !data.data.unread} onClick={() => void mark()}>
-          {t('تحديد الكل كمقروء', 'Mark all as read')}
+          {!compact&&<NavIcon name="circleCheck"/>}{t('تحديد الكل كمقروء', 'Mark all as read')}
         </button>
       </div>
       <div className={css.row}>
@@ -119,7 +119,7 @@ export function SalesNotifications({ compact = false }: { compact?: boolean }) {
               setPage(1);
             }}
           >
-            {t(ar, en)}
+            {!compact&&<NavIcon name={v==='all'?'list':v==='unread'?'bell':'circleCheck'}/>} {t(ar, en)}
           </button>
         ))}
       </div>
