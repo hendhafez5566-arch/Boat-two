@@ -1,7 +1,7 @@
 'use client';
 import { DisclosureSummary } from '../../../components/product/DisclosureSummary';
 
-import { Fragment, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import ChannelLogo from '../../../components/product/ChannelLogo';
 import { NavIcon } from '../../../components/product/NavIcon';
 import Link from 'next/link';
@@ -121,7 +121,12 @@ export default function Channels() {
   const [filter, setFilter] = useState('all');
   const [availableOpen, setAvailableOpen] = useState(false);
   const [platform, setPlatform] = useState('all');
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [department,setDepartment]=useState('all');
+  const [view,setView]=useState<'cards'|'list'>('cards');
+  const [detailTab,setDetailTab]=useState<'overview'|'identity'|'health'|'templates'|'advanced'>('overview');
+  const [role,setRole]=useState('');
+  const [savedNotice,setSavedNotice]=useState('');
+  const [identityBusy,setIdentityBusy]=useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const stateOf = channelConnectionState;
   const counts = connectionAccountCounts(accounts);
@@ -133,8 +138,32 @@ export default function Channels() {
     expired: t('تفويض منتهٍ', 'Authorization expired'),
     disconnected: t('متوقف', 'Disconnected'),
   };
-  const visible = filterConnectionAccounts(accounts, platform, filter, search);
-  const filtersActive = Boolean(search.trim() || platform !== 'all' || filter !== 'all');
+  const canManage=role==='owner'||role==='admin';
+  const phoneOf=(c:Channel)=>typeof c.settings?.providerDisplayPhone==='string'?c.settings.providerDisplayPhone:'';
+  const deptOf=(c:Channel)=>typeof c.settings?.displayDepartment==='string'?c.settings.displayDepartment:'';
+  const departments=Array.from(new Set(accounts.map(deptOf).filter(Boolean))).sort();
+  const query=search.trim().toLocaleLowerCase();
+  const visible=filterConnectionAccounts(accounts,platform,filter,'').filter(c=>(department==='all'||(department==='none'?!deptOf(c):deptOf(c)===department))&&(!query||[c.name,c.type,phoneOf(c),deptOf(c)].join(' ').toLocaleLowerCase().includes(query)||(/^\+?[\d\s().-]+$/.test(query)&&phoneOf(c).replace(/\D/g,'').includes(query.replace(/\D/g,'')))));
+  const selected=accounts.find(c=>c.id===expandedId);
+  const formatDate=(value?:string|null)=>value?new Date(value).toLocaleString(language==='ar'?'ar-EG':'en-GB'):'—';
+  function openChannel(c:Channel|null,tab:typeof detailTab='overview'){
+    setExpandedId(c?.id??null);setDetailTab(tab);setError('');setSavedNotice('');setEditingTokenId(null);setReplacementToken('');
+    const url=new URL(window.location.href);if(c)url.searchParams.set('manage',c.id);else url.searchParams.delete('manage');window.history.pushState(null,'',url.toString());window.scrollTo({top:0,behavior:'instant'});
+  }
+  async function refreshPhone(c:Channel){
+    setIdentityBusy(true);setError('');setSavedNotice('');
+    try{const row=await api<Channel>(`/channels/${c.id}/phone-identity`,{method:'POST'});setItems(rows=>rows.map(old=>old.id===row.id?row:old));setSavedNotice(t('تم تحديث رقم واتساب من Meta','WhatsApp number refreshed from Meta'));}
+    catch(e){setError((e as Error).message);}finally{setIdentityBusy(false);}
+  }
+  async function saveIdentity(event:React.FormEvent<HTMLFormElement>,c:Channel){
+    event.preventDefault();if(identityBusy||!canManage)return;const f=new FormData(event.currentTarget);setIdentityBusy(true);setError('');setSavedNotice('');
+    try{const row=await api<Channel>(`/channels/${c.id}`,{method:'PATCH',body:JSON.stringify({name:String(f.get('name')||'').trim(),settings:{displayDepartment:String(f.get('department')||'').trim(),internalNote:String(f.get('note')||'').trim()}})});setItems(rows=>rows.map(old=>old.id===row.id?row:old));setSavedNotice(t('تم حفظ بيانات القناة','Channel details saved'));}
+    catch(e){setError((e as Error).message);}finally{setIdentityBusy(false);}
+  }
+  async function copyPhone(c:Channel){try{await navigator.clipboard.writeText(phoneOf(c));setCopied(c.id+'-phone');}catch{setError(t('تعذر النسخ؛ يمكنك تحديد الرقم ونسخه','Could not copy; select the number manually'));}}
+  const platformName=(c:Channel)=>c.type==='whatsapp'?'WhatsApp Business':CHANNEL_NAMES[c.type]||c.type;
+  const healthText=(c:Channel)=>c.connectionHealth?.reason==='widget_installation_required'?t('يحتاج تثبيت أداة الدردشة','Widget installation required'):stateLabels[stateOf(c)]||t('غير معروف','Unknown');
+  const install=(c:Channel)=>{setCopied('');setWidget(c);};
   async function verify(c: Channel) {
     setBusy(true);
     setError('');
@@ -146,6 +175,7 @@ export default function Channels() {
       setItems((rows) =>
         rows.map((row) => (row.id === c.id ? { ...row, connectionHealth: health } : row)),
       );
+      if(c.type==='whatsapp'&&!phoneOf(c)) await refreshPhone(c);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -281,6 +311,9 @@ export default function Channels() {
       return;
     }
     load();
+    void api<{role:string}>('/workspace').then(r=>setRole(r.role)).catch(()=>setRole(''));
+    const onPop=()=>{setExpandedId(new URLSearchParams(window.location.search).get('manage'));setDetailTab('overview');setError('');setSavedNotice('');};
+    window.addEventListener('popstate',onPop);
     void api<{ id: string; name: string; provider: string; enabled: boolean; status: string }[]>(
       '/integrations',
     )
@@ -303,6 +336,7 @@ export default function Channels() {
         ),
       )
       .catch(() => setGoogle([]));
+    return ()=>window.removeEventListener('popstate',onPop);
   }, []);
 
   async function remove(id: string) {
@@ -323,253 +357,191 @@ export default function Channels() {
   }
 
   return (
-    <main className={`stack ${styles.page}`}>
-      <header className={styles.channelHeading}>
-        <h1>{t('قنوات الاتصال', 'Channels')}</h1>
-        <button type="button" className="btn btn-primary" onClick={() => setAvailableOpen(true)}>
-          <NavIcon name="plus" />{t('ربط قناة', 'Connect a channel')}
-        </button>
+    <main className={styles.polishedPage}>
+      <header className={styles.hero}>
+        <div><h1><NavIcon name="channels"/>{t('قنوات الاتصال','Channels')}</h1><p>{t('إدارة قنوات التواصل ومتابعة حالة الاتصال','Manage your communication channels and connection health')}</p></div>
+        {!selected?<button type="button" className={styles.primaryAction} onClick={()=>setAvailableOpen(true)}><NavIcon name="plus"/>{t('ربط قناة جديدة','Connect a channel')}</button>:<button type="button" className="btn" disabled={busy||identityBusy} onClick={()=>openChannel(null)}><NavIcon name="chevron"/>{t('العودة إلى القنوات','Back to channels')}</button>}
       </header>
-
-      {!loading && !error && accounts.length > 0 && (
-        <div className={styles.connectionOverview} data-channel-overview aria-label={t('ملخص حالة القنوات', 'Channel health summary')}>
-          {[
-            ['connected', 'circleCheck', counts.connected, t('قنوات متصلة', 'Connected')],
-            ['attention', 'flag', counts.needsAction, t('تحتاج إجراء', 'Need attention')],
-            ['disconnected', 'circleClose', counts.disconnected, t('قنوات متوقفة', 'Disconnected')],
-          ].map(([key, icon, count, label]) => (
-            <button type="button" key={key} data-state={key} aria-pressed={filter===key} onClick={()=>{setFilter(filter===key?'all':String(key));setPlatform('all');setSearch('');setFiltersOpen(true);}}><NavIcon name={String(icon)} /><strong>{count}</strong>{label}</button>
-          ))}
+      {error&&<div role="alert" className={styles.errorBox}><NavIcon name="circleClose"/><span>{error}</span><button type="button" className="btn" onClick={()=>setError('')}>{t('إغلاق','Dismiss')}</button></div>}
+      {(tokenNotice||savedNotice)&&<div role="status" className={styles.successBox}><NavIcon name="circleCheck"/>{savedNotice||tokenNotice}</div>}
+      {loading&&<p className={styles.emptyPanel} role="status">{t('جارٍ تحميل القنوات…','Loading channels…')}</p>}
+      {!selected&&!loading&&<>
+        <div className={styles.statGrid} aria-label={t('ملخص حالة القنوات','Channel health summary')}>
+          {([['connected','circleCheck',counts.connected,t('قنوات متصلة','Connected')],['attention','flag',counts.needsAction,t('تحتاج إجراء','Need attention')],['disconnected','circleClose',counts.disconnected,t('قنوات متوقفة','Disconnected')],['all','grid',counts.total,t('إجمالي القنوات','Total channels')]] as const).map(([key,icon,count,label])=><button key={key} type="button" className={styles.statTile} data-tone={key} aria-pressed={filter===key} onClick={()=>{setFilter(filter===key?'all':key);setPlatform('all');setSearch('');setDepartment('all');}}><span className={styles.statSymbol}><NavIcon name={icon}/></span><span><small>{label}</small><strong>{count}</strong></span></button>)}
         </div>
-      )}
-      <section
-        className={styles.connectedCard}
-        aria-labelledby="your-channels-title"
-      >
-        <header className={styles.connectedHeader}>
-          <div>
-            <h2 id="your-channels-title">{t('قنواتك', 'Your channels')}</h2>
+        <section className={styles.directory}>
+          <div className={styles.filterBar}>
+            <label className={styles.searchBox}><NavIcon name="search"/><input type="search" aria-label={t('بحث بالاسم أو رقم الهاتف','Search name or phone')} placeholder={t('بحث بالاسم أو الرقم…','Search name or number…')} value={search} onChange={e=>setSearch(e.target.value)}/></label>
+            <select aria-label={t('المنصة','Platform')} value={platform} onChange={e=>setPlatform(e.target.value)}><option value="all">{t('كل المنصات','All platforms')}</option>{Object.entries(CHANNEL_NAMES).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select>
+            <select aria-label={t('الحالة','Status')} value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">{t('كل الحالات','All statuses')}</option>{Object.entries(stateLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select>
+            <select aria-label={t('القسم','Department')} value={department} onChange={e=>setDepartment(e.target.value)}><option value="all">{t('كل الأقسام','All departments')}</option><option value="none">{t('دون قسم','No department')}</option>{departments.map(d=><option key={d} value={d}>{d}</option>)}</select>
+            <div className={styles.viewSwitch}>{(['cards','list'] as const).map(v=><button type="button" key={v} aria-pressed={view===v} title={v==='cards'?t('عرض الكروت','Card view'):t('عرض القائمة','List view')} aria-label={v==='cards'?t('عرض الكروت','Card view'):t('عرض القائمة','List view')} onClick={()=>setView(v)}><NavIcon name={v==='cards'?'grid':'list'}/></button>)}</div>
           </div>
-          {accounts.length > 0 && <button type="button" className="btn" aria-expanded={filtersOpen} aria-controls="channel-filters"
-            onClick={() => setFiltersOpen(!filtersOpen)}><NavIcon name="filter" />{filtersActive ? t('الفلاتر مفعّلة', 'Filters active') : t('بحث وتصفية', 'Search and filter')}</button>}
-        </header>
-          <div id="channel-filters" className={styles.connectedFilters} hidden={!filtersOpen}>
-            <label>
-              <span className={styles.srOnly}>{t('بحث الاتصالات', 'Search connections')}</span>
-              <input
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t('بحث الاتصالات', 'Search connections')}
-              />
-            </label>
-            <label>
-              <span className={styles.srOnly}>{t('تصفية المنصة', 'Platform filter')}</span>
-              <select value={platform} onChange={(e) => setPlatform(e.target.value)}>
-                <option value="all">{t('كل المنصات', 'All platforms')}</option>
-                {['whatsapp', 'facebook', 'instagram', 'telegram', 'web', 'google'].map((value) => (
-                  <option key={value} value={value}>
-                    {CHANNEL_NAMES[value]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span className={styles.srOnly}>{t('تصفية الحالة', 'Status filter')}</span>
-              <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-                <option value="all">{t('كل الحالات', 'All statuses')}</option>
-                {['connected', 'attention', 'expiring', 'needs_action', 'expired', 'disconnected'].map(
-                  (value) => (
-                    <option key={value} value={value}>
-                      {stateLabels[value]}
-                    </option>
-                  ),
-                )}
-              </select>
-            </label>
-          </div>
-        {error && (
-          <p className="notice error" role="alert">
-            {error}{' '}
-            <button
-              className="btn"
-              disabled={busy}
-              onClick={() => {
-                setLoading(true);
-                void load();
-              }}
-            >
-              {t('إعادة التحميل', 'Reload')}
-            </button>
-          </p>
-        )}
-        {tokenNotice && (
-          <p className="notice" role="status">
-            {tokenNotice}
-          </p>
-        )}
-        {loading && <p role="status">{t('جارٍ تحميل القنوات…', 'Loading channels…')}</p>}
-
-        <div className={styles.channelList} aria-busy={loading}>
-              {visible.map((c) => (
-                <Fragment key={c.id}>
-                  <article id={'channel-' + c.id} className={styles.channelRow} data-state={stateOf(c)}>
-                    <div>
-                      <div className={styles.accountName}>
-                        <span aria-hidden="true">
-                          <ChannelLogo id={c.type} />
-                        </span>
-                        <div>
-                          <strong><bdi>{c.name}</bdi></strong>
-                          <small>
-                            {CHANNEL_NAMES[c.type] || c.type}
-                            {c.created_at && (
-                              <>
-                                {' '}
-                                ·{' '}
-                                {new Date(c.created_at).toLocaleDateString(
-                                  language === 'ar' ? 'ar-EG' : 'en-GB',
-                                )}
-                              </>
-                            )}
-                          </small>
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <span className={styles.healthBadge} data-state={stateOf(c)}>
-                        {c.connectionHealth?.reason === 'widget_installation_required'
-                          ? t('يتطلب تضمين الويدجت على الموقع', 'Widget installation required')
-                          : stateLabels[stateOf(c)] || t('غير معروف', 'Unknown')}
-                      </span>
-                      {stateOf(c) === 'needs_action' && c.connectionHealth?.reason !== 'widget_installation_required' &&
-                        <small className={styles.localStatus}>{t('افتح تفاصيل القناة لمعرفة الخطوة المطلوبة.', 'Open channel details to see the next step.')}</small>}
-                      {c.connectionHealth?.checkedAt && (
-                        <small className={styles.localStatus}>
-                          {t('آخر فحص', 'Last check')}{' '}
-                          <time dateTime={c.connectionHealth.checkedAt}>
-                            {new Date(c.connectionHealth.checkedAt).toLocaleString(
-                              language === 'ar' ? 'ar-EG' : 'en-GB',
-                            )}
-                          </time>
-                        </small>
-                      )}
-                    </div>
-                    <div className={styles.channelActions}>
-                      {c.widgetSnippet ? (
-                        <button
-                          className={stateOf(c) === 'needs_action' ? 'btn btn-primary' : 'btn'}
-                          onClick={() => {
-                            setCopied('');
-                            setWidget(c);
-                          }}
-                        >
-                          {t('تثبيت على الموقع', 'Install on website')}
-                        </button>
-                      ) : null}
-                      {['whatsapp', 'facebook', 'instagram', 'telegram', 'google', 'web'].includes(
-                        c.type,
-                      ) && (
-                        <Link className={'btn ' + (stateOf(c) !== 'connected' && !c.widgetSnippet ? styles.manageButton : '')} href={'/dashboard/channels/connect/' + c.type}>
-                          {t('إعدادات الربط', 'Connection setup')}
-                        </Link>
-                      )}
-                      {c.type !== 'google' && (
-                        <button
-                          type="button"
-                          className="btn"
-                          aria-label={
-                            t('إعدادات الحساب المتقدمة', 'Advanced account settings') + ' ' + c.name
-                          }
-                          aria-expanded={expandedId === c.id}
-                          aria-controls={'channel-details-' + c.id}
-                          onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}
-                        >
-                          {t('تفاصيل القناة', 'Channel details')}
-                        </button>
-                      )}
-                    </div>
-                  </article>
-                  {expandedId === c.id && (
-                    <div id={'channel-details-' + c.id}>
-                        <section
-                          className={styles.account}
-                          aria-label={t('إدارة الحساب', 'Manage account') + ' ' + c.name}
-                        >
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <strong className="connected-account-name">
-                              <span className="connected-account-logo" data-channel={c.type}>
-                                <ChannelLogo id={c.type} />
-                              </span>
-                              {c.name}{' '}
-                              <span className="text-sm text-gray-500">
+          <div className={styles.cardGrid} data-view={view}>
+          {visible.map(c=><article key={c.id} id={'channel-'+c.id} className={styles.channelTile} data-state={stateOf(c)}>
+            <header className={styles.tileHeader}><div className={styles.channelIdentity}><span className={styles.platformIcon} data-platform={c.type}><ChannelLogo id={c.type}/></span><div><h2><bdi>{c.name}</bdi></h2><small>{platformName(c)}</small></div></div><span className={styles.statusChip} data-state={stateOf(c)}><span/>{healthText(c)}</span></header>
+            <div className={styles.numberBox}><div><small><NavIcon name={c.type==='whatsapp'?'phone':'globe'}/>{c.type==='whatsapp'?t('رقم واتساب المرتبط','WhatsApp number'):t('القناة المرتبطة','Connected channel')}</small><strong>{c.type==='whatsapp'?(phoneOf(c)?<bdi>{phoneOf(c)}</bdi>:t('الرقم غير متاح بعد','Number not available yet')):platformName(c)}</strong></div>{c.type==='whatsapp'&&(phoneOf(c)?<button type="button" className={styles.textAction} onClick={()=>void copyPhone(c)}><NavIcon name="copy"/>{copied===c.id+'-phone'?t('تم النسخ','Copied'):t('نسخ','Copy')}</button>:canManage&&<button type="button" className={styles.textAction} disabled={identityBusy||c.status!=='active'} onClick={()=>void refreshPhone(c)}><NavIcon name="refresh"/>{t('جلب الرقم','Get number')}</button>)}</div>
+            <div className={styles.departmentLine}><span><NavIcon name="team"/>{t('القسم المسؤول','Department')}</span><strong>{deptOf(c)||t('غير محدد','Not set')}</strong></div>
+            <div className={styles.healthLine}><NavIcon name={stateOf(c)==='connected'?'circleCheck':'flag'}/><div><strong>{c.connectionHealth?.reason==='provider_verified'?t('تم التحقق من الحساب لدى المزود','Provider account verified'):healthText(c)}</strong><small>{t('آخر فحص','Last check')}: {formatDate(c.connectionHealth?.checkedAt)}</small></div></div>
+            {c.type!=='google'?<div className={styles.tileActions}><Link className={styles.primaryAction} href={channelHref('/dashboard/flows',c.id)}><NavIcon name="agents"/>{t('إعداد البوت والنشر','Set up bot')}</Link><Link className={styles.secondaryAction} href={channelHref('/dashboard/inbox',c.id)}><NavIcon name="chat"/>{t('محادثات القناة','Channel inbox')}</Link></div>:<Link className={styles.secondaryAction} href="/dashboard/channels/connect/google"><NavIcon name="settings"/>{t('إدارة ربط Google','Manage Google connection')}</Link>}
+            <footer className={styles.tileFooter}>{c.type!=='google'?<button type="button" className={styles.textAction} onClick={()=>openChannel(c)}><NavIcon name="settings"/>{t('إدارة القناة','Manage channel')}</button>:<span/>}
+              {c.widgetSnippet?<button type="button" className={styles.textAction} onClick={()=>install(c)}><NavIcon name="globe"/>{t('تثبيت على الموقع','Install on website')}</button>:c.type!=='google'&&canManage&&<button type="button" className={styles.textAction} disabled={busy||identityBusy||c.status!=='active'} onClick={()=>{openChannel(c,'health');void verify(c);}}><NavIcon name="shield"/>{t('فحص الاتصال','Check connection')}</button>}
+              <details className={styles.moreMenu}><summary aria-label={t('المزيد','More')}><NavIcon name="moreVertical"/></summary><div><Link className="btn" href={'/dashboard/channels/connect/'+c.type}><NavIcon name="settings"/>{t('إعدادات الربط','Connection setup')}</Link>{c.type!=='google'&&<button className="btn" type="button" onClick={()=>openChannel(c,'identity')}><NavIcon name="edit"/>{t('بيانات القناة','Channel identity')}</button>}{c.type==='whatsapp'&&<Link className="btn" href={'/dashboard/channels/'+c.id+'/templates'}><NavIcon name="list"/>{t('القوالب','Templates')}</Link>}{c.type!=='google'&&canManage&&c.status==='active'&&<button type="button" className="btn btn-danger" onClick={()=>setDeleting(c)}><NavIcon name="circleClose"/>{t('فصل الاتصال','Disconnect')}</button>}</div></details>
+            </footer>
+          </article>)}
+          {!visible.length&&<div className={styles.emptyPanel}><NavIcon name="channels"/><strong>{accounts.length?t('لا توجد قنوات مطابقة','No matching channels'):t('لم تربط أي قناة بعد','No channels connected yet')}</strong><button className="btn" type="button" onClick={()=>{if(!accounts.length)setAvailableOpen(true);else{setSearch('');setPlatform('all');setFilter('all');setDepartment('all');}}}>{accounts.length?t('مسح الفلاتر','Clear filters'):t('ربط قناة','Connect a channel')}</button></div>}
+          </div><p className={styles.resultCount}>{t('عرض','Showing')} {visible.length} {t('من إجمالي','of')} {accounts.length} {t('قناة','channels')}</p>
+        </section>
+      </>}
+      {selected&&selected.type!=='google'&&(()=>{const c=selected;return <section key={c.id} className={styles.managePage}>
+        <header className={styles.manageHeader}><div className={styles.channelIdentity}><span className={styles.platformIcon} data-platform={c.type}><ChannelLogo id={c.type}/></span><div><h2><bdi>{c.name}</bdi></h2><small>{platformName(c)} {phoneOf(c)&&<>· <bdi>{phoneOf(c)}</bdi></>}</small></div></div><span className={styles.statusChip} data-state={stateOf(c)}><span/>{healthText(c)}</span><div className={styles.manageActions}><Link className={styles.primaryAction} href={channelHref('/dashboard/flows',c.id)}><NavIcon name="agents"/>{t('إعداد البوت','Set up bot')}</Link><Link className={styles.secondaryAction} href={channelHref('/dashboard/inbox',c.id)}><NavIcon name="chat"/>{t('المحادثات','Inbox')}</Link></div></header>
+        <nav className={styles.manageTabs} aria-label={t('أقسام إدارة القناة','Channel management sections')}>{([['overview','grid',t('نظرة عامة','Overview')],['identity','user',t('بيانات القناة','Channel identity')],['health','shield',t('فحص الاتصال','Connection health')],...(c.type==='whatsapp'?[['templates','list',t('القوالب','Templates')]]:[]),['advanced','settings',t('الإعدادات','Settings')]] as [typeof detailTab,string,string][]).map(([key,icon,label])=><button type="button" key={key} disabled={busy||identityBusy} aria-pressed={detailTab===key} onClick={()=>{setDetailTab(key);setError('');setSavedNotice('');}}><NavIcon name={icon}/>{label}</button>)}</nav>
+        <div className={styles.manageBody}>
+          {detailTab==='overview'&&<><div className={styles.overviewGrid}>{[[t('حالة الاتصال','Connection status'),healthText(c),'shield'],[t('تشغيل القناة','Local status'),statusLabel(c.status,t),'circleCheck'],[t('القسم المسؤول','Department'),deptOf(c)||t('غير محدد','Not set'),'team'],[t('نشر البوت','Bot publication'),botDiagnostics[c.id]?String(botDiagnostics[c.id].publishedFlowCount)+' '+t('تدفقات منشورة','published flows'):t('يتطلب التحقق','Needs verification'),'agents']].map(([label,value,icon])=><div key={label}><NavIcon name={icon}/><small>{label}</small><strong>{value}</strong></div>)}</div><div className={styles.infoPanel}><NavIcon name="stopwatch"/><div><strong>{t('آخر فحص للاتصال','Last connection check')}</strong><p>{formatDate(c.connectionHealth?.checkedAt)}</p></div></div>                          {c.connectionHealth?.reason && (
+                            <p className={styles.healthMessage}>
+                              {
                                 (
-                                {
-                                  (
-                                    {
-                                      web: t('ويدجت الموقع', 'Website widget'),
-                                      whatsapp: 'WhatsApp',
-                                      facebook: 'Facebook Messenger',
-                                      instagram: 'Instagram',
-                                      telegram: 'Telegram',
-                                    } as Record<string, string>
-                                  )[c.type]
-                                }
-                                ) · {statusLabel(c.status, t)} · {stateLabels[stateOf(c)]}
-                              </span>
-                            </strong>
-                          </div>
-                          <div className={styles.identity}>
-                            <span>
-                              {t('معرّف الحساب', 'Account identifier')}: <bdi>{c.external_id}</bdi>
-                            </span>
-                            <span>
-                              {t('تشغيل القناة', 'Local channel')}: {statusLabel(c.status, t)}
-                            </span>
-                            <span>
-                              {t('دليل الاتصال', 'Connection evidence')}:{' '}
-                              {stateLabels[stateOf(c)] || t('غير معروف', 'Unknown')}
-                            </span>
-                          </div>
-                          <nav
-                            className={`form-actions ${styles.actions}`}
-                            aria-label={t('الخطوة التالية لقناة', 'Next steps for') + ' ' + c.name}
-                          >
-                            <Link
-                              className="btn btn-primary"
-                              href={channelHref('/dashboard/flows', c.id)}
-                            >
-                              {t('إعداد البوت والنشر', 'Set up and publish bot')}
-                            </Link>
-                            <Link className="btn" href={channelHref('/dashboard/inbox', c.id)}>
-                              {t('محادثات هذه القناة', 'This channel’s inbox')}
-                            </Link>
-                          </nav>
-                          <p className="muted">
-                            {t(
-                              'الاتصال بالمزود لا يثبت نشر البوت أو وصول رسالة. راجع حالة التدفق في مدير البوت واختبر على قناة مخصصة للاختبار.',
-                              'Provider connectivity does not prove bot publication or message delivery. Check the flow status in Bot Manager and test on a dedicated test channel.',
-                            )}
-                          </p>
-                          {c.connectionHealth?.checkedAt && (
-                            <p>
-                              {t('آخر فحص', 'Last check')}:{' '}
-                              <time dateTime={c.connectionHealth.checkedAt}>
-                                {new Date(c.connectionHealth.checkedAt).toLocaleString()}
-                              </time>
+                                  {
+                                    authorization_expiring: t(
+                                      'تفويض Meta ينتهي خلال 7 أيام. جدّد التفويض قبل توقف الإرسال.',
+                                      'Meta authorization expires within 7 days. Renew it before delivery stops.',
+                                    ),
+                                    messaging_permission_required: t(
+                                      'تعذّر إثبات صلاحية إرسال واتساب. افحص صلاحيات Meta.',
+                                      'WhatsApp messaging permission is not verified. Check Meta authorization.',
+                                    ),
+                                    authorization_unavailable: t(
+                                      'تعذر التحقق من تفويض Meta الآن. أعد الفحص قبل اعتماد الاتصال.',
+                                      'Meta authorization could not be verified. Check again before relying on the connection.',
+                                    ),
+                                    provider_verified: t(
+                                      'تم التحقق من الحساب لدى المزود.',
+                                      'Provider account verified.',
+                                    ),
+                                    authorization_expired: t(
+                                      'أعد التفويض من مسار الربط الرسمي.',
+                                      'Authorize again through the official connection.',
+                                    ),
+                                    provider_unreachable: t(
+                                      'تعذر الوصول للمزود. أعد المحاولة لاحقًا.',
+                                      'Provider unreachable. Try later.',
+                                    ),
+                                    provider_rejected: t(
+                                      'راجع صلاحيات الحساب ثم أعد التفويض.',
+                                      'Review account permissions and authorize again.',
+                                    ),
+                                    waba_not_subscribed: t(
+                                      'تطبيق Meta غير مشترك في حساب واتساب هذا. راجع Subscribe webhooks في Production setup على WABA الصحيح.',
+                                      'The Meta app is not subscribed to this WABA. Check Subscribe webhooks on the correct WABA in Production setup.',
+                                    ),
+                                    waba_webhook_override: t(
+                                      'حساب واتساب يرسل إشعاراته إلى عنوان Webhook مختلف. راجع إعداد Override لدى Meta.',
+                                      'This WABA uses another webhook URL override. Review the Meta override settings.',
+                                    ),
+                                    waba_subscription_unverified: t(
+                                      'تعذّر تأكيد اشتراك WABA؛ راجع WABA ID وإعداد META_APP_ID.',
+                                      'WABA subscription could not be confirmed; check WABA ID and META_APP_ID.',
+                                    ),
+                                    waba_subscription_check_failed: t(
+                                      'تعذّر قراءة اشتراكات WABA. تأكد أن التوكين له صلاحية whatsapp_business_management.',
+                                      'Unable to read WABA subscriptions. Ensure the token has whatsapp_business_management permission.',
+                                    ),
+                                    external_access_disabled: t(
+                                      'الفحص الخارجي غير مفعّل لدى مسؤول المنصة.',
+                                      'External verification is disabled by the operator.',
+                                    ),
+                                    verification_required: t(
+                                      'يلزم فحص حديث للمزود.',
+                                      'A recent provider check is required.',
+                                    ),
+                                    widget_installation_required: t(
+                                      'ثبّت الويدجت ثم جرّب المحادثة.',
+                                      'Install the widget and try a conversation.',
+                                    ),
+                                    disabled_locally: t(
+                                      'القناة متوقفة محليًا.',
+                                      'Channel disabled locally.',
+                                    ),
+                                  } as Record<string, string>
+                                )[c.connectionHealth.reason]
+                              }
                             </p>
                           )}
-                          {c.type !== 'web' && (
-                            <button
-                              type="button"
-                              className="btn"
-                              disabled={busy || c.status !== 'active'}
-                              onClick={() => verify(c)}
-                            >
-                              {t('فحص الاتصال بالمزود', 'Verify provider connection')}
-                            </button>
+{c.widgetSnippet&&<button className={styles.primaryAction} type="button" onClick={()=>install(c)}><NavIcon name="globe"/>{t('تثبيت على الموقع','Install on website')}</button>}</>}
+          {detailTab==='identity'&&<form className={styles.identityForm} onSubmit={e=>void saveIdentity(e,c)}><h3><NavIcon name="user"/>{t('البيانات التعريفية للقناة','Channel identity')}</h3><label className="field">{t('اسم القناة المخصص','Custom channel name')}<input name="name" defaultValue={c.name} maxLength={80} required disabled={!canManage||identityBusy}/></label>
+            {c.type==='whatsapp'&&<div className={styles.numberBox}><div><small><NavIcon name="phone"/>{t('رقم واتساب الحقيقي من Meta','Actual WhatsApp number from Meta')}</small><strong>{phoneOf(c)?<bdi>{phoneOf(c)}</bdi>:t('غير متاح بعد','Not available yet')}</strong><small>{formatDate(typeof c.settings?.providerPhoneCheckedAt==='string'?c.settings.providerPhoneCheckedAt:null)}</small></div>{canManage&&<button type="button" className="btn" disabled={identityBusy||c.status!=='active'} onClick={()=>void refreshPhone(c)}><NavIcon name="refresh"/>{t('تحديث الرقم','Refresh number')}</button>}{phoneOf(c)&&<button type="button" className="btn" onClick={()=>void copyPhone(c)}><NavIcon name="copy"/>{copied===c.id+'-phone'?t('تم النسخ','Copied'):t('نسخ','Copy')}</button>}</div>}
+            <label className="field">{t('القسم أو وظيفة القناة','Department or channel purpose')}<input name="department" defaultValue={deptOf(c)} maxLength={80} disabled={!canManage||identityBusy} placeholder={t('مثال: المبيعات، الحجوزات','e.g. Sales, Bookings')}/><small>{t('للتعريف والتصفية فقط؛ لا يغير قواعد توزيع المحادثات.','Display and filtering only; does not change conversation routing.')}</small></label><label className="field">{t('ملاحظات داخلية','Internal notes')}<textarea name="note" rows={3} maxLength={1000} defaultValue={String(c.settings?.internalNote||'')} disabled={!canManage||identityBusy}/></label>{canManage&&<button className={styles.primaryAction} disabled={identityBusy}><NavIcon name="check"/>{identityBusy?t('جارٍ الحفظ…','Saving…'):t('حفظ التعديلات','Save changes')}</button>}</form>}
+          {detailTab==='health'&&<div className={styles.healthPanel}><h3><NavIcon name="shield"/>{t('سلامة الاتصال','Connection health')}</h3>{[[t('حالة المزود','Provider status'),healthText(c),stateOf(c)==='connected'],...(c.type==='whatsapp'?[[t('رقم الهاتف','Phone number'),phoneOf(c)||t('غير متاح بعد','Not available yet'),!!phoneOf(c)]]:[]),[t('استلام وإرسال الرسائل','Message delivery'),t('يلزم اختبار حي','Live test required'),false]].map(([label,value,ok])=><div className={styles.healthCheck} key={String(label)} data-ok={ok}><NavIcon name={ok?'circleCheck':'flag'}/><strong>{label}</strong><span>{value}</span></div>)}                          {c.connectionHealth?.reason && (
+                            <p className={styles.healthMessage}>
+                              {
+                                (
+                                  {
+                                    authorization_expiring: t(
+                                      'تفويض Meta ينتهي خلال 7 أيام. جدّد التفويض قبل توقف الإرسال.',
+                                      'Meta authorization expires within 7 days. Renew it before delivery stops.',
+                                    ),
+                                    messaging_permission_required: t(
+                                      'تعذّر إثبات صلاحية إرسال واتساب. افحص صلاحيات Meta.',
+                                      'WhatsApp messaging permission is not verified. Check Meta authorization.',
+                                    ),
+                                    authorization_unavailable: t(
+                                      'تعذر التحقق من تفويض Meta الآن. أعد الفحص قبل اعتماد الاتصال.',
+                                      'Meta authorization could not be verified. Check again before relying on the connection.',
+                                    ),
+                                    provider_verified: t(
+                                      'تم التحقق من الحساب لدى المزود.',
+                                      'Provider account verified.',
+                                    ),
+                                    authorization_expired: t(
+                                      'أعد التفويض من مسار الربط الرسمي.',
+                                      'Authorize again through the official connection.',
+                                    ),
+                                    provider_unreachable: t(
+                                      'تعذر الوصول للمزود. أعد المحاولة لاحقًا.',
+                                      'Provider unreachable. Try later.',
+                                    ),
+                                    provider_rejected: t(
+                                      'راجع صلاحيات الحساب ثم أعد التفويض.',
+                                      'Review account permissions and authorize again.',
+                                    ),
+                                    waba_not_subscribed: t(
+                                      'تطبيق Meta غير مشترك في حساب واتساب هذا. راجع Subscribe webhooks في Production setup على WABA الصحيح.',
+                                      'The Meta app is not subscribed to this WABA. Check Subscribe webhooks on the correct WABA in Production setup.',
+                                    ),
+                                    waba_webhook_override: t(
+                                      'حساب واتساب يرسل إشعاراته إلى عنوان Webhook مختلف. راجع إعداد Override لدى Meta.',
+                                      'This WABA uses another webhook URL override. Review the Meta override settings.',
+                                    ),
+                                    waba_subscription_unverified: t(
+                                      'تعذّر تأكيد اشتراك WABA؛ راجع WABA ID وإعداد META_APP_ID.',
+                                      'WABA subscription could not be confirmed; check WABA ID and META_APP_ID.',
+                                    ),
+                                    waba_subscription_check_failed: t(
+                                      'تعذّر قراءة اشتراكات WABA. تأكد أن التوكين له صلاحية whatsapp_business_management.',
+                                      'Unable to read WABA subscriptions. Ensure the token has whatsapp_business_management permission.',
+                                    ),
+                                    external_access_disabled: t(
+                                      'الفحص الخارجي غير مفعّل لدى مسؤول المنصة.',
+                                      'External verification is disabled by the operator.',
+                                    ),
+                                    verification_required: t(
+                                      'يلزم فحص حديث للمزود.',
+                                      'A recent provider check is required.',
+                                    ),
+                                    widget_installation_required: t(
+                                      'ثبّت الويدجت ثم جرّب المحادثة.',
+                                      'Install the widget and try a conversation.',
+                                    ),
+                                    disabled_locally: t(
+                                      'القناة متوقفة محليًا.',
+                                      'Channel disabled locally.',
+                                    ),
+                                  } as Record<string, string>
+                                )[c.connectionHealth.reason]
+                              }
+                            </p>
                           )}
-                          {c.type === 'whatsapp' && (
+<div className={styles.infoPanel}><NavIcon name="question"/><p>{t('الاتصال بالمزود لا يثبت نشر البوت أو وصول الرسائل. افحص التشخيص أو اختبر على قناة مخصصة.','Provider connectivity does not prove bot publication or message delivery. Diagnose or test on a dedicated channel.')}</p></div>{canManage&&c.type!=='web'&&<button type="button" className={styles.primaryAction} disabled={busy||identityBusy||c.status!=='active'} onClick={()=>void verify(c)}><NavIcon name="refresh"/>{t('إعادة فحص الاتصال','Verify provider connection')}</button>}{canManage&&<div className={styles.diagnosticPanel}>                          {c.type === 'whatsapp' && (
                             <details className="channel-advanced">
                               <DisclosureSummary>
                                 {t(
@@ -583,7 +555,7 @@ export default function Channels() {
                                 disabled={busy}
                                 onClick={() => inspectBot(c)}
                               >
-                                {t('تشخيص ردود البوت', 'Diagnose bot replies')}
+                                <NavIcon name="agents"/>{t('تشخيص ردود البوت', 'Diagnose bot replies')}
                               </button>
                               <button
                                 type="button"
@@ -591,7 +563,7 @@ export default function Channels() {
                                 disabled={busy}
                                 onClick={() => inspectWhatsAppAuth(c)}
                               >
-                                {t(
+                                <NavIcon name="shield"/>{t(
                                   'فحص صلاحيات الإرسال وأخطاء Meta',
                                   'Check Meta messaging permissions and errors',
                                 )}
@@ -970,124 +942,11 @@ export default function Channels() {
                               )}
                             </details>
                           )}
-                          {c.connectionHealth?.reason && (
-                            <p className="muted">
-                              {
-                                (
-                                  {
-                                    authorization_expiring: t(
-                                      'تفويض Meta ينتهي خلال 7 أيام. جدّد التفويض قبل توقف الإرسال.',
-                                      'Meta authorization expires within 7 days. Renew it before delivery stops.',
-                                    ),
-                                    messaging_permission_required: t(
-                                      'تعذّر إثبات صلاحية إرسال واتساب. افحص صلاحيات Meta.',
-                                      'WhatsApp messaging permission is not verified. Check Meta authorization.',
-                                    ),
-                                    authorization_unavailable: t(
-                                      'تعذر التحقق من تفويض Meta الآن. أعد الفحص قبل اعتماد الاتصال.',
-                                      'Meta authorization could not be verified. Check again before relying on the connection.',
-                                    ),
-                                    provider_verified: t(
-                                      'تم التحقق من الحساب لدى المزود.',
-                                      'Provider account verified.',
-                                    ),
-                                    authorization_expired: t(
-                                      'أعد التفويض من مسار الربط الرسمي.',
-                                      'Authorize again through the official connection.',
-                                    ),
-                                    provider_unreachable: t(
-                                      'تعذر الوصول للمزود. أعد المحاولة لاحقًا.',
-                                      'Provider unreachable. Try later.',
-                                    ),
-                                    provider_rejected: t(
-                                      'راجع صلاحيات الحساب ثم أعد التفويض.',
-                                      'Review account permissions and authorize again.',
-                                    ),
-                                    waba_not_subscribed: t(
-                                      'تطبيق Meta غير مشترك في حساب واتساب هذا. راجع Subscribe webhooks في Production setup على WABA الصحيح.',
-                                      'The Meta app is not subscribed to this WABA. Check Subscribe webhooks on the correct WABA in Production setup.',
-                                    ),
-                                    waba_webhook_override: t(
-                                      'حساب واتساب يرسل إشعاراته إلى عنوان Webhook مختلف. راجع إعداد Override لدى Meta.',
-                                      'This WABA uses another webhook URL override. Review the Meta override settings.',
-                                    ),
-                                    waba_subscription_unverified: t(
-                                      'تعذّر تأكيد اشتراك WABA؛ راجع WABA ID وإعداد META_APP_ID.',
-                                      'WABA subscription could not be confirmed; check WABA ID and META_APP_ID.',
-                                    ),
-                                    waba_subscription_check_failed: t(
-                                      'تعذّر قراءة اشتراكات WABA. تأكد أن التوكين له صلاحية whatsapp_business_management.',
-                                      'Unable to read WABA subscriptions. Ensure the token has whatsapp_business_management permission.',
-                                    ),
-                                    external_access_disabled: t(
-                                      'الفحص الخارجي غير مفعّل لدى مسؤول المنصة.',
-                                      'External verification is disabled by the operator.',
-                                    ),
-                                    verification_required: t(
-                                      'يلزم فحص حديث للمزود.',
-                                      'A recent provider check is required.',
-                                    ),
-                                    widget_installation_required: t(
-                                      'ثبّت الويدجت ثم جرّب المحادثة.',
-                                      'Install the widget and try a conversation.',
-                                    ),
-                                    disabled_locally: t(
-                                      'القناة متوقفة محليًا.',
-                                      'Channel disabled locally.',
-                                    ),
-                                  } as Record<string, string>
-                                )[c.connectionHealth.reason]
-                              }
-                            </p>
-                          )}
-                          <ChannelSettings channel={c} onSaved={load} />
-                      {c.type !== 'google' && c.status === 'active' && (
-                        <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setDeleting(c)}>
-                          {t('فصل الاتصال', 'Disconnect')}
-                        </button>
-                      )}
-
-                          {c.type === 'whatsapp' && (
-                            <Link
-                              className="btn mt-3"
-                              href={`/dashboard/channels/${c.id}/templates`}
-                            >
-                              {t('إدارة قوالب WhatsApp', 'Manage WhatsApp templates')} ↗
-                            </Link>
-                          )}
-                        </section>
-                    </div>
-                  )}
-                </Fragment>
-              ))}
-              {!loading && !visible.length && (
-                <div className="empty">
-                    {accounts.length
-                      ? t(
-                          'لا توجد قنوات تطابق البحث أو التصفية.',
-                          'No channels match your search or filters.',
-                        )
-                      : t(
-                          'لا توجد قنوات بعد. اضغط «ربط قناة» للبدء.',
-                          'No channels yet. Select “Connect a channel” to get started.',
-                        )}
-                    {accounts.length > 0 && (
-                      <button
-                        className="btn"
-                        onClick={() => {
-                          setSearch('');
-                          setPlatform('all');
-                          setFilter('all');
-                        }}
-                      >
-                        {t('مسح البحث والتصفية', 'Clear search and filters')}
-                      </button>
-                    )}
-                </div>
-              )}
+</div>}{c.widgetSnippet&&<button className="btn" type="button" onClick={()=>install(c)}><NavIcon name="globe"/>{t('تثبيت على الموقع','Install on website')}</button>}</div>}
+          {detailTab==='templates'&&c.type==='whatsapp'&&<div className={styles.templatePanel}><span className={styles.platformIcon} data-platform="whatsapp"><NavIcon name="list"/></span><h3>{t('قوالب رسائل WhatsApp','WhatsApp message templates')}</h3><p>{t('إدارة القوالب المعتمدة ومزامنتها من Meta في صفحة القوالب.','Manage and sync approved templates from Meta in the template workspace.')}</p><Link className={styles.primaryAction} href={'/dashboard/channels/'+c.id+'/templates'}><NavIcon name="list"/>{t('إدارة القوالب والمزامنة','Manage & sync templates')}</Link></div>}
+          {detailTab==='advanced'&&<div className={styles.advancedPanel}><h3><NavIcon name="settings"/>{t('بيانات الربط والإعدادات','Connection settings')}</h3><div className={styles.technicalRow}><span>{c.type==='whatsapp'?'Phone Number ID':t('معرف الحساب','Account identifier')}</span><bdi>{c.external_id}</bdi></div><div className={styles.technicalRow}><span>{t('المنصة','Platform')}</span><strong>{platformName(c)}</strong></div><Link className={styles.secondaryAction} href={'/dashboard/channels/connect/'+c.type}><NavIcon name="settings"/>{t('إعدادات الربط وإعادة التفويض','Connection setup & authorization')}</Link>{canManage&&<ChannelSettings channel={c} onSaved={load}/>}{canManage&&c.status==='active'&&<div className={styles.dangerZone}><div><strong>{t('الإجراءات الحساسة','Sensitive actions')}</strong><small>{t('فصل الاتصال يوقف القناة محليًا مع الاحتفاظ بالبيانات.','Disconnecting pauses the channel locally and preserves data.')}</small></div><button type="button" className="btn btn-danger" disabled={busy} onClick={()=>setDeleting(c)}><NavIcon name="circleClose"/>{t('فصل الاتصال','Disconnect')}</button></div>}</div>}
         </div>
-      </section>
-
+      </section>})()}
       <Dialog open={availableOpen} onClose={() => setAvailableOpen(false)}
         title={t('اختر منصة للربط', 'Choose a platform to connect')}>
         {availableOpen && <ChannelCatalog />}
