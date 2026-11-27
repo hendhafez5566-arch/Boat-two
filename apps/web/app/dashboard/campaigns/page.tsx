@@ -745,7 +745,7 @@ export default function Campaigns() {
                       e.preventDefault();
                       if (
                         reviews[c.id]?.key !== reviewKey(c) ||
-                        !reviews[c.id]?.audience.eligible
+                        (!reviews[c.id]?.audience.eligible || !reviews[c.id]?.audience.channelPolicyEnabled)
                       ) {
                         setError(
                           t(
@@ -756,7 +756,7 @@ export default function Campaigns() {
                         return;
                       }
                       const date=new Date(String(new FormData(e.currentTarget).get('at')));
-                      if(!Number.isFinite(date.getTime())||date.getTime()<=Date.now()){setError(t('اختر موعدًا صالحًا في المستقبل.','Choose a valid future date and time.'));return;}
+                      if(!Number.isFinite(date.getTime())||date.getTime()<=Date.now()||date.getTime()>Date.now()+366*86400000){setError(t('اختر موعدًا صالحًا خلال السنة القادمة.','Choose a valid future date within the next year.'));return;}
                       const at=date.toISOString();
                       if(!window.confirm(t('تأكيد جدولة الحملة للجمهور المؤهل في الموعد المحدد؟','Confirm scheduling this campaign for eligible recipients at the selected time?')))return;
                       run(async () => {
@@ -792,7 +792,7 @@ export default function Campaigns() {
                       disabled={
                         busy ||
                         reviews[c.id]?.key !== reviewKey(c) ||
-                        !reviews[c.id]?.audience.eligible
+                        (!reviews[c.id]?.audience.eligible || !reviews[c.id]?.audience.channelPolicyEnabled)
                       }
                     >
                       {c.status === 'scheduled'
