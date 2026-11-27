@@ -2280,3 +2280,23 @@
 .inbox :global(.thread-msgs){background:#f3f6f9;padding:10px 16px}.inbox :global(.msg-bubble){font-size:16px;line-height:1.6;padding:8px 10px;border-radius:9px;box-shadow:0 1px 3px #2538580c}.inbox :global(.msg-meta){font-size:11px}.inbox :global(.composer){padding:6px 9px;background:#fff}.composerToolbar{gap:5px}.inbox .composerToolbar :global(.composer-modes button){display:inline-flex;align-items:center;gap:5px;min-height:30px;padding:4px 8px}.composerToolbar :global(.composer-modes) svg{width:15px;height:15px}.inbox .composerToolbar>:global(.btn){min-height:30px;font-size:11px;padding:4px 7px;border-radius:7px;color:#4f46e5;background:#f6f7ff;border-color:#e0e3ff}.inbox :global(.composer-row){border-radius:12px;padding:3px 7px}.inbox :global(.composer-input){font-size:15px;min-height:38px}.inbox :global(.composer-send:not(.is-note)){background:linear-gradient(145deg,#7774fa,#4338ca);box-shadow:0 3px 8px #4f46e530;color:white;width:36px;height:36px;min-height:36px}.inbox :global(.handoff-notice){display:flex;align-items:center;gap:6px;padding:5px 9px;margin:0;font-size:12px}.inbox :global(.handoff-notice) svg{width:15px;height:15px}.inbox :global(.handoff-notice) button{margin-inline-start:auto;border:0;background:transparent;color:inherit;cursor:pointer}.inbox :global(.inbox-list)>button:last-child{display:flex;align-items:center;justify-content:center;gap:6px;padding:7px;font-size:12px;color:#4f46e5}.inbox :global(.inbox-list)>button:last-child svg{width:15px;height:15px}
 .railTabs button[aria-pressed=true]{background:#eeedff!important;color:#4f46e5!important}.rail button:hover,.rail a:hover{color:#4f46e5;background:#f5f3ff}
 @media(max-width:640px){.threadTools{width:100%;justify-content:flex-start}.threadTools>button{min-height:38px!important;height:38px!important}.threadHeader.threadHeader{padding:6px}.inbox :global(.thread-msgs){padding:8px}.inbox :global(.msg-bubble){font-size:16px}.inbox .composerToolbar>:global(.btn){min-height:36px}}
+
+/* Compact chat header: two identity lines, one tool row on wide threads. */
+.inbox .threadHeader.threadHeader{min-height:48px;flex:none;padding:5px 9px;gap:4px 7px;align-items:center}
+.inbox .threadAvatar{width:33px;height:33px;flex:0 0 33px;font-size:14px}
+.inbox .threadIdentity{display:flex;flex-direction:column;justify-content:center;gap:2px;flex:1 1 230px;min-width:0}
+.inbox .threadIdentity strong{min-width:0;line-height:1.3;gap:4px;margin:0;flex-wrap:nowrap}
+.threadName{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inbox .threadIdentity .importantTag{margin-inline:0;flex:none}
+.inbox .threadIdentity .editName{flex:none;width:22px;height:22px;min-height:22px;padding:2px}
+.identityMeta{display:flex;align-items:center;flex-wrap:wrap;gap:1px 8px;min-width:0;line-height:1.35}
+.inbox .identityMeta small{display:inline-block;max-width:100%;min-width:0;line-height:1.35;font-size:11px;margin:0}
+.identityMeta>:global(.inbox-handler){white-space:nowrap;color:#4f46e5}
+.identityMeta>a{display:inline-flex;align-items:center;gap:3px;color:#4f46e5;font-size:11px;line-height:1.35;white-space:nowrap}
+.identityMeta>a svg{width:13px;height:13px;flex:none}
+.inbox .threadTools{flex:0 1 auto;gap:4px}
+.inbox .threadTools>button{height:30px!important;min-height:30px!important}
+.inbox .headerContext .customerStrip{padding:3px;gap:3px}
+.inbox .headerContext .customerStrip>div{padding:3px 6px}
+@media(max-width:640px){.inbox .threadIdentity{flex:1 1 145px}.inbox .threadTools{flex:1 0 100%;width:100%;justify-content:flex-start}.inbox .threadTools>button{height:36px!important;min-height:36px!important}}
+@media(pointer:coarse){.inbox .threadTools>button{height:40px!important;min-height:40px!important}}

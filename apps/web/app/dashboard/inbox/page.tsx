@@ -980,7 +980,7 @@ export default function Inbox() {
                   </span>
                   <div className={styles.threadIdentity}>
                     <strong>
-                      {title(detail)}
+                      <span className={styles.threadName} title={title(detail)}>{title(detail)}</span>
                       {detail.important && (
                         <span className={styles.importantTag} title={t('محادثة مهمة', 'Important conversation')}>
                           <NavIcon name="star" />{t('مهمة', 'Important')}
@@ -997,14 +997,14 @@ export default function Inbox() {
                         </button>
                       )}
                     </strong>
-                    <small><bdi>{detail.contact_phone || detail.channel_name}</bdi></small><small className="inbox-handler" data-bot={detail.handled_by==='bot'}>{detail.handled_by==='bot'?t('يديرها البوت','Handled by bot'):t('يديرها الفريق','Handled by team')}</small>
+                    <div className={styles.identityMeta}><small title={detail.contact_phone || detail.channel_name}><bdi>{detail.contact_phone || detail.channel_name}</bdi></small><small className="inbox-handler" data-bot={detail.handled_by==='bot'}>{detail.handled_by==='bot'?t('يديرها البوت','Handled by bot'):t('يديرها الفريق','Handled by team')}</small>
                     {process.env.NEXT_PUBLIC_COMMERCE_CHECKOUT === 'true' &&
                       ['owner', 'admin'].includes(workspaceRole) && detail.channel_id && (
                       <Link href={'/dashboard/commerce?' + new URLSearchParams({
                         conversation: detail.id, channel: detail.channel_id,
                       })}><NavIcon name="commerce"/>{t('إنشاء طلب', 'Create order')}</Link>
                     )}
-                  </div>
+                  </div></div>
                 {infoOpen && (
                   <div className={styles.headerContext}>
                     <dl className={styles.customerStrip}>
