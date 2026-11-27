@@ -170,7 +170,16 @@ export class WidgetController {
                  JOIN contact_channels cc ON cc.contact_id = cv.contact_id AND cc.channel_id = cv.channel_id
                  WHERE cv.channel_id = $1 AND cc.external_id = $2
                  ORDER BY cv.created_at DESC LIMIT 1)
-           AND m.seq > $3 AND m.sender_type <> 'system' AND m.is_internal = false
+           AND m.seq > $3 AND m.is_internal = false
+           AND (m.sender_type <> 'system' OR (
+             m.direction = 'out' AND m.status = 'sent'
+             AND EXISTS (
+               SELECT 1 FROM campaign_recipients cr
+               JOIN campaigns cp ON cp.id=cr.campaign_id
+               WHERE cr.message_id=m.id AND cr.tenant_id=m.tenant_id
+                 AND cp.channel_id=m.channel_id
+             )
+           ))
          ORDER BY m.seq LIMIT 101`,
         [ch.id, visitorId, afterSeq],
       );
