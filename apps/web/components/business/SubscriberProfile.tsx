@@ -14,6 +14,7 @@ import { CrmScore } from './CrmScoring';
 import premium from './crm-workspace.module.css';
 import { StartCrmConversation } from './StartCrmConversation';
 import { CrmWork } from './CrmWork';
+import { CustomerCommerce, useCustomerCommerce } from './CustomerCommerce';
 import { ContactActivityExport } from './ContactActivityExport';
 import design from './crm-design.module.css';
 import styles from './subscribers.module.css';
@@ -70,6 +71,8 @@ type Profile = {
 };
 const tabs = [
   ['overview', 'نظرة عامة', 'Overview'],
+  ['orders', 'الطلبات', 'Orders'],
+  ['settings', 'إدارة العميل', 'Manage customer'],
   ['deals', 'فرص البيع', 'Opportunities'],
   ['tasks', 'المتابعات', 'Follow-ups'],
   ['company', 'الشركة', 'Company'],
@@ -116,6 +119,7 @@ export default function SubscriberProfile({
     '/crm/fields',
     [],
   );
+  const commerce = useCustomerCommerce(contactId, fullPage && canManage);
   const [quickCreate, setQuickCreate] = useState('');
   const [overviewEditing, setOverviewEditing] = useState(false);
   const [tab, updateTab] = useState(initialTab),
@@ -268,6 +272,8 @@ export default function SubscriberProfile({
           .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
       : [];
   const latestActivity = activity[0];
+  const icons:Record<string,string>={overview:'grid',orders:'commerce',deals:'handshake',tasks:'calendar',notes:'edit',activity:'stopwatch',settings:'settings',company:'team',agent:'user',labels:'tag',fields:'list',input:'forms',lists:'list',sequences:'sequences',consent:'shield'};
+  const managementGroups=[{title:t('بيانات العميل','Customer details'),keys:['company','agent','labels','fields','input']},{title:t('التواصل والتسويق','Communication and marketing'),keys:['lists','sequences','consent']}];
 
   function saveOverview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -389,8 +395,7 @@ export default function SubscriberProfile({
             )}
             <button
               onClick={() => {
-                setTab('notes');
-                requestAnimationFrame(() => noteInput.current?.focus());
+                if(setTab('notes')) requestAnimationFrame(() => noteInput.current?.focus());
               }}
             >
               <NavIcon name="edit" />
@@ -453,38 +458,23 @@ export default function SubscriberProfile({
               </button>
             )}
           </div>
-          <div className={design.profileCounters} title={t('الأعداد تخص السجلات الحديثة المتاحة في الملف','Counts reflect recent records available in the profile')} aria-label={t('ملخص السجلات الحديثة','Recent records summary')}>
+          <div className={design.profileCounters} aria-label={t('ملخص السجلات الحديثة والطلبات','Recent records and orders summary')}>
             {([
-              [t('المحادثات','Conversations'),profile.timeline.conversations.length,'overview'],
-              [t('الفرص المفتوحة','Open deals'),profile.timeline.deals.filter(d=>d.status==='open').length,'deals'],
-              [t('المتابعات المفتوحة','Open follow-ups'),profile.timeline.tasks.filter(task=>task.status==='open').length,'tasks'],
-              [t('الملاحظات','Notes'),profile.timeline.notes.length,'notes']
-            ] as const).map(([label,count,key])=><button type="button" key={key} onClick={()=>{if(setTab(key))setQuickCreate('');}}><span>{label}</span><strong>{count}</strong></button>)}
+              [t('المحادثات','Conversations'),profile.timeline.conversations.length,'overview','chat'],
+              ...(fullPage&&canManage?[[t('الطلبات والحجوزات','Orders & bookings'),commerce.data.loading?'…':commerce.data.error||!commerce.data.data?'—':commerce.data.data.orders+commerce.data.data.appointments,'orders','commerce']]:[]),
+              [t('فرص البيع المفتوحة','Open deals'),profile.timeline.deals.filter(d=>d.status==='open').length,'deals','handshake'],
+              [t('المتابعات المفتوحة','Open follow-ups'),profile.timeline.tasks.filter(task=>task.status==='open').length,'tasks','calendar'],
+              ...(!fullPage||!canManage?[[t('الملاحظات','Notes'),profile.timeline.notes.length,'notes','edit']]:[])
+            ] as [string,number|string,string,string][]).map(([label,count,key,icon])=><button type="button" key={key} title={key==='orders'?label:t('حسب السجلات الحديثة المتاحة','Based on recent available records')} onClick={()=>{if(setTab(key))setQuickCreate('');}}><span><NavIcon name={icon}/>{label}</span><strong>{count}</strong></button>)}
           </div>
-          <nav
-            className={styles.profileTabs}
-            aria-label={t('أقسام ملف العميل', 'Customer profile sections')}
-          >
-            {tabs
-              .filter(([key]) => ['overview', 'deals', 'tasks', 'notes', 'activity'].includes(key))
-              .map(([key, ar, en]) => (
-                <button
-                  type="button"
-                  key={key}
-                  aria-pressed={tab === key}
-                  onClick={() => {
-                    setQuickCreate('');
-                    setTab(key);
-                    setError('');
-                    setNotice('');
-                  }}
-                >
-                  {t(ar, en)}
-                </button>
-              ))}
+          <nav className={styles.profileTabs} aria-label={t('أقسام ملف العميل','Customer profile sections')}>
+            {tabs.filter(([key])=>['overview','deals','tasks','notes','activity'].includes(key)||(fullPage&&key==='settings')||(fullPage&&canManage&&key==='orders')).sort((a,b)=>['overview','orders','deals','tasks','notes','activity','settings'].indexOf(a[0])-['overview','orders','deals','tasks','notes','activity','settings'].indexOf(b[0])).map(([key,ar,en])=><button type="button" key={key} aria-pressed={tab===key||(key==='settings'&&managementGroups.some(group=>group.keys.includes(tab)))} onClick={()=>{if(setTab(key)){setQuickCreate('');setError('');setNotice('');}}}><NavIcon name={icons[key]}/>{t(ar,en)}</button>)}
           </nav>
           <div className={design.profileLayout} data-active-section={tab}>
           <div className={styles.profileBody}>
+            {tab==='orders'&&fullPage&&canManage&&<CustomerCommerce state={commerce}/>}
+            {tab==='settings'&&fullPage&&<div className={design.managementPage}><h3><NavIcon name="settings"/>{t('إدارة العميل','Manage customer')}</h3>{managementGroups.map(group=><section key={group.title}><h4>{group.title}</h4>{tabs.filter(([key])=>group.keys.includes(key)).map(([key,ar,en])=><button className="btn" type="button" key={key} onClick={()=>{if(setTab(key))setQuickCreate('');}}><NavIcon name={icons[key]}/>{t(ar,en)}<NavIcon name="chevron"/></button>)}</section>)}<details><summary>{t('التقييم ومرجع الدعم','Score and support reference')}</summary><CrmScore contactId={contactId} version={contact.updated_at}/><small><bdi>{contact.id}</bdi></small></details></div>}
+            {fullPage&&managementGroups.some(group=>group.keys.includes(tab))&&<button type="button" className="btn" onClick={()=>setTab('settings')}><NavIcon name="settings"/>{t('العودة لإدارة العميل','Back to customer management')}</button>}
             {tab === 'deals' && (
               <CrmWork
                 kind="deals"
@@ -572,7 +562,8 @@ export default function SubscriberProfile({
                     </form>
                   </section>
                 )}
-                <h3>{t('المحادثات', 'Conversations')}</h3>
+                {fullPage&&<section className={design.profileTimeline}><h3><NavIcon name="stopwatch"/>{t('آخر التعاملات','Recent activity')}</h3>{activity.slice(0,5).map(e=><article key={e.id}><span className={design.timelineDot}/><div><strong>{e.title}</strong><small>{e.body}</small></div><time>{date(e.at)}</time></article>)}<button className="btn" type="button" onClick={()=>setTab('activity')}><NavIcon name="list"/>{t('عرض سجل النشاط','View activity')}</button></section>}
+                <h3><NavIcon name="chat"/>{t('المحادثات', 'Conversations')}</h3>
                 {profile.timeline.conversations.map((row) => (
                   <Link
                     className={styles.profileRow}
@@ -991,7 +982,7 @@ export default function SubscriberProfile({
             )}
             {tab === 'notes' && (
               <>
-                <h3>{t('ملاحظات الفريق', 'Team Notes')}</h3>
+                <h3><NavIcon name="edit"/>{t('ملاحظات الفريق', 'Team Notes')}</h3>
                 <form
                   className={styles.form}
                   onSubmit={(event) => {
@@ -1012,7 +1003,7 @@ export default function SubscriberProfile({
                     <textarea ref={noteInput} name="text" required maxLength={4000} rows={3} />
                   </label>
                   <button className="btn" disabled={busy}>
-                    {t('إضافة الملاحظة', 'Add Note')}
+                    <NavIcon name="plus"/>{t('إضافة الملاحظة', 'Add Note')}
                   </button>
                 </form>
                 {profile.timeline.notes.map((note) => (
@@ -1093,13 +1084,13 @@ export default function SubscriberProfile({
             )}
           </div>
           <aside className={design.profileSidebar}>
-            <section className={design.profileFacts}><h3>{t('بيانات العميل','Customer details')}</h3>
+            <section className={design.profileFacts}><h3><NavIcon name="user"/>{t('بيانات العميل','Customer details')}</h3>
               <dl><div><dt>{t('المسؤول','Owner')}</dt><dd>{members.data.members.find(m=>m.user_id===contact.owner_id)?.full_name || (contact.owner_id?t('غير متاح','Unavailable'):t('دون مسؤول','Unassigned'))}</dd></div>
               <div><dt>{t('المصدر','Source')}</dt><dd>{String(contact.attributes.source || t('غير محدد','Not recorded'))}</dd></div><div><dt>{t('القنوات المرتبطة','Linked channels')}</dt><dd>{profile.channels.map(c=>c.name).join('، ') || '—'}</dd></div>
-              <div><dt>{t('بيانات التواصل','Contact details')}</dt><dd>{contact.phone || contact.email || t('غير مسجلة','Not recorded')}</dd></div><div><dt>{t('آخر تحديث للملف','Profile updated')}</dt><dd>{date(contact.updated_at)}</dd></div>
-              <div><dt>{t('الوسوم','Labels')}</dt><dd>{contact.tags.join('، ') || '—'}</dd></div></dl>
+              <div><dt><NavIcon name="chat"/>{t('بيانات التواصل','Contact details')}</dt><dd>{contact.phone&&<a href={'tel:'+contact.phone}><bdi>{contact.phone}</bdi></a>}{contact.email&&<a href={'mailto:'+contact.email}><bdi>{contact.email}</bdi></a>}{!contact.phone&&!contact.email&&t('غير مسجلة','Not recorded')}</dd></div><div><dt><NavIcon name="calendar"/>{t('تاريخ التسجيل','Created')}</dt><dd>{date(contact.created_at)}</dd></div><div><dt><NavIcon name="stopwatch"/>{t('آخر تواصل','Last communication')}</dt><dd>{date(profile.timeline.conversations.map(c=>c.last_message_at).filter(Boolean).sort().at(-1))}</dd></div><div><dt>{t('آخر تحديث للملف','Profile updated')}</dt><dd>{date(contact.updated_at)}</dd></div>
+              <div><dt><NavIcon name="tag"/>{t('الوسوم','Labels')}</dt><dd className={design.profileTags}>{contact.tags.length?contact.tags.map(tag=><span key={tag}>{tag}</span>):'—'}</dd></div></dl>{canManage&&<button className="btn" type="button" onClick={()=>{if(setTab('overview'))setOverviewEditing(true);}}><NavIcon name="edit"/>{t('تعديل بيانات العميل','Edit customer details')}</button>}
             </section>
-                      <details className={styles.profileMore}>
+                      {fullPage?<button className={design.manageLink} type="button" onClick={()=>setTab('settings')}><NavIcon name="settings"/>{t('إدارة العميل','Manage customer')}<NavIcon name="chevron"/></button>:<details className={styles.profileMore}>
             <DisclosureSummary>
               {t('بيانات وإعدادات إضافية', 'More details and settings')}
             </DisclosureSummary>
@@ -1151,7 +1142,7 @@ export default function SubscriberProfile({
                 {t('مرجع العميل', 'Customer reference')} <bdi>{contact.id}</bdi>
               </small>
             </details>
-          </details>
+          </details>}
 
           </aside></div>
         </>
