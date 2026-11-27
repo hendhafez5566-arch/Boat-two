@@ -6,7 +6,7 @@ import { DisclosureSummary } from '../product/DisclosureSummary';
 import { automationLabel } from './automation-labels';
 import { statusLabel } from '../product/status';
 import { WorkflowCanvas } from './WorkflowCanvas';
-import { useEffect, useState } from 'react';
+import { useEffect,useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { useData } from './useData';
 import { useLocale } from '../product/locale';
@@ -545,9 +545,11 @@ function Steps({
     </div>
   );
 }
-export function SavedAutomationEditor({ initialRuleId = '' }: { initialRuleId?: string }) {
+export function SavedAutomationEditor({ initialRuleId = '',onDraftState }: { initialRuleId?: string;onDraftState?:(dirty:boolean,busy:boolean)=>void }) {
   const { t } = useLocale();
-  const rules = useData<Rule[]>('/automations', []),
+  const [search,setSearch]=useState('');
+  const rulesPath='/automations/index?'+new URLSearchParams({q:search,limit:'100'});
+  const rules=useData<{items:Rule[];total:number}>(rulesPath,{items:[],total:0}),
     secrets = useData<
       {
         id: string;
@@ -579,12 +581,14 @@ export function SavedAutomationEditor({ initialRuleId = '' }: { initialRuleId?: 
     [error, setError] = useState(''),
     [message, setMessage] = useState(''),
     [busy, setBusy] = useState(false);
-  useEffect(() => {
-    if (initialRuleId) {
-      const target = rules.data.find((row) => row.id === initialRuleId);
-      if (target) setRule(target);
-    }
-  }, [initialRuleId, rules.data]);
+  const lock=useRef(false);
+  const opened=useRef('');
+  const [snapshot,setSnapshot]=useState('');
+  const dirty=!!rule&&JSON.stringify(rule)!==snapshot;
+  const canReplace=()=>!lock.current&&(!dirty||window.confirm(t('تجاهل التعديلات غير المحفوظة؟','Discard unsaved changes?')));
+  useEffect(()=>{onDraftState?.(dirty,busy);},[dirty,busy,onDraftState]);
+  useEffect(()=>{if(!message)return;const timer=setTimeout(()=>setMessage(''),4000);return()=>clearTimeout(timer);},[message]);
+  useEffect(()=>{if(!initialRuleId||opened.current===initialRuleId)return;let active=true;api<Rule>('/automations/'+initialRuleId+'/detail').then(target=>{if(active){opened.current=initialRuleId;setRule(target);setSnapshot(JSON.stringify(target));}}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[initialRuleId]);
   const [versions, setVersions] = useState<
     { revision: number; snapshot: Partial<Rule>; created_at: string }[]
   >([]);
@@ -596,7 +600,8 @@ export function SavedAutomationEditor({ initialRuleId = '' }: { initialRuleId?: 
     setRule(next);
   }
   async function act(fn: () => Promise<unknown>) {
-    setBusy(true);
+    if(lock.current)return;
+    lock.current=true;setBusy(true);
     setError('');
     setMessage('');
     try {
@@ -608,7 +613,7 @@ export function SavedAutomationEditor({ initialRuleId = '' }: { initialRuleId?: 
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      lock.current=false;setBusy(false);
     }
   }
   return (
@@ -616,30 +621,36 @@ export function SavedAutomationEditor({ initialRuleId = '' }: { initialRuleId?: 
       <h2>{t('تحرير المسارات المحفوظة والتكاملات', 'Edit saved sequences and integrations')}</h2>
       {(error || rules.error || secrets.error || failures.error) && (
         <p role="alert" className="notice error">
-          {error || rules.error || secrets.error || failures.error}
+          {error || rules.error || secrets.error || failures.error} {(rules.error||secrets.error||failures.error)&&<button className="btn" disabled={busy} onClick={()=>void Promise.all([rules.reload(),secrets.reload(),failures.reload()])}>{t('إعادة المحاولة','Retry')}</button>}
         </p>
       )}
-      {message && <p className="notice">{message}</p>}
+      {message && <p className="notice" role="status">{message}</p>}
+      {dirty&&<p role="status" className="notice">{t('تغييرات غير محفوظة','Unsaved changes')}</p>}
+      <input type="search" aria-label={t('بحث القواعد المحفوظة','Search saved rules')} maxLength={100} value={search} onChange={e=>setSearch(e.target.value)}/>
       <label className="field">
         {t('افتح قاعدة محفوظة', 'Open a saved rule')}
         <select
+          disabled={busy||rules.loading||!!rules.error||rules.loadedPath!==rulesPath} aria-label={t('افتح قاعدة محفوظة','Open a saved rule')}
           value={rule?.id || ''}
           onChange={(e) => {
-            setRule(rules.data.find((row) => row.id === e.target.value) || null);
+            if(!canReplace())return;
+            const selected=rules.data.items.find((row) => row.id === e.target.value) || (rule?.id===e.target.value?rule:null);setRule(selected);setSnapshot(selected?JSON.stringify(selected):'');
             setHistory([]);
             setFuture([]);
             setVersions([]);
           }}
         >
           <option value="">{t('اختر قاعدة', 'Choose a rule')}</option>
-          {rules.data.map((row) => (
+          {rule&&!rules.data.items.some(row=>row.id===rule.id)&&<option value={rule.id}>{rule.name}</option>}
+          {rules.data.items.map((row) => (
             <option key={row.id} value={row.id}>
               {row.name}
             </option>
           ))}
         </select>
       </label>
-      <button className="btn" onClick={() => rules.reload()}>
+      {rules.data.total>100&&<small>{t('ضيّق البحث للوصول إلى القواعد الأخرى.','Refine the search to find more rules.')}</small>}
+      <button className="btn" disabled={busy||rules.loading} onClick={() => rules.reload()}>
         {t('تحديث القائمة', 'Refresh list')}
       </button>
       {rule && (
@@ -647,6 +658,8 @@ export function SavedAutomationEditor({ initialRuleId = '' }: { initialRuleId?: 
           className="stack"
           onSubmit={(e) => {
             e.preventDefault();
+            if(!dirty||!rule.name.trim())return;
+            if(rule.enabled&&!window.confirm(t('حفظ قاعدة مفعلة سيؤثر على التنفيذ التالي. هل تريد المتابعة؟','Saving an enabled rule changes future execution. Continue?')))return;
             void act(async () => {
               const saved = await api<Rule>('/automations/' + rule.id, {
                 method: 'PATCH',
@@ -656,16 +669,17 @@ export function SavedAutomationEditor({ initialRuleId = '' }: { initialRuleId?: 
                   canvasPositions: rule.canvas_positions,
                 }),
               });
-              setRule(saved);
+              setRule(saved);setSnapshot(JSON.stringify(saved));
               setHistory([]);
               setFuture([]);
             });
           }}
         >
+          <fieldset disabled={busy} style={{border:0,padding:0,margin:0,minWidth:0,display:'grid',gap:12}}>
           <label className="field">
             {t('الاسم', 'Name')}
             <input
-              required
+              required maxLength={120}
               value={rule.name}
               onChange={(e) => edit({ ...rule, name: e.target.value })}
             />
@@ -755,6 +769,7 @@ export function SavedAutomationEditor({ initialRuleId = '' }: { initialRuleId?: 
                   className="btn"
                   key={v.revision}
                   onClick={() => {
+                    if(!canReplace())return;
                     edit({ ...rule, ...v.snapshot, enabled: false, revision: rule.revision });
                     setMessage(
                       t(
@@ -783,9 +798,10 @@ export function SavedAutomationEditor({ initialRuleId = '' }: { initialRuleId?: 
             change={(actions) => edit({ ...rule, actions })}
             secrets={secrets.data.filter((secret) => secret.enabled)}
           />
-          <button className="btn btn-primary" disabled={busy}>
+          <button className="btn btn-primary" disabled={busy||!dirty}>
             {t('حفظ المسار', 'Save sequence')}
           </button>
+          </fieldset>
         </form>
       )}
       <details>
@@ -874,13 +890,14 @@ export function SavedAutomationEditor({ initialRuleId = '' }: { initialRuleId?: 
               className="form-actions"
               onSubmit={(e) => {
                 e.preventDefault();
-                const f = new FormData(e.currentTarget);
-                void act(() =>
-                  api('/integrations/secrets/' + secret.id, {
+                const form=e.currentTarget;const f = new FormData(form);
+                if(!window.confirm(t('تدوير السر قد يؤثر على التكاملات. متابعة؟','Rotating this secret may affect integrations. Continue?')))return;
+                void act(async () => {
+                  await api('/integrations/secrets/' + secret.id, {
                     method: 'PATCH',
                     body: JSON.stringify({ value: f.get('value') }),
-                  }),
-                );
+                  });form.reset();
+                });
               }}
             >
               <input
@@ -916,8 +933,9 @@ export function SavedAutomationEditor({ initialRuleId = '' }: { initialRuleId?: 
       <button className="btn" onClick={() => failures.reload()}>
         {t('تحديث الأخطاء', 'Refresh failures')}
       </button>
-      {!failures.data.length && <p>{t('لا توجد أخطاء مسجلة.', 'No recorded failures.')}</p>}
-      {failures.data.map((failure) => (
+      {failures.loading&&<p role="status">{t('جارٍ التحميل…','Loading…')}</p>}
+      {!failures.loading&&!failures.error&&!failures.data.length && <p>{t('لا توجد أخطاء مسجلة.', 'No recorded failures.')}</p>}
+      {!failures.loading&&!failures.error&&failures.data.map((failure) => (
         <article key={failure.id} className="border rounded p-3">
           <strong>
             {failure.name} · {failure.attempts}
@@ -956,11 +974,11 @@ export function SavedAutomationEditor({ initialRuleId = '' }: { initialRuleId?: 
           </details>
           <button
             className="btn"
-            disabled={busy || !rules.data.some((row) => row.id === failure.rule_id)}
-            onClick={() => {
-              const current = rules.data.find((row) => row.id === failure.rule_id);
-              if (!current) return;
-              setRule(current);
+            disabled={busy||!failure.rule_id}
+            onClick={async () => {
+              if(!canReplace())return;
+              let current:Rule;try{current=await api<Rule>('/automations/'+failure.rule_id+'/detail');}catch(e){setError((e as Error).message);return;}
+              setRule(current);setSnapshot(JSON.stringify(current));
               setHistory([]);
               setFuture([]);
               setVersions([]);
@@ -991,11 +1009,7 @@ export function SavedAutomationEditor({ initialRuleId = '' }: { initialRuleId?: 
             <button
               className="btn"
               disabled={busy}
-              onClick={() =>
-                void act(() =>
-                  api('/automations/failures/' + failure.id + '/retry', { method: 'POST' }),
-                )
-              }
+              onClick={() => {if(window.confirm(t('تأكيد إعادة محاولة التنفيذ المسجل؟','Retry this recorded execution?')))void act(()=>api('/automations/failures/'+failure.id+'/retry',{method:'POST'}));}}
             >
               {t('إعادة محاولة آمنة', 'Retry safely')}
             </button>

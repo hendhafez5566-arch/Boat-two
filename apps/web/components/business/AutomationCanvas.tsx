@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect,useRef,useState } from 'react';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 import { useData } from './useData';
@@ -11,7 +11,7 @@ type Step = {
   condition: string;
   otherwise: string;
 };
-export function AutomationCanvas() {
+export function AutomationCanvas({onDraftState}:{onDraftState?:(dirty:boolean,busy:boolean)=>void}={}) {
   const { t } = useLocale();
   const [name, setName] = useState('');
   const [trigger, setTrigger] = useState('crm.contacts.update');
@@ -23,6 +23,10 @@ export function AutomationCanvas() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const lock=useRef(false);
+  const dirty=!!name.trim()||trigger!=='crm.contacts.update'||mode!=='allOf'||clauses.length>0||JSON.stringify(steps)!==JSON.stringify([{type:'note',value:'',minutes:60,condition:'',otherwise:''}]);
+  useEffect(()=>{onDraftState?.(dirty,busy);},[dirty,busy,onDraftState]);
+  useEffect(()=>{if(!message)return;const timer=setTimeout(()=>setMessage(''),4000);return()=>clearTimeout(timer);},[message]);
   const schedules = useData<
     { id: string; type: string; available_at: string; status: string; error: string | null }[]
   >('/automations/schedules', []);
@@ -43,13 +47,14 @@ export function AutomationCanvas() {
           {error}
         </p>
       )}
-      {message && <p className="notice">{message}</p>}
+      {message && <p className="notice" role="status">{message}</p>}
       <form
         className="stack"
         onSubmit={async (e) => {
           e.preventDefault();
-          setBusy(true);
-          setError('');
+          if(lock.current||!name.trim())return;
+          lock.current=true;setBusy(true);
+          setError('');setMessage('');
           try {
             const actions = steps.map((step) =>
               step.type === 'branch'
@@ -78,13 +83,14 @@ export function AutomationCanvas() {
             await api('/automations', {
               method: 'POST',
               body: JSON.stringify({
-                name,
+                name:name.trim(),
                 trigger,
                 conditions: { [mode]: clauses.map((clause) => ({ [clause.field]: clause.value })) },
                 actions,
                 enabled: false,
               }),
             });
+            setName('');setTrigger('crm.contacts.update');setMode('allOf');setClauses([]);setSteps([{type:'note',value:'',minutes:60,condition:'',otherwise:''}]);
             setMessage(
               t(
                 'حُفظ المسار. حدّث قائمة القواعد لمراجعته وتفعيله.',
@@ -94,10 +100,11 @@ export function AutomationCanvas() {
           } catch (err) {
             setError((err as Error).message);
           } finally {
-            setBusy(false);
+            lock.current=false;setBusy(false);
           }
         }}
       >
+        <fieldset disabled={busy} style={{border:0,padding:0,margin:0,minWidth:0,display:'grid',gap:12}}>
         <div className="form-grid">
           <label className="field">
             {t('الاسم', 'Name')}
@@ -319,13 +326,16 @@ export function AutomationCanvas() {
             {t('حفظ المسار معطّلًا', 'Save disabled sequence')}
           </button>
         </div>
+        </fieldset>
       </form>
       <h3>{t('المواعيد والمتابعات', 'Scheduled work and follow-ups')}</h3>
       <button className="btn" onClick={() => schedules.reload()}>
         {t('تحديث المواعيد', 'Refresh schedules')}
       </button>
-      {schedules.error && <p className="notice error">{schedules.error}</p>}
-      {schedules.data.map((item) => (
+      {schedules.error && <p className="notice error" role="alert">{schedules.error} <button className="btn" onClick={()=>void schedules.reload()}>{t('إعادة المحاولة','Retry')}</button></p>}
+      {schedules.loading&&<p role="status">{t('جارٍ التحميل…','Loading…')}</p>}
+      {!schedules.loading&&!schedules.error&&!schedules.data.length&&<p>{t('لا توجد مواعيد مسجلة','No scheduled work')}</p>}
+      {!schedules.loading&&!schedules.error&&schedules.data.map((item) => (
         <div className="rounded border p-3" key={item.id}>
           <p>
             {item.type} · {item.status} · {new Date(item.available_at).toLocaleString()}
@@ -336,16 +346,20 @@ export function AutomationCanvas() {
               className="form-actions"
               onSubmit={async (e) => {
                 e.preventDefault();
-                const f = new FormData(e.currentTarget);
+                if(lock.current)return;
+                const f = new FormData(e.currentTarget);const date=new Date(String(f.get('at')));
+                if(!Number.isFinite(date.getTime())||date.getTime()<=Date.now()){setError(t('اختر موعدًا مستقبليًا صالحًا','Choose a valid future date'));return;}
+                if(!window.confirm(t('تأكيد إعادة الجدولة؟','Confirm rescheduling?')))return;
+                lock.current=true;setBusy(true);setError('');
                 try {
                   await api('/automations/schedules/' + item.id, {
                     method: 'PATCH',
-                    body: JSON.stringify({ at: new Date(String(f.get('at'))).toISOString() }),
+                    body: JSON.stringify({ at:date.toISOString() }),
                   });
-                  await schedules.reload();
+                  await schedules.reload();setMessage(t('تم تحديث الموعد','Schedule updated'));
                 } catch (err) {
                   setError((err as Error).message);
-                }
+                } finally{lock.current=false;setBusy(false);}
               }}
             >
               <input
@@ -354,20 +368,22 @@ export function AutomationCanvas() {
                 required
                 aria-label={t('الموعد الجديد', 'New schedule')}
               />
-              <button className="btn">{t('إعادة الجدولة', 'Reschedule')}</button>
+              <button className="btn" disabled={busy}>{t('إعادة الجدولة', 'Reschedule')}</button>
               <button
                 type="button"
                 className="btn"
-                onClick={async () => {
+                disabled={busy} onClick={async () => {
+                  if(lock.current||!window.confirm(t('إلغاء الموعد المسجل؟','Cancel this scheduled execution?')))return;
+                  lock.current=true;setBusy(true);setError('');
                   try {
                     await api('/automations/schedules/' + item.id, {
                       method: 'PATCH',
                       body: JSON.stringify({ cancel: true }),
                     });
-                    await schedules.reload();
+                    await schedules.reload();setMessage(t('تم الإلغاء','Canceled'));
                   } catch (err) {
                     setError((err as Error).message);
-                  }
+                  } finally{lock.current=false;setBusy(false);}
                 }}
               >
                 {t('إلغاء', 'Cancel')}

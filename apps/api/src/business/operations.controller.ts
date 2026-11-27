@@ -80,6 +80,22 @@ export class OperationsController {
         (await c.query('SELECT * FROM automation_rules ORDER BY created_at DESC LIMIT 100')).rows,
     );
   }
+  @Get('automations/index') index(@Req() r: AuthedRequest,@Query() query:unknown) {
+    const q=parse(z.object({q:z.string().trim().max(100).default(''),status:z.enum(['all','active','inactive']).default('all'),page:z.coerce.number().int().min(1).max(100000).default(1),limit:z.coerce.number().int().min(1).max(100).default(20)}),query);
+    return this.db.withTenant(r.user.tenantId,async c=>{
+      const params:unknown[]=[];const where:string[]=[];
+      if(q.q){params.push('%'+q.q.replace(/[\\%_]/g,value=>'\\'+value)+'%');where.push('(name ILIKE $'+params.length+' OR id::text ILIKE $'+params.length+')');}
+      if(q.status!=='all'){params.push(q.status==='active');where.push('enabled=$'+params.length);}
+      const filter=where.length?' WHERE '+where.join(' AND '):'';
+      const total=Number((await c.query('SELECT count(*)::int AS n FROM automation_rules'+filter,params)).rows[0].n);
+      const totals=(await c.query('SELECT count(*)::int AS total,count(*) FILTER(WHERE enabled)::int AS active,(SELECT count(*)::int FROM automation_failures WHERE resolved_at IS NULL) AS failed FROM automation_rules')).rows[0];
+      const items=(await c.query('SELECT * FROM automation_rules'+filter+' ORDER BY created_at DESC,id LIMIT $'+(params.length+1)+' OFFSET $'+(params.length+2),[...params,q.limit,(q.page-1)*q.limit])).rows;
+      return {items,total,totals,page:q.page,limit:q.limit};
+    });
+  }
+  @Get('automations/:id/detail') detail(@Req() r: AuthedRequest,@Param('id',ParseUUIDPipe) id:string){
+    return this.db.withTenant(r.user.tenantId,async c=>{const row=(await c.query('SELECT * FROM automation_rules WHERE id=$1',[id])).rows[0];if(!row)throw new NotFoundException('Automation rule not found');return row;});
+  }
   @Post('automations') create(@Req() r: AuthedRequest, @Body() body: unknown) {
     const b = parse(ruleSchema, body);
     return this.db.withTenant(r.user.tenantId, async (c) => {
@@ -175,7 +191,7 @@ export class OperationsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: unknown,
   ) {
-    const b = parse(z.object({ contactId: z.string().uuid(), at: z.string().datetime() }), body);
+    const b = parse(z.object({ contactId: z.string().uuid(), at: z.string().datetime().refine(at=>Date.parse(at)>Date.now(),'Choose a future time') }), body);
     return this.db.withTenant(r.user.tenantId, async (c) => {
       await this.plans.assertFeature(c, 'automations');
       if (
@@ -281,6 +297,18 @@ export class OperationsController {
       )
         throw new BadRequestException('Only exhausted failed events can be retried');
       return { queued: true, ambiguousEffectsWillNotReplay: true };
+    });
+  }
+  @Get('automations/history/index') historyIndex(@Req() r: AuthedRequest,@Query() query:unknown) {
+    const q=parse(pagination.extend({q:z.string().trim().max(100).default(''),status:z.enum(['all','completed','skipped','failed']).default('all')}),query);
+    return this.db.withTenant(r.user.tenantId,async c=>{
+      const args:unknown[]=[];const where:string[]=[];
+      if(q.q){args.push('%'+q.q.replace(/[\\%_]/g,value=>'\\'+value)+'%');where.push('(r.name ILIKE $'+args.length+' OR a.rule_id::text ILIKE $'+args.length+')');}
+      if(q.status!=='all'){args.push(q.status);where.push('a.status=$'+args.length);}
+      const from=' FROM automation_runs a JOIN automation_rules r ON r.id=a.rule_id'+(where.length?' WHERE '+where.join(' AND '):'');
+      const total=Number((await c.query('SELECT count(*)::int AS n'+from,args)).rows[0].n);
+      const items=(await c.query('SELECT a.*,r.name'+from+' ORDER BY a.created_at DESC,a.id LIMIT $'+(args.length+1)+' OFFSET $'+(args.length+2),[...args,q.limit,(q.page-1)*q.limit])).rows;
+      return {items,total,page:q.page,limit:q.limit};
     });
   }
   @Get('automations/history') history(@Req() r: AuthedRequest, @Query() query: unknown) {
