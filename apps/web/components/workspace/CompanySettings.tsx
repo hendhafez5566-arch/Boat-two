@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect,useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 
@@ -12,13 +12,17 @@ type Workspace = {
     settings: { industry?: string; timezone?: string; language?: string };
   };
 };
-export default function CompanySettings() {
+export default function CompanySettings({onDraftState}:{onDraftState?:(dirty:boolean,busy:boolean)=>void}={}) {
   const { t } = useLocale();
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const lock=useRef(false);
+  const [dirty,setDirty]=useState(false);
+  useEffect(()=>{onDraftState?.(dirty,busy);},[dirty,busy,onDraftState]);
+  useEffect(()=>{if(!saved)return;const timer=setTimeout(()=>setSaved(false),4000);return()=>clearTimeout(timer);},[saved]);
   async function load() {
     setLoading(true);
     setError('');
@@ -35,7 +39,7 @@ export default function CompanySettings() {
   }, []);
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!workspace || busy) return;
+    if(!workspace||lock.current||!dirty||!['owner','admin'].includes(workspace.role))return;
     const form = new FormData(event.currentTarget);
     const timezone = String(form.get('timezone') || '').trim();
     setSaved(false);
@@ -51,7 +55,8 @@ export default function CompanySettings() {
       );
       return;
     }
-    setBusy(true);
+    if(!String(form.get('name')||'').trim()){setError(t('أدخل اسم الشركة','Enter the company name'));return;}
+    lock.current=true;setBusy(true);
     try {
       const tenant = await api<Workspace['tenant']>('/workspace', {
         method: 'PATCH',
@@ -60,15 +65,14 @@ export default function CompanySettings() {
           industry: String(form.get('industry') || '').trim(),
           timezone,
           language: form.get('language'),
-          preferredPlan: workspace.tenant.preferred_plan,
         }),
       });
       setWorkspace({ ...workspace, tenant });
-      setSaved(true);
+      setDirty(false);setSaved(true);
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      lock.current=false;setBusy(false);
     }
   }
   return (
@@ -92,8 +96,9 @@ export default function CompanySettings() {
       )}
       {workspace &&
         (['owner', 'admin'].includes(workspace.role) ? (
-          <form className="stack" onSubmit={save}>
-            <fieldset className="stack" disabled={busy}>
+          <form className="stack" onSubmit={save} onChange={()=>setDirty(true)}>
+            <fieldset className="stack" disabled={busy||loading}>
+              {dirty&&<p role="status" className="notice">{t("تغييرات غير محفوظة","Unsaved changes")}</p>}
               <label className="field">
                 {t('اسم الشركة', 'Company name')}
                 <input name="name" required maxLength={120} defaultValue={workspace.tenant.name} />
@@ -140,7 +145,7 @@ export default function CompanySettings() {
                 </select>
               </label>
               <div className="form-actions">
-                <button className="btn btn-primary" disabled={busy}>
+                <button className="btn btn-primary" disabled={busy||!dirty}>
                   {busy
                     ? t('جارٍ الحفظ…', 'Saving…')
                     : t('حفظ بيانات الشركة', 'Save company details')}
@@ -149,6 +154,7 @@ export default function CompanySettings() {
                   {t('دليل البداية', 'Getting started')}
                 </Link>
               </div>
+              <button type="button" className="btn" disabled={busy||!dirty} onClick={e=>{if(window.confirm(t('تجاهل التعديلات؟','Discard changes?'))){e.currentTarget.form?.reset();setDirty(false);setError('');}}}>{t('تراجع','Discard')}</button>
             </fieldset>
           </form>
         ) : (
