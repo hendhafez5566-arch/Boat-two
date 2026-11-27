@@ -40,7 +40,7 @@ export default function SocialWorkspace({format,create=false}:{format:SocialForm
   if(detail.loading||detail.error||detail.loadedPath!==detailPath)return;
   const p=detail.data;
   if(!p||socialFormat(p)!==format||p.status!=='draft'){setError(t('المسودة غير متاحة للتعديل.','Draft unavailable for editing.'));return;}
-  const next={name:p.name||'',channel:p.channel_id,kind:socialKind(p),body:p.body,media:p.media_urls.join('\n'),link:p.link_url||''};
+  const next={name:p.name||'',channel:p.channel_id,kind:format==='multimedia'&&p.kind==='carousel'?'image':socialKind(p),body:p.body,media:p.media_urls.join('\n'),link:p.link_url||''};
   setDraft(next);setSnapshot(JSON.stringify(next));setInitialized(true);
  },[create,draftId,initialized,detail.loading,detail.error,detail.loadedPath,detail.data,detailPath,format,t]);
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4000);return()=>clearTimeout(timer);},[notice]);
@@ -81,10 +81,10 @@ export default function SocialWorkspace({format,create=false}:{format:SocialForm
      {!channels.loading&&!channels.error&&!accounts.length&&<p className="notice">{t('اربط حسابًا أولًا لحفظ المنشور.','Connect an account before saving.')} <Link href="/dashboard/channels">{t('ربط حساب','Connect account')}</Link></p>}
      <label className="field">{t('الصفحة أو الحساب','Page or account')}<select required aria-label={t('الصفحة أو الحساب','Page or account')} value={draft.channel} onChange={e=>patch({channel:e.target.value})}><option value="">{t('اختر','Choose')}</option>{accounts.map(c=><option key={c.id} value={c.id}>{c.name} · {c.type} · {c.id.slice(0,8)} · {statusLabel(c.status,t)}</option>)}</select></label>
      <div className={styles.tabs} role="group" aria-label={t('نوع المنشور','Post type')}>{typeOptions.map(k=><button key={k} type="button" aria-pressed={draft.kind===k||(k==='image'&&draft.kind==='carousel')} disabled={chosen?.type==='instagram'&&['text','link','cta'].includes(k)} onClick={()=>{if(draft.kind===k||(k==='image'&&draft.kind==='carousel'))return;if((draft.media||draft.link)&&!window.confirm(t('تغيير النوع سيمسح الروابط الحالية. متابعة؟','Changing the type clears current links. Continue?')))return;patch({kind:k,media:'',link:''});}}>{kinds[k]}</button>)}</div>
-     <label className="field">{t('اسم الحملة','Campaign Name')}<input required maxLength={120} value={draft.name} onChange={e=>patch({name:e.target.value})}/></label>
-     <label className="field">{t('النص','Text')}<textarea required maxLength={4096} rows={6} value={draft.body} onChange={e=>patch({body:e.target.value})}/><small>{draft.body.length} / 4096</small></label>
-     {mediaKind&&<label className="field">{t('رابط الوسائط HTTPS — كل رابط في سطر','HTTPS media URLs — one per line')}<textarea required rows={3} dir="ltr" value={draft.media} onChange={e=>patch({media:e.target.value})}/><small>{urls.length} / {draft.kind==='video'?1:10}</small></label>}
-     {linkKind&&<label className="field">{t('الرابط','Link')}<input type="url" required value={draft.link} onChange={e=>patch({link:e.target.value})}/></label>}
+     <label className="field">{t('اسم الحملة','Campaign Name')}<input required maxLength={120} aria-label={t('اسم الحملة','Campaign Name')} value={draft.name} onChange={e=>patch({name:e.target.value})}/></label>
+     <label className="field">{t('النص','Text')}<textarea required maxLength={4096} rows={6} aria-label={t('النص','Text')} value={draft.body} onChange={e=>patch({body:e.target.value})}/><small>{draft.body.length} / 4096</small></label>
+     {mediaKind&&<label className="field">{t('رابط الوسائط HTTPS — كل رابط في سطر','HTTPS media URLs — one per line')}<textarea required rows={3} dir="ltr" aria-label={t('رابط الوسائط HTTPS — كل رابط في سطر','HTTPS media URLs — one per line')} value={draft.media} onChange={e=>patch({media:e.target.value})}/><small>{urls.length} / {draft.kind==='video'?1:10}</small></label>}
+     {linkKind&&<label className="field">{t('الرابط','Link')}<input type="url" required aria-label={t('الرابط','Link')} value={draft.link} onChange={e=>patch({link:e.target.value})}/></label>}
      {!compatible&&<p role="alert" className="notice error">{t('Instagram يتطلب صورة أو فيديو أو شرائح.','Instagram requires an image, video or carousel.')}</p>}
      {mediaKind&&!validMedia&&draft.media.trim()&&<p role="alert" className="notice error">{t('راجع عدد الروابط وتأكد أنها HTTPS وغير مكررة.','Check media count and use unique HTTPS URLs.')}</p>}
      {chosen&&chosen.status!=='active'&&<p className="notice">{t('الحساب غير نشط. يمكنك حفظ مسودة فقط.','Account inactive; you can only save a draft.')}</p>}
