@@ -1,4 +1,5 @@
 'use client';
+import { useId } from 'react';
 import { TemplateValue } from './TemplateParameters';
 import { useLocale } from '../product/locale';
 export type CampaignContent = {
@@ -17,16 +18,23 @@ export type CampaignContent = {
   template?: TemplateValue;
 };
 export function validCampaignContent(c: CampaignContent) {
-  if (c.media)
-    return !!c.media.url && /^https:\/\//.test(c.media.url) && (c.text?.length ?? 0) <= 1024;
-  if (!c.text?.trim()) return false;
-  const choices = c.buttons ?? c.list?.sections.flatMap((s) => s.rows);
-  return (
-    !choices ||
-    (choices.length > 0 &&
-      choices.length <= (c.buttons ? 3 : 10) &&
-      choices.every((x) => !!x.title.trim() && x.title.length <= (c.buttons ? 20 : 24)) &&
-      (!c.list || !!c.list.buttonText.trim()))
+  const choices = c.buttons ?? c.list?.sections.flatMap((section) => section.rows);
+  if(c.media) {
+    try {
+      const url = new URL(c.media.url ?? '');
+      if(url.protocol!=='https:'||url.username||url.password||url.hostname==='localhost'||url.hostname.endsWith('.local')||url.href.length>2048)return false;
+    } catch {return false;}
+    if((c.media.caption??c.text??'').length>1024)return false;
+    if(!choices)return true;
+    if(c.media.kind!=='image')return false;
+  }
+  if(!c.text?.trim()||c.text.length>(choices?1024:4096))return false;
+  if(c.buttons&&c.list)return false;
+  return !choices || (
+    choices.length>0 && choices.length<=(c.buttons?3:10) &&
+    new Set(choices.map(choice=>choice.id)).size===choices.length &&
+    choices.every(choice=>!!choice.id&&!!choice.title.trim()&&choice.title.length<=(c.buttons?20:24)) &&
+    (!c.list || (!!c.list.buttonText.trim()&&c.list.buttonText.length<=20&&c.list.sections.every(section=>section.rows.length>0)))
   );
 }
 export function RichCampaignContent({
@@ -39,6 +47,7 @@ export function RichCampaignContent({
   const { t } = useLocale(),
     mode = value.media ? 'media' : value.buttons ? 'buttons' : value.list ? 'list' : 'text',
     choices = value.buttons ?? value.list?.sections.flatMap((s) => s.rows) ?? [];
+  const lengthId=useId();
   function changeChoices(rows: { id: string; title: string }[]) {
     onChange(
       value.buttons
@@ -91,7 +100,7 @@ export function RichCampaignContent({
           aria-label={t('محتوى الرسالة', 'Message content')}
           name="text"
           value={value.media?.caption ?? value.text ?? ''}
-          maxLength={value.media ? 1024 : 4096}
+          maxLength={value.media || value.buttons || value.list ? 1024 : 4096}
           rows={4}
           onChange={(e) =>
             onChange({
@@ -101,7 +110,9 @@ export function RichCampaignContent({
             })
           }
           required={!value.media}
+          aria-describedby={lengthId}
         />
+        <small id={lengthId} aria-live="polite">{(value.media?.caption??value.text??'').length} / {value.media||value.buttons||value.list?1024:4096}</small>
       </label>
       {value.media && (
         <div className="form-grid">

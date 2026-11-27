@@ -362,3 +362,35 @@
 .campaignStatus:is([data-status='completed'], [data-status='sent']) { background: #e2f4eb; color: #176449; }
 .campaignStatus:is([data-status='failed'], [data-status='cancelled']) { background: #fbe9e8; color: #952f2b; }
 .campaignStatus:is([data-status='sending'], [data-status='scheduled']) { background: #fff0d6; color: #784919; }
+
+/* Professional campaign workspace: same semantic palette and compact density as reports. */
+.page{font-family:inherit;color:var(--ink);gap:12px}
+.page .heading h1{font-size:21px;font-weight:750;color:var(--ink)}
+.page .heading h1 svg{color:var(--primary)}
+.page .mode button,.page .channelTabs button{font-family:inherit;min-height:40px;padding:8px 12px;border-color:var(--line);font-size:13px}
+.page .mode button[aria-pressed='true'],.page .channelTabs button[aria-pressed='true']{background:var(--primary-soft);color:var(--primary-deep);border-color:var(--primary)}
+.page .channelTabs{gap:7px}
+.page .currentBot{font-size:12px;color:var(--muted)}
+.page .statistics{gap:8px;margin-block-start:10px}
+.page .statistics article{min-height:84px;padding:10px;gap:4px 8px;border-color:var(--line);border-inline-start:3px solid var(--primary);border-radius:12px;box-shadow:none}
+.page .statistics article:has([data-tone='completed']){border-inline-start-color:#15803d}
+.page .statistics article:has([data-tone='readRate']){border-inline-start-color:#2563eb}
+.page .statistics article:has([data-tone='failed']){border-inline-start-color:#be123c}
+.page .statistics strong{font-size:22px;font-weight:750;color:var(--ink)}
+.page .statistics article>span:not(.statIcon),.page .statistics small{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.page .statIcon[data-tone='readRate']{background:#eff6ff;color:#2563eb}
+.page .statIcon[data-tone='failed']{background:#fff1f2;color:#be123c}
+.page .statIcon[data-tone='completed']{background:#ecfdf5;color:#15803d}
+.campaignCard{padding:14px;border-color:var(--line);border-radius:12px;box-shadow:none}
+.campaignCard .filters{grid-template-columns:minmax(100px,1fr) minmax(100px,1fr) minmax(140px,1.5fr) auto auto;gap:8px;padding-block-end:10px}
+.filters input,.filters select{min-height:40px;border-color:var(--line);font-size:13px}
+.campaignTable :global(.product-table){min-width:960px}
+.campaignTable :global(.product-table) th{font-size:12px;padding:9px 10px;background:var(--surface-muted);color:var(--ink-2);text-transform:none}
+.page :global(.product-table) td{padding:9px 10px;overflow-wrap:anywhere}
+.campaignStatus[data-status='canceled']{background:#fff1f2;color:#be123c}
+.campaignStatus[data-status='draft']{background:#f1f5f9;color:#475569}
+.campaignStatus[data-status='running']{background:#eff6ff;color:#1d4ed8}
+.page :global(.btn-primary){background:linear-gradient(160deg,var(--brand-gradient-end,#8071e5),var(--primary,#6050ce));box-shadow:inset 0 1px 0 #ffffff45}
+.page :is(button,a,input,select,summary):focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+@media(max-width:1100px){.campaignCard .filters{grid-template-columns:repeat(2,minmax(0,1fr))}.campaignCard .filters input{grid-column:1/-1}}
+@media(max-width:480px){.campaignCard{padding:10px}.page .statistics article{grid-template-columns:28px minmax(0,1fr);padding:8px}.page .statIcon{width:28px;height:28px}.page .statistics strong{font-size:19px}.page .heading{gap:8px}.page .channelTabs button{padding:7px 9px}}

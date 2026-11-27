@@ -117,3 +117,14 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.configuration{color:var(--ink,#19233c);font-family:inherit;gap:12px}
+.configuration>fieldset>:global(.stack),.configuration>fieldset>.actionType{padding:12px;border:1px solid var(--line,#e2e8f0);border-radius:12px;background:#fff}
+.configuration :global(.field){font-size:13px;color:var(--ink-2,#334155)}
+.configuration input:not([type='radio']),.configuration select,.configuration textarea{font-family:inherit;border-color:var(--line,#e2e8f0);min-height:40px}
+.configuration h3{font-size:16px;font-weight:700}
+.configuration :global(.muted),.configuration :global(.notice){font-size:12px;line-height:1.65}
+.configuration :global(.btn){min-height:40px;font-size:13px}
+.configuration :global(.btn-primary){background:linear-gradient(160deg,var(--brand-gradient-end,#8071e5),var(--primary,#6050ce));border-color:var(--primary,#6050ce);box-shadow:inset 0 1px 0 #ffffff45}
+.broadcastTypes label:has(input:checked){background:var(--primary-soft,#f0edfc);border-color:var(--primary,#6050ce)}
+@media(max-width:480px){.configuration>fieldset>:global(.stack),.configuration>fieldset>.actionType{padding:9px}.broadcastTypes label{padding:8px}.configuration input:not([type='radio']),.configuration select,.configuration textarea{font-size:16px}}

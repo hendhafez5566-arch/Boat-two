@@ -379,6 +379,20 @@ export class CommerceService {
     });
   }
 
+  customerRecords(tenant: string, contactId: string, page: number, kind: 'orders' | 'appointments') {
+    return this.db.withTenant(tenant, async (c) => {
+      if (!(await c.query('SELECT id FROM contacts WHERE tenant_id=$1 AND id=$2', [tenant, contactId])).rowCount) throw new NotFoundException('Customer not found');
+      const counts = (await c.query<{ orders: string; appointments: string }>(
+        'SELECT (SELECT count(*) FROM commerce_orders WHERE tenant_id=$1 AND contact_id=$2)::text AS orders, (SELECT count(*) FROM appointments WHERE tenant_id=$1 AND contact_id=$2)::text AS appointments',
+        [tenant, contactId],
+      )).rows[0];
+      const items = kind === 'orders'
+        ? (await c.query("SELECT id,status,created_at,snapshot->>'name' AS name,snapshot->>'currency' AS currency,snapshot->>'totalCents' AS total_cents FROM commerce_orders WHERE tenant_id=$1 AND contact_id=$2 ORDER BY created_at DESC,id DESC LIMIT 25 OFFSET $3", [tenant,contactId,(page-1)*25])).rows
+        : (await c.query('SELECT a.id,a.status,a.starts_at,s.name FROM appointments a JOIN appointment_services s ON (a.tenant_id,a.service_id)=(s.tenant_id,s.id) WHERE a.tenant_id=$1 AND a.contact_id=$2 ORDER BY a.starts_at DESC,a.id DESC LIMIT 25 OFFSET $3', [tenant,contactId,(page-1)*25])).rows;
+      return { orders: Number(counts.orders), appointments: Number(counts.appointments), items };
+    });
+  }
+
   orderSummary(tenant: string) {
     return this.db.withTenant(tenant, async (c) => (await c.query<{ status: string; count: string }>(
       'SELECT status, count(*)::text AS count FROM commerce_orders WHERE tenant_id=$1 GROUP BY status',

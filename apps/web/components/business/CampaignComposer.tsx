@@ -65,11 +65,13 @@ export function CampaignComposer({
   segments,
   onSaved,
   layout = 'wizard',
+  onDraftState,
 }: {
   channels: Channel[];
   segments: Segment[];
   onSaved: () => Promise<void>;
   layout?: 'wizard' | 'reference';
+  onDraftState?: (dirty:boolean,busy:boolean)=>void;
 }) {
   const { t } = useLocale();
   const reference = layout === 'reference';
@@ -96,9 +98,12 @@ export function CampaignComposer({
   const [templates, setTemplates] = useState<Template[]>([]),
     [loading, setLoading] = useState(false);
   const [audience, setAudience] = useState<Audience | null>(null);
+  const [templateAttempt,setTemplateAttempt]=useState(0);
+  const [templateError,setTemplateError]=useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
+  const operationLock=useRef(false);
   const review = useRef(0),
     heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -116,6 +121,11 @@ export function CampaignComposer({
       ...(includeListIds.length ? { includeListIds } : {}),
       ...(excludeListIds.length ? { excludeListIds } : {}),
     };
+  const audienceKey=JSON.stringify([channel,filters]);
+  const reviewedKey=useRef('');
+  const dirty=!!(name.trim()||text.trim()||Object.keys(rich).length||segment||includeTags.length||excludeTags.length||includeListIds.length||excludeListIds.length||template||frequency!==24);
+  useEffect(()=>{onDraftState?.(dirty,busy);},[dirty,busy,onDraftState]);
+  useEffect(()=>{if(!dirty&&!busy)return;const handler=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',handler);return()=>window.removeEventListener('beforeunload',handler);},[dirty,busy]);
   const selectedTemplate = templates.find((x) => x.name + '|' + x.language === template);
   const validContent =
     selectedChannel?.type === 'whatsapp' &&
@@ -130,6 +140,7 @@ export function CampaignComposer({
     setTemplate('');
     if (reference && selectedChannel?.type === 'whatsapp') setBroadcastMode('template');
     setTemplates([]);
+    setTemplateError('');
     setTemplateValue({ name: '', language: '', bodyParams: [] });
     setError('');
     setLoading(selectedChannel?.type === 'whatsapp');
@@ -140,7 +151,7 @@ export function CampaignComposer({
             setTemplates(rows.filter((x) => x.status === 'APPROVED' && x.supported === true));
         })
         .catch((e) => {
-          if (active) setError(e.message);
+          if (active) setTemplateError(e.message);
         })
         .finally(() => {
           if (active) setLoading(false);
@@ -148,13 +159,18 @@ export function CampaignComposer({
     return () => {
       active = false;
     };
-  }, [channel, selectedChannel?.type, reference]);
+  }, [channel, selectedChannel?.type, reference,templateAttempt]);
   useEffect(() => {
     review.current++;
     setAudience(null);
-  }, [channel, segment, includeTags, excludeTags, includeListIds, excludeListIds]);
+    reviewedKey.current='';
+  }, [audienceKey]);
   async function checkAudience() {
+    if(operationLock.current||!channel)return;
+    operationLock.current=true;
     const version = ++review.current;
+    reviewedKey.current='';
+    setAudience(null);
     setBusy(true);
     setError('');
     try {
@@ -162,10 +178,11 @@ export function CampaignComposer({
         method: 'POST',
         body: JSON.stringify({ channelId: channel, filters }),
       });
-      if (version === review.current) setAudience(result);
+      if (version === review.current) {reviewedKey.current=audienceKey;setAudience(result);}
     } catch (e) {
       if (version === review.current) setError((e as Error).message);
     } finally {
+      operationLock.current=false;
       setBusy(false);
     }
   }
@@ -175,6 +192,8 @@ export function CampaignComposer({
     requestAnimationFrame(() => heading.current?.focus());
   }
   async function save() {
+    if(operationLock.current||!name.trim()||!selectedChannel||!validContent||loading||!Number.isInteger(frequency)||frequency<1||frequency>720||!audience||reviewedKey.current!==audienceKey)return;
+    operationLock.current=true;
     setBusy(true);
     setSaving(true);
     setError('');
@@ -188,7 +207,7 @@ export function CampaignComposer({
       await api('/campaigns', {
         method: 'POST',
         body: JSON.stringify({
-          name,
+          name:name.trim(),
           channelId: channel,
           filters,
           frequencyHours: frequency,
@@ -208,10 +227,12 @@ export function CampaignComposer({
       setText('');
       setRich({});
       setAudience(null);
+      onDraftState?.(false,false);
       await onSaved();
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      operationLock.current=false;
       setBusy(false);
       setSaving(false);
     }
@@ -225,7 +246,9 @@ export function CampaignComposer({
     <section
       className={reference ? styles.configuration : 'card stack'}
       aria-label={t('إنشاء حملة', 'Create campaign')}
+      aria-busy={busy}
     >
+      <fieldset disabled={busy} style={{border:0,padding:0,margin:0,minWidth:0,display:'grid',gap:12}}>
       {!reference && (
         <>
           <h2 ref={heading} tabIndex={-1}>
@@ -340,8 +363,8 @@ export function CampaignComposer({
                 onChange={setExcludeListIds}
                 disabled={lists.loading || !!lists.error}
               />
-              {labelOptions.error && <p role="alert">{labelOptions.error}</p>}
-              {lists.error && <p role="alert">{lists.error}</p>}
+              {labelOptions.error && <p role="alert">{labelOptions.error} <button type="button" className="btn" onClick={()=>void labelOptions.reload()}>{t('إعادة المحاولة','Retry')}</button></p>}
+              {lists.error && <p role="alert">{lists.error} <button type="button" className="btn" onClick={()=>void lists.reload()}>{t('إعادة المحاولة','Retry')}</button></p>}
             </div>
           )}
           <button type="button" className="btn" disabled={!channel || busy} onClick={checkAudience}>
@@ -440,6 +463,7 @@ export function CampaignComposer({
             </label>
           )}
           {loading && <p role="status">{t('تحميل القوالب…', 'Loading templates…')}</p>}
+          {templateError&&<p role="alert" className="notice error">{templateError} <button type="button" className="btn" disabled={busy||loading} onClick={()=>setTemplateAttempt(n=>n+1)}>{t('إعادة المحاولة','Retry')}</button></p>}
           {template ? (
             selectedTemplate && (
               <TemplateParameters bindings
@@ -541,8 +565,7 @@ export function CampaignComposer({
                 !validContent ||
                 !name.trim() ||
                 !channel ||
-                (reference &&
-                  (!audience || !Number.isInteger(frequency) || frequency < 1 || frequency > 720))
+                !audience || reviewedKey.current!==audienceKey || !Number.isInteger(frequency) || frequency < 1 || frequency > 720
               }
               onClick={save}
             >
@@ -551,6 +574,7 @@ export function CampaignComposer({
           </div>
         </div>
       )}
+      </fieldset>
     </section>
   );
 }
