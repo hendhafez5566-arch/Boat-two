@@ -2,8 +2,8 @@ export const SOCIAL_FORMATS = {
   multimedia: {
     ar: 'منشور متعدد الوسائط',
     en: 'Multimedia Post',
-    descriptionAr: 'انشر النصوص والروابط والصور والفيديو على Facebook وInstagram.',
-    descriptionEn: 'Post Text, Link, Image, Video on Facebook & Instagram automatically.',
+    descriptionAr: 'نصوص وروابط وصور وفيديو على Facebook، وصور وفيديو على Instagram.',
+    descriptionEn: 'Text and links on Facebook; images and video on Facebook and Instagram.',
     icon: 'social',
   },
   cta: {
