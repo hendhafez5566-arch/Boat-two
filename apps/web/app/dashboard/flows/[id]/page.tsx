@@ -221,7 +221,7 @@ function Editor({ id }: { id: string }) {
   // Only terminal success notices disappear; validation, recovery and conflict notices stay.
   useEffect(() => {
     if (!/^(تم الحفظ$|All changes saved$|تم النشر v\d+$|Published v\d+$)/.test(msg)) return;
-    const timer = setTimeout(() => setMsg(''), 1800);
+    const timer = setTimeout(() => setMsg(''), 4000);
     return () => clearTimeout(timer);
   }, [msg]);
   const [confirmPublish, setConfirmPublish] = useState(false);
@@ -576,7 +576,7 @@ function Editor({ id }: { id: string }) {
   const notify = (text: string, undo = false) => {
     setToast({ text, undo });
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = undo ? null : setTimeout(() => setToast(null), 1800);
+    toastTimer.current = undo ? null : setTimeout(() => setToast(null), 4000);
   };
 
   // A connection is valid only between two different, existing steps and from a real output.
@@ -1251,12 +1251,16 @@ function Editor({ id }: { id: string }) {
     }
   };
 
+  const publishing=useRef(false);
   const publish = async () => {
+    if(publishing.current || saving.current)return;
+    publishing.current=true;
     const submitted = latest.current;
     let draftSaved = false;
     try {
       const savedAt = await save();
       draftSaved = true;
+      setBusy(true);
       if (submitted !== latest.current) {
         const notice = t(
           'توجد تعديلات أحدث. احفظها وأعد الفحص قبل النشر.',
@@ -1320,10 +1324,12 @@ function Editor({ id }: { id: string }) {
           text: `${t('لم نستطع تأكيد نتيجة طلب النشر. تم حفظ المسودة؛ راجع حالة البوت قبل إعادة المحاولة.', 'The publish result could not be confirmed. The draft was saved; check the bot status before retrying.')}${e?.message ? ` (${e.message})` : ''}`,
         });
       }
-    }
+    } finally {publishing.current=false;setBusy(false);}
   };
 
   const unpublish = async () => {
+    if(publishing.current||saving.current)return;
+    publishing.current=true;setBusy(true);
     try {
       const result = await api<{ updated_at: string }>(`/flows/${id}/unpublish`, {
         method: 'POST',
@@ -1332,7 +1338,7 @@ function Editor({ id }: { id: string }) {
       setMeta((m) => ({ ...m, status: 'draft', version: null }));
     } catch (e) {
       setMsg((e as Error).message);
-    }
+    } finally {publishing.current=false;setBusy(false);}
   };
 
   const onPreviewProgress = (nid: string | null, reset?: boolean) => {
