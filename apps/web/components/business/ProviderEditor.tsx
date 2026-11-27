@@ -50,7 +50,10 @@ export function ProviderEditor({
             className="stack"
             onSubmit={async (e) => {
               e.preventDefault();
+              if(busy)return;
               const f = new FormData(e.currentTarget);
+              if(Number(f.get('outputLimit'))>=Number(f.get('context'))){window.alert(t('حد الرد يجب أن يكون أقل من حد السياق','Output limit must be below the context limit'));return;}
+              if(p.enabled&&!window.confirm(t('تغيير إعدادات مزود نشط؟','Change an active provider configuration?')))return;
               const rate = (name: string) => (f.get(name) === '' ? null : Number(f.get(name)));
               await act(
                 path,
@@ -68,6 +71,7 @@ export function ProviderEditor({
               ).catch(() => {});
             }}
           >
+            <fieldset disabled={busy} className="stack" style={{border:0,padding:0,margin:0,minWidth:0}}>
             <div className="form-grid">
               <label className="field">
                 {t('الاسم', 'Name')}
@@ -151,14 +155,13 @@ export function ProviderEditor({
             <button className="btn" disabled={busy}>
               {t('حفظ إعدادات النموذج', 'Save model settings')}
             </button>
+            </fieldset>
           </form>
           <div className="flex flex-wrap gap-2">
             <button
               className="btn"
               disabled={busy}
-              onClick={() =>
-                act(path, { enabled: !p.enabled, revision: p.revision }, 'PATCH').catch(() => {})
-              }
+              onClick={() => {if(window.confirm(p.enabled?t('إيقاف المزود؟','Disable provider?'):t('تفعيل المزود قد يسمح باستدعاءات مدفوعة عند توفر الإعدادات. متابعة؟','Enable provider? Paid calls may be allowed when configured.')))void act(path,{enabled:!p.enabled,revision:p.revision},'PATCH').catch(()=>{});}}
             >
               {p.enabled ? t('إيقاف', 'Disable') : t('تفعيل', 'Enable')}
             </button>
@@ -187,6 +190,7 @@ export function ProviderEditor({
             className="flex flex-wrap gap-2"
             onSubmit={async (e) => {
               e.preventDefault();
+              if(busy||!window.confirm(t('تأكيد استبدال مفتاح الاتصال؟','Confirm replacement of the provider key?')))return;
               const form = e.currentTarget;
               const f = new FormData(form);
               try {
@@ -200,7 +204,7 @@ export function ProviderEditor({
             <input
               type="password"
               name="key"
-              required
+              disabled={busy} required
               minLength={10}
               maxLength={4000}
               autoComplete="off"
