@@ -12,6 +12,7 @@ import { useData } from '../business/useData';
 import { useLocale } from '../product/locale';
 import { productPrice } from '../../lib/product-money';
 import CheckoutSelection, { checkoutSelection } from './CheckoutSelection';
+import ContactPicker from './ContactPicker';
 import styles from './commerce-orders.module.css';
 import type { CatalogProduct } from './ProductCatalog';
 
@@ -93,7 +94,7 @@ function OrderDocuments({ order }: { order: Order }) {
   </section>;
 }
 
-export default function CommerceOrders({ contacts, origin, orderId }: { contacts: { id: string; name: string }[]; origin?: Origin; orderId?: string }) {
+export default function CommerceOrders({ origin, orderId }: { origin?: Origin; orderId?: string }) {
   const { t } = useLocale();
   const router = useRouter();
   const [detailTab, setDetailTab] = useState<'overview'|'documents'|'tasks'|'workflow'|'activity'>('overview');
@@ -146,6 +147,7 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
     if (!picked || lock.current) return;
     const revision = selectionRevision.current;
     const data = new FormData(form);
+    if(save&&!origin&&!data.get('contact')){setError(t('اختر عميلًا أولًا.','Choose a customer first.'));return;}
     const selection = checkoutSelection(picked, packageId, data);
     lock.current = true;
     setBusy(true);
@@ -434,10 +436,7 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
           const button = (e.nativeEvent as SubmitEvent).submitter;
           void submit(e.currentTarget, button?.getAttribute('value') === 'save');
         }}>
-        {!origin && <label>{t('العميل', 'Customer')} <select name="contact" defaultValue="" required>
-          <option value="">{t('اختر عميلاً', 'Choose customer')}</option>
-          {contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select></label>}
+        {!origin&&<ContactPicker disabled={busy} onSelectionChange={()=>{selectionRevision.current++;setPreview(null);}}/>}
         <CheckoutSelection product={picked} packageId={packageId} onPackage={setPackageId}/>
         <button className="btn" disabled={busy}><NavIcon name="eye"/>{t('معاينة السعر', 'Preview price')}</button>
         {preview && <section className="card" role="status"><QuoteDetails quote={preview}/></section>}

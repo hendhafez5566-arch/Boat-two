@@ -3,6 +3,7 @@ import { NavIcon } from '../product/NavIcon';
 import { useTransientNotice } from '../product/useTransientNotice';
 import ProductCatalog from './ProductCatalog';
 import CommerceOrders from './CommerceOrders';
+import ContactPicker from './ContactPicker';
 import { AppointmentHours, readAppointmentHours } from './AppointmentHours';
 import { checkoutEnabled } from './CheckoutEditor';
 import catalogStyles from './product-catalog.module.css';
@@ -61,10 +62,6 @@ export default function Commerce({
   const services = useData<Service[]>(tab === 'appointments' ? '/commerce/services' : null, []),
     bookings = useData<Booking[]>(tab === 'appointments' ? '/commerce/appointments' : null, []),
     channels = useData<{ id: string; name: string; type: string }[]>('/channels', []),
-    contacts = useData<{ items: { id: string; name: string; email: string | null }[] }>(
-      tab === 'orders' || tab === 'appointments' ? '/crm/contacts?limit=100' : null,
-      { items: [] },
-    ),
     connections = useData<{ id: string; name: string; provider: string; enabled: boolean }[]>(
       tab === 'appointments' ? '/integrations' : null,
       [],
@@ -161,7 +158,7 @@ export default function Commerce({
         </p>
       )}
       {tab === 'sources' && <DataSourcesPanel />}
-      {tab === 'orders' && checkoutEnabled && <CommerceOrders contacts={contacts.data.items} origin={orderOrigin} orderId={orderId}/>}
+      {tab === 'orders' && checkoutEnabled && <CommerceOrders origin={orderOrigin} orderId={orderId}/>}
       {tab === 'products' && <ProductCatalog />}
       {tab === 'appointments' && (
         <div className={catalogStyles.appointments}>
@@ -227,6 +224,7 @@ export default function Commerce({
             onSubmit={(e) => {
               e.preventDefault();
               const f = new FormData(e.currentTarget);
+              if(!f.get('contact')){setError(t('اختر عميلًا أولًا.','Choose a customer first.'));return;}
               const save =
                 (e.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'save';
               void act(() =>
@@ -258,17 +256,7 @@ export default function Commerce({
                   ))}
               </select>
             </label>
-            <label className="field">
-              {t('العميل', 'Contact')}
-              <select required name="contact">
-                <option value="">{t('اختر', 'Choose')}</option>
-                {contacts.data.items.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name || c.email || c.id}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <ContactPicker disabled={busy} onSelectionChange={()=>{setResult('');setError('');}}/>
             <label className="field">
               {t('وقت البدء حسب المنطقة الزمنية لجهازك', 'Start time in your device timezone')}
               <input name="start" type="datetime-local" required />
