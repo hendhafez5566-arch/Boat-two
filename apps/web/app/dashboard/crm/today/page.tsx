@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { NavIcon } from '../../../../components/product/NavIcon';
 import { useLocale } from '../../../../components/product/locale';
 import { useData } from '../../../../components/business/useData';
 import styles from '../../../../components/business/crm-product.module.css';
@@ -17,10 +18,7 @@ function Queue({ period, title, owner }: { period: string; title: string; owner:
   );
   return (
     <section className={`${styles.group} ${styles.queue}`} aria-label={title}>
-      <h2>
-        {title}
-        {!tasks.loading && !tasks.error && <span>{tasks.data.total}</span>}
-      </h2>
+      <h2><span className={styles.queueTitle}><NavIcon name={period==='overdue'?'userClock':period==='today'?'calendar':'stopwatch'}/>{title}</span><strong>{owner&&!tasks.loading&&!tasks.error?tasks.data.total:'—'}</strong></h2>
       {tasks.error && (
         <p className="notice error" role="alert">
           {tasks.error}
@@ -36,7 +34,7 @@ function Queue({ period, title, owner }: { period: string; title: string; owner:
       )}
       {tasks.data.items.map((task) => (
         <Link key={task.id} href={'/dashboard/crm?contact=' + task.contact_id + '&section=tasks'}>
-          <strong>{task.title}</strong>
+          <strong><NavIcon name="circleCheck"/>{task.title}</strong>
           <span>
             {task.contact_name}
             <time dateTime={task.due_at}>
@@ -49,7 +47,7 @@ function Queue({ period, title, owner }: { period: string; title: string; owner:
         </Link>
       ))}
       <Link href={'/dashboard/crm/tasks?' + new URLSearchParams({ period, ownerId: 'me' })}>
-        {t('عرض المتابعات', 'View follow-ups')}
+        <NavIcon name="list"/>{t('عرض المتابعات', 'View follow-ups')}
       </Link>
     </section>
   );
@@ -64,7 +62,7 @@ export default function TodayPage() {
       <div className="page-heading">
         <h1>{t('يوم العمل', 'Today')}</h1>
         <Link className="btn btn-primary" href="/dashboard/crm?create=true">
-          {t('إضافة عميل', 'Add customer')}
+          <NavIcon name="plus"/>{t('إضافة عميل', 'Add customer')}
         </Link>
       </div>
       {member.error && (

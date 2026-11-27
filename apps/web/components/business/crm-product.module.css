@@ -302,3 +302,10 @@
 .shell[data-crm-suite] .toolIcon{background:#eaf0fa;color:#2563eb}
 .shell[data-crm-suite] .group a:hover{background:#f6f8fc}
 @media(max-width:640px){.crmBrand{font-size:14px;padding:11px 12px}.crmHeader .nav a{padding:10px;font-size:12px}.shell[data-crm-suite]{gap:12px}}
+
+.queueTitle{display:flex!important;align-items:center;gap:7px;color:inherit;background:none!important;padding:0!important}.queueTitle svg,.queue a svg{width:16px;height:16px;flex:none}
+.shell[data-crm-suite] .queue h2{font-size:15px;min-height:64px;background:white!important;gap:7px}.queue h2 strong{font-size:26px;font-weight:700}
+.shell[data-crm-suite] [data-today-queue]>section:first-child h2{color:#dc2626}.shell[data-crm-suite] [data-today-queue]>section:nth-child(2) h2{color:#b45309}.shell[data-crm-suite] [data-today-queue]>section:nth-child(3) h2{color:#2563eb}
+.shell[data-crm-suite] .queue a{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:45px;font-size:13px}.queue a strong{display:flex;align-items:center;gap:7px}
+.shell[data-crm-suite] .queue time{color:#64748b;font-size:12px}.shell[data-crm-suite] .queue a:last-child{color:#2563eb;font-weight:650}
+.shell[data-crm-suite] .sectionLinks button[aria-pressed=true]{background:#eaf0fa;color:#2563eb;border-color:#bfdbfe;font-weight:700}

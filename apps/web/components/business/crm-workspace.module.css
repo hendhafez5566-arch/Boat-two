@@ -884,3 +884,15 @@
 .page[data-crm-work='deals'] .column { min-height:260px; align-self:stretch; }
 .page[data-crm-work='deals'] .column > h2 { background:#e8e8f7; color:#393279; }
 .page[data-crm-work='deals'] .stageTotals { font-weight:650; color:#334155; }
+
+.page[data-crm-work] .toolbar,.page[data-crm-report] .toolbar{background:white;border-color:#e2e8f0;border-radius:8px}
+.page[data-crm-work='deals'] .column{background:#f6f8fc;border-color:#e2e8f0;border-radius:9px;min-height:220px}
+.page[data-crm-work='deals'] .column>h2{border-inline-start:0;border-top:3px solid #2563eb;background:#fff;color:#172b4d;padding:10px;font-size:14px}
+.page[data-crm-work='deals'] .column:nth-child(2n)>h2{border-top-color:#64748b}.page[data-crm-work='deals'] .column:nth-child(3n)>h2{border-top-color:#b45309}
+.page[data-crm-work='deals'] .stageTotals{color:#172b4d;font-size:12px}
+.page[data-crm-report] .stat,.page[data-crm-report] .panel{border-color:#e2e8f0;border-radius:9px;box-shadow:none}
+.page[data-crm-report] .stat strong{color:#172b4d}
+.page[data-crm-report] .statIcon{background:#eaf0fa;color:#2563eb}
+.page[data-crm-report] .chart a span{background:#2563eb}
+.page[data-crm-report] .hero{background:transparent;padding:0}.page[data-crm-report] .hero h1{color:#172b4d;font-size:var(--text-page);font-weight:700}
+.page[data-crm-report] .panel h2{color:#172b4d;font-size:16px}.page[data-crm-report] .panel h2 svg{color:#2563eb}

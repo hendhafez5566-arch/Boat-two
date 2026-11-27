@@ -371,6 +371,7 @@ export function CrmWork({
             </span>
             {title}
           </h1>
+          {!compact&&<p className={design.pageIntro}>{deals?t('تابع الفرص ومراحل البيع في مكان واحد','Track opportunities through sales stages'):t('أنجز المتابعات حسب الأولوية والموعد','Complete follow-ups by priority and due date')}</p>}
         </div>
         <Button
           variant="primary"
@@ -540,6 +541,7 @@ export function CrmWork({
             }}
           />
         )}
+        <button className="btn" type="button" onClick={()=>{setQ('');setOwner('');setPeriod('all');setStatus('open');setCurrencyFilter('');setRouteDates({});setPage(1);}}><NavIcon name="refresh"/>{t('مسح الفلاتر','Reset filters')}</button>
         {!deals && (
           <select
             aria-label={t('الموعد', 'Due date filter')}
@@ -588,6 +590,7 @@ export function CrmWork({
               ))}
             </select>
           </label>
+          <div className={design.pipelineSummary}><div><small>{t('الفرص المطابقة','Matching opportunities')}</small><strong>{data.loading?'…':data.error?'—':data.data.total}</strong></div>{!data.loading&&!data.error&&Object.entries((data.data.stageSummary||[]).reduce<Record<string,number>>((totals,g)=>{totals[g.currency]=(totals[g.currency]||0)+Number(g.value_cents);return totals;},{})).map(([currency,total])=><div key={currency}><small>{t('قيمة الفرص المطابقة','Matching opportunity value')} · {currency}</small><strong><bdi>{new Intl.NumberFormat(language==='ar'?'ar-EG':'en',{style:'currency',currency}).format(total/100)}</bdi></strong></div>)}</div>
           <p className={styles.hint}>
             {t(
               'إجماليات المراحل تشمل كل النتائج المطابقة؛ البطاقات حسب الصفحة.',
@@ -682,6 +685,7 @@ export function CrmWork({
         </div>
       ) : (
         <div className={design.taskQueue}>
+          <div className={design.taskTableHead}>{[t('المتابعة والعميل','Follow-up & customer'),t('الموعد','Due'),t('المسؤول','Assignee'),t('الأولوية','Priority'),t('الحالة','Status'),t('الإجراء','Action')].map(label=><span key={label}>{label}</span>)}</div>
           {data.data.items.map(row=>{
             const overdue=row.status==='open' && Date.parse(row.due_at)<Date.now();
             return <article key={row.id} className={design.taskRow} data-overdue={overdue}>
@@ -689,9 +693,9 @@ export function CrmWork({
                 <Link href={'/dashboard/crm?contact='+row.contact_id}>{row.contact_name}</Link></div>
               <div><small>{t('الموعد','Due')}</small><time dateTime={row.due_at} className={overdue?styles.overdue:undefined}>{new Date(row.due_at).toLocaleString(language==='ar'?'ar-EG':'en')}</time></div>
               <div><small>{t('المسؤول','Assignee')}</small><span>{memberName(row.assigned_to)}</span></div>
-              <div><small>{t('الأولوية','Priority')}</small><span>{row.priority==='high'?t('عالية','High'):row.priority==='low'?t('منخفضة','Low'):t('عادية','Normal')}</span></div>
+              <div><small>{t('الأولوية','Priority')}</small><span className={design.priority} data-level={row.priority||'normal'}><NavIcon name="flag"/>{row.priority==='high'?t('عالية','High'):row.priority==='low'?t('منخفضة','Low'):t('عادية','Normal')}</span></div>
               <div><span className={design.workStatus} data-state={overdue?'overdue':row.status}>{row.status==='done'?t('مكتملة','Completed'):overdue?t('متأخرة','Overdue'):t('مفتوحة','Open')}</span></div>
-              <Button busy={busy} disabled={!canEdit(row)} onClick={()=>void update(row,{status:row.status==='done'?'open':'done'},row.status==='done'?t('أُعيد فتح المتابعة.','Follow-up reopened.'):t('تم إكمال المتابعة.','Follow-up completed.'))}>{row.status==='done'?t('إعادة فتح','Reopen'):t('إكمال المتابعة','Complete follow-up')}</Button>
+              <Button busy={busy} disabled={!canEdit(row)} onClick={()=>void update(row,{status:row.status==='done'?'open':'done'},row.status==='done'?t('أُعيد فتح المتابعة.','Follow-up reopened.'):t('تم إكمال المتابعة.','Follow-up completed.'))}><NavIcon name={row.status==='done'?'refresh':'circleCheck'}/>{row.status==='done'?t('إعادة فتح','Reopen'):t('إكمال المتابعة','Complete follow-up')}</Button>
             </article>;
           })}
         </div>

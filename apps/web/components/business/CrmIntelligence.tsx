@@ -53,6 +53,7 @@ type Intelligence = {
 };
 export function CrmIntelligence({ report = false }: { report?: boolean }) {
   const { t, language } = useLocale();
+  const [reportTab,setReportTab]=useState('overview');
   const [preset, setPreset] = useState('30'),
     [from, setFrom] = useState(''),
     [to, setTo] = useState(''),
@@ -336,13 +337,10 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
             )}
             : {r.conversations.needs_reply}
           </Link>
-          <nav className={product.sectionLinks} aria-label={t('أقسام التقرير', 'Report sections')}>
-            <a href="#crm-metrics">{t('المؤشرات', 'Metrics')}</a>
-            <a href="#crm-growth">{t('نمو العملاء والمبيعات', 'Customer growth and sales')}</a>
-            <a href="#crm-attention">{t('المتابعات والمصادر', 'Follow-ups and sources')}</a>
-            {report && <a href="#crm-team">{t('أداء الفريق', 'Team performance')}</a>}
+          <nav className={product.sectionLinks} aria-label={t('أقسام التقرير','Report sections')}>
+            {[['overview',t('نظرة عامة','Overview'),'reports'],['growth',t('نمو العملاء والمبيعات','Customer growth & sales'),'coins'],['attention',t('المتابعات والمصادر','Follow-ups & sources'),'calendar'],...(report?[['team',t('أداء الفريق','Team performance'),'team']]:[])].map(([key,label,icon])=><button type="button" className="btn" key={key} aria-pressed={reportTab===key} onClick={()=>setReportTab(key)}><NavIcon name={icon}/>{label}</button>)}
           </nav>
-          <div id="crm-metrics" className={styles.metrics}>
+          <div id="crm-metrics" className={styles.metrics} hidden={reportTab!=='overview'}>
             {metrics.map((m) => (
               <Link href={m.href} className={styles.stat} key={m.icon + m.label} data-tone={m.tone}>
                 <span className={styles.statIcon}>
@@ -357,7 +355,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
               </Link>
             ))}
           </div>
-          <div id="crm-growth" className={styles.split}>
+          <div id="crm-growth" className={styles.split} hidden={reportTab!=='overview'&&reportTab!=='growth'}>
             <section className={styles.panel}>
               <header className={styles.panelTitle}>
                 <h2>
@@ -445,7 +443,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
               )}
             </section>
           </div>
-          <div id="crm-attention" className={styles.split}>
+          <div id="crm-attention" className={styles.split} hidden={reportTab!=='overview'&&reportTab!=='attention'}>
             <section className={styles.panel}>
               <h2>
                 <NavIcon name="userClock" />
@@ -515,7 +513,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
               )}
             </section>
           </div>
-          {report && (
+          {report && (reportTab==='overview'||reportTab==='team') && (
             <>
               <section id="crm-team" className={styles.panel}>
                 <h2>
