@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { NavIcon } from '../product/NavIcon';
 import { useState } from 'react';
 import { api } from '../../lib/api';
 import { useData } from '../business/useData';
@@ -95,18 +96,18 @@ export function OrderWorkflowSettings() {
     <div className={styles.toolbar}>
       <h3>{t('مسارات العمل', 'Workflows')}</h3>
       <button className="btn btn-primary" type="button" disabled={busy}
-        onClick={() => setDraft({ name: '', stages: [blankStage()] })}>{t('سير عمل جديد', 'New workflow')}</button>
+        onClick={() => setDraft({ name: '', stages: [blankStage()] })}><NavIcon name="plus"/>{t('سير عمل جديد', 'New workflow')}</button>
     </div>
     {(error || definitions.error || members.error || departments.error) &&
       <p role="alert">{error || definitions.error || members.error || departments.error}</p>}
     {definitions.loading && <p role="status">{t('جارٍ التحميل', 'Loading')}</p>}
     {!definitions.loading && !definitions.error && !definitions.data.length && !draft &&
       <p>{t('لا توجد مسارات عمل بعد.', 'No workflows yet.')}</p>}
-    {definitions.data.map(item => <article className={styles.row} key={item.id}>
-      <div><strong>{item.name}</strong><p>{t(...sources[item.source ?? 'order'])} · {t(...conditions[item.start_condition ?? 'manual'])}</p><p>{item.stages.map(stage => stage.name).join(' · ')}</p></div>
+    {definitions.data.map(item => <article className={styles.definition} key={item.id}>
+      <div><strong>{item.name}</strong><p>{t(...sources[item.source ?? 'order'])} · {t(...conditions[item.start_condition ?? 'manual'])}</p><div className={styles.stageLabels}>{item.stages.map((stage,i)=><span key={i}>{i+1}. {stage.name}</span>)}</div></div>
       <div className={styles.toolbar}>
         <button type="button" className="btn" disabled={busy} onClick={() => setDraft(item)}>{t('تعديل', 'Edit')}</button>
-        <button type="button" className="btn" disabled={busy} onClick={() => void archive(item.id!)}>{t('أرشفة', 'Archive')}</button>
+        <button type="button" className="btn" disabled={busy} onClick={() => {if(window.confirm(t('أرشفة مسار العمل؟','Archive this workflow?')))void archive(item.id!);}}><NavIcon name="archive"/>{t('أرشفة', 'Archive')}</button>
       </div>
     </article>)}
     {draft && <form className={styles.form} onSubmit={save}>
@@ -244,7 +245,7 @@ export function OrderWorkflowProgress({ id, closed, source = 'order' }: { id: st
 
 export function WorkflowWorkspace() {
   const { t } = useLocale();
-  const [source, setSource] = useState<Source>('conversation');
+  const [source, setSource] = useState<Source>('order');
   const [search, setSearch] = useState('');
   const [active, setActive] = useState<string | null>(null);
   const [onlyOverdue, setOnlyOverdue] = useState(false);
@@ -274,8 +275,8 @@ export function WorkflowWorkspace() {
       <article className={styles.item} key={item.id}>
         <div className={styles.row}>
           <div>
-            <Link href={sourceLinks[source] + item.id}>{item.name || t('بدون اسم', 'Unnamed')}</Link>
-            {item.workflow && <p>{item.workflow}</p>}
+            <Link href={sourceLinks[source] + item.id}>{!item.name||/^(visitor|زائر)$/i.test(item.name)?t('زائر','Visitor')+' #'+item.id.slice(0,6):item.name}</Link>
+            <p>{item.workflow||t('لم يبدأ سير العمل','No workflow started')}</p>{item.due_at&&<small>{t('موعد الاستحقاق','Due')}: {new Date(item.due_at).toLocaleString()}</small>}
           </div>
           <button type="button" className="btn" aria-expanded={active === item.id}
             onClick={() => setActive(active === item.id ? null : item.id)}>

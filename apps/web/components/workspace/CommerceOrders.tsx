@@ -4,6 +4,7 @@ import { QuoteDetails } from '../inbox/InboxQuoteDialog';
 import { Dialog } from '../product/ProductUI';
 import { useEffect, useRef, useState } from 'react';
 import { NavIcon } from '../product/NavIcon';
+import { useTransientNotice } from '../product/useTransientNotice';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api, apiBlob } from '../../lib/api';
@@ -38,6 +39,7 @@ function OrderDocuments({ order }: { order: Order }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [uploadNotice, setUploadNotice] = useState('');
+  useTransientNotice(uploadNotice,()=>setUploadNotice(''));
   const closed = ['completed', 'cancelled'].includes(order.status);
   return <section className="stack">
     {files.error && <p role="alert">{files.error}</p>}
@@ -46,8 +48,8 @@ function OrderDocuments({ order }: { order: Order }) {
     {error && <p role="alert">{error}</p>}
     {order.snapshot.documents.map((name, slot) => {
       const file = files.data.find((f) => f.slot === slot);
-      return <div className="stack" key={slot}>
-        {closed ? <span>{name}</span> : <label>{name}
+      return <div className={styles.documentRow} key={slot}><div className={styles.documentTitle}><NavIcon name="list"/><strong>{name}</strong><span data-ready={!!file}>{files.loading?t('جارٍ التحميل','Loading'):files.error?t('تعذر التحقق','Unverified'):file?t('تم الرفع','Uploaded'):t('غير مرفق','Not attached')}</span></div>
+        {closed ? null : <label className={styles.fileLabel}>{file?t('استبدال الملف','Replace file'):t('رفع ملف','Upload file')}
           <input type="file" accept=".pdf,.jpg,.jpeg,.png" disabled={busy} onChange={async (e) => {
             const input = e.currentTarget;
             const picked = input.files?.[0];
@@ -85,7 +87,7 @@ function OrderDocuments({ order }: { order: Order }) {
             link.click();
             window.setTimeout(() => URL.revokeObjectURL(url), 1000);
           } catch (e) { setError((e as Error).message); }
-        }}>{t('تنزيل', 'Download')} · {file.filename}</button>}
+        }}><NavIcon name="download"/>{t('تنزيل', 'Download')} · {file.filename}</button>}
       </div>;
     })}
   </section>;
@@ -116,6 +118,7 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
   const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const [followup, setFollowup] = useState<Order | null>(null);
   const [notice, setNotice] = useState('');
+  useTransientNotice(notice,()=>setNotice(''));
   const followupRetry = useRef<{ key: string; id: string } | null>(null);
   const members = useData<{ members: { user_id: string; full_name: string }[] }>(
     (followup || assignmentId || orderId) ? '/crm/workspace/members' : null, { members: [] },
@@ -317,13 +320,13 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
           {!closed && transitions[o.status] && <label>{t('تحديث الحالة','Update status')}<select value={o.status} disabled={busy} onChange={e=>{const status=e.target.value;if(status!=='cancelled'||window.confirm(t('إلغاء الطلب؟','Cancel this order?'))) void changeStatus(o.id,status);}}><option value={o.status}>{statusLabels[o.status]}</option>{transitions[o.status].map(status=><option value={status} key={status}>{statusLabels[status]}</option>)}</select></label>}</div>
         </header>
         <div className={styles.statusStrip} aria-label={t('حالات الطلب المتاحة، وليست مراحل إلزامية','Available order statuses, not mandatory stages')}>
-          {statuses.filter(status=>status!=='cancelled'||o.status==='cancelled').map(status=><span key={status} data-current={o.status===status} aria-current={o.status===status?'true':undefined}>{statusLabels[status]}</span>)}
+          {statuses.filter(status=>status!=='cancelled'||o.status==='cancelled').map(status=><span key={status} data-status={status} data-current={o.status===status} aria-current={o.status===status?'true':undefined}><NavIcon name={status==='completed'?'circleCheck':status==='cancelled'?'circleClose':status==='documents_required'?'list':status==='review'?'eye':status==='processing'?'settings':status==='confirmed'?'check':'plus'}/>{statusLabels[status]}</span>)}
         </div>
         {error && <p className="notice error" role="alert">{error}</p>}
         {notice && <p className="notice" role="status">{notice}</p>}
         <div className={styles.detailLayout}>
           <main className={styles.detailPanel}>
-            <nav className={styles.detailTabs} aria-label={t('أقسام الطلب','Order sections')}>{tabs.map(([id,label])=><button type="button" key={id} aria-pressed={detailTab===id} onClick={()=>{setDetailTab(id);setError('');setNotice('');}}>{label}{id==='documents'&&o.snapshot.documents.length>0&&<span>{o.snapshot.documents.length}</span>}</button>)}</nav>
+            <nav className={styles.detailTabs} aria-label={t('أقسام الطلب','Order sections')}>{tabs.map(([id,label])=><button type="button" key={id} aria-pressed={detailTab===id} onClick={()=>{setDetailTab(id);setError('');setNotice('');}}><NavIcon name={id==='overview'?'grid':id==='documents'?'list':id==='tasks'?'calendar':id==='workflow'?'flows':'stopwatch'}/>{label}{id==='documents'&&o.snapshot.documents.length>0&&<span>{o.snapshot.documents.length}</span>}</button>)}</nav>
             <div className={styles.tabContent}>
               {detailTab==='overview' && <>
                 {!closed && <div className={styles.detailNext}><div><small>{t('الإجراء المقترح','Suggested next action')}</small><strong>{nextAction(o)}</strong></div>
@@ -359,8 +362,8 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
             </div>
           </main>
           <aside className={styles.detailAside}>
-            <section className={styles.financePanel}><h3>{t('الملخص المالي','Financial summary')}</h3><dl>{moneyLines.map(([label,value])=>value!=null&&<div key={label}><dt>{label}</dt><dd><bdi>{productPrice(value,o.snapshot.currency)}</bdi></dd></div>)}</dl><div className={styles.totalLine}><span>{t('الإجمالي','Total')}</span><strong><bdi>{amount(o.snapshot)}</bdi></strong></div></section>
-            <section className={styles.financePanel}><h3>{t('التواصل','Communication')}</h3><Link className="btn" href={'/dashboard/crm?contact='+o.contact_id}>{t('ملف العميل','Customer profile')}</Link>{o.origin&&<Link className="btn" href={'/dashboard/inbox?conversation='+o.origin.conversationId}>{t('المحادثة الأصلية','Original conversation')}</Link>}<button type="button" className="btn" onClick={()=>setDetailTab('tasks')}>{t('متابعة في CRM','CRM follow-up')}</button></section>
+            <section className={styles.financePanel}><h3><NavIcon name="commerce"/>{t('الملخص المالي','Financial summary')}</h3><dl>{moneyLines.map(([label,value])=>value!=null&&<div key={label}><dt>{label}</dt><dd><bdi>{productPrice(value,o.snapshot.currency)}</bdi></dd></div>)}</dl><div className={styles.totalLine}><span>{t('الإجمالي','Total')}</span><strong><bdi>{amount(o.snapshot)}</bdi></strong></div></section>
+            <section className={styles.financePanel}><h3><NavIcon name="chat"/>{t('التواصل','Communication')}</h3><Link className="btn" href={'/dashboard/crm?contact='+o.contact_id}>{t('ملف العميل','Customer profile')}</Link>{o.origin&&<Link className="btn" href={'/dashboard/inbox?conversation='+o.origin.conversationId}>{t('المحادثة الأصلية','Original conversation')}</Link>}<button type="button" className="btn" onClick={()=>setDetailTab('tasks')}>{t('متابعة في CRM','CRM follow-up')}</button></section>
           </aside>
         </div>
       </>}
@@ -369,7 +372,7 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
   return <section className={styles.workspace}>
     <header className={styles.heading}>
       <h2><NavIcon name="list"/> {t('الطلبات والحجوزات', 'Orders and bookings')}</h2>
-      <div className={styles.headerActions}>{!origin&&<button className="btn" type="button" onClick={()=>setWorkflowSettings(true)}>{t('إعدادات سير العمل','Workflow settings')}</button>}<button className="btn btn-primary" type="button" aria-expanded={creating}
+      <div className={styles.headerActions}>{!origin&&<button className="btn" type="button" onClick={()=>setWorkflowSettings(true)}><NavIcon name="settings"/>{t('إعدادات سير العمل','Workflow settings')}</button>}<button className="btn btn-primary" type="button" aria-expanded={creating}
         onClick={() => setCreating(!creating)}><NavIcon name="plus"/>
         {creating ? t('إخفاء النموذج', 'Hide form') : t('طلب جديد', 'New order')}
       </button></div>
@@ -381,7 +384,7 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
       {summary.error ? <p role="alert">{summary.error}</p> : [['', t('كل الطلبات', 'All orders')], ...Object.entries(statusLabels).filter(([status]) => ['new','review','documents_required','completed'].includes(status) || (counts.get(status) ?? 0) > 0 || orderStatus === status)].map(([status, label]) =>
         <button key={status} type="button" className={styles.metric} data-status={status || 'all'} aria-pressed={orderStatus === status}
           onClick={() => selectStatus(orderStatus === status ? '' : status)}>
-          <span>{label}</span><strong>{summary.loading ? '…' : (status ? counts.get(status) ?? 0 : [...counts.values()].reduce((a,b)=>a+b,0)).toLocaleString()}</strong>
+          <NavIcon name={status==='completed'?'circleCheck':status==='cancelled'?'circleClose':status==='documents_required'?'list':status==='review'?'eye':status==='new'?'plus':'grid'}/><span>{label}</span><strong>{summary.loading ? '…' : (status ? counts.get(status) ?? 0 : [...counts.values()].reduce((a,b)=>a+b,0)).toLocaleString()}</strong>
         </button>,
       )}
     </div>}
@@ -399,14 +402,14 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
         {t('مسح البحث والتصفية', 'Clear search and filters')}
       </button>}
     </div>}
-    <div className={creating ? 'card stack' : undefined} hidden={!creating}>
-      <h3>{t('طلب جديد', 'New order')}</h3>
+    <div className={styles.createPanel} hidden={!creating}>
+      <h3><NavIcon name="plus"/>{t('طلب جديد', 'New order')}</h3>
       {origin && <p>
         {t('العميل', 'Customer')} <strong>{customer.data?.contact_name ?? (customer.loading ? '…' : t('تعذر تحديد العميل', 'Customer unavailable'))}</strong>
         {' · '}<Link href={'/dashboard/inbox?conversation=' + origin.conversationId}>{t('فتح المحادثة', 'Open conversation')}</Link>
       </p>}
       {origin && customer.error && <p role="alert">{customer.error}</p>}
-      <label>{t('بحث بالمنتج أو SKU', 'Find product by name or SKU')}
+      <div className={styles.productPick}><label>{t('بحث بالمنتج أو SKU', 'Find product by name or SKU')}
         <input value={search} maxLength={120} onChange={(e) => setSearch(e.target.value)}/></label>
       <label>{t('المنتج', 'Product')}
         <select value={picked?.id ?? ''} disabled={busy || products.loading}
@@ -419,7 +422,9 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
           {picked && !products.data.rows.some((p) => p.id === picked.id) && <option value={picked.id}>{picked.name}</option>}
           {products.data.rows.filter((p) => !p.archived).map((p) => <option value={p.id} key={p.id}>{p.name}</option>)}
         </select>
-      </label>
+      </label></div>
+      {products.loading&&<p role="status">{t('جارٍ تحميل المنتجات…','Loading products…')}</p>}
+      {!products.loading&&!products.error&&!products.data.rows.some(p=>!p.archived)&&<p>{t('لا توجد منتجات نشطة مطابقة.','No matching active products.')}</p>}
       {picked && <form key={picked.id} className="stack" onChange={() => {
         selectionRevision.current++;
         setPreview(null);
@@ -434,11 +439,11 @@ export default function CommerceOrders({ contacts, origin, orderId }: { contacts
           {contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select></label>}
         <CheckoutSelection product={picked} packageId={packageId} onPackage={setPackageId}/>
-        <button className="btn" disabled={busy}>{t('معاينة السعر', 'Preview price')}</button>
+        <button className="btn" disabled={busy}><NavIcon name="eye"/>{t('معاينة السعر', 'Preview price')}</button>
         {preview && <section className="card" role="status"><QuoteDetails quote={preview}/></section>}
         {picked.checkout?.kind === 'appointment'
           ? <p>{t('احجز عبر تبويب المواعيد.', 'Book from the Appointments tab.')}</p>
-          : <button className="btn btn-primary" value="save" disabled={busy || Boolean(origin && !customer.data)}>{t('حفظ الطلب', 'Save order')}</button>}
+          : <button className="btn btn-primary" value="save" disabled={busy || Boolean(origin && !customer.data)}><NavIcon name="check"/>{t('حفظ الطلب', 'Save order')}</button>}
       </form>}
       {products.error && <p role="alert">{products.error}</p>}
     </div>

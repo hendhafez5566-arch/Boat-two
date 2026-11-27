@@ -353,7 +353,7 @@ export default function DataSourcesPanel({
           t('النتيجة', 'Result'),
         ].map((label, i) => (
           <li key={i} aria-current={step === i ? 'step' : undefined} data-active={step === i}>
-            <span>{i + 1}</span>
+            <span>{i<step?<NavIcon name="check"/>:i+1}</span>
             {label}
           </li>
         ))}
@@ -387,7 +387,7 @@ export default function DataSourcesPanel({
           </select>
         </label>
         <button className="btn" disabled={busy} onClick={() => select(null)}>
-          {t('إضافة مصدر', 'Add source')}
+          <NavIcon name="plus"/>{t('إضافة مصدر', 'Add source')}
         </button>
       </div>
       {editing && (
@@ -428,7 +428,7 @@ export default function DataSourcesPanel({
           {kind === 'file' ? (
             <>
               <label className={styles.uploadZone}>
-                <strong>{t('اختر ملف المنتجات', 'Choose your product file')}</strong>
+                <strong><NavIcon name="upload"/>{t('اختر ملف المنتجات', 'Choose your product file')}</strong>{file&&<small>{file.name}</small>}
                 {t('رفع ملف .xlsx أو .csv — حتى 5 MB', 'Upload .xlsx or .csv — up to 5 MB')}
                 <input
                   disabled={busy}
