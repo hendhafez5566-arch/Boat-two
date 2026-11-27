@@ -11,6 +11,8 @@ on:
       - 'apps/web/app/sequence-builder.css'
       - 'apps/api/src/sequences/**'
       - 'scripts/qa-sequences-professional.mjs'
+      - 'scripts/qa-sequence-worker*.mjs'
+      - 'scripts/qa-full-api.mjs'
       - '.github/workflows/sequences-professional-qa.yml'
   workflow_dispatch:
 permissions:
@@ -22,6 +24,10 @@ jobs:
   acceptance:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        script: [qa-sequences-professional, qa-sequence-worker-runtime]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -36,15 +42,17 @@ jobs:
       - name: Arabic and English mobile and desktop acceptance
         env:
           BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
-          BOAT_QA_BROWSER_SCRIPT: scripts/qa-sequences-professional.mjs
+          BOAT_QA_BROWSER_SCRIPT: scripts/${{ matrix.script }}.mjs
+          BOAT_SEQUENCE_QA: 'true'
           BOAT_CHROMIUM: /usr/bin/google-chrome
         run: python3 scripts/run-connect-browser-qa.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sequences-professional-evidence
+          name: sequences-${{ matrix.script }}-evidence
           path: |
             docs/p0-evidence/sequences-professional/
+            docs/p0-evidence/sequences-worker/
             /tmp/boat-journeys-api.log
             /tmp/boat-journeys-web.log
           if-no-files-found: warn
