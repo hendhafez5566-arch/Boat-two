@@ -10,6 +10,8 @@ on:
       - 'apps/web/components/business/broadcast.module.css'
       - 'apps/web/components/business/campaign-configuration.module.css'
       - 'scripts/qa-campaign-professional.mjs'
+      - 'scripts/qa-campaign-delivery-browser.mjs'
+      - 'apps/api/src/messaging/widget.controller.ts'
       - '.github/workflows/campaign-professional-qa.yml'
   workflow_dispatch:
 permissions:
@@ -21,6 +23,10 @@ jobs:
   acceptance:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        script: [qa-campaign-professional, qa-campaign-delivery-browser]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,15 +39,17 @@ jobs:
       - name: Arabic and English campaign acceptance on mobile and desktop
         env:
           BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
-          BOAT_QA_BROWSER_SCRIPT: scripts/qa-campaign-professional.mjs
+          BOAT_QA_BROWSER_SCRIPT: scripts/${{ matrix.script }}.mjs
+          BOAT_CLOUD_REVIEW: ${{ matrix.script == 'qa-campaign-delivery-browser' && 'true' || 'false' }}
           BOAT_CHROMIUM: /usr/bin/google-chrome
         run: python3 scripts/run-connect-browser-qa.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: campaign-professional-evidence
+          name: campaign-${{ matrix.script }}-evidence
           path: |
             docs/p0-evidence/campaign-professional/
+            docs/p0-evidence/campaign-delivery/
             /tmp/boat-journeys-api.log
             /tmp/boat-journeys-web.log
           if-no-files-found: warn
