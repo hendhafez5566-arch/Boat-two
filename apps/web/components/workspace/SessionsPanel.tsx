@@ -23,7 +23,7 @@ function deviceName(label: string) {
 }
 export default function Sessions() {
   const { t } = useLocale();
-  const sessions = useData<
+  type Session =
     {
       id: string;
       tenant_id: string;
@@ -33,8 +33,7 @@ export default function Sessions() {
       device_label: string;
       last_seen_at: string | null;
       is_current: boolean;
-    }[]
-  >('/auth/sessions', []);
+    };
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -43,12 +42,11 @@ export default function Sessions() {
   const lock=useRef(false);
   const [notice,setNotice]=useState(''),[status,setStatus]=useState('all');
   useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4000);return()=>clearTimeout(timer);},[notice]);
-  const filtered = sessions.data.filter((s) =>
-    (status==='all'||(status==='current'?s.is_current:status==='revoked'?!!s.revoked_at:status==='expired'?!s.revoked_at&&new Date(s.expires_at)<new Date():!s.revoked_at&&new Date(s.expires_at)>=new Date()))&&((s.device_label||'')+' '+s.id).toLowerCase().includes(search.trim().toLowerCase()),
-  );
-  const pages = Math.max(1, Math.ceil(filtered.length / size));
-  const current = Math.min(page, pages);
-  const rows = filtered.slice((current - 1) * size, current * size);
+  const path='/auth/sessions/index?'+new URLSearchParams({q:search,status,page:String(page),limit:String(size)});
+  const sessions=useData<{items:Session[];total:number}>(path,{items:[],total:0});
+  const ready=sessions.loadedPath===path&&!sessions.loading&&!sessions.error;
+  const total=ready?sessions.data.total:0,pages=Math.max(1,Math.ceil(total/size)),current=page,rows=ready?sessions.data.items:[];
+  useEffect(()=>{if(ready&&page>pages)setPage(pages);},[ready,page,pages]);
   return (
     <section className="stack">
       <h1>{t('الأجهزة المتصلة', 'Logged-In Devices')}</h1>
@@ -182,15 +180,15 @@ export default function Sessions() {
           </select>
         </label>
         <span>
-          {filtered.length ? (current - 1) * size + 1 : 0}–
-          {Math.min(current * size, filtered.length)} / {filtered.length}
+          {total ? (current - 1) * size + 1 : 0}–
+          {Math.min(current * size, total)} / {total}
         </span>
         <div>
-          <button className="btn" disabled={current === 1} onClick={() => setPage(current - 1)}>
+          <button className="btn" disabled={!ready||current === 1} onClick={() => setPage(current - 1)}>
             {t('السابق', 'Previous')}
           </button>{' '}
           <span aria-live="polite">{current}</span>{' '}
-          <button className="btn" disabled={current === pages} onClick={() => setPage(current + 1)}>
+          <button className="btn" disabled={!ready||current >= pages} onClick={() => setPage(current + 1)}>
             {t('التالي', 'Next')}
           </button>
         </div>
