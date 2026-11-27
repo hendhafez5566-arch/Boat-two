@@ -3,6 +3,7 @@ import product from './crm-product.module.css';
 import { DisclosureSummary } from '../product/DisclosureSummary';
 
 import { useState } from 'react';
+import { scaledAmount } from '../../lib/report-format';
 import Link from 'next/link';
 import { useData } from './useData';
 import { download, exportCsv } from './csv';
@@ -62,16 +63,14 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
   if (from) q.set('from', from);
   if (to) q.set('to', to);
   if (mine) q.set('mine', 'true');
-  const data = useData<Intelligence | null>('/crm/workspace/analytics?' + q, null);
-  const r = data.data;
-  const money = (c: string, v: string) =>
-    new Intl.NumberFormat(language === 'ar' ? 'ar-EG' : 'en', {
-      style: 'currency',
-      currency: c,
-    }).format(Number(v) / 100);
+  const validRange=(!from&&!to)||!!(from&&to&&from<=to);
+  const requestPath=validRange?'/crm/workspace/analytics?' + q:null;
+  const data = useData<Intelligence | null>(requestPath, null);
+  const r = requestPath&&data.loadedPath===requestPath&&!data.error?data.data:null;
+  const money = (c: string, v: string) => scaledAmount(v,2,language==='ar'?'ar-EG':'en-US',c);
   function range(value: string) {
     setPreset(value);
-    if (value === 'custom') return;
+    if (value === 'custom') { if(!from&&!to&&r){setFrom(r.from);setTo(r.to);} return; }
     const end = r?.today || new Date().toISOString().slice(0, 10);
     const start = new Date(end + 'T12:00:00Z');
     if (value === 'month') start.setUTCDate(1);
@@ -192,7 +191,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
       },
     );
   function exportReport() {
-    if (!r) return;
+    if (!r || data.loading || data.error) return;
     const rows: Record<string, unknown>[] = [
       ...r.sales.map((s) => ({
         section: 'sales',
@@ -204,6 +203,9 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
         to: r.to,
         timezone: r.timezone,
       })),
+      ...r.growth.map((g)=>({section:'growth',label:g.day,count:g.count,from:r.from,to:r.to,timezone:r.timezone})),
+      ...r.pipeline.map((p)=>({section:'pipeline',label:p.stage,currency:p.currency,count:p.count,value_cents:p.value_cents,from:r.from,to:r.to,timezone:r.timezone})),
+      ...r.losses.map((l)=>({section:'losses',label:l.reason,count:l.count,from:r.from,to:r.to,timezone:r.timezone})),
       ...r.sources.map((s) => ({
         section: 'sources',
         label: s.source,
@@ -295,13 +297,14 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
         )}
         <button
           className="btn"
+          disabled={r?.role==='agent'||data.loading}
           aria-pressed={mine || r?.role === 'agent'}
           onClick={() => setMine(!mine)}
         >
           <NavIcon name="user" />
           {mine || r?.role === 'agent' ? t('عملي فقط', 'My work') : t('الفريق كله', 'All team')}
         </button>
-        <button className="btn" onClick={() => void data.reload()}>
+        <button className="btn" disabled={data.loading||!validRange} onClick={() => void data.reload()}>
           <NavIcon name="refresh" />
           {t('تحديث', 'Refresh')}
         </button>
@@ -312,9 +315,10 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
           </button>
         )}
       </div>
-      {data.error && (
+      {!validRange && <p className="notice error" role="alert">{t('حدد تاريخ بداية ونهاية صالحين.','Choose a valid start and end date.')}</p>}
+      {data.error && validRange && (
         <p className="notice error" role="alert">
-          {data.error}
+          {data.error} <button className="btn" disabled={data.loading} onClick={()=>void data.reload()}>{t('إعادة المحاولة','Retry')}</button>
         </p>
       )}
       {data.loading && (
@@ -324,6 +328,7 @@ export function CrmIntelligence({ report = false }: { report?: boolean }) {
       )}
       {r && (
         <>
+          {report && <p className={styles.hint}><bdi>{r.from} — {r.to}</bdi> · <bdi>{r.timezone}</bdi> · {t('وقت إعداد البيانات','Generated at')}: <bdi>{new Date(r.generatedAt).toLocaleString(language==='ar'?'ar-EG':'en-GB',{timeZone:r.timezone})}</bdi></p>}
           <Link
             className={styles.scope}
             href={
