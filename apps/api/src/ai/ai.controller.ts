@@ -29,12 +29,12 @@ const settingsSchema = z.object({
   tone: z.enum(['friendly', 'professional', 'concise']).optional(),
   language: z.enum(['auto', 'ar', 'en']).optional(),
   handoff_enabled: z.boolean().optional(),
-  fallback_message: z.string().min(1).max(500).optional(),
-  handoff_message: z.string().min(1).max(500).optional(),
+  fallback_message: z.string().trim().min(1).max(500).optional(),
+  handoff_message: z.string().trim().min(1).max(500).optional(),
   max_history: z.number().int().min(2).max(30).optional(),
   temperature: z.number().min(0).max(1).optional(),
 });
-const askSchema = z.object({ question: z.string().min(1).max(1000) });
+const askSchema = z.object({ question: z.string().trim().min(1).max(1000) });
 
 const sourceSchema = z.discriminatedUnion('type', [
   z.object({
