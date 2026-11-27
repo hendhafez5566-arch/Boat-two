@@ -127,6 +127,7 @@ export default function SubscriberProfile({
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
+  useTransientNotice(notice,()=>setNotice(''));
   const lock = useRef(false);
   const editBody = useCrmEditBody();
   const overviewDirty = useRef(false);

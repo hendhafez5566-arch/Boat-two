@@ -30,7 +30,7 @@ export default function TelegramConnection() {
   const [manageError, setManageError] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [notice, setNotice] = useState('');
-  useTransientNotice(notice,()=>setNotice(''));
+  useTransientNotice(notice===t('تم ربط البوت.', 'Bot connected.')?notice:null,()=>setNotice(''));
   const [search, setSearch] = useState('');
   const reload = useCallback(async () => {
     setManageError('');

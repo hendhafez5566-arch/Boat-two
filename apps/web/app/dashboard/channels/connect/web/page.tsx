@@ -48,7 +48,7 @@ export default function WebchatConnectionPage() {
     [search, setSearch] = useState(''),
     [code, setCode] = useState<Widget | null>(null);
   const [copyMessage, setCopyMessage] = useState('');
-  useTransientNotice(copyMessage,()=>setCopyMessage(''));
+  useTransientNotice(copyMessage===t('تم نسخ الكود.', 'Code copied.')?copyMessage:null,()=>setCopyMessage(''));
   const [saved, setSaved] = useState('');
   useTransientNotice(saved,()=>setSaved(''));
   const [editing, setEditing] = useState<Widget | null>(null);

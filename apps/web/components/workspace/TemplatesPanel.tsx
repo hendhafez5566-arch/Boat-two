@@ -69,7 +69,7 @@ export default function Templates({
   const [saved, setSaved] = useState<'draft' | 'sync' | 'submit' | 'archive' | 'restore' | null>(
     null,
   );
-  useTransientNotice(saved,()=>setSaved(null));
+  useTransientNotice(saved==='sync'?null:saved,()=>setSaved(null));
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   async function act(
