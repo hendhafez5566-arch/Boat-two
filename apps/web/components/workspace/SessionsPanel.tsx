@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect,useRef,useState } from 'react';
 import { api, setSession } from '../../lib/api';
 import { useData } from '../business/useData';
 import { useLocale } from '../product/locale';
@@ -40,8 +40,11 @@ export default function Sessions() {
   const [page, setPage] = useState(1);
   const [size, setSize] = useState(25);
   const [busy, setBusy] = useState('');
+  const lock=useRef(false);
+  const [notice,setNotice]=useState(''),[status,setStatus]=useState('all');
+  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4000);return()=>clearTimeout(timer);},[notice]);
   const filtered = sessions.data.filter((s) =>
-    (s.device_label || '').toLowerCase().includes(search.trim().toLowerCase()),
+    (status==='all'||(status==='current'?s.is_current:status==='revoked'?!!s.revoked_at:status==='expired'?!s.revoked_at&&new Date(s.expires_at)<new Date():!s.revoked_at&&new Date(s.expires_at)>=new Date()))&&((s.device_label||'')+' '+s.id).toLowerCase().includes(search.trim().toLowerCase()),
   );
   const pages = Math.max(1, Math.ceil(filtered.length / size));
   const current = Math.min(page, pages);
@@ -51,13 +54,14 @@ export default function Sessions() {
       <h1>{t('الأجهزة المتصلة', 'Logged-In Devices')}</h1>
       {(error || sessions.error) && (
         <p className="notice error" role="alert">
-          {error || sessions.error}
+          {error || sessions.error} {sessions.error&&<button className="btn" onClick={()=>void sessions.reload()}>{t('إعادة المحاولة','Retry')}</button>}
         </p>
       )}
+      {notice&&<p className="notice" role="status">{notice}</p>}
       <div className={styles.tools}>
         <input
           type="search"
-          value={search}
+          maxLength={200} value={search}
           aria-label={t('البحث بالأجهزة', 'Search devices')}
           placeholder={t('البحث بالأجهزة…', 'Search devices…')}
           onChange={(e) => {
@@ -65,7 +69,8 @@ export default function Sessions() {
             setPage(1);
           }}
         />
-        <button className="btn" disabled={sessions.loading} onClick={() => void sessions.reload()}>
+        <select aria-label={t('حالة الجلسة','Session status')} value={status} onChange={e=>{setStatus(e.target.value);setPage(1);}}><option value="all">{t('كل الحالات','All statuses')}</option><option value="current">{t('هذا الجهاز','This device')}</option><option value="active">{t('نشطة','Active')}</option><option value="revoked">{t('أُبطلت','Revoked')}</option><option value="expired">{t('انتهت','Expired')}</option></select><button className="btn" disabled={!search&&status==='all'} onClick={()=>{setSearch('');setStatus('all');setPage(1);}}>{t('مسح الفلاتر','Clear filters')}</button>
+        <button className="btn" disabled={!!busy||sessions.loading} onClick={() => void sessions.reload()}>
           {t('تحديث', 'Refresh')}
         </button>
       </div>
@@ -81,7 +86,7 @@ export default function Sessions() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((session, index) => (
+            {!sessions.loading&&!sessions.error&&rows.map((session, index) => (
               <tr key={session.id}>
                 <td>{(current - 1) * size + index + 1}</td>
                 <td>
@@ -117,6 +122,7 @@ export default function Sessions() {
                       !!busy || !!session.revoked_at || new Date(session.expires_at) < new Date()
                     }
                     onClick={async () => {
+                      if(lock.current)return;
                       if (
                         !confirm(
                           t(
@@ -126,7 +132,7 @@ export default function Sessions() {
                         )
                       )
                         return;
-                      setBusy(session.id);
+                      lock.current=true;setBusy(session.id);setNotice('');
                       setError('');
                       try {
                         await api('/auth/sessions/' + session.id + '/revoke', { method: 'POST' });
@@ -135,11 +141,11 @@ export default function Sessions() {
                           window.location.assign('/login');
                           return;
                         }
-                        await sessions.reload();
+                        await sessions.reload();setNotice(t('تم إبطال الجلسة','Session revoked'));
                       } catch (e) {
                         setError((e as Error).message);
                       } finally {
-                        setBusy('');
+                        lock.current=false;setBusy('');
                       }
                     }}
                   >
@@ -148,12 +154,12 @@ export default function Sessions() {
                 </td>
               </tr>
             ))}
-            {!rows.length && (
+            {(sessions.loading||sessions.error||!rows.length) && (
               <tr>
                 <td colSpan={5}>
                   {sessions.loading
                     ? t('جارٍ التحميل…', 'Loading…')
-                    : t('لا توجد أجهزة مطابقة.', 'No matching devices.')}
+                    : sessions.error?t('تعذر تحميل الأجهزة','Unable to load devices'):t('لا توجد أجهزة مطابقة.', 'No matching devices.')}
                 </td>
               </tr>
             )}
