@@ -28,7 +28,7 @@ export default function Knowledge() {
   const index=useData<{items:Source[];total:number;summary:{total:number;ready:number;processing:number;running:number}}>(path,{items:[],total:0,summary:{total:0,ready:0,processing:0,running:0}});
   const workspace=useData<{role:string}>('/workspace',{role:''});
   const canManage=workspace.data.role==='owner'||workspace.data.role==='admin';
-  const ready=index.loadedPath===path&&!index.loading&&!index.error;
+  const ready=index.loadedPath===path&&!index.error;
   const loading=!ready&&!index.error;
   const items=ready?index.data.items:[];
   const pages=Math.max(1,Math.ceil(index.data.total/12));
@@ -91,7 +91,8 @@ export default function Knowledge() {
     }
   }
   async function act(path: string, method = 'POST', body?: unknown) {
-    if(lock.current||!canManage)return;
+    if(lock.current||!canManage||editorState.current.busy)return;
+    if(editing&&path.startsWith('/ai/knowledge/'+editing)&&(method==='DELETE'||path.endsWith('/archive')||path.endsWith('/reindex'))){if(!canLeave())return;setEditing(null);editorState.current={dirty:false,busy:false};}
     lock.current=true;setBusy(true);setMenu(null);
     setError('');
     setFeedback('');
@@ -319,7 +320,7 @@ export default function Knowledge() {
           />
           <select value={sourceStatus} onChange={e=>setSourceStatus(e.target.value)} aria-label={t('حالة المصدر','Source status')}><option value="all">{t('كل الحالات','All statuses')}</option><option value="ready">{t('جاهز','Ready')}</option><option value="processing">{t('قيد المعالجة','Processing')}</option><option value="failed">{t('فشل','Failed')}</option></select>
           <select aria-label={t('نوع المصدر','Source type')} value={sourceType} onChange={e=>setSourceType(e.target.value)}><option value="">{t('كل الأنواع','All types')}</option>{Object.entries(types).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select>
-          <button className="btn" onClick={()=>{setQuery('');setSourceStatus('all');setSourceType('');setShowArchived(false);}}>{t('مسح التصفية','Clear filters')}</button><button className="btn" disabled={loading||busy} onClick={()=>void load()}>{t('تحديث','Refresh')}</button>
+          <button className="btn" onClick={()=>{setQuery('');setSourceStatus('all');setSourceType('');setShowArchived(false);}}>{t('مسح التصفية','Clear filters')}</button><button className="btn" disabled={index.loading||busy} onClick={()=>void load()}>{t('تحديث','Refresh')}</button>
           <label>
             <input
               type="checkbox"
@@ -329,6 +330,7 @@ export default function Knowledge() {
             {t('إظهار المؤرشف', 'Include archived')}
           </label>
         </div>
+        {ready&&index.loading&&<small role="status">{t('جارٍ تحديث المصادر…','Refreshing sources…')}</small>}
         {loading && <p role="status">{t('جارٍ تحميل المصادر…', 'Loading sources…')}</p>}
         {ready && !filtered.length && !error && (
           query.trim()||sourceStatus!=='all'||sourceType||showArchived ? <div className={styles.empty}>
