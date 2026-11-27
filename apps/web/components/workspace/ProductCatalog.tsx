@@ -529,9 +529,9 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
     ? <small className={styles.optionCount}>{product.options.length} {t('خيارات إضافية', 'priced options')}</small>
     : null;
   const productActions = (product: CatalogProduct) => <div className={styles.tileActions}>
-    <button type="button" className="btn" onClick={() => openEditor(product)}><NavIcon name="edit"/>{t('تعديل', 'Edit')}</button>
-    <button type="button" className="btn" onClick={() => void previewSaved(product)}><NavIcon name="eye"/>{t('معاينة', 'Preview')}</button>
-    <button type="button" className="btn btn-danger" onClick={() => requestProductDelete(product)}><NavIcon name="trash"/>{t('حذف', 'Delete')}</button>
+    <button type="button" className="btn" data-action="edit" onClick={() => openEditor(product)}><NavIcon name="edit"/>{t('تعديل', 'Edit')}</button>
+    <button type="button" className="btn" data-action="preview" onClick={() => void previewSaved(product)}><NavIcon name="eye"/>{t('معاينة', 'Preview')}</button>
+    <button type="button" className="btn btn-danger" data-action="delete" title={t('حذف المنتج','Delete product')} aria-label={t('حذف المنتج','Delete product')} onClick={() => requestProductDelete(product)}><NavIcon name="trash"/></button>
   </div>;
 
   return (
@@ -858,9 +858,9 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                     {visibleRows.map((product) => <article className={styles.catalogTile} key={product.id}>
                       <div className={styles.catalogIdentity}>
                         <ProductImage key={product.image_url} product={product}/>
-                        <div><h3>{product.name}</h3><small>{categoryName(product)} · <bdi>{product.sku}</bdi></small></div>
+                        <div><h3 title={product.name}>{product.name}</h3><small title={categoryName(product)+' · '+product.sku}>{categoryName(product)} · <bdi>{product.sku}</bdi></small></div>
                       </div>
-                      {product.description&&<p title={product.description}>{product.description}</p>}
+                      
                       <div className={styles.tileSummary}>
                         <div><strong><bdi>{productPrice(product.price_cents, product.currency)}</bdi></strong>{optionCount(product)}</div>
                         {productStatus(product)}

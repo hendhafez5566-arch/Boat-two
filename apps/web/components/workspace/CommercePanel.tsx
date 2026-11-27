@@ -9,7 +9,7 @@ import { checkoutEnabled } from './CheckoutEditor';
 import catalogStyles from './product-catalog.module.css';
 
 import DataSourcesPanel from './DataSourcesPanel';
-import ChannelScope from '../product/ChannelScope';
+import CommerceChannelPicker from './CommerceChannelPicker';
 import { useChannelContext } from '../product/useChannelContext';
 import { channelHref } from '../../lib/channel-context';
 
@@ -121,19 +121,17 @@ export default function Commerce({
   const contextActions = (
     <div className={catalogStyles.commerceContextActions}>
       <Link className="btn" href={channelHref('/dashboard/flows?section=bot_reply', channelId)}>
-        {initialTab === 'products'
-          ? t('الانتقال إلى ردود البوت', 'Go to bot replies')
-          : t('العودة إلى مدير البوت', 'Back to bot manager')}
+        <NavIcon name="flows"/>{t('مدير البوت','Bot manager')}
       </Link>
       {tab === 'appointments' && (
         <Link className="btn" href="/dashboard/integrations">
-          {t('تفويض Calendar والتكاملات', 'Calendar authorization and integrations')}
+          <NavIcon name="calendar"/>{t('ربط التقويم','Calendar connection')}
         </Link>
       )}
     </div>
   );
   const channelScope = (
-    <ChannelScope value={channelId} onChange={setChannelId} channels={channels.data} workspaceWide />
+    <CommerceChannelPicker value={channelId} onChange={setChannelId} channels={channels.data}/>
   );
   return (
     <section className={`commerce-page ${catalogStyles.commerceWorkspace}`}>
@@ -146,12 +144,8 @@ export default function Commerce({
               : t('التجارة والمواعيد', 'Commerce and appointments')}
         </h1>
         {initialTab !== 'appointments' && catalogNavigation}
-        {initialTab && contextActions}
+        {tab !== 'orders' && <div className={catalogStyles.inlineContext}>{channelScope}{contextActions}</div>}
       </header>}
-      {initialTab === 'appointments' && channelScope}
-      {!initialTab && tab !== 'orders' && (
-        <div className={catalogStyles.scopeBar}>{channelScope}{contextActions}</div>
-      )}
       {tab === 'appointments' && (error || services.error) && (
         <p className="notice error" role="alert">
           {error || services.error}
@@ -261,12 +255,12 @@ export default function Commerce({
               {t('وقت البدء حسب المنطقة الزمنية لجهازك', 'Start time in your device timezone')}
               <input name="start" type="datetime-local" required />
             </label>
-            </div><p className={catalogStyles.formHint}>{t('فحص التوفر لا ينشئ حجزًا. الحجز محلي ولا ينشئ حدث Calendar تلقائيًا.','Checking availability does not create a booking. Local bookings do not automatically create Calendar events.')}</p><div className="form-actions">
+            </div> <div className="form-actions">
               <button className="btn" value="preview" disabled={busy}>
-                <NavIcon name="search"/>{t('فحص التوفر دون حجز', 'Check availability without booking')}
+                <NavIcon name="search"/>{t('فحص التوفر', 'Check availability')}
               </button>
               <button className="btn btn-primary" value="save" disabled={busy}>
-                <NavIcon name="check"/>{t('حجز محلي فعلي', 'Create local booking')}
+                <NavIcon name="check"/>{t('تأكيد حجز محلي', 'Confirm local booking')}
               </button>
             </div>
           </form>
