@@ -36,7 +36,7 @@ type Connection = {
   config: { url?: string; listId?: string };
   updated_at: string;
 };
-export default function Integrations() {
+export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolean,busy:boolean)=>void}={}) {
   const { t } = useLocale();
   const list = useData<Connection[]>('/integrations', []);
   const [groupKey, setGroupKey] = useState('email-tab');
@@ -57,8 +57,11 @@ export default function Integrations() {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
+  const [dirty,setDirty]=useState(false);
+  useEffect(()=>{onDraftState?.(open&&dirty,busy);},[open,dirty,busy,onDraftState]);
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState('');
+  useEffect(()=>{if(!feedback)return;const timer=setTimeout(()=>setFeedback(''),4000);return()=>clearTimeout(timer);},[feedback]);
   const [formError, setFormError] = useState('');
   const [search, setSearch] = useState('');
   const [size, setSize] = useState(5);
@@ -87,13 +90,14 @@ export default function Integrations() {
     window.history.replaceState(window.history.state, '', url.pathname + url.search);
   }
   function edit(connection: Connection | null) {
-    setEditing(connection);
+    if(lock.current)return;
+    setDirty(false);setEditing(connection);
     setProvider(connection?.provider || group.providers[0]);
     setFormError('');
     setOpen(true);
   }
   async function change(connection: Connection) {
-    if (lock.current) return;
+    if(lock.current||!window.confirm(connection.enabled?t('تعطيل ملف الربط قد يوقف إجراءات مرتبطة به. متابعة؟','Disabling may interrupt linked actions. Continue?'):t('تفعيل ملف الربط؟','Enable integration profile?')))return;
     lock.current = true;
     setBusy(true);
     setError('');
@@ -128,7 +132,7 @@ export default function Integrations() {
             aria-selected={groupKey === g.key}
             aria-controls="integration-profiles"
             id={`integration-${g.key}`}
-            onClick={() => selectGroup(g.key)}
+            disabled={busy} onClick={() => selectGroup(g.key)}
           >
             <NavIcon name={g.icon} />
             {t(g.ar, g.en)}
@@ -144,13 +148,13 @@ export default function Integrations() {
       >
         <div className={styles.profileHeading}>
           <h1>{t(group.ar, group.en)}</h1>
-          <button type="button" className="btn" onClick={() => edit(null)}>
+          <button type="button" className="btn" disabled={busy||list.loading||!!list.error} onClick={() => edit(null)}>
             ＋ {t('جديد', 'New')}
           </button>
         </div>
         {(error || list.error) && (
           <p className="notice error" role="alert">
-            {error || list.error}
+            {error || list.error} {list.error&&<button className="btn" onClick={()=>void list.reload()}>{t('إعادة المحاولة','Retry')}</button>}
           </p>
         )}
         {feedback && <p role="status" className="notice">{feedback}</p>}
@@ -158,12 +162,13 @@ export default function Integrations() {
           <input
             type="search"
             aria-label={t('البحث بملفات الربط', 'Search profiles')}
-            value={search}
+            maxLength={100} value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
             }}
           />
+          <button className="btn" disabled={!search} onClick={()=>{setSearch('');setPage(1);}}>{t('مسح البحث','Clear search')}</button><button className="btn" disabled={busy||list.loading} onClick={()=>void list.reload()}>{t('تحديث','Refresh')}</button>
         </div>
         <div className={styles.tablewrap}>
           <table className={`${styles.table} ${styles.profilesTable}`}>
@@ -176,10 +181,10 @@ export default function Integrations() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((c, index) => (
+              {!list.loading&&!list.error&&rows.map((c, index) => (
                 <tr key={c.id}>
                   <td>{(current - 1) * size + index + 1}</td>
-                  <td>{c.name}</td>
+                  <td>{c.name}<small> · {c.id.slice(0,8)}</small><br/><small>{c.enabled?t('مفعّل','Enabled'):t('متوقف','Disabled')} · {c.status}</small></td>
                   <td>{providerNames[c.provider]}</td>
                   <td>
                     <div className={styles.rowActions}>
@@ -198,12 +203,12 @@ export default function Integrations() {
                   </td>
                 </tr>
               ))}
-              {!rows.length && (
+              {(list.loading||!!list.error||!rows.length) && (
                 <tr>
                   <td colSpan={4} className={styles.emptyProfiles}>
                     {list.loading
                       ? t('جارٍ التحميل…', 'Loading…')
-                      : t('لا توجد بيانات في الجدول', 'No data available in table')}
+                      : list.error?t('تعذر تحميل الملفات','Unable to load profiles'):t('لا توجد بيانات في الجدول', 'No data available in table')}
                   </td>
                 </tr>
               )}
@@ -252,19 +257,22 @@ export default function Integrations() {
         title={t(group.ar, group.en)}
         className={styles.integrationDialog}
         onClose={() => {
-          if (!lock.current) setOpen(false);
+          if(!lock.current&&(!dirty||window.confirm(t('تجاهل بيانات الربط غير المحفوظة؟','Discard unsaved integration changes?')))){setDirty(false);setOpen(false);}
         }}
       >
         {open && (
           <form
-            key={editing?.id || 'new'}
+            key={editing?.id || 'new'} onChange={()=>setDirty(true)}
             onSubmit={async (event) => {
               event.preventDefault();
-              if (lock.current) return;
+              if(lock.current||!dirty)return;
               const values = new FormData(event.currentTarget);
               const credential = String(values.get('credential') || '');
+              if(!String(values.get('name')||'').trim()){setFormError(t('أدخل اسم الملف','Enter profile name'));return;}
+              if(needsUrl){try{const u=new URL(String(values.get('url')||''));if(u.protocol!=='https:'||u.username||u.password)throw Error();}catch{setFormError(t('أدخل عنوان HTTPS بدون بيانات دخول','Use HTTPS without embedded credentials'));return;}}
+              if(editing&&credential&&!window.confirm(t('استبدال مفتاح الربط الحالي؟','Replace the current integration key?')))return;
               const body = {
-                name: values.get('name'),
+                name: String(values.get('name')||'').trim(),
                 ...(credential ? { credential } : {}),
                 config: {
                   ...(needsUrl ? { url: values.get('url') } : {}),
@@ -280,7 +288,7 @@ export default function Integrations() {
                   method: editing ? 'PATCH' : 'POST',
                   body: JSON.stringify(editing ? body : { ...body, provider }),
                 });
-                setOpen(false);
+                setDirty(false);setOpen(false);
                 setFeedback(t('تم حفظ ملف الربط.', 'Integration profile saved.'));
                 await list.reload();
               } catch (e) {
@@ -355,7 +363,7 @@ export default function Integrations() {
                     key={p}
                     disabled={busy || !!editing}
                     aria-pressed={provider === p}
-                    onClick={() => setProvider(p)}
+                    onClick={() => {if(p!==provider){if(dirty&&!window.confirm(t('تغيير المزود؟ راجع بيانات المفتاح قبل الحفظ.','Change provider? Review the credential before saving.')))return;setProvider(p);setDirty(true);}}}
                   >
                     {providerNames[p]}
                   </button>
@@ -363,7 +371,7 @@ export default function Integrations() {
               </nav>
             </div>
             <footer className={styles.profileSave}>
-              <button className="btn btn-primary" disabled={busy}>
+              <button className="btn btn-primary" disabled={busy||!dirty}>
                 {t('حفظ', 'Save')}
               </button>
             </footer>
