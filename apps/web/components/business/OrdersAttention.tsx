@@ -47,6 +47,7 @@ export function OrdersAttention() {
     { status: 'documents_required', name: t('مطلوب مستندات', 'Documents needed'), count: number('documents_required'), tone: 'warning' },
     { status: 'review', name: t('قيد المراجعة', 'Under review'), count: number('review'), tone: 'review' },
     { status: 'processing', name: t('قيد التنفيذ', 'In progress'), count: number('processing'), tone: 'active' },
+    { status: 'confirmed', name: t('مؤكد', 'Confirmed'), count: number('confirmed'), tone: 'confirmed' },
   ];
   const labels: Record<string, string> = {
     new: t('جديد', 'New'),
@@ -86,7 +87,7 @@ export function OrdersAttention() {
       {metrics.map((metric) => <Link key={metric.status}
         href={`/dashboard/commerce?tab=orders&status=${metric.status}`}
         className={styles.metric} data-tone={metric.tone} data-has-orders={metric.count > 0}>
-        <small>{metric.name}</small>
+        <span className={styles.metricIcon}><NavIcon name={metric.status==='new'?'plus':metric.status==='documents_required'?'list':metric.status==='review'?'eye':metric.status==='confirmed'?'circleCheck':'settings'}/></span><small>{metric.name}</small>
         <strong>{loading ? '…' : attention.data ? displayNumber.format(metric.count) : '—'}</strong>
       </Link>)}
     </div>
@@ -100,7 +101,7 @@ export function OrdersAttention() {
           href={`/dashboard/commerce?tab=orders&order=${order.id}`}
           className={styles.order}>
           <div><strong dir="auto">{order.product_name || t('طلب', 'Order')}</strong>
-            <span dir="auto">{order.contact_name}</span></div>
+            <span dir="auto">{order.contact_name || t('عميل غير محدد','Unspecified customer')} · #{order.id.slice(0,8)}</span></div>
           <span className={styles.orderStatus} data-status={order.status}>{labels[order.status] ?? order.status}</span>
         </Link>)}
       </div>

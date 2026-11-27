@@ -2,270 +2,38 @@
 import { SubscriptionSummary } from '../../components/business/SubscriptionSummary';
 import { OrdersAttention } from '../../components/business/OrdersAttention';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useData } from '../../components/business/useData';
 import { useLocale } from '../../components/product/locale';
 import { NavIcon } from '../../components/product/NavIcon';
 import styles from './dashboard.module.css';
-type Summary = {
-  channel: string;
-  userName: string;
-  timezone: string;
-  growth: { day: string; gain: number; drop: number }[];
-  ai: { enabled: boolean; sources: number; last_training: string | null };
-};
-const quick = [
-  [
-    '/dashboard/campaigns',
-    'بث جديد',
-    'New Broadcast',
-    'campaigns',
-    'أرسل إلى جمهورك',
-    'Send to your audience',
-    'purple',
-  ],
-  [
-    '/dashboard/flows',
-    'مدير البوت',
-    'Bot manager',
-    'flows',
-    'أنشئ سيناريو أو جرّب بوتًا موجودًا',
-    'Create a flow or preview an existing bot',
-    'green',
-  ],
-  [
-    '/dashboard/knowledge',
-    'قاعدة المعرفة',
-    'Knowledge base',
-    'agents',
-    'أضف وراجع مصادر إجابات المساعد',
-    'Add and review sources for assistant answers',
-    'purple',
-  ],
-  [
-    '/dashboard/channels',
-    'ربط قناة',
-    'Connect Channel',
-    'channels',
-    'أضف قناة جديدة',
-    'Add new channel',
-    'amber',
-  ],
-];
-export default function Dashboard() {
-  const { t } = useLocale();
-  const [channel, setChannel] = useState('all');
-  const summary = useData<Summary | null>('/workspace/dashboard?channel=' + channel, null);
-  // Do not present the previous platform's values while the next filter is loading or failed.
-  const data =
-    summary.data?.channel === channel && !summary.loading && !summary.error ? summary.data : null;
-  const growth = data?.growth || [];
-  const gain = growth.reduce((n, d) => n + d.gain, 0);
-  const drop = growth.reduce((n, d) => n + d.drop, 0);
-  const total = gain + drop;
-  const maximum = Math.max(1, ...growth.map((d) => d.gain));
-  const points = growth
-    .map((d, i) => `${40 + (i * 600) / 29},${190 - (d.gain / maximum) * 170}`)
-    .join(' ');
-  return (
-    <main className={styles.page}>
-      <header className={`${styles.heading} workspace-heading`}>
-        <div>
-          <h1>{t('لوحة المعلومات', 'Dashboard')}</h1>
-        </div>
-        <button
-          type="button"
-          className={styles.refresh}
-          disabled={summary.loading}
-          aria-label={t('تحديث', 'Refresh')}
-          onClick={() => void summary.reload()}
-        >
-          <NavIcon name="refresh" />
-        </button>
-      </header>
-      <section className={styles.hero} aria-labelledby="dashboard-welcome">
-        <div>
-          <h2 id="dashboard-welcome">
-            {t('أهلًا بعودتك', 'Welcome back')}
-            {summary.data?.userName ? `, ${summary.data.userName}` : ''}
-          </h2>
-          <p>{t('إليك ما يحدث في مساحة عملك اليوم.', "Here's what's happening with your workspace today.")}</p>
-          <Link href="/dashboard/inbox">
-            <NavIcon name="inbox" />
-            {t('فتح صندوق الوارد', 'Open Inbox')}
-          </Link>
-        </div>
-        <nav className={styles.workLinks} aria-label={t('العمل اليومي','Daily work')}>
-          <Link href="/dashboard/crm/today"><NavIcon name="crm"/><span>{t('يوم العمل والمتابعات','Daily work & follow-ups')}</span></Link>
-          <Link href="/dashboard/commerce?tab=orders"><NavIcon name="commerce"/><span>{t('الطلبات والحجوزات','Orders & bookings')}</span></Link>
-        </nav>
-      </section>
-      <OrdersAttention />
-      <div className={styles.sectionHeading}><h2>{t('اختصارات التشغيل','Quick actions')}</h2></div>
-      {summary.error && (
-        <p className="notice error" role="alert">
-          {summary.error}
-        </p>
-      )}
-      <nav className={styles.quick} aria-label={t('اختصارات لوحة المعلومات', 'Dashboard actions')}>
-        {quick.map(([href, ar, en, icon, dAr, dEn, tone]) => (
-          <Link key={href} href={href}>
-            <span className={`${styles.quickIcon} ${styles[tone]}`}>
-              <NavIcon name={icon} />
-            </span>
-            <span>
-              <strong>{t(ar, en)}</strong>
-              <small>{t(dAr, dEn)}</small>
-            </span>
-            <span className={styles.arrow}>›</span>
-          </Link>
-        ))}
-      </nav>
-      <section className={styles.card} aria-busy={summary.loading}>
-        <h2>
-          {t('نمو جهات الاتصال', 'Contact growth')} <span>{t('(30 يومًا)', '(30 days)')}</span>
-        </h2>
-        <div className={styles.filter}>
-          <select
-            aria-label={t('قناة تقرير نمو جهات الاتصال', 'Contact growth channel')}
-            value={channel}
-            onChange={(e) => setChannel(e.target.value)}
-          >
-            <option value="all">{t('جميع القنوات', 'All channels')}</option>
-            <option value="web">Webchat</option>
-            <option value="whatsapp">WhatsApp</option>
-            <option value="telegram">Telegram</option>
-            <option value="facebook">Facebook</option>
-            <option value="instagram">Instagram</option>
-          </select>
-        </div>
-        <div className={styles.growth}>
-          <div className={styles.distribution}>
-            <small>{t('آخر 30 يومًا — UTC', 'LAST 30 DAYS — UTC')}</small>
-            <p>{t('جهات اتصال جديدة مقابل إلغاء التسويق', 'New contacts vs marketing opt-outs')}</p>
-            {data ? (
-              <>
-                <div
-                  className={styles.donut}
-                  role="img"
-                  aria-label={`${t('عملاء جدد', 'New contacts')}: ${gain}, ${t('إلغاء التسويق', 'Opt-outs')}: ${drop}`}
-                  style={{
-                    background: total
-                      ? `conic-gradient(#22c55e 0 ${(gain / total) * 100}%, #ef6c83 ${(gain / total) * 100}% 100%)`
-                      : '#edf0f4',
-                  }}
-                >
-                  <span>
-                    <strong>{total}</strong>
-                    <small>{t('إجمالي النشاط', 'TOTAL ACTIVITY')}</small>
-                  </span>
-                </div>
-                <ul className={styles.legend}>
-                  <li>
-                    <i />
-                    {t('عملاء جدد', 'New contacts')} {gain}
-                  </li>
-                  <li>
-                    <i />
-                    {t('إلغاء التسويق', 'Opt-outs')} {drop}
-                  </li>
-                </ul>
-              </>
-            ) : (
-              <p role="status">{summary.loading ? t('جارٍ التحميل…', 'Loading…') : '—'}</p>
-            )}
-          </div>
-          <div className={styles.trend}>
-            <small>{t('الاتجاه اليومي', 'DAILY TREND')}</small>
-            <p>{t('جهات الاتصال الجديدة للقنوات المحددة خلال آخر 30 يومًا', 'New contacts for selected channels in the last 30 days')}</p>
-            <div className={styles.plot}>
-              {data ? (
-                <svg
-                  viewBox="0 0 660 230"
-                  role="img"
-                  aria-label={t('جهات الاتصال الجديدة يوميًا', 'Daily new contacts')}
-                >
-                  {[0, 1, 2, 3, 4].map((n) => (
-                    <g key={n}>
-                      <line
-                        x1="40"
-                        y1={20 + n * 42.5}
-                        x2="640"
-                        y2={20 + n * 42.5}
-                        stroke="#edf0f3"
-                      />
-                      <text x="32" y={24 + n * 42.5} textAnchor="end">
-                        {Number((maximum * (1 - n / 4)).toFixed(2))}
-                      </text>
-                    </g>
-                  ))}
-                  <polygon points={`40,190 ${points} 640,190`} fill="#22c55e14" />
-                  <polyline
-                    points={points}
-                    fill="none"
-                    stroke="#28a655"
-                    strokeWidth="2.5"
-                    strokeLinejoin="round"
-                  />
-                  {growth.map((d, i) => (
-                    <g key={d.day}>
-                      <circle
-                        cx={40 + (i * 600) / 29}
-                        cy={190 - (d.gain / maximum) * 170}
-                        r="4"
-                        fill="transparent"
-                      >
-                        <title>
-                          {d.day}: {d.gain}
-                        </title>
-                      </circle>
-                      {(i % 5 === 0 || i === 29) && (
-                        <text x={40 + (i * 600) / 29} y="215" textAnchor="middle">
-                          {d.day.slice(5)}
-                        </text>
-                      )}
-                    </g>
-                  ))}
-                </svg>
-              ) : (
-                <p role="status">{summary.loading ? t('جارٍ التحميل…', 'Loading…') : '—'}</p>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
-      <section className={`${styles.card} ${styles.ai}`} aria-busy={summary.loading}>
-        <header>
-          <h2>
-            <NavIcon name="agents" />
-            {t('حالة مساعد AI', 'AI Assistant Status')}
-          </h2>
-          <Link href="/dashboard/knowledge">{t('عرض', 'View')}</Link>
-        </header>
-        <dl>
-          <div>
-            <dt>{t('مساعد AI', 'AI Assistant')}</dt>
-            <dd className={data?.ai.enabled ? styles.active : styles.inactive}>
-              {data ? (data.ai.enabled ? t('نشط', 'Active') : t('غير نشط', 'Inactive')) : '—'}
-            </dd>
-          </div>
-          <div>
-            <dt>{t('مصادر المعرفة', 'Knowledge Sources')}</dt>
-            <dd>{data?.ai.sources ?? '—'}</dd>
-          </div>
-          <div>
-            <dt>{t('آخر تدريب', 'Last Training')}</dt>
-            <dd>
-              {data
-                ? data.ai.last_training
-                  ? new Date(data.ai.last_training).toLocaleString()
-                  : t('لم يحدث', 'Never')
-                : '—'}
-            </dd>
-          </div>
-        </dl>
-      </section>
-      <details className="card"><summary>{t('الاشتراك والاستخدام','Subscription and usage')}</summary><SubscriptionSummary/></details>
-    </main>
-  );
+type Summary={channel:string;userName:string;timezone:string;growth:{day:string;gain:number;drop:number}[];ai:{enabled:boolean;sources:number;last_training:string|null}};
+const platforms=[['all','channels','كل القنوات','All channels'],['web','chat','Webchat','Webchat'],['whatsapp','whatsapp','WhatsApp','WhatsApp'],['telegram','telegram','Telegram','Telegram'],['facebook','facebook','Facebook','Facebook'],['instagram','instagram','Instagram','Instagram']] as const;
+const shortcuts=[['/dashboard/inbox','صندوق الوارد','Inbox','inbox','purple'],['/dashboard/crm/today','يوم العمل','Daily work','calendar','amber'],['/dashboard/commerce?tab=orders','الطلبات','Orders','commerce','blue'],['/dashboard/campaigns','الحملات','Campaigns','campaigns','purple'],['/dashboard/flows','مدير البوت','Bot manager','flows','purple'],['/dashboard/knowledge','قاعدة المعرفة','Knowledge base','agents','green'],['/dashboard/channels','قنوات الاتصال','Channels','channels','blue'],['/dashboard/reports','التقارير','Reports','reports','green']] as const;
+function PlatformMark({id,icon}:{id:string;icon:string}){return <span className={styles.mark} data-tone={id}>{id==='instagram'?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".8" fill="currentColor"/></svg>:<NavIcon name={icon}/>}</span>}
+export default function Dashboard(){
+ const {t,language}=useLocale();const n=new Intl.NumberFormat(language==='ar'?'ar-EG':'en-GB');
+ const [channel,setChannel]=useState('all'),[open,setOpen]=useState(false),[day,setDay]=useState<string|null>(null);
+ const root=useRef<HTMLDivElement>(null),trigger=useRef<HTMLButtonElement>(null),id=useId();
+ const path='/workspace/dashboard?channel='+channel,summary=useData<Summary|null>(path,null);
+ const data=summary.data?.channel===channel&&summary.loadedPath===path&&!summary.loading&&!summary.error?summary.data:null;
+ const growth=data?.growth??[],gain=growth.reduce((v,d)=>v+d.gain,0),drop=growth.reduce((v,d)=>v+d.drop,0);
+ const max=Math.max(4,Math.ceil(Math.max(0,...growth.map(d=>Math.max(d.gain,d.drop)))/4)*4);
+ const x=(i:number)=>38+i*568/Math.max(1,growth.length-1),y=(v:number)=>150-v*132/max;
+ const series=(key:'gain'|'drop')=>growth.map((d,i)=>x(i)+','+y(d[key])).join(' ');
+ const selected=growth.find(d=>d.day===day)??growth[growth.length-1],platform=platforms.find(p=>p[0]===channel)??platforms[0];
+ useEffect(()=>{if(!open)return;const outside=(e:PointerEvent)=>{if(!root.current?.contains(e.target as Node))setOpen(false)};const key=(e:KeyboardEvent)=>{if(e.key==='Escape'){setOpen(false);trigger.current?.focus()}};document.addEventListener('pointerdown',outside);document.addEventListener('keydown',key);return()=>{document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',key)}},[open]);
+ return <main className={styles.page}>
+ <header className={styles.heading}><div className={styles.title}><span className={styles.mark}><NavIcon name="grid"/></span><div><h1>{t('لوحة المعلومات','Dashboard')}</h1>{summary.data?.userName&&<small>{t('أهلًا بعودتك،','Welcome back,')} {summary.data.userName}</small>}</div></div><div className={styles.actions}><button type="button" className={styles.secondary} disabled={summary.loading} onClick={()=>void summary.reload()}><NavIcon name="refresh"/>{summary.loading?t('جارٍ التحديث','Refreshing'):t('تحديث المؤشرات','Refresh metrics')}</button><Link className={styles.primary} href="/dashboard/inbox"><NavIcon name="inbox"/>{t('فتح صندوق الوارد','Open inbox')}</Link></div></header>
+ <nav className={styles.quick} aria-label={t('اختصارات التشغيل','Quick actions')}>{shortcuts.map(([href,ar,en,icon,tone])=><Link key={href} href={href}><span className={styles.mark} data-tone={tone}><NavIcon name={icon}/></span><strong>{t(ar,en)}</strong></Link>)}</nav>
+ <OrdersAttention/>
+ <section className={styles.card} aria-busy={summary.loading}><header className={styles.heading}><h2><NavIcon name="reports"/>{t('نمو جهات الاتصال','Contact growth')} <small>{t('30 يومًا · UTC','30 days · UTC')}</small></h2><div ref={root} className={styles.picker}><button ref={trigger} type="button" className={styles.secondary} aria-expanded={open} aria-controls={open?id:undefined} onClick={()=>setOpen(v=>!v)}><PlatformMark id={platform[0]} icon={platform[1]}/>{t(platform[2],platform[3])}<NavIcon name="chevron"/></button>{open&&<div id={id} className={styles.options} role="group" aria-label={t('القنوات','Channels')}>{platforms.map(([key,icon,ar,en])=><button type="button" key={key} aria-pressed={channel===key} onClick={()=>{setChannel(key);setDay(null);setOpen(false);trigger.current?.focus()}}><PlatformMark id={key} icon={icon}/><span>{t(ar,en)}</span>{channel===key&&<NavIcon name="check"/>}</button>)}</div>}</div></header>
+ {summary.error&&!summary.loading?<div className={styles.error} role="alert"><NavIcon name="flag"/>{summary.error}<button type="button" className={styles.secondary} onClick={()=>void summary.reload()}>{t('إعادة المحاولة','Retry')}</button></div>:!data?<p role="status">{t('جارٍ تحميل المؤشرات…','Loading metrics…')}</p>:<>
+ <div className={styles.metrics}><div><span className={styles.mark} data-tone="green"><NavIcon name="crm"/></span><div><small>{t('جهات اتصال جديدة','New contacts')}</small><strong>{n.format(gain)}</strong></div></div><div><span className={styles.mark} data-tone="red"><NavIcon name="blocked"/></span><div><small>{t('إلغاءات التسويق','Marketing opt-outs')}</small><strong>{n.format(drop)}</strong></div></div></div>
+ <div className={styles.chartHead}><div className={styles.legend}><span><i/>{t('عملاء جدد','New contacts')}</span><span><i/>{t('إلغاءات التسويق','Opt-outs')}</span></div>{selected&&<span><bdi>{selected.day}</bdi> · {n.format(selected.gain)} / {n.format(selected.drop)}</span>}</div>
+ {gain===0&&drop===0&&<p className={styles.muted}>{t('لا يوجد نشاط مسجل خلال الفترة.','No activity recorded in this period.')}</p>}
+ <div className={styles.plot}><svg viewBox="0 0 624 179" role="img" aria-label={t('العملاء الجدد وإلغاءات التسويق يوميًا','Daily new contacts and opt-outs')}>{[0,1,2,3,4].map(i=><g key={i}><line x1="38" x2="606" y1={18+i*33} y2={18+i*33} stroke="#e6e9f1"/><text x="32" y={22+i*33} textAnchor="end">{max*(4-i)/4}</text></g>)}<polyline points={series('gain')} fill="none" stroke="#059669" strokeWidth="2.8"/><polyline points={series('drop')} fill="none" stroke="#be123c" strokeWidth="2.2" strokeDasharray="4 3"/>{growth.map((d,i)=><g key={d.day}>{selected?.day===d.day&&<line x1={x(i)} x2={x(i)} y1="18" y2="150" stroke="#7774fa" strokeDasharray="3 3"/>}<circle cx={x(i)} cy={y(d.gain)} r={selected?.day===d.day?4:2.4} fill="#059669"/><circle cx={x(i)} cy={y(d.drop)} r={selected?.day===d.day?4:2.4} fill="#be123c"/>{(i%5===0||i===growth.length-1)&&<text x={x(i)} y="171" textAnchor="middle">{d.day.slice(5)}</text>}</g>)}</svg></div>
+ <div className={styles.chartHead}><label>{t('تفاصيل يوم','Day details')} <select value={selected?.day??''} onChange={e=>setDay(e.target.value)}>{growth.map(d=><option key={d.day}>{d.day}</option>)}</select></label></div><details className={styles.dataTable}><summary>{t('جدول البيانات اليومية','Daily data table')}</summary><div><table><thead><tr><th>{t('اليوم','Day')}</th><th>{t('جدد','New')}</th><th>{t('إلغاءات','Opt-outs')}</th></tr></thead><tbody>{growth.map(d=><tr key={d.day}><td><bdi>{d.day}</bdi></td><td>{n.format(d.gain)}</td><td>{n.format(d.drop)}</td></tr>)}</tbody></table></div></details></>}
+ </section>
+ <div className={styles.bottom}><section className={styles.card} aria-busy={summary.loading}><header className={styles.heading}><h2><NavIcon name="ai"/>{t('مساعد الذكاء الاصطناعي','AI assistant')}</h2><Link className={styles.secondary} href="/dashboard/knowledge"><NavIcon name="settings"/>{t('إدارة المعرفة','Manage knowledge')}</Link></header><dl className={styles.facts}><div><dt>{t('حالة مساحة العمل','Workspace status')}</dt><dd data-active={data?.ai.enabled}>{data?(data.ai.enabled?t('نشط','Active'):t('غير نشط','Inactive')):'—'}</dd></div><div><dt>{t('مصادر المعرفة','Knowledge sources')}</dt><dd>{data?n.format(data.ai.sources):'—'}</dd></div><div><dt>{t('آخر تدريب','Last training')}</dt><dd>{data?(data.ai.last_training?new Date(data.ai.last_training).toLocaleString(language==='ar'?'ar-EG':'en-GB'):t('لم يحدث','Never')):'—'}</dd></div></dl></section><section className={styles.card}><h2><NavIcon name="billing"/>{t('الاشتراك والاستخدام','Subscription & usage')}</h2><SubscriptionSummary/></section></div></main>
 }
