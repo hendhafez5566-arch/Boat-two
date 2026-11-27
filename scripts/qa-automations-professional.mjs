@@ -42,6 +42,19 @@ try{for(const language of ['ar','en'])for(const width of [390,1366]){
  assert.ok(matched,'actual persisted automation tag');
  page.once('dialog',d=>d.accept());await card.getByRole('switch').click();await card.getByRole('switch',{checked:false}).waitFor();
  await page.getByRole('tab',{name:t('سجل التنفيذ','Run history'),exact:true}).click();await page.locator('table').getByText('Automation QA rule',{exact:true}).first().waitFor();
+ // Verify scheduled rules can be moved and canceled without firing real work.
+ const scheduled=await api('/automations',token,{name:'QA scheduled rule',enabled:true,trigger:'automation.scheduled',conditions:{},actions:[{type:'tag',tag:'never-run-canceled'}]});
+ const at=new Date(Date.now()+86400000).toISOString();
+ await api('/automations/'+scheduled.id+'/schedule',token,{contactId:contact.id,at});
+ const schedules=await api('/automations/schedules',token);const pending=schedules.find(x=>x.type==='automation.scheduled'&&x.status==='pending');assert.ok(pending);
+ const later=new Date(Date.now()+2*86400000).toISOString();await api('/automations/schedules/'+pending.id,token,{at:later},'PATCH');
+ assert.equal(new Date((await api('/automations/schedules',token)).find(x=>x.id===pending.id).available_at).getTime(),Date.parse(later));
+ await api('/automations/schedules/'+pending.id,token,{cancel:true},'PATCH');
+ const canceled=(await api('/automations/schedules',token)).find(x=>x.id===pending.id);assert.equal(canceled.status,'completed');assert.equal(canceled.error,'Canceled by operator');
+ const secret=await api('/integrations/secrets',token,{name:'Synthetic secret',value:'fixture-only-secret',allowedHosts:['example.test'],authType:'bearer'});
+ assert.ok(!JSON.stringify(secret).includes('fixture-only-secret'));
+ await api('/integrations/secrets/'+secret.id,token,{value:'fixture-rotated-secret'},'PATCH');
+ const secretRows=await api('/integrations/secrets',token);assert.equal(secretRows.find(x=>x.id===secret.id).version,2);assert.ok(!JSON.stringify(secretRows).includes('fixture-rotated-secret'));
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert.deepEqual(errors,[]);
  await page.screenshot({path:out+'/history-'+language+'-'+width+'.png',fullPage:true});results.push({language,width,status:'PASS'});await context.close();
 }}finally{await browser.close();writeFileSync(out+'/results.json',JSON.stringify(results,null,2)+'\n');}
