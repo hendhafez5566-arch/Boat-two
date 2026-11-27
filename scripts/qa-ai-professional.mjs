@@ -62,7 +62,7 @@ try{for(const language of ['ar','en'])for(const width of [390,1366]){
  await providerCard.locator('[name=model]').fill('synthetic-model-v2');
  await providerCard.getByRole('button',{name:t('حفظ إعدادات النموذج','Save model settings'),exact:true}).click();
  await providerCard.getByText('openai · synthetic-model-v2',{exact:true}).waitFor();
- await providerCard.getByRole('textbox',{name:t('مفتاح بديل','Replacement key'),exact:true}).fill('another-synthetic-key');
+ await providerCard.locator('input[name=key]').fill('another-synthetic-key');
  page.once('dialog',d=>d.accept());await providerCard.getByRole('button',{name:t('تدوير المفتاح','Rotate key'),exact:true}).click();
  await page.waitForFunction(async()=>{const s=JSON.parse(localStorage.getItem('session'));const r=await fetch('http://localhost:4000/agents',{headers:{Authorization:'Bearer '+s.accessToken}});return r.ok&&(await r.json()).providers[0].key_version>=2;});
  await page.getByText(t('سجل النماذج وإصدارات التسعير','Model and pricing version history'),{exact:true}).click();
