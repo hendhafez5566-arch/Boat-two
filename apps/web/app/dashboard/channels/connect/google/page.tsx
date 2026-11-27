@@ -5,6 +5,7 @@ import { api } from '../../../../../lib/api';
 import { useData } from '../../../../../components/business/useData';
 import { useLocale } from '../../../../../components/product/locale';
 import ChannelLogo from '../../../../../components/product/ChannelLogo';
+import { NavIcon } from '../../../../../components/product/NavIcon';
 import styles from '../../../../../components/product/meta-connection-page.module.css';
 type Account = {
   id: string;
@@ -73,8 +74,7 @@ export default function GoogleConnectionPage() {
       <nav aria-label={t('مسار الصفحة', 'Breadcrumb')}>
         <Link href="/dashboard/channels">{t('ربط الحساب', 'Connect Account')}</Link> / Google
       </nav>
-      <div className="page-heading">
-        <div>
+      <header className={styles.heading}><span className={styles.brandIcon} data-platform="google"><ChannelLogo id="google"/></span><div className={styles.headingCopy}>
           <h1>{t('تكامل Google', 'Google Integration')}</h1>
           <p>
             {t(
@@ -83,7 +83,7 @@ export default function GoogleConnectionPage() {
             )}
           </p>
         </div>
-      </div>
+      </header>
       <div className={styles.statistics}>
         {[
           [t('حسابات Google', 'Google Accounts'), rows.length],
@@ -102,23 +102,23 @@ export default function GoogleConnectionPage() {
             t('وصول محدود', 'Limited Access'),
             rows.filter((a) => a.enabled && !a.config?.scopes?.length).length,
           ],
-        ].map(([label, count]) => (
-          <div key={label}>
+        ].map(([label, count],i) => (
+          <div key={label} data-tone={i}><i><NavIcon name={['team','list','calendar','shield'][i]}/></i>
             <span>{label}</span>
             <strong>{accounts.loading ? '—' : count}</strong>
           </div>
         ))}
       </div>
       <section className="card stack">
-        <h2>{t('اربط حساب Google', 'Connect Google Account')}</h2>
+        <div className={styles.compactIntro}><div><h2>{t('اربط حساب Google', 'Connect Google Account')}</h2>
         <p>
           {t(
             'تابع إلى Google لاختيار حسابك ومراجعة الأذونات. صلاحية جهات الاتصال للقراءة فقط.',
             'Continue to Google to choose your account and review permissions. Contacts access is read-only.',
           )}
         </p>
-        <button
-          className="btn"
+        </div><button
+          className="btn btn-primary"
           onClick={connect}
           disabled={
             busy ||
@@ -134,11 +134,10 @@ export default function GoogleConnectionPage() {
           {busy
             ? t('جارٍ التحويل…', 'Redirecting…')
             : t('تسجيل الدخول باستخدام Google', 'Sign in with Google')}
-        </button>
+        </button></div>
         {!capabilities.loading &&
           (!capabilities.data.google?.configured || !capabilities.data.google?.externalEnabled) && (
-            <p className="notice">
-              {t(
+            <p className={styles.warning}><NavIcon name="flag"/> {t(
                 'يحتاج ربط Google إلى تهيئة المشغّل وتفعيل الاتصال الخارجي.',
                 'Google connection requires operator configuration and enabled external access.',
               )}
@@ -151,11 +150,7 @@ export default function GoogleConnectionPage() {
         )}
       </section>
       <section className="card stack">
-        <h2>{t('حسابات Google', 'Google Accounts')}</h2>
-        <label className="field">
-          {t('بحث في حسابات Google', 'Search Google accounts')}
-          <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} />
-        </label>
+        <div className={styles.sectionToolbar}><h2>{t('حسابات Google', 'Google Accounts')}</h2><label><NavIcon name="search"/><input type="search" aria-label={t('بحث في حسابات Google','Search Google accounts')} placeholder={t('بحث…','Search…')} value={search} onChange={event=>setSearch(event.target.value)}/></label></div>
         {accounts.error && (
           <button className="btn" onClick={() => void accounts.reload()}>
             {t('إعادة التحميل', 'Reload')}
@@ -166,16 +161,12 @@ export default function GoogleConnectionPage() {
         )}
         {rows.length ? (
           visible.map((a) => (
-            <div className="card" key={a.id}>
-              <strong>{a.name}</strong>
-              <p>
+            <div className={styles.accountTile} key={a.id}><div><strong>{a.name}</strong>
+              <p className={styles.health} data-state={a.enabled&&a.status==='connected'?'connected':'disconnected'}>
                 {a.enabled && a.status === 'connected'
                   ? t('متصل', 'Connected')
                   : t('غير متصل', 'Disconnected')}
-              </p>
-              <details>
-                <summary>{t('الخدمات المتصلة', 'Connected services')}</summary>
-                <ul>
+              </p></div><ul className={styles.services}>
                   {a.config?.scopes?.some((scope) => scope.includes('/auth/calendar')) && (
                     <li>Google Calendar</li>
                   )}
@@ -185,8 +176,7 @@ export default function GoogleConnectionPage() {
                   {!a.config?.scopes?.length && (
                     <li>{t('لا توجد صلاحيات مسجلة.', 'No scopes recorded.')}</li>
                   )}
-                </ul>
-              </details>
+                {a.config?.scopes?.some(scope=>scope.includes('/spreadsheets'))&&<li>Google Sheets</li>}</ul>
               {a.status !== 'disconnected' && (
                 <button
                   type="button"

@@ -115,3 +115,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.onboarding.onboarding{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr) minmax(0,.8fr);gap:9px 14px;align-items:start;padding:13px!important}.onboarding .intro{grid-column:1/-1;grid-row:auto}.intro h2{font-size:17px;margin:0}.intro p{font-size:12px;margin:3px 0}.onboarding .steps{padding-inline-start:20px;margin:0;font-size:13px}.steps li{padding:3px 0}.onboarding form{gap:8px!important}.onboarding form input{min-height:36px!important}.onboarding form p{font-size:12px;margin:0}.onboarding .guide{grid-column:3;grid-row:auto;padding:10px;background:#f6f8fc;border-radius:9px}.guide h3{font-size:14px;margin:0}.guide p{font-size:12px;margin:4px 0 8px}.listHeader{gap:8px}.listHeader h2{margin:0;font-size:16px}.listHeader p{font-size:12px;margin:3px 0}.listHeader :global(.form-actions){display:flex!important;flex-wrap:wrap;align-items:center;gap:6px;margin:0}.listHeader input{width:min(100%,220px)!important;min-height:34px!important}.table td,.table th{padding:8px 10px;vertical-align:middle;font-size:13px}.table thead{background:#f6f8fc}
+@media(max-width:850px){.onboarding.onboarding{grid-template-columns:1fr 1fr}.onboarding .guide{grid-column:1/-1}}@media(max-width:550px){.onboarding.onboarding{grid-template-columns:1fr}}

@@ -1,4 +1,6 @@
 'use client';
+import { useTransientNotice } from '../product/useTransientNotice';
+import { NavIcon } from '../product/NavIcon';
 import { useRef, useState } from 'react';
 import { Dialog } from '../product/ProductUI';
 import Link from 'next/link';
@@ -67,6 +69,7 @@ export default function Templates({
   const [saved, setSaved] = useState<'draft' | 'sync' | 'submit' | 'archive' | 'restore' | null>(
     null,
   );
+  useTransientNotice(saved,()=>setSaved(null));
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   async function act(
@@ -173,7 +176,7 @@ export default function Templates({
     <section className={styles.page}>
       {!embedded && (
         <Link className={styles.back} href={'/dashboard/channels?manage=' + params.id}>
-          {t('العودة إلى قنوات الاتصال', 'Back to channels')}
+          <NavIcon name="chevron"/>{t('العودة إلى قنوات الاتصال', 'Back to channels')}
         </Link>
       )}
       <header className={styles.heading}>
@@ -201,14 +204,14 @@ export default function Templates({
               setCreating(true);
             }}
           >
-            {t('+ قالب جديد', '+ New template')}
+            <NavIcon name="plus"/>{t('قالب جديد', 'New template')}
           </button>
           <button
             className="btn"
             disabled={busy || metaBlocked}
             onClick={() => void act(path + '/sync', undefined, 'POST', 'sync')}
           >
-            {t('مزامنة من Meta', 'Sync from Meta')}
+            <NavIcon name="refresh"/>{t('مزامنة من Meta', 'Sync from Meta')}
           </button>
         </div>
       </header>

@@ -1,6 +1,8 @@
 'use client';
+import { useTransientNotice } from './useTransientNotice';
 import { FormEvent, useId, useState } from 'react';
 import { api } from '../../lib/api';
+import { NavIcon } from './NavIcon';
 import { statusLabel } from './status';
 import { useLocale } from './locale';
 type Channel = {
@@ -32,6 +34,7 @@ export default function ChannelSettings({
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  useTransientNotice(message,()=>setMessage(''));
   async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
@@ -124,7 +127,7 @@ export default function ChannelSettings({
         aria-controls={panelId}
         onClick={() => setOpen(!open)}
       >
-        {t('الإعدادات وحالة القناة', 'Channel settings & status')}
+        <NavIcon name="settings"/>{t('الإعدادات وحالة القناة', 'Channel settings & status')}
       </button>
       {open && (
         <div className="stack mt-4" id={panelId}>
@@ -196,7 +199,7 @@ export default function ChannelSettings({
             </div>
             <div className="form-actions">
               <button disabled={busy} className="btn btn-primary">
-                {t('حفظ', 'Save')}
+                <NavIcon name="check"/>{t('حفظ', 'Save')}
               </button>
             </div>
           </form>
@@ -230,7 +233,7 @@ export default function ChannelSettings({
                   />
                 )}
                 <button disabled={busy} className="btn">
-                  {t('تحديث الرمز بأمان', 'Replace token securely')}
+                  <NavIcon name="shield"/>{t('تحديث الرمز بأمان', 'Replace token securely')}
                 </button>
               </form>
               <button className="btn" disabled={busy} onClick={loadJobs}>

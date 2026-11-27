@@ -1,12 +1,14 @@
 'use client';
+import { useTransientNotice } from '../../../../../components/product/useTransientNotice';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { api } from '../../../../../lib/api';
 import { useLocale } from '../../../../../components/product/locale';
-import ChannelSettings from '../../../../../components/product/ChannelSettings';
 import { channelHref } from '../../../../../lib/channel-context';
 import styles from './telegram.module.css';
 import ChannelLogo from '../../../../../components/product/ChannelLogo';
+import { NavIcon } from '../../../../../components/product/NavIcon';
+import shared from '../../../../../components/product/meta-connection-page.module.css';
 
 type Bot = {
   id: string;
@@ -28,6 +30,7 @@ export default function TelegramConnection() {
   const [manageError, setManageError] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [notice, setNotice] = useState('');
+  useTransientNotice(notice,()=>setNotice(''));
   const [search, setSearch] = useState('');
   const reload = useCallback(async () => {
     setManageError('');
@@ -111,12 +114,11 @@ export default function TelegramConnection() {
     }
   }
   return (
-    <main className="stack">
+    <main className={`stack ${shared.page}`}>
       <nav aria-label={t('مسار الصفحة', 'Breadcrumb')}>
         <Link href="/dashboard/channels">{t('ربط الحساب', 'Connect Account')}</Link> / Telegram
       </nav>
-      <div className="page-heading">
-        <div>
+      <header className={shared.heading}><span className={shared.brandIcon} data-platform="telegram"><ChannelLogo id="telegram"/></span><div className={shared.headingCopy}>
           <h1>{t('ربط بوت Telegram', 'Telegram Bot Connection')}</h1>
           <p>
             {t(
@@ -125,12 +127,10 @@ export default function TelegramConnection() {
             )}
           </p>
         </div>
-      </div>
+      </header>
       <div className={styles.layout}>
         <section className={`card ${styles.onboarding}`}>
-          <span className={styles.logo} aria-hidden="true">
-            <ChannelLogo id="telegram" />
-          </span>
+ 
           <header className={styles.intro}>
             <h2>{t('اربط بوت Telegram الخاص بك', 'Connect Your Telegram Bot')}</h2>
             <p>
@@ -168,7 +168,7 @@ export default function TelegramConnection() {
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
                   required
-                  autoComplete="off"
+                  autoComplete="new-password"
                   dir="ltr"
                   pattern="[0-9]{5,20}:[A-Za-z0-9_\-]{20,100}"
                   disabled={busy}
@@ -186,7 +186,7 @@ export default function TelegramConnection() {
                 </p>
               )}
               <button className="btn btn-primary" disabled={busy}>
-                {busy ? t('جارٍ الربط…', 'Connecting…') : t('ربط البوت', 'Connect Bot')}
+                <NavIcon name="plus"/>{busy ? t('جارٍ الربط…', 'Connecting…') : t('ربط البوت', 'Connect Bot')}
               </button>
             </form>
           )}
@@ -204,7 +204,7 @@ export default function TelegramConnection() {
               target="_blank"
               rel="noreferrer"
             >
-              {t('دليل Telegram', 'Telegram guide')}
+              <NavIcon name="question"/>{t('دليل Telegram', 'Telegram guide')}
             </a>
           </aside>
         </section>
@@ -232,7 +232,7 @@ export default function TelegramConnection() {
                 disabled={syncing || !bots}
                 onClick={() => void sync(bots?.filter((bot) => bot.status === 'active') ?? [])}
               >
-                {syncing
+                <NavIcon name="refresh"/>{syncing
                   ? t('جارٍ التحقق…', 'Checking…')
                   : t('التحقق من كل البوتات', 'Check all bots')}
               </button>
@@ -299,13 +299,13 @@ export default function TelegramConnection() {
                               disabled={syncing || bot.status !== 'active'}
                               onClick={() => void sync([bot])}
                             >
-                              {t('تحقق من الاتصال', 'Check connection')}
+                              <NavIcon name="shield"/>{t('تحقق من الاتصال', 'Check connection')}
                             </button>
                             <Link className="btn" href={channelHref('/dashboard/flows', bot.id)}>
-                              {t('مدير البوت', 'Bot Manager')}
+                              <NavIcon name="agents"/>{t('مدير البوت', 'Bot Manager')}
                             </Link>
                           </div>
-                          <ChannelSettings channel={bot} onSaved={() => void reload()} />
+                          <Link className="btn" href={'/dashboard/channels?manage='+encodeURIComponent(bot.id)}><NavIcon name="settings"/>{t('إدارة القناة','Manage channel')}</Link>
                         </td>
                       </tr>
                     ))}

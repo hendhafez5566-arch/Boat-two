@@ -1,4 +1,5 @@
 'use client';
+import { useTransientNotice } from '../../../../../components/product/useTransientNotice';
 import Link from 'next/link';
 import { useState } from 'react';
 import { api } from '../../../../../lib/api';
@@ -6,6 +7,8 @@ import { useData } from '../../../../../components/business/useData';
 import { useLocale } from '../../../../../components/product/locale';
 import { Dialog } from '../../../../../components/product/ProductUI';
 import styles from '../../../../../components/product/meta-connection-page.module.css';
+import { NavIcon } from '../../../../../components/product/NavIcon';
+import ChannelLogo from '../../../../../components/product/ChannelLogo';
 type Widget = {
   type: string;
   id: string;
@@ -45,7 +48,9 @@ export default function WebchatConnectionPage() {
     [search, setSearch] = useState(''),
     [code, setCode] = useState<Widget | null>(null);
   const [copyMessage, setCopyMessage] = useState('');
+  useTransientNotice(copyMessage,()=>setCopyMessage(''));
   const [saved, setSaved] = useState('');
+  useTransientNotice(saved,()=>setSaved(''));
   const [editing, setEditing] = useState<Widget | null>(null);
   const visible = rows.filter((widget) =>
     [widget.name, ...(widget.settings?.allowedOrigins ?? [])].some((value) =>
@@ -132,46 +137,25 @@ export default function WebchatConnectionPage() {
       <nav>
         <Link href="/dashboard/channels">{t('ربط الحساب', 'Connect Account')}</Link> / Webchat
       </nav>
-      <div className="page-heading">
-        <div>
+      <header className={styles.heading}><span className={styles.brandIcon} data-platform="web"><ChannelLogo id="web"/></span><div className={styles.headingCopy}>
           <h1>{t('تكامل Webchat', 'Webchat Integration')}</h1>
           <p>{t('أضف المحادثة المباشرة إلى موقعك.', 'Add live chat to your website.')}</p>
         </div>
-      </div>
+      <button className="btn btn-primary" type="button" onClick={()=>openForm(null)}><NavIcon name="plus"/>{t('إنشاء ويدجت','New widget')}</button></header>
       <div className={styles.statistics}>
         {[
           [t('إجمالي الويدجت', 'Total Widgets'), rows.length],
           [t('نشط', 'Active'), rows.filter((a) => a.status === 'active').length],
           [t('غير نشط', 'Inactive'), rows.filter((a) => a.status !== 'active').length],
-        ].map(([label, count]) => (
-          <div key={label}>
+        ].map(([label, count],i) => (
+          <div key={label} data-tone={i===2?3:i}><i><NavIcon name={['chat','circleCheck','circleClose'][i]}/></i>
             <span>{label}</span>
             <strong>{data.loading ? '—' : count}</strong>
           </div>
         ))}
       </div>
       <section className="card stack">
-        <h2>{t('أنشئ ويدجت المحادثة المباشرة', 'Create Your Live Chat Widget')}</h2>
-        <p>
-          {t(
-            'خصّص نافذة المحادثة وحدد المواقع التي يمكن عرضها عليها.',
-            'Customize the chat window and choose the websites that can display it.',
-          )}
-        </p>
-        <button
-          className="btn btn-primary"
-          style={{ alignSelf: 'start' }}
-          onClick={() => openForm(null)}
-        >
-          {t('إنشاء ويدجت محادثة مباشرة', 'Create Live Chat Widget')}
-        </button>
-      </section>
-      <section className="card stack">
-        <h2>{t('ويدجت المحادثة', 'Your Chat Widgets')}</h2>
-        <label>
-          {t('بحث', 'Search')}
-          <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} />
-        </label>
+        <div className={styles.sectionToolbar}><h2>{t('ويدجت المحادثة', 'Your Chat Widgets')}</h2><label><NavIcon name="search"/><input type="search" aria-label={t('بحث','Search')} placeholder={t('بحث بالاسم…','Search by name…')} value={search} onChange={(e)=>setSearch(e.target.value)}/></label></div>
         {saved && <p role="status">{saved}</p>}
         {data.error && (
           <div className="notice error">
@@ -202,10 +186,10 @@ export default function WebchatConnectionPage() {
                   <tr key={a.id}>
                     <td>{a.name}</td>
                     <td>{a.settings?.allowedOrigins?.join(', ') || '—'}</td>
-                    <td>{a.status === 'active' ? t('نشط', 'Active') : t('غير نشط', 'Inactive')}</td>
+                    <td><span className={styles.health} data-state={a.status==='active'?'connected':'disconnected'}>{a.status==='active'?t('نشط محليًا','Locally active'):t('غير نشط','Inactive')}</span></td>
                     <td>
                       <button className="btn" onClick={() => openForm(a)}>
-                        {t('الإعدادات', 'Settings')}
+                        <NavIcon name="settings"/>{t('الإعدادات', 'Settings')}
                       </button>
                       {preview && (
                         <a
@@ -214,7 +198,7 @@ export default function WebchatConnectionPage() {
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          {t('جرّب المحادثة', 'Try chat')}
+                          <NavIcon name="chat"/>{t('جرّب المحادثة', 'Try chat')}
                         </a>
                       )}
                       {a.widgetSnippet && (
@@ -225,7 +209,7 @@ export default function WebchatConnectionPage() {
                             setCode(a);
                           }}
                         >
-                          {t('كود التضمين', 'Get Embed Code')}
+                          <NavIcon name="copy"/>{t('كود التضمين', 'Get Embed Code')}
                         </button>
                       )}
                     </td>
