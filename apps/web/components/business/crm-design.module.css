@@ -1040,3 +1040,17 @@ nav.nav .moreLinks a {
 .pipelineSummary{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));gap:8px}.pipelineSummary>div{display:grid;gap:5px;background:white;border:1px solid #e2e8f0;padding:12px;border-radius:8px}.pipelineSummary small{font-size:12px;color:#64748b}.pipelineSummary strong{font-size:20px;color:#172b4d}
 .workspace .workTabs button[aria-pressed=true]{background:#eaf0fa;color:#2563eb;border-color:#bfdbfe}.workspace .workCard{border-color:#e2e8f0;border-radius:8px;padding:11px}.workspace .dealValue{color:#172b4d;font-size:18px}
 @media(max-width:1000px){.taskTableHead{display:none}}[data-crm-compact=true] .taskTableHead{display:none}
+
+/* Match approved profile composition: identity and main actions on one header, tabs inside main panel. */
+.profileIdentity{display:contents}
+.profile[data-full-profile=true] .profileIdentity{display:flex;gap:12px;align-items:center;min-width:0;flex:1}
+.profile[data-full-profile=true] .profileIdentity>div{min-width:0;overflow-wrap:anywhere}
+.profile[data-full-profile=true] .profileTopActions{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:7px;flex:none;border:0;background:none;padding:0;max-width:100%;min-width:0}
+.profileMain{display:contents}.profile[data-full-profile=true] .profileMain{display:grid;gap:0;min-width:0;align-content:start;border-radius:9px}
+.profileActionMenu{position:relative;align-self:center}.profileActionMenu>summary{display:flex;align-items:center;gap:5px;cursor:pointer;list-style:none;border:1px solid #e2e8f0;padding:7px 10px;border-radius:7px;min-height:36px;background:white;color:#334155;font-size:12px}
+.profileActionMenu>summary::-webkit-details-marker{display:none}.profileActionMenu>summary svg{width:16px;height:16px}
+.profileActionMenu>div{position:absolute;inset-inline-end:0;top:calc(100% + 4px);z-index:12;background:white;border:1px solid #e2e8f0;border-radius:8px;padding:5px;display:grid;gap:4px;width:max-content;min-width:150px;max-width:calc(100vw - 40px);box-shadow:0 5px 16px #172b4d14}
+.profileActionMenu>div button{display:flex;align-items:center;gap:6px;padding:8px;border:0;border-radius:5px;background:white;color:#172b4d;text-align:start;font:inherit;font-size:12px;cursor:pointer}
+.profileActionMenu>div button:hover{background:#f6f8fc;color:#2563eb}.profileActionMenu>div button svg{width:16px;height:16px;flex:none}
+.metricTile{text-align:start;font:inherit;cursor:pointer}.metricTile strong{font-size:27px}
+@media(max-width:800px){.profile[data-full-profile=true] .profileTopActions{align-items:flex-start;width:100%;flex:1 1 100%}}

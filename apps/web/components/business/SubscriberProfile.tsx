@@ -272,7 +272,7 @@ export default function SubscriberProfile({
           .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
       : [];
   const latestActivity = activity[0];
-  const icons:Record<string,string>={overview:'grid',orders:'commerce',deals:'handshake',tasks:'calendar',notes:'edit',activity:'stopwatch',settings:'settings',company:'team',agent:'user',labels:'tag',fields:'list',input:'forms',lists:'list',sequences:'sequences',consent:'shield'};
+  const icons:Record<string,string>={overview:'grid',orders:'commerce',deals:'handshake',tasks:'calendar',notes:'edit',activity:'stopwatch',settings:'settings',company:'team',agent:'user',labels:'list',fields:'list',input:'variable',lists:'list',sequences:'sequences',consent:'shield'};
   const managementGroups=[{title:t('بيانات العميل','Customer details'),keys:['company','agent','labels','fields','input']},{title:t('التواصل والتسويق','Communication and marketing'),keys:['lists','sequences','consent']}];
 
   function saveOverview(event: FormEvent<HTMLFormElement>) {
@@ -288,49 +288,7 @@ export default function SubscriberProfile({
       setOverviewEditing(false);
     });
   }
-  return (
-    <aside
-      className={`${styles.profile} ${design.profile}`}
-      data-full-profile={fullPage ? 'true' : undefined}
-      aria-label={t('ملف العميل', 'Customer profile')}
-    >
-      <header className={styles.profileHeader}>
-        <span className={styles.avatar}>{contact && /^(visitor|زائر)$/i.test(contact.name.trim()) ? <NavIcon name="user"/> : contact?.name?.slice(0, 2) || '?'}</span>
-        <div>
-          <h2>{contact && /^(visitor|زائر)$/i.test(contact.name.trim()) ? t('زائر','Visitor') + ' #' + contact.id.slice(0,6) : contact?.name || t('ملف العميل', 'Customer profile')}</h2>
-          {contact && !contact.phone && !contact.email && <small>{t('لا توجد بيانات تواصل مسجلة','No contact details recorded')}</small>}
-          <div>
-            {contact?.phone && (
-              <a href={'tel:' + contact.phone}>
-                <bdi>{contact.phone}</bdi>
-              </a>
-            )}
-            {contact?.phone && contact?.email && <span aria-hidden="true"> · </span>}
-            {contact?.email && (
-              <a href={'mailto:' + contact.email}>
-                <bdi>{contact.email}</bdi>
-              </a>
-            )}
-          </div>
-        </div>
-      </header>
-      {data.loading && <p role="status">{t('جارٍ تحميل الملف…', 'Loading profile…')}</p>}
-      {(error || data.error) && (
-        <p role="alert" className="notice error">
-          {error || data.error}
-          <button type="button" className="btn" onClick={() => void data.reload()}>
-            {t('إعادة تحميل الملف', 'Reload profile')}
-          </button>
-        </p>
-      )}
-      {notice && (
-        <p className="notice" role="status">
-          {notice}
-        </p>
-      )}
-      {profile && contact && (
-        <>
-          <div className={design.profileTopActions}>
+  const topActions=profile&&contact?(<div className={design.profileTopActions}>
           <div className={styles.profileMeta}>
             {canManage ? (
               <label className={design.lifecycleControl}>
@@ -373,16 +331,6 @@ export default function SubscriberProfile({
                 {t('فتح المحادثة', 'Open conversation')}
               </Link>
             )}
-            {tab !== 'deals' && (
-              <button
-                onClick={() => {
-                  if (setTab('deals')) setQuickCreate('deals');
-                }}
-              >
-                <NavIcon name="handshake" />
-                {t('إضافة فرصة', 'Add opportunity')}
-              </button>
-            )}
             {tab !== 'tasks' && (
               <button
                 onClick={() => {
@@ -391,6 +339,16 @@ export default function SubscriberProfile({
               >
                 <NavIcon name="calendar" />
                 {t('إضافة متابعة', 'Add follow-up')}
+              </button>
+            )}
+{fullPage?<details className={design.profileActionMenu}><summary aria-label={t('المزيد من الإجراءات','More actions')}><NavIcon name="moreVertical"/><span>{t('المزيد','More')}</span></summary><div>            {tab !== 'deals' && (
+              <button
+                onClick={() => {
+                  if (setTab('deals')) setQuickCreate('deals');
+                }}
+              >
+                <NavIcon name="handshake" />
+                {t('إضافة فرصة', 'Add opportunity')}
               </button>
             )}
             <button
@@ -411,9 +369,37 @@ export default function SubscriberProfile({
                 {t('تعديل البيانات', 'Edit details')}
               </button>
             )}
-          </div>
-          </div>
-          <div className={styles.profileSummary}>
+</div></details>:<>            {tab !== 'deals' && (
+              <button
+                onClick={() => {
+                  if (setTab('deals')) setQuickCreate('deals');
+                }}
+              >
+                <NavIcon name="handshake" />
+                {t('إضافة فرصة', 'Add opportunity')}
+              </button>
+            )}
+            <button
+              onClick={() => {
+                if(setTab('notes')) requestAnimationFrame(() => noteInput.current?.focus());
+              }}
+            >
+              <NavIcon name="edit" />
+              {t('إضافة ملاحظة', 'Add note')}
+            </button>
+            {canManage && (
+              <button
+                onClick={() => {
+                  if (setTab('overview')) setOverviewEditing(true);
+                }}
+              >
+                <NavIcon name="edit" />
+                {t('تعديل البيانات', 'Edit details')}
+              </button>
+            )}
+</>}          </div>
+          </div>):null;
+  const overviewSummary=profile&&contact?(<div className={styles.profileSummary}>
             <div className={premium.actions} data-profile-identity>
               <span className={premium.badge}>
                 <NavIcon name="user" />
@@ -457,7 +443,54 @@ export default function SubscriberProfile({
                 <time dateTime={latestActivity.at}>{date(latestActivity.at)}</time>
               </button>
             )}
+          </div>):null;
+  const profileNavigation=(<nav className={styles.profileTabs} aria-label={t('أقسام ملف العميل','Customer profile sections')}>
+            {tabs.filter(([key])=>['overview','deals','tasks','notes','activity'].includes(key)||(fullPage&&key==='settings')||(fullPage&&canManage&&key==='orders')).sort((a,b)=>['overview','orders','deals','tasks','notes','activity','settings'].indexOf(a[0])-['overview','orders','deals','tasks','notes','activity','settings'].indexOf(b[0])).map(([key,ar,en])=><button type="button" key={key} aria-pressed={tab===key||(key==='settings'&&managementGroups.some(group=>group.keys.includes(tab)))} onClick={()=>{if(setTab(key)){setQuickCreate('');setError('');setNotice('');}}}><NavIcon name={icons[key]}/>{t(ar,en)}</button>)}
+          </nav>);
+  return (
+    <aside
+      className={`${styles.profile} ${design.profile}`}
+      data-full-profile={fullPage ? 'true' : undefined}
+      aria-label={t('ملف العميل', 'Customer profile')}
+    >
+      <header className={styles.profileHeader}>
+        <div className={design.profileIdentity}><span className={styles.avatar}>{contact && /^(visitor|زائر)$/i.test(contact.name.trim()) ? <NavIcon name="user"/> : contact?.name?.slice(0, 2) || '?'}</span>
+        <div>
+          <h2>{contact && /^(visitor|زائر)$/i.test(contact.name.trim()) ? t('زائر','Visitor') + ' #' + contact.id.slice(0,6) : contact?.name || t('ملف العميل', 'Customer profile')}</h2>
+          {contact && !contact.phone && !contact.email && <small>{t('لا توجد بيانات تواصل مسجلة','No contact details recorded')}</small>}
+          <div>
+            {contact?.phone && (
+              <a href={'tel:' + contact.phone}>
+                <bdi>{contact.phone}</bdi>
+              </a>
+            )}
+            {contact?.phone && contact?.email && <span aria-hidden="true"> · </span>}
+            {contact?.email && (
+              <a href={'mailto:' + contact.email}>
+                <bdi>{contact.email}</bdi>
+              </a>
+            )}
           </div>
+        </div></div>{fullPage&&topActions}
+      </header>
+      {data.loading && <p role="status">{t('جارٍ تحميل الملف…', 'Loading profile…')}</p>}
+      {(error || data.error) && (
+        <p role="alert" className="notice error">
+          {error || data.error}
+          <button type="button" className="btn" onClick={() => void data.reload()}>
+            {t('إعادة تحميل الملف', 'Reload profile')}
+          </button>
+        </p>
+      )}
+      {notice && (
+        <p className="notice" role="status">
+          {notice}
+        </p>
+      )}
+      {profile && contact && (
+        <>
+          {!fullPage&&topActions}
+          {!fullPage&&overviewSummary}
           <div className={design.profileCounters} aria-label={t('ملخص السجلات الحديثة والطلبات','Recent records and orders summary')}>
             {([
               [t('المحادثات','Conversations'),profile.timeline.conversations.length,'overview','chat'],
@@ -467,10 +500,9 @@ export default function SubscriberProfile({
               ...(!fullPage||!canManage?[[t('الملاحظات','Notes'),profile.timeline.notes.length,'notes','edit']]:[])
             ] as [string,number|string,string,string][]).map(([label,count,key,icon])=><button type="button" key={key} title={key==='orders'?label:t('حسب السجلات الحديثة المتاحة','Based on recent available records')} onClick={()=>{if(setTab(key))setQuickCreate('');}}><span><NavIcon name={icon}/>{label}</span><strong>{count}</strong></button>)}
           </div>
-          <nav className={styles.profileTabs} aria-label={t('أقسام ملف العميل','Customer profile sections')}>
-            {tabs.filter(([key])=>['overview','deals','tasks','notes','activity'].includes(key)||(fullPage&&key==='settings')||(fullPage&&canManage&&key==='orders')).sort((a,b)=>['overview','orders','deals','tasks','notes','activity','settings'].indexOf(a[0])-['overview','orders','deals','tasks','notes','activity','settings'].indexOf(b[0])).map(([key,ar,en])=><button type="button" key={key} aria-pressed={tab===key||(key==='settings'&&managementGroups.some(group=>group.keys.includes(tab)))} onClick={()=>{if(setTab(key)){setQuickCreate('');setError('');setNotice('');}}}><NavIcon name={icons[key]}/>{t(ar,en)}</button>)}
-          </nav>
+          {!fullPage&&profileNavigation}
           <div className={design.profileLayout} data-active-section={tab}>
+          <div className={design.profileMain}>{fullPage&&profileNavigation}
           <div className={styles.profileBody}>
             {tab==='orders'&&fullPage&&canManage&&<CustomerCommerce state={commerce}/>}
             {tab==='settings'&&fullPage&&<div className={design.managementPage}><h3><NavIcon name="settings"/>{t('إدارة العميل','Manage customer')}</h3>{managementGroups.map(group=><section key={group.title}><h4>{group.title}</h4>{tabs.filter(([key])=>group.keys.includes(key)).map(([key,ar,en])=><button className="btn" type="button" key={key} onClick={()=>{if(setTab(key))setQuickCreate('');}}><NavIcon name={icons[key]}/>{t(ar,en)}<NavIcon name="chevron"/></button>)}</section>)}<details><summary>{t('التقييم ومرجع الدعم','Score and support reference')}</summary><CrmScore contactId={contactId} version={contact.updated_at}/><small><bdi>{contact.id}</bdi></small></details></div>}
@@ -562,6 +594,7 @@ export default function SubscriberProfile({
                     </form>
                   </section>
                 )}
+                {fullPage&&overviewSummary}
                 {fullPage&&<section className={design.profileTimeline}><h3><NavIcon name="stopwatch"/>{t('آخر التعاملات','Recent activity')}</h3>{activity.slice(0,5).map(e=><article key={e.id}><span className={design.timelineDot}/><div><strong>{e.title}</strong><small>{e.body}</small></div><time>{date(e.at)}</time></article>)}<button className="btn" type="button" onClick={()=>setTab('activity')}><NavIcon name="list"/>{t('عرض سجل النشاط','View activity')}</button></section>}
                 <h3><NavIcon name="chat"/>{t('المحادثات', 'Conversations')}</h3>
                 {profile.timeline.conversations.map((row) => (
@@ -739,7 +772,7 @@ export default function SubscriberProfile({
                   >
                     <label>
                       {t('وسم جديد', 'New label')}
-                      <input name="tag" required maxLength={50} />
+                      <input name="list" required maxLength={50} />
                     </label>
                     <button className="btn" disabled={busy}>
                       {t('إضافة الوسم', 'Add Label')}
@@ -1082,13 +1115,13 @@ export default function SubscriberProfile({
                 </div>
               </>
             )}
-          </div>
+          </div></div>
           <aside className={design.profileSidebar}>
             <section className={design.profileFacts}><h3><NavIcon name="user"/>{t('بيانات العميل','Customer details')}</h3>
               <dl><div><dt>{t('المسؤول','Owner')}</dt><dd>{members.data.members.find(m=>m.user_id===contact.owner_id)?.full_name || (contact.owner_id?t('غير متاح','Unavailable'):t('دون مسؤول','Unassigned'))}</dd></div>
               <div><dt>{t('المصدر','Source')}</dt><dd>{String(contact.attributes.source || t('غير محدد','Not recorded'))}</dd></div><div><dt>{t('القنوات المرتبطة','Linked channels')}</dt><dd>{profile.channels.map(c=>c.name).join('، ') || '—'}</dd></div>
               <div><dt><NavIcon name="chat"/>{t('بيانات التواصل','Contact details')}</dt><dd>{contact.phone&&<a href={'tel:'+contact.phone}><bdi>{contact.phone}</bdi></a>}{contact.email&&<a href={'mailto:'+contact.email}><bdi>{contact.email}</bdi></a>}{!contact.phone&&!contact.email&&t('غير مسجلة','Not recorded')}</dd></div><div><dt><NavIcon name="calendar"/>{t('تاريخ التسجيل','Created')}</dt><dd>{date(contact.created_at)}</dd></div><div><dt><NavIcon name="stopwatch"/>{t('آخر تواصل','Last communication')}</dt><dd>{date(profile.timeline.conversations.map(c=>c.last_message_at).filter(Boolean).sort().at(-1))}</dd></div><div><dt>{t('آخر تحديث للملف','Profile updated')}</dt><dd>{date(contact.updated_at)}</dd></div>
-              <div><dt><NavIcon name="tag"/>{t('الوسوم','Labels')}</dt><dd className={design.profileTags}>{contact.tags.length?contact.tags.map(tag=><span key={tag}>{tag}</span>):'—'}</dd></div></dl>{canManage&&<button className="btn" type="button" onClick={()=>{if(setTab('overview'))setOverviewEditing(true);}}><NavIcon name="edit"/>{t('تعديل بيانات العميل','Edit customer details')}</button>}
+              <div><dt><NavIcon name="list"/>{t('الوسوم','Labels')}</dt><dd className={design.profileTags}>{contact.tags.length?contact.tags.map(tag=><span key={tag}>{tag}</span>):'—'}</dd></div></dl>{canManage&&<button className="btn" type="button" onClick={()=>{if(setTab('overview'))setOverviewEditing(true);}}><NavIcon name="edit"/>{t('تعديل بيانات العميل','Edit customer details')}</button>}
             </section>
                       {fullPage?<button className={design.manageLink} type="button" onClick={()=>setTab('settings')}><NavIcon name="settings"/>{t('إدارة العميل','Manage customer')}<NavIcon name="chevron"/></button>:<details className={styles.profileMore}>
             <DisclosureSummary>

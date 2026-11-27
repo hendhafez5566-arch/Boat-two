@@ -567,7 +567,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                         setImportOpen(true);
                       }}
                     >
-                      <NavIcon name="file"/> {t('استيراد وإدارة الملفات', 'Import and manage files')}
+                      <NavIcon name="export"/> {t('استيراد وإدارة الملفات', 'Import and manage files')}
                     </button>
                   )}
                   {canManage && (
