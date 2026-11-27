@@ -1,5 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
+import {NavIcon} from '../../../../components/product/NavIcon';
+import {useTransientNotice} from '../../../../components/product/useTransientNotice';
+import styles from './settings.module.css';
 import Link from 'next/link';
 import { api } from '../../../../lib/api';
 import { useLocale } from '../../../../components/product/locale';
@@ -19,6 +22,8 @@ export default function InboxSettings() {
     [loading, setLoading] = useState(true),
     [edit, setEdit] = useState<Partial<Reply> | null>(null),
     [deleting, setDeleting] = useState<Reply | null>(null);
+  useTransientNotice(saved,()=>setSaved(false));
+  const [replyQuery,setReplyQuery]=useState('');
   async function load() {
     setLoading(true);
     setError('');
@@ -52,11 +57,11 @@ export default function InboxSettings() {
     }
   }
   return (
-    <main className="stack" data-workbench="inbox-settings">
+    <main className={`stack ${styles.page}`} data-workbench="inbox-settings">
       <div className="page-heading">
         <div>
           <p className="eyebrow">{t('إدارة المحادثات', 'CONVERSATION OPERATIONS')}</p>
-          <h1>{t('إعدادات صندوق الوارد', 'Inbox settings')}</h1>
+          <h1><NavIcon name="settings"/>{t('إعدادات صندوق الوارد', 'Inbox settings')}</h1>
           <p>
             {t(
               'اضبط توزيع المحادثات والردود المشتركة لفريقك.',
@@ -65,7 +70,7 @@ export default function InboxSettings() {
           </p>
         </div>
         <Link className="btn" href="/dashboard/inbox">
-          {t('افتح صندوق الوارد', 'Open Inbox')}
+          <NavIcon name="inbox"/>{t('افتح صندوق الوارد', 'Open Inbox')}
         </Link>
       </div>
       {error && (
@@ -103,7 +108,7 @@ export default function InboxSettings() {
           }}
         >
           <section className="settings-block"><h2>{t('توقيع الموظف وإدارة الجلسات','Employee signature and sessions')}</h2><label><input type="checkbox" checked={settings.signature_enabled} onChange={e=>setSettings({...settings,signature_enabled:e.target.checked})}/>{t('توقيع الموظف على الرسائل العادية','Employee signature on regular messages')}</label><label className="field">{t('نص التوقيع — {{agent.name}} لاسم الموظف','Signature template — {{agent.name}} inserts the employee name')}<input maxLength={200} value={settings.signature_template} onChange={e=>setSettings({...settings,signature_template:e.target.value})}/></label><label className="field">{t('مدة جلسة الموظف بالدقائق (0 = دون انتهاء تلقائي)','Human session minutes (0 = no automatic expiry)')}<input type="number" min={0} max={10080} value={settings.human_session_minutes} onChange={e=>setSettings({...settings,human_session_minutes:Number(e.target.value)})}/></label><label className="field">{t('وسم عند فشل تسليم رسالة (فارغ للتعطيل)','Delivery failure label (empty disables)')}<input maxLength={50} value={settings.delivery_error_tag} onChange={e=>setSettings({...settings,delivery_error_tag:e.target.value})}/></label></section><section className="settings-block"><h2>{t('التصعيد عند تأخر الرد','Response escalation')}</h2><label><input type="checkbox" checked={settings.sla_escalation_enabled} onChange={e=>setSettings({...settings,sla_escalation_enabled:e.target.checked})}/>{t('تصعيد تجاوز SLA للقسم عند غياب رد موظف','Escalate a department SLA breach without an employee response')}</label><label className="field">{t('موظف التصعيد (فارغ يسجل التجاوز دون تغيير التعيين)','Escalation employee (empty records a breach without reassigning)')}<select value={settings.escalation_user_id??''} onChange={e=>setSettings({...settings,escalation_user_id:e.target.value||null})}><option value="">{t('دون تعيين جديد','No reassignment')}</option>{team.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name||m.email}</option>)}</select></label>
-          </section><section className="settings-block"><h2>{t('التوزيع التلقائي', 'Automatic assignment')}</h2>
+          </section><section className="settings-block"><h2><NavIcon name="team"/>{t('التوزيع التلقائي', 'Automatic assignment')}</h2>
           <label className="flex items-start gap-2">
             <input
               type="checkbox"
@@ -139,7 +144,7 @@ export default function InboxSettings() {
       )}
       <section className="card stack" hidden={section!=='replies'}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2>{t('الردود الجاهزة', 'Saved replies')}</h2>
+          <h2><NavIcon name="chat"/>{t('الردود الجاهزة', 'Saved replies')}</h2>
           <button
             className="btn"
             disabled={busy}
@@ -216,8 +221,9 @@ export default function InboxSettings() {
             </div>
           </form>
         )}
-        <ul className="stack">
-          {replies.map((r) => (
+        <label className={styles.replySearch}><NavIcon name="search"/><input type="search" value={replyQuery} onChange={e=>setReplyQuery(e.target.value)} placeholder={t('بحث في الردود الجاهزة…','Search saved replies…')} aria-label={t('بحث الردود الجاهزة','Search saved replies')}/></label>
+        <ul className={styles.replyList}>
+          {replies.filter(r=>[r.title,r.shortcut,r.content].join(' ').toLowerCase().includes(replyQuery.trim().toLowerCase())).map((r) => (
             <li key={r.id} className="card stack">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <strong>

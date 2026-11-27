@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import {NavIcon} from '../product/NavIcon';
+import styles from './inbox-dialogs.module.css';
 import { useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { useData } from '../business/useData';
@@ -30,6 +32,7 @@ export function InboxTemplateDialog({
     deliveryEnabled: false,
   });
   const [id, setId] = useState('');
+  const [search,setSearch]=useState('');
   const [values, setValues] = useState<Record<number, string>>({});
   const [review, setReview] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -78,13 +81,14 @@ export function InboxTemplateDialog({
   }
   return (
     <Dialog
-      open
+      open className={styles.dialog}
       onClose={() => {
         if (!busy) close();
       }}
       title={t('قالب واتساب معتمد', 'Approved WhatsApp template')}
     >
-      <div className="stack">
+      <div className={styles.content}><div className={styles.intro}><span className={styles.brand}><NavIcon name="whatsapp"/></span><div><strong>{t('القوالب المعتمدة لهذه القناة','Approved templates for this channel')}</strong><small>{t('اختر القالب وراجع محتواه قبل الإرسال.','Choose a template and review its contents before sending.')}</small></div></div>
+        {!options.loading&&!options.error&&!options.data.deliveryEnabled&&<div className={styles.warning} role="status"><NavIcon name="flag"/><div><strong>{t('وضع المعاينة فقط','Preview only')}</strong><p>{t('إرسال القوالب غير مفعّل في هذه البيئة. لا يتم إرسال أي رسالة من هذه النافذة حاليًا.','Template delivery is disabled in this environment. No message can be sent from this dialog right now.')}</p></div></div>}
         {options.loading && <p role="status">{t('جارٍ تحميل القوالب…', 'Loading templates…')}</p>}
         {options.error && <p role="alert">{options.error}</p>}
         {!options.loading && !options.error && !options.data.templates.length && (
@@ -97,6 +101,7 @@ export function InboxTemplateDialog({
         )}
         {!!options.data.templates.length && (
           <>
+            {options.data.templates.length>5&&<label className="field">{t('بحث القوالب','Search templates')}<input type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder={t('اسم القالب أو محتواه…','Template name or content…')} disabled={busy}/></label>}
             <label className="field">
               {t('اختيار القالب', 'Choose template')}
               <select
@@ -109,7 +114,7 @@ export function InboxTemplateDialog({
                 }}
               >
                 <option value="">{t('اختر قالبًا', 'Select a template')}</option>
-                {options.data.templates.map((item) => (
+                {options.data.templates.filter(item=>item.id===id||[item.name,item.body,item.language].join(' ').toLowerCase().includes(search.trim().toLowerCase())).map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name} · {item.language}
                   </option>
@@ -117,7 +122,7 @@ export function InboxTemplateDialog({
               </select>
             </label>
             {indices.map((index) => (
-              <div key={index}>
+              <div key={index} className={styles.variableRow}>
                 <label className="field">
                   {t('متغير', 'Variable')} {index}
                   <input
@@ -157,20 +162,12 @@ export function InboxTemplateDialog({
               </div>
             ))}
             {selected && (
-              <div className="card" aria-label={t('معاينة الرسالة', 'Message preview')}>
+              <div className={styles.preview} aria-label={t('معاينة الرسالة', 'Message preview')}><header><NavIcon name="whatsapp"/>{t('معاينة الرسالة','Message preview')}</header><div className={styles.bubble}>
                 <p dir="auto" className="whitespace-pre-wrap">
                   {preview}
                 </p>
-                {selected.footer && <small dir="auto">{selected.footer}</small>}
+                {selected.footer && <small dir="auto">{selected.footer}</small>}</div>
               </div>
-            )}
-            {!options.data.deliveryEnabled && (
-              <p role="status">
-                {t(
-                  'المعاينة متاحة. إرسال القوالب متوقف في هذه البيئة.',
-                  'Preview is available. Template delivery is disabled in this environment.',
-                )}
-              </p>
             )}
             {options.data.deliveryEnabled &&
               (review ? (
@@ -180,7 +177,7 @@ export function InboxTemplateDialog({
                   disabled={busy || !complete}
                   onClick={() => void send()}
                 >
-                  {t('تأكيد إرسال القالب', 'Confirm template send')}
+                  <NavIcon name="delivery"/>{busy?t('جارٍ الإرسال…','Sending…'):t('تأكيد إرسال القالب', 'Confirm template send')}
                 </button>
               ) : (
                 <button
@@ -189,14 +186,14 @@ export function InboxTemplateDialog({
                   disabled={!complete}
                   onClick={() => setReview(true)}
                 >
-                  {t('مراجعة الإرسال للعميل', 'Review customer delivery')}
+                  <NavIcon name="eye"/>{t('مراجعة الإرسال للعميل', 'Review customer delivery')}
                 </button>
               ))}
           </>
         )}
         {error && <p role="alert">{error}</p>}
       </div>
-      {manageHref && <Link className="btn" href={manageHref}>{t('إدارة قوالب واتساب', 'Manage WhatsApp templates')}</Link>}
+      <footer className={styles.footer}>{manageHref&&<Link className="btn" href={manageHref}><NavIcon name="settings"/>{t('إدارة قوالب واتساب','Manage WhatsApp templates')}</Link>}<button type="button" className="btn" disabled={busy} onClick={close}><NavIcon name="close"/>{t('إغلاق','Close')}</button></footer>
     </Dialog>
   );
 }

@@ -1,6 +1,9 @@
 'use client';
 
 import { useRef, useState, type FormEvent } from 'react';
+import {NavIcon} from '../product/NavIcon';
+import {useTransientNotice} from '../product/useTransientNotice';
+import styles from './inbox-dialogs.module.css';
 import { api } from '../../lib/api';
 import { productPrice } from '../../lib/product-money';
 import { useData } from '../business/useData';
@@ -19,7 +22,7 @@ export type QuoteSummary = {
 
 export function QuoteDetails({ quote }: { quote: QuoteSummary }) {
   const { t } = useLocale();
-  return <dl className="stack">
+  return <dl className={styles.quoteFacts}>
     <div><dt>{t('المنتج', 'Product')}</dt><dd>{quote.name}{quote.package && ' · ' + quote.package.name}</dd></div>
     <div><dt>{t('الكمية', 'Quantity')}</dt><dd>{quote.quantity}</dd></div>
     {!!quote.options?.length && <div><dt>{t('الإضافات', 'Add-ons')}</dt><dd>{quote.options.map(option => option.name).join(' · ')}</dd></div>}
@@ -42,6 +45,7 @@ export function InboxQuoteDialog({ conversationId, customer, close, insert }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  useTransientNotice(copied,()=>setCopied(false));
   const revision = useRef(0);
   const lock = useRef(false);
   const path = '/conversations/' + conversationId;
@@ -80,11 +84,11 @@ export function InboxQuoteDialog({ conversationId, customer, close, insert }: {
       setBusy(false);
     }
   }
-  return <Dialog open title={t('عرض سعر من الكتالوج', 'Catalog quote')} onClose={close}>
-    <div className="stack">
-      <p>{t('العميل', 'Customer')} <strong>{customer}</strong></p>
+  return <Dialog open className={styles.dialog} title={t('عرض سعر من الكتالوج', 'Catalog quote')} onClose={()=>{if(!busy)close();}}>
+    <div className={styles.content}>
+      <div className={styles.intro}><span className={styles.brand} data-tone="purple"><NavIcon name="commerce"/></span><div><strong>{customer}</strong><small>{t('إنشاء عرض سعر من المنتجات الفعلية • لا يرسل تلقائيًا','Build a quote from catalog items • not sent automatically')}</small></div></div>
       <label>{t('بحث بالمنتج أو SKU', 'Find product by name or SKU')}
-        <input type="search" value={search} maxLength={120} onChange={e => setSearch(e.target.value)} />
+        <input type="search" placeholder={t('اسم المنتج أو SKU…','Product name or SKU…')} value={search} maxLength={120} onChange={e => setSearch(e.target.value)} />
       </label>
       <label>{t('المنتج', 'Product')}
         <select value={product?.id ?? ''} disabled={products.loading}
@@ -98,19 +102,19 @@ export function InboxQuoteDialog({ conversationId, customer, close, insert }: {
           {products.data.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
       </label>
-      {products.error && <p role="alert">{products.error}</p>}
+      {products.loading&&<p role="status">{t('جارٍ تحميل المنتجات…','Loading products…')}</p>}{products.error && <div className={styles.warning} role="alert"><NavIcon name="flag"/><span>{products.error}</span><button type="button" className="btn" onClick={()=>void products.reload()}>{t('إعادة المحاولة','Retry')}</button></div>}
       {!products.loading && !products.error && !products.data.length && <p>{t('لا توجد منتجات مطابقة.', 'No matching products.')}</p>}
       {product && <form className="stack" key={product.id} onChange={clearQuote} onSubmit={preview}>
         <CheckoutSelection product={product} packageId={packageId} onPackage={setPackageId} />
-        <button className="btn" disabled={busy}>{t('معاينة عرض السعر', 'Preview quote')}</button>
+        <button className="btn btn-primary" disabled={busy}><NavIcon name="eye"/>{busy?t('جارٍ الحساب…','Calculating…'):t('معاينة عرض السعر', 'Preview quote')}</button>
       </form>}
       {error && <p role="alert">{error}</p>}
-      {quote && <section className="card stack">
+      {quote && <section className={styles.quoteResult}><h3><NavIcon name="circleCheck"/>{t('تفاصيل عرض السعر','Quote details')}</h3>
         <QuoteDetails quote={quote} />
         <label>{t('مسودة الرسالة', 'Message draft')}<textarea rows={7} value={draft} readOnly /></label>
         {!insert && <p>{t('الرد المباشر غير متاح حاليًا. في واتساب، استخدم قالبًا معتمدًا عند انتهاء نافذة الرد.', 'Direct reply is unavailable. For WhatsApp, use an approved template after the reply window ends.')}</p>}
         <div className="form-actions">
-          {insert && <button type="button" className="btn btn-primary" onClick={() => insert(draft)}>{t('إضافة إلى مسودة الرد', 'Add to reply draft')}</button>}
+          {insert && <button type="button" className="btn btn-primary" onClick={() => insert(draft)}><NavIcon name="chat"/>{t('إضافة إلى مسودة الرد', 'Add to reply draft')}</button>}
           <button type="button" className="btn" onClick={async () => {
             try {
               await navigator.clipboard.writeText(draft);
@@ -118,7 +122,7 @@ export function InboxQuoteDialog({ conversationId, customer, close, insert }: {
             } catch {
               setError(t('تعذر النسخ. يمكنك تحديد نص المسودة ونسخه.', 'Copy failed. Select the draft text to copy it.'));
             }
-          }}>{copied ? t('تم النسخ', 'Copied') : t('نسخ المسودة', 'Copy draft')}</button>
+          }}><NavIcon name={copied?'check':'copy'}/>{copied ? t('تم النسخ', 'Copied') : t('نسخ المسودة', 'Copy draft')}</button>
         </div>
       </section>}
     </div>

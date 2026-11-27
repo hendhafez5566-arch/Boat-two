@@ -5,6 +5,7 @@ import { parseContactField, type ContactField } from '../../lib/inbox-contact-fi
 import { useLocale } from '../product/locale';
 import { Dialog } from '../product/ProductUI';
 import styles from './inbox-customer-panel.module.css';
+import dialogStyles from './inbox-dialogs.module.css';
 export function InboxFieldDialog({
   field,
   contactId,
@@ -73,7 +74,7 @@ export function InboxFieldDialog({
     }
   }
   return (
-    <Dialog
+    <Dialog className={dialogStyles.dialog}
       open={!!field}
       onClose={() => {
         if (!busy) onClose();

@@ -4,6 +4,7 @@ import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 import { Dialog } from '../product/ProductUI';
 import styles from './inbox-customer-panel.module.css';
+import dialogStyles from './inbox-dialogs.module.css';
 export function InboxFollowupDialog({
   open,
   detail,
@@ -69,7 +70,7 @@ export function InboxFollowupDialog({
       onClose={() => {
         if (!followupBusy) onClose();
       }}
-      className={styles.followupDialog}
+      className={`${styles.followupDialog} ${dialogStyles.dialog}`}
       title={t('تعيين متابعة', 'Set Follow-up')}
     >
       <form className={styles.followupForm} onSubmit={saveFollowup}>
