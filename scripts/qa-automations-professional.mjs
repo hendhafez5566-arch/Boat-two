@@ -10,6 +10,7 @@ async function api(path,token,body,method=body?'POST':'GET'){const r=await fetch
 const browser=await chromium.launch({executablePath:process.env.BOAT_CHROMIUM||'/usr/bin/google-chrome',args:['--no-sandbox']}),results=[];
 try{for(const language of ['ar','en'])for(const width of [390,1366]){
  const t=(ar,en)=>language==='ar'?ar:en,session=await api('/auth/register',null,{email:uuid()+'@example.test',password:'Synthetic-'+uuid(),fullName:'Automation QA',workspaceName:'Isolated automation QA'}),token=session.accessToken;
+ await api('/channels',token,{type:'web',name:'Synthetic automation QA channel'});
  await api('/workspace/onboarding/complete',token,{});
  const context=await browser.newContext({viewport:{width,height:936}});await context.addInitScript(({session,language})=>{localStorage.setItem('session',JSON.stringify(session));localStorage.setItem('boat-language',language);},{session,language});
  const page=await context.newPage();page.setDefaultTimeout(25000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>['localhost','127.0.0.1'].includes(new URL(r.request().url()).hostname)?r.continue():r.abort());
