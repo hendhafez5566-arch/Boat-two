@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect,useState } from 'react';
 import { useData } from '../business/useData';
 import { useLocale } from '../product/locale';
 import { NavIcon } from '../product/NavIcon';
@@ -48,7 +48,9 @@ export default function SequenceCenter({
     `/sequence-center?${query}`,
     { items: [], total: 0, page: 1, limit: 10 },
   );
+  const ready=data.loadedPath===`/sequence-center?${query}`&&!data.loading&&!data.error;
   const pages = Math.max(1, Math.ceil(data.data.total / limit));
+  useEffect(()=>{if(ready&&page>pages)setPage(pages);},[ready,page,pages]);
   return (
     <section className="stack">
       <div className={`${styles.toolbar} workspace-heading`}>
@@ -66,7 +68,7 @@ export default function SequenceCenter({
       </div>
       {(error || data.error) && (
         <p role="alert" className="notice error">
-          {error || data.error}
+          {error || data.error} {data.error&&<Button disabled={data.loading} onClick={()=>void data.reload()}>{t("إعادة المحاولة","Retry")}</Button>}
         </p>
       )}
       <div className={styles.toolbar}>
@@ -74,7 +76,7 @@ export default function SequenceCenter({
           type="search"
           aria-label={t('بحث التسلسلات', 'Search Sequences')}
           placeholder={t('البحث باسم التسلسل', 'Search by sequence name')}
-          value={q}
+          value={q} maxLength={100}
           onChange={(e) => {
             setQ(e.target.value);
             setPage(1);
@@ -107,9 +109,12 @@ export default function SequenceCenter({
             <option value="name">{t('اسم التسلسل', 'Sequence name')}</option>
             <option value="last_sent">{t('آخر إرسال', 'Last Sent')}</option>
           </select>
+          <Button disabled={!q&&status==='all'&&sort==='latest'} onClick={()=>{setQ('');setStatus('all');setSort('latest');setPage(1);}}>{t('مسح الفلاتر','Clear filters')}</Button>
+          <Button disabled={data.loading} onClick={()=>void data.reload()}>{t('تحديث','Refresh')}</Button>
         </div>
       </div>
-      {data.loading ? (
+      {ready&&<div className={styles.metrics}><div><small>{t('النتائج المطابقة','Matching sequences')}</small><strong>{data.data.total}</strong></div><div><small>{t('اشتراكات نشطة في الصفحة','Active enrollments on page')}</small><strong>{data.data.items.reduce((sum,r)=>sum+r.active,0)}</strong></div><div><small>{t('اشتراكات مكتملة في الصفحة','Completed enrollments on page')}</small><strong>{data.data.items.reduce((sum,r)=>sum+r.completed,0)}</strong></div></div>}
+      {data.error ? null : !ready ? (
         <p role="status">{t('جارٍ التحميل…', 'Loading…')}</p>
       ) : !data.data.items.length ? (
         <EmptyState icon="sequences" title={t('لا توجد تسلسلات مطابقة', 'No Matching Sequences')} />
@@ -163,7 +168,7 @@ export default function SequenceCenter({
           </table>
         </div>
       )}
-      {data.data.total > 0 && (
+      {ready&&data.data.total > 0 && (
         <div className={styles.toolbar}>
           <span>
             {data.data.total} {t('تسلسل', 'Sequences')} · {page} / {pages}
@@ -192,7 +197,7 @@ export default function SequenceCenter({
           </div>
         </div>
       )}
-      {data.data.items.length > 0 && (
+      {ready&&data.data.items.length > 0 && (
         <small className="muted">
           {t(
             'المعالج يحسب سجلات الرسائل؛ التسليم والقراءة يعتمدان على إيصالات المزود ولا يمثلان عدد مشتركين فريدين.',
