@@ -15,9 +15,30 @@ export class IntegrationsService implements OnModuleInit,OnModuleDestroy {
  private timer?:NodeJS.Timeout;private running=false;
  constructor(private db:DatabaseService,private crypto:CryptoService,@Inject(INTEGRATION_HTTP) private http:typeof safeHttpRequest){}
  list(tenant:string){return this.db.withTenant(tenant,async c=>(await c.query('SELECT id,provider,name,config,status,enabled,updated_at FROM integration_connections ORDER BY provider,name')).rows);}
+ index(tenant:string,q:{providers:string[];q:string;page:number;limit:number}){
+  return this.db.withTenant(tenant,async c=>{
+   const params:unknown[]=[q.providers];
+   let where=' WHERE provider=ANY($1::text[])';
+   if(q.q){params.push('%'+q.q.replace(/[\\%_]/g,v=>'\\'+v)+'%');where+=" AND (name ILIKE $2 OR id::text ILIKE $2 OR provider ILIKE $2 OR CASE provider WHEN 'email' THEN 'Email Gateway' WHEN 'sms' THEN 'SMS Gateway' ELSE provider END ILIKE $2)";}
+   const total=Number((await c.query('SELECT count(*)::int n FROM integration_connections'+where,params)).rows[0].n);
+   const items=(await c.query('SELECT id,provider,name,config,status,enabled,updated_at FROM integration_connections'+where+' ORDER BY provider,name,id LIMIT $'+(params.length+1)+' OFFSET $'+(params.length+2),[...params,q.limit,(q.page-1)*q.limit])).rows;
+   return {items,total};
+  });
+ }
  create(tenant:string,input:z.infer<typeof connectionSchema>){return this.db.withTenant(tenant,async c=>(await c.query("INSERT INTO integration_connections(tenant_id,provider,name,credentials_enc,config) VALUES($1,$2,$3,$4,$5) RETURNING id,provider,name,status,enabled",[tenant,input.provider,input.name,this.crypto.encrypt({value:input.credential}),JSON.stringify(input.config)])).rows[0]);}
- async setEnabled(tenant:string,id:string,enabled:boolean){return this.db.withTenant(tenant,async c=>{const r=await c.query('UPDATE integration_connections SET enabled=$2,updated_at=now() WHERE id=$1 RETURNING id,enabled',[id,enabled]);if(!r.rowCount)throw new BadRequestException('Integration not found');return r.rows[0];});}
- update(tenant:string,id:string,input:{enabled?:boolean;config?:Record<string,unknown>;credential?:string;name?:string}){return this.db.withTenant(tenant,async c=>{const r=await c.query('UPDATE integration_connections SET enabled=COALESCE($2,enabled),config=config||COALESCE($3::jsonb,\'{}\'::jsonb),credentials_enc=COALESCE($4,credentials_enc),name=COALESCE($5,name),updated_at=now() WHERE id=$1 RETURNING id,enabled,config,name',[id,input.enabled??null,input.config?JSON.stringify(input.config):null,input.credential?this.crypto.encrypt({value:input.credential}):null,input.name??null]);if(!r.rowCount)throw new BadRequestException('Integration not found');return r.rows[0];});}
+ async setEnabled(tenant:string,id:string,enabled:boolean){return this.update(tenant,id,{enabled});}
+ update(tenant:string,id:string,input:{enabled?:boolean;config?:Record<string,unknown>;credential?:string;name?:string}){
+  return this.db.withTenant(tenant,async c=>{
+   const row=(await c.query('SELECT provider,status,credentials_enc IS NOT NULL AS has_credential FROM integration_connections WHERE id=$1 FOR UPDATE',[id])).rows[0];
+   if(!row)throw new BadRequestException('Integration not found');
+   if(row.provider==='google'&&input.credential)throw new BadRequestException('Reconnect Google using OAuth');
+   if(input.enabled&&(!row.has_credential&&!input.credential||row.status==='disconnected'))throw new BadRequestException('Reconnect the integration before enabling');
+   const reconnect=row.status==='disconnected'&&!!input.credential;
+   const invalidate=!!input.credential||!!input.config;
+   const r=await c.query(`UPDATE integration_connections SET enabled=CASE WHEN $6 THEN false ELSE COALESCE($2,enabled) END,config=config||COALESCE($3::jsonb,'{}'::jsonb),credentials_enc=COALESCE($4,credentials_enc),name=COALESCE($5,name),status=CASE WHEN $7 AND (status<>'disconnected' OR $6) THEN 'pending' ELSE status END,updated_at=now() WHERE id=$1 RETURNING id,enabled,config,name,status`,[id,input.enabled??null,input.config?JSON.stringify(input.config):null,input.credential?this.crypto.encrypt({value:input.credential}):null,input.name??null,reconnect,invalidate]);
+   return r.rows[0];
+  });
+ }
  async disconnect(tenant:string,id:string){return this.db.withTenant(tenant,c=>c.query("UPDATE integration_connections SET enabled=false,status='disconnected',credentials_enc=NULL,updated_at=now() WHERE id=$1",[id]).then(()=>({disconnected:true,remoteRevocation:false})));}
  async execute(tenant:string,id:string,payload:Record<string,unknown>,dryRun=true){
   const row=await this.db.withTenant(tenant,async c=>(await c.query('SELECT * FROM integration_connections WHERE id=$1',[id])).rows[0]);if(!row||!row.credentials_enc)throw new BadRequestException('Integration unavailable');
