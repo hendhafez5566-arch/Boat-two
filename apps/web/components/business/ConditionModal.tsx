@@ -179,7 +179,7 @@ export default function ConditionModal({
               <div className="cm-row" key={i}>
                 <label>
                   <span>{t('المتغيّر', 'Variable')}</span>
-                  <select className={sel} value={v} onChange={(e) => {
+                  <select className={sel} aria-label={t('المتغيّر', 'Variable')} value={v} onChange={(e) => {
                     const nv = e.target.value;
                     patch(i, nv === 'label' ? { source: 'label', key: undefined, operator: 'contains', value: '' } : { source: 'contact_field', key: nv, operator: 'equals', value: '' });
                   }}>
@@ -191,7 +191,7 @@ export default function ConditionModal({
                 </label>
                 <label>
                   <span>{t('العملية', 'Operator')}</span>
-                  <select className={sel} value={c.operator} onChange={(e) => patch(i, { operator: e.target.value })}>
+                  <select className={sel} aria-label={t('العملية', 'Operator')} value={c.operator} onChange={(e) => patch(i, { operator: e.target.value })}>
                     {ops.map((o) => <option key={o} value={o}>{t(...OP_LABEL[o])}</option>)}
                   </select>
                 </label>
@@ -200,13 +200,13 @@ export default function ConditionModal({
                   {noValue(c.operator) ? (
                     <input className={sel} disabled placeholder="—" />
                   ) : v === 'label' ? (
-                    <select className={sel} value={c.value ?? ''} onChange={(e) => patch(i, { value: e.target.value })}>
+                    <select className={sel} aria-label={t('الوسم', 'Contact group / label')} value={c.value ?? ''} onChange={(e) => patch(i, { value: e.target.value })}>
                       <option value="">{t('اختر وسمًا', 'Select a label')}</option>
                       {c.value && !labelNames.includes(c.value) && <option value={c.value}>{c.value}</option>}
                       {labels.map((l) => <option key={l.label} value={l.label}>{l.label} ({l.contacts})</option>)}
                     </select>
                   ) : (
-                    <input className={sel} value={c.value ?? ''} onChange={(e) => patch(i, { value: e.target.value })} />
+                    <input className={sel} aria-label={t('القيمة', 'Value')} value={c.value ?? ''} onChange={(e) => patch(i, { value: e.target.value })} />
                   )}
                 </label>
                 <button type="button" className="cm-del" onClick={() => remove(i)} aria-label={t('حذف القاعدة', 'Delete rule')}>✕</button>
