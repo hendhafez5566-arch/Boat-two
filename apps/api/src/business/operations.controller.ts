@@ -179,7 +179,7 @@ export class OperationsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: unknown,
   ) {
-    const b = parse(z.object({ contactId: z.string().uuid(), at: z.string().datetime() }), body);
+    const b = parse(z.object({ contactId: z.string().uuid(), at: z.string().datetime().refine(at=>Date.parse(at)>Date.now(),'Choose a future time') }), body);
     return this.db.withTenant(r.user.tenantId, async (c) => {
       await this.plans.assertFeature(c, 'automations');
       if (
