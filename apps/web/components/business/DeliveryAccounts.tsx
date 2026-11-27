@@ -1,6 +1,6 @@
 'use client';
 import {DisclosureSummary} from '../product/DisclosureSummary';
-import {useEffect,useRef,useState} from 'react';
+import {useCallback,useEffect,useRef,useState} from 'react';
 import {api} from '../../lib/api';
 import {useData} from './useData';
 import {useLocale} from '../product/locale';
@@ -11,6 +11,8 @@ function AccountForm({account,busy,onSave,onDirty}:{account?:DeliveryAccount;bus
  const {t}=useLocale(),[draft,setDraft]=useState(()=>initial(account)),[saved,setSaved]=useState(()=>JSON.stringify(initial(account)));
  const dirty=JSON.stringify(draft)!==saved,id=account?.id||'new';
  const patch=(p:Partial<Draft>)=>setDraft(v=>({...v,...p}));
+ const remote=JSON.stringify(initial(account));
+ useEffect(()=>{if(!dirty&&remote!==saved&&!busy){setDraft(JSON.parse(remote));setSaved(remote);}},[remote,dirty,saved,busy]);
  useEffect(()=>{onDirty(id,dirty);return()=>onDirty(id,false);},[id,dirty,onDirty]);
  const valid=!!draft.name.trim()&&Number.isInteger(draft.intervalMs)&&draft.intervalMs>=(draft.provider==='web'?100:1000)&&draft.intervalMs<=3600000&&Number.isInteger(draft.dailyLimit)&&draft.dailyLimit>=-1&&draft.dailyLimit<=100000000&&draft.dailyLimit!==0;
  return <form className="form-grid p-3" onSubmit={async e=>{e.preventDefault();if(!valid||busy||!dirty)return;if(account&&!window.confirm(t('تعديل الحدود المشتركة قد يؤثر على كل القنوات المرتبطة. متابعة؟','Changing shared limits affects linked channels. Continue?')))return;const value={...draft,name:draft.name.trim()};if(await onSave(value,account?.id)){const next=account?value:initial();setDraft(next);setSaved(JSON.stringify(next));}}}>
@@ -29,6 +31,7 @@ export function DeliveryAccounts({changed,onDirty}:{changed:()=>void;onDirty?:(k
  const {t}=useLocale(),accounts=useData<DeliveryAccount[]>('/delivery/policies/accounts',[]);
  const [error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[query,setQuery]=useState('');
  const lock=useRef(false);
+ const reportDirty=useCallback((id:string,value:boolean)=>onDirty?.('account:'+id,value),[onDirty]);
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4000);return()=>clearTimeout(timer);},[notice]);
  async function save(draft:Draft,id?:string){if(lock.current)return false;lock.current=true;setBusy(true);setError('');setNotice('');try{await api('/delivery/policies/accounts'+(id?'/'+id:''),{method:id?'PUT':'POST',body:JSON.stringify(draft)});await accounts.reload();changed();setNotice(t('تم حفظ المجموعة','Account group saved'));return true;}catch(e){setError((e as Error).message);return false;}finally{lock.current=false;setBusy(false);}}
  return <section className="card stack" aria-busy={busy||accounts.loading}>
@@ -37,9 +40,9 @@ export function DeliveryAccounts({changed,onDirty}:{changed:()=>void;onDirty?:(k
  {(error||accounts.error)&&<p role="alert" className="notice error">{error||accounts.error} {accounts.error&&<button className="btn" onClick={()=>void accounts.reload()}>{t('إعادة المحاولة','Retry')}</button>}</p>}
  {notice&&<p role="status" className="notice">{notice}</p>}
  <div className="form-actions"><input type="search" aria-label={t('بحث مجموعات الحساب','Search account groups')} value={query} onChange={e=>setQuery(e.target.value)}/><button className="btn" disabled={busy||accounts.loading} onClick={()=>void accounts.reload()}>{t('تحديث المجموعات','Refresh groups')}</button></div>
- <details><DisclosureSummary>{t('مجموعة جديدة','New account group')}</DisclosureSummary><AccountForm busy={busy} onSave={save} onDirty={(id,d)=>onDirty?.('account:'+id,d)}/></details>
+ <details><DisclosureSummary>{t('مجموعة جديدة','New account group')}</DisclosureSummary><AccountForm busy={busy} onSave={save} onDirty={reportDirty}/></details>
  {accounts.loading&&<p role="status">{t('جارٍ تحميل المجموعات…','Loading groups…')}</p>}
  {!accounts.loading&&!accounts.error&&!accounts.data.length&&<p>{t('لا توجد مجموعات بعد','No groups yet')}</p>}
- {accounts.data.map(a=><details key={a.id} hidden={!(a.name+' '+a.id+' '+a.provider).toLowerCase().includes(query.trim().toLowerCase())}><DisclosureSummary>{a.name} · {a.provider} · {a.id.slice(0,8)} · {String(a.usage_date).slice(0,10)===new Date().toISOString().slice(0,10)?a.daily_used:0}/{a.daily_limit===-1?'∞':a.daily_limit} · {a.enabled?t('مفعّل','Enabled'):t('متوقف','Disabled')}</DisclosureSummary><AccountForm account={a} busy={busy} onSave={save} onDirty={(id,d)=>onDirty?.('account:'+id,d)}/></details>)}
+ {accounts.data.map(a=><details key={a.id} hidden={!(a.name+' '+a.id+' '+a.provider).toLowerCase().includes(query.trim().toLowerCase())}><DisclosureSummary>{a.name} · {a.provider} · {a.id.slice(0,8)} · {String(a.usage_date).slice(0,10)===new Date().toISOString().slice(0,10)?a.daily_used:0}/{a.daily_limit===-1?'∞':a.daily_limit} · {a.enabled?t('مفعّل','Enabled'):t('متوقف','Disabled')}</DisclosureSummary><AccountForm account={a} busy={busy} onSave={save} onDirty={reportDirty}/></details>)}
  </section>;
 }
