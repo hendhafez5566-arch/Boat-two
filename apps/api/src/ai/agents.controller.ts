@@ -24,8 +24,9 @@ const agentSchema = z.object({
   allowedTools: z
     .array(z.enum(['handoff_to_human', 'create_followup', 'tag_contact']))
     .max(3)
+    .refine(v=>new Set(v).size===v.length,'Duplicate tools are not permitted')
     .default(['handoff_to_human']),
-  name: z.string().min(1).max(100),
+  name: z.string().trim().min(1).max(100),
   instructions: z.string().max(4000).default(''),
   providerId: z.string().uuid().nullable().optional(),
   sourceIds: z.array(z.string().uuid()).max(100).default([]),
@@ -91,7 +92,7 @@ export class AgentsController {
   @Post('providers') provider(@Req() r: AuthedRequest, @Body() body: unknown) {
     const b = parse(
       z.object({
-        name: z.string().min(1).max(100),
+        name: z.string().trim().min(1).max(100),
         kind: z.enum(['anthropic', 'openai']),
         model: z.string().regex(/^[a-zA-Z0-9._-]{1,100}$/),
         apiKey: z.string().min(10).max(4000),
