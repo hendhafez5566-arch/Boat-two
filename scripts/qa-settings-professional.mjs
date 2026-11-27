@@ -58,6 +58,13 @@ try{for(const language of ['ar','en'])for(const width of [390,1366]){
   page.once('dialog',d=>d.accept());await updated.getByRole('button',{name:t('تفعيل','Enable'),exact:true}).click();await updated.getByRole('button',{name:t('تعطيل','Disable'),exact:true}).waitFor();
   page.once('dialog',d=>d.accept());await updated.getByRole('button',{name:t('تعطيل','Disable'),exact:true}).click();await updated.getByRole('button',{name:t('تفعيل','Enable'),exact:true}).waitFor();
  }
+ // Verify server search and reconnect without any external provider traffic.
+ const indexed=await api('/integrations/index?group=email-tab&q='+created[0],token);assert.equal(indexed.total,1);assert.equal(indexed.items[0].id,created[0]);
+ assert.equal((await api('/integrations/index?group=email-tab&q='+created[0],other.accessToken)).total,0);
+ await api('/integrations/'+created[0]+'/disconnect',token,{});
+ await api('/integrations/'+created[0],token,{enabled:true},'PATCH',400);
+ const reconnected=await api('/integrations/'+created[0],token,{credential:'synthetic-rotated-key'},'PATCH');assert.equal(reconnected.status,'pending');assert.equal(reconnected.enabled,false);
+ await api('/integrations/'+created[0],token,{enabled:true},'PATCH');
  assert.equal((await api('/integrations',other.accessToken)).length,0);await api('/integrations/'+created[0],other.accessToken,{enabled:true},'PATCH',400);
  await api('/integrations',token,{provider:'email',name:'Unsafe URL',credential:'synthetic',config:{url:'https://user:password@example.test'}},'POST',400);
  await page.getByRole('tab',{name:new RegExp(t('الأمان','Security'))}).click();await page.getByRole('tab',{name:new RegExp(t('سجل النشاط','Activity Logs'))}).click();
