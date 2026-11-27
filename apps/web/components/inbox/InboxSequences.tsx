@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useEffect,useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { useData } from '../business/useData';
 import { useLocale } from '../product/locale';
@@ -20,12 +20,18 @@ export function InboxSequences({
   onSaved: () => Promise<void>;
 }) {
   const { t, language } = useLocale();
-  const sequences = useData<Sequence[]>(canManage ? '/sequences' : null, []);
+  const [query,setQuery]=useState('');
+  const path=canManage?'/sequence-center?'+new URLSearchParams({channelId,status:'active',q:query,limit:'100'}):null;
+  const sequences=useData<{items:Sequence[];total:number}>(path,{items:[],total:0});
+  const ready=!!path&&sequences.loadedPath===path&&!sequences.loading&&!sequences.error;
+  const [notice,setNotice]=useState('');
+  useEffect(()=>{setSelected('');setNotice('');setError('');},[contactId,channelId,query]);
+  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4000);return()=>clearTimeout(timer);},[notice]);
   const [selected, setSelected] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const lock = useRef(false);
-  const choices = sequences.data.filter(
+  const choices = (ready?sequences.data.items:[]).filter(
     (seq) =>
       seq.channel_id === channelId &&
       seq.status === 'active' &&
@@ -33,6 +39,8 @@ export function InboxSequences({
   );
   async function change(id: string, stop: boolean) {
     if (!canManage || lock.current || !id) return;
+    if(!stop&&!choices.some(x=>x.id===id))return;
+    if(!window.confirm(stop?t('إيقاف التسلسل لهذا العميل؟','Stop this sequence for the customer?'):t('تأكيد إضافة العميل للتسلسل؟','Assign this sequence to the customer?')))return;
     lock.current = true;
     setBusy(true);
     setError('');
@@ -43,6 +51,7 @@ export function InboxSequences({
       });
       setSelected('');
       await onSaved();
+      setNotice(stop?t('تم إيقاف التسلسل','Sequence stopped'):t('تم تحديث التعيين','Assignment updated'));
     } catch (error) {
       setError((error as Error).message);
     } finally {
@@ -59,7 +68,8 @@ export function InboxSequences({
   return (
     <div className={styles.sequenceControl}>
       <span>{t('تسلسل الرسائل', 'Message Sequence')}</span>
-      {error || sequences.error ? <p role="alert">{error || sequences.error}</p> : null}
+      {error || sequences.error ? <p role="alert">{error || sequences.error} {sequences.error&&<button type="button" disabled={busy||sequences.loading} onClick={()=>void sequences.reload()}>{t("إعادة المحاولة","Retry")}</button>}</p> : null}
+      {notice&&<p role="status">{notice}</p>}
       {assigned.length ? (
         <ul className={styles.enrollments}>
           {assigned.map((row) => (
@@ -92,6 +102,8 @@ export function InboxSequences({
       )}
       {canManage && (
         <>
+          <input type="search" aria-label={t("بحث التسلسلات","Search sequences")} maxLength={100} value={query} disabled={busy} onChange={e=>setQuery(e.target.value)}/>
+          {ready&&sequences.data.total>100&&<small>{t("ضيّق البحث لعرض نتائج أكثر تحديدًا.","Refine search to find more specific results.")}</small>}
           <select
             data-inbox-target="sequence"
             aria-label={t('اختيار تسلسل رسائل', 'Select message sequence')}
