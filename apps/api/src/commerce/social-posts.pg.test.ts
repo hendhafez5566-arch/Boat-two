@@ -61,7 +61,7 @@ test('social drafts preserve campaign metadata, migration is repeatable, and RLS
       ALTER TABLE external_effects ENABLE ROW LEVEL SECURITY; ALTER TABLE external_effects FORCE ROW LEVEL SECURITY;
       CREATE POLICY tenant_policy ON external_effects USING(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
       GRANT SELECT,INSERT,UPDATE ON external_effects TO app_user;
-      CREATE FUNCTION social_post_due(p_limit int) RETURNS TABLE(id uuid,tenant_id uuid) LANGUAGE sql AS $ SELECT id,tenant_id FROM social_posts WHERE (status='scheduled' AND scheduled_at<=now()) OR (status='sending' AND lease_until<now()) ORDER BY scheduled_at LIMIT p_limit $;
+      CREATE FUNCTION social_post_due(p_limit int) RETURNS TABLE(id uuid,tenant_id uuid) LANGUAGE sql AS $$ SELECT id,tenant_id FROM social_posts WHERE (status='scheduled' AND scheduled_at<=now()) OR (status='sending' AND lease_until<now()) ORDER BY scheduled_at LIMIT p_limit $$;
       ALTER TABLE channels ENABLE ROW LEVEL SECURITY; ALTER TABLE channels FORCE ROW LEVEL SECURITY;
       ALTER TABLE social_posts ENABLE ROW LEVEL SECURITY; ALTER TABLE social_posts FORCE ROW LEVEL SECURITY;
       CREATE POLICY tenant_policy ON channels USING(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
