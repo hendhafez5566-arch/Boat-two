@@ -1,4 +1,6 @@
 'use client';
+import { NavIcon } from './NavIcon';
+import ChannelLogo from './ChannelLogo';
 import { DisclosureSummary } from './DisclosureSummary';
 import { Dialog } from './ProductUI';
 import styles from './meta-connect.module.css';
@@ -283,7 +285,7 @@ export default function MetaConnect({
       ) : (
         <div className={styles.socialSetup}>
           <section className={`card stack ${styles.meta}`}>
-            <h2>
+            <div className={styles.socialTitle}><span className={styles.socialLogo} data-platform={kind}><ChannelLogo id={kind}/></span><div><h2>
               {kind === 'instagram'
                 ? t('اربط حساب Instagram الخاص بك', 'Connect Your Instagram Account')
                 : t('اربط حساب Facebook الخاص بك', 'Connect Your Facebook Account')}
@@ -294,12 +296,12 @@ export default function MetaConnect({
                 'Connect your account to manage conversations, automate replies and grow your audience.',
               )}
             </p>
-            <button
+            </div></div><button
               className="btn btn-primary"
               disabled={busy || !enabled}
               onClick={() => connect(kind)}
             >
-              {t('تسجيل الدخول باستخدام Facebook', 'Login with Facebook')}
+              <ChannelLogo id="facebook"/>{t('تسجيل الدخول باستخدام Facebook', 'Login with Facebook')}
             </button>
           </section>
           <aside className="card stack">
@@ -309,13 +311,13 @@ export default function MetaConnect({
                 : t('لماذا تربط Facebook؟', 'Why connect Facebook?')}
             </h2>
             <ul>
-              <li>
+              <li><NavIcon name="chat"/>
                 {kind === 'instagram'
                   ? t('إدارة الرسائل المباشرة', 'Manage direct messages')
                   : t('إدارة رسائل صفحاتك', 'Manage Page messages')}
               </li>
-              <li>{t('أتمتة الردود', 'Automate replies')}</li>
-              <li>{t('الرد من صندوق الوارد المشترك', 'Reply from the shared inbox')}</li>
+              <li><NavIcon name="agents"/>{t('أتمتة الردود', 'Automate replies')}</li>
+              <li><NavIcon name="inbox"/>{t('الرد من صندوق الوارد المشترك', 'Reply from the shared inbox')}</li>
             </ul>
           </aside>
         </div>

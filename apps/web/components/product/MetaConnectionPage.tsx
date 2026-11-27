@@ -1,5 +1,7 @@
 'use client';
 import { Fragment, useState } from 'react';
+import { NavIcon } from './NavIcon';
+import { useTransientNotice } from './useTransientNotice';
 import Link from 'next/link';
 import ChannelLogo from './ChannelLogo';
 import MetaConnect from './MetaConnect';
@@ -15,6 +17,7 @@ type Account = {
   external_id: string;
   status: string;
   businessAccountId?: string | null;
+  settings?: Record<string,unknown>;
   connectionHealth?: { state: string; checkedAt: string | null; reason: string };
 };
 export default function MetaConnectionPage({
@@ -32,12 +35,15 @@ export default function MetaConnectionPage({
   const [search, setSearch] = useState(''),
     [filter, setFilter] = useState('all'),
     [saved, setSaved] = useState(false);
-  const [connectOpen, setConnectOpen] = useState(kind === 'whatsapp');
+  useTransientNotice(saved,()=>setSaved(false));
+  const identities=useData<Account[]>(kind==='whatsapp'?'/channels':null,[]);
+  const phoneOf=(c:Account)=>String(identities.data.find(a=>a.id===c.id)?.settings?.providerDisplayPhone||'');
+  const [connectOpen, setConnectOpen] = useState(false);
   const groups = [...new Set(rows.map((c) => c.businessAccountId || c.id))];
   const visible = rows.filter(
     (c) =>
       (filter === 'all' || (filter === 'active' ? c.status === 'active' : c.status !== 'active')) &&
-      `${c.name} ${c.businessAccountId || ''} ${c.external_id}`
+      `${c.name} ${c.businessAccountId || ''} ${c.external_id} ${phoneOf(c)}`
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
@@ -73,7 +79,7 @@ export default function MetaConnectionPage({
       <section id="meta-connect-methods" hidden={kind === 'whatsapp' && !!rows.length && !connectOpen}>
         <MetaConnect selectedKind={kind} onSaved={() => {
           setSaved(true);
-          void accounts.reload();
+          void accounts.reload(); void identities.reload();
         }} />
       </section>
   );
@@ -83,12 +89,12 @@ export default function MetaConnectionPage({
         <Link href="/dashboard/channels">{t('القنوات', 'Channels')}</Link> / {name}
       </nav>
       <header className={styles.heading}>
-        <ChannelLogo id={kind} />
+        <span className={styles.brandIcon} data-platform={kind}><ChannelLogo id={kind}/></span>
         <div className={styles.headingCopy}><h1>{title}</h1><p>{t('اربط أرقامك وتابع حالة الاتصال من مكان واحد.', 'Connect accounts and manage connection health in one place.')}</p></div>
         {kind === 'whatsapp' && !!rows.length && (
           <button type="button" className="btn btn-primary" aria-expanded={connectOpen}
             aria-controls="meta-connect-methods" onClick={() => setConnectOpen(!connectOpen)}>
-            {connectOpen ? t('إخفاء خيارات الربط', 'Hide connection options') : t('ربط حساب جديد', 'Connect account')}
+            <NavIcon name={connectOpen?'chevron':'plus'}/>{connectOpen ? t('إخفاء خيارات الربط', 'Hide connection options') : t('ربط حساب جديد', 'Connect account')}
           </button>
         )}
       </header>
@@ -107,8 +113,8 @@ export default function MetaConnectionPage({
                 rows.filter((c) => channelConnectionState(c) === 'expiring').length,
               ],
               [t('متوقف', 'Disconnected'), rows.filter((c) => c.status !== 'active').length],
-            ].map(([label, count]) => (
-              <div key={label}>
+            ].map(([label, count],i) => (
+              <div key={label} data-tone={i}><i><NavIcon name={['team','phone','stopwatch','circleClose'][i]}/></i>
                 <span>{label}</span>
                 <strong>{accounts.loading ? '—' : count}</strong>
               </div>
@@ -185,11 +191,7 @@ export default function MetaConnectionPage({
                         <tr key={c.id}>
                           <td>
                             <strong>{c.name}</strong>
-                            <small>
-                              {' '}
-                              {kind === 'whatsapp' ? 'Phone Number ID: ' : ''}
-                              {c.external_id}
-                            </small>
+                            <small>{kind==='whatsapp'?(phoneOf(c)?<bdi>{phoneOf(c)}</bdi>:t('الرقم غير متاح — افتح بيانات القناة','Number unavailable — open channel identity')):<bdi>{c.external_id}</bdi>}</small>
                           </td>
                           <td><span className={styles.health} data-state={channelConnectionState(c)}>
                             {
@@ -219,16 +221,16 @@ export default function MetaConnectionPage({
                                 disabled={checking !== null}
                                 onClick={() => void verifyPhone(c.id)}
                               >
-                                {checking === c.id
+                                <NavIcon name="refresh"/>{checking === c.id
                                   ? t('جارٍ التحقق…', 'Checking…')
                                   : t('تحقق من الاتصال', 'Check connection')}
                               </button>
                             )}
                             <Link className="btn" href={`/dashboard/flows?channelId=${c.id}`}>
-                              {t('إدارة', 'Manage')}
+                              <NavIcon name="agents"/>{t('مدير البوت', 'Bot manager')}
                             </Link>
                             <Link className="btn" href={`/dashboard/channels?manage=${encodeURIComponent(c.id)}`}>
-                              {t('إعدادات الاتصال', 'Connection settings')}
+                              <NavIcon name="settings"/>{t('إدارة القناة', 'Manage channel')}
                             </Link>
                             </div>
                           </td>

@@ -69,3 +69,5 @@
 .platform[data-provider='whatsapp'] .platformLogo { background: #e5f8ed; }
 .platform[data-provider='whatsapp'] .platformAction { color: #166543; }
 @media (max-width: 480px) { .catalog { grid-template-columns: minmax(0,1fr); gap: 10px; } .platform { min-height: 0; padding: 13px; } }
+
+.catalog{gap:9px;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))}.platform{min-height:0;gap:8px;padding:11px;border-radius:11px;box-shadow:0 2px 8px #25385809}.platformLogo{width:38px;height:38px;background:linear-gradient(145deg,#818cf8,#4f46e5)}.platformLogo svg{width:23px;height:23px;color:white!important}.platform[data-provider=whatsapp] .platformLogo{background:linear-gradient(145deg,#34d399,#059669)}.platform:is([data-provider=facebook],[data-provider=web],[data-provider=telegram]) .platformLogo{background:linear-gradient(145deg,#60a5fa,#2563eb)}.platform[data-provider=instagram] .platformLogo{background:linear-gradient(145deg,#fb923c,#db2777,#7c3aed)}.platform[data-provider=google] .platformLogo{background:#f5f7fc}.platformText{gap:2px}.platformText small{font-size:12px}.platformAction{padding-top:6px;color:#4f46e5}
