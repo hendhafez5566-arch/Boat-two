@@ -130,6 +130,10 @@ if (process.env.BOAT_TELEGRAM_QA === 'true') {
     const { installTemplateFixtures } = await import('./qa-template-fixtures.mjs');
     installTemplateFixtures(app, local);
   }
+  if (process.env.BOAT_DELIVERY_QA === 'true') {
+    const {installDeliveryFixtures}=await import('./qa-delivery-fixtures.mjs');
+    installDeliveryFixtures(app,local);
+  }
   if (process.env.BOAT_KNOWLEDGE_QA === 'true') {
     const {installKnowledgeFixtures}=await import('./qa-knowledge-fixtures.mjs');
     installKnowledgeFixtures(app,local,pg);

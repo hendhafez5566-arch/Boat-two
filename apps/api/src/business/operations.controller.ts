@@ -324,6 +324,22 @@ export class OperationsController {
         ).rows,
     );
   }
+  @Get('delivery/index') deliveryIndex(@Req() r:AuthedRequest,@Query() query:unknown){
+    const q=parse(z.object({kind:z.enum(['outbound','events']).default('outbound'),q:z.string().trim().max(200).default(''),status:z.enum(['all','attention','pending','sending','sent','failed','blocked','ambiguous','completed']).default('all'),page:z.coerce.number().int().min(1).max(100000).default(1),limit:z.coerce.number().int().min(1).max(100).default(25)}),query);
+    return this.db.withTenant(r.user.tenantId,async c=>{
+      const outbound=q.kind==='outbound',params:unknown[]=[],clauses:string[]=[];
+      if(q.status==='attention')clauses.push("j.status IN ('failed','blocked','ambiguous')");
+      else if(q.status!=='all'){params.push(q.status);clauses.push('j.status=$'+params.length);}
+      if(q.q){params.push('%'+q.q.replace(/[\\%_]/g,v=>'\\'+v)+'%');const p='$'+params.length;clauses.push(outbound?"(j.id::text ILIKE "+p+" OR j.message_id::text ILIKE "+p+" OR ch.name ILIKE "+p+" OR COALESCE(j.error,'') ILIKE "+p+")":"(j.id::text ILIKE "+p+" OR j.type ILIKE "+p+" OR COALESCE(j.error,'') ILIKE "+p+")");}
+      const from=outbound?' FROM outbound_jobs j JOIN messages m ON m.id=j.message_id JOIN channels ch ON ch.id=m.channel_id':' FROM domain_events j';
+      const where=clauses.length?' WHERE '+clauses.join(' AND '):'';
+      const total=Number((await c.query('SELECT count(*)::int n'+from+where,params)).rows[0].n);
+      const cols=outbound?'j.id,j.message_id,j.status,j.attempts,j.error,j.created_at,j.available_at,m.status AS message_status,m.conversation_id,ch.name AS channel_name,ch.type AS channel_type':'j.id,j.type,j.status,j.attempts,j.error,j.created_at,j.available_at';
+      const items=(await c.query('SELECT '+cols+from+where+' ORDER BY '+(outbound?'j.created_at DESC,j.id':'j.seq DESC')+' LIMIT $'+(params.length+1)+' OFFSET $'+(params.length+2),[...params,q.limit,(q.page-1)*q.limit])).rows;
+      const counts=(await c.query('SELECT status,count(*)::int AS count FROM '+(outbound?'outbound_jobs':'domain_events')+' GROUP BY status')).rows;
+      return {items,total,counts};
+    });
+  }
   @Get('delivery') delivery(@Req() r: AuthedRequest, @Query() query: unknown) {
     const q = parse(pagination, query);
     return this.db.withTenant(r.user.tenantId, async (c) => ({
@@ -357,12 +373,12 @@ export class OperationsController {
       z
         .object({
           result: z.enum(['sent', 'failed']),
-          externalId: z.string().min(1).max(500).optional(),
+          externalId: z.string().trim().min(1).max(500).optional(),
           evidence: z.string().trim().min(10).max(1000),
         })
         .refine(
-          (x) => x.result !== 'sent' || !!x.externalId,
-          'Provider message ID required for a confirmed send',
+          (x) => x.result === 'sent' ? !!x.externalId : !x.externalId,
+          'Provider message ID is required only for a confirmed send',
         ),
       body,
     );
@@ -374,7 +390,7 @@ export class OperationsController {
         )
       ).rows[0];
       if (!job) throw new BadRequestException('Only ambiguous deliveries can be reconciled');
-      await c.query('UPDATE outbound_jobs SET status=$2,error=$3,updated_at=now() WHERE id=$1', [
+      await c.query('UPDATE outbound_jobs SET status=$2,error=$3,lease_until=NULL,updated_at=now() WHERE id=$1', [
         id,
         b.result,
         b.evidence,

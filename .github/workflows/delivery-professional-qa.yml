@@ -1,0 +1,52 @@
+name: Professional delivery acceptance
+on:
+  push:
+    branches: [ux/delivery-professional-20261128]
+  pull_request:
+    branches: [fix/preview-order-summary-filter]
+    paths:
+      - 'apps/web/app/dashboard/delivery/**'
+      - 'apps/web/components/business/Delivery*.tsx'
+      - 'apps/api/src/business/operations.controller.ts'
+      - 'apps/api/src/business/delivery-policy.controller.ts'
+      - 'apps/api/src/messaging/outbound.service.ts'
+      - 'scripts/qa-delivery*.mjs'
+      - 'scripts/qa-full-api.mjs'
+      - '.github/workflows/delivery-professional-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: delivery-professional-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install and build
+        run: corepack enable && pnpm install --frozen-lockfile && pnpm --filter api build && pnpm --filter web build
+      - name: Outbound regression
+        run: pnpm --filter api exec tsx --test src/messaging/meta-outbound.test.ts src/messaging/preview-bot-delivery.test.ts
+      - name: Install browser driver
+        run: npm install --prefix "$RUNNER_TEMP/boat-playwright" playwright@1.56.1 --ignore-scripts
+      - name: Isolated bilingual delivery acceptance
+        env:
+          BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
+          BOAT_QA_BROWSER_SCRIPT: scripts/qa-delivery-professional.mjs
+          BOAT_DELIVERY_QA: 'true'
+          BOAT_CHROMIUM: /usr/bin/google-chrome
+        run: python3 scripts/run-connect-browser-qa.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: delivery-professional-evidence
+          path: |
+            docs/p0-evidence/delivery-professional/
+            /tmp/boat-journeys-api.log
+            /tmp/boat-journeys-web.log
+          if-no-files-found: warn

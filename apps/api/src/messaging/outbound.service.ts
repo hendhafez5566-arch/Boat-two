@@ -50,7 +50,7 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
         const row = await this.db.withTenant(job.tenant_id, async (c) => {
           const j = (
             await c.query(
-              "SELECT * FROM outbound_jobs WHERE id=$1 AND status IN ('pending','sending') AND (status='sending' OR available_at<=now()) FOR UPDATE SKIP LOCKED",
+              "SELECT * FROM outbound_jobs WHERE id=$1 AND status IN ('pending','sending') AND ((status='sending' AND lease_until<now()) OR (status='pending' AND available_at<=now())) FOR UPDATE SKIP LOCKED",
               [job.id],
             )
           ).rows[0];
@@ -306,13 +306,14 @@ export class OutboundService implements OnModuleInit, OnModuleDestroy {
   async retry(tenantId: string, id: string) {
     return this.db.withTenant(tenantId, async (c) => {
       const r = await c.query(
-        "UPDATE outbound_jobs SET status='pending',attempts=0,error=NULL,available_at=now(),updated_at=now() WHERE id=$1 AND status IN ('failed','blocked') RETURNING id",
+        "UPDATE outbound_jobs j SET status='pending',attempts=0,error=NULL,lease_until=NULL,available_at=now(),updated_at=now() WHERE j.id=$1 AND j.status IN ('failed','blocked') AND EXISTS (SELECT 1 FROM messages m WHERE m.id=j.message_id AND m.external_id IS NULL AND m.status IN ('queued','failed')) RETURNING j.message_id",
         [id],
       );
       if (!r.rowCount)
         throw new BadRequestException(
           'Only confirmed failed or blocked deliveries can be retried. Ambiguous deliveries require reconciliation.',
         );
+      await c.query("UPDATE messages SET status='queued',error=NULL WHERE id=$1",[r.rows[0].message_id]);
       return { queued: true };
     });
   }
