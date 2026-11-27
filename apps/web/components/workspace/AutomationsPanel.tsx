@@ -35,11 +35,16 @@ export default function Automations() {
   const [ruleQuery,setRuleQuery]=useState('');const [ruleStatus,setRuleStatus]=useState('all');
   const [page,setPage]=useState(1);
   const listPath='/automations/index?'+new URLSearchParams({q:ruleQuery,status:ruleStatus,page:String(page),limit:'20'});
-  const list=useData<{items:Rule[];total:number;totals:{total:number;active:number}}>(listPath,{items:[],total:0,totals:{total:0,active:0}});
+  const list=useData<{items:Rule[];total:number;totals:{total:number;active:number;failed:number}}>(listPath,{items:[],total:0,totals:{total:0,active:0,failed:0}});
   const ready=list.loadedPath===listPath&&!list.loading&&!list.error;
-  const history = useData<
-    { id: string; name: string; status: string; error: string | null; created_at: string }[]
-  >('/automations/history', []);
+  const [runQuery,setRunQuery]=useState('');
+  const [runStatus,setRunStatus]=useState('all');
+  const [runPage,setRunPage]=useState(1);
+  const historyPath='/automations/history/index?'+new URLSearchParams({q:runQuery,status:runStatus,page:String(runPage),limit:'25'});
+  const history=useData<{items:{id:string;name:string;status:string;error:string|null;created_at:string}[];total:number}>(historyPath,{items:[],total:0});
+  const historyReady=history.loadedPath===historyPath&&!history.loading&&!history.error;
+  const runPages=Math.max(1,Math.ceil(history.data.total/25));
+  useEffect(()=>{if(historyReady&&runPage>runPages)setRunPage(runPages);},[historyReady,runPage,runPages]);
   const [contactQuery,setContactQuery]=useState('');
   const contactPath='/crm/contacts?'+new URLSearchParams({limit:'100',q:contactQuery});
   const contacts = useData<{ items: { id: string; name: string; phone?:string }[];total?:number }>(contactPath, {
@@ -150,8 +155,8 @@ export default function Automations() {
           <span>{t('مفعّلة', 'Active')}</span>
         </div>
         <div>
-          <strong>{history.loading||history.error?'—':history.data.filter((h) => h.status === 'failed').length}</strong>
-          <span>{t('تنفيذات فاشلة (آخر 25)', 'Failed runs (last 25)')}</span>
+          <strong>{!ready?'—':list.data.totals.failed}</strong>
+          <span>{t('أخطاء غير محلولة', 'Unresolved failures')}</span>
         </div>
       </div>
       <nav
@@ -557,7 +562,15 @@ export default function Automations() {
       {tab === 'saved' && <SavedAutomationEditor initialRuleId={editId} onDraftState={(dirty,busy)=>{child.current={dirty,busy};}} />}
       {tab === 'history' && (
         <section className="card table-wrap">
-          <h2>{t('آخر 25 تنفيذًا', 'Latest 25 executions')}</h2>
+          <h2>{t('سجل التنفيذ', 'Execution history')}</h2>
+          <div className="workbench-toolbar">
+            <input type="search" maxLength={100} aria-label={t('بحث سجل التنفيذ','Search run history')} placeholder={t('ابحث باسم القاعدة أو المعرّف','Search by rule name or ID')} value={runQuery} onChange={e=>{setRunQuery(e.target.value);setRunPage(1);}}/>
+            <select aria-label={t('حالة التنفيذ','Run status')} value={runStatus} onChange={e=>{setRunStatus(e.target.value);setRunPage(1);}}>
+              <option value="all">{t('كل الحالات','All statuses')}</option><option value="completed">{t('مكتمل','Completed')}</option><option value="skipped">{t('تم التخطي','Skipped')}</option>
+            </select>
+            <button className="btn" type="button" disabled={!runQuery&&runStatus==='all'} onClick={()=>{setRunQuery('');setRunStatus('all');setRunPage(1);}}>{t('مسح فلاتر السجل','Clear history filters')}</button>
+            <button type="button" className="btn" onClick={()=>{setEditId('');changeTab('saved');}}>{t('مراجعة الأخطاء','Review failures')}</button>
+          </div>
           <table className="product-table">
             <thead>
               <tr>
@@ -567,7 +580,7 @@ export default function Automations() {
               </tr>
             </thead>
             <tbody>
-              {!history.loading&&!history.error&&history.data.map((h) => (
+              {historyReady&&history.data.items.map((h) => (
                 <tr key={h.id}>
                   <td>{h.name}</td>
                   <td>
@@ -579,11 +592,16 @@ export default function Automations() {
             </tbody>
           </table>
           {history.loading&&<p role="status">{t('جارٍ التحميل…','Loading…')}</p>}
-          {!history.loading&&!history.error&&!history.data.length && (
+          {historyReady&&history.data.total>0&&<div className="form-actions">
+            <span>{t('إجمالي النتائج','Total results')}: {history.data.total} · {t('صفحة','Page')} {runPage}/{runPages}</span>
+            <button type="button" className="btn" disabled={runPage<=1} onClick={()=>setRunPage(p=>p-1)}>{t('السابق','Previous')}</button>
+            <button type="button" className="btn" disabled={runPage>=runPages} onClick={()=>setRunPage(p=>p+1)}>{t('التالي','Next')}</button>
+          </div>}
+          {historyReady&&!history.data.items.length && (
             <p className="empty">
               {t(
-                'سيظهر التنفيذ عند وقوع حدث مطابق.',
-                'Executions appear when a matching event occurs.',
+                'لا توجد تنفيذات مطابقة للبحث الحالي.',
+                'No executions match the current search.',
               )}
             </p>
           )}
