@@ -319,7 +319,7 @@ export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolea
                     name="credential"
                     type="password"
                     autoComplete="new-password"
-                    required={!editing}
+                    required={!editing||editing.status==='disconnected'}
                     maxLength={4000}
                   />
                   {editing && (
@@ -363,7 +363,7 @@ export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolea
                     key={p}
                     disabled={busy || !!editing}
                     aria-pressed={provider === p}
-                    onClick={() => {if(p!==provider){if(dirty&&!window.confirm(t('تغيير المزود؟ راجع بيانات المفتاح قبل الحفظ.','Change provider? Review the credential before saving.')))return;setProvider(p);setDirty(true);}}}
+                    onClick={() => {if(p!==provider){if(dirty&&!window.confirm(t('تغيير المزود؟ راجع بيانات المفتاح قبل الحفظ.','Change provider? Review the credential before saving.')))return;const credential=document.querySelector<HTMLInputElement>('dialog[open] input[name=credential]');if(credential)credential.value='';setProvider(p);setDirty(true);}}}
                   >
                     {providerNames[p]}
                   </button>
