@@ -169,7 +169,7 @@ export class WorkspaceController {
             }
           }, 'Invalid timezone'),
         language: z.enum(['ar', 'en']),
-        preferredPlan: z.enum(['free', 'starter', 'pro', 'business']),
+        preferredPlan: z.enum(['free', 'starter', 'pro', 'business']).optional(),
       }),
       body,
     );
@@ -178,7 +178,7 @@ export class WorkspaceController {
       async (c) =>
         (
           await c.query(
-            `UPDATE tenants SET name=$1, settings=settings || $2::jsonb, preferred_plan=$3 RETURNING id, name, settings, preferred_plan, onboarding_completed_at`,
+            `UPDATE tenants SET name=$1, settings=settings || $2::jsonb, preferred_plan=COALESCE($3,preferred_plan) RETURNING id, name, settings, preferred_plan, onboarding_completed_at`,
             [
               input.name,
               JSON.stringify({
@@ -186,7 +186,7 @@ export class WorkspaceController {
                 timezone: input.timezone,
                 language: input.language,
               }),
-              input.preferredPlan,
+              input.preferredPlan??null,
             ],
           )
         ).rows[0],
@@ -219,22 +219,14 @@ export class WorkspaceController {
   @Roles('owner', 'admin')
   @Get('workspace/audit')
   audit(@Req() req: AuthedRequest, @Query() query: unknown) {
-    const q = parse(
-      z.object({
-        page: z.coerce.number().int().min(1).max(100000).default(1),
-        limit: z.coerce.number().int().min(1).max(100).default(25),
-      }),
-      query,
-    );
-    return this.db.withTenant(req.user.tenantId, async (c) => {
-      const items = (
-        await c.query(
-          `SELECT a.id, a.action, a.resource_type, a.resource_id, a.created_at, u.full_name AS actor_name FROM audit_logs a LEFT JOIN users u ON u.id=a.actor_id ORDER BY a.created_at DESC, a.id DESC LIMIT $1 OFFSET $2`,
-          [q.limit, (q.page - 1) * q.limit],
-        )
-      ).rows;
-      const total = (await c.query('SELECT count(*)::int AS n FROM audit_logs')).rows[0].n;
-      return { items, total, page: q.page, limit: q.limit };
+    const q=parse(z.object({page:z.coerce.number().int().min(1).max(100000).default(1),limit:z.coerce.number().int().min(1).max(100).default(25),q:z.string().trim().max(200).default('')}),query);
+    return this.db.withTenant(req.user.tenantId,async c=>{
+      const params:unknown[]=[];
+      if(q.q)params.push('%'+q.q.replace(/[\\%_]/g,v=>'\\'+v)+'%');
+      const from=' FROM audit_logs a LEFT JOIN users u ON u.id=a.actor_id'+(q.q?" WHERE (a.action ILIKE $1 OR a.resource_type ILIKE $1 OR a.resource_id::text ILIKE $1 OR COALESCE(u.full_name,'') ILIKE $1)":'');
+      const items=(await c.query('SELECT a.id,a.action,a.resource_type,a.resource_id,a.created_at,u.full_name AS actor_name'+from+' ORDER BY a.created_at DESC,a.id DESC LIMIT $'+(params.length+1)+' OFFSET $'+(params.length+2),[...params,q.limit,(q.page-1)*q.limit])).rows;
+      const total=Number((await c.query('SELECT count(*)::int AS n'+from,params)).rows[0].n);
+      return {items,total,page:q.page,limit:q.limit};
     });
   }
 
