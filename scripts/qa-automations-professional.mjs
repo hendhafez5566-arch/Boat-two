@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict';
+import {randomUUID as uuid} from 'node:crypto';
+import {createRequire} from 'node:module';
+import {mkdirSync,writeFileSync} from 'node:fs';
+import {assertLocalAcceptance} from './acceptance-local.mjs';
+assertLocalAcceptance();
+const base='http://localhost:4000',web='http://localhost:3000',out='docs/p0-evidence/automations-professional';mkdirSync(out,{recursive:true});
+const {chromium}=createRequire(import.meta.url)(process.env.BOAT_PLAYWRIGHT_MODULE||'playwright');
+async function api(path,token,body,method=body?'POST':'GET'){const r=await fetch(base+path,{method,headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});const d=await r.json();assert.ok(r.ok,path+' '+r.status+' '+JSON.stringify(d));return d;}
+const browser=await chromium.launch({executablePath:process.env.BOAT_CHROMIUM||'/usr/bin/google-chrome',args:['--no-sandbox']}),results=[];
+try{for(const language of ['ar','en'])for(const width of [390,1366]){
+ const t=(ar,en)=>language==='ar'?ar:en,session=await api('/auth/register',null,{email:uuid()+'@example.test',password:'Synthetic-'+uuid(),fullName:'Automation QA',workspaceName:'Isolated automation QA'}),token=session.accessToken;
+ await api('/workspace/onboarding/complete',token,{});
+ const context=await browser.newContext({viewport:{width,height:936}});await context.addInitScript(({session,language})=>{localStorage.setItem('session',JSON.stringify(session));localStorage.setItem('boat-language',language);},{session,language});
+ const page=await context.newPage();page.setDefaultTimeout(25000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>['localhost','127.0.0.1'].includes(new URL(r.request().url()).hostname)?r.continue():r.abort());
+ await page.goto(web+'/dashboard/automations');
+ await page.getByRole('tab',{name:t('إنشاء','Create'),exact:true}).click();
+ const name=page.getByRole('textbox',{name:t('اسم القاعدة','Rule name'),exact:true});await name.fill('Automation QA rule');await page.getByRole('textbox',{name:t('التفاصيل','Details'),exact:true}).fill('automation-qa');
+ let asked=false;page.once('dialog',d=>{asked=true;return d.dismiss();});await page.getByRole('tab',{name:t('قواعدي','My rules'),exact:true}).click();assert.ok(asked);assert.equal(await name.inputValue(),'Automation QA rule');
+ await page.getByRole('button',{name:t('حفظ القاعدة معطلة للمراجعة','Save disabled rule for review'),exact:true}).click();
+ const card=page.locator('.auto-card').filter({hasText:'Automation QA rule'});await card.waitFor();
+ const saved=(await api('/automations',token)).find(r=>r.name==='Automation QA rule');assert.ok(saved);assert.equal(saved.enabled,false);
+ const index=await api('/automations/index?q='+saved.id,token);assert.equal(index.total,1);assert.equal(index.items[0].id,saved.id);assert.equal(index.totals.total,1);
+ const search=page.getByRole('searchbox',{name:t('بحث القواعد','Search rules'),exact:true});await search.fill('no-such-automation');await card.waitFor({state:'hidden'});await page.getByRole('button',{name:t('مسح الفلاتر','Clear filters'),exact:true}).click();await card.waitFor();
+ await card.getByRole('button',{name:/Automation QA rule/}).click();
+ const editor=page.locator('form').filter({has:page.getByRole('button',{name:t('حفظ المسار','Save sequence'),exact:true})});
+ const editName=editor.getByRole('textbox',{name:t('الاسم','Name'),exact:true});await editName.fill('Automation edited');
+ await editor.getByRole('button',{name:t('تراجع','Undo'),exact:true}).click();assert.equal(await editName.inputValue(),'Automation QA rule');
+ await editor.getByRole('button',{name:t('إعادة','Redo'),exact:true}).click();assert.equal(await editName.inputValue(),'Automation edited');
+ await page.getByRole('button',{name:t('تحديث القائمة','Refresh list'),exact:true}).click();assert.equal(await editName.inputValue(),'Automation edited');
+ await editor.getByRole('button',{name:t('حفظ المسار','Save sequence'),exact:true}).click();await page.getByText(t('تم حفظ التغيير.','Change saved.'),{exact:true}).waitFor();
+ assert.equal((await api('/automations/'+saved.id+'/detail',token)).name,'Automation edited');
+ await editor.getByRole('button',{name:t('الإصدارات المحفوظة','Saved versions'),exact:true}).click();
+ await editor.getByRole('button',{name:t('تحميل','Load')+' v1',exact:true}).click();
+ assert.equal(await editName.inputValue(),'Automation QA rule');
+ await editor.getByRole('button',{name:t('حفظ المسار','Save sequence'),exact:true}).click();await page.getByText(t('تم حفظ التغيير.','Change saved.'),{exact:true}).waitFor();
+ assert.equal((await api('/automations/'+saved.id+'/detail',token)).enabled,false);
+ await page.getByRole('tab',{name:t('قواعدي','My rules'),exact:true}).click();await card.waitFor();
+ page.once('dialog',d=>d.accept());await card.getByRole('switch').click();await card.getByRole('switch',{checked:true}).waitFor();
+ const contact=await api('/crm/contacts',token,{name:'Synthetic automation QA'});
+ let matched=false;for(let i=0;i<100;i++){const x=await api('/crm/contacts/'+contact.id,token);if(x.tags?.includes('automation-qa')){matched=true;break;}await new Promise(r=>setTimeout(r,100));}
+ assert.ok(matched,'actual persisted automation tag');
+ page.once('dialog',d=>d.accept());await card.getByRole('switch').click();await card.getByRole('switch',{checked:false}).waitFor();
+ await page.getByRole('tab',{name:t('سجل التنفيذ','Run history'),exact:true}).click();await page.locator('table').getByText('Automation QA rule',{exact:true}).first().waitFor();
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert.deepEqual(errors,[]);
+ await page.screenshot({path:out+'/history-'+language+'-'+width+'.png',fullPage:true});results.push({language,width,status:'PASS'});await context.close();
+}}finally{await browser.close();writeFileSync(out+'/results.json',JSON.stringify(results,null,2)+'\n');}
+console.log('PASS automation create, draft guard, server search, versions, actual tag execution and run history',results.length);
