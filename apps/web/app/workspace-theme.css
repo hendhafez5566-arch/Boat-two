@@ -182,3 +182,16 @@ body { font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif; f
 .automation-professional :is(input,select,textarea){max-width:100%;min-width:0}
 .automation-professional .table-wrap{overflow:auto}
 @media(max-width:600px){.automation-professional .auto-stats>div{padding:8px;overflow-wrap:anywhere}.automation-professional .auto-stats strong{font-size:20px}.automation-professional .auto-card-main{flex-wrap:wrap}.automation-professional .auto-tabs button{white-space:normal}.automation-professional fieldset{min-width:0}.automation-professional .form-grid{grid-template-columns:minmax(0,1fr)}}
+
+.ai-professional{min-width:0;gap:12px}
+.ai-professional .card{min-width:0;border-color:var(--line,#e2e8f0);border-radius:12px}
+.ai-professional .settings-block{display:grid;gap:10px;padding:12px;border:1px solid var(--line,#e2e8f0);border-radius:10px}
+.ai-professional fieldset{min-width:0}
+.ai-professional :is(input,select,textarea){max-width:100%;min-width:0;font-family:inherit}
+.ai-professional .btn-primary{background:linear-gradient(160deg,var(--brand-gradient-end,#8071e5),var(--primary,#6050ce));box-shadow:inset 0 1px 0 #ffffff45}
+.ai-professional :is(button,a,input,select,textarea,summary):focus-visible{outline:2px solid var(--primary,#6050ce);outline-offset:2px}
+.ai-professional .table-wrap{overflow:auto;max-width:100%}
+.ai-professional .product-table th{font-size:12px;text-transform:none;background:var(--surface-muted,#f8fafc);color:var(--ink-2,#334155)}
+.ai-professional .product-table td{overflow-wrap:anywhere}
+.ai-professional [hidden]{display:none!important}
+@media(max-width:600px){.ai-professional .form-grid{grid-template-columns:minmax(0,1fr)}.ai-professional .settings-block{padding:9px}.ai-professional .workbench-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
