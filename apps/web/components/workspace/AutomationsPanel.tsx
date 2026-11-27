@@ -32,7 +32,11 @@ type Rule = {
 };
 export default function Automations() {
   const { t } = useLocale();
-  const list = useData<Rule[]>('/automations', []);
+  const [ruleQuery,setRuleQuery]=useState('');const [ruleStatus,setRuleStatus]=useState('all');
+  const [page,setPage]=useState(1);
+  const listPath='/automations/index?'+new URLSearchParams({q:ruleQuery,status:ruleStatus,page:String(page),limit:'20'});
+  const list=useData<{items:Rule[];total:number;totals:{total:number;active:number}}>(listPath,{items:[],total:0,totals:{total:0,active:0}});
+  const ready=list.loadedPath===listPath&&!list.loading&&!list.error;
   const history = useData<
     { id: string; name: string; status: string; error: string | null; created_at: string }[]
   >('/automations/history', []);
@@ -63,19 +67,17 @@ export default function Automations() {
   const [actions, setActions] = useState<Action[]>([{ type: 'tag', tag: '' }]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [ruleQuery,setRuleQuery]=useState('');const [ruleStatus,setRuleStatus]=useState('all');
   const lock=useRef(false);
   const child=useRef({dirty:false,busy:false});
   const [notice,setNotice]=useState('');
-  const [page,setPage]=useState(1);
-  const filtered=list.data.filter(r=>(r.name+' '+r.id).toLowerCase().includes(ruleQuery.toLowerCase().trim())&&(ruleStatus==='all'||r.enabled===(ruleStatus==='active')));
-  const pages=Math.max(1,Math.ceil(filtered.length/20));
+  const filtered=ready?list.data.items:[];
+  const pages=Math.max(1,Math.ceil(list.data.total/20));
   const dirty=tab==='create'&&createMode==='quick'&&(!!name.trim()||trigger!=='crm.contacts.insert'||!!lifecycle||!!tag||JSON.stringify(actions)!==JSON.stringify([{type:'tag',tag:''}]));
   const mayLeave=()=>!lock.current&&!child.current.busy&&(!(dirty||child.current.dirty)||window.confirm(t('توجد تغييرات غير محفوظة. هل تريد تجاهلها؟','Unsaved automation changes. Discard them?')));
   const changeTab=(next:typeof tab)=>{if(next!==tab&&mayLeave()){child.current={dirty:false,busy:false};setTab(next);}};
   const changeMode=(next:typeof createMode)=>{if(next!==createMode&&mayLeave()){child.current={dirty:false,busy:false};setCreateMode(next);}};
   useEffect(()=>{setPage(1);},[ruleQuery,ruleStatus]);
-  useEffect(()=>{if(page>pages)setPage(pages);},[page,pages]);
+  useEffect(()=>{if(ready&&page>pages)setPage(pages);},[ready,page,pages]);
   useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4000);return()=>clearTimeout(timer);},[notice]);
   useEffect(()=>{const unload=(event:BeforeUnloadEvent)=>{if(dirty||child.current.dirty||lock.current||child.current.busy){event.preventDefault();event.returnValue='';}};const click=(event:MouseEvent)=>{if(event.button!==0||event.ctrlKey||event.metaKey||event.altKey||event.shiftKey)return;const a=(event.target as Element)?.closest?.('a[href]') as HTMLAnchorElement|null;if(!a||a.target==='_blank'||a.download||a.href===location.href)return;if(!mayLeave()){event.preventDefault();event.stopPropagation();}};window.addEventListener('beforeunload',unload);document.addEventListener('click',click,true);return()=>{window.removeEventListener('beforeunload',unload);document.removeEventListener('click',click,true);};},[dirty,t]);
   async function act(fn: () => Promise<unknown>) {
@@ -140,11 +142,11 @@ export default function Automations() {
       {notice&&<p className="notice" role="status">{notice}</p>}
       <div className="auto-stats">
         <div>
-          <strong>{list.loading||list.error?'—':list.data.length}</strong>
+          <strong>{!ready?'—':list.data.totals.total}</strong>
           <span>{t('قواعد', 'Rules')}</span>
         </div>
         <div>
-          <strong>{list.loading||list.error?'—':list.data.filter((r) => r.enabled).length}</strong>
+          <strong>{!ready?'—':list.data.totals.active}</strong>
           <span>{t('مفعّلة', 'Active')}</span>
         </div>
         <div>
@@ -179,10 +181,10 @@ export default function Automations() {
       </nav>
       {tab === 'rules' && (
         <section className="stack">
-          <div className="workbench-toolbar"><input type="search" value={ruleQuery} onChange={e=>setRuleQuery(e.target.value)} placeholder={t('بحث عن قاعدة','Search rules')} aria-label={t('بحث القواعد','Search rules')}/><select value={ruleStatus} onChange={e=>setRuleStatus(e.target.value)} aria-label={t('حالة القاعدة','Rule status')}><option value="all">{t('الكل','All')}</option><option value="active">{t('مفعلة','Enabled')}</option><option value="inactive">{t('معطلة','Disabled')}</option></select></div>
-          <div className="form-actions"><button className="btn" disabled={!ruleQuery&&ruleStatus==='all'} onClick={()=>{setRuleQuery('');setRuleStatus('all');}}>{t('مسح الفلاتر','Clear filters')}</button><small>{t('بحث في القواعد المحملة','Search loaded rules')}</small></div>
-          {list.loading&&<p role="status">{t('جارٍ التحميل…','Loading…')}</p>}
-          {!list.loading&&!list.error&&filtered.slice((page-1)*20,page*20).map((r) => (
+          <div className="workbench-toolbar"><input type="search" value={ruleQuery} maxLength={100} onChange={e=>{setRuleQuery(e.target.value);setPage(1);}} placeholder={t('بحث عن قاعدة','Search rules')} aria-label={t('بحث القواعد','Search rules')}/><select value={ruleStatus} onChange={e=>{setRuleStatus(e.target.value);setPage(1);}} aria-label={t('حالة القاعدة','Rule status')}><option value="all">{t('الكل','All')}</option><option value="active">{t('مفعلة','Enabled')}</option><option value="inactive">{t('معطلة','Disabled')}</option></select></div>
+          <div className="form-actions"><button className="btn" disabled={!ruleQuery&&ruleStatus==='all'} onClick={()=>{setRuleQuery('');setRuleStatus('all');}}>{t('مسح الفلاتر','Clear filters')}</button><small>{t('بحث في كل القواعد','Search all rules')}</small></div>
+          {!ready&&!list.error&&<p role="status">{t('جارٍ التحميل…','Loading…')}</p>}
+          {ready&&filtered.map((r) => (
             <article className={`auto-card ${r.enabled ? 'is-on' : ''}`} key={r.id}>
               <div className="auto-card-main">
                 <div>
@@ -296,9 +298,9 @@ export default function Automations() {
               )}
             </article>
           ))}
-          {!list.loading&&!list.error&&filtered.length>0&&<div className="form-actions"><span>{filtered.length} · {page}/{pages}</span><button className="btn" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>{t('السابق','Previous')}</button><button className="btn" disabled={page>=pages} onClick={()=>setPage(p=>p+1)}>{t('التالي','Next')}</button></div>}
-          {!list.loading&&!list.error&&list.data.length>0&&!filtered.length&&<p className="empty">{t('لا توجد قواعد مطابقة','No matching rules')}</p>}
-          {!list.loading&&!list.error&&!list.data.length && (
+          {ready&&list.data.total>0&&<div className="form-actions"><span>{list.data.total} · {page}/{pages}</span><button className="btn" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>{t('السابق','Previous')}</button><button className="btn" disabled={page>=pages} onClick={()=>setPage(p=>p+1)}>{t('التالي','Next')}</button></div>}
+          {ready&&list.data.totals.total>0&&!filtered.length&&<p className="empty">{t('لا توجد قواعد مطابقة','No matching rules')}</p>}
+          {ready&&!list.data.totals.total && (
             <div className="card empty">
               <p>{t('لا توجد قواعد بعد.', 'No rules yet.')}</p>
               <button type="button" className="btn btn-primary" onClick={() => setTab('create')}>
