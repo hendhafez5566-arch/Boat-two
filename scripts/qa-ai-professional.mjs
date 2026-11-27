@@ -36,7 +36,7 @@ try{for(const language of ['ar','en'])for(const width of [390,1366]){
  await editor.getByRole('button',{name:t('حفظ المساعد','Save agent'),exact:true}).click();await editor.waitFor({state:'hidden'});
  const agent=(await api('/agents',token)).agents.find(a=>a.name==='AI QA assistant');assert.ok(agent);assert.equal(agent.enabled,false);
  await page.getByRole('searchbox',{name:t('بحث المساعدين','Search assistants'),exact:true}).fill('nonexistent');
- await page.getByText(t('لا توجد نتائج مطابقة','No matching assistants'),{exact:true}).waitFor();
+ await page.locator('[data-ai-empty=assistants]').waitFor();
  await page.getByRole('button',{name:t('مسح الفلاتر','Clear filters'),exact:true}).click();
  await page.getByRole('heading',{name:'AI QA assistant',exact:true}).waitFor();
  await page.locator('#assistant-routing > summary').click();
