@@ -46,6 +46,13 @@ export default function Campaigns() {
   const [channelId, setChannelId] = useChannelContext();
   const channels = useData<{ id: string; name: string; type: string }[]>('/channels', []);
   const [platform, setPlatform] = useState('whatsapp');
+  const composerState=useRef({dirty:false,busy:false});
+  const editState=useRef({dirty:false,busy:false});
+  const canLeaveDraft=()=>{const draft=composerState.current.dirty||editState.current.dirty;if(composerState.current.busy||editState.current.busy)return false;return !draft||window.confirm(t('توجد تغييرات غير محفوظة في الحملة. هل تريد تجاهلها؟','Campaign has unsaved changes. Discard them?'));};
+  const clearDraftState=()=>{composerState.current={dirty:false,busy:false};editState.current={dirty:false,busy:false};};
+  const [notice,setNotice]=useState('');
+  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4000);return()=>clearTimeout(timer);},[notice]);
+  useEffect(()=>{const click=(event:MouseEvent)=>{if(event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;const link=(event.target as Element)?.closest?.('a[href]') as HTMLAnchorElement|null;if(!link||link.download||link.target==='_blank'||link.href===location.href)return;if(!canLeaveDraft()){event.preventDefault();event.stopPropagation();}};document.addEventListener('click',click,true);return()=>document.removeEventListener('click',click,true);},[t]);
   const [campaignLimit, setCampaignLimit] = useState(5);
   const [sort, setSort] = useState<'createdAt' | 'name' | 'status' | 'scheduledAt'>('createdAt');
   const [direction, setDirection] = useState<'asc' | 'desc'>('desc');
@@ -81,6 +88,8 @@ export default function Campaigns() {
       setPlatform(selected.type);
   }, [channelId, channels.data]);
   function selectPlatform(value: string) {
+    if(value===platform||!canLeaveDraft())return;
+    clearDraftState();
     setPlatform(value);
     const query = new URLSearchParams(window.location.search);
     query.set('channel', value);
@@ -167,6 +176,7 @@ export default function Campaigns() {
     setEditingCampaign(null);
     setScheduling(null);
     setSaved(false);
+    setLedgerLoading(false);
     ledgerVersion.current++;
   }, [activeChannelId, platform, campaignSearch, campaignStatus, campaignLimit, sort, direction]);
 
@@ -197,11 +207,15 @@ export default function Campaigns() {
   const [ledgerLoading, setLedgerLoading] = useState(false);
   const ledgerVersion = useRef(0);
   const [saved, setSaved] = useState(false);
+  useEffect(()=>{if(!saved)return;const timer=setTimeout(()=>setSaved(false),4000);return()=>clearTimeout(timer);},[saved]);
   const [reviews, setReviews] = useState<Record<string, { key: string; audience: Audience }>>({});
   const reviewRequest = useRef<Record<string, number>>({});
   const reviewKey = (campaign: Campaign) =>
     JSON.stringify([campaign.channel_id, campaign.filters, campaign.revision]);
   async function reviewAudience(campaign: Campaign) {
+    if(actionLock.current)return;
+    actionLock.current=true;
+    setReviews(current=>{const next={...current};delete next[campaign.id];return next;});
     const request = (reviewRequest.current[campaign.id] || 0) + 1;
     reviewRequest.current[campaign.id] = request;
     const key = reviewKey(campaign);
@@ -217,11 +231,12 @@ export default function Campaigns() {
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      actionLock.current=false;
       setBusy(false);
     }
   }
   async function run(fn: () => Promise<unknown>) {
-    if (actionLock.current) return;
+    if (actionLock.current) return false;
     actionLock.current = true;
     setBusy(true);
     setError('');
@@ -229,8 +244,11 @@ export default function Campaigns() {
       await fn();
       await list.reload();
       await summary.reload();
+      setNotice(t('تم تنفيذ الإجراء بنجاح.','Action completed successfully.'));
+      return true;
     } catch (e) {
       setError((e as Error).message);
+      return false;
     } finally {
       actionLock.current = false;
       setBusy(false);
@@ -281,7 +299,7 @@ export default function Campaigns() {
     link.href = url;
     link.download = 'campaign-recipients-page-' + page + '.json';
     link.click();
-    URL.revokeObjectURL(url);
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
   return (
     <main className={styles.page}>
@@ -301,14 +319,14 @@ export default function Campaigns() {
             <button
               type="button"
               aria-pressed={mode === 'sequence'}
-              onClick={() => setMode('sequence')}
+              onClick={() => {if(canLeaveDraft()){clearDraftState();setCreating(false);setEditingCampaign(null);setScheduling(null);setMode('sequence');}}}
             >
               <NavIcon name="sequences" /> {t('التسلسلات', 'Sequence')}
             </button>
           </nav>
           {mode === 'broadcast' && activeChannelId && (
             <>
-              <button className="btn btn-primary" type="button" onClick={() => setCreating(true)}>
+              <button className="btn btn-primary" type="button" disabled={busy||creating||!!editingCampaign||!!scheduling} onClick={() => {clearDraftState();setError('');setCreating(true);}}>
                 + {t('إنشاء حملة', 'Create Campaign')}
               </button>
             </>
@@ -359,9 +377,10 @@ export default function Campaigns() {
           )}
           {(error || list.error) && (
             <p className="notice error" role="alert">
-              {error || list.error}
+              {error || list.error} {list.error&&<button className="btn" type="button" disabled={list.loading} onClick={()=>void list.reload()}>{t('إعادة المحاولة','Retry')}</button>}
             </p>
           )}
+          {notice && <p className="notice" role="status">{notice}</p>}
           {saved && (
             <p className="notice" role="status">
               {t(
@@ -371,7 +390,7 @@ export default function Campaigns() {
             </p>
           )}
 
-          <details className="card campaign-summary"><summary>{t('أداء الحملات خلال آخر 30 يومًا','Campaign performance — last 30 days')}</summary><p className={styles.period}>
+          <details className="card campaign-summary" open><summary>{t('أداء الحملات خلال آخر 30 يومًا','Campaign performance — last 30 days')}</summary><p className={styles.period}>
             {t(
               'إحصاءات آخر 30 يومًا للحساب المختار',
               'Statistics for the last 30 days for the selected account',
@@ -379,7 +398,7 @@ export default function Campaigns() {
           </p>
           {summary.error && (
             <p role="alert" className="notice error">
-              {summary.error}
+              {summary.error} <button type="button" className="btn" disabled={summary.loading} onClick={()=>void summary.reload()}>{t('إعادة المحاولة','Retry')}</button>
             </p>
           )}
           <section className={styles.statistics}>
@@ -443,15 +462,17 @@ export default function Campaigns() {
               <ConfigurationPanel
                 open={creating}
                 onClose={() => {
-                  if (!busy) setCreating(false);
+                  if (!busy&&canLeaveDraft()){clearDraftState();setCreating(false);}
                 }}
                 title={t('إنشاء حملة', 'Create Campaign')}
               >
                 <CampaignComposer
                   layout="reference"
+                  onDraftState={(dirty,busy)=>{composerState.current={dirty,busy};}}
                   channels={platformChannels.filter((c) => c.id === activeChannelId)}
                   segments={segments.data}
                   onSaved={async () => {
+                    clearDraftState();
                     await list.reload();
                     setSaved(true);
                     setCreating(false);
@@ -459,7 +480,7 @@ export default function Campaigns() {
                   }}
                 />
                 <footer className="smart-editor-footer">
-                  <button type="button" onClick={() => setCreating(false)}>
+                  <button type="button" onClick={() => {if(canLeaveDraft()){clearDraftState();setCreating(false);}}}>
                     {t('إغلاق', 'Close')}
                   </button>
                 </footer>
@@ -469,7 +490,7 @@ export default function Campaigns() {
                   <select
                     aria-label={t('الحساب', 'Account')}
                     value={activeChannelId}
-                    onChange={(e) => setChannelId(e.target.value)}
+                    disabled={creating||!!editingCampaign||!!scheduling||busy} onChange={(e) => setChannelId(e.target.value)}
                   >
                     {platformChannels.map((channel) => (
                       <option key={channel.id} value={channel.id}>
@@ -480,7 +501,7 @@ export default function Campaigns() {
                   <select
                     aria-label={t('حالة الحملة', 'Campaign status')}
                     value={campaignStatus}
-                    onChange={(e) => setCampaignStatus(e.target.value)}
+                    disabled={creating||!!editingCampaign||!!scheduling||busy} onChange={(e) => setCampaignStatus(e.target.value)}
                   >
                     <option value="">{t('كل الحالات', 'All statuses')}</option>
                     {['draft', 'scheduled', 'running', 'completed', 'canceled'].map((status) => (
@@ -495,6 +516,7 @@ export default function Campaigns() {
                     placeholder={t('ابحث واضغط Enter…', 'Search & Enter…')}
                     maxLength={120}
                     value={draftSearch}
+                    disabled={creating||!!editingCampaign||!!scheduling||busy}
                     onChange={(e) => {
                       setDraftSearch(e.target.value);
                       if (!e.target.value) setCampaignSearch('');
@@ -503,8 +525,10 @@ export default function Campaigns() {
                       if (e.key === 'Enter') setCampaignSearch(draftSearch);
                     }}
                   />
+                  <button className="btn" type="button" disabled={busy||creating||!!editingCampaign||!!scheduling||(!draftSearch&&!campaignStatus&&!campaignSearch)} onClick={()=>{setDraftSearch('');setCampaignSearch('');setCampaignStatus('');}}>{t('مسح الفلاتر','Clear filters')}</button>
+                  <button className="btn" type="button" disabled={busy||list.loading||creating||!!editingCampaign||!!scheduling} onClick={()=>void Promise.all([list.reload(),summary.reload()])}><NavIcon name="refresh"/>{t('تحديث','Refresh')}</button>
                 </section>
-                <div className={styles.campaignTable}>
+                <div className={styles.campaignTable} aria-busy={list.loading}>
                   <table className="product-table">
                     <thead>
                       <tr>
@@ -589,7 +613,7 @@ export default function Campaigns() {
                                 <button
                                   type="button"
                                   className="btn"
-                                  onClick={() => setEditingCampaign(c)}
+                                  disabled={busy||creating} onClick={() => {clearDraftState();setError('');setEditingCampaign(c);}}
                                 >
                                   {t('تعديل', 'Edit')}
                                 </button>
@@ -598,7 +622,7 @@ export default function Campaigns() {
                                 <button
                                   type="button"
                                   className="btn"
-                                  onClick={() => setScheduling(c)}
+                                  disabled={busy||creating} onClick={() => {setError('');setReviews(current=>{const next={...current};delete next[c.id];return next;});setScheduling(c);}}
                                 >
                                   {c.status === 'scheduled'
                                     ? t('إعادة الجدولة', 'Reschedule')
@@ -624,10 +648,10 @@ export default function Campaigns() {
                               )}
                             </div>
                           </td>
-                          <td>{c.metrics?.processed ?? 0}</td>
-                          <td>{c.metrics?.delivered ?? 0}</td>
-                          <td>{c.metrics?.read ?? 0}</td>
-                          <td>{c.metrics?.failed ?? 0}</td>
+                          <td>{c.metrics?.processed ?? '—'}</td>
+                          <td>{c.metrics?.delivered ?? '—'}</td>
+                          <td>{c.metrics?.read ?? '—'}</td>
+                          <td>{c.metrics?.failed ?? '—'}</td>
                           <td>
                             {c.scheduled_at ? new Date(c.scheduled_at).toLocaleString() : '—'}
                           </td>
@@ -686,15 +710,17 @@ export default function Campaigns() {
           <Dialog
             open={!!editingCampaign}
             onClose={() => {
-              if (!busy) setEditingCampaign(null);
+              if (!busy&&canLeaveDraft()){clearDraftState();setEditingCampaign(null);}
             }}
             title={t('تعديل مسودة الحملة', 'Edit Campaign Draft')}
           >
+            {error&&editingCampaign&&<p role="alert" className="notice error">{error}</p>}
             {editingCampaign && (
               <CampaignDraftEditor
                 key={editingCampaign.id + editingCampaign.revision}
                 campaign={editingCampaign}
-                save={run}
+                save={async fn=>{const ok=await run(fn);if(ok){clearDraftState();setEditingCampaign(null);}return ok;}}
+                onDraftState={(dirty,busy)=>{editState.current={dirty,busy};}}
                 busy={busy}
                 expanded
               />
@@ -707,6 +733,7 @@ export default function Campaigns() {
             }}
             title={t('مراجعة الجمهور والجدولة', 'Review Audience & Schedule')}
           >
+            {error&&scheduling&&<p role="alert" className="notice error">{error}</p>}
             {scheduling &&
               (() => {
                 const c = scheduling;
@@ -727,9 +754,10 @@ export default function Campaigns() {
                         );
                         return;
                       }
-                      const at = new Date(
-                        String(new FormData(e.currentTarget).get('at')),
-                      ).toISOString();
+                      const date=new Date(String(new FormData(e.currentTarget).get('at')));
+                      if(!Number.isFinite(date.getTime())||date.getTime()<=Date.now()){setError(t('اختر موعدًا صالحًا في المستقبل.','Choose a valid future date and time.'));return;}
+                      const at=date.toISOString();
+                      if(!window.confirm(t('تأكيد جدولة الحملة للجمهور المؤهل في الموعد المحدد؟','Confirm scheduling this campaign for eligible recipients at the selected time?')))return;
                       run(async () => {
                         const result = await api(`/campaigns/${c.id}/schedule`, {
                           method: 'POST',
@@ -751,6 +779,7 @@ export default function Campaigns() {
                     {reviews[c.id]?.key === reviewKey(c) && (
                       <AudienceSummary audience={reviews[c.id].audience} />
                     )}
+                    <p className="muted">{t('التوقيت حسب جهازك؛ الخادم يعيد فحص الأهلية عند الإرسال.','Time is local to your device; eligibility is rechecked by the server at delivery.')}</p>
                     <input
                       type="datetime-local"
                       aria-label={t('موعد الحملة', 'Campaign schedule')}
@@ -862,9 +891,9 @@ export default function Campaigns() {
               </div>
               <div className="form-actions">
                 <p role="status">
-                  {ledger.filteredCount} {t('مستلم مطابق', 'matching recipients')}
+                  {ledger.filteredCount} {t('مستلم مطابق', 'matching recipients')} · {t('صفحة','Page')} {page}
                 </p>
-                <button className="btn" onClick={downloadLedger}>
+                <button className="btn" disabled={ledgerLoading||!ledger.items.length} onClick={downloadLedger}>
                   {t('تنزيل الصفحة المحملة', 'Download loaded page')}
                 </button>
               </div>
