@@ -41,13 +41,15 @@ export default function TestPanel({
   const [statusError, setStatusError] = useState('');
   const [showVars, setShowVars] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
+  const testLock=useRef(false);
   useEffect(() => {
     const chat = chatRef.current;
     if (chat) chat.scrollTop = chat.scrollHeight;
   }, [log, busy]);
 
   async function run(body: Record<string, unknown>, youSaid?: string) {
-    if (busy) return;
+    if (testLock.current) return;
+    testLock.current=true;
     setBusy(true);
     setError('');
     try {
@@ -77,11 +79,13 @@ export default function TestPanel({
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      testLock.current=false;
       setBusy(false);
     }
   }
 
   const restart = () => {
+    if(testLock.current)return;
     onProgress?.(null, true);
     setLog([]);
     setState(null);
@@ -91,7 +95,7 @@ export default function TestPanel({
     run({ text: 'hi' });
   };
   const send = (t: string, replyId?: string) => {
-    if (!state) return;
+    if (!state || testLock.current) return;
     setText('');
     run({ state, text: t, replyId }, t);
   };
