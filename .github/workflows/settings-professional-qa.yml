@@ -34,6 +34,14 @@ jobs:
       - name: Install and build
         run: corepack enable && pnpm install --frozen-lockfile && pnpm --filter api build && pnpm --filter web build
       - name: Auth and integration regression
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://qa:qa@127.0.0.1:1/qa
+          REDIS_URL: redis://127.0.0.1:1
+          JWT_SECRET: local-synthetic-regression-signing-key-only
+          ENCRYPTION_KEY: '1111111111111111111111111111111111111111111111111111111111111111'
+          EXTERNAL_DELIVERY_ENABLED: 'false'
+          AI_PROVIDER_CALLS_ENABLED: 'false'
         run: pnpm --filter api exec tsx --test src/auth/role-session.test.ts src/auth/account-profile.pg.test.ts src/integrations/contracts.test.ts src/integrations/google-oauth.test.ts src/flows/engine/integration-output.test.ts
       - name: Install browser driver
         run: npm install --prefix "$RUNNER_TEMP/boat-playwright" playwright@1.56.1 --ignore-scripts
