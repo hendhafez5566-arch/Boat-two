@@ -16,13 +16,15 @@ type Job = {
 };
 export function KnowledgeJobs() {
   const { t } = useLocale();
+  const [query,setQuery]=useState(''),[status,setStatus]=useState('all'),[page,setPage]=useState(1);
+  const path='/ai/knowledge-jobs/index?'+new URLSearchParams({q:query,status,page:String(page),limit:'12'});
   const data = useData<{
-    jobs: Job[];
+    jobs: Job[];total:number;
     usage: { charged: number; reserved: number };
     limit: number;
     reservations: { effect_key: string; amount: number; status: string }[];
-  }>('/ai/knowledge-jobs', {
-    jobs: [],
+  }>(path, {
+    jobs: [],total:0,
     usage: { charged: 0, reserved: 0 },
     limit: 0,
     reservations: [],
@@ -30,9 +32,11 @@ export function KnowledgeJobs() {
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
   const lock=useRef(false);
-  const [notice,setNotice]=useState(''),[query,setQuery]=useState(''),[status,setStatus]=useState('all');
+  const [notice,setNotice]=useState('');
   useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4000);return()=>clearTimeout(timer);},[notice]);
-  const jobs=data.data.jobs.filter(job=>(status==='all'||job.status===status)&&(job.title+' '+job.id).toLowerCase().includes(query.trim().toLowerCase()));
+  const ready=data.loadedPath===path&&!data.loading&&!data.error;
+  const jobs=ready?data.data.jobs:[],pages=Math.max(1,Math.ceil(data.data.total/12));
+  useEffect(()=>{setPage(1);},[query,status]);useEffect(()=>{if(ready&&page>pages)setPage(pages);},[ready,page,pages]);
   async function act(path: string, body?: unknown) {
     if(lock.current)return;lock.current=true;setBusy(true);setNotice('');
     setError('');
@@ -69,8 +73,8 @@ export function KnowledgeJobs() {
         </p>
       )}
       {notice&&<p role="status" className="notice">{notice}</p>}
-      <div className="form-actions"><input type="search" aria-label={t('بحث مهام المعرفة','Search knowledge jobs')} value={query} onChange={e=>setQuery(e.target.value)}/><select aria-label={t('حالة المهمة','Job status')} value={status} onChange={e=>setStatus(e.target.value)}><option value="all">{t('كل الحالات','All statuses')}</option>{['pending','running','blocked','failed','completed','canceled'].map(v=><option key={v}>{v}</option>)}</select><small>{t('بحث في المهام المحملة','Search loaded jobs')}</small></div>
-      {data.error?null:data.loading ? (
+      <div className="form-actions"><input type="search" aria-label={t('بحث مهام المعرفة','Search knowledge jobs')} maxLength={200} value={query} onChange={e=>setQuery(e.target.value)}/><select aria-label={t('حالة المهمة','Job status')} value={status} onChange={e=>setStatus(e.target.value)}><option value="all">{t('كل الحالات','All statuses')}</option>{['pending','running','blocked','failed','completed','canceled'].map(v=><option key={v}>{v}</option>)}</select><button className="btn" onClick={()=>{setQuery('');setStatus('all');}}>{t('مسح فلاتر المهام','Clear job filters')}</button></div>
+      {data.error?null:!ready ? (
         <p>{t('جارٍ التحميل…', 'Loading…')}</p>
       ) : !jobs.length ? (
         <p>{t('لا توجد مهام مطابقة.', 'No matching jobs.')}</p>
@@ -106,6 +110,7 @@ export function KnowledgeJobs() {
           </article>
         ))
       )}
+      {ready&&data.data.total>0&&<div className="form-actions"><span>{data.data.total} · {page}/{pages}</span><button className="btn" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>{t('السابق','Previous')}</button><button className="btn" disabled={page>=pages} onClick={()=>setPage(p=>p+1)}>{t('التالي','Next')}</button></div>}
       {!data.error&&!data.loading&&data.data.reservations.map((reservation) => (
         <details key={reservation.effect_key}>
           <DisclosureSummary>
