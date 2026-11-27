@@ -171,7 +171,7 @@ export class SequencesService implements OnModuleInit, OnModuleDestroy {
     this.validate(input);
     return this.db.withTenant(tenantId, async (c) => {
       const existing = (
-        await c.query('SELECT channel_id,revision FROM sequences WHERE id=$1 FOR UPDATE', [id])
+        await c.query('SELECT channel_id,revision,steps FROM sequences WHERE id=$1 FOR UPDATE', [id])
       ).rows[0];
       if (!existing) throw new NotFoundException('Sequence not found');
       if (input.expectedRevision !== existing.revision)
@@ -186,6 +186,12 @@ export class SequencesService implements OnModuleInit, OnModuleDestroy {
             },
           ],
         });
+      // Enrollments reference the next step by index. Structural edits must not shift an active subscriber's progress.
+      const before=(existing.steps as SequenceStep[]).map(step=>step.id);
+      const after=input.steps.map(step=>step.id);
+      if(JSON.stringify(before)!==JSON.stringify(after)&&(
+        await c.query("SELECT 1 FROM sequence_enrollments WHERE sequence_id=$1 AND status='active' LIMIT 1",[id])
+      ).rowCount) throw new ConflictException('Active subscribers have saved progress. Stop those enrollments before adding, removing or reordering steps, or create a new sequence.');
       for (const step of input.steps)
         if (step.content.template) await validateCampaignContent(c, input.channelId, step.content as MessageContent);
       const row = (
@@ -255,7 +261,7 @@ export class SequencesService implements OnModuleInit, OnModuleDestroy {
 
   async enroll(tenantId: string, sequenceId: string, contactId: string) {
     return this.db.withTenant(tenantId, async (c) => {
-      const s = (await c.query('SELECT * FROM sequences WHERE id=$1', [sequenceId])).rows[0];
+      const s = (await c.query('SELECT * FROM sequences WHERE id=$1 FOR UPDATE', [sequenceId])).rows[0];
       if (!s) throw new NotFoundException('Sequence not found');
       if (s.status !== 'active') throw new BadRequestException('Sequence is not active');
       const steps = s.steps as SequenceStep[];
