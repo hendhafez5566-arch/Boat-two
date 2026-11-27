@@ -76,6 +76,7 @@ export function SmartSales() {
     total: 0,
     items: [],
   });
+  const [salesTab,setSalesTab]=useState('queue');
   const [scenario, setScenario] = useState({
     channelId: '',
     departmentId: '',
@@ -220,12 +221,7 @@ export function SmartSales() {
           </span>
           <h1>{t('التوزيع والإسناد', 'Assignment')}</h1>
           <div className={css.row}>
-            <a className="btn" href="#assignment-queue">
-              {t('بانتظار التوزيع', 'Assignment queue')}
-            </a>
-            <a className="btn" href="#assignment-history">
-              {t('سجل الإسناد', 'Assignment history')}
-            </a>
+            <span className="badge">{t('بانتظار التوزيع','Waiting for assignment')}: {queue.loading?'…':queue.error?'—':queue.data.total}</span>
             <Link className="btn" href="/dashboard/team">
               {t('الفريق والتوفر', 'Team and availability')}
             </Link>
@@ -248,6 +244,8 @@ export function SmartSales() {
           {notice}
         </p>
       )}
+      <nav className="workbench-tabs" aria-label={t('إدارة الإسناد','Assignment sections')}>{[['queue',t('طابور التوزيع','Queue'),'chat'],['settings',t('قواعد الإسناد والتنبيهات','Rules & alerts'),'settings'],['automation',t('الأتمتة والتقييم','Automation & scoring'),'bolt'],['history',t('السجل وأداء الفريق','History & team'),'reports']].map(([key,label,icon])=><button key={key} type="button" aria-pressed={salesTab===key} onClick={()=>setSalesTab(key)}><NavIcon name={icon}/>{label}</button>)}</nav>
+      <div hidden={salesTab!=='settings'}>
       {!draft ? (
         <p role="status">{t('جارٍ تحميل الإعدادات…', 'Loading settings…')}</p>
       ) : (
@@ -762,9 +760,8 @@ export function SmartSales() {
           </Button>
         </form>
       )}
-      <CrmAutomation />
-      <SalesScoringSignals />
-      <section id="assignment-queue" className={styles.card}>
+      </div><div className="stack" hidden={salesTab!=='automation'}><CrmAutomation /><SalesScoringSignals /></div>
+      <section hidden={salesTab!=='queue'} id="assignment-queue" className={styles.card}>
         <h2>
           {t('محادثات تنتظر التوزيع', 'Conversations waiting for assignment')} · {queue.data.total}
         </h2>
@@ -789,7 +786,7 @@ export function SmartSales() {
                 className="btn"
                 href={`/dashboard/inbox?conversation=${cv.id}&channelId=${cv.channel_id}`}
               >
-                {t('فتح المحادثة وتعيين موظف', 'Open conversation and assign employee')}
+                <NavIcon name="chat"/>{t('فتح المحادثة وتعيين موظف', 'Open conversation and assign employee')}
               </Link>
               <button
                 className="btn"
@@ -808,7 +805,7 @@ export function SmartSales() {
                   }
                 }}
               >
-                {t('إعادة محاولة التوزيع', 'Retry assignment')}
+                <NavIcon name="refresh"/>{t('إعادة محاولة التوزيع', 'Retry assignment')}
               </button>
             </div>
           </article>
@@ -822,7 +819,7 @@ export function SmartSales() {
           </p>
         )}
       </section>
-      <TeamProductivity />
+      <div className="stack" hidden={salesTab!=='history'}><TeamProductivity />
       <section id="assignment-history" className={styles.card}>
         <h2>{t('آخر تغييرات المسؤول', 'Recent assignment changes')}</h2>
         {history.error && <p role="alert">{history.error}</p>}
@@ -838,7 +835,7 @@ export function SmartSales() {
             </div>
           </div>
         ))}
-      </section>
+      </section></div>
     </main>
   );
 }

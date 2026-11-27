@@ -309,3 +309,5 @@
 .shell[data-crm-suite] .queue a{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:45px;font-size:13px}.queue a strong{display:flex;align-items:center;gap:7px}
 .shell[data-crm-suite] .queue time{color:#64748b;font-size:12px}.shell[data-crm-suite] .queue a:last-child{color:#2563eb;font-weight:650}
 .shell[data-crm-suite] .sectionLinks button[aria-pressed=true]{background:#eaf0fa;color:#2563eb;border-color:#bfdbfe;font-weight:700}
+
+.shell[data-crm-suite] :global(.workbench-tabs button[aria-pressed=true]){color:#2563eb;background:#eaf0fa;border-color:#bfdbfe}.shell[data-crm-suite] :global(.workbench-tabs button){display:flex;align-items:center;gap:6px}.shell[data-crm-suite] :global(.workbench-tabs svg){width:16px;height:16px}

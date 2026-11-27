@@ -20,6 +20,7 @@ type Condition = {
 export function CrmSegments() {
   const { t } = useLocale();
   const member = useData<{ role: string }>('/crm/workspace/members', { role: '' });
+  const [segmentTab,setSegmentTab]=useState('saved');
   const [match, setMatch] = useState('allOf');
   const [rules, setRules] = useState<{ field: string; value: string }[]>([
     { field: 'tag', value: '' },
@@ -116,7 +117,8 @@ export function CrmSegments() {
           'Start with a ready view or combine your own conditions. Saved rules stay current with your data.',
         )}
       </p>
-      <div className={styles.grid}>
+      <nav className="workbench-tabs" aria-label={t('أقسام الشرائح','Segment sections')}>{[['saved',t('العروض المحفوظة','Saved views'),'list'],['build',t('إنشاء شريحة','Build segment'),'filter']].map(([key,label,icon])=><button key={key} type="button" aria-pressed={segmentTab===key} onClick={()=>setSegmentTab(key)}><NavIcon name={icon}/>{label}</button>)}</nav>
+      <div className={styles.grid} hidden={segmentTab!=='saved'}>
         {[
           ['unassigned', t('دون مسؤول', 'Without an owner'), 'team'],
           ['unattended', t('دون متابعة', 'Without a follow-up'), 'userClock'],
@@ -131,7 +133,7 @@ export function CrmSegments() {
         ))}
       </div>
       <fieldset
-        className={`${styles.form} ${styles.segmentBuilder}`}
+        className={`${styles.form} ${styles.segmentBuilder}`} hidden={segmentTab!=='build'}
         disabled={busy}
         onChange={() => {
           setResult(null);
@@ -218,10 +220,10 @@ export function CrmSegments() {
               setRules([...rules, { field: 'tag', value: '' }]);
             }}
           >
-            {t('إضافة شرط', 'Add condition')}
+            <NavIcon name="plus"/>{t('إضافة شرط', 'Add condition')}
           </Button>
           <Button busy={busy} onClick={() => void run(false)}>
-            {t('عرض النتائج', 'Show results')}
+            <NavIcon name="eye"/>{t('عرض النتائج', 'Show results')}
           </Button>
         </div>
         <label>
@@ -245,7 +247,7 @@ export function CrmSegments() {
           {error || list.error}
         </p>
       )}
-      <section aria-label={t('العروض المحفوظة', 'Saved views')} className={styles.savedViews}>
+      <section hidden={segmentTab!=='saved'} aria-label={t('العروض المحفوظة', 'Saved views')} className={styles.savedViews}>
         <h3>{t('العروض المحفوظة', 'Saved views')}</h3>
         {list.loading && <p role="status">{t('جارٍ تحميل العروض…', 'Loading views…')}</p>}
         {!list.loading && !list.error && !list.data.length && (

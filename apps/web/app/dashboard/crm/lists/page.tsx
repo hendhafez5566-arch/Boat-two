@@ -4,7 +4,8 @@ import { FormEvent, useRef, useState } from 'react';
 import { api } from '../../../../lib/api';
 import { useData } from '../../../../components/business/useData';
 import { useLocale } from '../../../../components/product/locale';
-import { Button, EmptyState, Feedback } from '../../../../components/product/ProductUI';
+import { NavIcon } from '../../../../components/product/NavIcon';
+import { Button, Dialog, EmptyState, Feedback } from '../../../../components/product/ProductUI';
 import styles from './lists.module.css';
 
 type Member = { id: string; name: string; email: string | null; phone: string | null };
@@ -14,6 +15,9 @@ export default function ContactLists() {
   const { t } = useLocale();
   const lists = useData<ContactList[]>('/contact-lists', []);
   const [selected, setSelected] = useState('');
+  const [createOpen,setCreateOpen]=useState(false);
+  const [listQuery,setListQuery]=useState('');
+  const [memberQuery,setMemberQuery]=useState('');
   const [members, setMembers] = useState<Member[]>([]);
   const [candidates, setCandidates] = useState<Member[]>([]);
   const [contactId, setContactId] = useState('');
@@ -44,6 +48,7 @@ export default function ContactLists() {
       form.reset();
       lists.reload();
       await load(row.id);
+      setCreateOpen(false);
       setSearchText('');
       setCandidates([]);
       setContactId('');
@@ -110,15 +115,16 @@ export default function ContactLists() {
     <main className={`stack ${styles.page}`}>
       <header className="page-heading">
         <div>
-          <h1>{t('قوائم العملاء', 'Customer lists')}</h1>
-        </div>
+          <h1>{t('قوائم العملاء', 'Customer lists')}</h1><p>{t('أنشئ مجموعات ثابتة ونظّم أعضاء كل قائمة','Create fixed audiences and manage their members')}</p>
+        </div><button type="button" className="btn btn-primary" onClick={()=>{setError('');setCreateOpen(true);}}><NavIcon name="plus"/>{t('قائمة جديدة','New list')}</button>
       </header>
 
       {(error || lists.error) && <Feedback error>{error || lists.error}</Feedback>}
       {message && <Feedback>{message}</Feedback>}
 
       <div className={styles.workspace}>
-        <section className={`card ${styles.createCard}`} aria-labelledby="new-list-heading">
+        <aside className={`card ${styles.listIndex}`}><h2><NavIcon name="list"/>{t('القوائم','Lists')} · {lists.data.length}</h2><input type="search" value={listQuery} onChange={e=>setListQuery(e.target.value)} placeholder={t('بحث عن قائمة','Search lists')} aria-label={t('بحث القوائم','Search lists')}/>{lists.loading&&<p role="status">{t('جارٍ التحميل…','Loading…')}</p>}{lists.data.filter(l=>l.name.toLowerCase().includes(listQuery.toLowerCase().trim())).map(l=><button key={l.id} type="button" aria-pressed={selected===l.id} disabled={busy} onClick={()=>{setBusy(true);setMessage('');setError('');setSearchText('');setCandidates([]);setContactId('');setMemberQuery('');++searchRequest.current;void load(l.id).catch(e=>setError(e.message)).finally(()=>setBusy(false));}}><NavIcon name="list"/><strong>{l.name}</strong><small>{l.members}</small></button>)}</aside>
+        <Dialog open={createOpen} onClose={()=>{if(!busy)setCreateOpen(false);}} title={t('قائمة جديدة','New list')}><section className={styles.createCard} aria-labelledby="new-list-heading">
           <div className={styles.sectionHeading}>
             <div>
               <h2 id="new-list-heading">{t('أنشئ قائمة', 'Create an audience list')}</h2>
@@ -137,8 +143,8 @@ export default function ContactLists() {
             <Button variant="primary" type="submit" busy={busy}>
               {t('إنشاء القائمة', 'Create list')}
             </Button>
-          </form>
-        </section>
+          {error&&<Feedback error>{error}</Feedback>}</form>
+        </section></Dialog>
 
         <section className={`card ${styles.manageCard}`} aria-labelledby="manage-list-heading">
           <div className={styles.sectionHeading}>
@@ -226,14 +232,14 @@ export default function ContactLists() {
                     </Button>
                   </div>
                   <div className={styles.memberHeading}>
-                    <h3>{t('الأعضاء الحاليون', 'Current members')}</h3>
+                    <h3><NavIcon name="team"/>{t('الأعضاء الحاليون', 'Current members')}</h3><input type="search" value={memberQuery} onChange={e=>setMemberQuery(e.target.value)} aria-label={t('بحث الأعضاء المحملين','Search loaded members')} placeholder={t('بحث بين الأعضاء','Search members')}/>
                     <span>{t('يُعرض أحدث 500 عضو', 'Up to 500 recent members shown')}</span>
                   </div>
                   {members.length === 0 ? (
                     <EmptyState icon="user" title={t('القائمة فارغة', 'This list is empty')} />
                   ) : (
                     <ul className={styles.memberList}>
-                      {members.map((member) => (
+                      {members.filter(m=>[m.name,m.phone,m.email].join(' ').toLowerCase().includes(memberQuery.toLowerCase().trim())).map((member) => (
                         <li key={member.id} className={styles.memberRow}>
                           <div>
                             <strong>
@@ -249,7 +255,7 @@ export default function ContactLists() {
                             disabled={busy}
                             onClick={() => void change(member.id, true)}
                           >
-                            {t('إزالة', 'Remove')}
+                            <NavIcon name="trash"/>{t('إزالة', 'Remove')}
                           </Button>
                         </li>
                       ))}
