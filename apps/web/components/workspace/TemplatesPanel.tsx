@@ -42,6 +42,8 @@ export default function Templates({
     action: 'submit' | 'archive';
   }>();
   const lock = useRef(false);
+  const dirty=useRef(false);
+  const [editorUploading,setEditorUploading]=useState(false);
   const label = (value: string) =>
     (
       ({
@@ -121,11 +123,13 @@ export default function Templates({
     }
   }
   function closeEditor() {
+    dirty.current=false;
     setCreating(false);
     setEditing(undefined);
     setCopy(undefined);
     setError('');
   }
+  function cancelEditor(){if(busy||editorUploading)return;if(!dirty.current||confirm(t('إلغاء التعديلات غير المحفوظة؟','Discard unsaved changes?')))closeEditor();}
   function saveDraft(draft: unknown, review = false) {
     return act(
       editing ? path + '/' + editing.id : path,
@@ -141,7 +145,7 @@ export default function Templates({
   if (creating || editing || copy) {
     return (
       <section className={styles.editor}>
-        <button type="button" className={styles.back} disabled={busy} onClick={()=>{if(confirm(t('العودة دون حفظ التعديلات؟','Return without saving changes?')))closeEditor();}}>
+        <button type="button" className={styles.back} disabled={busy||editorUploading} onClick={cancelEditor}>
           <NavIcon name="chevron"/>{t('العودة إلى القوالب', 'Back to templates')}
         </button>
         {error && (
@@ -153,7 +157,9 @@ export default function Templates({
           key={editing ? editing.id + ':' + editing.revision : copy ? 'copy:' + copy.id : 'new'}
           initial={editing || copy}
           busy={busy}
-          cancel={()=>{if(confirm(t('إلغاء التعديلات غير المحفوظة؟','Discard unsaved changes?')))closeEditor();}}
+          cancel={cancelEditor}
+          onDirtyChange={value=>{dirty.current=value;}}
+          onUploadChange={setEditorUploading}
           uploadMedia={
             availability.data?.mediaUpload
               ? async (file, format) => {

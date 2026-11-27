@@ -43,6 +43,8 @@ export function TemplateDraftForm({
   cancel,
   saveAndReview,
   uploadMedia,
+  onDirtyChange,
+  onUploadChange,
 }: {
   initial?: TemplateRow;
   busy: boolean;
@@ -50,6 +52,8 @@ export function TemplateDraftForm({
   uploadMedia?: (file: File, format: string) => Promise<string>;
   saveAndReview?: (draft: unknown) => Promise<boolean>;
   cancel?: () => void;
+  onDirtyChange?: (dirty:boolean)=>void;
+  onUploadChange?: (uploading:boolean)=>void;
 }) {
   const { t, language: uiLanguage } = useLocale();
   const mediaHintId = useId();
@@ -79,6 +83,12 @@ export function TemplateDraftForm({
   const [buttons, setButtons] = useState<DraftButton[]>(
     initial?.components.find((c) => c.type === 'BUTTONS')?.buttons || [],
   );
+  const fingerprint=JSON.stringify({name,language,category,body,examples,format,headerText,headerSample,footer,buttons});
+  const original=useRef(fingerprint);
+  const dirty=fingerprint!==original.current;
+  useEffect(()=>{onDirtyChange?.(dirty);},[dirty,onDirtyChange]);
+  useEffect(()=>{onUploadChange?.(uploading);return()=>onUploadChange?.(false);},[uploading,onUploadChange]);
+  useEffect(()=>{if(!dirty)return;const warn=(e:BeforeUnloadEvent)=>{e.preventDefault();e.returnValue='';};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[dirty]);
   function update(index: number, next: Partial<DraftButton>) {
     setButtons(buttons.map((b, i) => (i === index ? { ...b, ...next } : b)));
   }
@@ -93,6 +103,27 @@ export function TemplateDraftForm({
     tokens.every((token, index) => token === String(index + 1)) &&
     !/\{\{|\}\}/.test(body.replace(/\{\{\d+\}\}/g, ''));
 
+  function validateDesign(){
+    if(!body.trim())return t('اكتب نص الرسالة.','Enter the message text.');
+    if(!numbered)return t('رتّب المتغيرات بدءًا من {{1}} دون تخطي رقم.','Use consecutive variables starting at {{1}}.');
+    if(tokens.some((_,i)=>!samples[i]?.trim()))return t('أدخل مثالًا لكل متغير.','Enter one example for every variable.');
+    if(format==='TEXT'&&(!headerText.trim()||/\{\{|\}\}/.test(headerText.replace(/\{\{1\}\}/g,''))||(headerText.includes('{{1}}')&&!headerSample.trim())))return t('الترويسة النصية تحتاج نصًا صالحًا ومثالًا للمتغير {{1}} إن وجد.','Enter valid header text and a sample for variable {{1}} if used.');
+    if(format!=='NONE'&&format!=='TEXT'&&!headerSample.trim())return t('ارفع عينة الترويسة أولًا.','Upload a header sample first.');
+    if(footer&&(!footer.trim()||/\{\{|\}\}/.test(footer)))return t('التذييل نص ثابت بدون متغيرات.','Footer must be fixed text without variables.');
+    const replies=buttons.filter(b=>b.type==='QUICK_REPLY').length;
+    if((replies&&replies!==buttons.length)||buttons.filter(b=>b.type==='URL').length>2||buttons.filter(b=>b.type==='PHONE_NUMBER').length>1)return t('اختر ردودًا سريعة فقط، أو حتى رابطين وزر اتصال واحد.','Use quick replies only, or up to two URL buttons and one phone button.');
+    for(const b of buttons){
+      if(!b.text.trim())return t('اكتب عنوانًا لكل زر.','Enter a label for every button.');
+      if(b.type==='PHONE_NUMBER'&&!/^\+[0-9]{6,15}$/.test(b.phone_number||''))return t('اكتب رقم الاتصال بالصيغة الدولية.','Enter a valid international phone number.');
+      if(b.type==='URL'){
+        const raw=b.url||'',dynamic=raw.endsWith('{{1}}'),prefix=dynamic?raw.slice(0,-5):raw;
+        try{const u=new URL(raw.replace('{{1}}','value'));if(u.protocol!=='https:'||u.username||u.password||/[{}]/.test(prefix)||/[{}]/.test(u.hostname))throw new Error();}
+        catch{return t('استخدم رابط HTTPS صالحًا؛ المتغير {{1}} يكون في النهاية فقط.','Use a valid HTTPS URL; {{1}} is allowed only at the end.');}
+        if(dynamic){const example=b.example?.[0]||'';try{new URL(example);if(!example.startsWith(prefix)||example.length<=prefix.length||/[{}\r\n]/.test(example))throw new Error();}catch{return t('أدخل رابطًا تجريبيًا كاملًا يبدأ بنفس رابط الزر الثابت.','Enter a complete sample URL extending the static prefix.');}}
+      }
+    }
+    return '';
+  }
   const steps = [
     t('معلومات القالب', 'Template details'),
     t('تصميم الرسالة', 'Message design'),
@@ -332,9 +363,9 @@ export function TemplateDraftForm({
                   )
                 }
               >
-                <option value="QUICK_REPLY">{t('رد سريع', 'Quick reply')}</option>
-                <option value="URL">{t('رابط', 'URL')}</option>
-                <option value="PHONE_NUMBER">{t('اتصال', 'Phone')}</option>
+                <option value="QUICK_REPLY" disabled={buttons.some((x,n)=>n!==i&&x.type!=='QUICK_REPLY')}>{t('رد سريع', 'Quick reply')}</option>
+                <option value="URL" disabled={buttons.some((x,n)=>n!==i&&x.type==='QUICK_REPLY')||buttons.filter((x,n)=>n!==i&&x.type==='URL').length>=2}>{t('رابط', 'URL')}</option>
+                <option value="PHONE_NUMBER" disabled={buttons.some((x,n)=>n!==i&&(x.type==='QUICK_REPLY'||x.type==='PHONE_NUMBER'))}>{t('اتصال', 'Phone')}</option>
               </select>
             </label>
             <label className="field">
@@ -400,8 +431,8 @@ export function TemplateDraftForm({
         <button
           type="button"
           className="btn"
-          disabled={buttons.length >= 10}
-          onClick={() => setButtons([...buttons, { type: 'QUICK_REPLY', text: '' }])}
+          disabled={buttons.length>=10||(buttons.some(b=>b.type!=='QUICK_REPLY')&&buttons.length>=3)}
+          onClick={()=>setButtons([...buttons,{type:buttons.some(b=>b.type!=='QUICK_REPLY')?(buttons.filter(b=>b.type==='URL').length<2?'URL':'PHONE_NUMBER'):'QUICK_REPLY',text:'',...(buttons.some(b=>b.type!=='QUICK_REPLY')?(buttons.filter(b=>b.type==='URL').length<2?{url:''}:{phone_number:''}):{})}])}
         >
           <NavIcon name="plus"/>{t('إضافة زر', 'Add button')} · {buttons.length}/10
         </button>
@@ -457,17 +488,7 @@ export function TemplateDraftForm({
       onSubmit={async (e) => {
         e.preventDefault();
         if (busy || uploading) return;
-        if (step === 1 && (!numbered || !body.trim())) {
-          setDesignError(
-            !numbered
-              ? t(
-                  'رتّب المتغيرات في النص بدءًا من {{1}} ثم {{2}} بدون تخطي رقم.',
-                  'Use consecutive variables in order, starting with {{1}} then {{2}}.',
-                )
-              : t('اكتب نص الرسالة.', 'Enter the message text.'),
-          );
-          return;
-        }
+        if(step>=1){const issue=validateDesign();if(issue){setDesignError(issue);setOptionsOpen(true);setStep(1);return;}}
         setDesignError('');
         if (step < 2) {
           setStep(step + 1);
@@ -528,7 +549,7 @@ export function TemplateDraftForm({
             {step === 1 && (
               <>
                 {contentFields}
-                {designError && <p role="alert">{designError}</p>}
+                {designError&&<p className={studio.validation} role="alert"><NavIcon name="flag"/>{designError}</p>}
                 <details
                   className={studio.draftOptions}
                   open={optionsOpen} onToggle={e=>setOptionsOpen(e.currentTarget.open)}
