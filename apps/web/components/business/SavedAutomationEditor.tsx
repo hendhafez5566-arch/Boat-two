@@ -547,7 +547,9 @@ function Steps({
 }
 export function SavedAutomationEditor({ initialRuleId = '',onDraftState }: { initialRuleId?: string;onDraftState?:(dirty:boolean,busy:boolean)=>void }) {
   const { t } = useLocale();
-  const rules = useData<Rule[]>('/automations', []),
+  const [search,setSearch]=useState('');
+  const rulesPath='/automations/index?'+new URLSearchParams({q:search,limit:'100'});
+  const rules=useData<{items:Rule[];total:number}>(rulesPath,{items:[],total:0}),
     secrets = useData<
       {
         id: string;
@@ -582,17 +584,11 @@ export function SavedAutomationEditor({ initialRuleId = '',onDraftState }: { ini
   const lock=useRef(false);
   const opened=useRef('');
   const [snapshot,setSnapshot]=useState('');
-  const [search,setSearch]=useState('');
   const dirty=!!rule&&JSON.stringify(rule)!==snapshot;
   const canReplace=()=>!lock.current&&(!dirty||window.confirm(t('تجاهل التعديلات غير المحفوظة؟','Discard unsaved changes?')));
   useEffect(()=>{onDraftState?.(dirty,busy);},[dirty,busy,onDraftState]);
   useEffect(()=>{if(!message)return;const timer=setTimeout(()=>setMessage(''),4000);return()=>clearTimeout(timer);},[message]);
-  useEffect(() => {
-    if (initialRuleId&&opened.current!==initialRuleId) {
-      const target = rules.data.find((row) => row.id === initialRuleId);
-      if (target) {opened.current=initialRuleId;setRule(target);setSnapshot(JSON.stringify(target));}
-    }
-  }, [initialRuleId, rules.data]);
+  useEffect(()=>{if(!initialRuleId||opened.current===initialRuleId)return;let active=true;api<Rule>('/automations/'+initialRuleId+'/detail').then(target=>{if(active){opened.current=initialRuleId;setRule(target);setSnapshot(JSON.stringify(target));}}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[initialRuleId]);
   const [versions, setVersions] = useState<
     { revision: number; snapshot: Partial<Rule>; created_at: string }[]
   >([]);
@@ -630,28 +626,30 @@ export function SavedAutomationEditor({ initialRuleId = '',onDraftState }: { ini
       )}
       {message && <p className="notice" role="status">{message}</p>}
       {dirty&&<p role="status" className="notice">{t('تغييرات غير محفوظة','Unsaved changes')}</p>}
-      <input type="search" aria-label={t('بحث القواعد المحفوظة','Search saved rules')} value={search} onChange={e=>setSearch(e.target.value)}/>
+      <input type="search" aria-label={t('بحث القواعد المحفوظة','Search saved rules')} maxLength={100} value={search} onChange={e=>setSearch(e.target.value)}/>
       <label className="field">
         {t('افتح قاعدة محفوظة', 'Open a saved rule')}
         <select
-          disabled={busy||rules.loading||!!rules.error} aria-label={t('افتح قاعدة محفوظة','Open a saved rule')}
+          disabled={busy||rules.loading||!!rules.error||rules.loadedPath!==rulesPath} aria-label={t('افتح قاعدة محفوظة','Open a saved rule')}
           value={rule?.id || ''}
           onChange={(e) => {
             if(!canReplace())return;
-            const selected=rules.data.find((row) => row.id === e.target.value) || null;setRule(selected);setSnapshot(selected?JSON.stringify(selected):'');
+            const selected=rules.data.items.find((row) => row.id === e.target.value) || (rule?.id===e.target.value?rule:null);setRule(selected);setSnapshot(selected?JSON.stringify(selected):'');
             setHistory([]);
             setFuture([]);
             setVersions([]);
           }}
         >
           <option value="">{t('اختر قاعدة', 'Choose a rule')}</option>
-          {rules.data.filter(row=>row.id===rule?.id||(row.name+' '+row.id).toLowerCase().includes(search.trim().toLowerCase())).map((row) => (
+          {rule&&!rules.data.items.some(row=>row.id===rule.id)&&<option value={rule.id}>{rule.name}</option>}
+          {rules.data.items.map((row) => (
             <option key={row.id} value={row.id}>
               {row.name}
             </option>
           ))}
         </select>
       </label>
+      {rules.data.total>100&&<small>{t('ضيّق البحث للوصول إلى القواعد الأخرى.','Refine the search to find more rules.')}</small>}
       <button className="btn" disabled={busy||rules.loading} onClick={() => rules.reload()}>
         {t('تحديث القائمة', 'Refresh list')}
       </button>
@@ -976,10 +974,10 @@ export function SavedAutomationEditor({ initialRuleId = '',onDraftState }: { ini
           </details>
           <button
             className="btn"
-            disabled={busy || !rules.data.some((row) => row.id === failure.rule_id)}
-            onClick={() => {
-              const current = rules.data.find((row) => row.id === failure.rule_id);
-              if (!current||!canReplace()) return;
+            disabled={busy||!failure.rule_id}
+            onClick={async () => {
+              if(!canReplace())return;
+              let current:Rule;try{current=await api<Rule>('/automations/'+failure.rule_id+'/detail');}catch(e){setError((e as Error).message);return;}
               setRule(current);setSnapshot(JSON.stringify(current));
               setHistory([]);
               setFuture([]);
