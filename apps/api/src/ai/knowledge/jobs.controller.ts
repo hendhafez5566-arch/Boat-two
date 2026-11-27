@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   Post,
   Req,
+  Query,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -44,6 +45,18 @@ export class KnowledgeJobsController {
         )
       ).rows,
     }));
+  }
+  @Get('index') index(@Req() r:AuthedRequest,@Query() query:unknown){
+    const q=parse(z.object({q:z.string().trim().max(200).default(''),status:z.enum(['all','pending','running','blocked','failed','completed','canceled']).default('all'),page:z.coerce.number().int().min(1).max(100000).default(1),limit:z.coerce.number().int().min(1).max(100).default(12)}),query);
+    return this.db.withTenant(r.user.tenantId,async c=>{
+      const params:unknown[]=[];const clauses:string[]=[];
+      if(q.status!=='all'){params.push(q.status);clauses.push('j.status=$'+params.length);}
+      if(q.q){params.push('%'+q.q.replace(/[\\%_]/g,v=>'\\'+v)+'%');clauses.push('(s.title ILIKE $'+params.length+' OR j.id::text ILIKE $'+params.length+')');}
+      const from=' FROM knowledge_jobs j JOIN knowledge_sources s ON s.id=j.source_id'+(clauses.length?' WHERE '+clauses.join(' AND '):'');
+      const total=Number((await c.query('SELECT count(*)::int AS n'+from,params)).rows[0].n);
+      const jobs=(await c.query('SELECT j.id,j.source_id,s.title,j.status,j.processed,j.total,j.error,j.attempts,j.updated_at'+from+' ORDER BY j.created_at DESC,j.id LIMIT $'+(params.length+1)+' OFFSET $'+(params.length+2),[...params,q.limit,(q.page-1)*q.limit])).rows;
+      return {jobs,total,usage:(await c.query("SELECT charged,reserved,period FROM embedding_usage WHERE period=date_trunc('month',now())::date")).rows[0]??{charged:0,reserved:0},limit:(await this.plans.getTenantPlan(c)).limits.embedding_token_budget??0,reservations:(await c.query("SELECT effect_key,amount,status,created_at FROM embedding_reservations WHERE status IN ('reserved','uncertain') ORDER BY created_at DESC LIMIT 100")).rows};
+    });
   }
   @Post(':id/resume') resume(@Req() r: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.db.withTenant(r.user.tenantId, async (c) => {
