@@ -160,7 +160,7 @@ export function KnowledgeSourceEditor({
       </div>
       {error && (
         <p role="alert" className="notice error">
-          {error} {loadError&&<button type="button" className="btn" disabled={busy} onClick={()=>{if(!canLeave())return;setError('');void load().catch(e=>{setLoadError(true);setError(e.message);});}}>{t('إعادة تحميل المصدر','Reload source')}</button>}
+          {error} {loadError&&<button type="button" className="btn" disabled={busy} onClick={()=>{if(!canLeave())return;lock.current=true;setBusy(true);setError('');void load().catch(e=>{setLoadError(true);setError(e.message);}).finally(()=>{lock.current=false;setBusy(false);});}}>{t('إعادة تحميل المصدر','Reload source')}</button>}
         </p>
       )}
       {notice && <p className="notice" role="status">{notice}</p>}
@@ -276,7 +276,7 @@ export function KnowledgeSourceEditor({
                 <label>
                   {t('الملف البديل', 'Replacement file')}
                   <input
-                    type="file"
+                    key={source.revision} type="file"
                     accept=".txt,.md,.csv,.pdf,.docx"
                     required
                     onChange={(e) => setFile(e.target.files?.[0] ?? null)}
