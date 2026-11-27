@@ -1,7 +1,7 @@
 'use client';
 import { statusLabel } from '../product/status';
 import product from './crm-product.module.css';
-import { useRef, useState } from 'react';
+import { useEffect,useRef, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../../lib/api';
 import { useData } from './useData';
@@ -37,6 +37,7 @@ export function CrmAutomation() {
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
   const operationPending = useRef(false);
+  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4000);return()=>clearTimeout(timer);},[notice]);
   const [savedId, setSavedId] = useState('');
   const [customerStage, setCustomerStage] = useState('');
   const p = pipelines.data.find((x) => x.id === pipeline) || pipelines.data[0];
@@ -117,6 +118,7 @@ export function CrmAutomation() {
               ),
         );
       } else {
+        if(enabled&&!window.confirm(t('تأكيد حفظ قاعدة مفعلة؟','Save an enabled rule?')))return;
         const saved = await api<{ id: string }>('/automations', {
           method: 'POST',
           body: JSON.stringify(rule),
