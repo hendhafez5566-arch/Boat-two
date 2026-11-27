@@ -105,13 +105,13 @@ export default function SequenceBulkAssign({
           <input
             type="search"
             value={sequenceSearch}
-            maxLength={100} onChange={(e) => {setSequenceSearch(e.target.value);setSequenceId('');setReview(null);setResult(null);}}
+            aria-label={t('بحث اسم التسلسل','Search Sequence Name')} maxLength={100} onChange={(e) => {setSequenceSearch(e.target.value);setSequenceId('');setReview(null);setResult(null);}}
           />
         </label>
         <label className="field">
           {t('اختيار التسلسل', 'Select Sequence')}
           <select
-            disabled={!current} value={sequenceId}
+            aria-label={t('اختيار التسلسل','Select Sequence')} disabled={!current} value={sequenceId}
             onChange={(e) => {
               setSequenceId(e.target.value);
               setReview(null);
