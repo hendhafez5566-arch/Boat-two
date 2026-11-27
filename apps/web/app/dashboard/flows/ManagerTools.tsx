@@ -42,6 +42,7 @@ export default function ManagerTools({
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const lock = useRef(false);
+  useEffect(()=>{if(!success)return;const timer=setTimeout(()=>setSuccess(''),4000);return()=>clearTimeout(timer);},[success]);
   const fields = useData<{ key: string; label: string; type: string }[]>(
     tool === 'variables' ? '/crm/fields' : null,
     [],

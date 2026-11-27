@@ -82,6 +82,8 @@ export default function BotManager() {
   }
   const [channelId, setChannelId] = useChannelContext();
   const [section, setSection] = useState('bot_reply');
+  const settingsDirty=useRef(false);
+  const confirmSettingsLeave=()=>!settingsDirty.current||window.confirm(t('توجد تعديلات غير محفوظة في إعدادات البوت. هل تريد تجاهلها؟','Bot settings have unsaved changes. Discard them?'));
   useEffect(() => {
     const read = () => {
       const next = accountSection(window.location.search);
@@ -96,6 +98,7 @@ export default function BotManager() {
     return () => window.removeEventListener('popstate', read);
   }, [searchQuery]);
   const selectSection = (value: string) => {
+    if(value!==section&&!confirmSettingsLeave())return;
     if (['autoresponder', 'integrations'].includes(value)) {
       window.location.assign('/dashboard/settings?tab=integrations&action=emailauto-tab');
       return;
@@ -110,6 +113,9 @@ export default function BotManager() {
   const [channelSearch, setChannelSearch] = useState('');
   const [channelType, setChannelType] = useState('all');
   const [search, setSearch] = useState('');
+  const [statusFilter,setStatusFilter]=useState('all');
+  const [copySearch,setCopySearch]=useState('');
+  const [copyTarget,setCopyTarget]=useState('');
   const [folder, setFolder] = useState('*');
   const [sort, setSort] = useState<{ key: 'name' | 'id' | 'updated_at'; ascending: boolean }>({
     key: 'updated_at',
@@ -129,6 +135,10 @@ export default function BotManager() {
   const [previewBusy, setPreviewBusy] = useState(false);
   const [previewError, setPreviewError] = useState('');
   const lock = useRef(false);
+  const previewLock=useRef(false);
+  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4000);return()=>clearTimeout(timer);},[notice]);
+  useEffect(()=>{if(!copying){setCopySearch('');setCopyTarget('');}},[copying]);
+  useEffect(()=>{const close=(event:PointerEvent)=>{document.querySelectorAll<HTMLDetailsElement>('details.flow-more[open]').forEach(d=>{if(!d.contains(event.target as Node))d.open=false;});};const escape=(event:KeyboardEvent)=>{if(event.key!=='Escape'||document.querySelector('dialog[open]'))return;document.querySelectorAll<HTMLDetailsElement>('details.flow-more[open]').forEach(d=>{d.open=false;d.querySelector('summary')?.focus();});};document.addEventListener('pointerdown',close);document.addEventListener('keydown',escape);return()=>{document.removeEventListener('pointerdown',close);document.removeEventListener('keydown',escape);};},[]);
   useEffect(() => {
     if (
       !channels.loading &&
@@ -151,7 +161,8 @@ export default function BotManager() {
           : true) &&
         matchesFlowChannel(f.channel_ids, channelId) &&
         (folder === '*' || (f.folder_name ?? '') === folder) &&
-        f.name.toLowerCase().includes(search.toLowerCase()),
+        (statusFilter==='all'||f.status===statusFilter) &&
+        `${f.name} ${f.id}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()),
     )
     .sort(
       (a, b) =>
@@ -168,7 +179,8 @@ export default function BotManager() {
       ? t('التدفقات: غير محدود', 'Flows: unlimited')
       : t(`التدفقات: ${flowUsed} من ${flowLimit}`, `Flows: ${flowUsed} of ${flowLimit}`);
   async function activatePreviewFlowQuota() {
-    if (previewBusy || !workspace.data.previewFlowQuotaAvailable) return;
+    if (previewLock.current || !canManage || !workspace.data.previewFlowQuotaAvailable) return;
+    previewLock.current=true;
     setPreviewBusy(true);
     setPreviewError('');
     try {
@@ -178,6 +190,7 @@ export default function BotManager() {
     } catch (e) {
       setPreviewError(managerError(e, t));
     } finally {
+      previewLock.current=false;
       setPreviewBusy(false);
     }
   }
@@ -189,11 +202,12 @@ export default function BotManager() {
   const rows = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   useEffect(() => {
     setPage(1);
-  }, [search, folder, channelId, pageSize, section, sort]);
+  }, [search, folder, channelId, pageSize, section, sort,statusFilter]);
 
   async function act(run: () => Promise<void>) {
-    if (lock.current) return;
+    if (lock.current || !canManage) return;
     lock.current = true;
+    document.querySelectorAll<HTMLDetailsElement>('details.flow-more[open]').forEach(d=>{d.open=false;});
     setBusy(true);
     setError('');
     setNotice('');
@@ -214,6 +228,7 @@ export default function BotManager() {
       return;
     }
     const data = new FormData(event.currentTarget);
+    if(!String(data.get('name')??'').trim()){setError(t('اكتب اسم التدفق.','Enter a flow name.'));return;}
     void act(async () => {
       const flow = await api<Flow>('/flows', {
         method: 'POST',
@@ -253,8 +268,9 @@ export default function BotManager() {
         ...report.fields.map((field) => field.label),
       ];
       const csvValue = (value: unknown) => {
-        const text = value === null || value === undefined ? '' : String(value);
-        return `"${text.replaceAll('"', '""')}"`;
+        const text = value === null || value === undefined ? '' : typeof value==='object'?JSON.stringify(value):String(value);
+        const safe=/^[\s]*[=+\-@]|^[\t\r]/.test(text)?"'"+text:text;
+        return `"${safe.replaceAll('"', '""')}"`;
       };
       const csv = [
         columns,
@@ -275,7 +291,7 @@ export default function BotManager() {
       link.download = `boat-input-flow-${flow.id}.csv`;
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setNotice(t('تم تنزيل تقرير الإجابات.', 'Response report downloaded.'));
+      setNotice(t('تم تنزيل تقرير الإجابات المتاحة.', 'Available response report downloaded.'));
     } catch (e) {
       setError(managerError(e, t));
     } finally {
@@ -356,7 +372,7 @@ export default function BotManager() {
               className={styles.account}
               key={c.id}
               aria-pressed={channelId === c.id}
-              onClick={() => setChannelId(c.id)}
+              onClick={() => {if(c.id!==channelId&&confirmSettingsLeave())setChannelId(c.id);}}
             >
               <span className={styles.avatar} data-channel={c.type}>
                 <ChannelLogo id={c.type} />
@@ -472,7 +488,7 @@ export default function BotManager() {
           {!isFlowList && canManage && (
             <fieldset disabled={!canManage} className={styles.panelSurface}>
               {section === 'settings' ? (
-                <ManagerSettings key={channelId} channelId={channelId} canManage={canManage} />
+                <ManagerSettings key={channelId} channelId={channelId} canManage={canManage} onDirtyChange={value=>{settingsDirty.current=value;}} />
               ) : section === 'message_templates' && selected?.type === 'whatsapp' ? (
                 <ManagerTemplates key={channelId} channelId={channelId} />
               ) : section === 'action_buttons' ? (
@@ -570,7 +586,7 @@ export default function BotManager() {
                 )}
                 {(error || flows.error || channels.error) && (
                   <p role="alert" className="notice error">
-                    {error || flows.error || channels.error}
+                    {error || flows.error || channels.error} {(flows.error||channels.error)&&<button type="button" className="btn" disabled={flows.loading||channels.loading} onClick={()=>void Promise.all([flows.reload(),channels.reload()])}>{t('إعادة المحاولة','Retry')}</button>}
                   </p>
                 )}
                 {channelId && !channels.loading && !selected && (
@@ -581,6 +597,7 @@ export default function BotManager() {
                     )}
                   </p>
                 )}
+                <div className="workbench-metrics bot-manager-metrics">{([['all',t('إجمالي النتائج','Total flows'),flows.data.filter(f=>matchesFlowChannel(f.channel_ids,channelId)&&(section!=='entry_points'||f.node_types?.includes('user_input'))).length],['draft',t('مسودات','Drafts'),flows.data.filter(f=>matchesFlowChannel(f.channel_ids,channelId)&&(section!=='entry_points'||f.node_types?.includes('user_input'))&&f.status==='draft').length],['published',t('منشورة','Published'),flows.data.filter(f=>matchesFlowChannel(f.channel_ids,channelId)&&(section!=='entry_points'||f.node_types?.includes('user_input'))&&f.status==='published').length]] as const).map(([value,label,count])=><div key={value}><small>{label}</small><strong>{flows.loading||flows.error?'—':count}</strong></div>)}</div>
                 <div className={styles.filters}>
                   {section === 'bot_reply' && (
                     <select
@@ -595,6 +612,7 @@ export default function BotManager() {
                       ))}
                     </select>
                   )}
+                  <select aria-label={t('حالة التدفق','Flow status')} value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="all">{t('كل الحالات','All statuses')}</option><option value="draft">{t('مسودة','Draft')}</option><option value="published">{t('منشور','Published')}</option></select>
                   <label className={styles.search}>
                     <NavIcon name="search" />
                     <input
@@ -602,9 +620,10 @@ export default function BotManager() {
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       aria-label={t('البحث في التدفقات', 'Search flows')}
-                      placeholder={t('بحث باسم التدفق…', 'Search flows…')}
+                      placeholder={t('بحث بالاسم أو المعرّف…', 'Search name or ID…')}
                     />
                   </label>
+                  <button className="btn" type="button" disabled={!search&&folder==='*'&&statusFilter==='all'} onClick={()=>{setSearch('');setFolder('*');setStatusFilter('all');}}><NavIcon name="filter"/>{t('مسح الفلاتر','Clear filters')}</button>
                 </div>
                 <div className={styles.tableScroll}>
                   <table className={styles.table}>
@@ -729,7 +748,7 @@ export default function BotManager() {
                               ) : (
                                 <>
                               {managementLink(channelHref(`/dashboard/flows/${f.id}`, channelId), `${t('تعديل', 'Edit')}: ${f.name}`, "edit", t('تعديل', 'Edit'))}
-                              <details className="flow-more"><summary>{t('المزيد','More')}</summary><div>
+                              <details className="flow-more" onToggle={e=>{if(e.currentTarget.open){const current=e.currentTarget;document.querySelectorAll<HTMLDetailsElement>('details.flow-more[open]').forEach(d=>{if(d!==current)d.open=false;});}}}><summary>{t('المزيد','More')}</summary><div>
                               <button
                                 type="button"
                                 className="btn"
@@ -913,12 +932,13 @@ export default function BotManager() {
             {error && <p role="alert">{error}</p>}
             <label>
               {t('قائمة البوتات', 'Bot List')}
-              <select name="channelId" required defaultValue="">
+              <input type="search" aria-label={t('بحث في البوتات المحملة','Search loaded bots')} value={copySearch} onChange={e=>setCopySearch(e.target.value)} placeholder={t('بحث بالاسم أو المعرّف','Search name or ID')} />
+              <select name="channelId" required value={copyTarget} onChange={e=>setCopyTarget(e.target.value)}>
                 <option value="" disabled>
                   {t('اختر بوتًا', 'Select a bot')}
                 </option>
                 {channels.data
-                  .filter((c) => c.id !== channelId)
+                  .filter((c) => c.id !== channelId && (c.id===copyTarget||`${c.name} ${c.external_id??''}`.toLocaleLowerCase().includes(copySearch.trim().toLocaleLowerCase())))
                   .map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -935,7 +955,7 @@ export default function BotManager() {
               >
                 {t('إغلاق', 'Close')}
               </button>
-              <button className="btn btn-primary" disabled={busy || channels.data.length < 2}>
+              <button className="btn btn-primary" disabled={busy || !canManage || !copyTarget || flowLimitReached}>
                 {busy ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ', 'Save')}
               </button>
             </div>

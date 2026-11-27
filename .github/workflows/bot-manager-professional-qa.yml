@@ -1,0 +1,53 @@
+name: Professional bot manager and editor acceptance
+on:
+  push:
+    branches: [ux/bot-manager-professional-20261127]
+  pull_request:
+    branches: [fix/preview-order-summary-filter]
+    paths:
+      - 'apps/web/app/dashboard/flows/**'
+      - 'apps/web/components/flow/**'
+      - 'scripts/qa-bot-manager-professional.mjs'
+      - '.github/workflows/bot-manager-professional-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: bot-manager-professional-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        script: [qa-bot-manager-professional, qa-editor-reliability, qa-all-node-ui, qa-flow-version-browser]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build actual application
+        run: corepack enable && pnpm install --frozen-lockfile && pnpm --filter api build && pnpm --filter web build
+      - name: Install isolated browser driver
+        run: npm install --prefix "$RUNNER_TEMP/boat-playwright" playwright@1.56.1 --ignore-scripts
+      - name: Run isolated browser acceptance
+        env:
+          BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
+          BOAT_QA_BROWSER_SCRIPT: scripts/${{ matrix.script }}.mjs
+          BOAT_CHROMIUM: /usr/bin/google-chrome
+          BOAT_CLOUD_REVIEW: ${{ matrix.script == 'qa-flow-version-browser' && 'true' || 'false' }}
+        run: python3 scripts/run-connect-browser-qa.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bot-manager-${{ matrix.script }}-evidence
+          path: |
+            docs/p0-evidence/bot-manager-professional/
+            docs/p0-evidence/node-ui-matrix/
+            docs/p0-evidence/flow-version-browser/
+            docs/enterprise-20261114/editor-reliability/
+            /tmp/boat-journeys-api.log
+            /tmp/boat-journeys-web.log
+          if-no-files-found: warn
