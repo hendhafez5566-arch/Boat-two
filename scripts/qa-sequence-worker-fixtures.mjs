@@ -5,6 +5,7 @@ export function installSequenceWorkerFixtures(app,local){
  const {DatabaseService}=local('./dist/database/database.service');
  const {MessagingService}=local('./dist/messaging/messaging.service');
  const {SequencesService}=local('./dist/sequences/sequences.service');
+ const {EventsService}=local('./dist/events/events.service');
  const db=app.get(DatabaseService);
  app.getHttpAdapter().getInstance().post('/__qa/sequence-worker',async(req,res)=>{
   try{
@@ -15,6 +16,8 @@ export function installSequenceWorkerFixtures(app,local){
     if(!ch)throw Error('Synthetic Facebook channel not found');
     const external= req.body.externalId||randomUUID();
     await app.get(MessagingService).receive(ch,{contactExternalId:external,contactName:'Synthetic sequence visitor',externalMessageId:randomUUID(),content:{text:'Synthetic reply'}});
+    // In NODE_ENV=test the event worker timer is disabled. Process the durable inbound event through the real outbox, not a mocked stop call.
+    await app.get(EventsService).tick();
     const linked=await db.withTenant(tenantId,async c=>(await c.query('SELECT contact_id FROM contact_channels WHERE channel_id=$1 AND external_id=$2',[channelId,external])).rows[0]);
     res.json({contactId:linked.contact_id,externalId:external});
    }else if(op==='tick'){
