@@ -1979,3 +1979,39 @@
   color: #7b4b10;
 }
 .quotaBar :global(.btn) { min-height: 36px; }
+
+/* Professional manager: compact shared workspace tokens; keep channel branding intact. */
+.manager {font-family:inherit;color:var(--ink);gap:12px;grid-template-columns:260px minmax(0,1fr)}
+.accounts,.content,.settingsCard,.sections {border-color:var(--line);border-radius:var(--radius,12px);box-shadow:var(--shadow-xs)}
+.accounts {padding:12px}
+.accounts>header {margin-bottom:10px;flex-wrap:wrap}
+.account {min-height:50px;padding:7px 9px}
+.accountList {gap:4px}
+.channelFilters {margin:8px 0;background:var(--primary-soft)}
+.workspaceHeader {gap:10px;flex-wrap:wrap}
+.sections button {min-height:44px;padding:9px 12px}
+.sections button[aria-pressed='true'],.subsections button[aria-pressed='true'] {background:var(--primary-soft);color:var(--primary-deep);border-color:var(--primary)}
+.content {padding:14px}
+.contentHeader {margin-bottom:10px;gap:10px}
+.contentHeader h2 {font-size:17px;color:var(--ink)}
+.contentHeader p {font-size:12.5px;color:var(--muted)}
+.manager :global(.bot-manager-metrics) {margin-block:10px;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.manager :global(.bot-manager-metrics)>div {padding:9px 12px;border-inline-start:3px solid var(--primary)}
+.manager :global(.bot-manager-metrics)>div:nth-child(2) {border-inline-start-color:var(--warning)}
+.manager :global(.bot-manager-metrics)>div:nth-child(3) {border-inline-start-color:var(--success)}
+.manager :global(.bot-manager-metrics) strong {font-size:22px}
+.manager .filters {gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.filters>select {width:auto;max-width:100%;min-width:120px}
+.filters>.search {flex:1 1 180px;min-width:0}
+.manager .table th,.manager .table td {padding:9px 10px}
+.manager .table th {background:var(--surface-muted);color:var(--ink-2)}
+.manager .table .flowName {color:var(--ink)}
+.manager .table .status[data-live='true'] {color:var(--success);background:var(--success-soft)}
+.manager :global(.btn-primary),.managerDialog :global(.btn-primary) {background:linear-gradient(160deg,var(--brand-gradient-end,var(--primary)),var(--primary));border-color:var(--primary);box-shadow:inset 0 1px 0 #ffffff45,0 2px 5px #19233c18}
+.manager .actionCard {border-color:var(--line);border-radius:var(--radius);box-shadow:var(--shadow-xs)}
+.manager .actionCard:hover {border-color:var(--primary);background:var(--primary-soft)}
+.manager .actionCardIcon {background:var(--primary-soft);color:var(--primary)}
+.manager :is(button,a,input,select,summary):focus-visible {outline:2px solid var(--primary);outline-offset:2px}
+@media(max-width:1000px){.manager {grid-template-columns:220px minmax(0,1fr)}}
+@media(max-width:850px){.manager {grid-template-columns:minmax(0,1fr)}.accounts{position:static}.accountList{max-height:190px}.manager .table th,.manager .table td{padding:8px 10px}}
+@media(max-width:480px){.manager :global(.bot-manager-metrics)>div {padding:8px;overflow-wrap:anywhere}.manager :global(.bot-manager-metrics) strong{font-size:18px}.manager .filters>select{flex:1 1 110px;min-width:0}.manager .filters>.search{flex:1 1 100%}.content{padding:10px}.manager .table td{padding:8px}}
