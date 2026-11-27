@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect,useRef,useState } from 'react';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 type Audit = {
@@ -20,22 +20,27 @@ export function AiToolAudit() {
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [more, setMore] = useState(false);
+  const lock=useRef(false);
+  const [applied,setApplied]=useState('');
+  const key=JSON.stringify([outcome,run.trim()]);
   async function load(older = false) {
-    setBusy(true);
+    if(lock.current||(older&&applied!==key))return;
+    if(run.trim()&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(run.trim())){setError(t('معرف تشغيل غير صالح','Invalid run ID'));return;}
+    lock.current=true;setBusy(true);if(!older){setRows([]);setMore(false);setApplied('');}
     setError('');
     try {
       const q = new URLSearchParams({
         outcome,
-        ...(run ? { runId: run } : {}),
+        ...(run.trim() ? { runId: run.trim() } : {}),
         ...(older && rows.length ? { cursor: rows[rows.length - 1].id } : {}),
       });
       const page = await api<Audit[]>('/agents/tool-audits?' + q);
-      setRows(older ? [...rows, ...page] : page);
+      setRows(older ? [...rows, ...page] : page);setApplied(key);
       setMore(page.length === 100);
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      lock.current=false;setBusy(false);
     }
   }
   useEffect(() => {
@@ -68,7 +73,7 @@ export function AiToolAudit() {
       >
         <label>
           {t('النتيجة', 'Outcome')}
-          <select value={outcome} onChange={(e) => setOutcome(e.target.value)}>
+          <select disabled={busy} value={outcome} onChange={(e) => setOutcome(e.target.value)}>
             {Object.entries(labels).map(([key, value]) => (
               <option value={key} key={key}>
                 {value}
@@ -78,7 +83,7 @@ export function AiToolAudit() {
         </label>
         <label>
           {t('معرّف التشغيل (اختياري)', 'Run ID (optional)')}
-          <input value={run} onChange={(e) => setRun(e.target.value)} maxLength={36} />
+          <input disabled={busy} value={run} onChange={(e) => setRun(e.target.value)} maxLength={36} />
         </label>
         <button className="btn" disabled={busy}>
           {t('بحث وتحديث', 'Search and refresh')}
@@ -89,7 +94,10 @@ export function AiToolAudit() {
           {error}
         </p>
       )}
-      {rows.map((r) => (
+      {busy&&<p role="status">{t('جارٍ التحميل…','Loading…')}</p>}
+      {!busy&&!error&&applied===key&&!rows.length&&<p>{t('لا توجد نتائج مطابقة','No matching audit records')}</p>}
+      {applied!==key&&!busy&&<p>{t('اضغط بحث لتطبيق الفلاتر الجديدة','Search to apply changed filters')}</p>}
+      {applied===key&&rows.map((r) => (
         <article key={r.id} className="card">
           <strong>
             {r.tool_name} · {labels[r.outcome] ?? r.outcome}
@@ -106,7 +114,7 @@ export function AiToolAudit() {
           )}
         </article>
       ))}
-      {more && (
+      {more&&applied===key && (
         <button className="btn" disabled={busy} onClick={() => load(true)}>
           {t('تحميل الأقدم', 'Load older')}
         </button>
