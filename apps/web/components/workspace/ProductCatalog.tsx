@@ -290,7 +290,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
     [success, setSuccess] = useState('');
   useEffect(() => {
     if (!success) return;
-    const timeout = window.setTimeout(() => setSuccess(''), 3000);
+    const timeout = window.setTimeout(() => setSuccess(''), 4000);
     return () => window.clearTimeout(timeout);
   }, [success]);
   function changeCategory(id: string) {
@@ -739,7 +739,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
             </div>
             <div className={styles.headerActions}>
               <button type="button" className="btn btn-primary" onClick={() => openEditor(null)}>
-                {t('+ إضافة منتج', '+ Add product')}
+                <NavIcon name="plus"/>{t('إضافة منتج', 'Add product')}
               </button>
               <button type="button" className="btn" onClick={() => openCategory()}>
                 {t('إضافة قسم', 'Add category')}
@@ -860,7 +860,7 @@ export default function ProductCatalog({ navigation }: { navigation?: ReactNode 
                         <ProductImage key={product.image_url} product={product}/>
                         <div><h3>{product.name}</h3><small>{categoryName(product)} · <bdi>{product.sku}</bdi></small></div>
                       </div>
-                      <p title={product.description || undefined}>{product.description}</p>
+                      {product.description&&<p title={product.description}>{product.description}</p>}
                       <div className={styles.tileSummary}>
                         <div><strong><bdi>{productPrice(product.price_cents, product.currency)}</bdi></strong>{optionCount(product)}</div>
                         {productStatus(product)}

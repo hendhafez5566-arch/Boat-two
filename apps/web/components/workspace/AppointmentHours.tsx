@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { NavIcon } from '../product/NavIcon';
+import styles from './product-catalog.module.css';
 import { useLocale } from '../product/locale';
 
 const weekdays = [
@@ -43,8 +45,7 @@ export function AppointmentHours() {
   const { t } = useLocale();
   const [periods, setPeriods] = useState<Partial<Record<typeof weekdays[number][0], number>>>({ mon: 1, tue: 1 });
 
-  return <fieldset className="stack">
-    <legend>{t('ساعات العمل', 'Working hours')}</legend>
+  return <fieldset className={styles.hours}><legend><NavIcon name="stopwatch"/>{t('ساعات العمل', 'Working hours')}</legend>
     <label className="field">
       {t('المنطقة الزمنية للخدمة', 'Service timezone')}
       <select name="timezone" defaultValue="Africa/Cairo" required>
@@ -56,18 +57,15 @@ export function AppointmentHours() {
       'اترك فجوة بين الفترات لتحديد استراحة. إذا كان وقت النهاية أسبق من البداية، تمتد الفترة إلى اليوم التالي.',
       'Leave a gap between periods to schedule a break. An end time earlier than the start runs into the next day.',
     )}</p>
-    <p>{t('إذا لم تحدد أي يوم، تكون الخدمة متاحة طوال الأسبوع.', 'With no days selected, the service is available all week.')}</p>
+    <p className={styles.formHint}>{t('إذا لم تحدد أي يوم، تكون الخدمة متاحة طوال الأسبوع.', 'With no days selected, the service is available all week.')}</p><div className={styles.hoursTable}>
     {weekdays.map(([day, ar, en]) => {
       const count = periods[day] ?? 0;
       const setCount = (next: number) => setPeriods((current) => ({ ...current, [day]: next }));
-      return <fieldset key={day} className="stack">
-        <legend>{t(ar, en)}</legend>
-        <label>
+      return <div key={day} className={styles.dayRow} data-active={count>0}><label className={styles.dayName}>
           <input type="checkbox" checked={count > 0} onChange={(event) => setCount(event.target.checked ? 1 : 0)} />
-          {' '}{t('يوم عمل', 'Working day')}
-        </label>
+          <strong>{t(ar,en)}</strong></label><div className={styles.dayPeriods}>{count===0&&<small>{t('غير محدد','Not scheduled')}</small>}
         {Array.from({ length: count }, (_, index) => (
-          <div className="form-actions" key={index}>
+          <div className={styles.timePair} key={index}>
             <label className="field">{t('من', 'From')} {index + 1}
               <input name={day + '-start'} type="time" defaultValue={index === 0 ? '09:00' : undefined} required />
             </label>
@@ -76,15 +74,15 @@ export function AppointmentHours() {
             </label>
           </div>
         ))}
-        {count > 0 && <div className="form-actions">
+        </div>{count > 0 && <div className={styles.dayActions}>
           <button type="button" className="btn" disabled={count === 6} onClick={() => setCount(count + 1)}>
-            {t('أضف فترة عمل', 'Add working period')}
+            <NavIcon name="plus"/>{t('فترة','Period')}
           </button>
           {count > 1 && <button type="button" className="btn" onClick={() => setCount(count - 1)}>
-            {t('احذف آخر فترة', 'Remove last period')}
+            <NavIcon name="trash"/>{t('حذف الأخيرة','Remove last')}
           </button>}
         </div>}
-      </fieldset>;
-    })}
+      </div>;
+    })}</div>
   </fieldset>;
 }

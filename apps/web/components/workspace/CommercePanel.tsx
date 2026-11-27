@@ -1,5 +1,6 @@
 'use client';
-import { DisclosureSummary } from '../product/DisclosureSummary';
+import { NavIcon } from '../product/NavIcon';
+import { useTransientNotice } from '../product/useTransientNotice';
 import ProductCatalog from './ProductCatalog';
 import CommerceOrders from './CommerceOrders';
 import { AppointmentHours, readAppointmentHours } from './AppointmentHours';
@@ -49,6 +50,14 @@ export default function Commerce({
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [result, setResult] = useState('');
+  const [resultTemporary,setResultTemporary]=useState(false);
+  useTransientNotice(resultTemporary?result:'',()=>setResult(''));
+  const [bookingSearch,setBookingSearch]=useState('');
+  const [bookingFilter,setBookingFilter]=useState('all');
+  const [serviceFormOpen,setServiceFormOpen]=useState(false);
+  const [calendarConnection,setCalendarConnection]=useState('');
+  const statusLabel=(status:string)=>({confirmed:t('مؤكد','Confirmed'),cancelled:t('ملغى','Cancelled')} as Record<string,string>)[status]||status;
+  const calendarLabel=(status:string)=>({not_requested:t('حجز محلي','Local booking'),synced:t('تمت المزامنة','Synced'),pending:t('بانتظار المزامنة','Pending'),failed:t('تعذرت المزامنة','Sync failed')} as Record<string,string>)[status]||status;
   const services = useData<Service[]>(tab === 'appointments' ? '/commerce/services' : null, []),
     bookings = useData<Booking[]>(tab === 'appointments' ? '/commerce/appointments' : null, []),
     channels = useData<{ id: string; name: string; type: string }[]>('/channels', []),
@@ -75,6 +84,8 @@ export default function Commerce({
         end?: string;
         content?: { text?: string };
       };
+      if(response?.available===false){setError(response?.content?.text||t('الموعد غير متاح. اختر توقيتًا آخر.','This time is unavailable. Choose another time.'));return;}
+      setResultTemporary(response?.persisted!==false);
       setResult(
         response?.available && response.persisted === false
           ? t('الموعد متاح دون إنشاء حجز.', 'The time is available; no booking was created.') +
@@ -105,7 +116,7 @@ export default function Commerce({
         .filter(([id]) => !initialTab || id !== 'appointments')
         .map(([id, ar, en]) => (
           <button className={catalogStyles.commerceTab} key={id} aria-pressed={tab === id} onClick={() => setTab(id)}>
-            {t(ar, en)}
+            <NavIcon name={({products:'commerce',sources:'upload',appointments:'calendar',orders:'list'} as Record<string,string>)[id]||'grid'}/>{t(ar, en)}
           </button>
         ))}
     </nav>
@@ -130,7 +141,7 @@ export default function Commerce({
   return (
     <section className={`commerce-page ${catalogStyles.commerceWorkspace}`}>
       {!orderId && <header className={catalogStyles.commerceHeader}>
-        <h1>
+        <h1><NavIcon name="commerce"/>
           {initialTab === 'appointments'
             ? t('حجز المواعيد', 'Appointment Booking')
             : initialTab === 'products'
@@ -142,11 +153,7 @@ export default function Commerce({
       </header>}
       {initialTab === 'appointments' && channelScope}
       {!initialTab && tab !== 'orders' && (
-        <details className="card">
-          <DisclosureSummary>{t('سياق القناة', 'Channel context')}</DisclosureSummary>
-          {channelScope}
-          {contextActions}
-        </details>
+        <div className={catalogStyles.scopeBar}>{channelScope}{contextActions}</div>
       )}
       {tab === 'appointments' && (error || services.error) && (
         <p className="notice error" role="alert">
@@ -157,16 +164,16 @@ export default function Commerce({
       {tab === 'orders' && checkoutEnabled && <CommerceOrders contacts={contacts.data.items} origin={orderOrigin} orderId={orderId}/>}
       {tab === 'products' && <ProductCatalog />}
       {tab === 'appointments' && (
-        <div className="stack">
-          <nav className="workbench-tabs" aria-label={t('إدارة المواعيد','Appointment management')}>{([['bookings',t('الحجوزات','Bookings')],['book',t('حجز موعد','Book appointment')],['services',t('الخدمات','Services')]] as const).map(([key,label])=><button key={key} type="button" aria-pressed={appointmentTab===key} onClick={()=>setAppointmentTab(key)}>{label}</button>)}</nav>
-          <section className="card stack" hidden={appointmentTab!=='services'}>
-            <h2>{t('الخدمات الحالية','Existing services')}</h2>
+        <div className={catalogStyles.appointments}>
+          <nav className={catalogStyles.appointmentNav} aria-label={t('إدارة المواعيد','Appointment management')}>{([['bookings',t('الحجوزات','Bookings')],['book',t('حجز موعد','Book appointment')],['services',t('الخدمات','Services')]] as const).map(([key,label])=><button key={key} type="button" aria-pressed={appointmentTab===key} onClick={()=>setAppointmentTab(key)}><NavIcon name={key==='bookings'?'list':key==='book'?'calendar':'settings'}/>{label}</button>)}</nav>
+          <section className={catalogStyles.appointmentPanel} hidden={appointmentTab!=='services'}>
+            <div className={catalogStyles.appointmentToolbar}><h2><NavIcon name="calendar"/>{t('الخدمات الحالية','Existing services')}</h2><button type="button" className="btn btn-primary" aria-expanded={serviceFormOpen} onClick={()=>setServiceFormOpen(v=>!v)}><NavIcon name="plus"/>{serviceFormOpen?t('إخفاء النموذج','Hide form'):t('خدمة جديدة','New service')}</button></div>
             {services.loading&&<p role="status">{t('جارٍ التحميل…','Loading…')}</p>}
             {!services.loading&&!services.error&&!services.data.length&&<p className="muted">{t('لم تُضف خدمات بعد','No services yet')}</p>}
-            {services.data.map(s=><div key={s.id} className="workbench-toolbar"><strong>{s.name}</strong><span>{s.duration_minutes} {t('دقيقة','min')} · {s.timezone}</span><span className="workbench-state" data-active={s.enabled}>{s.enabled?t('مفعّلة','Enabled'):t('متوقفة','Disabled')}</span></div>)}
+            {services.data.map(s=><div key={s.id} className={catalogStyles.serviceRow}><strong><NavIcon name="calendar"/>{s.name}</strong><span><NavIcon name="stopwatch"/>{s.duration_minutes} {t('دقيقة','min')} · {s.timezone}</span><span className="workbench-state" data-active={s.enabled}>{s.enabled?t('مفعّلة','Enabled'):t('متوقفة','Disabled')}</span></div>)}
           </section>
-          <form hidden={appointmentTab!=='services'}
-            className="card stack"
+          <form hidden={appointmentTab!=='services'||!serviceFormOpen}
+            className={catalogStyles.appointmentForm}
             onSubmit={(e) => {
               e.preventDefault();
               const f = new FormData(e.currentTarget);
@@ -186,7 +193,7 @@ export default function Commerce({
               );
             }}
           >
-            <h2>{t('إنشاء خدمة مواعيد', 'Create appointment service')}</h2>
+            <h2><NavIcon name="plus"/>{t('إنشاء خدمة مواعيد', 'Create appointment service')}</h2><div className={catalogStyles.serviceBasics}>
             <label className="field">
               {t('اسم الخدمة', 'Service name')}
               <input required name="name" maxLength={120} />
@@ -195,13 +202,13 @@ export default function Commerce({
               {t('المدة بالدقائق', 'Duration in minutes')}
               <input name="duration" type="number" min={5} max={1440} defaultValue={30} required />
             </label>
-            <AppointmentHours />
-            <label className="field">
+            </div><AppointmentHours />
+            <div className={catalogStyles.serviceBasics}><label className="field">
               {t(
                 'حساب Calendar اختياري — المزامنة تحتاج أمرًا منفصلًا',
                 'Optional Calendar account — synchronization requires a separate action',
               )}
-              <select name="connection">
+              <select name="connection" value={calendarConnection} onChange={e=>setCalendarConnection(e.target.value)}>
                 <option value="">{t('حجز محلي فقط', 'Local booking only')}</option>
                 {connections.data
                   .filter((c) => c.provider === 'google' && c.enabled)
@@ -212,16 +219,11 @@ export default function Commerce({
                   ))}
               </select>
             </label>
-            <label className="field">
-              Calendar ID
-              <input name="calendar" defaultValue="primary" />
-            </label>
-            <button className="btn" disabled={busy}>
-              {t('حفظ الخدمة', 'Save service')}
-            </button>
+            <label hidden={!calendarConnection} className="field">Calendar ID<input name="calendar" defaultValue="primary"/></label></div>
+            <button className="btn btn-primary" disabled={busy}><NavIcon name="check"/>{t('حفظ الخدمة', 'Save service')}</button>
           </form>
           <form hidden={appointmentTab!=='book'}
-            className="card stack"
+            className={catalogStyles.appointmentForm}
             onSubmit={(e) => {
               e.preventDefault();
               const f = new FormData(e.currentTarget);
@@ -242,7 +244,7 @@ export default function Commerce({
               );
             }}
           >
-            <h2>{t('فحص وحجز موعد', 'Check and book an appointment')}</h2>
+            <h2><NavIcon name="calendar"/>{t('فحص وحجز موعد', 'Check and book an appointment')}</h2><div className={catalogStyles.bookingFields}>
             <label className="field">
               {t('الخدمة', 'Service')}
               <select required name="service">
@@ -271,28 +273,28 @@ export default function Commerce({
               {t('وقت البدء حسب المنطقة الزمنية لجهازك', 'Start time in your device timezone')}
               <input name="start" type="datetime-local" required />
             </label>
-            <div className="form-actions">
+            </div><p className={catalogStyles.formHint}>{t('فحص التوفر لا ينشئ حجزًا. الحجز محلي ولا ينشئ حدث Calendar تلقائيًا.','Checking availability does not create a booking. Local bookings do not automatically create Calendar events.')}</p><div className="form-actions">
               <button className="btn" value="preview" disabled={busy}>
-                {t('فحص التوفر دون حجز', 'Check availability without booking')}
+                <NavIcon name="search"/>{t('فحص التوفر دون حجز', 'Check availability without booking')}
               </button>
               <button className="btn btn-primary" value="save" disabled={busy}>
-                {t('حجز محلي فعلي', 'Create local booking')}
+                <NavIcon name="check"/>{t('حجز محلي فعلي', 'Create local booking')}
               </button>
             </div>
           </form>
-          <section hidden={appointmentTab!=='bookings'} className="card stack">
-            <div className="workbench-toolbar"><h2>{t('الحجوزات', 'Bookings')}</h2><button className="btn btn-primary" type="button" onClick={()=>setAppointmentTab('book')}>+ {t('حجز موعد','Book appointment')}</button></div>
+          <section hidden={appointmentTab!=='bookings'} className={catalogStyles.appointmentPanel}>
+            <div className={catalogStyles.appointmentToolbar}><h2><NavIcon name="calendar"/>{t('الحجوزات', 'Bookings')}</h2><button className="btn btn-primary" type="button" onClick={()=>setAppointmentTab('book')}><NavIcon name="plus"/>{t('حجز موعد','Book appointment')}</button></div>
+            <div className={catalogStyles.bookingMetrics}>{['all','confirmed','cancelled'].map(key=><button type="button" key={key} data-state={key} aria-pressed={bookingFilter===key} onClick={()=>setBookingFilter(key)}><NavIcon name={key==='all'?'calendar':key==='confirmed'?'circleCheck':'circleClose'}/><span>{key==='all'?t('كل الحجوزات','All bookings'):statusLabel(key)}<strong>{bookings.loading||bookings.error?'—':bookings.data.filter(b=>key==='all'||b.status===key).length}</strong></span></button>)}</div>
+            <input className={catalogStyles.bookingSearch} type="search" aria-label={t('بحث الحجوزات','Search bookings')} placeholder={t('ابحث بالخدمة أو العميل…','Search service or customer…')} value={bookingSearch} onChange={e=>setBookingSearch(e.target.value)}/>
+            {bookings.loading&&<p role="status">{t('جارٍ التحميل…','Loading…')}</p>}
+            {!bookings.loading&&!bookings.error&&bookings.data.length>0&&!bookings.data.some(b=>(bookingFilter==='all'||b.status===bookingFilter)&&[b.service_name,b.contact_name].join(' ').toLowerCase().includes(bookingSearch.trim().toLowerCase()))&&<p>{t('لا توجد حجوزات مطابقة.','No matching bookings.')}</p>}
             {!bookings.loading&&!bookings.error&&!bookings.data.length&&<p className="muted">{t('لا توجد حجوزات مسجلة','No bookings recorded')}</p>}
             {bookings.error && <p role="alert">{bookings.error}</p>}
-            {bookings.data.map((b) => (
-              <article className="card stack" key={b.id}>
-                <strong>
-                  {b.service_name} · {b.contact_name}
-                </strong>
-                <time dateTime={b.starts_at}>{new Date(b.starts_at).toLocaleString()}</time>
-                <span>
-                  {b.status} · Calendar: {b.calendar_status}
-                </span>
+            {bookings.data.filter(b=>(bookingFilter==='all'||b.status===bookingFilter)&&[b.service_name,b.contact_name].join(' ').toLowerCase().includes(bookingSearch.trim().toLowerCase())).map((b) => (
+              <article className={catalogStyles.bookingRow} key={b.id}>
+                <div><strong>{b.service_name}</strong><small><NavIcon name="user"/>{b.contact_name}</small></div>
+                <div><time dateTime={b.starts_at}><NavIcon name="calendar"/>{new Date(b.starts_at).toLocaleString()}</time><small>{t('إلى','Until')} {new Date(b.ends_at).toLocaleString()}</small></div>
+                <div><span className={catalogStyles.bookingState} data-state={b.status}>{statusLabel(b.status)}</span><small>{calendarLabel(b.calendar_status)}</small></div>
                 {b.calendar_error && <p>{b.calendar_error}</p>}
                 <div className="form-actions">
                   <button
@@ -304,7 +306,7 @@ export default function Commerce({
                       );
                     }}
                   >
-                    {t('إلغاء الحجز المحلي', 'Cancel local booking')}
+                    <NavIcon name="circleClose"/>{t('إلغاء الحجز المحلي', 'Cancel local booking')}
                   </button>
                   {b.calendar_status !== 'not_requested' && (
                     <button
@@ -337,9 +339,7 @@ export default function Commerce({
         </div>
       )}
       {result && (
-        <p role="status" style={{ whiteSpace: 'pre-wrap' }}>
-          {result}
-        </p>
+        <p role="status" className={catalogStyles.bookingResult}><NavIcon name="circleCheck"/>{result}<button type="button" className="btn" onClick={()=>setResult('')}>{t('إغلاق','Dismiss')}</button></p>
       )}
     </section>
   );
