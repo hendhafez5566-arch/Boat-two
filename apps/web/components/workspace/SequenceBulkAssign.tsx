@@ -1,8 +1,9 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useEffect,useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { useData } from '../business/useData';
 import { useLocale } from '../product/locale';
+import { AudienceFilterSelect } from '../business/AudienceFilterSelect';
 import { Button } from '../product/ProductUI';
 import styles from './sequences.module.css';
 type Audience = {
@@ -56,6 +57,11 @@ export default function SequenceBulkAssign({
     excludedSinceReview: number;
   } | null>(null);
   const lock = useRef(false);
+  const [clock,setClock]=useState(Date.now());
+  useEffect(()=>{if(!review)return;setClock(Date.now());const timer=setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(timer);},[review]);
+  const current=sequences.loadedPath===`/sequence-center?${sequenceQuery}`&&!sequences.loading&&!sequences.error;
+  const sourcesLoading=labels.loading||lists.loading||fields.loading;
+  const selectedSequence=current&&sequences.data.items.some(s=>s.id===sequenceId&&s.status==='active');
   function change(patch: Partial<Audience>) {
     setAudience((current) => ({ ...current, ...patch }));
     setReview(null);
@@ -90,7 +96,7 @@ export default function SequenceBulkAssign({
       </p>
       {(error || loadError) && (
         <p role="alert" className="notice error">
-          {error || loadError}
+          {error || loadError} {loadError&&<Button disabled={busy} onClick={()=>void Promise.all([sequences.reload(),labels.reload(),lists.reload(),fields.reload()])}>{t('إعادة المحاولة','Retry')}</Button>}
         </p>
       )}
       <fieldset disabled={busy || !!loadError} className={styles.fieldset}>
@@ -99,13 +105,13 @@ export default function SequenceBulkAssign({
           <input
             type="search"
             value={sequenceSearch}
-            onChange={(e) => setSequenceSearch(e.target.value)}
+            maxLength={100} onChange={(e) => {setSequenceSearch(e.target.value);setSequenceId('');setReview(null);setResult(null);}}
           />
         </label>
         <label className="field">
           {t('اختيار التسلسل', 'Select Sequence')}
           <select
-            value={sequenceId}
+            disabled={!current} value={sequenceId}
             onChange={(e) => {
               setSequenceId(e.target.value);
               setReview(null);
@@ -113,7 +119,7 @@ export default function SequenceBulkAssign({
             }}
           >
             <option value="">{t('اختر تسلسلًا نشطًا', 'Select an Active Sequence')}</option>
-            {sequences.data.items
+            {(current?sequences.data.items:[])
               .filter(
                 (sequence) =>
                   sequence.status === 'active' && (!channelId || sequence.channel_id === channelId),
@@ -127,41 +133,11 @@ export default function SequenceBulkAssign({
         </label>
         {(['includeLabels', 'excludeLabels', 'includeLists', 'excludeLists'] as const).map(
           (key) => (
-            <label key={key} className="field">
-              {
-                (
-                  {
-                    includeLabels: t('يتضمن أحد الوسوم', 'Include Any Label'),
-                    excludeLabels: t('استبعاد الوسوم', 'Exclude Labels'),
-                    includeLists: t('يتضمن إحدى القوائم', 'Include Any Subscriber List'),
-                    excludeLists: t('استبعاد القوائم', 'Exclude Subscriber Lists'),
-                  } as const
-                )[key]
-              }
-              <select
-                multiple
-                size={Math.min(
-                  4,
-                  Math.max(2, key.endsWith('Labels') ? labels.data.length : lists.data.length),
-                )}
-                value={audience[key]}
-                onChange={(e) =>
-                  change({ [key]: Array.from(e.target.selectedOptions, (option) => option.value) })
-                }
-              >
-                {key.endsWith('Labels')
-                  ? labels.data.map((label) => (
-                      <option key={label.label} value={label.label}>
-                        {label.label} ({label.contacts})
-                      </option>
-                    ))
-                  : lists.data.map((list) => (
-                      <option key={list.id} value={list.id}>
-                        {list.name}
-                      </option>
-                    ))}
-              </select>
-            </label>
+            <AudienceFilterSelect key={key}
+              label={({includeLabels:t('يتضمن أحد الوسوم','Include Any Label'),excludeLabels:t('استبعاد الوسوم','Exclude Labels'),includeLists:t('يتضمن إحدى القوائم','Include Any Subscriber List'),excludeLists:t('استبعاد القوائم','Exclude Subscriber Lists')})[key]}
+              options={key.endsWith('Labels')?labels.data.map(x=>({id:x.label,name:x.label+' ('+x.contacts+')'})):lists.data}
+              value={audience[key]} onChange={value=>change({[key]:value})} disabled={busy||sourcesLoading}
+            />
           ),
         )}
         <div className={styles.twoColumns}>
@@ -200,10 +176,11 @@ export default function SequenceBulkAssign({
           )}
         </p>
         <Button
-          disabled={!sequenceId}
+          disabled={!selectedSequence||sourcesLoading}
           busy={busy}
           onClick={() =>
             void run(async () => {
+              setReview(null);setResult(null);
               const result = await api<Review>(`/sequence-center/${sequenceId}/audience-review`, {
                 method: 'POST',
                 body: JSON.stringify(audience),
@@ -231,12 +208,15 @@ export default function SequenceBulkAssign({
               {t('تنتهي المراجعة في', 'Review Expires')}:{' '}
               {new Date(review.expiresAt).toLocaleString()}
             </small>
+            {clock>=new Date(review.expiresAt).getTime()&&<p role="alert">{t('انتهت صلاحية المراجعة. أعد مراجعة الجمهور.','Review expired. Review the audience again.')}</p>}
             <Button
               variant="primary"
-              disabled={!review.eligible || Date.now() >= new Date(review.expiresAt).getTime()}
+              disabled={!review.eligible || clock >= new Date(review.expiresAt).getTime() || !selectedSequence}
               busy={busy}
               onClick={() =>
                 void run(async () => {
+                  if(Date.now()>=new Date(review.expiresAt).getTime())throw Error(t('انتهت المراجعة، راجع الجمهور مرة أخرى.','Review expired; review the audience again.'));
+                  if(!window.confirm(t('تأكيد تعيين التسلسل للمشتركين المؤهلين؟','Confirm assignment to eligible subscribers?')))return;
                   const result = await api<{
                     reviewed: number;
                     enrolled: number;
