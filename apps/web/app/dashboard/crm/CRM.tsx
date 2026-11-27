@@ -60,6 +60,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
   const workspace = useData<{ role: string }>('/workspace', { role: '' });
   const canManage = ['owner', 'admin'].includes(workspace.data.role);
   const [tab, setTab] = useState(initialTab);
+  const overview = useData<{contacts:{total:number;qualified:number;unassigned:number;unattended:number}}|null>(tab==='contacts'?'/crm/workspace/analytics':null,null);
   const [headMenu, setHeadMenu] = useState<string | null>(null);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [duplicateOpen, setDuplicateOpen] = useState(false);
@@ -371,6 +372,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
   const refresh = () => {
     contacts.reload();
     summary.reload();
+    overview.reload();
     fields.reload();
     segments.reload();
     duplicates.reload();
@@ -496,6 +498,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
             onChanged={() => {
               void contacts.reload();
               void summary.reload();
+              void overview.reload();
             }}
           />
         </section>
@@ -510,37 +513,9 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
               {initialTab === 'config'
                 ? t('الإعدادات المتقدمة', 'Advanced settings')
                 : t('العملاء', 'Customers')}
-            </h1>
+            </h1><p className={design.pageIntro}>{tab==='contacts'?t('إدارة قاعدة العملاء وعلاقاتهم التجارية','Manage customer records and relationships'):t('إعداد أدوات إدارة علاقات العملاء','Configure customer relationship tools')}</p>
           </div>
           <div className={styles.headActions}>
-            {tab === 'contacts' && (
-              <div className={`${styles.searchTools} ${design.searchBar} ${design.customerSearch}`}>
-                <NavIcon name="search" />
-                <input
-                  type="search"
-                  aria-label={t('بحث عن عميل', 'Search customers')}
-                  placeholder={t(
-                    'بحث بالاسم أو الهاتف أو البريد…',
-                    'Search by name, phone or email…',
-                  )}
-                  value={searchDraft}
-                  onChange={(e) => {
-                    setSearchDraft(e.target.value);
-                    setBulkIds([]);
-                  }}
-                />
-                <button
-                  type="button"
-                  className="btn"
-                  aria-expanded={filtersOpen}
-                  aria-controls="customer-filters"
-                  onClick={() => setFiltersOpen(!filtersOpen)}
-                >
-                  <NavIcon name="filter" />
-                  {t('التصفية', 'Filters')}
-                </button>
-              </div>
-            )}
             {tab === 'contacts' && (
               <Link className="btn" href="/dashboard/crm/tasks?ownerId=me">
                 <NavIcon name="calendar" />
@@ -580,7 +555,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                       setExportOpen(true);
                     }}
                   >
-                    {t('تصدير CSV', 'Export CSV')}
+                    <NavIcon name="export"/> {t('تصدير CSV', 'Export CSV')}
                   </button>
                   {canManage && (
                     <button
@@ -590,7 +565,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                         setImportOpen(true);
                       }}
                     >
-                      {t('استيراد وإدارة الملفات', 'Import and manage files')}
+                      <NavIcon name="file"/> {t('استيراد وإدارة الملفات', 'Import and manage files')}
                     </button>
                   )}
                   {canManage && (
@@ -601,7 +576,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                         setDuplicateOpen(true);
                       }}
                     >
-                      {t('ملفات مكررة ودمج', 'Duplicates and merge')}
+                      <NavIcon name="copy"/> {t('ملفات مكررة ودمج', 'Duplicates and merge')}
                     </button>
                   )}
                   <button
@@ -611,7 +586,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                       refresh();
                     }}
                   >
-                    {t('تحديث القائمة', 'Refresh list')}
+                    <NavIcon name="refresh"/> {t('تحديث القائمة', 'Refresh list')}
                   </button>
                   <Link href="/dashboard/crm/pipeline">{t('فرص البيع', 'Pipeline')}</Link>
                   <Link href="/dashboard/crm/tasks">{t('المتابعات', 'Follow-ups')}</Link>
@@ -719,51 +694,22 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
           )}
         {tab === 'contacts' && (
           <>
-            <section className={design.customerStats}>
-
-              {summary.error && (
-                <p className="notice error" role="alert">
-                  {summary.error}
-                </p>
-              )}
-              <div
-                className={styles.statistics}
-                aria-label={t('إحصائيات نتائج التصفية', 'Filtered customer statistics')}
-              >
-                {(
-                  [
-                    ['total', t('العملاء', 'Customers')],
-                    ['retained', t('النشطون', 'Retained')],
-                    ['subscribed', t('موافقة تسويق موثقة', 'Marketing Opt-ins')],
-                    ['in_sequences', t('في تسلسلات نشطة', 'In Active Sequences')],
-                  ] as const
-                ).map(([key, label]) => (
-                  <article key={key}>
-                    <span className={styles.statIcon} data-tone={key}>
-                      <NavIcon
-                        name={
-                          key === 'total'
-                            ? 'crm'
-                            : key === 'retained'
-                              ? 'check'
-                              : key === 'subscribed'
-                                ? 'user'
-                                : 'sequences'
-                        }
-                      />
-                    </span>
-                    <span>{label}</span>
-                    <strong>
-                      {summary.loading ? '…' : summary.error ? '—' : summary.data[key]}
-                    </strong>
-                    <small>
-                      {key === 'total'
-                        ? t('ضمن نتائج التصفية', 'Within current filters')
-                        : `${summary.data.total ? Math.round((summary.data[key] / summary.data.total) * 100) : 0}% ${t('من الإجمالي', 'of total')}`}
-                    </small>
-                  </article>
-                ))}
+            <section className={design.customerStats} aria-label={t('مؤشرات قاعدة العملاء ضمن صلاحياتك','Customer database metrics in your scope')}>
+              {overview.error&&<p className="notice error" role="alert">{overview.error} <button className="btn" onClick={()=>void overview.reload()}>{t('إعادة المحاولة','Retry')}</button></p>}
+              <div className={design.metricStrip}>
+                {([
+                  ['total',t('إجمالي العملاء','Total customers'),'crm',''],
+                  ['qualified',t('عملاء مؤهلون','Qualified customers'),'flag','qualified'],
+                  ['unassigned',t('دون مسؤول','Unassigned'),'userClock','unassigned'],
+                  ['unattended',t('دون متابعة','No open follow-up'),'calendar','unattended']
+                ] as const).map(([key,label,icon,preset])=><Link key={key} className={design.metricTile} data-tone={key} href={'/dashboard/crm'+(preset?'?preset='+preset:'?preset=all')}>
+                  <span><NavIcon name={icon}/>{label}</span><strong>{overview.loading?'…':overview.error||!overview.data?'—':overview.data.contacts[key].toLocaleString()}</strong>
+                </Link>)}
               </div>
+              <details className={design.marketingSummary}><DisclosureSummary>{t('إحصائيات التسويق ضمن نتائج التصفية','Marketing statistics for filtered results')}</DisclosureSummary>
+                {summary.error&&<p className="notice error">{summary.error}</p>}
+                <div>{(['retained','subscribed','in_sequences'] as const).map(key=><span key={key}>{key==='retained'?t('نشطون','Retained'):key==='subscribed'?t('موافقة تسويق','Marketing opt-ins'):t('تسلسلات نشطة','Active sequences')}: <strong>{summary.loading?'…':summary.error?'—':summary.data[key]}</strong></span>)}</div>
+              </details>
             </section>
             <div className={design.filterPanel} id="customer-filters" hidden={!filtersOpen}>
               <section
@@ -1105,6 +1051,35 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                 data-view={viewMode}
                 aria-busy={contacts.loading || searchDraft !== q}
               >
+                <div className={design.directoryToolbar}>            {tab === 'contacts' && (
+              <div className={`${styles.searchTools} ${design.searchBar} ${design.customerSearch}`}>
+                <NavIcon name="search" />
+                <input
+                  type="search"
+                  aria-label={t('بحث عن عميل', 'Search customers')}
+                  placeholder={t(
+                    'بحث بالاسم أو الهاتف أو البريد…',
+                    'Search by name, phone or email…',
+                  )}
+                  value={searchDraft}
+                  onChange={(e) => {
+                    setSearchDraft(e.target.value);
+                    setBulkIds([]);
+                  }}
+                />
+                <button
+                  type="button"
+                  className="btn"
+                  aria-expanded={filtersOpen}
+                  aria-controls="customer-filters"
+                  onClick={() => setFiltersOpen(!filtersOpen)}
+                >
+                  <NavIcon name="filter" />
+                  {t('التصفية', 'Filters')}
+                </button>
+              </div>
+            )}
+<button className="btn" type="button" onClick={refresh}><NavIcon name="refresh"/>{t('تحديث','Refresh')}</button></div>
                 <div className={`${styles.listToolbar} ${design.customerToolbar}`}>
                   <label>
                     <input
@@ -1207,7 +1182,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                                 data-customer-avatar
                                 aria-hidden="true"
                               >
-                                {c.name.slice(0, 2)}
+                                {/^(visitor|زائر)$/i.test(c.name.trim())?<NavIcon name="user"/>:c.name.slice(0,2)}
                               </span>
                               <div>
                                 <button
@@ -1293,9 +1268,9 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                                 }}
                               >
                                 <NavIcon name="user" />
-                                <span>{t('الملف', 'Profile')}</span>
+                                <span>{t('فتح الملف', 'Open profile')}</span>
                               </button>
-                              <details className={design.contactActions}><DisclosureSummary className="btn">{t('المزيد','More')}</DisclosureSummary><div>
+                              <details className={design.contactActions}><DisclosureSummary className="btn"><NavIcon name="moreVertical"/>{t('المزيد','More')}</DisclosureSummary><div>
                               <button
                                 type="button"
                                 className="btn"
@@ -1343,7 +1318,7 @@ export default function CRM({ initialTab = 'contacts' }: { initialTab?: string }
                 </div>
                 <footer className={`${styles.listFooter} ${design.customerPagination}`}>
                   {!contacts.loading && <span>
-                    {t('النتائج', 'Results')} · {contacts.data.total.toLocaleString()}
+                    {t('عرض','Showing')} {contacts.data.total ? (page-1)*pageSize+1 : 0}–{Math.min(page*pageSize,contacts.data.total)} {t('من','of')} {contacts.data.total.toLocaleString()}
                   </span>}
                   <label>
                     {t('الصفوف', 'Rows')}{' '}

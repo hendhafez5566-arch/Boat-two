@@ -9,7 +9,7 @@ export function CrmNav() {
   const path = usePathname();
   const { t } = useLocale();
   return (
-    <nav className={styles.nav} aria-label={t('إدارة العملاء', 'CRM navigation')}>
+    <header className={styles.crmHeader}><div className={styles.crmBrand}><NavIcon name="crm"/><strong>{t('إدارة علاقات العملاء','Customer relationship management')}</strong></div><nav className={styles.nav} aria-label={t('إدارة العملاء', 'CRM navigation')}>
       {[
         ['/today', 'يوم العمل', 'Today', 'calendar'],
         ['', 'العملاء', 'Customers', 'crm'],
@@ -30,6 +30,6 @@ export function CrmNav() {
           </Link>
         );
       })}
-    </nav>
+    </nav></header>
   );
 }

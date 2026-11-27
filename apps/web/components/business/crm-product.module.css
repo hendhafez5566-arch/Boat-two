@@ -278,3 +278,27 @@
 .record[data-crm-record] > header { position:static; background:transparent; padding:0; border-radius:0; }
 .record[data-crm-record] > header button { min-height:34px; background:transparent; border-color:#dce1eb; color:#526177; box-shadow:none; }
 @media(max-width:760px){.record[data-crm-record]{position:static;inset:auto;overflow:visible;background:transparent;padding:0 0 16px;}}
+
+/* Approved CRM design: local to CRM routes. */
+.shell[data-crm-suite]{--primary:#2563eb;--primary-deep:#1d4ed8;--primary-soft:#eaf0fa;--primary-softer:#f3f7ff;--primary-line:#bfdbfe;--primary-ink:#fff;--ink:#172b4d;--ink-2:#334155;--muted:#64748b;--line:#e2e8f0;--surface:#fff;--surface-muted:#f6f8fc;--surface-soft:#eef2f7;--canvas:#f6f8fc;--success:#15803d;--success-soft:#eaf6ef;--warning:#b45309;--danger:#dc2626;--radius:9px;--radius-md:8px;--text-page:clamp(22px,2vw,28px);background:var(--canvas);color:var(--ink);font-family:"IBM Plex Sans Arabic","Noto Sans Arabic Variable",Tahoma,Arial,sans-serif;gap:16px;min-width:0}
+.crmHeader{display:grid;background:white;border:1px solid #e2e8f0;border-radius:9px;min-width:0}
+.crmBrand{display:flex;align-items:center;gap:9px;padding:13px 16px;color:#172b4d;font-size:15px;border-bottom:1px solid #e2e8f0}.crmBrand svg{width:20px;height:20px;color:#2563eb}
+.crmHeader .nav{border:0;border-radius:0;background:transparent;padding:0 10px;gap:5px;overflow-x:auto;scrollbar-width:thin}
+.crmHeader .nav a{padding:11px 13px 10px;border-radius:0;border-bottom:3px solid transparent;min-height:45px;color:#64748b;font-weight:550;font-size:13px;text-decoration:none;gap:7px}
+.crmHeader .nav a[aria-current=page]{border-bottom-color:#2563eb;background:transparent;color:#2563eb;font-weight:700}
+.crmHeader .nav a:hover{background:#f6f8fc}
+.shell[data-crm-suite] :global(.btn){border-radius:7px;min-height:36px;gap:6px;font-size:13px;box-shadow:none}
+.shell[data-crm-suite] :global(.btn-primary){background:#2563eb!important;border-color:#2563eb!important;color:white!important;box-shadow:none!important}
+.shell[data-crm-suite] :global(.btn-primary:hover:not(:disabled)){background:#1d4ed8!important;border-color:#1d4ed8!important}
+.shell[data-crm-suite] :global(.btn svg){width:16px;height:16px;flex:none}
+.shell[data-crm-suite] :global(.card){border-color:#e2e8f0;border-radius:9px;box-shadow:none}
+.shell[data-crm-suite] :global(.page-heading h1){font-size:var(--text-page);font-weight:700;letter-spacing:0}
+.shell[data-crm-suite] :global(.product-table th){background:#f8fafc;color:#475569;font-size:12px}
+.shell[data-crm-suite] :global(.product-table td){border-color:#e2e8f0}
+.shell[data-crm-suite] :global(.product-table tbody tr:hover){background:#f6f9ff}
+.shell[data-crm-suite] :global([hidden]){display:none!important}
+.shell[data-crm-suite] :is(button,a,input,select,textarea):focus-visible{outline:2px solid #2563eb;outline-offset:2px}
+.shell[data-crm-suite] .group{border-color:#e2e8f0;border-radius:9px}.shell[data-crm-suite] .group h2{background:#fff;color:#172b4d;border-color:#e2e8f0}
+.shell[data-crm-suite] .toolIcon{background:#eaf0fa;color:#2563eb}
+.shell[data-crm-suite] .group a:hover{background:#f6f8fc}
+@media(max-width:640px){.crmBrand{font-size:14px;padding:11px 12px}.crmHeader .nav a{padding:10px;font-size:12px}.shell[data-crm-suite]{gap:12px}}

@@ -996,3 +996,25 @@ nav.nav .moreLinks a {
 
 /* Keep customer management aligned with shared design tokens. */
 .workspace{font-family:inherit;color:var(--ink)}.workspace .heading h1{font-size:var(--text-page);font-weight:700;line-height:1.45}.workspace .headingIcon{background:var(--primary-soft);color:var(--primary-deep)}.workspace .quickFilters button[aria-pressed=true],.workspace .workTabs button[aria-pressed=true]{background:var(--primary-soft);color:var(--primary-deep);border-color:var(--primary-line)}.workspace .customerStats article{box-shadow:none;border-color:var(--line);border-radius:var(--radius-md)}.workspace .workCard{border-radius:var(--radius-md);box-shadow:none}.workspace .taskQueue{border-color:var(--line);border-radius:var(--radius-md)}.workspace .taskRow{padding:12px 14px}.workspace .dealValue{color:var(--ink)}.workspace .taskRow small,.workspace .sourceText{color:var(--muted)}
+
+.pageIntro{margin:4px 0 0;color:#64748b;font-size:13px;line-height:1.6}
+.metricStrip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.metricTile{display:grid;gap:5px;padding:13px 15px;border:1px solid #e2e8f0;background:white;border-radius:8px;text-decoration:none;color:#172b4d;min-width:0}
+.metricTile>span{display:flex;align-items:center;gap:7px;font-size:12px;color:#64748b}.metricTile svg{width:17px;height:17px;flex:none;color:#2563eb}.metricTile strong{font-size:27px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.3}
+.metricTile[data-tone=qualified] strong{color:#2563eb}.metricTile[data-tone=unassigned] strong{color:#b45309}.metricTile[data-tone=unattended] strong{color:#dc2626}.metricTile:hover{border-color:#93b4f5}
+.marketingSummary{font-size:12px;color:#64748b;padding:4px 0}.marketingSummary>div{display:flex;flex-wrap:wrap;gap:16px;padding:10px 0}
+.directoryToolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-bottom:1px solid #e2e8f0;padding:10px 12px;background:#fff;border-radius:9px 9px 0 0}.directoryToolbar .customerSearch{flex:1;min-width:min(100%,260px);max-width:550px}
+.workspace .headingIcon{background:#eaf0fa;color:#2563eb;width:36px;height:36px}
+.workspace .heading h1{color:#172b4d;font-size:var(--text-page);font-weight:700}
+.workspace .customerToolbar{padding:6px 12px;gap:6px;background:white;border-color:#e2e8f0}
+.workspace .quickFilters{border:0;gap:4px;padding:4px 0}.workspace .quickFilters button{background:white;border:0;border-bottom:2px solid transparent;border-radius:0;min-height:36px;color:#64748b;font-size:12px;box-shadow:none}
+.workspace .quickFilters button[aria-pressed=true]{color:#2563eb;border-bottom-color:#2563eb;background:white}
+.workspace [data-crm-customers] .contactTable th{background:#f8fafc!important;color:#475569!important;font-size:12px!important;font-weight:600}
+.workspace [data-crm-customers] .contactTable td{font-size:13px!important;color:#334155;line-height:1.55}
+.workspace [data-crm-customers] .contactTable [data-customer-name]{color:#172b4d;font-weight:700;font-size:14px}
+.workspace [data-crm-customers] .contactTable [data-customer-avatar]{background:#eaf0fa!important;color:#2563eb!important;border-radius:50%;width:36px;height:36px}
+.workspace [data-crm-customers] .contactTable [data-customer-avatar] svg{width:18px;height:18px}
+.workspace [data-crm-customers] .contactTable [data-customer-actions]>button{color:#2563eb;background:white;border-color:transparent}
+.workspace [data-crm-customers] .contactTable [data-customer-actions]>button:hover{background:#eaf0fa}
+.contactActions>summary{border-color:#e2e8f0!important;color:#64748b!important}.contactActions>div{background:white;border:1px solid #e2e8f0;border-radius:7px;padding:5px}
+@media(max-width:760px){.metricStrip{grid-template-columns:repeat(2,minmax(0,1fr))}.metricTile{padding:10px}.metricTile strong{font-size:23px}.directoryToolbar{padding:9px}}
