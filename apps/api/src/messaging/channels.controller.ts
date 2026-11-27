@@ -386,6 +386,12 @@ export class ChannelsController {
   }
 
   @Roles('owner', 'admin')
+  @Post(':id/phone-identity')
+  phoneIdentity(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.channels.refreshPhoneIdentity(req.user.tenantId, id);
+  }
+
+  @Roles('owner', 'admin')
   @Post(':id/verify')
   verify(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.channels.verify(req.user.tenantId, id);
