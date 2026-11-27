@@ -11,6 +11,8 @@ function PolicyForm({policy,accounts,busy,onSave,onDirty}:{policy:Policy;account
  const {t}=useLocale(),[draft,setDraft]=useState(()=>initial(policy)),[saved,setSaved]=useState(()=>JSON.stringify(initial(policy)));
  const dirty=JSON.stringify(draft)!==saved;
  const patch=(p:Partial<Draft>)=>setDraft(v=>({...v,...p}));
+ const remote=JSON.stringify(initial(policy));
+ useEffect(()=>{if(!dirty&&remote!==saved&&!busy){setDraft(JSON.parse(remote));setSaved(remote);}},[remote,dirty,saved,busy]);
  useEffect(()=>{onDirty('channel:'+policy.id,dirty);return()=>onDirty('channel:'+policy.id,false);},[policy.id,dirty,onDirty]);
  const choices=accounts.filter(a=>a.provider===(policy.type==='web'?'web':'meta'));
  const valid=Number.isInteger(draft.intervalMs)&&draft.intervalMs>=(policy.type==='web'||!draft.marketingEnabled?100:1000)&&draft.intervalMs<=3600000&&(!draft.accountId||choices.some(a=>a.id===draft.accountId));
