@@ -132,7 +132,7 @@ if (process.env.BOAT_TELEGRAM_QA === 'true') {
   }
   if (process.env.BOAT_KNOWLEDGE_QA === 'true') {
     const {installKnowledgeFixtures}=await import('./qa-knowledge-fixtures.mjs');
-    installKnowledgeFixtures(app,local);
+    installKnowledgeFixtures(app,local,pg);
   }
   if (process.env.BOAT_SEQUENCE_QA === 'true') {
     const { installSequenceWorkerFixtures } = await import('./qa-sequence-worker-fixtures.mjs');
