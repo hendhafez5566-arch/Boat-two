@@ -65,11 +65,13 @@ export function CampaignComposer({
   segments,
   onSaved,
   layout = 'wizard',
+  onDraftState,
 }: {
   channels: Channel[];
   segments: Segment[];
   onSaved: () => Promise<void>;
   layout?: 'wizard' | 'reference';
+  onDraftState?: (dirty:boolean,busy:boolean)=>void;
 }) {
   const { t } = useLocale();
   const reference = layout === 'reference';
@@ -99,6 +101,7 @@ export function CampaignComposer({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
+  const operationLock=useRef(false);
   const review = useRef(0),
     heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -116,6 +119,11 @@ export function CampaignComposer({
       ...(includeListIds.length ? { includeListIds } : {}),
       ...(excludeListIds.length ? { excludeListIds } : {}),
     };
+  const audienceKey=JSON.stringify([channel,filters]);
+  const reviewedKey=useRef('');
+  const dirty=!!(name.trim()||text.trim()||Object.keys(rich).length||segment||includeTags.length||excludeTags.length||includeListIds.length||excludeListIds.length||template||frequency!==24);
+  useEffect(()=>{onDraftState?.(dirty,busy);},[dirty,busy,onDraftState]);
+  useEffect(()=>{if(!dirty&&!busy)return;const handler=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',handler);return()=>window.removeEventListener('beforeunload',handler);},[dirty,busy]);
   const selectedTemplate = templates.find((x) => x.name + '|' + x.language === template);
   const validContent =
     selectedChannel?.type === 'whatsapp' &&
@@ -152,8 +160,11 @@ export function CampaignComposer({
   useEffect(() => {
     review.current++;
     setAudience(null);
-  }, [channel, segment, includeTags, excludeTags, includeListIds, excludeListIds]);
+    reviewedKey.current='';
+  }, [audienceKey]);
   async function checkAudience() {
+    if(operationLock.current||!channel)return;
+    operationLock.current=true;
     const version = ++review.current;
     setBusy(true);
     setError('');
@@ -162,10 +173,11 @@ export function CampaignComposer({
         method: 'POST',
         body: JSON.stringify({ channelId: channel, filters }),
       });
-      if (version === review.current) setAudience(result);
+      if (version === review.current) {reviewedKey.current=audienceKey;setAudience(result);}
     } catch (e) {
       if (version === review.current) setError((e as Error).message);
     } finally {
+      operationLock.current=false;
       setBusy(false);
     }
   }
@@ -175,6 +187,8 @@ export function CampaignComposer({
     requestAnimationFrame(() => heading.current?.focus());
   }
   async function save() {
+    if(operationLock.current||!name.trim()||!selectedChannel||!validContent||loading||!Number.isInteger(frequency)||frequency<1||frequency>720||!audience||reviewedKey.current!==audienceKey)return;
+    operationLock.current=true;
     setBusy(true);
     setSaving(true);
     setError('');
@@ -188,7 +202,7 @@ export function CampaignComposer({
       await api('/campaigns', {
         method: 'POST',
         body: JSON.stringify({
-          name,
+          name:name.trim(),
           channelId: channel,
           filters,
           frequencyHours: frequency,
@@ -208,10 +222,12 @@ export function CampaignComposer({
       setText('');
       setRich({});
       setAudience(null);
+      onDraftState?.(false,false);
       await onSaved();
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      operationLock.current=false;
       setBusy(false);
       setSaving(false);
     }
@@ -225,7 +241,9 @@ export function CampaignComposer({
     <section
       className={reference ? styles.configuration : 'card stack'}
       aria-label={t('إنشاء حملة', 'Create campaign')}
+      aria-busy={busy}
     >
+      <fieldset disabled={busy} style={{border:0,padding:0,margin:0,minWidth:0,display:'grid',gap:12}}>
       {!reference && (
         <>
           <h2 ref={heading} tabIndex={-1}>
@@ -541,8 +559,7 @@ export function CampaignComposer({
                 !validContent ||
                 !name.trim() ||
                 !channel ||
-                (reference &&
-                  (!audience || !Number.isInteger(frequency) || frequency < 1 || frequency > 720))
+                !audience || reviewedKey.current!==audienceKey || !Number.isInteger(frequency) || frequency < 1 || frequency > 720
               }
               onClick={save}
             >
@@ -551,6 +568,7 @@ export function CampaignComposer({
           </div>
         </div>
       )}
+      </fieldset>
     </section>
   );
 }
