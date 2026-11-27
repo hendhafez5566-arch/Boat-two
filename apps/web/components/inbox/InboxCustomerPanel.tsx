@@ -1,6 +1,7 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState } from 'react';
+import {useTransientNotice} from '../product/useTransientNotice';
 import Link from 'next/link';
 import { LabelEditor } from '../product/LabelEditor';
 import { collectContactLabels } from '../../lib/contact-labels';
@@ -74,7 +75,6 @@ export function InboxCustomerPanel({
   const [editingField, setEditingField] = useState<ContactField | null>(null);
   const [listBusy, setListBusy] = useState(false);
   const [listName, setListName] = useState('');
-  const [more, setMore] = useState(false);
   const [saving, setSaving] = useState(false);
   const [labels, setLabels] = useState<string[]>(detail.contact_tags || []);
   const [labelText, setLabelText] = useState('');
@@ -82,6 +82,7 @@ export function InboxCustomerPanel({
   const [labelsVersion, setLabelsVersion] = useState('');
   const [labelError, setLabelError] = useState('');
   const [labelNotice, setLabelNotice] = useState('');
+  useTransientNotice(labelNotice,()=>setLabelNotice(''));
   const contact = profile.data?.contact;
   const timeline = profile.data?.timeline;
   useEffect(() => {
@@ -245,7 +246,7 @@ export function InboxCustomerPanel({
       aria-label={t('إجراءات المحادثة وبيانات العميل', 'Chat actions and customer details')}
     >
       <header className={styles.heading}>
-        <h2>{t('إجراءات المحادثة', 'Chat Actions')}</h2>
+        <h2><NavIcon name="user"/>{t('العميل وإجراءات المحادثة', 'Customer & chat actions')}</h2>
         <div className={styles.headingActions}>
           <Link
             href="/dashboard/crm/notifications"
@@ -261,10 +262,43 @@ export function InboxCustomerPanel({
         </div>
       </header>
       {profile.error && <p role="alert">{profile.error}</p>}
-      <details open ref={notesSection} className={`${styles.card} ${styles.notesCard}`}>
+      <section className={styles.card}>
+        <h3><NavIcon name="bolt"/>{t('إجراءات سريعة', 'Quick Actions')}</h3>
+        <div className={styles.quick}>
+          <button type="button" onClick={addNote} disabled={noteBusy || !!noteDraft}>
+            <span>
+              <NavIcon name="audit" />
+            </span>
+            {t('ملاحظات', 'Notes')}
+          </button>
+          <>
+              <button type="button" onClick={onFollowup}>
+                <span>
+                  <NavIcon name="calendar" />
+                </span>
+                {t('متابعة', 'Follow-up')}
+              </button>
+              {[
+                ['labels', 'star', t('إضافة وسم', 'Add Label')],
+                ['agent', 'user', t('تعيين فريق', 'Assign Team')],
+                ['sequence', 'sequences', t('إضافة تسلسل', 'Add Sequence')],
+                ['custom', 'audit', t('حقل مخصص', 'Custom Field')],
+                ['window', 'sessions', t('نافذة الرسائل', 'Messaging Window')],
+              ].map(([target, icon, label]) => (
+                <button type="button" key={target} onClick={() => jump(target)}>
+                  <span>
+                    <NavIcon name={icon} />
+                  </span>
+                  {label}
+                </button>
+              ))}
+            </>
+        </div>
+      </section>
+      <details ref={notesSection} className={`${styles.card} ${styles.notesCard}`}>
         <summary>
           <span>
-            {t('الملاحظات الداخلية', 'Internal notes')}
+            <NavIcon name="audit"/>{t('الملاحظات الداخلية', 'Internal notes')}
             <span className={styles.noteCount}>{allNotes.length}</span>
           </span>
           <NavIcon name="chevron" />
@@ -376,47 +410,6 @@ export function InboxCustomerPanel({
           </p>
         )}
       </details>
-      <section className={styles.card}>
-        <h3>{t('إجراءات سريعة', 'Quick Actions')}</h3>
-        <div className={styles.quick}>
-          <button type="button" onClick={addNote} disabled={noteBusy || !!noteDraft}>
-            <span>
-              <NavIcon name="audit" />
-            </span>
-            {t('ملاحظات', 'Notes')}
-          </button>
-          {more && (
-            <>
-              <button type="button" onClick={onFollowup}>
-                <span>
-                  <NavIcon name="calendar" />
-                </span>
-                {t('متابعة', 'Follow-up')}
-              </button>
-              {[
-                ['labels', 'star', t('إضافة وسم', 'Add Label')],
-                ['agent', 'user', t('تعيين فريق', 'Assign Team')],
-                ['sequence', 'sequences', t('إضافة تسلسل', 'Add Sequence')],
-                ['custom', 'audit', t('حقل مخصص', 'Custom Field')],
-                ['window', 'sessions', t('نافذة الرسائل', 'Messaging Window')],
-              ].map(([target, icon, label]) => (
-                <button type="button" key={target} onClick={() => jump(target)}>
-                  <span>
-                    <NavIcon name={icon} />
-                  </span>
-                  {label}
-                </button>
-              ))}
-            </>
-          )}
-          <button type="button" aria-expanded={more} onClick={() => setMore((value) => !value)}>
-            <span>
-              <NavIcon name={more ? 'chevron' : 'more'} />
-            </span>
-            {more ? t('عرض أقل', 'See Less') : t('المزيد', 'See More')}
-          </button>
-        </div>
-      </section>
       <InboxCrmOverview
         contact={contact}
         deals={timeline?.deals || []}

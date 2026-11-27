@@ -124,3 +124,5 @@
 .triggerLabel { white-space:nowrap; }
 .menu { max-height:calc(100dvh - 18px);overflow-y:auto; }
 .menu button[disabled] { opacity:.46; }
+
+.root{gap:3px;flex:none}.root .trigger,.quickStar{display:grid;place-items:center;width:26px;min-width:26px;height:26px;min-height:26px;padding:0;border:1px solid transparent;border-radius:6px;background:transparent;color:#64748b;cursor:pointer}.root .trigger:hover,.quickStar:hover{background:#eeedff;color:#4f46e5}.quickStar[aria-pressed=true]{color:#b45309;background:#fff4df}.quickStar[aria-pressed=true] svg{fill:#fbbf24}.quickStar svg,.root .trigger svg{width:16px;height:16px}.menu{width:min(216px,calc(100vw - 16px));padding:5px;gap:2px;border-radius:10px;border-color:#e4e8f0;box-shadow:0 8px 24px #172b4d26;max-height:calc(100dvh - 16px)}.menu button{min-height:34px;padding:7px 9px;font-size:12px;gap:7px;border-radius:6px}.menu svg{width:16px;height:16px}.menu button:hover,.menu button:focus-visible{background:#eeedff;color:#4f46e5}

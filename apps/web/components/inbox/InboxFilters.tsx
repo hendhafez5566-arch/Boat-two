@@ -56,8 +56,9 @@ export function InboxFilters({
       )
         onClose();
     };
-    document.addEventListener('pointerdown', close);
-    return () => document.removeEventListener('pointerdown', close);
+    const key=(e:KeyboardEvent)=>{if(e.key==='Escape'){onClose();document.querySelector<HTMLButtonElement>('[data-inbox-filter-toggle]')?.focus();}};
+    document.addEventListener('pointerdown', close);document.addEventListener('keydown',key);
+    return () => {document.removeEventListener('pointerdown', close);document.removeEventListener('keydown',key);};
   }, [open, onClose]);
   if (!open) return null;
   const set = (key: keyof InboxFilterValue, next: string) => onChange({ ...value, [key]: next });

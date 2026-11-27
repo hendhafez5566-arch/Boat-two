@@ -48,6 +48,7 @@ export function InboxConversationMenu({
     };
   }, [position]);
   async function action(kind: 'read' | 'unread' | 'update', body?: Record<string, unknown>) {
+    if(body?.blocked===true&&!window.confirm(t('حظر العميل ومنع المحادثة؟','Block this customer?')))return;
     const ok = await onAction(
       `/conversations/${conversation.id}${kind === 'update' ? '' : '/' + kind}`,
       kind === 'update' ? 'PATCH' : 'POST',
@@ -63,8 +64,9 @@ export function InboxConversationMenu({
       ref={root}
       className={styles.root}
       onClick={(event) => event.stopPropagation()}
-      onKeyDown={(event) => event.stopPropagation()}
+      onKeyDown={(event) => {event.stopPropagation();if(event.key==='Escape'){setPosition(null);trigger.current?.focus();}}}
     >
+      <button className={styles.quickStar} type="button" disabled={disabled} aria-pressed={!!conversation.important} title={conversation.important?t('إلغاء التمييز','Remove important flag'):t('تمييز كمهمة','Mark important')} aria-label={conversation.important?t('إلغاء التمييز','Remove important flag'):t('تمييز كمهمة','Mark important')} onClick={()=>void action('update',{important:!conversation.important})}><NavIcon name="star"/></button>
       <button
         ref={trigger}
         type="button"
@@ -79,14 +81,13 @@ export function InboxConversationMenu({
           }
           const r = event.currentTarget.getBoundingClientRect();
           setPosition({
-            top: r.bottom + 340 < window.innerHeight ? r.bottom + 4 : Math.max(8, r.top - 340),
-            left: Math.min(Math.max(8, r.left), window.innerWidth - 240),
+            top: r.bottom + 250 < window.innerHeight ? r.bottom + 4 : Math.max(8, r.top - 250),
+            left: Math.max(8,Math.min(r.right-216,window.innerWidth-224)),
           });
           setError('');
         }}
       >
-        <NavIcon name="menu" />
-        <span className={styles.triggerLabel}>{t('خيارات', 'Options')}</span>
+        <NavIcon name="moreVertical" />
       </button>
       {position && (
         <div
@@ -103,16 +104,6 @@ export function InboxConversationMenu({
           <button type="button" disabled={disabled || (conversation.unread_count ?? 0) > 0} onClick={() => void action('unread')}>
             <NavIcon name="mail" />
             {t('تحديد كغير مقروءة', 'Mark as unread')}
-          </button>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => void action('update', { important: !conversation.important })}
-          >
-            <NavIcon name="star" />
-            {conversation.important
-              ? t('إلغاء التمييز كمهمة', 'Remove Important')
-              : t('تمييز كمهمة', 'Mark As Important')}
           </button>
           <button
             type="button"

@@ -703,7 +703,7 @@ export default function Inbox() {
           <aside
             className={`${selId ? 'hidden lg:flex' : 'flex'} inbox-list w-full flex-col border-l bg-white lg:w-80`}
           >
-            <h1 className={styles.listTitle}>{t('المحادثات', 'Conversations')}</h1>
+            <h1 className={styles.listTitle}><NavIcon name="chat"/>{t('المحادثات', 'Conversations')}</h1>
             <div className="inbox-quick-filters" aria-label={t('قائمة العمل','Work queue')}>
               {(['active','mine','unassigned','unread'] as Tab[]).map(key=><button key={key} type="button" aria-pressed={tab===key&&!needsReply} onClick={()=>{setNeedsReply(false);selectTab(key);}}>{key==='active'?t('الكل','All'):key==='mine'?t('محادثاتي','Mine'):key==='unassigned'?t('غير مسندة','Unassigned'):t('غير مقروءة','Unread')}</button>)}
               <button type="button" aria-pressed={needsReply} onClick={()=>setNeedsReply(!needsReply)}>{t('تنتظر الرد','Awaiting reply')}</button>
@@ -825,7 +825,7 @@ export default function Inbox() {
                     </span>
                     <div className="inbox-body">
                       <div className="inbox-line">
-                        <strong className="inbox-name truncate">{title(c)}</strong>
+                        <strong className="inbox-name truncate" title={title(c)}>{title(c)}</strong>
                         {c.important && (
                           <span className={styles.importantTag} title={t('محادثة مهمة', 'Important conversation')}>
                             <NavIcon name="star" />{t('مهمة', 'Important')}
@@ -858,7 +858,7 @@ export default function Inbox() {
                         )}
                       </div>
                       <div className="inbox-chips">
-                        <span className="inbox-chip is-channel">
+                        <span className="inbox-chip is-channel" title={c.channel_name || CH[c.channel_type] || c.channel_type}>
                           {c.channel_name || CH[c.channel_type] || c.channel_type}
                         </span>
                         {tab === 'closed' && (
@@ -928,7 +928,7 @@ export default function Inbox() {
             </ul>
             {nextBefore && (
               <button className="p-3 border-t" disabled={loadingMore} onClick={moreConversations}>
-                {loadingMore
+                <NavIcon name="refresh"/>{loadingMore
                   ? t('جارٍ التحميل…', 'Loading…')
                   : t('تحميل محادثات أقدم', 'Load older conversations')}
               </button>
@@ -943,18 +943,18 @@ export default function Inbox() {
               </div>
             ) : !detail || !selId ? (
               <div className={styles.empty}>
-                <img src="/navigation/shared-inbox.svg" alt="" />
+                <span className={styles.emptyIcon}><NavIcon name="inbox"/></span>
                 <h1>{t('صندوق الوارد المشترك', 'Shared Inbox')}</h1>
                 <h2>
                   {t(
-                    'كل قنواتك في صندوق وارد واحد',
-                    'Connect Multiple Platforms – all in one inbox!',
+                    'اختر محادثة للبدء',
+                    'Select a conversation to get started',
                   )}
                 </h2>
                 <p>
                   {t(
-                    'إدارة الرسائل من منصات متعددة في مكان واحد.',
-                    'Easily manage messages from multiple platforms in a single inbox.',
+                    'اختر عميلًا من القائمة لعرض الرسائل والرد وإدارة المتابعات.',
+                    'Choose a customer to reply, view messages and manage follow-ups.',
                   )}
                 </p>
               </div>
@@ -997,12 +997,12 @@ export default function Inbox() {
                         </button>
                       )}
                     </strong>
-                    <small>{detail.contact_phone || detail.channel_name}</small><small className="inbox-handler" data-bot={detail.handled_by==='bot'}>{detail.handled_by==='bot'?t('يديرها البوت','Handled by bot'):t('يديرها الفريق','Handled by team')}</small>
+                    <small><bdi>{detail.contact_phone || detail.channel_name}</bdi></small><small className="inbox-handler" data-bot={detail.handled_by==='bot'}>{detail.handled_by==='bot'?t('يديرها البوت','Handled by bot'):t('يديرها الفريق','Handled by team')}</small>
                     {process.env.NEXT_PUBLIC_COMMERCE_CHECKOUT === 'true' &&
                       ['owner', 'admin'].includes(workspaceRole) && detail.channel_id && (
                       <Link href={'/dashboard/commerce?' + new URLSearchParams({
                         conversation: detail.id, channel: detail.channel_id,
-                      })}>{t('إنشاء طلب', 'Create order')}</Link>
+                      })}><NavIcon name="commerce"/>{t('إنشاء طلب', 'Create order')}</Link>
                     )}
                   </div>
                 {infoOpen && (
@@ -1098,7 +1098,7 @@ export default function Inbox() {
                       aria-label={t('تعيين متابعة', 'Set Follow-up')}
                       onClick={() => setFollowupOpen(true)}
                     >
-                      <NavIcon name="stopwatch" />
+                      <NavIcon name="stopwatch" /><span className={styles.toolLabel}>{t('متابعة','Follow-up')}</span>
                     </button>
                     <button
                       type="button"
@@ -1117,7 +1117,7 @@ export default function Inbox() {
                     </button>
                     <button
                       type="button"
-                      aria-label={t('إظهار معلومات العميل', 'Toggle customer info')}
+                      aria-label={t('إظهار معلومات العميل', 'Toggle customer info')} title={t('بيانات العميل والتوقيت','Customer facts and timing')}
                       aria-expanded={infoOpen}
                       onClick={() => setInfoOpen((v) => !v)}
                     >
@@ -1138,7 +1138,7 @@ export default function Inbox() {
 
                 {notice && (
                   <p className="handoff-notice" role="status">
-                    ✓ {notice}
+                    <NavIcon name="circleCheck"/> {notice} <button type="button" aria-label={t('إغلاق الإشعار','Dismiss notification')} onClick={()=>setNotice('')}><NavIcon name="close"/></button>
                   </p>
                 )}
                 {acting && (
@@ -1200,7 +1200,7 @@ export default function Inbox() {
                       className={!internal ? 'is-on' : ''}
                       onClick={() => setInternal(false)}
                     >
-                      {t('رد', 'Reply')}
+                      <NavIcon name="chat"/>{t('رد', 'Reply')}
                     </button>
                     <button
                       type="button"
@@ -1208,7 +1208,7 @@ export default function Inbox() {
                       className={internal ? 'is-on is-note' : ''}
                       onClick={() => setInternal(true)}
                     >
-                      {t('ملاحظة', 'Note')}
+                      <NavIcon name="audit"/>{t('ملاحظة', 'Note')}
                     </button>
                   </div>
                   {process.env.NEXT_PUBLIC_COMMERCE_CHECKOUT === 'true' && !internal && selId && (
@@ -1228,7 +1228,7 @@ export default function Inbox() {
                   )}
                   {!internal && !detail.blocked && detail.channel_type === 'whatsapp' && selId && (
                     <button type="button" className="btn" onClick={() => setTemplateConversation(selId)}>
-                      {t('استخدام قالب واتساب', 'Use WhatsApp template')}
+                      <NavIcon name="whatsapp"/>{t('قالب واتساب', 'WhatsApp template')}
                     </button>
                   )}
                   {templateConversation && templateConversation === selId && (

@@ -55,3 +55,5 @@
   padding: 8px;
   cursor: pointer;
 }
+
+.popover{padding:9px;gap:7px;border-radius:10px;border-color:#e4e8f0;box-shadow:0 7px 24px #172b4d1c;max-height:min(70dvh,520px);overflow:auto}.popover label{font-size:12px;gap:4px}.popover select,.popover input{min-height:32px;padding:5px 8px;font-size:12px}.header{padding-bottom:5px;color:#172b4d}.header svg{color:#4f46e5}
