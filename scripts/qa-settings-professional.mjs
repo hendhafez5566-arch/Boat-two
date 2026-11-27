@@ -1,0 +1,79 @@
+import assert from 'node:assert/strict';
+import {randomUUID as uuid} from 'node:crypto';
+import {createRequire} from 'node:module';
+import {mkdirSync,writeFileSync} from 'node:fs';
+import {assertLocalAcceptance} from './acceptance-local.mjs';
+assertLocalAcceptance();
+const base='http://localhost:4000',web='http://localhost:3000',out='docs/p0-evidence/settings-professional';mkdirSync(out,{recursive:true});
+const {chromium}=createRequire(import.meta.url)(process.env.BOAT_PLAYWRIGHT_MODULE||'playwright');
+async function api(path,token,body,method=body?'POST':'GET',status){const r=await fetch(base+path,{method,headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});const d=await r.json();if(status)assert.equal(r.status,status,path+' '+JSON.stringify(d));else assert.ok(r.ok,path+' '+r.status+' '+JSON.stringify(d));return d;}
+const browser=await chromium.launch({executablePath:process.env.BOAT_CHROMIUM||'/usr/bin/google-chrome',args:['--no-sandbox']}),results=[];
+try{for(const language of ['ar','en'])for(const width of [390,1366]){
+ const t=(ar,en)=>language==='ar'?ar:en,credentials={email:uuid()+'@example.test',password:'Synthetic-'+uuid()},session=await api('/auth/register',null,{...credentials,fullName:'Settings QA',workspaceName:'Isolated settings QA'}),token=session.accessToken;
+ await api('/channels',token,{type:'web',name:'Synthetic settings channel'});await api('/workspace/onboarding/complete',token,{});
+ const second=await api('/auth/login',null,{...credentials,tenantId:session.tenantId});
+ const other=await api('/auth/register',null,{email:uuid()+'@example.test',password:'Synthetic-'+uuid(),fullName:'Other settings QA',workspaceName:'Other tenant'});
+ const current=(await api('/auth/sessions/index?status=current',token)).items[0];
+ const secondId=(await api('/auth/sessions/index?status=current',second.accessToken)).items[0].id;
+ assert.notEqual(current.id,secondId);assert.equal((await api('/auth/sessions/index?q='+current.id,other.accessToken)).total,0);
+ await api('/auth/sessions/'+secondId+'/revoke',other.accessToken,{},'POST',404);
+ const context=await browser.newContext({viewport:{width,height:936}});await context.addInitScript(({session,language})=>{localStorage.setItem('session',JSON.stringify(session));localStorage.setItem('boat-language',language);},{session,language});
+ const page=await context.newPage();page.setDefaultTimeout(25000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>['localhost','127.0.0.1'].includes(new URL(r.request().url()).hostname)?r.continue():r.abort());
+ await page.goto(web+'/dashboard/settings?tab=company');
+ const company=page.getByRole('tabpanel',{name:t('الشركة','Company'),exact:true}),name=company.locator('input[name=name]');
+ await name.fill('QA company edited');await company.locator('input[name=industry]').fill('Synthetic industry');await company.locator('input[name=timezone]').fill('Not/AZone');
+ const save=company.getByRole('button',{name:t('حفظ بيانات الشركة','Save company details'),exact:true});
+ await save.click();await company.getByRole('alert').waitFor();assert.notEqual((await api('/workspace',token)).tenant.name,'QA company edited');
+ let prompted=false;page.once('dialog',d=>{prompted=true;return d.dismiss();});await page.getByRole('tab',{name:new RegExp(t('الأمان','Security'))}).click();assert.ok(prompted);assert.equal(await name.inputValue(),'QA company edited');
+ // Simulate another administrator selecting a plan while the company form is open.
+ await api('/workspace',token,{name:'Isolated settings QA',industry:'Old industry',timezone:'UTC',language:'en',preferredPlan:'pro'},'PATCH');
+ await company.locator('input[name=timezone]').fill('Africa/Cairo');await company.locator('select[name=language]').selectOption(language);await save.click();await company.getByText(t('تم حفظ بيانات الشركة.','Company details saved.'),{exact:false}).waitFor();
+ const saved=(await api('/workspace',token)).tenant;assert.equal(saved.name,'QA company edited');assert.equal(saved.settings.timezone,'Africa/Cairo');assert.equal(saved.settings.language,language);assert.equal(saved.preferred_plan,'pro');
+ await page.getByRole('tab',{name:new RegExp(t('الأمان','Security'))}).click();
+ const search=page.getByRole('searchbox',{name:t('البحث بالأجهزة','Search devices')});await search.fill(secondId);
+ const row=page.getByRole('row').filter({has:page.getByRole('button',{name:t('إبطال الجلسة','Revoke session'),exact:true})});
+ await row.waitFor();page.once('dialog',d=>d.accept());await row.getByRole('button',{name:t('إبطال الجلسة','Revoke session'),exact:true}).click();
+ await page.getByText(t('تم إبطال الجلسة','Session revoked'),{exact:true}).waitFor();
+ assert.ok((await api('/auth/sessions/index?q='+secondId,token)).items[0].revoked_at);
+ const revoked=await fetch(base+'/auth/me',{headers:{authorization:'Bearer '+second.accessToken}});assert.ok([401,403].includes(revoked.status));
+ await page.getByRole('combobox',{name:t('حالة الجلسة','Session status')}).selectOption('revoked');await row.waitFor();assert.ok(await row.getByRole('button',{name:t('إبطال الجلسة','Revoke session'),exact:true}).isDisabled());
+ await page.getByRole('tab',{name:new RegExp(t('تكاملات API','API Integration'))}).click();
+ const providerGroups=[['email','تكامل البريد','Email API','Email Gateway',true,false],['sms','تكامل SMS','SMS API','SMS Gateway',true,false],['mailchimp','تكامل الرد الآلي','Auto Responder API','Mailchimp',false,true],['brevo','تكامل الرد الآلي','Auto Responder API','Brevo',false,true],['activecampaign','تكامل الرد الآلي','Auto Responder API','ActiveCampaign',true,true],['mautic','تكامل الرد الآلي','Auto Responder API','Mautic',true,true],['salla','تكامل سلة','Salla API','Salla',false,false]];
+ const created=[];
+ for(const [provider,ar,en,label,url,list] of providerGroups){
+  await page.getByRole('tab',{name:new RegExp(t(ar,en))}).click();
+  await page.getByRole('button',{name:/جديد|New/}).click();
+  const dialog=page.getByRole('dialog',{name:t(ar,en)});await dialog.getByRole('button',{name:label,exact:true}).click();
+  const key='synthetic-'+uuid(),profile='QA '+provider;
+  await dialog.locator('input[name=name]').fill(profile);
+  await dialog.locator('input[name=credential]').fill(key);
+  if(url)await dialog.locator('input[name=url]').fill('https://example.test/gateway');
+  if(list)await dialog.locator('input[name=listId]').fill('synthetic-list');
+  let ask=false;page.once('dialog',d=>{ask=true;return d.dismiss();});await page.keyboard.press('Escape');assert.ok(ask);
+  await dialog.getByRole('button',{name:t('حفظ','Save'),exact:true}).click();await dialog.waitFor({state:'hidden'});
+  const profileRow=page.getByRole('row').filter({hasText:profile});await profileRow.waitFor();
+  const rows=await api('/integrations',token);const entry=rows.find(x=>x.name===profile);assert.ok(entry);assert.equal(entry.provider,provider);assert.equal(entry.enabled,false);assert.ok(!JSON.stringify(rows).includes(key));created.push(entry.id);
+  await profileRow.getByRole('button',{name:t('تعديل','Edit'),exact:true}).click();await dialog.locator('input[name=name]').fill(profile+' edited');assert.equal(await dialog.locator('input[name=credential]').inputValue(),'');
+  await dialog.getByRole('button',{name:t('حفظ','Save'),exact:true}).click();await dialog.waitFor({state:'hidden'});const updated=page.getByRole('row').filter({hasText:profile+' edited'});await updated.waitFor();
+  page.once('dialog',d=>d.accept());await updated.getByRole('button',{name:t('تفعيل','Enable'),exact:true}).click();await updated.getByRole('button',{name:t('تعطيل','Disable'),exact:true}).waitFor();
+  page.once('dialog',d=>d.accept());await updated.getByRole('button',{name:t('تعطيل','Disable'),exact:true}).click();await updated.getByRole('button',{name:t('تفعيل','Enable'),exact:true}).waitFor();
+ }
+ // Verify server search and reconnect without any external provider traffic.
+ const indexed=await api('/integrations/index?group=email-tab&q='+created[0],token);assert.equal(indexed.total,1);assert.equal(indexed.items[0].id,created[0]);
+ assert.equal((await api('/integrations/index?group=email-tab&q='+created[0],other.accessToken)).total,0);
+ await api('/integrations/'+created[0]+'/disconnect',token,{});
+ await api('/integrations/'+created[0],token,{enabled:true},'PATCH',400);
+ const reconnected=await api('/integrations/'+created[0],token,{credential:'synthetic-rotated-key'},'PATCH');assert.equal(reconnected.status,'pending');assert.equal(reconnected.enabled,false);
+ await api('/integrations/'+created[0],token,{enabled:true},'PATCH');
+ assert.equal((await api('/integrations',other.accessToken)).length,0);await api('/integrations/'+created[0],other.accessToken,{enabled:true},'PATCH',400);
+ await api('/integrations',token,{provider:'email',name:'Unsafe URL',credential:'synthetic',config:{url:'https://user:password@example.test'}},'POST',400);
+ await page.getByRole('tab',{name:new RegExp(t('الأمان','Security'))}).click();await page.getByRole('tab',{name:new RegExp(t('سجل النشاط','Activity Logs'))}).click();
+ const audit=page.getByRole('searchbox',{name:t('بحث سجل النشاط','Search activity logs')});await audit.fill(created[0]);
+ const records=await api('/workspace/audit?q='+created[0],token);assert.ok(records.total>=1);assert.ok(records.items.every(x=>x.resource_id===created[0]));assert.ok(!JSON.stringify(records).includes('synthetic-list'));
+ await page.getByRole('button',{name:t('مسح البحث','Clear search'),exact:true}).click();await audit.fill('absent-audit-qa');
+ await page.getByText(t('ستظهر الأنشطة الجديدة هنا.','New activities will appear here.'),{exact:true}).waitFor();
+ assert.equal((await api('/workspace/audit?q='+created[0],other.accessToken)).total,0);
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'settings viewport overflow');assert.deepEqual(errors,[]);
+ await page.screenshot({path:out+'/settings-'+language+'-'+width+'.png',fullPage:true});results.push({language,width,status:'PASS'});await context.close();
+}}finally{await browser.close();writeFileSync(out+'/results.json',JSON.stringify(results,null,2)+'\n');}
+console.log('PASS company plan preservation, guarded drafts, real session revoke, seven integration providers and isolated audit search journeys',results.length);

@@ -32,7 +32,8 @@ export const connectionSchema = z.object({
     url: z
       .string()
       .url()
-      .refine((v) => v.startsWith('https://'))
+      .max(2048)
+      .refine((v) => {try{const u=new URL(v);return u.protocol==='https:'&&!u.username&&!u.password;}catch{return false;}},'Use HTTPS without embedded credentials')
       .optional(),
     listId: z.string().max(200).optional(),
     eventTypes: z.array(z.enum(EVENT_TYPES)).max(20).default([]),
