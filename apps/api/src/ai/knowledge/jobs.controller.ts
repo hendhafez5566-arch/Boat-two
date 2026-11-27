@@ -73,14 +73,14 @@ export class KnowledgeJobsController {
       await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,41))', [identity.source_id]);
       const job = (
         await c.query(
-          "UPDATE knowledge_jobs SET status='canceled',updated_at=now() WHERE id=$1 AND status IN ('pending','running','blocked','failed') RETURNING source_id",
+          "UPDATE knowledge_jobs SET status='canceled',updated_at=now() WHERE id=$1 AND status IN ('pending','running','blocked','failed') RETURNING source_id,source_revision",
           [id],
         )
       ).rows[0];
       if (!job) throw new NotFoundException();
       await c.query(
-        "UPDATE knowledge_sources SET status=CASE WHEN chunk_count>0 THEN 'ready' ELSE 'canceled' END,error='Indexing job canceled',updated_at=now() WHERE id=$1",
-        [job.source_id],
+        "UPDATE knowledge_sources SET status=CASE WHEN chunk_count>0 THEN 'ready' ELSE 'canceled' END,error='Indexing job canceled',updated_at=now() WHERE id=$1 AND revision=$2 AND archived_at IS NULL AND NOT EXISTS(SELECT 1 FROM knowledge_jobs other WHERE other.source_id=knowledge_sources.id AND other.id<>$3 AND other.status IN ('pending','running','blocked'))",
+        [job.source_id,job.source_revision,id],
       );
       return { canceled: true };
     });
