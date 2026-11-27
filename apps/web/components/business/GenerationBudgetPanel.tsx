@@ -2,7 +2,7 @@
 import { DisclosureSummary } from '../product/DisclosureSummary';
 
 import { statusLabel } from '../product/status';
-import { useState } from 'react';
+import { useEffect,useRef,useState } from 'react';
 import { api } from '../../lib/api';
 import { useLocale } from '../product/locale';
 import { useData } from './useData';
@@ -50,16 +50,23 @@ export function GenerationBudgetPanel() {
     [busy, setBusy] = useState(false);
   const owner = workspace.data.role === 'owner',
     u = data.data.usage;
+  const lock=useRef(false);
+  const [notice,setNotice]=useState('');
+  const [query,setQuery]=useState(''),[state,setState]=useState('all');
+  const ready=!data.loading&&!data.error&&!!data.loadedPath;
+  const rows=data.data.reservations.filter(r=>(r.model+' '+r.id).toLowerCase().includes(query.trim().toLowerCase())&&(state==='all'||r.status===state));
+  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4000);return()=>clearTimeout(timer);},[notice]);
   async function act(path: string, body: unknown) {
-    setBusy(true);
+    if(lock.current||!owner||!ready)return;
+    lock.current=true;setBusy(true);setNotice('');
     setError('');
     try {
       await api(path, { method: 'POST', body: JSON.stringify(body) });
-      await data.reload();
+      await data.reload();setNotice(t('تم تسجيل التغيير','Change recorded'));
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      lock.current=false;setBusy(false);
     }
   }
   return (
@@ -78,28 +85,30 @@ export function GenerationBudgetPanel() {
       </p>
       {(error || data.error) && (
         <p role="alert" className="notice error">
-          {error || data.error}
+          {error || data.error} {data.error&&<button className="btn" onClick={()=>void data.reload()}>{t('إعادة المحاولة','Retry')}</button>}
         </p>
       )}
+      {notice&&<p className="notice" role="status">{notice}</p>}
+      {data.loading&&<p role="status">{t('جارٍ التحميل…','Loading…')}</p>}
       <div className="form-grid">
         <article className="card">
           <strong>{t('محاولات هذا الشهر / حد الباقة', 'Monthly attempts / plan limit')}</strong>
           <p>
-            {(u?.baseline_calls ?? 0) + (u?.attempts ?? 0)} /{' '}
-            {data.data.planLimit === -1 ? '∞' : data.data.planLimit}
+            {ready?(u?.baseline_calls ?? 0) + (u?.attempts ?? 0):'—'} /{' '}
+            {ready?(data.data.planLimit === -1 ? '∞' : data.data.planLimit):'—'}
           </p>
         </article>
         <article className="card">
           <strong>{t('رموز فعلية / محجوزة', 'Actual / reserved tokens')}</strong>
           <p>
-            {u?.charged_tokens ?? 0} / {u?.reserved_tokens ?? 0}
+            {ready?(u?.charged_tokens ?? 0):'—'} / {ready?(u?.reserved_tokens ?? 0):'—'}
           </p>
         </article>
         <article className="card">
           <strong>{t('تكلفة معلومة / محجوزة بالدولار', 'Known / reserved cost in USD')}</strong>
           <p>
-            {Number(u?.charged_cost_microusd ?? 0) / 1000000} /{' '}
-            {Number(u?.reserved_cost_microusd ?? 0) / 1000000}
+            {ready?Number(u?.charged_cost_microusd ?? 0) / 1000000:'—'} /{' '}
+            {ready?Number(u?.reserved_cost_microusd ?? 0) / 1000000:'—'}
           </p>
           <small>
             {t(
@@ -122,6 +131,7 @@ export function GenerationBudgetPanel() {
         key={data.data.policy.revision}
         onSubmit={(e) => {
           e.preventDefault();
+          if(!owner||!ready||lock.current||!window.confirm(t('تأكيد تغيير حدود الميزانية؟ الحقول الفارغة تلغي الحد الإضافي.','Confirm budget changes? Empty fields remove the additional cap.')))return;
           const f = new FormData(e.currentTarget),
             n = (key: string) => (f.get(key) === '' ? null : Number(f.get(key)));
           void act('/agents/generation/policy', {
@@ -141,7 +151,7 @@ export function GenerationBudgetPanel() {
               min={0}
               max={10000000}
               defaultValue={data.data.policy.monthly_calls ?? ''}
-              disabled={!owner}
+              disabled={!owner||!ready||busy}
             />
           </label>
           <label className="field">
@@ -152,7 +162,7 @@ export function GenerationBudgetPanel() {
               min={0}
               max={2000000000}
               defaultValue={data.data.policy.monthly_tokens ?? ''}
-              disabled={!owner}
+              disabled={!owner||!ready||busy}
             />
           </label>
           <label className="field">
@@ -168,14 +178,15 @@ export function GenerationBudgetPanel() {
                   ? ''
                   : Number(data.data.policy.monthly_cost_microusd) / 1000000
               }
-              disabled={!owner}
+              disabled={!owner||!ready||busy}
             />
           </label>
         </div>
-        <button className="btn" disabled={busy || !owner}>
+        <button className="btn" disabled={busy || !owner||!ready}>
           {t('حفظ حدود الميزانية', 'Save budget limits')}
         </button>
       </form>
+      <div className="form-actions"><input type="search" aria-label={t("بحث الحجوزات","Search reservations")} value={query} onChange={e=>setQuery(e.target.value)}/><select aria-label={t("حالة الحجز","Reservation state")} value={state} onChange={e=>setState(e.target.value)}><option value="all">{t("الكل","All")}</option>{[...new Set(data.data.reservations.map(r=>r.status))].map(v=><option key={v} value={v}>{statusLabel(v,t)}</option>)}</select><small>{t("آخر 100 حجز","Latest 100 reservations")}</small></div>
       <div className="table-wrap">
         <table className="product-table">
           <thead>
@@ -188,7 +199,7 @@ export function GenerationBudgetPanel() {
             </tr>
           </thead>
           <tbody>
-            {data.data.reservations.map((r) => (
+            {ready&&rows.map((r) => (
               <tr key={r.id}>
                 <td>
                   {r.model}
@@ -219,6 +230,7 @@ export function GenerationBudgetPanel() {
                         onSubmit={(e) => {
                           e.preventDefault();
                           const f = new FormData(e.currentTarget);
+                          if(lock.current||!owner||!ready||!window.confirm(t('تأكيد الإفراج بالدليل المسجل؟','Confirm release using the recorded evidence?')))return;
                           void act('/agents/generation/' + r.id + '/release', {
                             confirmedNotBilled: true,
                             evidence: f.get('evidence'),
@@ -254,8 +266,8 @@ export function GenerationBudgetPanel() {
           </tbody>
         </table>
       </div>
-      {!data.data.reservations.length && (
-        <p className="empty">{t('لا توجد حجوزات بعد.', 'No generation reservations yet.')}</p>
+      {ready&&!rows.length && (
+        <p className="empty">{t('لا توجد حجوزات مطابقة.', 'No matching generation reservations.')}</p>
       )}
     </section>
   );

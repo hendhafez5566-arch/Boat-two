@@ -117,3 +117,25 @@ button.step:focus-visible,a.step:focus-visible{outline:2px solid #00856a;outline
  .technicalTitle strong{font-size:13px;}
  .technicalTitle small{font-size:10px;}
 }
+
+/* AI workspace: compact density and approved purple primary palette. */
+.intro{gap:10px}
+.guide{background:linear-gradient(125deg,var(--primary-soft,#f0edfc),var(--surface,#fff));border-color:var(--line,#e2e8f0);border-radius:12px;padding:12px}
+.guideHead strong,.sectionHeading h2{color:var(--ink,#19233c)}
+.guideHead span,.step small,.stats span{color:var(--muted,#64748b)}
+.step{padding:10px;border-color:var(--line,#e2e8f0);color:var(--ink,#19233c);border-radius:10px}
+button.step:hover:not(:disabled),a.step:hover{background:var(--primary-soft,#f0edfc);border-color:var(--primary,#6050ce)}
+.stepNumber,.agentAvatar,.technicalIcon{background:var(--primary-soft,#f0edfc);color:var(--primary-deep,#5041b6)}
+.stats{gap:8px}
+.stats>div{padding:10px;border-color:var(--line,#e2e8f0);border-inline-start:3px solid var(--primary,#6050ce);border-radius:10px}
+.stats>div:nth-child(2){border-inline-start-color:#15803d}
+.stats>div:nth-child(3){border-inline-start-color:#2563eb}
+.stats strong{color:var(--ink,#19233c);font-size:23px}
+.safetyNote{background:#eff6ff;color:#1e40af;border-inline-start-color:#2563eb}
+.agentCard,.editor,.advanced,.technicalGroup{border-color:var(--line,#e2e8f0);border-radius:12px;box-shadow:0 2px 8px #19233c08}
+.agentCard{padding:12px}
+.choiceGroup{max-height:340px;overflow:auto;min-width:0;overflow-wrap:anywhere}
+.choiceGroup label{align-items:flex-start}
+.statusActive{color:#15803d;background:#ecfdf5}
+.statusMuted{color:#475569;background:#f1f5f9}
+@media(max-width:480px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stats strong{font-size:20px}.guide{padding:9px}.agentCard{padding:10px}.technicalSummary{gap:8px}.technicalBody{padding:8px;min-width:0}}

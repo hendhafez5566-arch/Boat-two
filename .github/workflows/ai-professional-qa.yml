@@ -1,0 +1,55 @@
+name: Professional AI workspace acceptance
+on:
+  push:
+    branches: [ux/ai-professional-20261128]
+  pull_request:
+    branches: [fix/preview-order-summary-filter]
+    paths:
+      - 'apps/web/app/dashboard/ai/**'
+      - 'apps/web/app/dashboard/agents/**'
+      - 'apps/web/components/workspace/AgentsPanel.tsx'
+      - 'apps/web/components/workspace/ai-workspace.module.css'
+      - 'apps/web/components/business/AgentRouting.tsx'
+      - 'apps/web/components/business/ProviderEditor.tsx'
+      - 'apps/web/components/business/GenerationBudgetPanel.tsx'
+      - 'apps/web/components/business/ModelCatalog.tsx'
+      - 'apps/web/components/business/AiToolAudit.tsx'
+      - 'apps/api/src/ai/**'
+      - 'scripts/qa-ai-professional.mjs'
+      - '.github/workflows/ai-professional-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ai-professional-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install and build actual application
+        run: corepack enable && pnpm install --frozen-lockfile && pnpm --filter api build && pnpm --filter web build
+      - name: AI prompts, provider, grounding and cost tests
+        run: pnpm --filter api exec tsx --test src/ai/ai.test.ts src/ai/catalog-grounding.test.ts src/ai/cost.test.ts src/ai/providers/openai.test.ts src/ai/providers/embeddings.test.ts
+      - name: Install isolated browser driver
+        run: npm install --prefix "$RUNNER_TEMP/boat-playwright" playwright@1.56.1 --ignore-scripts
+      - name: Bilingual AI workspace acceptance
+        env:
+          BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
+          BOAT_QA_BROWSER_SCRIPT: scripts/qa-ai-professional.mjs
+          BOAT_CHROMIUM: /usr/bin/google-chrome
+        run: python3 scripts/run-connect-browser-qa.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-professional-evidence
+          path: |
+            docs/p0-evidence/ai-professional/
+            /tmp/boat-journeys-api.log
+            /tmp/boat-journeys-web.log
+          if-no-files-found: warn
