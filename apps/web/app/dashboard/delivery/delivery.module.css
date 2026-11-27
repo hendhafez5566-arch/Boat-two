@@ -28,3 +28,4 @@
 .page :global(.btn-primary){background:linear-gradient(160deg,var(--brand-gradient-end,#8071e5),var(--primary,#6050ce));box-shadow:inset 0 1px 0 #ffffff45}
 .page :is(button,input,select,textarea,a,summary):focus-visible{outline:2px solid var(--primary,#6050ce);outline-offset:2px}
 @media(max-width:600px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metrics strong{font-size:20px}.metrics>div{padding:9px}.details{grid-template-columns:1fr}.filters input{font-size:16px}.page{padding-bottom:18px}}
+.page :global(.delivery-policy-fields){border:0;padding:0;margin:0;min-width:0;display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))}.page :global(.delivery-policy-fields) :is(input,select){max-width:100%;min-width:0}.page :global(.delivery-policy-fields) :global(.form-actions){grid-column:1/-1}
