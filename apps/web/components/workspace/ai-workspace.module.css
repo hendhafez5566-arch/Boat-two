@@ -139,3 +139,21 @@ button.step:hover:not(:disabled),a.step:hover{background:var(--primary-soft,#f0e
 .statusActive{color:#15803d;background:#ecfdf5}
 .statusMuted{color:#475569;background:#f1f5f9}
 @media(max-width:480px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stats strong{font-size:20px}.guide{padding:9px}.agentCard{padding:10px}.technicalSummary{gap:8px}.technicalBody{padding:8px;min-width:0}}
+
+:global(.knowledge-professional){min-width:0;gap:12px}
+:global(.knowledge-professional) .stats{gap:8px}
+:global(.knowledge-professional) .stats>div{padding:12px;border-inline-start:3px solid var(--primary,#6050ce);border-radius:10px}
+:global(.knowledge-professional) .stats>div:nth-child(2){border-inline-start-color:#15803d}
+:global(.knowledge-professional) .stats>div:nth-child(3){border-inline-start-color:#d97706}
+:global(.knowledge-professional) .sourceGrid{gap:10px}
+:global(.knowledge-professional) .sourceCard{padding:12px;border-color:var(--line,#e2e8f0);border-radius:12px;min-width:0}
+:global(.knowledge-professional) .sourceTitle h3{overflow-wrap:anywhere}
+:global(.knowledge-professional) .sourceIcon{background:var(--primary-soft,#f0edfc);color:var(--primary,#6050ce)}
+:global(.knowledge-fields){border:0;padding:0;margin:0;min-width:0;display:grid;gap:12px}
+:global(.knowledge-professional) :is(input,select,textarea){min-width:0;max-width:100%;font-family:inherit}
+:global(.knowledge-professional) :is(button,input,select,textarea,summary,a):focus-visible{outline:2px solid var(--primary,#6050ce);outline-offset:2px}
+:global(.knowledge-professional .btn-primary){background:linear-gradient(160deg,var(--brand-gradient-end,#8071e5),var(--primary,#6050ce));box-shadow:inset 0 1px 0 #ffffff45}
+:global(.knowledge-professional) .sourceMoreActions{display:grid;gap:6px;min-width:0}
+:global(.knowledge-professional) .sourceMoreActions button:last-child{color:#be123c}
+:global(.knowledge-editor){scroll-margin-block:90px}
+@media(max-width:600px){:global(.knowledge-professional) .stats>div{padding:8px;overflow-wrap:anywhere}:global(.knowledge-professional) .sourceGrid{grid-template-columns:minmax(0,1fr)}:global(.knowledge-fields) :is(input,textarea,select){font-size:16px}:global(.knowledge-professional){padding-bottom:18px}}
