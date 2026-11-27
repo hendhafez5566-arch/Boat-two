@@ -58,6 +58,7 @@ export default function Campaigns() {
   const [direction, setDirection] = useState<'asc' | 'desc'>('desc');
   const [draftSearch, setDraftSearch] = useState('');
   function sortBy(key: 'name' | 'status' | 'scheduledAt') {
+    if(creating||editingCampaign||scheduling||busy)return;
     setSort(key);
     setDirection(sort === key && direction === 'asc' ? 'desc' : 'asc');
   }
@@ -264,7 +265,7 @@ export default function Campaigns() {
     setLedger(null);
     try {
       const result = await api<NonNullable<typeof ledger>>(
-        `/campaigns/${id}/recipients?` + new URLSearchParams({ ...next, page: String(p) }),
+        `/campaigns/${id}/recipients?` + new URLSearchParams({ ...next, page: String(p),limit:'25' }),
       );
       if (version === ledgerVersion.current) setLedger(result);
     } catch (e) {
@@ -606,7 +607,7 @@ export default function Campaigns() {
                           </td>
                           <td>
                             <div className="flex flex-wrap gap-2">
-                              <button className="btn" onClick={() => view(c.id)}>
+                              <button className="btn" disabled={busy||creating} onClick={() => view(c.id,1,{search:'',status:'',deliveryStatus:'',jobStatus:''})}>
                                 {t('النتائج', 'Results')}
                               </button>
                               {c.status === 'draft' && (
@@ -673,7 +674,7 @@ export default function Campaigns() {
                   <select
                     aria-label={t('عدد الحملات في الصفحة', 'Campaigns per page')}
                     value={campaignLimit}
-                    onChange={(e) => setCampaignLimit(Number(e.target.value))}
+                    disabled={creating||!!editingCampaign||!!scheduling||busy} onChange={(e) => setCampaignLimit(Number(e.target.value))}
                   >
                     {[5, 10, 25].map((value) => (
                       <option key={value} value={value}>
@@ -807,7 +808,9 @@ export default function Campaigns() {
               className="card stack"
               aria-label={t('تصفية مستلمي الحملة', 'Campaign recipient filters')}
             >
+              <div className="form-actions"><h2>{t('مستلمو الحملة','Campaign recipients')}</h2><button className="btn" type="button" onClick={()=>{ledgerVersion.current++;setSelected('');setLedger(null);setLedgerLoading(false);}}>{t('إغلاق النتائج','Close results')}</button></div>
               <form
+                key={selected+JSON.stringify(filters)}
                 className="form-grid"
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -862,6 +865,7 @@ export default function Campaigns() {
                 <button className="btn" disabled={ledgerLoading}>
                   {t('تطبيق الفلاتر', 'Apply filters')}
                 </button>
+                <button type="button" className="btn" disabled={ledgerLoading} onClick={()=>void view(selected,1,{search:'',status:'',deliveryStatus:'',jobStatus:''})}>{t('مسح فلاتر المستلمين','Clear recipient filters')}</button>
               </form>
               {ledgerLoading && (
                 <p role="status">{t('تحميل سجل المستلمين…', 'Loading recipients…')}</p>
