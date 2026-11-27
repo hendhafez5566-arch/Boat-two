@@ -1,0 +1,51 @@
+name: Professional social publishing acceptance
+on:
+  push:
+    branches: [ux/social-professional-20261127]
+  pull_request:
+    branches: [fix/preview-order-summary-filter]
+    paths:
+      - 'apps/web/app/dashboard/social/**'
+      - 'apps/web/components/workspace/SocialWorkspace.tsx'
+      - 'apps/web/lib/social-posts.ts'
+      - 'apps/api/src/commerce/social*'
+      - 'apps/api/src/commerce/contracts.ts'
+      - 'apps/api/src/commerce/commerce.controller.ts'
+      - 'scripts/qa-social-professional.mjs'
+      - '.github/workflows/social-professional-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: social-professional-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install and build actual application
+        run: corepack enable && pnpm install --frozen-lockfile && pnpm --filter api build && pnpm --filter web build
+      - name: PostgreSQL isolation, search, worker and fake Meta acceptance
+        run: pnpm --filter api exec tsx --test src/commerce/social-posts.pg.test.ts
+      - name: Install browser driver
+        run: npm install --prefix "$RUNNER_TEMP/boat-playwright" playwright@1.56.1 --ignore-scripts
+      - name: Social draft and preview browser journeys
+        env:
+          BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
+          BOAT_QA_BROWSER_SCRIPT: scripts/qa-social-professional.mjs
+          BOAT_CHROMIUM: /usr/bin/google-chrome
+        run: python3 scripts/run-connect-browser-qa.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: social-professional-evidence
+          path: |
+            docs/p0-evidence/social-professional/
+            /tmp/boat-journeys-api.log
+            /tmp/boat-journeys-web.log
+          if-no-files-found: warn

@@ -265,6 +265,15 @@ export class CommerceController {
   @Get('social') posts(@Req() r: AuthedRequest) {
     return this.social.list(r.user.tenantId);
   }
+  @Get('social/index') socialIndex(@Req() r: AuthedRequest,@Query() query:unknown){
+    const q=parse(z.object({format:z.enum(['multimedia','cta','carousel']).optional(),kind:z.enum(['text','link','image','video','carousel','cta']).optional(),channelId:z.string().uuid().optional(),status:z.enum(['draft','scheduled','sending','published','failed','ambiguous']).optional(),q:z.string().trim().max(150).default(''),page:z.coerce.number().int().min(1).max(100000).default(1),limit:z.coerce.number().int().min(1).max(100).default(10)}),query);
+    return this.social.index(r.user.tenantId,q);
+  }
+  @Get('social/:id/detail') socialDetail(@Req() r:AuthedRequest,@Param('id',ParseUUIDPipe) id:string){return this.social.detail(r.user.tenantId,id);}
+  @Post('social/:id/cancel') cancelSocial(@Req() r:AuthedRequest,@Param('id',ParseUUIDPipe) id:string,@Body() body:unknown){
+    parse(z.object({confirm:z.literal(true)}),body);
+    return this.social.cancel(r.user.tenantId,id);
+  }
   @Post('social') savePost(@Req() r: AuthedRequest, @Body() body: unknown) {
     return this.social.save(r.user.tenantId, parse(socialSchema, body));
   }
@@ -287,7 +296,7 @@ export class CommerceController {
     @Body() body: unknown,
   ) {
     const b = parse(
-      z.object({ confirm: z.literal(true), scheduledAt: z.string().datetime() }),
+      z.object({ confirm: z.literal(true), scheduledAt: z.string().datetime().refine(value=>Date.parse(value)>Date.now(),'Choose a future publishing time') }),
       body,
     );
     return this.social.queue(r.user.tenantId, id, b.scheduledAt);
