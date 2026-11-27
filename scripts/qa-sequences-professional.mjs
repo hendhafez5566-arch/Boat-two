@@ -20,10 +20,18 @@ try{for(const language of ['ar','en'])for(const width of [390,1366]){
  await editor.getByRole('button',{name:t('+ خطوة','+ Step'),exact:true}).click();
  await editor.locator('textarea').nth(1).fill('Synthetic second message');
  await editor.getByRole('spinbutton').nth(1).fill('9');await editor.getByRole('button',{name:t('أعلى','Move up'),exact:true}).nth(1).click();
+ const first=editor.locator('.sq-row').first();
+ await first.getByRole('button',{name:t('+ إضافة شرط','+ Add condition'),exact:true}).click();
+ const condition=page.getByRole('dialog',{name:t('إعداد الشرط','Configure Condition')});
+ await condition.getByRole('button',{name:t('إضافة قاعدة نظام','Add system rule')}).click();
+ await condition.getByLabel(t('المتغيّر','Variable'),{exact:true}).selectOption('name');
+ await condition.getByLabel(t('القيمة','Value'),{exact:true}).fill('Synthetic sequence visitor');
+ await condition.getByRole('button',{name:/حفظ التغييرات|Save Changes/}).click();await condition.waitFor({state:'hidden'});
+
  let asked=false;page.once('dialog',d=>{asked=true;return d.dismiss();});await editor.getByRole('button',{name:/رجوع|Back/}).click();assert.ok(asked);await name.waitFor();
  await editor.getByRole('button',{name:t('حفظ','Save'),exact:true}).click();await editor.getByText(t('تم الحفظ','Saved'),{exact:true}).waitFor();
  let saved=(await api('/sequences',token)).find(s=>s.name==='Sequence QA draft');assert.ok(saved);
- let full=await api('/sequences/'+saved.id,token);assert.deepEqual(full.steps.map(s=>s.content.text),['Synthetic second message','Synthetic first message']);assert.equal(full.steps[0].delay.amount,9);
+ let full=await api('/sequences/'+saved.id,token);assert.deepEqual(full.steps.map(s=>s.content.text),['Synthetic second message','Synthetic first message']);assert.equal(full.steps[0].delay.amount,9);assert.equal(full.steps[0].condition.conditions[0].key,'name');
  await editor.getByRole('button',{name:t('تفعيل','Activate'),exact:true}).waitFor();
  await name.fill('Sequence QA updated');assert.ok(await editor.getByRole('button',{name:t('تفعيل','Activate'),exact:true}).isDisabled());
  await editor.getByRole('button',{name:t('حفظ','Save'),exact:true}).click();await editor.getByText(t('تم الحفظ','Saved'),{exact:true}).waitFor();
@@ -40,6 +48,22 @@ try{for(const language of ['ar','en'])for(const width of [390,1366]){
  await dialog.getByRole('button',{name:t('مراجعة الجمهور','Review Audience'),exact:true}).click();
  await dialog.getByText(t('المشتركون المؤهلون','Eligible Subscribers'),{exact:false}).waitFor();assert.ok(await dialog.getByRole('button',{name:t('تعيين التسلسل للمشتركين المراجَعين','Assign Sequence to Reviewed Subscribers'),exact:true}).isDisabled());
  await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});
+ // Real linked subscriber in loopback-only full-app harness, then a reviewed bulk assignment.
+ const linked=await api('/__qa/sequence-worker',null,{op:'receive',tenantId:session.tenantId,channelId:channel.id});
+ await api('/crm/contacts/'+linked.contactId+'/consent',token,{channelId:channel.id,status:'opted_in',evidence:'Synthetic sequence QA consent'},'PUT');
+ await api('/delivery/policies/'+channel.id,token,{marketingEnabled:true,intervalMs:1000},'PUT');
+ await page.getByRole('button',{name:t('تعيين جماعي','Bulk Assign'),exact:true}).click();
+ await dialog.getByLabel(t('اختيار التسلسل','Select Sequence'),{exact:true}).selectOption(saved.id);
+ await dialog.getByRole('button',{name:t('مراجعة الجمهور','Review Audience'),exact:true}).click();
+ await dialog.getByText(t('المشتركون المؤهلون','Eligible Subscribers'),{exact:false}).waitFor();
+ const assign=dialog.getByRole('button',{name:t('تعيين التسلسل للمشتركين المراجَعين','Assign Sequence to Reviewed Subscribers'),exact:true});
+ page.once('dialog',d=>d.accept());await assign.click();await dialog.getByText(t('تم التعيين','Assigned')+': 1',{exact:true}).waitFor();
+ await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});
+ const before=await api('/__qa/sequence-worker',null,{op:'snapshot',tenantId:session.tenantId,sequenceId:saved.id,contactId:linked.contactId});assert.equal(before.enrollment.status,'active');assert.equal(before.enrollment.step_index,0);
+ await api('/sequences/'+saved.id+'/enroll',token,{contactId:linked.contactId}).then(x=>assert.equal(x.enrolled,false));
+ await api('/__qa/sequence-worker',null,{op:'receive',tenantId:session.tenantId,channelId:channel.id,externalId:linked.externalId});
+ const after=await api('/__qa/sequence-worker',null,{op:'snapshot',tenantId:session.tenantId,sequenceId:saved.id,contactId:linked.contactId});assert.equal(after.enrollment.status,'stopped');assert.equal(after.enrollment.stop_reason,'replied');
+
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'list overflow');assert.deepEqual(errors,[]);
  await page.screenshot({path:out+'/list-'+language+'-'+width+'.png',fullPage:true});results.push({language,width,status:'PASS'});await context.close();
 }}finally{await browser.close();writeFileSync(out+'/results.json',JSON.stringify(results,null,2)+'\n');}
