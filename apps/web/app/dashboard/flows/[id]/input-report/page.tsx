@@ -7,6 +7,7 @@ import { api } from '../../../../../lib/api';
 import { useLocale } from '../../../../../components/product/locale';
 import { channelHref } from '../../../../../lib/channel-context';
 import styles from './input-report.module.css';
+import { NavIcon } from '../../../../../components/product/NavIcon';
 
 type InputFlowReport = {
   flow: { id: string; name: string; status: string };
@@ -37,10 +38,16 @@ export default function InputFlowReportPage() {
   const [report, setReport] = useState<InputFlowReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [attempt,setAttempt]=useState(0);
+  const [query,setQuery]=useState('');
+  const [status,setStatus]=useState('');
+  const [page,setPage]=useState(1);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setReport(null);
+    setQuery('');setStatus('');setPage(1);
     setError('');
     api<InputFlowReport>(`/flows/${params.id}/input-report`)
       .then((result) => {
@@ -55,12 +62,16 @@ export default function InputFlowReportPage() {
     return () => {
       active = false;
     };
-  }, [params.id, t]);
+  }, [params.id, t, attempt]);
 
   const back = channelHref('/dashboard/flows?section=entry_points', channelId ?? '');
   const dateText = (value: string) =>
     new Date(value).toLocaleString(language === 'ar' ? 'ar-EG' : 'en-GB');
 
+  const filtered=(report?.records??[]).filter(record=>(!status||record.status===status)&&(!query.trim()||[record.contactId,record.contactName??'',...Object.values(record.answers).map(valueText)].some(v=>v.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))));
+  const pages=Math.max(1,Math.ceil(filtered.length/50));
+  const current=Math.min(page,pages);
+  const statusText=(value:string)=>value==='waiting'?t('بانتظار الإجابة','Waiting for reply'):value==='handed_off'?t('تم التسليم لموظف','Handed off'):value==='expired'?t('انتهت المهلة','Expired'):value==='completed'?t('مكتمل','Completed'):value;
   return (
     <main className={styles.page} dir={language === 'ar' ? 'rtl' : 'ltr'}>
       <header className={styles.header}>
@@ -75,7 +86,7 @@ export default function InputFlowReportPage() {
       </header>
 
       {loading && <p role="status">{t('جارٍ تحميل الإجابات…', 'Loading responses…')}</p>}
-      {error && <p role="alert" className={styles.error}>{error}</p>}
+      {error && <p role="alert" className={styles.error}>{error} <button className="btn" disabled={loading} onClick={()=>setAttempt(n=>n+1)}><NavIcon name="refresh" />{t('إعادة المحاولة','Retry')}</button></p>}
       {!loading && !error && report && (
         <section className={styles.report} aria-label={t('تقرير إجابات التدفق', 'Flow response report')}>
           <div className={styles.summary}>
@@ -89,7 +100,8 @@ export default function InputFlowReportPage() {
               {t('يتم عرض أحدث 5000 جلسة فقط.', 'Showing the latest 5,000 sessions.')}
             </p>
           )}
-          <div className={styles.tableWrap}>
+          <div className="workbench-toolbar"><label className="field">{t('بحث في الإجابات المحملة','Search loaded responses')}<input type="search" value={query} onChange={e=>{setQuery(e.target.value);setPage(1);}} /></label><label className="field">{t('الحالة','Status')}<select value={status} onChange={e=>{setStatus(e.target.value);setPage(1);}}><option value="">{t('كل الحالات','All statuses')}</option>{Array.from(new Set(report.records.map(r=>r.status))).map(value=><option key={value} value={value}>{statusText(value)}</option>)}</select></label><button className="btn" onClick={()=>{setQuery('');setStatus('');setPage(1);}}>{t('مسح الفلاتر','Clear filters')}</button></div>
+          <div className={styles.tableWrap} tabIndex={0} role="region" aria-label={t('الإجابات','Responses')}>
             <table>
               <thead>
                 <tr>
@@ -101,9 +113,9 @@ export default function InputFlowReportPage() {
                 </tr>
               </thead>
               <tbody>
-                {report.records.map((record, index) => (
+                {filtered.slice((current-1)*50,current*50).map((record, index) => (
                   <tr key={record.id}>
-                    <td>{index + 1}</td>
+                    <td>{(current-1)*50+index + 1}</td>
                     <td>
                       <span>{record.contactName || t('عميل', 'Contact')}</span>
                       <small>{record.contactId}</small>
@@ -125,14 +137,15 @@ export default function InputFlowReportPage() {
                     <td>{dateText(record.updatedAt)}</td>
                   </tr>
                 ))}
-                {!report.records.length && (
+                {!filtered.length && (
                   <tr><td colSpan={report.fields.length + 4} className={styles.empty}>
-                    {t('لم تُسجل إجابات لهذا التدفق بعد.', 'No responses have been recorded for this flow yet.')}
+                    {report.records.length?t('لا توجد إجابات مطابقة للفلاتر.','No responses match these filters.'):t('لم تُسجل إجابات لهذا التدفق بعد.', 'No responses have been recorded for this flow yet.')}
                   </td></tr>
                 )}
               </tbody>
             </table>
           </div>
+          <div className="workbench-toolbar"><small>{filtered.length?t('النتائج','Results')+' '+((current-1)*50+1)+'–'+Math.min(current*50,filtered.length)+' / '+filtered.length:t('لا نتائج','No results')}</small><div className="form-actions"><button className="btn" disabled={current===1} onClick={()=>setPage(current-1)}>{t('السابق','Previous')}</button><button className="btn" disabled={current===pages} onClick={()=>setPage(current+1)}>{t('التالي','Next')}</button></div></div>
         </section>
       )}
     </main>
