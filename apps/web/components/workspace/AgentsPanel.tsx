@@ -238,7 +238,7 @@ export default function Agents() {
           </article>
         ))}
       </div>
-      {!data.loading&&!data.error&&data.data.agents.length>0&&!filtered.length&&<p className="empty">{t('لا توجد نتائج مطابقة','No matching assistants')}</p>}
+      {!data.loading&&!data.error&&data.data.agents.length>0&&!filtered.length&&<p className="empty" data-ai-empty="assistants">{t('لا يوجد مساعدون مطابقون','No matching assistants')}</p>}
       {!data.loading&&!data.error&&filtered.length>0&&<div className="form-actions"><span>{filtered.length} · {page}/{pages}</span><button className="btn" disabled={page<=1} onClick={()=>setPage(n=>n-1)}>{t('السابق','Previous')}</button><button className="btn" disabled={page>=pages} onClick={()=>setPage(n=>n+1)}>{t('التالي','Next')}</button></div>}
       {editorOpen && <form
         id="agent-editor"
