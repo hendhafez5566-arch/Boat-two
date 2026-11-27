@@ -112,7 +112,7 @@ export const updateChannelSchema = z.object({
   status: z.enum(['active', 'disabled']).optional(),
   settings: sparsePatch(widgetSettingsSchema
     .partial()
-    .extend({ telegramAllowGroups: z.boolean().optional() }))
+    .extend({ telegramAllowGroups: z.boolean().optional(), displayDepartment: z.string().trim().max(80).optional(), internalNote: z.string().trim().max(1000).optional() }))
     .optional(),
 });
 
@@ -218,6 +218,36 @@ export class ChannelsService {
           widgetSnippet: `<script src="${env.PUBLIC_API_URL}/widget.js" data-key="${row.external_id}" async></script>`,
         }
       : { ...row, connectionHealth: health };
+  }
+
+  /** Fetch the actual provider display number, never infer it from the phone number ID. */
+  async refreshPhoneIdentity(tenantId: string, id: string) {
+    const row = await this.db.withTenant(tenantId, async c =>
+      (await c.query("SELECT * FROM channels WHERE id=$1 AND type='whatsapp'", [id])).rows[0]);
+    if (!row) throw new NotFoundException('WhatsApp channel not found');
+    if (row.status !== 'active') throw new BadRequestException('Enable the channel before refreshing its phone number');
+    const token = this.credentials(row).accessToken;
+    if (!token) throw new BadRequestException('WhatsApp credentials unavailable');
+    let phone: string;
+    try {
+      const res = await fetch(`${GRAPH}/${encodeURIComponent(row.external_id)}?fields=id,display_phone_number`, {
+        headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10000),
+      });
+      const data = await res.json() as { id?: string; display_phone_number?: string };
+      if (!res.ok || data.id !== row.external_id || typeof data.display_phone_number !== 'string' ||
+          !/^\+?[\d\s().-]{6,40}$/.test(data.display_phone_number) ||
+          data.display_phone_number.replace(/\D/g,'').length < 6 || data.display_phone_number.replace(/\D/g,'').length > 15)
+        throw new Error('Phone unavailable');
+      phone = data.display_phone_number.trim();
+    } catch {
+      throw new BadRequestException('Meta could not provide the phone number. Check the account permissions and retry.');
+    }
+    const saved = await this.db.withTenant(tenantId, c => c.query(
+      "UPDATE channels SET settings=settings || $2::jsonb WHERE id=$1 AND type='whatsapp' AND status='active' AND credentials_enc IS NOT DISTINCT FROM $3 AND external_id=$4 RETURNING "+PUBLIC_COLS,
+      [id, JSON.stringify({providerDisplayPhone:phone, providerPhoneCheckedAt:new Date().toISOString()}), row.credentials_enc, row.external_id],
+    ));
+    if (!saved.rowCount) throw new ConflictException('Channel credentials changed; refresh again');
+    return this.view(saved.rows[0]);
   }
 
   /** Read-only provider request. Never subscribes, disconnects or sends a message. */
@@ -535,7 +565,7 @@ export class ChannelsService {
 
   update(tenantId: string, id: string, input: z.infer<typeof updateChannelSchema>) {
     return this.db.withTenant(tenantId, async (c) => {
-      const cur = (await c.query('SELECT settings FROM channels WHERE id = $1', [id])).rows[0];
+      const cur = (await c.query('SELECT settings FROM channels WHERE id = $1 FOR UPDATE', [id])).rows[0];
       if (!cur) throw new NotFoundException('Channel not found');
       const settings = input.settings ? { ...cur.settings, ...input.settings } : cur.settings;
       const r = await c.query(
@@ -729,7 +759,7 @@ export class ChannelsService {
       ] = accessToken;
       if (row.type === 'whatsapp' && wabaId) credentials.wabaId = wabaId;
       await c.query(
-        "UPDATE channels SET credentials_enc=$2,status='active',settings=(settings-'connectionHealth'-'metaAuthorization') || $3::jsonb WHERE id=$1",
+        "UPDATE channels SET credentials_enc=$2,status='active',settings=(settings-'connectionHealth'-'metaAuthorization'-'providerDisplayPhone'-'providerPhoneCheckedAt') || $3::jsonb WHERE id=$1",
         [
           id,
           this.crypto.encrypt(credentials),
