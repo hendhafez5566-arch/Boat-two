@@ -124,19 +124,19 @@ export default function ManagerQuickActions({
             )}
           </p>
         </div>
-        <button type="button" className="btn" onClick={() => setAdvanced(true)}>
+        <button type="button" className="btn" disabled={!channelId||config.loading||!!busy||!!config.error} onClick={() => setAdvanced(true)}>
           <NavIcon name="settings" />
           {t('إعداد الإجراءات', 'Configure Actions')}
         </button>
       </header>
       {(error || config.error) && (
         <p className="notice error" role="alert">
-          {error || config.error}
+          {error || config.error} {config.error&&<button type="button" className="btn" disabled={config.loading} onClick={()=>void config.reload()}>{t("إعادة المحاولة","Retry")}</button>}
         </p>
       )}
       {config.loading ? (
         <p role="status">{t('جارٍ تحميل الإجراءات…', 'Loading actions…')}</p>
-      ) : (
+      ) : !config.error && channelId ? (
         <>
         {atFlowLimit && (
           <p className="notice" role="status">
@@ -158,7 +158,7 @@ export default function ManagerQuickActions({
                 <span className={styles.actionCardText}>
                   <strong>{t(ar, en)}</strong>
                   <small>{t(descriptionAr, descriptionEn)}</small>
-                  {!entry?.flowId && <em>{t('إنشاء مسودة', 'Create draft')}</em>}
+                  <em>{entry?.flowId?(entry.enabled?t('مفعّل في الإعدادات','Enabled in settings'):t('مرتبط وغير مفعّل','Linked, disabled')):t('إنشاء مسودة','Create draft')}</em>
                 </span>
                 <span className={styles.actionCardArrow}>
                   <NavIcon name="chevron" />
@@ -187,7 +187,7 @@ export default function ManagerQuickActions({
           })}
         </div>
         </>
-      )}
+      ) : null}
       <p className={styles.actionHint}>
         {t(
           'المسودة الجديدة لا تفعّل الرد تلقائيًا. انشر التدفق ثم اختره من إعداد الإجراءات لربطه.',
