@@ -60,6 +60,22 @@ export class KnowledgeService {
     );
   }
 
+  index(tenantId:string,q:{q:string;status:string;archived:boolean;type?:string;page:number;limit:number}) {
+    return this.db.withTenant(tenantId,async c=>{
+      const params:unknown[]=[];const clauses:string[]=[];
+      if(!q.archived)clauses.push('archived_at IS NULL');
+      if(q.status==='processing')clauses.push("status IN ('pending','processing','blocked')");
+      else if(q.status!=='all'){params.push(q.status);clauses.push('status=$'+params.length);}
+      if(q.type){params.push(q.type);clauses.push('type=$'+params.length);}
+      if(q.q){params.push('%'+q.q.replace(/[\\%_]/g,v=>'\\'+v)+'%');clauses.push('(title ILIKE $'+params.length+' OR id::text ILIKE $'+params.length+')');}
+      const where=clauses.length?' WHERE '+clauses.join(' AND '):'';
+      const total=Number((await c.query('SELECT count(*)::int AS n FROM knowledge_sources'+where,params)).rows[0].n);
+      const items=(await c.query('SELECT '+COLS+' FROM knowledge_sources'+where+' ORDER BY created_at DESC,id LIMIT $'+(params.length+1)+' OFFSET $'+(params.length+2),[...params,q.limit,(q.page-1)*q.limit])).rows;
+      const summary=(await c.query("SELECT count(*)::int AS total,count(*) FILTER (WHERE status='ready')::int AS ready,count(*) FILTER (WHERE status IN ('pending','processing','blocked'))::int AS processing,count(*) FILTER (WHERE status IN ('pending','processing'))::int AS running FROM knowledge_sources WHERE archived_at IS NULL")).rows[0];
+      return {items,total,summary};
+    });
+  }
+
   get(tenantId: string, id: string) {
     return this.db.withTenant(tenantId, async (c) => {
       const r = await c.query(
