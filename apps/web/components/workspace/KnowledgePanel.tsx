@@ -121,7 +121,7 @@ export default function Knowledge() {
   };
   const filtered=items;
   return (
-    <section className="stack knowledge-professional" aria-busy={busy}>
+    <section className={"stack "+styles.knowledgeProfessional} aria-busy={busy}>
       <div className={styles.intro}>
         <div className={styles.introText}>
           <WorkspaceHeading
