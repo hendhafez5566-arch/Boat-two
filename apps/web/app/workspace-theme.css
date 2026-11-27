@@ -145,3 +145,19 @@ body { font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif; f
 .bs-shell [data-workbench="reports"] .report-chart small{display:block;color:var(--muted);margin-top:6px}
 .bs-shell [data-workbench="reports"] :is(button,input,select,[tabindex]):focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 @media(max-width:600px){.bs-shell [data-workbench="reports"] .report-filters .field{flex:1 1 calc(50% - 10px);min-width:0}.bs-shell [data-workbench="reports"] .report-filters>.btn{flex:1 1 auto}.bs-shell [data-workbench="reports"] .report-detail .workbench-toolbar{align-items:stretch}.bs-shell [data-workbench="reports"] .report-detail .workbench-toolbar .field{flex:1 1 100%}.bs-shell [data-workbench="reports"] .report-detail .workbench-toolbar input{width:100%}}
+
+/* Keep the mobile fixed navigation clear of the final workspace actions.
+   Restore the bottom inset after the compact theme's padding shorthand. */
+@media (max-width:750px) {
+  .bs-shell:not(.flow-shell):not(.inbox-shell):has(.workspace-bottom-nav) .page-workspace {
+    padding-block-end:calc(112px + env(safe-area-inset-bottom, 0px));
+  }
+  .bs-shell:has(.workspace-bottom-nav) .page-workspace :is(button,a,input,select,summary,[tabindex]) {
+    scroll-margin-block-end:calc(90px + env(safe-area-inset-bottom, 0px));
+    scroll-margin-block-start:80px;
+  }
+  html:has(.bs-shell .workspace-bottom-nav) {
+    scroll-padding-block-end:calc(80px + env(safe-area-inset-bottom, 0px));
+    scroll-padding-block-start:72px;
+  }
+}
