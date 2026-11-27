@@ -184,14 +184,17 @@ export default function ManagerSettings({
   channelId,
   canManage,
   onSaved,
+  onDirtyChange,
 }: {
   channelId: string | null;
   canManage: boolean;
   onSaved?: () => void;
+  onDirtyChange?: (dirty:boolean)=>void;
 }) {
   const { t } = useLocale();
   const labelText = (label: string) => t(arabicLabels[label] || label, label);
   const request = useRef(0);
+  const actionLock=useRef(false);
   const [active, setActive] = useState<(typeof tabList)[number][0]>('general');
   const [draft, setDraft] = useState<Settings>(defaults);
   const [saved, setSaved] = useState<Settings>(defaults);
@@ -201,6 +204,9 @@ export default function ManagerSettings({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(saved), [draft, saved]);
+  useEffect(()=>{onDirtyChange?.(dirty||busy);return()=>onDirtyChange?.(false);},[dirty,busy,onDirtyChange]);
+  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4000);return()=>clearTimeout(timer);},[notice]);
+  useEffect(()=>{if(!dirty&&!busy)return;const unload=(e:BeforeUnloadEvent)=>{e.preventDefault();e.returnValue='';};const click=(e:MouseEvent)=>{if(e.button!==0||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;const a=(e.target as Element)?.closest?.('a[href]') as HTMLAnchorElement|null;if(!a||a.download||a.target==='_blank'||a.href===location.href)return;if(busy||!window.confirm(t('توجد تعديلات غير محفوظة. هل تريد المغادرة؟','Unsaved changes. Leave this page?'))){e.preventDefault();e.stopPropagation();}};window.addEventListener('beforeunload',unload);document.addEventListener('click',click,true);return()=>{window.removeEventListener('beforeunload',unload);document.removeEventListener('click',click,true);};},[dirty,busy,t]);
   const load = useCallback(async () => {
     const version = ++request.current;
     setReady(false);
@@ -298,7 +304,8 @@ export default function ManagerSettings({
     </label>
   );
   async function save() {
-    if (!channelId || busy || loading || !canManage || !ready) return;
+    if (!channelId || actionLock.current || loading || !canManage || !ready) return;
+    actionLock.current=true;
     const version = request.current;
     setBusy(true);
     setError('');
@@ -324,11 +331,14 @@ export default function ManagerSettings({
         e instanceof Error ? e.message : t('تعذر حفظ الإعدادات.', 'Could not save settings.'),
       );
     } finally {
+      actionLock.current=false;
       setBusy(false);
     }
   }
   async function activateSupported() {
-    if (!channelId || dirty || loading || busy || !canManage || !ready) return;
+    if (!channelId || dirty || loading || actionLock.current || !canManage || !ready) return;
+    if(!window.confirm(t('سيتم تفعيل الإعدادات المدعومة على القناة. هل تريد المتابعة؟','Supported settings will be activated on this channel. Continue?')))return;
+    actionLock.current=true;
     const version = request.current;
     setBusy(true);
     setError('');
@@ -349,6 +359,7 @@ export default function ManagerSettings({
       if (version === request.current)
         setError(e instanceof Error ? e.message : t('تعذر التفعيل', 'Activation failed'));
     } finally {
+      actionLock.current=false;
       setBusy(false);
     }
   }
@@ -379,7 +390,7 @@ export default function ManagerSettings({
           className={error ? styles.settingsError : styles.settingsNotice}
           role={error ? 'alert' : 'status'}
         >
-          {error || notice}
+          {error || notice} {error&&!ready&&<button type="button" className="btn" disabled={loading||busy} onClick={()=>void load()}>{t('إعادة المحاولة','Retry')}</button>}
         </p>
       )}
       <nav
