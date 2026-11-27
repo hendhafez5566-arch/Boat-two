@@ -29,16 +29,16 @@ try{for(const language of ['ar','en'])for(const width of [390,1366]){
  await condition.getByRole('button',{name:/حفظ التغييرات|Save Changes/}).click();await condition.waitFor({state:'hidden'});
 
  let asked=false;page.once('dialog',d=>{asked=true;return d.dismiss();});await editor.getByRole('button',{name:/رجوع|Back/}).click();assert.ok(asked);await name.waitFor();
- await editor.getByRole('button',{name:t('حفظ','Save'),exact:true}).click();await editor.locator('.sq-msg[role=status]').getByText(t('تم الحفظ','Saved'),{exact:true}).waitFor();
+ await editor.getByRole('button',{name:t('حفظ','Save'),exact:true}).click();await editor.locator('.sq-msg[role=status]').filter({hasText:t('تم الحفظ','Saved')}).waitFor();
  let saved=(await api('/sequences',token)).find(s=>s.name==='Sequence QA draft');assert.ok(saved);
  let full=await api('/sequences/'+saved.id,token);assert.deepEqual(full.steps.map(s=>s.content.text),['Synthetic second message','Synthetic first message']);assert.equal(full.steps[0].delay.amount,9);assert.equal(full.steps[0].condition.conditions[0].key,'name');
  await editor.getByRole('button',{name:t('تفعيل','Activate'),exact:true}).waitFor();
  await name.fill('Sequence QA updated');assert.ok(await editor.getByRole('button',{name:t('تفعيل','Activate'),exact:true}).isDisabled());
- await editor.getByRole('button',{name:t('حفظ','Save'),exact:true}).click();await editor.locator('.sq-msg[role=status]').getByText(t('تم الحفظ','Saved'),{exact:true}).waitFor();
- page.once('dialog',d=>d.accept());await editor.getByRole('button',{name:t('تفعيل','Activate'),exact:true}).click();await editor.locator('.sq-msg[role=status]').getByText(t('تم التفعيل','Activated'),{exact:true}).waitFor();
- page.once('dialog',d=>d.accept());await editor.getByRole('button',{name:t('إيقاف مؤقت','Pause'),exact:true}).click();await editor.locator('.sq-msg[role=status]').getByText(t('تم الإيقاف المؤقت','Paused'),{exact:true}).waitFor();
+ await editor.getByRole('button',{name:t('حفظ','Save'),exact:true}).click();await editor.locator('.sq-msg[role=status]').filter({hasText:t('تم الحفظ','Saved')}).waitFor();
+ page.once('dialog',d=>d.accept());await editor.getByRole('button',{name:t('تفعيل','Activate'),exact:true}).click();await editor.locator('.sq-msg[role=status]').filter({hasText:t('تم التفعيل','Activated')}).waitFor();
+ page.once('dialog',d=>d.accept());await editor.getByRole('button',{name:t('إيقاف مؤقت','Pause'),exact:true}).click();await editor.locator('.sq-msg[role=status]').filter({hasText:t('تم الإيقاف المؤقت','Paused')}).waitFor();
  assert.equal((await api('/sequences/'+saved.id,token)).status,'paused');
- page.once('dialog',d=>d.accept());await editor.getByRole('button',{name:t('تفعيل','Activate'),exact:true}).click();await editor.locator('.sq-msg[role=status]').getByText(t('تم التفعيل','Activated'),{exact:true}).waitFor();
+ page.once('dialog',d=>d.accept());await editor.getByRole('button',{name:t('تفعيل','Activate'),exact:true}).click();await editor.locator('.sq-msg[role=status]').filter({hasText:t('تم التفعيل','Activated')}).waitFor();
  await page.locator('.sequence-path > li').nth(1).getByRole('button').click();await page.waitForFunction(()=>document.activeElement?.id?.startsWith('sequence-step-'));
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'editor overflow');
  await page.screenshot({path:out+'/editor-'+language+'-'+width+'.png',fullPage:true});
