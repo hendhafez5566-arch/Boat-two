@@ -1,4 +1,5 @@
 'use client';
+import { useTransientNotice } from '../../../components/product/useTransientNotice';
 import { DisclosureSummary } from '../../../components/product/DisclosureSummary';
 
 import { useEffect, useState } from 'react';
@@ -105,6 +106,7 @@ export default function Channels() {
   const [deleting, setDeleting] = useState<Channel | null>(null);
   const [widget, setWidget] = useState<Channel | null>(null);
   const [copied, setCopied] = useState('');
+  useTransientNotice(copied,()=>setCopied(''));
   const [items, setItems] = useState<Channel[]>([]);
   const [google, setGoogle] = useState<Channel[]>([]);
   const accounts = [...items, ...google];
@@ -115,6 +117,7 @@ export default function Channels() {
   const [editingTokenId, setEditingTokenId] = useState<string | null>(null);
   const [replacementToken, setReplacementToken] = useState('');
   const [tokenNotice, setTokenNotice] = useState('');
+  useTransientNotice(tokenNotice,()=>setTokenNotice(''));
 
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
@@ -126,6 +129,7 @@ export default function Channels() {
   const [detailTab,setDetailTab]=useState<'overview'|'identity'|'health'|'templates'|'advanced'>('overview');
   const [role,setRole]=useState('');
   const [savedNotice,setSavedNotice]=useState('');
+  useTransientNotice(savedNotice,()=>setSavedNotice(''));
   const [identityBusy,setIdentityBusy]=useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const stateOf = channelConnectionState;
@@ -386,7 +390,7 @@ export default function Channels() {
             {c.type!=='google'?<div className={styles.tileActions}><Link className={styles.primaryAction} href={channelHref('/dashboard/flows',c.id)}><NavIcon name="agents"/>{t('إعداد البوت والنشر','Set up bot')}</Link><Link className={styles.secondaryAction} href={channelHref('/dashboard/inbox',c.id)}><NavIcon name="chat"/>{t('محادثات القناة','Channel inbox')}</Link></div>:<Link className={styles.secondaryAction} href="/dashboard/channels/connect/google"><NavIcon name="settings"/>{t('إدارة ربط Google','Manage Google connection')}</Link>}
             <footer className={styles.tileFooter}>{c.type!=='google'?<button type="button" className={styles.textAction} onClick={()=>openChannel(c)}><NavIcon name="settings"/>{t('إدارة القناة','Manage channel')}</button>:<span/>}
               {c.widgetSnippet?<button type="button" className={styles.textAction} onClick={()=>install(c)}><NavIcon name="globe"/>{t('تثبيت على الموقع','Install on website')}</button>:c.type!=='google'&&canManage&&<button type="button" className={styles.textAction} disabled={busy||identityBusy||c.status!=='active'} onClick={()=>{openChannel(c,'health');void verify(c);}}><NavIcon name="shield"/>{t('فحص الاتصال','Check connection')}</button>}
-              <details className={styles.moreMenu}><summary aria-label={t('المزيد','More')}><NavIcon name="moreVertical"/></summary><div><Link className="btn" href={'/dashboard/channels/connect/'+c.type}><NavIcon name="settings"/>{t('إعدادات الربط','Connection setup')}</Link>{c.type!=='google'&&<button className="btn" type="button" onClick={()=>openChannel(c,'identity')}><NavIcon name="edit"/>{t('بيانات القناة','Channel identity')}</button>}{c.type==='whatsapp'&&<Link className="btn" href={'/dashboard/channels/'+c.id+'/templates'}><NavIcon name="list"/>{t('القوالب','Templates')}</Link>}{c.type!=='google'&&canManage&&c.status==='active'&&<button type="button" className="btn btn-danger" onClick={()=>setDeleting(c)}><NavIcon name="circleClose"/>{t('فصل الاتصال','Disconnect')}</button>}</div></details>
+              <div className={styles.directActions}><Link className={styles.textAction} href={'/dashboard/channels/connect/'+c.type}><NavIcon name="settings"/>{t('إعدادات الربط','Connection setup')}</Link>{c.type!=='google'&&<button className={styles.textAction} type="button" onClick={()=>openChannel(c,'identity')}><NavIcon name="edit"/>{t('بيانات القناة','Channel identity')}</button>}{c.type==='whatsapp'&&<Link className={styles.textAction} href={'/dashboard/channels/'+c.id+'/templates'}><NavIcon name="list"/>{t('القوالب','Templates')}</Link>}{c.type!=='google'&&canManage&&c.status==='active'&&<button type="button" className={styles.dangerAction} onClick={()=>setDeleting(c)}><NavIcon name="circleClose"/>{t('فصل الاتصال','Disconnect')}</button>}</div>
             </footer>
           </article>)}
           {!visible.length&&<div className={styles.emptyPanel}><NavIcon name="channels"/><strong>{accounts.length?t('لا توجد قنوات مطابقة','No matching channels'):t('لم تربط أي قناة بعد','No channels connected yet')}</strong><button className="btn" type="button" onClick={()=>{if(!accounts.length)setAvailableOpen(true);else{setSearch('');setPlatform('all');setFilter('all');setDepartment('all');}}}>{accounts.length?t('مسح الفلاتر','Clear filters'):t('ربط قناة','Connect a channel')}</button></div>}
