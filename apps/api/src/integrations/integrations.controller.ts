@@ -12,6 +12,11 @@ import {IntegrationsService} from './integrations.service';
 export class IntegrationsController {
  constructor(private integrations:IntegrationsService,private google:GoogleService){}
  @Roles('owner','admin') @Get() list(@Req() r:AuthedRequest){return this.integrations.list(r.user.tenantId);}
+ @Roles('owner','admin') @Get('index') index(@Req() r:AuthedRequest,@Query() query:unknown){
+  const q=parse(z.object({group:z.enum(['email-tab','sms-tab','emailauto-tab','salla-tab']),q:z.string().trim().max(100).default(''),page:z.coerce.number().int().min(1).max(100000).default(1),limit:z.coerce.number().int().min(1).max(100).default(5)}),query);
+  const groups={'email-tab':['email'],'sms-tab':['sms'],'emailauto-tab':['mailchimp','brevo','activecampaign','mautic'],'salla-tab':['salla']};
+  return this.integrations.index(r.user.tenantId,{...q,providers:groups[q.group]});
+ }
  @Roles('owner','admin') @Get('capabilities') capabilities(){return{google:this.google.config(),eventTypes:EVENT_TYPES,externalEnabled:env.EXTERNAL_DELIVERY_ENABLED==='true'};}
  @Roles('owner','admin') @Post() create(@Req() r:AuthedRequest,@Body() body:unknown){return this.integrations.create(r.user.tenantId,parse(connectionSchema,body));}
  @Roles('owner','admin') @Patch(':id') enable(@Req() r:AuthedRequest,@Param('id',ParseUUIDPipe) id:string,@Body() body:unknown){return this.integrations.update(r.user.tenantId,id,parse(z.object({enabled:z.boolean().optional(),config:sparsePatch(connectionSchema.shape.config.partial()).optional(),credential:z.string().min(1).max(4000).optional(),name:z.string().trim().min(1).max(100).optional()}),body));}
