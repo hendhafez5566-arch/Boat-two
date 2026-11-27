@@ -1,5 +1,5 @@
 // Only installed in the loopback full-app acceptance harness.
-export function installKnowledgeFixtures(app,local){
+export function installKnowledgeFixtures(app,local,pg){
  if(process.env.NODE_ENV!=='test'||process.env.BOAT_PREVIEW_ONLY!=='true'||process.env.EXTERNAL_DELIVERY_ENABLED!=='false'||process.env.AI_PROVIDER_CALLS_ENABLED!=='false')throw Error('Isolated knowledge QA required');
  const {DatabaseService}=local('./dist/database/database.service');
  const {KnowledgeService}=local('./dist/ai/knowledge/knowledge.service');
@@ -23,7 +23,8 @@ export function installKnowledgeFixtures(app,local){
     const state=await db.withTenant(tenantId,async c=>({source:(await c.query('SELECT id,status,revision,chunk_count,archived_at FROM knowledge_sources WHERE id=$1',[sourceId])).rows[0],chunks:(await c.query('SELECT content FROM knowledge_chunks WHERE source_id=$1 ORDER BY chunk_index',[sourceId])).rows,jobs:(await c.query('SELECT id,status,source_revision FROM knowledge_jobs WHERE source_id=$1 ORDER BY created_at,id',[sourceId])).rows}));
     res.json(state);
    }else if(op==='age'){
-    await db.withTenant(tenantId,async c=>{await c.query("UPDATE knowledge_jobs SET updated_at=now()-interval '180 days' WHERE id=$1 AND status IN ('completed','canceled')",[jobId]);await c.query("UPDATE knowledge_extractions SET created_at=now()-interval '180 days' WHERE job_id=$1",[jobId]);});res.json({aged:true});
+    // Only the isolated PGlite owner can age immutable fixture timestamps. Production app_user remains restricted.
+    await pg.transaction(async c=>{await c.query("UPDATE knowledge_jobs SET updated_at=now()-interval '180 days' WHERE id=$1 AND tenant_id=$2 AND status IN ('completed','canceled')",[jobId,tenantId]);await c.query("UPDATE knowledge_extractions SET created_at=now()-interval '180 days' WHERE job_id=$1 AND tenant_id=$2",[jobId,tenantId]);});res.json({aged:true});
    }else if(op==='stale'){
     await db.withTenant(tenantId,c=>c.query("UPDATE knowledge_jobs SET status='failed' WHERE id=$1 AND status='canceled'",[jobId]));res.json({fixture:true});
    }else if(op==='retention'){
