@@ -73,6 +73,9 @@ function SequenceWorkspace({
   const [cur, setCur] = useState<Seq | null>(null);
   const [stats, setStats] = useState<Stats>({});
   const [msg, setMsg] = useState('');
+  const operationLock = useRef(false);
+  const opening = useRef(0);
+  const [busy, setBusy] = useState(false);
   const [success,setSuccess]=useState(false);
   const [savedSnapshot,setSavedSnapshot]=useState('');
   const [statsError,setStatsError]=useState('');
@@ -82,9 +85,6 @@ function SequenceWorkspace({
   const mayLeave=()=>!operationLock.current&&!busy&&(!dirty||window.confirm(t('توجد تغييرات غير محفوظة. هل تريد تجاهلها؟','Unsaved sequence changes. Discard them?')));
   useEffect(()=>{if(!success||!msg)return;const timer=setTimeout(()=>{setMsg('');setSuccess(false);},4000);return()=>clearTimeout(timer);},[success,msg]);
   useEffect(()=>{if(!dirty&&!busy)return;const unload=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue='';};const click=(event:MouseEvent)=>{if(event.button!==0||event.ctrlKey||event.metaKey||event.altKey||event.shiftKey)return;const a=(event.target as Element)?.closest?.('a[href]') as HTMLAnchorElement|null;if(!a||a.download||a.target==='_blank'||a.href===location.href)return;if(!mayLeave()){event.preventDefault();event.stopPropagation();}};window.addEventListener('beforeunload',unload);document.addEventListener('click',click,true);return()=>{window.removeEventListener('beforeunload',unload);document.removeEventListener('click',click,true);};},[dirty,busy,t]);
-  const operationLock = useRef(false);
-  const opening = useRef(0);
-  const [busy, setBusy] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ path: (string | number)[]; message: string }[]>(
     [],
   );
