@@ -69,19 +69,22 @@ export const socialSchema = z
     format: z.enum(['multimedia', 'cta', 'carousel']).optional(),
     channelId: z.string().uuid(),
     kind: z.enum(['text', 'image', 'video', 'carousel', 'cta']),
-    body: z.string().min(1).max(4096),
+    body: z.string().trim().min(1).max(4096),
     mediaUrls: z
       .array(
         z
           .string()
           .url()
-          .refine((v) => v.startsWith('https://')),
+          .refine((v) => {try{const u=new URL(v);return u.protocol==='https:'&&!u.username&&!u.password&&u.href.length<=2048;}catch{return false;}},'Use an HTTPS media URL without credentials'),
       )
       .max(10)
       .default([]),
-    linkUrl: z.string().url().optional(),
+    linkUrl: z.string().max(2048).url().refine(v=>{try{const u=new URL(v);return ['https:','http:'].includes(u.protocol)&&!u.username&&!u.password;}catch{return false;}},'Use an HTTP or HTTPS link').optional(),
   })
   .superRefine((v, c) => {
+    if(new Set(v.mediaUrls).size!==v.mediaUrls.length)c.addIssue({code:'custom',path:['mediaUrls'],message:'Media URLs must be unique'});
+    if(['text','cta'].includes(v.kind)&&v.mediaUrls.length)c.addIssue({code:'custom',path:['mediaUrls'],message:'This post type does not accept media URLs'});
+    if(['image','video','carousel'].includes(v.kind)&&v.linkUrl)c.addIssue({code:'custom',path:['linkUrl'],message:'Use a link or CTA post for external links'});
     if (
       (v.format === 'cta' && v.kind !== 'cta') ||
       (v.format === 'carousel' && !['carousel', 'video'].includes(v.kind)) ||
