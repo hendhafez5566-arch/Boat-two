@@ -38,7 +38,6 @@ type Connection = {
 };
 export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolean,busy:boolean)=>void}={}) {
   const { t } = useLocale();
-  const list = useData<Connection[]>('/integrations', []);
   const [groupKey, setGroupKey] = useState('email-tab');
   useEffect(() => {
     const read = () => {
@@ -66,16 +65,11 @@ export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolea
   const [search, setSearch] = useState('');
   const [size, setSize] = useState(5);
   const [page, setPage] = useState(1);
-  const filtered = list.data.filter(
-    (c) =>
-      group.providers.includes(c.provider) &&
-      (c.name + ' ' + providerNames[c.provider])
-        .toLowerCase()
-        .includes(search.trim().toLowerCase()),
-  );
-  const pages = Math.max(1, Math.ceil(filtered.length / size));
-  const current = Math.min(page, pages);
-  const rows = filtered.slice((current - 1) * size, current * size);
+  const path='/integrations/index?'+new URLSearchParams({group:groupKey,q:search,page:String(page),limit:String(size)});
+  const list=useData<{items:Connection[];total:number}>(path,{items:[],total:0});
+  const ready=list.loadedPath===path&&!list.loading&&!list.error;
+  const total=ready?list.data.total:0,pages=Math.max(1,Math.ceil(total/size)),current=page,rows=ready?list.data.items:[];
+  useEffect(()=>{if(ready&&page>pages)setPage(pages);},[ready,page,pages]);
   const needsUrl = ['email', 'sms', 'activecampaign', 'mautic'].includes(provider);
   const needsList = ['mailchimp', 'brevo', 'activecampaign', 'mautic'].includes(provider);
   function selectGroup(key: string) {
@@ -181,7 +175,7 @@ export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolea
               </tr>
             </thead>
             <tbody>
-              {!list.loading&&!list.error&&rows.map((c, index) => (
+              {ready&&rows.map((c, index) => (
                 <tr key={c.id}>
                   <td>{(current - 1) * size + index + 1}</td>
                   <td>{c.name}<small> · {c.id.slice(0,8)}</small><br/><small>{c.enabled?t('مفعّل','Enabled'):t('متوقف','Disabled')} · {c.status}</small></td>
@@ -203,10 +197,10 @@ export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolea
                   </td>
                 </tr>
               ))}
-              {(list.loading||!!list.error||!rows.length) && (
+              {(!ready||!rows.length) && (
                 <tr>
                   <td colSpan={4} className={styles.emptyProfiles}>
-                    {list.loading
+                    {!ready&&!list.error
                       ? t('جارٍ التحميل…', 'Loading…')
                       : list.error?t('تعذر تحميل الملفات','Unable to load profiles'):t('لا توجد بيانات في الجدول', 'No data available in table')}
                   </td>
@@ -229,14 +223,14 @@ export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolea
             ))}
           </select>
           <span>
-            {filtered.length ? (current - 1) * size + 1 : 0}–
-            {Math.min(current * size, filtered.length)} {t('من', 'of')} {filtered.length}
+            {total ? (current - 1) * size + 1 : 0}–
+            {Math.min(current * size, total)} {t('من', 'of')} {total}
           </span>
           <div>
             <button
               type="button"
               className="btn"
-              disabled={current === 1}
+              disabled={!ready||current === 1}
               onClick={() => setPage(current - 1)}
             >
               {t('السابق', 'Previous')}
@@ -244,7 +238,7 @@ export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolea
             <button
               type="button"
               className="btn"
-              disabled={current === pages}
+              disabled={!ready||current >= pages}
               onClick={() => setPage(current + 1)}
             >
               {t('التالي', 'Next')}
@@ -325,8 +319,8 @@ export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolea
                   {editing && (
                     <small>
                       {t(
-                        'اتركه فارغًا للاحتفاظ بالمفتاح الحالي.',
-                        'Leave empty to keep the current key.',
+                        editing.status==='disconnected'?'أدخل مفتاحًا جديدًا لإعادة الربط.':'اتركه فارغًا للاحتفاظ بالمفتاح الحالي.',
+                        editing.status==='disconnected'?'Enter a new key to reconnect.':'Leave empty to keep the current key.',
                       )}
                     </small>
                   )}
