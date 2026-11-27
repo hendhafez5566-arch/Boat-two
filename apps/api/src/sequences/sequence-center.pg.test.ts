@@ -196,6 +196,12 @@ test('sequence center and reviewed bulk enrollment execute PostgreSQL with RLS a
         );
         await assert.rejects(() => sequences.setStatus(tenant, seq, 'active', 1), /changed/);
         const row = await sequences.get(tenant, seq);
+        await assert.rejects(() => sequences.update(tenant,seq,{
+          name:'Unsafe reorder',channelId:channel,timezone:'UTC',stopOnReply:true,
+          steps:[{id:'inserted',delay:{amount:2,unit:'hours'},content:{text:'New step'}},...steps] as any,
+          expectedRevision:row.revision,
+        }),/Active subscribers have saved progress/);
+        assert.equal((await sequences.get(tenant,seq)).revision,row.revision);
         await sequences.update(tenant, seq, {
           name: 'Updated',
           channelId: channel,
