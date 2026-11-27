@@ -35,6 +35,7 @@ export default function Templates({
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [order, setOrder] = useState('recent');
+  const [categoryFilter,setCategoryFilter]=useState('all');
   const [copy, setCopy] = useState<TemplateRow>();
   const [confirmation, setConfirmation] = useState<{
     row: TemplateRow;
@@ -55,7 +56,7 @@ export default function Templates({
     )[value] || value;
   const visible = data.data.filter(
     (row) =>
-      (filter === 'all' ? row.status !== 'ARCHIVED' : row.status === filter) &&
+      (filter === 'all' ? row.status !== 'ARCHIVED' : row.status === filter) && (categoryFilter==='all'||row.category===categoryFilter) &&
       [row.name, row.body, row.language, row.category, label(row.status), ...row.examples]
         .join(' ')
         .toLowerCase()
@@ -69,7 +70,7 @@ export default function Templates({
   const [saved, setSaved] = useState<'draft' | 'sync' | 'submit' | 'archive' | 'restore' | null>(
     null,
   );
-  useTransientNotice(saved==='sync'?null:saved,()=>setSaved(null));
+  useTransientNotice(saved==='sync'&&(syncCount.skippedDrafts||syncCount.moreAvailable)?null:saved,()=>setSaved(null));
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   async function act(
@@ -140,8 +141,8 @@ export default function Templates({
   if (creating || editing || copy) {
     return (
       <section className={styles.editor}>
-        <button type="button" className={styles.back} disabled={busy} onClick={closeEditor}>
-          {t('العودة إلى القوالب', 'Back to templates')}
+        <button type="button" className={styles.back} disabled={busy} onClick={()=>{if(confirm(t('العودة دون حفظ التعديلات؟','Return without saving changes?')))closeEditor();}}>
+          <NavIcon name="chevron"/>{t('العودة إلى القوالب', 'Back to templates')}
         </button>
         {error && (
           <p className="notice error" role="alert">
@@ -152,7 +153,7 @@ export default function Templates({
           key={editing ? editing.id + ':' + editing.revision : copy ? 'copy:' + copy.id : 'new'}
           initial={editing || copy}
           busy={busy}
-          cancel={closeEditor}
+          cancel={()=>{if(confirm(t('إلغاء التعديلات غير المحفوظة؟','Discard unsaved changes?')))closeEditor();}}
           uploadMedia={
             availability.data?.mediaUpload
               ? async (file, format) => {
@@ -280,10 +281,11 @@ export default function Templates({
           {error || data.error}
         </p>
       )}
+      <div className={styles.metrics}>{([['all','grid',t('كل القوالب','All templates')],['APPROVED','circleCheck',t('معتمدة','Approved')],['DRAFT','edit',t('مسودات','Drafts')],['PENDING','stopwatch',t('قيد المراجعة','Pending')],['REJECTED','circleClose',t('مرفوضة','Rejected')],['ARCHIVED','trash',t('السلة','Trash')]] as const).map(([key,icon,label])=><button type="button" key={key} data-status={key} aria-pressed={filter===key} onClick={()=>{setFilter(key);setPage(1)}}><NavIcon name={icon}/><span><small>{label}</small><strong>{data.loading||data.error?'—':data.data.filter(row=>key==='all'?row.status!=='ARCHIVED':row.status===key).length}</strong></span></button>)}</div>
       <div className={styles.filters}>
         <label className="field">
           {t('بحث القوالب', 'Search templates')}
-          <input
+          <input placeholder={t('الاسم أو محتوى الرسالة…','Name or message content…')}
             type="search"
             value={search}
             onChange={(event) => {
@@ -317,6 +319,7 @@ export default function Templates({
             ))}
           </select>
         </label>
+        <label className="field">{t('التصنيف','Category')}<select value={categoryFilter} onChange={e=>{setCategoryFilter(e.target.value);setPage(1)}}><option value="all">{t('كل التصنيفات','All categories')}</option><option value="UTILITY">{t('خدمي','Utility')}</option><option value="MARKETING">{t('تسويقي','Marketing')}</option><option value="AUTHENTICATION">{t('مصادقة','Authentication')}</option></select></label>
         <label className="field">
           {t('الترتيب', 'Sort')}
           <select
@@ -334,7 +337,7 @@ export default function Templates({
       <div className={styles.list}>
         {visible.slice((currentPage - 1) * 12, currentPage * 12).map((x) => (
           <section className={styles.template} key={x.id}>
-            <span className="badge">{label(x.status)}</span>
+            <div className={styles.cardHeading}><h2><bdi>{x.name}</bdi></h2><span className={styles.state} data-status={x.status}><NavIcon name={x.status==='APPROVED'?'circleCheck':x.status==='REJECTED'?'circleClose':x.status==='DRAFT'?'edit':'stopwatch'}/>{label(x.status)}</span></div>
             {x.error && x.status !== 'REJECTED' && (
               <p className="notice" role="status">
                 {t(
@@ -352,10 +355,7 @@ export default function Templates({
                 )}
               </p>
             )}
-            <h2>
-              <bdi>{x.name}</bdi>
-            </h2>
-            <p className={styles.metadata}>
+             <p className={styles.metadata}>
               {x.language === 'ar' ? t('العربية', 'Arabic') : x.language} ·{' '}
               {x.category === 'UTILITY'
                 ? t('خدمي', 'Utility')
@@ -372,9 +372,7 @@ export default function Templates({
                     : `${t('ترويسة وسائط', 'Media header')} · ${c.format}`}
                 </p>
               ))}
-            <p dir="auto" className={styles.message}>
-              {x.body}
-            </p>
+            <p dir="auto" className={styles.message}>{x.body.replace(/\{\{(\d+)\}\}/g,(token,index)=>x.examples[Number(index)-1]||token)}</p>
             {x.components
               .filter((c) => c.type === 'FOOTER')
               .map((c, i) => (
@@ -403,7 +401,7 @@ export default function Templates({
                 </ol>
               </details>
             )}
-            {x.supported &&
+            <div className={styles.cardActions}>{x.supported &&
               x.status !== 'ARCHIVED' &&
               ['UTILITY', 'MARKETING'].includes(x.category) && (
                 <button
@@ -423,7 +421,7 @@ export default function Templates({
                     });
                   }}
                 >
-                  {t('نسخ إلى مسودة', 'Copy to draft')}
+                  <NavIcon name="copy"/>{t('نسخ إلى مسودة', 'Copy to draft')}
                 </button>
               )}
             {x.status === 'DRAFT' && (
@@ -436,7 +434,7 @@ export default function Templates({
                   setConfirmation({ row: x, action: 'archive' });
                 }}
               >
-                {t('نقل إلى السلة', 'Move to trash')}
+                <NavIcon name="trash"/>{t('نقل إلى السلة', 'Move to trash')}
               </button>
             )}
             {x.status === 'ARCHIVED' && (
@@ -453,7 +451,7 @@ export default function Templates({
                   )
                 }
               >
-                {t('استعادة المسودة', 'Restore draft')}
+                <NavIcon name="undo"/>{t('استعادة المسودة', 'Restore draft')}
               </button>
             )}
             {x.status === 'DRAFT' && (
@@ -467,7 +465,7 @@ export default function Templates({
                   setEditing(x);
                 }}
               >
-                {t('تعديل المسودة', 'Edit draft')}
+                <NavIcon name="edit"/>{t('تعديل المسودة', 'Edit draft')}
               </button>
             )}
             {x.status === 'DRAFT' && (
@@ -479,10 +477,10 @@ export default function Templates({
                   setConfirmation({ row: x, action: 'submit' });
                 }}
               >
-                {t('تقديم للموافقة لدى Meta', 'Submit for Meta approval')}
+                <NavIcon name="delivery"/>{t('تقديم للموافقة لدى Meta', 'Submit for Meta approval')}
               </button>
             )}
-          </section>
+            </div></section>
         ))}
       </div>
       {!data.loading && !data.error && !visible.length && !creating && (

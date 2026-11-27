@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { NavIcon } from '../product/NavIcon';
 import studio from './template-studio.module.css';
 import { templateLocales } from './template-locales';
 import { useLocale } from '../product/locale';
@@ -83,6 +84,8 @@ export function TemplateDraftForm({
   }
   const [step, setStep] = useState(0);
   const [designError, setDesignError] = useState('');
+  const bodyRef=useRef<HTMLTextAreaElement>(null);
+  const [optionsOpen,setOptionsOpen]=useState(format!=='NONE'||!!footer||buttons.length>0);
   const samples = examples.split('\n');
   const tokens = [...new Set([...body.matchAll(/\{\{(\d+)\}\}/g)].map((match) => match[1]))];
   const numbered =
@@ -95,15 +98,26 @@ export function TemplateDraftForm({
     t('تصميم الرسالة', 'Message design'),
     t('المعاينة والمراجعة', 'Preview and review'),
   ];
+  function insertVariable(){
+    if(!numbered||tokens.length>=20)return;
+    const value='{{'+(tokens.length+1)+'}}';
+    const input=bodyRef.current;
+    // Append after the last existing variable to preserve numbering.
+    const at=Math.max(input?.selectionEnd??body.length,body.lastIndexOf('{{')<0?0:body.lastIndexOf('}}')+2);
+    const next=body.slice(0,at)+value+body.slice(at);
+    if(next.length>1024)return;
+    setBody(next);setDesignError('');
+    requestAnimationFrame(()=>{input?.focus();input?.setSelectionRange(at+value.length,at+value.length);});
+  }
   const basicFields = (
     <div className={studio.draftFields}>
-      {!initial && !name && !body && <button type="button" className="btn" onClick={() => {
+      {!initial && !name && !body && <button type="button" className={studio.starter} onClick={() => {
         setName('booking_quote_follow_up');
         setLanguage('ar');
         setCategory('UTILITY');
         setBody('مرحبًا {{1}}، بخصوص طلب عرض السعر الذي طلبته لخدمة {{2}}، الإجمالي {{3}}. إذا رغبت في المتابعة، يرجى الرد حتى نراجع التوفر معك.');
         setExamples('محمد\nغرفة رباعية\n٤١٬٠٠٠ جنيه مصري');
-      }}>{t('ابدأ بقالب متابعة عرض سعر', 'Start with a quote follow-up template')}</button>}
+      }}><NavIcon name="bolt"/><span>{t('ابدأ بقالب متابعة عرض سعر', 'Start with a quote follow-up template')}</span><NavIcon name="plus"/></button>}
       <label className="field">
         {t('اسم القالب بالإنجليزية', 'Template name in English')}
         <input
@@ -114,7 +128,7 @@ export function TemplateDraftForm({
           maxLength={512}
           required
           dir="ltr"
-        />
+        /><small>{t('حروف إنجليزية صغيرة وأرقام وشرطة سفلية فقط.','Lowercase letters, numbers and underscores only.')}</small>
       </label>
       <label className="field">
         {t('اللغة', 'Language')}
@@ -143,9 +157,8 @@ export function TemplateDraftForm({
   );
   const contentFields = (
     <>
-      <label className="field">
-        {t('نص الرسالة', 'Message text')}
-        <textarea
+      <div className={studio.messageEditor}><div className={studio.fieldTitle}><label htmlFor={mediaHintId+'-body'}>{t('نص الرسالة','Message text')}</label><button type="button" className="btn" disabled={!numbered||tokens.length>=20||body.length+8>1024} onClick={insertVariable}><NavIcon name="variable"/>{t('إضافة متغير','Add variable')}</button></div>
+        <textarea ref={bodyRef} id={mediaHintId+'-body'}
           required
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -153,13 +166,14 @@ export function TemplateDraftForm({
           rows={4}
           placeholder={t('مثال: تم تأكيد حجزك رقم {{1}}.', 'Example: Booking {{1}} is confirmed.')}
         />
-      </label>
-      {numbered &&
-        tokens.map((token, index) => (
-          <label className="field" key={token}>
-            {t('مثال المتغير', 'Variable example')} <bdi>{'{{' + token + '}}'}</bdi>
+      <div className={studio.fieldTitle}><small>{t('استخدم المتغيرات لتخصيص الرسالة لكل عميل.','Use variables to personalize messages.')}</small><small><bdi>{body.length}/1024</bdi></small></div></div>
+      {!numbered&&<p className={studio.validation} role="alert"><NavIcon name="flag"/>{t('رتّب المتغيرات بدءًا من {{1}} بدون تخطي رقم.','Use consecutive variables starting at {{1}}.')}</p>}
+      {numbered&&tokens.length>0&&<section className={studio.samplePanel}><h3><NavIcon name="variable"/>{t('أمثلة المتغيرات','Variable examples')} <span>{tokens.length}</span></h3><small>{t('أدخل أمثلة غير حساسة للمراجعة والمعاينة.','Use non-sensitive examples for review and preview.')}</small><div className={studio.sampleGrid}>
+        {tokens.map((token, index) => (
+          <label className={studio.sampleRow} key={token}>
+            <bdi>{'{{' + token + '}}'}</bdi>
             <input
-              required
+              required aria-label={t('مثال المتغير','Variable example')+' '+token} placeholder={t('قيمة تجريبية','Sample value')}
               maxLength={500}
               value={samples[index] || ''}
               onChange={(event) => {
@@ -169,7 +183,7 @@ export function TemplateDraftForm({
               }}
             />
           </label>
-        ))}
+        ))}</div></section>}
     </>
   );
   const headerFields = (
@@ -295,7 +309,7 @@ export function TemplateDraftForm({
           )}
         </p>
         {buttons.map((b, i) => (
-          <div className="card stack" key={i}>
+          <div className={studio.buttonEditor} key={i}>
             <label className="field">
               {t('نوع الزر', 'Button type')} {i + 1}
               <select
@@ -379,7 +393,7 @@ export function TemplateDraftForm({
               className="btn"
               onClick={() => setButtons(buttons.filter((_, n) => n !== i))}
             >
-              {t('حذف الزر', 'Remove button')} {i + 1}
+              <NavIcon name="trash"/>{t('حذف الزر', 'Remove button')} {i + 1}
             </button>
           </div>
         ))}
@@ -389,14 +403,14 @@ export function TemplateDraftForm({
           disabled={buttons.length >= 10}
           onClick={() => setButtons([...buttons, { type: 'QUICK_REPLY', text: '' }])}
         >
-          {t('إضافة زر', 'Add button')}
+          <NavIcon name="plus"/>{t('إضافة زر', 'Add button')} · {buttons.length}/10
         </button>
       </fieldset>
     </>
   );
   const preview = (
     <section className={studio.chatPreview} aria-label={t('معاينة القالب', 'Template preview')}>
-      <h2>{t('معاينة الرسالة', 'Message preview')}</h2>
+      <header className={studio.previewHeading}><span><NavIcon name="whatsapp"/></span><div><h2>{t('معاينة واتساب','WhatsApp preview')}</h2><small>{t('معاينة مباشرة • بيانات تجريبية','Live preview • sample data')}</small></div></header>
       <div className={studio.chatBubble} dir="auto">
         {format === 'TEXT' && (
           <strong>{headerText.replace('{{1}}', () => headerSample || '{{1}}')}</strong>
@@ -425,7 +439,7 @@ export function TemplateDraftForm({
         {footer && <small>{footer}</small>}
         {buttons.map((button, i) => (
           <span className={studio.chatButton} key={i}>
-            {button.text || t('زر', 'Button')}
+            <NavIcon name={button.type==='URL'?'globe':button.type==='PHONE_NUMBER'?'phone':'chat'}/>{button.text || t('زر', 'Button')}
           </span>
         ))}
       </div>
@@ -489,7 +503,7 @@ export function TemplateDraftForm({
       }}
     >
       <fieldset disabled={busy || uploading} className={studio.draftLayout}>
-        <h1>
+        <h1><NavIcon name={initial?'edit':'plus'}/>
           {initial
             ? t('تعديل مسودة القالب', 'Edit template draft')
             : t('قالب واتساب جديد', 'New WhatsApp template')}
@@ -499,10 +513,10 @@ export function TemplateDraftForm({
             <li key={label} aria-current={step === index ? 'step' : undefined}>
               {index < step ? (
                 <button type="button" onClick={() => setStep(index)}>
-                  {label}
+                  <NavIcon name="circleCheck"/>{label}
                 </button>
               ) : (
-                label
+                <span><bdi>{index+1}</bdi>{label}</span>
               )}
             </li>
           ))}
@@ -517,9 +531,9 @@ export function TemplateDraftForm({
                 {designError && <p role="alert">{designError}</p>}
                 <details
                   className={studio.draftOptions}
-                  open={format !== 'NONE' || !!footer || buttons.length > 0}
+                  open={optionsOpen} onToggle={e=>setOptionsOpen(e.currentTarget.open)}
                 >
-                  <summary>{t('ترويسة وتذييل وأزرار', 'Header, footer and buttons')}</summary>
+                  <summary><NavIcon name="settings"/>{t('ترويسة وتذييل وأزرار', 'Header, footer and buttons')}</summary>
                   <div className="stack">
                     {headerFields}
                     {footerField}
@@ -529,10 +543,7 @@ export function TemplateDraftForm({
               </>
             )}
             {step === 2 && (
-              <p className="muted">
-                <bdi>{name}</bdi> · <bdi>{language}</bdi> ·{' '}
-                {category === 'UTILITY' ? t('خدمي', 'Utility') : t('تسويقي', 'Marketing')}
-              </p>
+              <section className={studio.reviewPanel}><h3><NavIcon name="shield"/>{t('مراجعة بيانات القالب','Review template details')}</h3><dl>{[[t('اسم القالب','Template name'),name],[t('اللغة','Language'),language],[t('التصنيف','Category'),category==='UTILITY'?t('خدمي','Utility'):t('تسويقي','Marketing')],[t('المتغيرات','Variables'),String(tokens.length)],[t('الأزرار','Buttons'),String(buttons.length)],[t('الترويسة','Header'),format==='NONE'?t('بدون','None'):format]].map(([label,value])=><div key={label}><dt>{label}</dt><dd><bdi>{value}</bdi></dd></div>)}</dl><p className={studio.reviewHint}><NavIcon name="circleCheck"/>{t('حفظ المسودة لا يرسل رسالة إلى العملاء. تقديم القالب للموافقة يتطلب تأكيدًا منفصلًا ومراجعة Meta.','Saving a draft does not message customers. Submission requires separate confirmation and Meta review.')}</p><button type="button" className="btn" onClick={()=>setStep(1)}><NavIcon name="edit"/>{t('تعديل الرسالة','Edit message')}</button></section>
             )}
           </div>
           <aside className={studio.draftPreview}>{preview}</aside>
@@ -541,19 +552,19 @@ export function TemplateDraftForm({
           <div className="flex flex-wrap gap-2">
             {step > 0 && (
               <button type="button" className="btn" onClick={() => setStep(step - 1)}>
-                {t('السابق', 'Back')}
+                <NavIcon name="chevron"/>{t('السابق', 'Back')}
               </button>
             )}
             {step < 2 ? (
-              <button className="btn btn-primary">{t('التالي', 'Next')}</button>
+              <button className="btn btn-primary">{t('التالي', 'Next')}<NavIcon name="chevron"/></button>
             ) : (
               <>
                 <button className="btn btn-primary">
-                  {busy ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ المسودة', 'Save draft')}
+                  <NavIcon name="check"/>{busy ? t('جارٍ الحفظ…', 'Saving…') : t('حفظ المسودة', 'Save draft')}
                 </button>
                 {saveAndReview && (
                   <button type="submit" name="intent" value="review" className="btn">
-                    {t('حفظ ثم مراجعة التقديم', 'Save and review submission')}
+                    <NavIcon name="delivery"/>{t('حفظ ثم مراجعة التقديم', 'Save and review submission')}
                   </button>
                 )}
               </>

@@ -99,3 +99,18 @@ body { font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif; f
 
 /* Expand onboarding help only on request, keep day-to-day lists in view. */
 .bs-shell details>summary{cursor:pointer}.bs-shell details>summary:focus-visible{outline:2px solid var(--primary);outline-offset:3px}.bs-shell .workbench-toolbar>select{min-width:120px}.bs-shell .workbench-toolbar>input[type=search]{min-width:min(100%,220px)}
+
+/* Shared product polish: tenant branding remains authoritative; exclude specialized canvas geometry. */
+.bs-shell .btn-primary:not(:disabled),.product-dialog .btn-primary:not(:disabled){background:linear-gradient(145deg,color-mix(in srgb,var(--primary) 72%,white),var(--primary) 42%,color-mix(in srgb,var(--primary) 82%,#17233d));color:var(--primary-ink,#fff);border-color:var(--primary);box-shadow:0 3px 8px color-mix(in srgb,var(--primary) 22%,transparent),inset 0 1px 0 #ffffff35}
+.bs-shell .btn-primary:hover:not(:disabled),.product-dialog .btn-primary:hover:not(:disabled){background:linear-gradient(145deg,var(--primary),color-mix(in srgb,var(--primary) 78%,#17233d));box-shadow:0 4px 11px color-mix(in srgb,var(--primary) 26%,transparent)}
+.bs-shell:not(.flow-shell):not(.inbox-shell) .page-workspace{padding:clamp(12px,1.5vw,20px)}
+.bs-shell:not(.flow-shell):not(.inbox-shell) .page-heading{margin-block-end:10px;gap:9px}
+.bs-shell:not(.flow-shell):not(.inbox-shell) .stack{gap:12px}
+.bs-shell:not(.flow-shell):not(.inbox-shell) .card{padding:14px;box-shadow:0 2px 9px #25385809}
+.bs-shell .btn,.product-dialog .btn{min-height:36px;padding:7px 10px;gap:6px}
+.bs-shell .btn svg,.product-dialog .btn svg{width:16px;height:16px;flex:none}
+.bs-shell .btn:focus-visible,.product-dialog .btn:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.bs-shell .workbench-toolbar{gap:8px;margin-bottom:8px}
+.bs-shell .workbench-toolbar>select{width:auto;max-width:100%;min-width:120px}.bs-shell .workbench-toolbar>input[type=search]{width:min(100%,300px);min-width:0}
+.bs-shell .product-table td,.bs-shell .product-table th{padding-block:8px}
+@media(pointer:coarse){.bs-shell .btn,.product-dialog .btn{min-height:40px}}
