@@ -6,7 +6,7 @@ import { ModelCatalog } from '../business/ModelCatalog';
 import { ProviderEditor } from '../business/ProviderEditor';
 import { AiToolAudit } from '../business/AiToolAudit';
 import { AgentRouting } from '../business/AgentRouting';
-import { useState } from 'react';
+import { useEffect,useRef,useState } from 'react';
 import Link from 'next/link';
 import styles from './ai-workspace.module.css';
 import { api } from '../../lib/api';
@@ -71,11 +71,24 @@ export default function Agents() {
   const [busy, setBusy] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [agentQuery,setAgentQuery]=useState('');
+  const [sourceQuery,setSourceQuery]=useState('');
+  const [agentStatus,setAgentStatus]=useState('all');
+  const [page,setPage]=useState(1);
+  const [snapshot,setSnapshot]=useState('');
+  const lock=useRef(false);
+  const dirty=editorOpen&&JSON.stringify(form)!==snapshot;
+  const mayLeave=()=>!lock.current&&(!dirty||window.confirm(t('تغييرات غير محفوظة. تجاهلها؟','Discard unsaved agent changes?')));
+  const filtered=data.data.agents.filter(a=>(a.name+' '+a.id).toLowerCase().includes(agentQuery.trim().toLowerCase())&&(agentStatus==='all'||a.enabled===(agentStatus==='enabled')));
+  const pages=Math.max(1,Math.ceil(filtered.length/20));
+  useEffect(()=>{setPage(1);},[agentQuery,agentStatus]);
+  useEffect(()=>{if(page>pages)setPage(pages);},[page,pages]);
+  useEffect(()=>{if(!feedback)return;const timer=setTimeout(()=>setFeedback(''),4000);return()=>clearTimeout(timer);},[feedback]);
+  useEffect(()=>{const unload=(e:BeforeUnloadEvent)=>{if(dirty||lock.current){e.preventDefault();e.returnValue='';}};const click=(e:MouseEvent)=>{if(e.button!==0||e.ctrlKey||e.metaKey||e.altKey||e.shiftKey)return;const a=(e.target as Element)?.closest?.('a[href]') as HTMLAnchorElement|null;if(a&&!a.download&&a.target!=='_blank'&&a.href!==location.href&&!mayLeave()){e.preventDefault();e.stopPropagation();}};window.addEventListener('beforeunload',unload);document.addEventListener('click',click,true);return()=>{window.removeEventListener('beforeunload',unload);document.removeEventListener('click',click,true);};},[dirty,t]);
   const readySources = sources.data.filter((source) => source.status === 'ready');
   const enabledAgents = data.data.agents.filter((agent) => agent.enabled);
   const activeProviders = data.data.providers.filter((provider) => provider.enabled && !provider.retired_at);
-  const agentCount = (count: number) => data.loadedPath ? count : data.error ? '—' : '…';
-  const sourceCount = sources.loadedPath ? readySources.length : sources.error ? '—' : '…';
+  const agentCount = (count: number) => data.error ? '—' : data.loading ? '…' : count;
+  const sourceCount = sources.error ? '—' : sources.loading ? '…' : readySources.length;
 
   const blankAgent = {
     id: '',
@@ -88,9 +101,10 @@ export default function Agents() {
     isDefault: false,
   };
   function showEditor(agent?: Agent) {
-    setError('');
+    if(!mayLeave())return;
+    setError('');setSourceQuery('');
     setFeedback('');
-    setForm(agent ? {
+    const next=agent ? {
       id: agent.id,
       name: agent.name,
       instructions: agent.instructions,
@@ -99,7 +113,8 @@ export default function Agents() {
       allowedTools: agent.allowed_tools,
       enabled: agent.enabled,
       isDefault: agent.is_default,
-    } : blankAgent);
+    } : blankAgent;
+    setForm(next);setSnapshot(JSON.stringify(next));
     setEditorOpen(true);
     window.setTimeout(() => document.getElementById('agent-editor')?.scrollIntoView({
       behavior: 'smooth',
@@ -107,21 +122,23 @@ export default function Agents() {
     }), 0);
   }
   async function act(path: string, body: unknown, method = 'POST') {
-    setBusy(true);
+    if(lock.current)throw Error(t('يوجد إجراء قيد التنفيذ','An operation is in progress'));
+    lock.current=true;setBusy(true);
     setError('');
     setFeedback('');
     try {
       await api(path, { method, body: JSON.stringify(body) });
-      data.reload();
+      await data.reload();
+      setFeedback(t('تم حفظ التغييرات','Changes saved'));
     } catch (e) {
       setError((e as Error).message);
       throw e;
     } finally {
-      setBusy(false);
+      lock.current=false;setBusy(false);
     }
   }
   return (
-    <section className="stack">
+    <section className="stack ai-professional" aria-busy={busy}>
       <div className={styles.intro}>
         <div className={styles.introText}>
           <WorkspaceHeading
@@ -179,7 +196,7 @@ export default function Agents() {
           'Saving or enabling an agent does not activate paid AI calls. A configured provider, enabled generation, and a chat/flow route are required.',
         )}
       </p>
-      {(error || data.error) && <p role="alert" className="notice error">{error || data.error}</p>}
+      {(error || data.error||sources.error) && <p role="alert" className="notice error">{error || data.error||sources.error} {(data.error||sources.error)&&<button className="btn" disabled={busy} onClick={()=>void Promise.all([data.reload(),sources.reload()])}>{t('إعادة المحاولة','Retry')}</button>}</p>}
       {feedback && <p role="status" className="notice">{feedback}</p>}
       {data.loading && <p role="status">{t('جارٍ تحميل المساعدين…', 'Loading agents…')}</p>}
       <div className={styles.sectionHeading}>
@@ -196,8 +213,9 @@ export default function Agents() {
           <button type="button" className="btn btn-primary" onClick={() => showEditor()}>{t('إنشاء أول مساعد', 'Create first agent')}</button>
         </section>
       )}
+      <div className="form-actions"><select aria-label={t('حالة المساعد','Agent status')} value={agentStatus} onChange={e=>setAgentStatus(e.target.value)}><option value="all">{t('كل الحالات','All statuses')}</option><option value="enabled">{t('مفعّل','Enabled')}</option><option value="disabled">{t('معطّل','Disabled')}</option></select><button className="btn" disabled={!agentQuery&&agentStatus==='all'} onClick={()=>{setAgentQuery('');setAgentStatus('all');}}>{t('مسح الفلاتر','Clear filters')}</button><small>{t('بحث في المساعدين المحملين','Search loaded assistants')}</small></div>
       <div className={styles.agentGrid}>
-        {data.data.agents.filter(a=>a.name.toLowerCase().includes(agentQuery.toLowerCase().trim())).map((a) => (
+        {!data.loading&&!data.error&&filtered.slice((page-1)*20,page*20).map((a) => (
           <article className={styles.agentCard} key={a.id}>
             <div className={styles.agentCardHead}>
               <span className={styles.agentAvatar} aria-hidden="true">AI</span>
@@ -220,17 +238,20 @@ export default function Agents() {
           </article>
         ))}
       </div>
-      {agentQuery.trim()&&!data.data.agents.some(a=>a.name.toLowerCase().includes(agentQuery.toLowerCase().trim()))&&<p className="empty">{t('لا توجد نتائج مطابقة','No matching assistants')}</p>}
+      {!data.loading&&!data.error&&data.data.agents.length>0&&!filtered.length&&<p className="empty">{t('لا توجد نتائج مطابقة','No matching assistants')}</p>}
+      {!data.loading&&!data.error&&filtered.length>0&&<div className="form-actions"><span>{filtered.length} · {page}/{pages}</span><button className="btn" disabled={page<=1} onClick={()=>setPage(n=>n-1)}>{t('السابق','Previous')}</button><button className="btn" disabled={page>=pages} onClick={()=>setPage(n=>n+1)}>{t('التالي','Next')}</button></div>}
       {editorOpen && <form
         id="agent-editor"
         className={`card stack ${styles.editor}`}
         onSubmit={async (e) => {
           e.preventDefault();
+          if(lock.current||!form.name.trim()||sources.loading||sources.error)return;
+          if((form.enabled||form.isDefault)&&!window.confirm(t('تأكيد إعدادات التفعيل والتوجيه الافتراضي؟','Confirm activation and default routing settings?')))return;
           try {
             await act(
               '/agents' + (form.id ? '/' + form.id : ''),
               {
-                name: form.name,
+                name: form.name.trim(),
                 instructions: form.instructions,
                 providerId: form.providerId || null,
                 sourceIds: form.sourceIds,
@@ -253,8 +274,10 @@ export default function Agents() {
             <h2>{form.id ? t('تعديل المساعد', 'Edit assistant') : t('مساعد جديد', 'New assistant')}</h2>
             <p>{t('ابدأ بالاسم والتعليمات، ثم اختر مصادر المعرفة والإجراءات.', 'Start with a name and instructions, then choose sources and actions.')}</p>
           </div>
-          <button type="button" className="btn" onClick={() => setEditorOpen(false)}>{t('إغلاق', 'Close')}</button>
+          <button type="button" className="btn" disabled={busy} onClick={() => {if(mayLeave())setEditorOpen(false);}}>{t('إغلاق', 'Close')}</button>
         </div>
+        <fieldset disabled={busy} className="stack" style={{border:0,padding:0,margin:0,minWidth:0}}>
+        {dirty&&<p className="notice" role="status">{t('تغييرات غير محفوظة','Unsaved changes')}</p>}
         <div className="form-grid">
           <label className="field">
             {t('الاسم', 'Name')}
@@ -301,13 +324,15 @@ export default function Agents() {
             {t('المعلومات التي يقدر المساعد يستخدمها', 'Knowledge the assistant can use')}
           </legend>
           <p className={styles.helper}>{t('اختار المصادر الجاهزة فقط. المصدر غير المحدد مش هيستخدمه المساعد.', 'Select ready sources. Unselected sources will not be used by this assistant.')}</p>
-          {sources.data.length === 0 && (
+          <input type="search" aria-label={t('بحث مصادر المعرفة','Search knowledge sources')} value={sourceQuery} onChange={e=>setSourceQuery(e.target.value)}/>
+          {sources.loading&&<p role="status">{t('جارٍ تحميل المصادر…','Loading sources…')}</p>}
+          {!sources.loading&&!sources.error&&sources.data.length === 0 && (
             <p className={styles.inlineEmpty}>
               {t('لسه مفيش مصادر معرفة.', 'No knowledge sources yet.')}{' '}
               <Link href="/dashboard/knowledge">{t('اذهب لإضافة المعلومات', 'Add knowledge')}</Link>
             </p>
           )}
-          {sources.data.map((s) => (
+          {!sources.loading&&!sources.error&&sources.data.filter(s=>form.sourceIds.includes(s.id)||(s.title+' '+s.id).toLowerCase().includes(sourceQuery.trim().toLowerCase())).map((s) => (
             <label className="flex gap-2 py-1" key={s.id}>
               <input
                 type="checkbox"
@@ -322,7 +347,7 @@ export default function Agents() {
                   })
                 }
               />
-              {s.title} · {statusLabel(s.status, t)}
+              {s.title} · {s.id.slice(0,8)} · {statusLabel(s.status, t)}
             </label>
           ))}
           <p className="muted">
@@ -380,9 +405,10 @@ export default function Agents() {
           {t('استخدامه كمساعد افتراضي في المحادثات', 'Use as default agent for conversations')}
         </label>
         </div>
-        <button className="btn btn-primary self-start" disabled={busy}>
+        <button className="btn btn-primary self-start" disabled={busy||!form.name.trim()||sources.loading||!!sources.error||(!!form.id&&!dirty)}>
           {t('حفظ المساعد', 'Save agent')}
         </button>
+        </fieldset>
       </form>}
       <details id="assistant-routing" className={styles.advanced}>
         <summary>{t('ربط المساعد بقناة أو سيناريو', 'Connect an assistant to a channel or flow')}</summary>
@@ -443,6 +469,7 @@ export default function Agents() {
             }
           }}
         >
+          <fieldset disabled={busy} className="stack" style={{border:0,padding:0,margin:0,minWidth:0}}>
           <h2>
             {t('إضافة مزود (يحفظ معطلًا ومشفرًا)', 'Add provider (saved disabled and encrypted)')}
           </h2>
@@ -456,15 +483,15 @@ export default function Agents() {
           <div className="form-grid">
             <label className="field">
               {t('الاسم', 'Name')}
-              <input name="name" required />
+              <input name="name" required maxLength={100} />
             </label>
             <label className="field">
               {t('معرّف النموذج', 'Model identifier')}
-              <input required name="model" dir="ltr" />
+              <input required name="model" dir="ltr" maxLength={100} pattern="[a-zA-Z0-9._-]{1,100}" />
             </label>
             <label className="field">
               {t('مفتاح API', 'API key')}
-              <input required name="apiKey" type="password" minLength={10} autoComplete="off" />
+              <input required name="apiKey" type="password" minLength={10} maxLength={4000} autoComplete="off" />
             </label>
           </div>
           <div className="form-grid mt-4">
@@ -492,6 +519,7 @@ export default function Agents() {
           <button className="btn mt-4" disabled={busy}>
             {t('حفظ المزود', 'Save provider')}
           </button>
+          </fieldset>
         </form>
                 <details className={styles.nestedTechnical}>
                   <summary>{t('سجل النماذج وإصدارات التسعير', 'Model and pricing version history')}</summary>
