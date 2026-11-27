@@ -8,6 +8,7 @@ import {
   Post,
   Put,
   Req,
+  Query,
   UploadedFile,
   UseInterceptors,
   BadRequestException,
@@ -39,15 +40,15 @@ const askSchema = z.object({ question: z.string().trim().min(1).max(1000) });
 const sourceSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('text'),
-    title: z.string().min(1).max(200),
-    content: z.string().min(1).max(300_000),
+    title: z.string().trim().min(1).max(200),
+    content: z.string().trim().min(1).max(300_000),
   }),
   z.object({
     type: z.literal('faq'),
-    title: z.string().min(1).max(200),
+    title: z.string().trim().min(1).max(200),
     items: z
       .array(
-        z.object({ question: z.string().min(1).max(500), answer: z.string().min(1).max(2500) }),
+        z.object({ question: z.string().trim().min(1).max(500), answer: z.string().trim().min(1).max(2500) }),
       )
       .min(1)
       .max(300),
@@ -101,6 +102,12 @@ export class AiController {
   @Get('knowledge')
   list(@Req() req: AuthedRequest) {
     return this.knowledge.list(req.user.tenantId);
+  }
+
+  @Get('knowledge/index')
+  index(@Req() req:AuthedRequest,@Query() query:unknown){
+    const q=parse(z.object({q:z.string().trim().max(200).default(''),status:z.enum(['all','ready','processing','failed','canceled']).default('all'),archived:z.enum(['true','false']).default('false').transform(v=>v==='true'),type:z.enum(['text','faq','url','file']).optional(),page:z.coerce.number().int().min(1).max(100000).default(1),limit:z.coerce.number().int().min(1).max(100).default(12)}),query);
+    return this.knowledge.index(req.user.tenantId,q);
   }
 
   @Roles('owner', 'admin')
