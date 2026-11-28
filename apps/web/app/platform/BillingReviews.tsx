@@ -1,5 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { NavIcon } from '../../components/product/NavIcon';
+import { useTransientNotice } from '../../components/product/useTransientNotice';
 import { useLocale } from '../../components/product/locale';
 type Review = {
   id: string;
@@ -31,19 +33,26 @@ export default function BillingReviews({
     [rows, setRows] = useState<Item[]>([]),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
+  const lock=useRef(false),[loaded,setLoaded]=useState(false),[notice,setNotice]=useState(''),[search,setSearch]=useState('');
+  useTransientNotice(notice,()=>setNotice(''));
+  const visible=rows.filter(row=>[row.company,row.kind,row.plan_code].join(' ').toLowerCase().includes(search.toLowerCase()));
   async function load() {
-    setRows((await request('/billing-reviews')) as Item[]);
+    setRows((await request('/billing-reviews')) as Item[]);setLoaded(true);
   }
+  async function refresh(){if(lock.current)return;lock.current=true;setBusy(true);setError('');try{await load();}catch(e){setError((e as Error).message);}finally{lock.current=false;setBusy(false);}}
+  useEffect(()=>{void refresh();},[]);
   async function act(path: string, reason: string) {
-    setBusy(true);
+    if(lock.current||!canWrite||!confirm(t('تأكيد إجراء المراجعة دون إعادة تنفيذ عملية مالية؟','Confirm review without replaying any financial mutation?')))return;
+    lock.current=true;setBusy(true);
     setError('');
     try {
       await request(path, { reason });
+      setNotice(t('تم تسجيل الإجراء','Review action recorded'));
       await load();
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      lock.current=false;setBusy(false);
     }
   }
   return (
@@ -55,12 +64,9 @@ export default function BillingReviews({
         </div>
         <button
           className="btn"
-          onClick={() => {
-            setError('');
-            void load().catch((e) => setError(e.message));
-          }}
+          disabled={busy} onClick={()=>void refresh()}
         >
-          {t('تحميل وتحديث', 'Load and refresh')}
+          <NavIcon name="refresh"/>{t('تحميل وتحديث', 'Load and refresh')}
         </button>
       </div>
       <p className="notice">
@@ -74,7 +80,11 @@ export default function BillingReviews({
           {error}
         </p>
       )}
-      {rows.map((row) => (
+      {notice&&<p role="status" className="notice">{notice}</p>}
+      <div className="form-actions"><input type="search" aria-label={t('بحث نتائج الفوترة','Search billing reviews')} placeholder={t('الشركة أو نوع العملية','Company or operation')} value={search} onChange={e=>setSearch(e.target.value)}/><span className="muted">{visible.length} / {rows.length}</span></div>
+      {busy&&<p role="status">{t('جارٍ التحميل…','Loading…')}</p>}
+      {loaded&&!busy&&!error&&!visible.length&&<p className="empty">{t('لا توجد نتائج مطابقة للمراجعة','No matching reviews')}</p>}
+      {visible.map((row) => (
         <article key={row.id} className="card stack">
           <h3>
             {row.company} · {row.kind} {row.plan_code}
@@ -94,7 +104,7 @@ export default function BillingReviews({
               <input name="reason" required minLength={10} maxLength={1000} />
             </label>
             <button className="btn" disabled={busy || !canWrite}>
-              {t('طلب دليل جديد', 'Request fresh evidence')}
+              <NavIcon name="search"/>{t('طلب دليل جديد', 'Request fresh evidence')}
             </button>
           </form>
           {row.reviews.map((review) => (
@@ -128,7 +138,7 @@ export default function BillingReviews({
                     <input name="reason" required minLength={10} maxLength={1000} />
                   </label>
                   <button className="btn btn-primary" disabled={busy || !canWrite}>
-                    {t('اعتماد الحالة المرصودة وإغلاق العزل', 'Approve observed state and resolve')}
+                    <NavIcon name="check"/>{t('اعتماد الحالة المرصودة وإغلاق العزل', 'Approve observed state and resolve')}
                   </button>
                 </form>
               )}

@@ -1,0 +1,55 @@
+name: Professional platform administration acceptance
+on:
+  push:
+    branches: [ux/platform-console-professional-20261128]
+  pull_request:
+    branches: [fix/preview-order-summary-filter]
+    paths:
+      - 'apps/web/app/platform/**'
+      - 'apps/api/src/platform/**'
+      - 'scripts/qa-platform-admin-professional.mjs'
+      - '.github/workflows/platform-admin-professional-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: platform-admin-professional-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install and build
+        run: corepack enable && pnpm install --frozen-lockfile && pnpm --filter api build && pnpm --filter web build
+      - name: Auth and integration regression
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://qa:qa@127.0.0.1:1/qa
+          REDIS_URL: redis://127.0.0.1:1
+          JWT_SECRET: local-synthetic-regression-signing-key-only
+          ENCRYPTION_KEY: '1111111111111111111111111111111111111111111111111111111111111111'
+          EXTERNAL_DELIVERY_ENABLED: 'false'
+          AI_PROVIDER_CALLS_ENABLED: 'false'
+        run: pnpm --filter api exec tsx --test src/platform/totp.test.ts src/platform/permissions.test.ts src/platform/step-up.test.ts src/auth/setup-credential.test.ts src/auth/role-session.test.ts
+      - name: Install browser driver
+        run: npm install --prefix "$RUNNER_TEMP/boat-playwright" playwright@1.56.1 --ignore-scripts
+      - name: Isolated platform admin browser visual acceptance
+        env:
+          BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
+          BOAT_QA_BROWSER_SCRIPT: scripts/qa-platform-admin-professional.mjs
+          BOAT_CHROMIUM: /usr/bin/google-chrome
+        run: python3 scripts/run-connect-browser-qa.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: platform-admin-professional-evidence
+          path: |
+            docs/p0-evidence/platform-admin/
+            /tmp/boat-journeys-api.log
+            /tmp/boat-journeys-web.log
+          if-no-files-found: warn

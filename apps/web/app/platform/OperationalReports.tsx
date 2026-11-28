@@ -1,5 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useEffect,useRef,useState } from 'react';
+import { NavIcon } from '../../components/product/NavIcon';
+import styles from './platform.module.css';
 import { useLocale } from '../../components/product/locale';
 type Report = {
   paidInvoicesByCurrency: { currency: string; invoices: number; gross_paid_minor_units: string }[];
@@ -31,6 +33,15 @@ export default function OperationalReports({
     [data, setData] = useState<Report | null>(null),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
+  const lock=useRef(false);
+  const [from,setFrom]=useState(()=>new Date(Date.now()-30*86400000).toISOString().slice(0,10)),[to,setTo]=useState(()=>new Date(Date.now()+86400000).toISOString().slice(0,10));
+  const [applied,setApplied]=useState('');
+  async function load(){if(lock.current)return;lock.current=true;setBusy(true);setError('');try{
+    const start=new Date(from+'T00:00:00Z'),end=new Date(to+'T00:00:00Z');
+    if(!(end.getTime()>start.getTime())||end.getTime()-start.getTime()>366*86400000)throw new Error(t('اختر فترة صحيحة لا تتجاوز 366 يومًا','Choose a valid range of up to 366 days'));
+    setData(await request('/reports?'+new URLSearchParams({from:start.toISOString(),to:end.toISOString()})) as Report);setApplied(from+' – '+to);
+  }catch(err){setError((err as Error).message);}finally{lock.current=false;setBusy(false);}}
+  useEffect(()=>{void load();},[]);
   return (
     <section className="card stack">
       <h2>{t('تشغيل المنصة وإيرادات الفواتير', 'Platform operations and invoice revenue')}</h2>
@@ -42,27 +53,7 @@ export default function OperationalReports({
       </p>
       <form
         className="form-actions"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          const f = new FormData(e.currentTarget);
-          setBusy(true);
-          setError('');
-          try {
-            setData(
-              (await request(
-                '/reports?' +
-                  new URLSearchParams({
-                    from: new Date(String(f.get('from')) + 'T00:00:00Z').toISOString(),
-                    to: new Date(String(f.get('to')) + 'T00:00:00Z').toISOString(),
-                  }),
-              )) as Report,
-            );
-          } catch (err) {
-            setError((err as Error).message);
-          } finally {
-            setBusy(false);
-          }
-        }}
+        onSubmit={e=>{e.preventDefault();void load();}}
       >
         <label>
           {t('من UTC', 'From UTC')}
@@ -70,7 +61,7 @@ export default function OperationalReports({
             name="from"
             type="date"
             required
-            defaultValue={new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)}
+            value={from} onChange={e=>setFrom(e.target.value)}
           />
         </label>
         <label>
@@ -79,11 +70,11 @@ export default function OperationalReports({
             name="to"
             type="date"
             required
-            defaultValue={new Date(Date.now() + 86400000).toISOString().slice(0, 10)}
+            value={to} onChange={e=>setTo(e.target.value)}
           />
         </label>
         <button className="btn" disabled={busy}>
-          {t('تحميل التقرير', 'Load report')}
+          <NavIcon name="refresh"/>{t('تحميل التقرير', 'Load report')}
         </button>
       </form>
       {error && (
@@ -91,13 +82,13 @@ export default function OperationalReports({
           {error}
         </p>
       )}
+      {busy&&<p role="status">{t('جارٍ تحميل التقرير…','Loading report…')}</p>}
       {data && (
         <>
-          <p>
-            {t('الشركات / الموقوفة', 'Companies / suspended')}: {data.companies.total} /{' '}
-            {data.companies.suspended}
-          </p>
+          <p className="muted">{t('الفترة المعروضة UTC','Displayed range UTC')}: {applied}</p>
+          <div className={styles.metrics}>{[[t('الشركات','Companies'),data.companies.total],[t('الشركات الموقوفة','Suspended companies'),data.companies.suspended],[t('فواتير بلا تاريخ سداد','Invoices without payment date'),data.paidInvoicesMissingPaymentDate],[t('اشتراكات بلا سعر','Unpriced subscriptions'),data.unpricedLinkedSubscriptions]].map(([label,value],i)=><div className={styles.metric} key={label}><span className={styles.metricIcon}><NavIcon name={['commerce','blocked','billing','coins'][i]}/></span><span>{label}</span><strong>{value}</strong></div>)}</div>
           <h3>{t('فواتير مسددة خلال الفترة', 'Invoices paid in range')}</h3>
+          {!data.paidInvoicesByCurrency.length&&<p className="empty">{t('لا توجد فواتير مسددة في الفترة','No paid invoices in range')}</p>}
           {data.paidInvoicesByCurrency.map((r) => (
             <p key={r.currency}>
               {r.currency.toUpperCase()}: {r.gross_paid_minor_units} {t('وحدة صغرى', 'minor units')}{' '}
@@ -105,6 +96,7 @@ export default function OperationalReports({
             </p>
           ))}
           <h3>{t('الفواتير المنشأة خلال الفترة', 'Invoice creation cohort')}</h3>
+          {!data.invoiceCohortByCurrency.length&&<p className="empty">{t('لا توجد فواتير في الفترة','No invoices in range')}</p>}
           {data.invoiceCohortByCurrency.map((r) => (
             <p key={r.currency}>
               {r.currency.toUpperCase()} · {t('مستحق / متبقٍ', 'Due / remaining')}:{' '}
@@ -115,6 +107,7 @@ export default function OperationalReports({
           <h3>
             {t('المكافئ الشهري للاشتراكات الحالية', 'Current subscription monthly equivalents')}
           </h3>
+          {!data.recurringByCurrency.length&&<p className="empty">{t('لا توجد اشتراكات مسعّرة','No priced subscriptions')}</p>}
           {data.recurringByCurrency.map((r) => (
             <p key={r.currency + r.status}>
               {r.currency.toUpperCase()} · {r.status} · {r.monthly_equivalent_minor_units}{' '}
