@@ -428,6 +428,11 @@ class PlatformController {
   @Get('session') session(@Req() r: PlatformRequest) {
     return { actor: r.platformActor, permissions: r.platformPermissions };
   }
+  @Permission('settings.read') @Get('registration-policy') async registrationPolicy(){return (await this.access.query('SELECT saas_registration_settings($1) AS data',[env.TRIAL_DAYS]))[0].data;}
+  @Permission('settings.write') @Patch('registration-policy') async setRegistrationPolicy(@Req() r:PlatformRequest,@Body() input:unknown){
+    const b=parse(z.object({selfRegistration:z.boolean(),trialPlanCode:z.string().min(1).max(50),trialDays:z.number().int().min(0).max(365),reason:z.string().trim().min(10).max(1000)}),input);
+    await this.access.query('SELECT platform_set_registration_policy($1,$2,$3,$4,$5)',[r.platformActor,b.selfRegistration,b.trialPlanCode,b.trialDays,b.reason]);return {updated:true};
+  }
   @Permission('subscriptions.read') @Get('billing-reviews') async billingReviews() {
     return (await this.access.query('SELECT platform_billing_review_queue() AS data'))[0].data;
   }
