@@ -1,6 +1,7 @@
 'use client';
 import { useRef, useState } from 'react';
 import styles from './subscription.module.css';
+import Link from 'next/link';
 import { api } from '../../../lib/api';
 import { Dialog } from '../../../components/product/ProductUI';
 import { useLocale } from '../../../components/product/locale';
@@ -14,6 +15,7 @@ import {
 export default function PlansPanel({
   plans,
   currentPlan,
+  trialActive=false,
   status,
   role,
   loading,
@@ -21,6 +23,7 @@ export default function PlansPanel({
 }: {
   plans: BillingPlan[];
   currentPlan?: string;
+  trialActive?:boolean;
   status: BillingStatus | null;
   role?: string;
   loading: boolean;
@@ -55,6 +58,9 @@ export default function PlansPanel({
   const linked =
     status?.subscription?.linked &&
     ['active', 'trialing', 'past_due'].includes(status.subscription.status);
+  const labels:Record<string,string>={messages_per_month:t('رسائل صادرة شهريًا','Monthly outbound messages'),contacts:t('جهات الاتصال','Total contacts'),ai_credits:t('محاولات AI شهريًا','Monthly AI attempts'),channels:t('القنوات','Channels'),agents:t('الموظفون','Staff'),flows:t('التدفقات','Flows'),bots:t('البوتات','Bots'),knowledge_sources:t('مصادر المعرفة','Knowledge sources'),ai_agents:t('وكلاء الذكاء الاصطناعي','AI agents'),automation_rules:t('قواعد الأتمتة','Automation rules'),campaigns_per_month:t('الحملات شهريًا','Monthly campaigns'),generation_token_budget:t('حد توكنز التوليد','Generation token budget'),embedding_token_budget:t('حد توكنز المعرفة','Knowledge token budget')};
+  const featureLabels:Record<string,string>={broadcasts:t('الحملات','Campaigns'),api_access:t('الوصول إلى API','API access'),white_label:t('العلامة التجارية الخاصة','White-label branding'),automations:t('الأتمتة','Automation'),reports:t('التقارير','Reports')};
+  const quoteCurrent=selected&&plans.some(p=>p.code===selected.code&&p.checkout_available===true&&p.price_cents===selected.price_cents&&p.currency===selected.currency&&p.interval===selected.interval);
   return (
     <section className={styles.content}>
       {(error || requestError) && (
@@ -70,13 +76,15 @@ export default function PlansPanel({
       )}
       {!loading&&!requestError&&!plans.length&&<p role="status">{t('لا توجد باقات متاحة حاليًا.','No plans available.')}</p>}
       {role&&role!=='owner'&&<p className={styles.muted}>{t('مالك مساحة العمل فقط يمكنه تغيير الباقة.','Only the workspace owner can change the plan.')}</p>}
+      <div className={styles.sectionHeader}><h2>{t('الباقات المتاحة','Available plans')}</h2><span className={styles.muted}>{t('الأسعار والحدود من كتالوج المنصة','Prices and limits from platform catalog')}</span></div>
+      {linked&&role==='owner'&&status?.portalAvailable&&!requestError&&<section className={styles.panel}><h2>{t('تغيير الاشتراك الحالي','Change existing subscription')}</h2><p className={styles.muted}>{t('تحدد البوابة خيارات التغيير والسعر الفعلي لعقدك.','The billing portal determines available changes and your actual contract price.')}</p><button className="btn btn-primary" disabled={busy||loading} onClick={()=>void pay('/billing/portal')}>{t('إدارة الاشتراك في بوابة الدفع','Manage subscription in billing portal')}</button></section>}
       <div className={styles.plans}>
         {plans.map((p) => (
           <section className={styles.plan} data-current={currentPlan === p.code} key={p.code}>
             <div className={styles.cardHeader}>
               <h2>{p.name}</h2>
               {currentPlan === p.code && (
-                <span className={styles.badge}>{!linked&&status?.subscription?.status==='trialing'?t('باقتك التجريبية','Trial plan'):t('باقتك الحالية', 'Current plan')}</span>
+                <span className={styles.badge}>{trialActive?t('باقتك التجريبية','Trial plan'):t('باقتك الحالية', 'Current plan')}</span>
               )}
             </div>
             <div className={styles.price}>
@@ -84,19 +92,9 @@ export default function PlansPanel({
               <small> / {p.interval === 'year' ? t('سنة', 'year') : t('شهر', 'month')}</small>
             </div>
             <dl className={styles.planLimits}>
-              {(
-                [
-                  ['messages_per_month', 'رسائل صادرة شهريًا', 'Monthly outbound messages'],
-                  ['contacts', 'إجمالي جهات الاتصال', 'Total contacts'],
-                  ['ai_credits', 'محاولات AI شهريًا', 'Monthly AI attempts'],
-                  ['channels', 'القنوات', 'Channels'],
-                  ['agents', 'الموظفون', 'Staff'],
-                  ['bots', 'البوتات', 'Bots'],
-                  ['flows', 'التدفقات', 'Flows'],
-                ] as const
-              ).map(([key, ar, en]) => (
+              {Object.keys(p.limits).filter(key=>typeof p.limits[key]==='number').sort((a,b)=>(Object.keys(labels).indexOf(a)+1||100)-(Object.keys(labels).indexOf(b)+1||100)).map(key=> (
                 <div key={key}>
-                  <dt>{t(ar, en)}</dt>
+                  <dt>{labels[key]??key.replaceAll('_',' ')}</dt>
                   <dd>
                     {p.limits[key] === -1
                       ? t('غير محدود', 'Unlimited')
@@ -107,23 +105,9 @@ export default function PlansPanel({
                 </div>
               ))}
             </dl>
-            {p.features && (
-              <ul className={styles.features}>
-                {(
-                  [
-                    ['broadcasts', 'الحملات', 'Campaigns'],
-                    ['api_access', 'الوصول إلى API', 'API access'],
-                    ['white_label', 'العلامة التجارية الخاصة', 'White-label branding'],
-                  ] as const
-                )
-                  .filter(([key]) => p.features?.[key])
-                  .map(([key, ar, en]) => (
-                    <li key={key}><NavIcon name="circleCheck"/>{t(ar, en)}</li>
-                  ))}
-              </ul>
-            )}
+            {p.features&&Object.values(p.features).some(Boolean)&&<ul className={styles.features}>{Object.entries(p.features).filter(([,value])=>value).map(([key])=><li key={key}><NavIcon name="circleCheck"/>{featureLabels[key]??key.replaceAll('_',' ')}</li>)}</ul>}
             {p.price_cents>0&&p.checkout_available!==true&&<p className={styles.muted}>{t('السعر غير متاح للاشتراكات الجديدة حاليًا.','This price is not available for new subscriptions.')}</p>}
-            {(currentPlan !== p.code || (p.price_cents>0 && !linked)) && (
+            {!linked&&role==='owner'&&status?.configured&&!requestError&&p.price_cents>0&&p.checkout_available===true&&(
               <button
                 className="btn btn-primary"
                 disabled={
@@ -139,7 +123,7 @@ export default function PlansPanel({
                   setSelected(p);
                 }}
               >
-                <NavIcon name="upgrade"/>{linked ? t('إدارة تغيير الباقة', 'Manage plan change') : t('اشتراك', 'Subscribe')}
+                <NavIcon name="upgrade"/>{currentPlan===p.code?t('تفعيل الاشتراك المدفوع','Activate paid subscription'):t('اشتراك','Subscribe')}
               </button>
             )}
           </section>
@@ -157,7 +141,7 @@ export default function PlansPanel({
             <dl className={styles.sideFacts}>
               {current && (
                 <div>
-                  <dt>{t('الباقة الحالية', 'Current plan')}</dt>
+                  <dt>{t('سعر كتالوج الباقة الحالية', 'Current plan catalog price')}</dt>
                   <dd>
                     {current.name} ·{' '}
                     <bdi>{billingMoney(current.price_cents, current.currency)}</bdi>
@@ -173,6 +157,7 @@ export default function PlansPanel({
                 </dd>
               </div>
             </dl>
+            {!quoteCurrent&&<p role="alert" className="notice error">{t('تغير السعر أو التوفر. أغلق النافذة واختر الباقة من جديد.','Price or availability changed. Close and select the plan again.')}</p>}
             <p className={styles.muted}>
               {linked
                 ? t(
@@ -192,7 +177,7 @@ export default function PlansPanel({
             <button
               className="btn btn-primary"
               type="button"
-              disabled={busy||loading||!!requestError||role!=='owner'||!status?.configured||selected.checkout_available!==true||!plans.some(p=>p.code===selected.code&&p.checkout_available===true&&p.price_cents===selected.price_cents&&p.currency===selected.currency&&p.interval===selected.interval)||Boolean(linked&&!status.portalAvailable)}
+              disabled={busy||loading||!!requestError||role!=='owner'||!status?.configured||!quoteCurrent||Boolean(linked)}
               onClick={() =>
                 void pay(
                   linked ? '/billing/portal' : '/billing/checkout',
@@ -205,15 +190,7 @@ export default function PlansPanel({
           </div>
         )}
       </Dialog>
-      <section className={styles.panel} id="additional-credit">
-        <h2>{t('رصيد إضافي', 'Additional credit')}</h2>
-        <p>
-          {t(
-            'شحن الرسائل واستخدامات AI غير متاح حاليًا.',
-            'Message and AI top-ups are currently unavailable.',
-          )}
-        </p>
-      </section>
+      {status?.configured===false&&<Link className="btn" href="/dashboard/support"><NavIcon name="support"/>{t('استفسر عن الاشتراك من الدعم','Ask support about subscriptions')}</Link>}
     </section>
   );
 }

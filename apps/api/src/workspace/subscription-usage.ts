@@ -8,6 +8,10 @@ export async function subscriptionUsage(c: PoolClient, plan: TenantPlan) {
       date_trunc('month',now()) AS "cycleStart",
       date_trunc('month',now()) + interval '1 month' AS "cycleEnd",
       (SELECT count(*)::int FROM contacts) AS contacts,
+      (SELECT count(*)::int FROM memberships) AS agents,
+      (SELECT count(*)::int FROM channels) AS channels,
+      (SELECT count(*)::int FROM flows) AS flows,
+      (SELECT count(*)::int FROM flows WHERE NOT is_component) AS bots,
       (SELECT count(*)::int FROM messages WHERE direction='out' AND NOT is_internal
         AND created_at >= date_trunc('month',now())) AS messages,
       COALESCE(g.baseline_calls+g.attempts,a.replies,0) AS attempts,
@@ -30,6 +34,7 @@ export async function subscriptionUsage(c: PoolClient, plan: TenantPlan) {
   });
   return {
     asOf: row.asOf, cycleStart: row.cycleStart, cycleEnd: row.cycleEnd, plan,
+    resources: {agents:meter(row.agents,plan.limits.agents??-1),channels:meter(row.channels,plan.limits.channels??-1),flows:meter(row.flows,plan.limits.flows??-1),bots:row.bots},
     messages: meter(row.messages, plan.limits.messages_per_month ?? 0),
     contacts: meter(row.contacts, plan.limits.contacts ?? 0),
     ai: meter(row.attempts, cap(plan.limits.ai_credits ?? 0, row.policyCalls)),

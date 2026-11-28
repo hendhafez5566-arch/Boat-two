@@ -30,7 +30,15 @@ const browser=await chromium.launch({executablePath:process.env.BOAT_CHROMIUM||'
 try{
  const context=await browser.newContext({viewport:{width:1366,height:936}});
  await context.addInitScript(s=>{localStorage.setItem('session',JSON.stringify(s));localStorage.setItem('boat-language','en');},account);
- const page=await context.newPage();await page.route('**/*',r=>['localhost','127.0.0.1'].includes(new URL(r.request().url()).hostname)?r.continue():r.abort());
+ const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>['localhost','127.0.0.1'].includes(new URL(r.request().url()).hostname)?r.continue():r.abort());
+ await page.goto(web+'/dashboard/subscription');
+ const tabs=page.getByRole('navigation',{name:'Subscription sections'});await tabs.waitFor();assert.equal(await tabs.getByRole('link').count(),4);
+ await page.getByRole('heading',{name:'Subscription term',exact:true}).waitFor();await page.getByText('Trial end',{exact:true}).waitFor();
+ await tabs.getByRole('link',{name:'Usage & limits',exact:true}).click();await page.getByRole('heading',{name:'Staff',exact:true}).waitFor();await page.getByRole('heading',{name:'Standalone bots',exact:true}).waitFor();
+ const usage=await api('/workspace/subscription-usage',token);assert.equal(usage.resources.agents.used,1);assert.equal(usage.resources.channels.used,1);assert.equal(usage.resources.flows.used,0);assert.equal(usage.resources.bots,0);
+ await tabs.getByRole('link',{name:'Invoices & payments',exact:true}).click();await page.getByRole('combobox',{name:'Invoice status'}).selectOption('paid');await page.getByText('No matching invoices',{exact:true}).waitFor();
+ await tabs.getByRole('link',{name:'Plans & upgrades',exact:true}).click();await page.getByText('Paid subscriptions are currently unavailable.',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Subscribe',exact:true}).count(),0);assert.equal(await page.locator('#additional-credit').count(),0);
+ await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.setViewportSize({width:1366,height:936});
  await page.goto(web+'/dashboard/subscription?tab=plans');await page.getByRole('heading',{name:plan.name,exact:true}).first().waitFor();
  const name='Updated QA Plan '+randomUUID().slice(0,8),body={name,enabled:true,limits:{...plan.limits,agents:73},features:plan.features,reason:'Isolated end to end catalog test'};
  const path='/platform/plans/'+plan.code;
@@ -42,5 +50,5 @@ try{
  const after=(await api('/workspace/subscription-usage',token)).plan;assert.equal(after.plan_name,name);assert.equal(after.limits.agents,73);
  assert.equal((await api('/platform',admin)).plans.find(p=>p.code===plan.code).name,name);
  console.log('PASS actual MFA platform write, public catalog, automatic customer browser refresh, and effective tenant entitlements');
- await context.close();
+ assert.deepEqual(errors,[]);await context.close();
 }finally{await browser.close();}

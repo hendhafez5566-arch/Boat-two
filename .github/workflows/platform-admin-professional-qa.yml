@@ -9,6 +9,8 @@ on:
       - 'apps/api/src/platform/**'
       - 'apps/api/src/auth/**'
       - 'apps/web/components/product/AuthExperience.tsx'
+      - 'apps/api/src/workspace/subscription-usage*'
+      - 'apps/web/components/business/SubscriptionUsageProvider.tsx'
       - 'apps/api/src/plans/**'
       - 'apps/api/src/billing/**'
       - 'apps/api/src/database/migrations/**'
@@ -46,7 +48,7 @@ jobs:
           ENCRYPTION_KEY: '1111111111111111111111111111111111111111111111111111111111111111'
           EXTERNAL_DELIVERY_ENABLED: 'false'
           AI_PROVIDER_CALLS_ENABLED: 'false'
-        run: pnpm --filter api exec tsx --test src/platform/totp.test.ts src/platform/permissions.test.ts src/platform/step-up.test.ts src/auth/setup-credential.test.ts src/auth/role-session.test.ts
+        run: pnpm --filter api exec tsx --test src/platform/totp.test.ts src/platform/permissions.test.ts src/platform/step-up.test.ts src/auth/setup-credential.test.ts src/auth/role-session.test.ts src/workspace/subscription-usage.test.ts
       - name: Shared catalog database integration
         run: node scripts/qa-unified-plan-catalog.mjs
       - name: Install browser driver

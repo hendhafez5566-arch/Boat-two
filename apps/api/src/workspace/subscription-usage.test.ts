@@ -10,6 +10,12 @@ test('subscription meters match quota counters and keep attempts, tokens and cos
   try {
     await db.exec(`
       CREATE TABLE contacts(id integer);
+      CREATE TABLE memberships(id integer);
+      CREATE TABLE channels(id integer);
+      CREATE TABLE flows(id integer,is_component boolean);
+      INSERT INTO memberships VALUES(1),(2);
+      INSERT INTO channels VALUES(1);
+      INSERT INTO flows VALUES(1,false),(2,true),(3,false);
       CREATE TABLE messages(direction text, is_internal boolean, created_at timestamptz);
       CREATE TABLE ai_usage(period date, replies integer, input_tokens integer, output_tokens integer);
       CREATE TABLE generation_usage(period date, baseline_calls integer, attempts integer,
@@ -24,11 +30,15 @@ test('subscription meters match quota counters and keep attempts, tokens and cos
     `);
     const usage = await subscriptionUsage(c, {
       status: 'active', trial_ends_at: null, current_period_end: null, plan_code: 'test',
-      plan_name: 'Test', limits: { contacts: -1, messages_per_month: 2, ai_credits: 10, generation_token_budget: 30 },
+      plan_name: 'Test', limits: { contacts: -1, messages_per_month: 2, ai_credits: 10, generation_token_budget: 30, agents:3, channels:1, flows:5 },
       features: {}, trial_expired: false,
     });
     assert.deepEqual(usage.messages, { used: 1, limit: 2, remaining: 1, percent: 50 });
     assert.deepEqual(usage.contacts, { used: 2, limit: -1, remaining: null, percent: null });
+    assert.deepEqual(usage.resources.agents,{used:2,limit:3,remaining:1,percent:2/3*100});
+    assert.deepEqual(usage.resources.channels,{used:1,limit:1,remaining:0,percent:100});
+    assert.deepEqual(usage.resources.flows,{used:3,limit:5,remaining:2,percent:60});
+    assert.equal(usage.resources.bots,2);
     assert.equal(usage.ai.used, 6);
     assert.equal(usage.ai.limit, 5);
     assert.equal(usage.ai.remaining, 0);
