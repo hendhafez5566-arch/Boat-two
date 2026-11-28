@@ -53,7 +53,7 @@ export default function SettingsHub() {
     window.history.replaceState(window.history.state, '', url.pathname + url.search);
   };
   return (
-    <main className={styles.page}>
+    <main className={styles.page} data-workbench="settings">
       <header className={styles.heading}>
         <div className={styles.heroTitle}><span className={styles.heroIcon}><NavIcon name="settings"/></span><div><h1>{t('الإعدادات والتكاملات', 'Settings & Integration')}</h1><p>{t('إدارة مساحة العمل والأمان والاتصالات الخارجية','Manage your workspace, security and connections')}</p></div></div>
         {workspace.error&&<p role="alert" className="notice error">{workspace.error} <button className="btn" onClick={()=>void workspace.reload()}>{t('إعادة المحاولة','Retry')}</button></p>}
