@@ -1,5 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useEffect,useRef,useState } from 'react';
+import { NavIcon } from '../../components/product/NavIcon';
+import styles from './platform.module.css';
 import { useLocale } from '../../components/product/locale';
 type Report = {
   paidInvoicesByCurrency: { currency: string; invoices: number; gross_paid_minor_units: string }[];
@@ -31,6 +33,15 @@ export default function OperationalReports({
     [data, setData] = useState<Report | null>(null),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
+  const lock=useRef(false);
+  const [from,setFrom]=useState(()=>new Date(Date.now()-30*86400000).toISOString().slice(0,10)),[to,setTo]=useState(()=>new Date(Date.now()+86400000).toISOString().slice(0,10));
+  const [applied,setApplied]=useState('');
+  async function load(){if(lock.current)return;lock.current=true;setBusy(true);setError('');try{
+    const start=new Date(from+'T00:00:00Z'),end=new Date(to+'T00:00:00Z');
+    if(!(end.getTime()>start.getTime())||end.getTime()-start.getTime()>366*86400000)throw new Error(t('اختر فترة صحيحة لا تتجاوز 366 يومًا','Choose a valid range of up to 366 days'));
+    setData(await request('/reports?'+new URLSearchParams({from:start.toISOString(),to:end.toISOString()})) as Report);setApplied(from+' – '+to);
+  }catch(err){setError((err as Error).message);}finally{lock.current=false;setBusy(false);}}
+  useEffect(()=>{void load();},[]);
   return (
     <section className="card stack">
       <h2>{t('تشغيل المنصة وإيرادات الفواتير', 'Platform operations and invoice revenue')}</h2>
