@@ -6,6 +6,9 @@ on:
     branches: [fix/preview-order-summary-filter]
     paths:
       - 'apps/web/app/platform/**'
+      - 'apps/web/components/flow/**'
+      - 'apps/web/app/dashboard/flows/**'
+      - 'apps/web/lib/flow-reference.ts'
       - 'apps/api/src/platform/**'
       - 'apps/api/src/auth/**'
       - 'apps/web/components/product/AuthExperience.tsx'
@@ -82,4 +85,5 @@ jobs:
             docs/p0-evidence/platform-admin/
             /tmp/boat-journeys-api.log
             /tmp/boat-journeys-web.log
+            /tmp/boat-flow-readability.png
           if-no-files-found: warn
