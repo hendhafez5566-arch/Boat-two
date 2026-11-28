@@ -53,27 +53,7 @@ export default function OperationalReports({
       </p>
       <form
         className="form-actions"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          const f = new FormData(e.currentTarget);
-          setBusy(true);
-          setError('');
-          try {
-            setData(
-              (await request(
-                '/reports?' +
-                  new URLSearchParams({
-                    from: new Date(String(f.get('from')) + 'T00:00:00Z').toISOString(),
-                    to: new Date(String(f.get('to')) + 'T00:00:00Z').toISOString(),
-                  }),
-              )) as Report,
-            );
-          } catch (err) {
-            setError((err as Error).message);
-          } finally {
-            setBusy(false);
-          }
-        }}
+        onSubmit={e=>{e.preventDefault();void load();}}
       >
         <label>
           {t('من UTC', 'From UTC')}
@@ -81,7 +61,7 @@ export default function OperationalReports({
             name="from"
             type="date"
             required
-            defaultValue={new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)}
+            value={from} onChange={e=>setFrom(e.target.value)}
           />
         </label>
         <label>
@@ -90,11 +70,11 @@ export default function OperationalReports({
             name="to"
             type="date"
             required
-            defaultValue={new Date(Date.now() + 86400000).toISOString().slice(0, 10)}
+            value={to} onChange={e=>setTo(e.target.value)}
           />
         </label>
         <button className="btn" disabled={busy}>
-          {t('تحميل التقرير', 'Load report')}
+          <NavIcon name="refresh"/>{t('تحميل التقرير', 'Load report')}
         </button>
       </form>
       {error && (
@@ -102,13 +82,13 @@ export default function OperationalReports({
           {error}
         </p>
       )}
+      {busy&&<p role="status">{t('جارٍ تحميل التقرير…','Loading report…')}</p>}
       {data && (
         <>
-          <p>
-            {t('الشركات / الموقوفة', 'Companies / suspended')}: {data.companies.total} /{' '}
-            {data.companies.suspended}
-          </p>
+          <p className="muted">{t('الفترة المعروضة UTC','Displayed range UTC')}: {applied}</p>
+          <div className={styles.metrics}>{[[t('الشركات','Companies'),data.companies.total],[t('الشركات الموقوفة','Suspended companies'),data.companies.suspended],[t('فواتير بلا تاريخ سداد','Invoices without payment date'),data.paidInvoicesMissingPaymentDate],[t('اشتراكات بلا سعر','Unpriced subscriptions'),data.unpricedLinkedSubscriptions]].map(([label,value],i)=><div className={styles.metric} key={label}><span className={styles.metricIcon}><NavIcon name={['commerce','blocked','billing','coins'][i]}/></span><span>{label}</span><strong>{value}</strong></div>)}</div>
           <h3>{t('فواتير مسددة خلال الفترة', 'Invoices paid in range')}</h3>
+          {!data.paidInvoicesByCurrency.length&&<p className="empty">{t('لا توجد فواتير مسددة في الفترة','No paid invoices in range')}</p>}
           {data.paidInvoicesByCurrency.map((r) => (
             <p key={r.currency}>
               {r.currency.toUpperCase()}: {r.gross_paid_minor_units} {t('وحدة صغرى', 'minor units')}{' '}
@@ -116,6 +96,7 @@ export default function OperationalReports({
             </p>
           ))}
           <h3>{t('الفواتير المنشأة خلال الفترة', 'Invoice creation cohort')}</h3>
+          {!data.invoiceCohortByCurrency.length&&<p className="empty">{t('لا توجد فواتير في الفترة','No invoices in range')}</p>}
           {data.invoiceCohortByCurrency.map((r) => (
             <p key={r.currency}>
               {r.currency.toUpperCase()} · {t('مستحق / متبقٍ', 'Due / remaining')}:{' '}
@@ -126,6 +107,7 @@ export default function OperationalReports({
           <h3>
             {t('المكافئ الشهري للاشتراكات الحالية', 'Current subscription monthly equivalents')}
           </h3>
+          {!data.recurringByCurrency.length&&<p className="empty">{t('لا توجد اشتراكات مسعّرة','No priced subscriptions')}</p>}
           {data.recurringByCurrency.map((r) => (
             <p key={r.currency + r.status}>
               {r.currency.toUpperCase()} · {r.status} · {r.monthly_equivalent_minor_units}{' '}
