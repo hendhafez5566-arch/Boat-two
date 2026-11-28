@@ -1,0 +1,51 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {readFileSync,readdirSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {randomUUID} from 'node:crypto';
+const local=createRequire(resolve('apps/api/package.json'));
+Object.assign(process.env,{NODE_ENV:'test',DATABASE_URL:'postgres://app_user:qa@localhost/isolated',REDIS_URL:'redis://localhost:1',JWT_SECRET:'isolated-catalog-qa-secret-not-for-deployment',ENCRYPTION_KEY:'0'.repeat(64),EXTERNAL_DELIVERY_ENABLED:'false',BOAT_PREVIEW_ONLY:'false'});
+const {PGlite}=local('@electric-sql/pglite');
+const {pgcrypto}=local('@electric-sql/pglite/contrib/pgcrypto');
+const {vector}=local('@electric-sql/pglite-pgvector');
+const pg=new PGlite({extensions:{vector,pgcrypto}});
+try{
+ await pg.waitReady;
+ await pg.exec('CREATE ROLE app_user NOLOGIN NOSUPERUSER NOBYPASSRLS; CREATE TABLE schema_migrations(name text PRIMARY KEY,applied_at timestamptz DEFAULT now());');
+ const dir='apps/api/src/database/migrations';
+ for(const name of readdirSync(dir).filter(x=>x.endsWith('.sql')).sort())await pg.transaction(async tx=>{await tx.exec(readFileSync(dir+'/'+name,'utf8'));await tx.query('INSERT INTO schema_migrations(name) VALUES($1)',[name]);});
+ const role=(role,fn,tenant)=>pg.transaction(async tx=>{await tx.exec('SET LOCAL ROLE '+role);if(tenant)await tx.query("SELECT set_config('app.tenant_id',$1,true)",[tenant]);return fn(tx);});
+ const query=(sql,args=[])=>role('app_user',tx=>tx.query(sql,args));
+ const operator=(sql,args=[])=>role('boat_platform',tx=>tx.query(sql,args));
+ local('reflect-metadata');const {PlansService}=local('./dist/plans/plans.service');
+ const {matchesCatalogPrice}=local('./dist/billing/catalog-price');
+ const plans=new PlansService({query});
+ const admin=async()=> (await operator('SELECT platform_plan_catalog() AS data')).rows[0].data;
+ const a=randomUUID(),b=randomUUID(),actor=randomUUID();
+ const before=await plans.listPublic();assert.ok(before.length>1);
+ const paid=before.find(p=>p.code==='pro')??before.find(p=>p.price_cents>0);assert.ok(paid);
+ const other=before.find(p=>p.code!==paid.code);assert.ok(other);
+ for(const [tenant,plan] of [[a,paid],[b,other]])await role('app_user',async tx=>{await tx.query('INSERT INTO tenants(id,name,slug) VALUES($1,$2,$3)',[tenant,'Synthetic '+tenant,tenant]);await tx.query("INSERT INTO subscriptions(tenant_id,plan_id,status) SELECT $1,id,'active' FROM plans WHERE code=$2",[tenant,plan.code]);},tenant);
+ const effective=tenant=>role('app_user',tx=>plans.getTenantPlan(tx),tenant);
+ const limits={...paid.limits,agents:73,messages_per_month:12345},features={...paid.features,broadcasts:true};
+ const label='Synthetic catalog QA '+paid.code;
+ await operator('SELECT platform_change_plan($1,$2,$3,$4,$5,$6,$7)',[actor,paid.code,label,true,JSON.stringify(limits),JSON.stringify(features),'Isolated catalog regression test']);
+ const publicUpdated=(await plans.listPublic()).find(p=>p.code===paid.code),adminUpdated=(await admin()).find(p=>p.code===paid.code);
+ for(const p of [publicUpdated,adminUpdated]){assert.equal(p.name,label);assert.deepEqual(p.limits,limits);assert.deepEqual(p.features,features);}
+ assert.equal((await effective(a)).plan_name,label);assert.equal((await effective(a)).limits.agents,73);assert.equal((await effective(b)).plan_code,other.code);
+ await role('app_user',tx=>plans.assertWithinLimit(tx,'agents',72),a);
+ await assert.rejects(()=>role('app_user',tx=>plans.assertWithinLimit(tx,'agents',73),a));
+ await assert.rejects(()=>query('SELECT platform_plan_catalog()'));
+ await assert.rejects(()=>query('SELECT platform_change_plan($1,$2,$3,$4,$5,$6,$7)',[actor,paid.code,label,false,JSON.stringify(limits),JSON.stringify(features),'Unauthorized test attempt']));
+ await operator('SELECT platform_publish_price($1,$2,$3,$4,$5,$6,$7)',[actor,paid.code,'price_isolated_catalog',12345,'usd','month','Synthetic provider price only']);
+ for(const p of [(await plans.listPublic()).find(p=>p.code===paid.code),(await admin()).find(p=>p.code===paid.code)]){assert.equal(p.price_cents,12345);assert.equal(p.currency,'usd');assert.equal(p.interval,'month');assert.equal(p.checkout_available,true);}
+ const price={active:true,type:'recurring',billing_scheme:'per_unit',unit_amount:12345,currency:'usd',recurring:{interval:'month',interval_count:1,usage_type:'licensed'}};
+ const expected={amountCents:12345,currency:'usd',interval:'month'};
+ assert.ok(matchesCatalogPrice(price,expected));for(const mismatch of [{active:false},{unit_amount:12344},{currency:'eur'},{recurring:{...price.recurring,interval_count:2}}])assert.equal(matchesCatalogPrice({...price,...mismatch},expected),false);
+ await operator('SELECT platform_retire_price($1,$2,$3)',[actor,'price_isolated_catalog','Synthetic retire regression']);
+ assert.equal((await plans.listPublic()).find(p=>p.code===paid.code).checkout_available,false);
+ assert.equal((await admin()).find(p=>p.code===paid.code).checkout_available,false);
+ await operator('SELECT platform_change_subscription($1,$2,$3,$4,$5)',[actor,b,paid.code,'active','Synthetic subscription reassignment']);
+ assert.equal((await effective(b)).plan_code,paid.code);assert.equal((await effective(b)).limits.agents,73);
+ console.log('PASS unified database catalog, platform writes, public plan reads, two tenant entitlements, limit enforcement, price publish/retire and access boundary');
+}finally{await pg.close();}
