@@ -1,6 +1,6 @@
 // Company and billing records are fictional; public catalog is copied into local memory.
 import type { BillingPlan } from '../../lib/billing-display';
-type DesignBody={name:string;suspended:boolean;planCode:string;status:string;disabled:boolean;enabled:boolean;limits:Record<string,number>;features:Record<string,boolean>;code:string;templateCode:string;priceId:string;amountCents:number;currency:string;interval:string};
+type DesignBody={selfRegistration:boolean;trialPlanCode:string;trialDays:number;companyName:string;ownerName:string;ownerEmail:string;name:string;suspended:boolean;planCode:string;status:string;disabled:boolean;enabled:boolean;limits:Record<string,number>;features:Record<string,boolean>;code:string;templateCode:string;priceId:string;amountCents:number;currency:string;interval:string};
 export function createDesignReview(publicPlans:BillingPlan[]|null=null){
  const companies=[{id:'11111111-1111-4111-8111-111111111111',name:'Demo Company',slug:'demo-company',plan_code:'pro',status:'active',suspended_at:null as string|null,members:8},{id:'22222222-2222-4222-8222-222222222222',name:'Sample Studio',slug:'sample-studio',plan_code:'starter',status:'trialing',suspended_at:null as string|null,members:3}];
  const users=[{id:'33333333-3333-4333-8333-333333333333',email:'manager@example.test',full_name:'Demo Manager',session_version:0,disabled_at:null as string|null},{id:'44444444-4444-4444-8444-444444444444',email:'agent@example.test',full_name:'Demo Agent',session_version:0,disabled_at:null as string|null}];
@@ -11,10 +11,12 @@ export function createDesignReview(publicPlans:BillingPlan[]|null=null){
 
  const reviews=[{id:'review-demo',company:'Demo Company',kind:'subscription_update',plan_code:'pro',reviews:[{id:'evidence-demo',status:'ready',observed_at:new Date().toISOString(),evidence:{verdict:'satisfied',providerRequestId:'req_demo_only',status:'active',cancelAtPeriodEnd:false},error:null}]}];
  const audit=[{id:'1',actor_id:users[0].id,tenant_id:companies[0].id,action:'demo.company.review',details:{sample:true},created_at:new Date().toISOString()}];
- const permissions=['companies.read','companies.write','users.read','users.write','plans.read','plans.write','subscriptions.read','subscriptions.write','reports.read','audit.read','sessions.revoke','mfa.manage'];
+ let policy={selfRegistration:true,trialPlanCode:plans.find(p=>p.code==='pro')?.code??plans[0]?.code??'free',trialDays:14};
+ const permissions=['companies.read','companies.write','users.read','users.write','plans.read','plans.write','subscriptions.read','subscriptions.write','reports.read','audit.read','sessions.revoke','mfa.manage','settings.read','settings.write'];
  return async function request(path:string,body?:unknown,method='GET'){
   const url=new URL(path||'/', 'https://design.invalid'),p=url.pathname,q=url.searchParams,b=(body||{}) as DesignBody;
   if(method==='GET'){
+   if(p==='/registration-policy')return {...policy};
    if(p==='/session')return {actor:users[0].id,permissions};
    if(p==='/')return structuredClone({companies,users,plans,audit});
    if(p==='/directory'){const source=q.get('kind')==='companies'?companies:users;const search=(q.get('q')||'').toLowerCase();const status=q.get('status')||'';const rows=source.filter(x=>Object.values(x).join(' ').toLowerCase().includes(search)&&(!status||('suspended_at' in x?(status==='suspended'?!!x.suspended_at:!x.suspended_at&&x.status===status):status==='disabled'?!!x.disabled_at:!x.disabled_at)));const page=Math.max(1,Number(q.get('page')||1)),limit=50;return {items:structuredClone(rows.slice((page-1)*limit,page*limit)),total:rows.length};}
@@ -24,7 +26,9 @@ export function createDesignReview(publicPlans:BillingPlan[]|null=null){
    if(p==='/audit'){const rows=audit.filter(x=>(!q.get('actor')||q.get('actor')===x.actor_id)&&(!q.get('tenant')||q.get('tenant')===x.tenant_id)&&(!q.get('action')||q.get('action')===x.action)&&(!q.get('from')||x.created_at>=q.get('from')!)&&(!q.get('to')||x.created_at<q.get('to')!));return {items:rows,nextCursor:null};}
   }
   const id=p.split('/')[2];const now=new Date().toISOString();
-  if(method==='PATCH'&&p.startsWith('/companies/')){const c=companies.find(c=>c.id===id);if(!c)throw Error('Demo record not found');Object.assign(c,{name:b.name,suspended_at:b.suspended?now:null});}
+  if(method==='PATCH'&&p==='/registration-policy'){policy={selfRegistration:b.selfRegistration,trialPlanCode:b.trialPlanCode,trialDays:b.trialDays};}
+  else if(method==='POST'&&p==='/companies'){if(users.some(u=>u.email.toLowerCase()===b.ownerEmail.toLowerCase()))throw Error('Demo email already exists');if(b.trialDays===0&&b.planCode!=='free')throw Error('Select Free or a positive trial duration');const tid=crypto.randomUUID(),uid=crypto.randomUUID();companies.unshift({id:tid,name:b.companyName,slug:'demo-'+tid.slice(0,8),plan_code:b.planCode,status:b.trialDays?'trialing':'active',suspended_at:null,members:1});users.unshift({id:uid,email:b.ownerEmail,full_name:b.ownerName,session_version:0,disabled_at:null});return {tenantId:tid,userId:uid,temporaryPassword:'DEMO-ONLY-NOT-A-REAL-PASSWORD',expiresAt:new Date(Date.now()+7*86400000).toISOString(),displayOnce:true};}
+  else if(method==='PATCH'&&p.startsWith('/companies/')){const c=companies.find(c=>c.id===id);if(!c)throw Error('Demo record not found');Object.assign(c,{name:b.name,suspended_at:b.suspended?now:null});}
   else if(method==='PATCH'&&p.startsWith('/subscriptions/')){const c=companies.find(c=>c.id===id);if(!c)throw Error('Demo record not found');Object.assign(c,{plan_code:b.planCode,status:b.status});}
   else if(method==='PATCH'&&p.startsWith('/users/')){const u=users.find(u=>u.id===id);if(!u)throw Error('Demo record not found');Object.assign(u,{full_name:b.name,disabled_at:b.disabled?now:null,session_version:u.session_version+1});}
   else if(p.endsWith('/revoke-sessions')){const u=users.find(u=>u.id===id);if(u)u.session_version++;}
