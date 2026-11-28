@@ -15,6 +15,7 @@ import {
 export default function PlansPanel({
   plans,
   currentPlan,
+  trialActive=false,
   status,
   role,
   loading,
@@ -22,6 +23,7 @@ export default function PlansPanel({
 }: {
   plans: BillingPlan[];
   currentPlan?: string;
+  trialActive?:boolean;
   status: BillingStatus | null;
   role?: string;
   loading: boolean;
@@ -82,7 +84,7 @@ export default function PlansPanel({
             <div className={styles.cardHeader}>
               <h2>{p.name}</h2>
               {currentPlan === p.code && (
-                <span className={styles.badge}>{!linked&&status?.subscription?.status==='trialing'?t('باقتك التجريبية','Trial plan'):t('باقتك الحالية', 'Current plan')}</span>
+                <span className={styles.badge}>{trialActive?t('باقتك التجريبية','Trial plan'):t('باقتك الحالية', 'Current plan')}</span>
               )}
             </div>
             <div className={styles.price}>
@@ -105,7 +107,7 @@ export default function PlansPanel({
             </dl>
             {p.features&&Object.values(p.features).some(Boolean)&&<ul className={styles.features}>{Object.entries(p.features).filter(([,value])=>value).map(([key])=><li key={key}><NavIcon name="circleCheck"/>{featureLabels[key]??key.replaceAll('_',' ')}</li>)}</ul>}
             {p.price_cents>0&&p.checkout_available!==true&&<p className={styles.muted}>{t('السعر غير متاح للاشتراكات الجديدة حاليًا.','This price is not available for new subscriptions.')}</p>}
-            {!linked&&role==='owner'&&status?.configured&&p.price_cents>0&&p.checkout_available===true&&(
+            {!linked&&role==='owner'&&status?.configured&&!requestError&&p.price_cents>0&&p.checkout_available===true&&(
               <button
                 className="btn btn-primary"
                 disabled={
@@ -139,7 +141,7 @@ export default function PlansPanel({
             <dl className={styles.sideFacts}>
               {current && (
                 <div>
-                  <dt>{t('الباقة الحالية', 'Current plan')}</dt>
+                  <dt>{t('سعر كتالوج الباقة الحالية', 'Current plan catalog price')}</dt>
                   <dd>
                     {current.name} ·{' '}
                     <bdi>{billingMoney(current.price_cents, current.currency)}</bdi>
