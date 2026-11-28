@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+import {randomUUID as uuid} from 'node:crypto';
+import {createRequire} from 'node:module';
+import {mkdirSync,writeFileSync} from 'node:fs';
+import {assertLocalAcceptance} from './acceptance-local.mjs';
+assertLocalAcceptance();
+const base='http://localhost:4000',web='http://localhost:3000',out='docs/p0-evidence/team-professional';
+mkdirSync(out,{recursive:true});
+const {chromium}=createRequire(import.meta.url)(process.env.BOAT_PLAYWRIGHT_MODULE||'playwright');
+async function api(path,token,body,method=body?'POST':'GET',status){const r=await fetch(base+path,{method,headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});const d=await r.json();if(status)assert.equal(r.status,status,path);else assert.ok(r.ok,path+' '+r.status);return d;}
+const browser=await chromium.launch({executablePath:process.env.BOAT_CHROMIUM||'/usr/bin/google-chrome',args:['--no-sandbox']}),results=[];
+try{for(const language of ['ar','en'])for(const width of [390,1366]){
+ const t=(ar,en)=>language==='ar'?ar:en,credentials={email:uuid()+'@example.test',password:'Synthetic-'+uuid()},session=await api('/auth/register',null,{...credentials,fullName:'Team QA Owner',workspaceName:'Isolated team QA'}),token=session.accessToken;
+ const other=await api('/auth/register',null,{email:uuid()+'@example.test',password:'Synthetic-'+uuid(),fullName:'Other Owner',workspaceName:'Other tenant'});
+ await api('/channels',token,{type:'web',name:'Synthetic team channel'});await api('/workspace/onboarding/complete',token,{});
+ const roster=await api('/team',token),index=await api('/team/index?role=owner&limit=1',token);
+ assert.equal(index.total,1);assert.equal(index.metrics.members,roster.members.length);assert.equal(index.items[0].email,credentials.email);
+ assert.equal((await api('/team/index?q='+encodeURIComponent(credentials.email),other.accessToken)).total,0);
+ assert.equal((await api('/team/index?q=%25',token)).total,0);
+ assert.equal((await api('/team/index?role=agent',token)).total,0);
+ assert.equal((await api('/team/index?tab=invites',token)).total,0);
+ await api('/team/index?limit=101',token,undefined,'GET',400);
+ const context=await browser.newContext({viewport:{width,height:936}});await context.addInitScript(({session,language})=>{localStorage.setItem('session',JSON.stringify(session));localStorage.setItem('boat-language',language);},{session,language});
+ const page=await context.newPage();page.setDefaultTimeout(25000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>['localhost','127.0.0.1'].includes(new URL(r.request().url()).hostname)?r.continue():r.abort());
+ await page.goto(web+'/dashboard/team');
+ const search=page.getByRole('searchbox',{name:t('بحث في الفريق','Search team')});
+ await page.getByRole('row').filter({hasText:credentials.email}).waitFor();
+ await search.fill('does-not-exist');await page.getByText(t('لا توجد نتائج مطابقة','No matching members'),{exact:true}).waitFor();
+ await page.getByRole('button',{name:t('مسح الفلاتر','Clear filters'),exact:true}).click();
+ await page.getByRole('row').filter({hasText:credentials.email}).waitFor();
+ await page.getByRole('combobox',{name:t('تصفية الدور','Filter role')}).selectOption('agent');
+ await page.getByText(t('لا توجد نتائج مطابقة','No matching members'),{exact:true}).waitFor();
+ await page.getByRole('button',{name:t('مسح الفلاتر','Clear filters'),exact:true}).click();
+ await page.getByRole('button',{name:new RegExp(t('دعوة موظف','Invite teammate'))}).click();
+ const dialog=page.getByRole('dialog');await dialog.locator('input[name=email]').fill('synthetic@example.test');
+ let prompted=false;page.once('dialog',d=>{prompted=true;return d.dismiss();});await page.keyboard.press('Escape');assert.ok(prompted);assert.equal(await dialog.locator('input[name=email]').inputValue(),'synthetic@example.test');
+ page.once('dialog',d=>d.accept());await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});
+ await page.getByRole('button',{name:t('الدعوات','Invitations'),exact:true}).click();
+ await page.getByText(t('لا توجد دعوات معلقة.','No pending invitations.'),{exact:true}).waitFor();
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'team viewport overflow');assert.deepEqual(errors,[]);
+ await page.screenshot({path:out+'/team-'+language+'-'+width+'.png',fullPage:true});results.push({language,width,status:'PASS'});await context.close();
+}}finally{await browser.close();writeFileSync(out+'/results.json',JSON.stringify(results,null,2)+'\n');}
+console.log('PASS tenant-scoped team search, pagination, legacy roster compatibility, role filters and protected invitation drafts',results.length);
