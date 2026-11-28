@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Header } from '@nestjs/common';
 import { Public } from '../auth/decorators';
 import { PlansService } from './plans.service';
 
@@ -6,7 +6,7 @@ import { PlansService } from './plans.service';
 export class PlansController {
   constructor(private readonly plans: PlansService) {}
 
-  @Public() @Get()
+  @Public() @Header('Cache-Control','no-store') @Get()
   list() {
     return this.plans.listPublic();
   }
