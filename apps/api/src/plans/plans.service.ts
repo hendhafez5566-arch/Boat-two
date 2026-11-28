@@ -22,8 +22,8 @@ export class PlansService {
 
   async listPublic() {
     const r = await this.db.query(
-      `SELECT code, name, price_cents, currency, interval, limits, features
-       FROM plans WHERE is_active ORDER BY sort_order`,
+      `SELECT code, name, price_cents, currency, interval, limits, features, checkout_available
+       FROM unified_plan_catalog WHERE is_active ORDER BY sort_order,code`,
     );
     return r.rows;
   }
