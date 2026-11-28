@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavIcon } from '../../components/product/NavIcon';
 import { useTransientNotice } from '../../components/product/useTransientNotice';
+import { billingMoney } from '../../lib/billing-display';
 import { useLocale } from '../../components/product/locale';
 type Price = {
   provider_id: string;
@@ -13,10 +14,12 @@ type Price = {
 };
 export default function PriceCatalog({
   request,
-  canWrite,
+  canWrite,plans,onChanged,
 }: {
   request: (path: string, body?: unknown, method?: string) => Promise<unknown>;
   canWrite: boolean;
+  plans: {code:string;name:string;is_active:boolean}[];
+  onChanged:()=>Promise<void>;
 }) {
   const { t } = useLocale();
   const [prices, setPrices] = useState<Price[]>([]),
@@ -32,7 +35,7 @@ export default function PriceCatalog({
     if(lock.current||fn&&!canWrite)return;lock.current=true;setBusy(true);
     setError('');
     try {
-      if(fn){await fn();setNotice(t('تم تحديث الكتالوج','Catalog updated'));}
+      if(fn){await fn();setNotice(t('تم تحديث الكتالوج','Catalog updated'));await onChanged();}
       await load();
     } catch (e) {
       setError((e as Error).message);
@@ -79,7 +82,7 @@ export default function PriceCatalog({
       >
         <label>
           {t('رمز الخطة', 'Plan code')}
-          <input name="planCode" required maxLength={50} />
+          <select name="planCode" required><option value="">{t("اختر باقة","Select plan")}</option>{plans.filter(p=>p.is_active&&p.code!=="free").map(p=><option key={p.code} value={p.code}>{p.name} ({p.code})</option>)}</select>
         </label>
         <label>
           Stripe price ID
@@ -117,7 +120,7 @@ export default function PriceCatalog({
             {p.plan_code} · {p.provider_id}
           </strong>
           <p>
-            {p.amount_cents} {p.currency} / {p.interval} ·{' '}
+            {billingMoney(p.amount_cents,p.currency)} / {p.interval==='year'?t('سنة','year'):t('شهر','month')} ·{' '}
             {p.active ? t('متاح', 'Available') : t('متقاعد', 'Retired')}
           </p>
           {p.active && canWrite && (

@@ -2,6 +2,8 @@ import { CryptoService } from '../messaging/crypto.service';
 import { matchingTotpStep, newTotpSecret } from './totp';
 import { createHash, randomUUID, randomBytes } from 'node:crypto';
 import { stepUpDigest } from './step-up';
+import Stripe from 'stripe';
+import { matchesCatalogPrice } from '../billing/catalog-price';
 import {
   BadRequestException,
   Body,
@@ -528,7 +530,7 @@ class PlatformController {
     return {
       companies: r.platformPermissions.includes('companies.read') ? snapshot.companies : [],
       users: r.platformPermissions.includes('users.read') ? snapshot.users : [],
-      plans: r.platformPermissions.includes('plans.read') ? snapshot.plans : [],
+      plans: r.platformPermissions.includes('plans.read') ? (await this.access.query('SELECT platform_plan_catalog() AS data'))[0].data : [],
       audit: r.platformPermissions.includes('audit.read') ? snapshot.audit : [],
     };
   }
@@ -659,6 +661,10 @@ class PlatformController {
       }),
       body,
     );
+    if(!env.STRIPE_SECRET_KEY||env.EXTERNAL_DELIVERY_ENABLED!=='true')throw new BadRequestException('Stripe price verification is not configured');
+    const stripe=new Stripe(env.STRIPE_SECRET_KEY);
+    const price=await stripe.prices.retrieve(b.priceId).catch(()=>null);
+    if(!price||!matchesCatalogPrice(price,{amountCents:b.amountCents,currency:b.currency,interval:b.interval}))throw new BadRequestException('Stripe price does not match the proposed amount, currency or billing interval');
     await this.access.query('SELECT platform_publish_price($1,$2,$3,$4,$5,$6,$7)', [
       r.platformActor,
       b.planCode,

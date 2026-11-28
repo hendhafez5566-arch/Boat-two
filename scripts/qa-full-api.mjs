@@ -68,6 +68,25 @@ if (process.env.BOAT_TELEGRAM_QA === 'true') {
   }
   console.log('FULL_SCHEMA_MIGRATIONS', count);
   local('reflect-metadata');
+  // Opt-in only inside this ephemeral PGlite acceptance runner.
+  if(process.env.BOAT_PLATFORM_CATALOG_QA==='true'){
+    const id='99999999-9999-4999-8999-999999999999';
+    Object.assign(process.env,{
+      PLATFORM_DATABASE_URL:'postgres://boat_platform:isolated@localhost/isolated',
+      PLATFORM_JWT_SECRET:'isolated-platform-catalog-signing-key-not-for-deployment',
+      PLATFORM_ADMIN_USER_IDS:id,
+      PLATFORM_OPERATOR_ROLES:JSON.stringify({[id]:['administrator']})
+    });
+    const {hashPassword}=local('./dist/auth/password');
+    await pg.query('INSERT INTO users(id,email,password_hash,full_name) VALUES($1,$2,$3,$4)',[id,'catalog-operator@example.test',await hashPassword('Synthetic-Catalog-Operator-Only!'),'Catalog QA Operator']);
+    const {PlatformAccess}=local('./dist/platform/platform.module');
+    PlatformAccess.prototype.query=function(sql,args=[]){return pg.transaction(async tx=>{
+      await tx.exec('SET LOCAL ROLE boat_platform');
+      const result=args.length?await tx.query(sql,args):await tx.query(sql);
+      return result.rows;
+    });};
+  }
+
   const { DatabaseService } = local('./dist/database/database.service');
   const { requestContext } = local('./dist/common/request-context');
   const scope = new AsyncLocalStorage();

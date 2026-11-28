@@ -9,6 +9,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import Stripe from 'stripe';
+import {matchesCatalogPrice} from './catalog-price';
 import { env } from '../config/env';
 import { DatabaseService } from '../database/database.service';
 
@@ -69,8 +70,8 @@ export class BillingService {
   async createCheckout(tenantId: string, email: string, planCode: string) {
     const stripe = this.requireStripe();
     const plan = (
-      await this.db.query<{ code: string; stripe_price_id: string | null }>(
-        'SELECT code, stripe_price_id FROM plans WHERE code = $1 AND is_active AND price_cents > 0',
+      await this.db.query<{ code: string; stripe_price_id: string | null;price_cents:number;currency:string;interval:string }>(
+        'SELECT code, stripe_price_id,price_cents,currency,interval FROM unified_plan_catalog WHERE code = $1 AND is_active AND checkout_available',
         [planCode],
       )
     ).rows[0];
@@ -94,6 +95,8 @@ export class BillingService {
       throw new BadRequestException(
         'An existing subscription must be changed through the billing portal',
       );
+    const verified=await stripe.prices.retrieve(plan.stripe_price_id).catch(()=>null);
+    if(!verified||!matchesCatalogPrice(verified,{amountCents:plan.price_cents,currency:plan.currency,interval:plan.interval}))throw new BadRequestException('Billing price changed or is unavailable; refresh the catalog');
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       line_items: [{ price: plan.stripe_price_id, quantity: 1 }],

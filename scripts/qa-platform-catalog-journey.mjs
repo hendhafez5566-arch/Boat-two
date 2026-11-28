@@ -1,0 +1,46 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {resolve} from 'node:path';
+import {randomUUID} from 'node:crypto';
+import {assertLocalAcceptance} from './acceptance-local.mjs';
+assertLocalAcceptance();
+const local=createRequire(resolve('apps/api/package.json'));
+const {totp}=local('./dist/platform/totp');
+const {chromium}=createRequire(import.meta.url)(process.env.BOAT_PLAYWRIGHT_MODULE||'playwright');
+const base='http://localhost:4000',web='http://localhost:3000';
+async function api(path,token,body,method=body?'POST':'GET',headers={}){
+ const r=await fetch(base+path,{method,headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{}),...headers},...(body?{body:JSON.stringify(body)}:{})});
+ const d=await r.json();assert.ok(r.ok,path+' '+r.status+' '+JSON.stringify(d).slice(0,160));return d;
+}
+const account=await api('/auth/register',null,{email:randomUUID()+'@example.test',password:'Synthetic-'+randomUUID(),fullName:'Catalog QA Owner',workspaceName:'Catalog QA '+randomUUID()});
+const token=account.accessToken;
+await api('/channels',token,{type:'web',name:'Catalog QA channel'});
+await api('/workspace/onboarding/complete',token,{});
+const current=(await api('/workspace/subscription-usage',token)).plan;
+const publicPlans=await api('/plans'),plan=publicPlans.find(p=>p.code===current.plan_code);
+assert.ok(plan);
+const enrollment=await api('/platform/login',null,{email:'catalog-operator@example.test',password:'Synthetic-Catalog-Operator-Only!'});
+assert.equal(enrollment.requiresEnrollment,true);
+const session=await api('/platform/mfa/enroll',null,{setupToken:enrollment.setupToken,otp:totp(enrollment.secret,Math.floor(Date.now()/30000)-1)});
+const admin=session.accessToken;
+const adminPlans=(await api('/platform',admin)).plans;
+assert.deepEqual(adminPlans.find(p=>p.code===plan.code).limits,plan.limits);
+const denied=await fetch(base+'/platform',{headers:{authorization:'Bearer '+token}});assert.equal(denied.status,403);
+const browser=await chromium.launch({executablePath:process.env.BOAT_CHROMIUM||'/usr/bin/google-chrome',args:['--no-sandbox']});
+try{
+ const context=await browser.newContext({viewport:{width:1366,height:936}});
+ await context.addInitScript(s=>{localStorage.setItem('session',JSON.stringify(s));localStorage.setItem('boat-language','en');},account);
+ const page=await context.newPage();await page.route('**/*',r=>['localhost','127.0.0.1'].includes(new URL(r.request().url()).hostname)?r.continue():r.abort());
+ await page.goto(web+'/dashboard/subscription?tab=plans');await page.getByRole('heading',{name:plan.name,exact:true}).first().waitFor();
+ const name='Updated QA Plan '+randomUUID().slice(0,8),body={name,enabled:true,limits:{...plan.limits,agents:73},features:plan.features,reason:'Isolated end to end catalog test'};
+ const path='/platform/plans/'+plan.code;
+ const grant=await api('/platform/step-up',admin,{otp:totp(enrollment.secret,Math.floor(Date.now()/30000)),method:'PATCH',path,body});
+ await api(path,admin,body,'PATCH',{'x-platform-step-up':grant.stepUpToken});
+ await page.getByRole('heading',{name,exact:true}).first().waitFor({timeout:35000});
+ const card=page.locator('section').filter({has:page.getByRole('heading',{name,exact:true})}).filter({hasText:'Monthly outbound messages'}).last();
+ await card.getByText('73',{exact:true}).first().waitFor({timeout:10000});
+ const after=(await api('/workspace/subscription-usage',token)).plan;assert.equal(after.plan_name,name);assert.equal(after.limits.agents,73);
+ assert.equal((await api('/platform',admin)).plans.find(p=>p.code===plan.code).name,name);
+ console.log('PASS actual MFA platform write, public catalog, automatic customer browser refresh, and effective tenant entitlements');
+ await context.close();
+}finally{await browser.close();}

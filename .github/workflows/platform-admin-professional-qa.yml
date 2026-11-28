@@ -7,6 +7,14 @@ on:
     paths:
       - 'apps/web/app/platform/**'
       - 'apps/api/src/platform/**'
+      - 'apps/api/src/plans/**'
+      - 'apps/api/src/billing/**'
+      - 'apps/api/src/database/migrations/**'
+      - 'apps/web/app/dashboard/subscription/**'
+      - 'apps/web/lib/billing-display.ts'
+      - 'scripts/qa-unified-plan-catalog.mjs'
+      - 'scripts/qa-platform-catalog-journey.mjs'
+      - 'scripts/qa-full-api.mjs'
       - 'scripts/qa-platform-admin-professional.mjs'
       - 'scripts/qa-platform-open-design.mjs'
       - '.github/workflows/platform-admin-professional-qa.yml'
@@ -37,6 +45,8 @@ jobs:
           EXTERNAL_DELIVERY_ENABLED: 'false'
           AI_PROVIDER_CALLS_ENABLED: 'false'
         run: pnpm --filter api exec tsx --test src/platform/totp.test.ts src/platform/permissions.test.ts src/platform/step-up.test.ts src/auth/setup-credential.test.ts src/auth/role-session.test.ts
+      - name: Shared catalog database integration
+        run: node scripts/qa-unified-plan-catalog.mjs
       - name: Install browser driver
         run: npm install --prefix "$RUNNER_TEMP/boat-playwright" playwright@1.56.1 --ignore-scripts
       - name: Isolated platform admin browser visual acceptance
@@ -51,6 +61,13 @@ jobs:
           PLATFORM_DESIGN_REVIEW_OPEN: 'true'
           BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
           BOAT_QA_BROWSER_SCRIPT: scripts/qa-platform-open-design.mjs
+          BOAT_CHROMIUM: /usr/bin/google-chrome
+        run: python3 scripts/run-connect-browser-qa.py
+      - name: Real admin to customer subscription journey
+        env:
+          BOAT_PLATFORM_CATALOG_QA: 'true'
+          BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
+          BOAT_QA_BROWSER_SCRIPT: scripts/qa-platform-catalog-journey.mjs
           BOAT_CHROMIUM: /usr/bin/google-chrome
         run: python3 scripts/run-connect-browser-qa.py
       - uses: actions/upload-artifact@v4
