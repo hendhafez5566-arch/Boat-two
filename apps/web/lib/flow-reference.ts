@@ -36,7 +36,7 @@ export function deriveFlowReference(
       deletable: false,
       updatable: false,
       focusable: false,
-      style: { stroke: '#778292', strokeWidth: 2 },
+      style: { stroke: '#50647d', strokeWidth: 2.5 },
     } satisfies Edge,
   };
 }

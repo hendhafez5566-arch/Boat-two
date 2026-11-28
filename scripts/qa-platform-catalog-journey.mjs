@@ -50,5 +50,19 @@ try{
  const after=(await api('/workspace/subscription-usage',token)).plan;assert.equal(after.plan_name,name);assert.equal(after.limits.agents,73);
  assert.equal((await api('/platform',admin)).plans.find(p=>p.code===plan.code).name,name);
  console.log('PASS actual MFA platform write, public catalog, automatic customer browser refresh, and effective tenant entitlements');
+ const flow=await api('/flows',token,{name:'Canvas typography QA',language:'ar'});
+ await page.goto(web+'/dashboard/flows/'+flow.id);
+ const node=page.locator('.fn-card.fn-message').first();await node.waitFor({timeout:30000});
+ const control=page.getByRole('group',{name:'Canvas readability controls'});
+ await control.waitFor();
+ await control.getByRole('button',{name:'Actual size'}).click();
+ await control.locator('output').filter({hasText:'100%'}).waitFor();
+ const metrics=await node.evaluate(el=>{const style=sel=>{const s=getComputedStyle(el.querySelector(sel));return {size:parseFloat(s.fontSize),weight:parseInt(s.fontWeight),color:s.color}};return {heading:style('.flow-node-heading strong'),body:style('.fn-body'),stat:style('.fn-stats b'),label:style('.fn-stat-label'),port:style('.flow-node-port')};});
+ assert.ok(metrics.heading.size>=16&&metrics.heading.weight>=700,JSON.stringify(metrics));
+ assert.ok(metrics.body.size>=14&&metrics.body.weight>=500,JSON.stringify(metrics));
+ assert.ok(metrics.stat.size>=15&&metrics.stat.weight>=700,JSON.stringify(metrics));
+ assert.ok(metrics.label.size>=11&&metrics.port.size>=12,JSON.stringify(metrics));
+ await page.screenshot({path:'/tmp/boat-flow-readability.png'});
+ console.log('PASS canvas typography and actual-size control');
  assert.deepEqual(errors,[]);await context.close();
 }finally{await browser.close();}

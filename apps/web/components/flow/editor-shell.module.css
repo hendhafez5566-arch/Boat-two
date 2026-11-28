@@ -1398,3 +1398,84 @@
 @media (max-width: 420px) {
   .toolbar .previewButton span { display: none; }
 }
+
+
+/* Legible flow workbench. Keep the existing graph geometry and semantic colors.
+   Arabic uses an Arabic-capable system face, not the Latin-only Jakarta face. */
+.editor {
+  font-family: 'Plus Jakarta Sans Variable', 'Segoe UI', Tahoma, Arial, sans-serif;
+  font-weight: 500;
+  color: #172a42;
+  -webkit-font-smoothing: auto;
+  text-rendering: optimizeLegibility;
+}
+:global(html[lang='ar']) .editor {
+  font-family: 'Noto Sans Arabic', Tahoma, 'Segoe UI', Arial, sans-serif;
+}
+.editor :is(button,input,textarea,select) { font-family: inherit; }
+.canvas { background: #f2f5fa; }
+.toolbar { background: #fff; border-color: #d7e0ed; box-shadow: 0 4px 18px #23375220; }
+.toolbar button,.toolbar a,.toolsMenu button,.toolsMenu label,.toolsMenu a { font-weight: 650; }
+.toolbar .saveButton { font-size: 13px !important; font-weight: 750 !important; }
+.toolbar .channelBadge { color: #075e46; font-weight: 700; }
+.toolButton { color: #243953; }
+.palette { background: #f7f9fc; border-inline-end: 1px solid #dce3ed; }
+.paletteGroup h2 { font-size: 12px; font-weight: 750; color: #3d4d63; letter-spacing: 0; }
+.block { font-weight: 650; color: #243953; }
+.editor :global(.react-flow__node > .premium-flow-node.fn-card),
+.reference {
+  color: #142940;
+  border: 1.5px solid #c5d1df;
+  background: #fff;
+  box-shadow: 0 3px 8px #1b304e14, 0 10px 22px #1b304e0a;
+}
+.editor :global(.premium-flow-node.fn-card.is-selected) {
+  border-color: #5146d9;
+  box-shadow: 0 0 0 3px #5146d925, 0 6px 18px #25385822;
+}
+.editor :global(.fn-card.has-issue) { border-color: #b42318; }
+.editor :global(.fn-card .flow-node-heading),.reference header {
+  gap: 7px; padding: 8px 13px; min-height: 48px;
+  border-bottom: 1px solid #e6ebf2;
+}
+.editor :global(.fn-card .flow-node-heading strong),.reference header strong {
+  color: #162b43; font-size: 16px; font-weight: 750; line-height: 1.45;
+}
+.editor :global(.fn-card .flow-node-icon),.reference header svg { color: #314eb0; }
+.editor :global(.fn-card .flow-node-icon),.editor :global(.fn-card .flow-node-icon svg),.reference header svg { width: 19px; height: 19px; flex-shrink: 0; }
+.editor :global(.fn-card .fn-body) {
+  color: #1e324a; font-size: 14px; font-weight: 550; line-height: 1.6;
+  background: #edf3fa; border: 1px solid #dce6f0; padding: 8px 10px;
+}
+.editor :global(.fn-card.is-incomplete .fn-body) { background: #fff; border-color: transparent; }
+.editor :global(.fn-card .flow-node-empty) { color: #344862; font-weight: 650; }
+.editor :global(.fn-card .fn-stats) { padding-inline: 9px; gap: 2px; height: 58px; }
+.editor :global(.fn-card .fn-stats span) { font-size: 11px; font-weight: 650; line-height: 1.4; color: #42536a; }
+.editor :global(.fn-card .fn-stats b) { font-size: 15px; font-weight: 750; color: #192d44; font-variant-numeric: tabular-nums; }
+.editor :global(.fn-card .fn-stats .is-err b) { color: #b42318; }
+.editor :global(.fn-stat-label) { gap: 3px; }
+.editor :global(.fn-stat-label [data-stat='sent']) { color: #176596; }
+.editor :global(.fn-stat-label [data-stat='delivered']) { color: #15734c; }
+.editor :global(.fn-stat-label [data-stat='subscribers']) { color: #345bba; }
+.editor :global(.fn-stat-label [data-stat='errors']) { color: #b42339; }
+.editor :global(.fn-card .flow-node-port),.reference footer {
+  color: #273c58; background: #eef2f8; border-top: 1px solid #cdd8e6;
+  font-size: 12px; font-weight: 700; line-height: 1.5;
+}
+.editor :global(.fn-card .flow-node-input-label) { color: #273c58; font-size: 12px; font-weight: 700; line-height: 1.5; }
+.editor :global(.fn-card .react-flow__handle) { border-color: #50647d; }
+.editor :global(.fn-bcard) { color: #192d44; border-color: #c5d1df; box-shadow: 0 3px 10px #1b304e16; }
+.editor :global(.fn-bcard-head),.editor :global(.fn-bcard-title) { font-size: 14px; font-weight: 700; color: #192d44; }
+.editor :global(.fn-bcard-stats span) { font-size: 11px; font-weight: 650; color: #42536a; }
+.editor :global(.fn-bcard-stats b) { font-size: 14px; font-weight: 750; color: #192d44; }
+.editor :global(.fn-uiq-card),.editor :global(.fn-seq),.editor :global(.fn-attach) { color: #263b54; }
+.editor :global(.flow-node-note),.editor :global(.fn-uiq-title),.editor :global(.fn-seq-name) { font-weight: 650; }
+.editor :global(.flow-node-summary) { overflow-wrap: anywhere; }
+.editor :global(.react-flow__edge-path) { stroke-width: 2.5; }
+.editor :global(.react-flow__edge.selected .react-flow__edge-path) { stroke-width: 3; }
+.zoomDock { position: absolute; z-index: 25; bottom: 18px; inset-inline-end: 22px; display: flex; align-items: center; gap: 3px; padding: 4px; background: #fff; border: 1px solid #cdd8e6; border-radius: 10px; box-shadow: 0 4px 14px #25385815; color: #243953; }
+.zoomDock button { min-width: 35px; height: 35px; border: 0; border-radius: 6px; background: transparent; color: #243953; font-weight: 750; cursor: pointer; }
+.zoomDock button:hover { background: #e9eef9; }
+.zoomDock output { min-width: 45px; text-align: center; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.zoomDock .zoomFit { padding-inline: 8px; font-size: 12px; }
+@media(max-width:700px){.zoomDock{bottom:12px;inset-inline-end:12px}.zoomDock button{min-width:36px;height:36px}}
