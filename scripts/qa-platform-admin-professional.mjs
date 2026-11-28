@@ -46,7 +46,7 @@ try{for(const language of ['ar','en'])for(const width of [390,1366]){
  for(const [id,ar,en] of labels){
  await nav.getByRole('button',{name:t(ar,en),exact:true}).click();
  const section=page.locator('[data-platform-section='+id+']');await section.waitFor();
- if(id==='companies'||id==='users'||id==='plans'){await section.locator('[data-record-editor]').first().click();const modal=page.getByRole('dialog');await modal.waitFor();assert.ok(await modal.evaluate(el=>el.getBoundingClientRect().height<=innerHeight));await page.screenshot({path:out+'/'+id+'-dialog-'+language+'-'+width+'.png'});await modal.getByRole('button',{name:t('إغلاق','Close'),exact:true}).click();await modal.waitFor({state:'hidden'});}
+ if(id==='companies'||id==='users'||id==='plans'){await section.locator(id==='companies'?'[data-variant=row] [data-record-editor]':'[data-record-editor]').first().click();const modal=page.getByRole('dialog');await modal.waitFor();assert.ok(await modal.evaluate(el=>el.getBoundingClientRect().height<=innerHeight));await page.screenshot({path:out+'/'+id+'-dialog-'+language+'-'+width+'.png'});await modal.getByRole('button',{name:t('إغلاق','Close'),exact:true}).click();await modal.waitFor({state:'hidden'});}
  if(id==='plans')await section.getByText(t('لا توجد أسعار مطابقة','No matching prices'),{exact:true}).waitFor();
  if(id==='billing')await section.getByText(t('لا توجد نتائج مطابقة للمراجعة','No matching reviews'),{exact:true}).waitFor();
  if(id==='reports')await section.getByText(t('لا توجد فواتير مسددة في الفترة','No paid invoices in range'),{exact:true}).waitFor();

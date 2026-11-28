@@ -7,6 +7,8 @@ on:
     paths:
       - 'apps/web/app/platform/**'
       - 'apps/api/src/platform/**'
+      - 'apps/api/src/auth/**'
+      - 'apps/web/components/product/AuthExperience.tsx'
       - 'apps/api/src/plans/**'
       - 'apps/api/src/billing/**'
       - 'apps/api/src/database/migrations/**'

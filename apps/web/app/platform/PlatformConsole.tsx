@@ -7,6 +7,9 @@ import { useTransientNotice } from '../../components/product/useTransientNotice'
 import styles from './platform.module.css';
 import BillingReviews from './BillingReviews';
 import RecordEditor from './RecordEditor';
+import CompanyOnboarding from './CompanyOnboarding';
+import RegistrationPolicy from './RegistrationPolicy';
+import Link from 'next/link';
 import OperationalReports from './OperationalReports';
 import PriceCatalog from './PriceCatalog';
 import AuditTrail from './AuditTrail';
@@ -22,6 +25,7 @@ type Company = {
   status: string;
   suspended_at: string | null;
   members: number;
+  created_at?:string;trial_ends_at?:string|null;current_period_end?:string|null;
 };
 type User = {
   id: string;
@@ -52,7 +56,7 @@ type Overview = {
   subscriptions: Record<string, number>;
 };
 
-const sectionIcons:Record<string,string>={overview:'grid',companies:'commerce',plans:'billing',billing:'coins',users:'team',reports:'reports',audit:'audit',security:'shield'};
+const sectionIcons:Record<string,string>={overview:'grid',companies:'commerce',plans:'billing',billing:'coins',users:'team',reports:'reports',audit:'audit',security:'shield',registration:'settings'};
 export default function Console({designReview=false,designPlans=null}:{designReview?:boolean;designPlans?:BillingPlan[]|null}) {
   const designRequest=useRef<ReturnType<typeof createDesignReview>|null>(null);
   if(designReview&&!designRequest.current)designRequest.current=createDesignReview(designPlans);
@@ -96,6 +100,7 @@ export default function Console({designReview=false,designPlans=null}:{designRev
     [companyTotal, setCompanyTotal] = useState(0),
     [userTotal, setUserTotal] = useState(0);
   useEffect(()=>{if(designReview)void loadSnapshot('design-preview-local').catch(e=>setError(String(e)));},[designReview]);
+  useEffect(()=>{if(!token||designReview||!['overview','companies','users'].includes(section))return;const refresh=()=>{if(!document.hidden&&!draft.current&&!lock.current&&!writeLock.current&&!document.querySelector('dialog[open]'))void directoryPage('companies',companyPage);};const timer=setInterval(refresh,15000);window.addEventListener('focus',refresh);return()=>{clearInterval(timer);window.removeEventListener('focus',refresh);};},[token,designReview,section,companyPage,userPage,appliedCompanyQuery,appliedUserQuery,companyStatus,userStatus]);
   async function loadSnapshot(
     access = token,
     options: {
@@ -288,10 +293,11 @@ export default function Console({designReview=false,designPlans=null}:{designRev
     { id: 'users', label: t('المستخدمون', 'Users'), permission: 'users.read' },
     { id: 'reports', label: t('التقارير', 'Reports'), permission: 'reports.read' },
     { id: 'audit', label: t('سجل العمليات', 'Audit log'), permission: 'audit.read' },
+    { id:'registration',label:t('إعدادات التسجيل','Registration settings'),permission:'settings.read' },
     { id: 'security', label: t('أمان الحساب', 'Account security'), permission: '' },
   ].filter(({ permission }) => !permission || permissions.includes(permission));
   const featureLabels:Record<string,string>={api_access:t('الوصول إلى API','API access'),broadcasts:t('الحملات','Campaigns'),automations:t('الأتمتة','Automation'),white_label:t('العلامة التجارية الخاصة','White label')};
-  const permissionLabels:Record<string,string>={'companies.read':t('عرض الشركات','View companies'),'companies.write':t('إدارة الشركات','Manage companies'),'users.read':t('عرض المستخدمين','View users'),'users.write':t('إدارة المستخدمين','Manage users'),'subscriptions.read':t('عرض الاشتراكات','View subscriptions'),'subscriptions.write':t('إدارة الاشتراكات','Manage subscriptions'),'plans.read':t('عرض الباقات','View plans'),'plans.write':t('إدارة الباقات','Manage plans'),'reports.read':t('عرض التقارير','View reports'),'audit.read':t('عرض سجل العمليات','View audit log'),'sessions.revoke':t('إبطال الجلسات','Revoke sessions'),'mfa.manage':t('إدارة المصادقة','Manage MFA')};
+  const permissionLabels:Record<string,string>={'companies.read':t('عرض الشركات','View companies'),'companies.write':t('إدارة الشركات','Manage companies'),'users.read':t('عرض المستخدمين','View users'),'users.write':t('إدارة المستخدمين','Manage users'),'subscriptions.read':t('عرض الاشتراكات','View subscriptions'),'subscriptions.write':t('إدارة الاشتراكات','Manage subscriptions'),'plans.read':t('عرض الباقات','View plans'),'plans.write':t('إدارة الباقات','Manage plans'),'reports.read':t('عرض التقارير','View reports'),'audit.read':t('عرض سجل العمليات','View audit log'),'sessions.revoke':t('إبطال الجلسات','Revoke sessions'),'mfa.manage':t('إدارة المصادقة','Manage MFA'),'settings.read':t('عرض إعدادات التسجيل','View registration settings'),'settings.write':t('إدارة إعدادات التسجيل','Manage registration settings')};
   const canCloseEditor=()=>{if(lock.current||writeLock.current)return false;if(draft.current&&!confirm(t('تجاهل التغييرات غير المحفوظة؟','Discard unsaved changes?')))return false;draft.current=false;setStepUpCode('');setError('');setMessage('');return true;};
   const editorProps={canClose:canCloseEditor,disabled:busy||writing,verification:!designReview?<label className={styles.inlineVerification}>{t('رمز مصادقة جديد لكل حفظ','Fresh authenticator code for each save')}<input value={stepUpCode} onChange={e=>setStepUpCode(e.target.value.replace(/[^0-9]/g,'').slice(0,6))} inputMode="numeric" autoComplete="one-time-code" maxLength={6}/></label>:null,feedback:<>{error&&<p role="alert" className="notice error">{error}</p>}{message&&<p role="status" className="notice">{message}</p>}</>};
   const activeSection = sections.find(({ id }) => id === section) ?? sections[0];
@@ -315,7 +321,7 @@ export default function Console({designReview=false,designPlans=null}:{designRev
           {t('English', 'العربية')}
         </button></div>
       </header>
-      {designReview&&<p role="status" className={styles.reviewBanner}><NavIcon name="question"/>{t('وضع مراجعة التصميم: الشركات والمستخدمون والفوترة تجريبية، والباقات تبدأ من الكتالوج العام عند توفره. التعديلات محلية فقط.','Design review: companies, users and billing are fictional; plans start from the public catalog when available. All edits stay local.')}</p>}
+      {designReview&&<p role="status" className={styles.reviewBanner}><NavIcon name="question"/>{t('وضع مراجعة التصميم: الشركات والمستخدمون والفوترة تجريبية، والباقات تبدأ من الكتالوج العام عند توفره. التعديلات محلية فقط.','Design review: companies, users and billing are fictional; plans start from the public catalog when available. All edits stay local.')} <Link href="/platform/live">{t('الدخول للإدارة الحقيقية','Open live administration')}</Link></p>}
       {error && (
         <p role="alert" className="notice error">
           {error}
@@ -657,6 +663,7 @@ export default function Console({designReview=false,designPlans=null}:{designRev
               {activeSection.id === 'companies' && (
                 <section className={styles.panel}>
                   <h2>{t('الشركات والاشتراكات', 'Companies and subscriptions')}</h2>
+                  {['companies.write','users.write','subscriptions.write'].every(p=>permissions.includes(p))&&<CompanyOnboarding request={request} plans={data?.plans??[]} editorProps={editorProps} onSaved={()=>loadSnapshot()} onDirty={()=>{draft.current=true;}}/>}
                   <form
                     className="card form-actions"
                     onSubmit={(e) => {
@@ -712,7 +719,7 @@ export default function Console({designReview=false,designPlans=null}:{designRev
                   <div className={styles.directoryHead}><span>{t('الشركة','Company')}</span><span>{t('الباقة','Plan')}</span><span>{t('الحالة','Status')}</span><span>{t('الإجراء','Action')}</span></div>
                   {visibleCompanies?.map((company) => (
                     <RecordEditor key={company.id} {...editorProps} title={company.name} summary={<>
-                        <div className={styles.entityName}><span className={styles.avatar}>{company.name.slice(0,2).toUpperCase()}</span><div><strong>{company.name}</strong><small>{company.slug} · {company.members} {t('أعضاء','members')}</small></div></div>
+                        <div className={styles.entityName}><span className={styles.avatar}>{company.name.slice(0,2).toUpperCase()}</span><div><strong>{company.name}</strong><small>{company.slug} · {company.members} {t('أعضاء','members')}{company.trial_ends_at&&<> · {t('نهاية التجربة','Trial ends')}: {new Date(company.trial_ends_at).toLocaleDateString(language)}</>}</small></div></div>
                         <span className={styles.tag}>{company.plan_code}</span>
                         <span className={styles.tag} data-state={company.suspended_at?'suspended':company.status}>
                           {company.suspended_at
@@ -722,6 +729,7 @@ export default function Console({designReview=false,designPlans=null}:{designRev
                       </>}>
                       <div className={styles.rowBody}>
                         <h3>{t('بيانات الشركة','Company details')}</h3>
+                        <dl className={styles.stateGrid}><div><dt>{t('تاريخ التسجيل','Registered')}</dt><dd>{company.created_at?new Date(company.created_at).toLocaleDateString(language):'—'}</dd></div><div><dt>{t('نهاية التجربة','Trial ends')}</dt><dd>{company.trial_ends_at?new Date(company.trial_ends_at).toLocaleDateString(language):'—'}</dd></div><div><dt>{t('نهاية الدورة','Period ends')}</dt><dd>{company.current_period_end?new Date(company.current_period_end).toLocaleDateString(language):'—'}</dd></div></dl>
                         <form
                           className="form-actions"
                           onSubmit={(e) => {
@@ -1142,6 +1150,7 @@ export default function Console({designReview=false,designPlans=null}:{designRev
                   <PriceCatalog editorProps={editorProps} request={request} canWrite={permissions.includes('plans.write')} plans={data?.plans??[]} onChanged={()=>loadSnapshot()} />
                 </section>
               )}
+              {activeSection.id==='registration'&&<RegistrationPolicy request={request} plans={data?.plans??[]} canWrite={permissions.includes('settings.write')} verification={editorProps.verification} onDirty={()=>{draft.current=true;}} onSaved={()=>{draft.current=false;}}/>}
               {activeSection.id === 'billing' && (
                 <BillingReviews
                   editorProps={editorProps}

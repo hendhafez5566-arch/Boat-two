@@ -18,6 +18,10 @@ export function AuthExperience({
     [busy, setBusy] = useState(false),
     [visible, setVisible] = useState(false);
   const joining = register && (!!brand || invitation);
+  const [policy,setPolicy]=useState<{selfRegistration:boolean;trialPlanCode:string;trialDays:number}|null>(null);
+  const [policyFailed,setPolicyFailed]=useState(false);
+  useEffect(()=>{if(!register||joining)return;const controller=new AbortController();void api<{selfRegistration:boolean;trialPlanCode:string;trialDays:number}>('/auth/registration-policy',{signal:controller.signal}).then(setPolicy).catch(()=>{if(!controller.signal.aborted)setPolicyFailed(true);});return()=>controller.abort();},[register,joining]);
+  const closed=register&&!joining&&policy?.selfRegistration===false;
   const [token, setToken] = useState('');
   const [setup,setSetup]=useState(false),lock=useRef(false);
   useEffect(() => {
@@ -25,7 +29,7 @@ export function AuthExperience({
   }, []);
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if(lock.current)return;
+    if(lock.current||closed)return;
     setError('');
     const f = new FormData(e.currentTarget);
     if(setup&&f.get('newPassword')!==f.get('confirmPassword')){setError(t('كلمتا المرور غير متطابقتين','Passwords do not match'));return;}
@@ -107,6 +111,8 @@ export function AuthExperience({
                   )
                 : t('مساحة عملك وفريقك في انتظارك.', 'Your workspace and team are ready for you.')}
           </p>
+          {register&&!joining&&policy&&<p className="notice" role="status">{closed?t('التسجيل الذاتي مغلق حاليًا. تواصل مع إدارة المنصة.','Self-registration is currently closed. Contact platform administration.'):policy.trialDays>0?t('فترة تجريبية لمدة '+policy.trialDays+' يومًا دون دفع مسبق.','A '+policy.trialDays+'-day trial with no upfront payment.'):t('ابدأ بالباقة المجانية.','Start on the free plan.')}</p>}
+          {register&&!joining&&policyFailed&&<p className="muted">{t('تعذر تحميل تفاصيل الفترة التجريبية. يتم التحقق من السياسة عند التسجيل.','Trial details unavailable. Registration policy is checked on submission.')}</p>}
           <form className="stack" onSubmit={submit}>
             {register && (
               <label>
@@ -179,7 +185,7 @@ export function AuthExperience({
                 {error}
               </p>
             )}
-            <button className="btn btn-primary auth-submit" disabled={busy}>
+            <button className="btn btn-primary auth-submit" disabled={busy||closed}>
               {busy
                 ? t('جارٍ المتابعة…', 'Continuing…')
                 : joining

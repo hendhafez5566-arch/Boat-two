@@ -76,7 +76,7 @@ export default function PlansPanel({
             <div className={styles.cardHeader}>
               <h2>{p.name}</h2>
               {currentPlan === p.code && (
-                <span className={styles.badge}>{t('باقتك الحالية', 'Current plan')}</span>
+                <span className={styles.badge}>{!linked&&status?.subscription?.status==='trialing'?t('باقتك التجريبية','Trial plan'):t('باقتك الحالية', 'Current plan')}</span>
               )}
             </div>
             <div className={styles.price}>
@@ -123,7 +123,7 @@ export default function PlansPanel({
               </ul>
             )}
             {p.price_cents>0&&p.checkout_available!==true&&<p className={styles.muted}>{t('السعر غير متاح للاشتراكات الجديدة حاليًا.','This price is not available for new subscriptions.')}</p>}
-            {currentPlan !== p.code && (
+            {(currentPlan !== p.code || (p.price_cents>0 && !linked)) && (
               <button
                 className="btn btn-primary"
                 disabled={
