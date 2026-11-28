@@ -64,6 +64,7 @@ export default function BillingPanel({
   );
   const [search, setSearch] = useState(''),
     [draftSearch, setDraftSearch] = useState('');
+  const [invoiceStatusFilter,setInvoiceStatusFilter]=useState('all');
   const [from, setFrom] = useState(''),
     [to, setTo] = useState('');
   const [datesOpen, setDatesOpen] = useState(false),
@@ -72,7 +73,7 @@ export default function BillingPanel({
     [limit, setLimit] = useState(25);
   const allowed = ['owner', 'admin'].includes(role || '');
   const query = new URLSearchParams({
-    status: 'all',
+    status: invoiceStatusFilter,
     page: String(page),
     limit: String(limit),
     search,
@@ -84,13 +85,14 @@ export default function BillingPanel({
     total: number;
     page: number;
     limit: number;
-    filters: { search: string; from: string; to: string };
+    filters: { status: string;search: string; from: string; to: string };
   } | null>(allowed ? '/billing/invoices?' + query : null, null);
   const data =
     !log.loading &&
     !log.error &&
     log.data?.page === page &&
     log.data.limit === limit &&
+    log.data.filters.status===invoiceStatusFilter&&
     log.data.filters.search === search &&
     log.data.filters.from === from &&
     log.data.filters.to === to
@@ -120,6 +122,7 @@ export default function BillingPanel({
       setPortalBusy(false);
     }
   }
+  if(!loading&&!allowed)return <section className={shared.panel}><p>{t('الفواتير متاحة لمالك الشركة والمسؤولين فقط.','Invoices are available only to the workspace owner and admins.')}</p></section>;
   return (
     <section className={shared.content}>
       {error && (
@@ -136,7 +139,7 @@ export default function BillingPanel({
           {t('الدفع الإلكتروني غير متاح حاليًا.', 'Online payments are currently unavailable.')}
         </p>
       )}
-      {status?.portalAvailable && role === 'owner' && (
+      {!loading&&!requestError&&status?.portalAvailable && role === 'owner' && (
         <button className="btn" disabled={portalBusy} onClick={() => void openPortal()}>
           <NavIcon name="billing"/>{portalBusy?t('جارٍ فتح البوابة…','Opening portal…'):t('إدارة وسيلة الدفع والتجديد', 'Manage payment method and renewal')}
         </button>
@@ -161,9 +164,11 @@ export default function BillingPanel({
               aria-label={t('البحث في المعاملات', 'Search transactions')}
             /><button className="btn" type="submit" disabled={log.loading||!allowed}>{t('بحث','Search')}</button>{(draftSearch||search)&&<button className="btn" type="button" aria-label={t('مسح البحث','Clear search')} onClick={()=>{setDraftSearch('');setSearch('');setPage(1)}}><NavIcon name="close"/></button>}
           </form>
+          <select className={styles.statusSelect} aria-label={t('حالة الفاتورة','Invoice status')} value={invoiceStatusFilter} onChange={e=>{setInvoiceStatusFilter(e.target.value);setPage(1);}}>{[['all',t('كل الحالات','All statuses')],['paid',t('مدفوعة','Paid')],['open',t('بانتظار الدفع','Open')],['failed',t('فشل الدفع','Failed')],['draft',t('مسودة','Draft')],['void',t('ملغاة','Void')],['uncollectible',t('متعذر تحصيلها','Uncollectible')],['deleted',t('محذوفة','Deleted')]].map(([value,label])=><option key={value} value={value}>{label}</option>)}</select>
           <button
             type="button"
             className={styles.dateButton}
+            disabled={!allowed||loading}
             onClick={() => {
               setDateError('');
               setDatesOpen(true);
