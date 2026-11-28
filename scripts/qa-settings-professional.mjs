@@ -20,6 +20,11 @@ try{for(const language of ['ar','en'])for(const width of [390,1366]){
  const context=await browser.newContext({viewport:{width,height:936}});await context.addInitScript(({session,language})=>{localStorage.setItem('session',JSON.stringify(session));localStorage.setItem('boat-language',language);},{session,language});
  const page=await context.newPage();page.setDefaultTimeout(25000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>['localhost','127.0.0.1'].includes(new URL(r.request().url()).hostname)?r.continue():r.abort());
  await page.goto(web+'/dashboard/settings?tab=company');
+ const hero=page.locator('[data-workbench=settings]>header');await hero.waitFor();
+ assert.ok((await hero.evaluate(el=>getComputedStyle(el).backgroundImage)).includes('linear-gradient'),'settings hero must render gradient');
+ const nav=page.locator('[data-workbench=settings] nav[role=tablist]').first();
+ assert.equal(await nav.evaluate(el=>getComputedStyle(el).display),'grid','settings navigation must use card grid');
+ await page.screenshot({path:out+'/company-'+language+'-'+width+'.png',fullPage:true});
  const company=page.getByRole('tabpanel',{name:t('الشركة','Company'),exact:true}),name=company.locator('input[name=name]');
  await name.fill('QA company edited');await company.locator('input[name=industry]').fill('Synthetic industry');await company.locator('input[name=timezone]').fill('Not/AZone');
  const save=company.getByRole('button',{name:t('حفظ بيانات الشركة','Save company details'),exact:true});
@@ -43,7 +48,7 @@ try{for(const language of ['ar','en'])for(const width of [390,1366]){
  for(const [provider,ar,en,label,url,list] of providerGroups){
   await page.getByRole('tab',{name:new RegExp(t(ar,en))}).click();
   await page.getByRole('button',{name:/جديد|New/}).click();
-  const dialog=page.getByRole('dialog',{name:t(ar,en)});await dialog.getByRole('button',{name:label,exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:t(ar,en)});await dialog.waitFor();await page.screenshot({path:out+'/integration-dialog-'+created.length+'-'+language+'-'+width+'.png',fullPage:true});await dialog.getByRole('button',{name:label,exact:true}).click();
   const key='synthetic-'+uuid(),profile='QA '+provider;
   await dialog.locator('input[name=name]').fill(profile);
   await dialog.locator('input[name=credential]').fill(key);
