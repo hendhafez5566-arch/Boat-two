@@ -54,7 +54,7 @@ export default function Team() {
     const form = e.currentTarget;
     const f = new FormData(form);
     setBusy(true);
-    setError('');
+    setError('');setNotice('');
     setUrl('');
     try {
       const r = await api<{ inviteUrl: string; mailJob: { id: string } | null }>(
@@ -79,20 +79,20 @@ export default function Team() {
       lock.current=false;setBusy(false);
     }
   }
-  const filters=<div className="workbench-toolbar">
-    <input type="search" maxLength={200} aria-label={tab==='members'?t('بحث في الفريق','Search team'):t('بحث الدعوات','Search invitations')} placeholder={t('ابحث بالاسم أو البريد','Search name or email')} value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/>
-    <select aria-label={t('تصفية الدور','Filter role')} value={roleFilter} onChange={e=>{setRoleFilter(e.target.value);setPage(1);}}><option value="all">{t('كل الأدوار','All roles')}</option>{tab==='members'&&<option value="owner">{t('مالك','Owner')}</option>}<option value="admin">{t('مدير','Admin')}</option><option value="agent">{t('موظف','Agent')}</option></select>
-    {tab==='members'&&<select aria-label={t('تصفية التوفر','Filter availability')} value={availability} onChange={e=>{setAvailability(e.target.value);setPage(1);}}><option value="all">{t('كل الحالات','All states')}</option><option value="available">{t('متاح','Available')}</option><option value="away">{t('غير متاح','Away')}</option></select>}
-    <button className="btn" type="button" onClick={()=>{setSearch('');setRoleFilter('all');setAvailability('all');setPage(1);}}>{t('مسح الفلاتر','Clear filters')}</button>
+  const filters=<div className="workbench-toolbar" aria-busy={loading}>
+    <input type="search" disabled={busy} maxLength={200} aria-label={tab==='members'?t('بحث في الفريق','Search team'):t('بحث الدعوات','Search invitations')} placeholder={t('ابحث بالاسم أو البريد','Search name or email')} value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/>
+    <select disabled={busy} aria-label={t('تصفية الدور','Filter role')} value={roleFilter} onChange={e=>{setRoleFilter(e.target.value);setPage(1);}}><option value="all">{t('كل الأدوار','All roles')}</option>{tab==='members'&&<option value="owner">{t('مالك','Owner')}</option>}<option value="admin">{t('مدير','Admin')}</option><option value="agent">{t('موظف','Agent')}</option></select>
+    {tab==='members'&&<select disabled={busy} aria-label={t('تصفية التوفر','Filter availability')} value={availability} onChange={e=>{setAvailability(e.target.value);setPage(1);}}><option value="all">{t('كل الحالات','All states')}</option><option value="available">{t('متاح','Available')}</option><option value="away">{t('غير متاح','Away')}</option></select>}
+    <button className="btn" type="button" disabled={busy} onClick={()=>{setSearch('');setRoleFilter('all');setAvailability('all');setPage(1);}}>{t('مسح الفلاتر','Clear filters')}</button>
   </div>;
-  const pagination=<div className="form-actions"><label>{t('عدد الصفوف','Rows per page')} <select value={size} onChange={e=>{setSize(Number(e.target.value));setPage(1);}}>{[10,25,50,100].map(n=><option key={n}>{n}</option>)}</select></label><span aria-live="polite">{ready?records.data.total:'…'} {t('نتيجة','results')}</span><button className="btn" disabled={!ready||page<=1} onClick={()=>setPage(p=>p-1)}>{t('السابق','Previous')}</button><span>{page} / {ready?pages:'…'}</span><button className="btn" disabled={!ready||page>=pages} onClick={()=>setPage(p=>p+1)}>{t('التالي','Next')}</button></div>;
+  const pagination=<div className="form-actions"><label>{t('عدد الصفوف','Rows per page')} <select disabled={busy} value={size} onChange={e=>{setSize(Number(e.target.value));setPage(1);}}>{[10,25,50,100].map(n=><option key={n}>{n}</option>)}</select></label><span aria-live="polite">{ready?records.data.total:'…'} {t('نتيجة','results')}</span><button className="btn" disabled={busy||!ready||page<=1} onClick={()=>setPage(p=>p-1)}>{t('السابق','Previous')}</button><span>{page} / {ready?pages:'…'}</span><button className="btn" disabled={busy||!ready||page>=pages} onClick={()=>setPage(p=>p+1)}>{t('التالي','Next')}</button></div>;
   return (
     <main className="stack" data-workbench="team">
       <WorkspaceHeading
         title={t('الفريق والصلاحيات', 'Team & permissions')}
         description={t('راجع أعضاء الفريق وأدوارهم ودعواتهم.', 'Manage team members, roles and invitations.')}
         actions={<>
-            {['owner','admin'].includes(role)&&<button className="btn btn-primary" type="button" onClick={()=>{setUrl('');setDirty(false);setError('');setInviteOpen(true);}}>+ {t('دعوة موظف','Invite teammate')}</button>}
+            {['owner','admin'].includes(role)&&<button className="btn btn-primary" type="button" disabled={busy} onClick={()=>{setUrl('');setDirty(false);setError('');setInviteOpen(true);}}>+ {t('دعوة موظف','Invite teammate')}</button>}
           </>}
       />
       {records.error&&<p role="alert" className="notice error">{records.error} <button className="btn" onClick={()=>void records.reload()}>{t('إعادة المحاولة','Retry')}</button></p>}
@@ -103,7 +103,7 @@ export default function Team() {
         </p>
       )}
       <div className="workbench-metrics">{[[t('أعضاء الفريق','Team members'),metrics.members],[t('متاحون الآن','Available now'),metrics.available],...(metrics.pending===null?[]:[[t('دعوات معلقة','Pending invitations'),metrics.pending]])].map(([label,n])=><div key={String(label)}><small>{label}</small><strong>{records.error?'—':records.loadedPath?n:'…'}</strong></div>)}</div>
-      <nav className="workbench-tabs" aria-label={t('إدارة الفريق','Team management')}><button type="button" aria-pressed={tab==='members'} onClick={()=>selectTab('members')}>{t('أعضاء الفريق','Members')}</button>{role&&role!=='agent'&&<button type="button" aria-pressed={tab==='invites'} onClick={()=>selectTab('invites')}>{t('الدعوات','Invitations')}</button>}</nav>
+      <nav className="workbench-tabs" aria-label={t('إدارة الفريق','Team management')}><button type="button" disabled={busy} aria-pressed={tab==='members'} onClick={()=>selectTab('members')}>{t('أعضاء الفريق','Members')}</button>{role&&role!=='agent'&&<button type="button" aria-pressed={tab==='invites'} onClick={()=>selectTab('invites')}>{t('الدعوات','Invitations')}</button>}</nav>
       {tab==='members'&&<section className="card table-wrap">
         <h2>{t('أعضاء الفريق','Team members')}</h2>{filters}
         <table className="product-table">
