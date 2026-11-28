@@ -258,6 +258,42 @@ export class WorkspaceController {
     });
   }
 
+  @Get('team/index')
+  teamIndex(@Req() req: AuthedRequest, @Query() query: unknown) {
+    const q = parse(z.object({
+      tab: z.enum(['members', 'invites']).default('members'),
+      q: z.string().trim().max(200).default(''),
+      role: z.enum(['all', 'owner', 'admin', 'agent']).default('all'),
+      availability: z.enum(['all', 'available', 'away']).default('all'),
+      page: z.coerce.number().int().min(1).max(100000).default(1),
+      limit: z.coerce.number().int().min(1).max(100).default(25),
+    }), query);
+    const manager = ['owner', 'admin'].includes(req.user.role);
+    if (q.tab === 'invites' && !manager) throw new ForbiddenException('Invitation management requires administrator access');
+    return this.db.withTenant(req.user.tenantId, async c => {
+      const memberCounts = (await c.query('SELECT count(*)::int AS members, (count(*) FILTER (WHERE available))::int AS available FROM memberships')).rows[0];
+      const pending = manager ? Number((await c.query('SELECT count(*)::int AS n FROM invitations WHERE accepted_at IS NULL AND expires_at > now()')).rows[0].n) : null;
+      const params: unknown[] = [];
+      const clauses: string[] = [];
+      const arg = (value: unknown) => { params.push(value); return '$' + params.length; };
+      const members = q.tab === 'members';
+      const from = members ? ' FROM memberships m JOIN users u ON u.id=m.user_id' : ' FROM invitations i';
+      if (!members) clauses.push('i.accepted_at IS NULL AND i.expires_at > now()');
+      if (q.q) {
+        const p = arg(q.q);
+        clauses.push(members ? "(strpos(lower(u.full_name),lower(" + p + "))>0 OR strpos(lower(u.email),lower(" + p + "))>0)" : "strpos(lower(i.email),lower(" + p + "))>0");
+      }
+      if (q.role !== 'all') clauses.push((members ? 'm.role' : 'i.role') + '=' + arg(q.role));
+      if (members && q.availability !== 'all') clauses.push('m.available=' + arg(q.availability === 'available'));
+      const where = from + (clauses.length ? ' WHERE ' + clauses.join(' AND ') : '');
+      const total = Number((await c.query('SELECT count(*)::int AS n' + where, params)).rows[0].n);
+      const fields = members ? 'm.user_id,m.role,m.available,u.email,u.full_name' : 'i.id,i.email,i.role,i.expires_at';
+      const order = members ? 'm.created_at,m.user_id' : 'i.created_at DESC,i.id DESC';
+      const items = (await c.query('SELECT ' + fields + where + ' ORDER BY ' + order + ' LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2), [...params,q.limit,(q.page-1)*q.limit])).rows;
+      return { items,total,role:req.user.role,metrics:{members:Number(memberCounts.members),available:Number(memberCounts.available),pending} };
+    });
+  }
+
   @Roles('owner', 'admin')
   @Post('team/invitations')
   invite(@Req() req: AuthedRequest, @Body() body: unknown) {

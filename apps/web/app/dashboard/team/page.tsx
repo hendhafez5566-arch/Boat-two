@@ -1,6 +1,9 @@
 'use client';
 import { WorkspaceHeading, Dialog } from '../../../components/product/ProductUI';
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
+import { useData } from '../../../components/business/useData';
+import { useTransientNotice } from '../../../components/product/useTransientNotice';
+import { NavIcon } from '../../../components/product/NavIcon';
 import { api } from '../../../lib/api';
 import { statusLabel } from '../../../components/product/status';
 import { InvitationMailPanel } from '../../../components/product/InvitationMailPanel';
@@ -15,54 +18,43 @@ type Member = {
 type Invite = { id: string; email: string; role: string; expires_at: string };
 export default function Team() {
   const { t, language } = useLocale();
-  const [members, setMembers] = useState<Member[]>([]);
-  const [invites, setInvites] = useState<Invite[]>([]);
-  const [role, setRole] = useState('');
-  const [error, setError] = useState('');
-  const [url, setUrl] = useState('');
-  const [mailQueued, setMailQueued] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [error,setError]=useState(''),[notice,setNotice]=useState('');
+  const [url,setUrl]=useState(''),[mailQueued,setMailQueued]=useState(false),[mailRefresh,setMailRefresh]=useState(0);
+  const [busy,setBusy]=useState(false),lock=useRef(false);
   const [tab,setTab]=useState<'members'|'invites'>('members');
-  const [inviteOpen,setInviteOpen]=useState(false);
-  const [search,setSearch]=useState('');
-  const visibleMembers=members.filter(m=>`${m.full_name} ${m.email}`.toLowerCase().includes(search.toLowerCase().trim()));
-  async function load() {
-    try {
-      const [team, w] = await Promise.all([
-        api<{ members: Member[]; pendingInvitations: Invite[] }>('/team'),
-        api<{ role: string }>('/workspace'),
-      ]);
-      setMembers(team.members);
-      setInvites(team.pendingInvitations);
-      setRole(w.role);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }
-  useEffect(() => {
-    load();
-  }, []);
+  const [inviteOpen,setInviteOpen]=useState(false),[dirty,setDirty]=useState(false);
+  const [search,setSearch]=useState(''),[roleFilter,setRoleFilter]=useState('all'),[availability,setAvailability]=useState('all');
+  const [page,setPage]=useState(1),[size,setSize]=useState(25);
+  const path='/team/index?'+new URLSearchParams({tab,q:search,role:roleFilter,availability,page:String(page),limit:String(size)});
+  const records=useData<{items:(Member|Invite)[];total:number;role:string;metrics:{members:number;available:number;pending:number|null}}>(path,{items:[],total:0,role:'',metrics:{members:0,available:0,pending:null}});
+  const ready=records.loadedPath===path&&!records.loading&&!records.error;
+  const role=records.error?'':records.data.role,loading=!ready&&!records.error,metrics=records.data.metrics;
+  const visibleMembers=ready&&tab==='members'?records.data.items as Member[]:[];
+  const invites=ready&&tab==='invites'?records.data.items as Invite[]:[];
+  const pages=Math.max(1,Math.ceil(records.data.total/size));
+  useEffect(()=>{if(ready&&page>pages)setPage(pages);},[ready,page,pages]);
+  useTransientNotice(notice,()=>setNotice(''));
+  const closeInvite=()=>{if(lock.current)return;if(dirty&&!window.confirm(t('تجاهل بيانات الدعوة غير المحفوظة؟','Discard unsaved invitation details?')))return;setInviteOpen(false);setDirty(false);setUrl('');setError('');};
+  useEffect(()=>{const guard=(event:BeforeUnloadEvent)=>{if(dirty||lock.current){event.preventDefault();event.returnValue='';}};window.addEventListener('beforeunload',guard);return()=>window.removeEventListener('beforeunload',guard);},[dirty]);
+  function selectTab(value:'members'|'invites'){setTab(value);setPage(1);setSearch('');setRoleFilter('all');setAvailability('all');}
   async function action(path: string, method: string, body?: unknown) {
-    setBusy(true);
-    setError('');
+    if(lock.current)return;
+    lock.current=true;setBusy(true);setError('');setNotice('');
     try {
       await api(path, { method, body: body ? JSON.stringify(body) : undefined });
-      await load();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+      setNotice(t('تم تحديث الفريق.','Team updated.'));
+      await records.reload();
+    } catch (e) {setError((e as Error).message);}
+    finally {lock.current=false;setBusy(false);}
   }
   async function invite(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if(lock.current||url)return;
+    lock.current=true;
     const form = e.currentTarget;
     const f = new FormData(form);
     setBusy(true);
-    setError('');
+    setError('');setNotice('');
     setUrl('');
     try {
       const r = await api<{ inviteUrl: string; mailJob: { id: string } | null }>(
@@ -79,32 +71,41 @@ export default function Team() {
       );
       setUrl(r.inviteUrl);
       setMailQueued(!!r.mailJob);
-      form.reset();
-      await load();
+      form.reset();setDirty(false);setMailRefresh(n=>n+1);
+      await records.reload();
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      lock.current=false;setBusy(false);
     }
   }
+  const filters=<div className="workbench-toolbar" aria-busy={loading}>
+    <input type="search" disabled={busy} maxLength={200} aria-label={tab==='members'?t('بحث في الفريق','Search team'):t('بحث الدعوات','Search invitations')} placeholder={t('ابحث بالاسم أو البريد','Search name or email')} value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/>
+    <select disabled={busy} aria-label={t('تصفية الدور','Filter role')} value={roleFilter} onChange={e=>{setRoleFilter(e.target.value);setPage(1);}}><option value="all">{t('كل الأدوار','All roles')}</option>{tab==='members'&&<option value="owner">{t('مالك','Owner')}</option>}<option value="admin">{t('مدير','Admin')}</option><option value="agent">{t('موظف','Agent')}</option></select>
+    {tab==='members'&&<select disabled={busy} aria-label={t('تصفية التوفر','Filter availability')} value={availability} onChange={e=>{setAvailability(e.target.value);setPage(1);}}><option value="all">{t('كل الحالات','All states')}</option><option value="available">{t('متاح','Available')}</option><option value="away">{t('غير متاح','Away')}</option></select>}
+    <button className="btn" type="button" disabled={busy} onClick={()=>{setSearch('');setRoleFilter('all');setAvailability('all');setPage(1);}}>{t('مسح الفلاتر','Clear filters')}</button><button className="btn" type="button" disabled={busy||records.loading} onClick={()=>void records.reload()}><NavIcon name="refresh"/>{t('تحديث','Refresh')}</button>
+  </div>;
+  const pagination=<div className="form-actions"><label>{t('عدد الصفوف','Rows per page')} <select disabled={busy} value={size} onChange={e=>{setSize(Number(e.target.value));setPage(1);}}>{[10,25,50,100].map(n=><option key={n}>{n}</option>)}</select></label><span aria-live="polite">{ready?records.data.total:'…'} {t('نتيجة','results')}</span><button className="btn" disabled={busy||!ready||page<=1} onClick={()=>setPage(p=>p-1)}>{t('السابق','Previous')}</button><span>{page} / {ready?pages:'…'}</span><button className="btn" disabled={busy||!ready||page>=pages} onClick={()=>setPage(p=>p+1)}>{t('التالي','Next')}</button></div>;
   return (
     <main className="stack" data-workbench="team">
       <WorkspaceHeading
         title={t('الفريق والصلاحيات', 'Team & permissions')}
         description={t('راجع أعضاء الفريق وأدوارهم ودعواتهم.', 'Manage team members, roles and invitations.')}
         actions={<>
-            {['owner','admin'].includes(role)&&<button className="btn btn-primary" type="button" onClick={()=>{setUrl('');setInviteOpen(true);}}>+ {t('دعوة موظف','Invite teammate')}</button>}
+            {['owner','admin'].includes(role)&&<button className="btn btn-primary" type="button" disabled={busy} onClick={()=>{setUrl('');setDirty(false);setError('');setInviteOpen(true);}}><NavIcon name="plus"/>{t('دعوة موظف','Invite teammate')}</button>}
           </>}
       />
+      {records.error&&<p role="alert" className="notice error">{records.error} <button className="btn" onClick={()=>void records.reload()}>{t('إعادة المحاولة','Retry')}</button></p>}
+      {notice&&<p role="status" className="notice">{notice}</p>}
       {error && (
         <p role="alert" className="notice error">
           {error}
         </p>
       )}
-      <div className="workbench-metrics">{[[t('أعضاء الفريق','Team members'),members.length],[t('متاحون الآن','Available now'),members.filter(m=>m.available).length],[t('دعوات معلقة','Pending invitations'),invites.length]].map(([label,n])=><div key={String(label)}><small>{label}</small><strong>{loading?'…':n}</strong></div>)}</div>
-      <nav className="workbench-tabs" aria-label={t('إدارة الفريق','Team management')}><button type="button" aria-pressed={tab==='members'} onClick={()=>setTab('members')}>{t('أعضاء الفريق','Members')}</button>{role&&role!=='agent'&&<button type="button" aria-pressed={tab==='invites'} onClick={()=>setTab('invites')}>{t('الدعوات','Invitations')}</button>}</nav>
+      <div className="workbench-metrics">{[[t('أعضاء الفريق','Team members'),metrics.members],[t('متاحون الآن','Available now'),metrics.available],...(metrics.pending===null?[]:[[t('دعوات معلقة','Pending invitations'),metrics.pending]])].map(([label,n])=><div key={String(label)}><small>{label}</small><strong>{records.error?'—':records.loadedPath?n:'…'}</strong></div>)}</div>
+      <nav className="workbench-tabs" aria-label={t('إدارة الفريق','Team management')}><button type="button" disabled={busy} aria-pressed={tab==='members'} onClick={()=>selectTab('members')}>{t('أعضاء الفريق','Members')}</button>{role&&role!=='agent'&&<button type="button" aria-pressed={tab==='invites'} onClick={()=>selectTab('invites')}>{t('الدعوات','Invitations')}</button>}</nav>
       {tab==='members'&&<section className="card table-wrap">
-        <div className="workbench-toolbar"><h2>{t('أعضاء الفريق','Team members')}</h2><input type="search" aria-label={t('بحث في الفريق','Search team')} placeholder={t('ابحث بالاسم أو البريد','Search name or email')} value={search} onChange={e=>setSearch(e.target.value)}/></div>
+        <h2>{t('أعضاء الفريق','Team members')}</h2>{filters}
         <table className="product-table">
           <thead>
             <tr>
@@ -127,9 +128,7 @@ export default function Team() {
                       aria-label={t('تغيير الدور', 'Change role')}
                       disabled={busy}
                       value={m.role}
-                      onChange={(e) =>
-                        action('/team/members/' + m.user_id, 'PATCH', { role: e.target.value })
-                      }
+                      onChange={(e) => {const next=e.target.value;if(next!==m.role&&window.confirm(t('تأكيد تغيير صلاحية هذا العضو؟','Confirm this member’s permission change?')))void action('/team/members/' + m.user_id, 'PATCH', { role: next });}}
                     >
                       <option value="admin">{t('مدير', 'Admin')}</option>
                       <option value="agent">{t('موظف', 'Agent')}</option>
@@ -150,7 +149,7 @@ export default function Team() {
                           action('/team/members/' + m.user_id, 'DELETE')
                         }
                       >
-                        {t('إزالة', 'Remove')}
+                        <NavIcon name="trash"/>{t('إزالة', 'Remove')}
                       </button>
                     )}
                 </td>
@@ -159,11 +158,11 @@ export default function Team() {
           </tbody>
         </table>
         {loading && <p className="empty">{t('جارٍ التحميل…', 'Loading…')}</p>}
-        {!loading&&!visibleMembers.length&&<p className="empty">{t('لا توجد نتائج مطابقة','No matching members')}</p>}
+        {ready&&!visibleMembers.length&&<p className="empty">{t('لا توجد نتائج مطابقة','No matching members')}</p>}{pagination}
       </section>}
       {['owner','admin'].includes(role) && (
-        <Dialog open={inviteOpen} onClose={()=>{if(!busy){setInviteOpen(false);setUrl('');}}} title={t('دعوة موظف','Invite a teammate')}>
-          <form id="team-invitations" onSubmit={invite}>
+        <Dialog open={inviteOpen} onClose={closeInvite} title={t('دعوة موظف','Invite a teammate')}>
+          {inviteOpen&&<form id="team-invitations" onSubmit={invite} onChange={()=>setDirty(true)} hidden={!!url}>
             <div className="form-grid">
               <label className="field">
                 {t('البريد الإلكتروني', 'Email')}
@@ -182,11 +181,11 @@ export default function Team() {
               {t('طلب إرسال الدعوة بالبريد الإلكتروني أيضًا', 'Request an invitation email too')}
             </label>
             <div className="form-actions">
-              <button disabled={busy} className="btn btn-primary">
+              <button disabled={busy||!!url} className="btn btn-primary">
                 {t('إنشاء رابط دعوة', 'Create invitation link')}
               </button>
             </div>
-          </form>
+          </form>}
           {url && (
             <div className="notice">
               <p>
@@ -200,13 +199,14 @@ export default function Team() {
                 )}
               </p>
               <input
-                aria-label="Invitation link"
+                aria-label={t('رابط الدعوة','Invitation link')}
                 className="w-full p-2 mt-2"
                 readOnly
                 dir="ltr"
                 value={url}
                 onFocus={(e) => e.target.select()}
               />
+              <div className="form-actions"><button className="btn btn-primary" type="button" onClick={async()=>{try{await navigator.clipboard.writeText(url);setNotice(t('تم نسخ الرابط.','Link copied.'));}catch{setError(t('تعذّر النسخ؛ حدد الرابط وانسخه يدويًا.','Copy failed; select the link and copy manually.'));}}}>{t('نسخ الرابط','Copy link')}</button><button className="btn" type="button" onClick={()=>{setUrl('');setError('');}}>{t('دعوة أخرى','Another invitation')}</button></div>{notice&&<p role="status">{notice}</p>}
             </div>
           )}
           {error&&<p className="notice error" role="alert">{error}</p>}
@@ -215,7 +215,8 @@ export default function Team() {
       {tab==='invites'&&role&&role!=='agent'&&<>
       <section className="card">
         <h2>{t('الدعوات المعلّقة', 'Pending invitations')}</h2>
-        {!invites.length ? (
+        {filters}
+        {loading?<p role="status">{t('جارٍ التحميل…','Loading…')}</p>:records.error?null:!invites.length ? (
           <p className="muted">{t('لا توجد دعوات معلقة.', 'No pending invitations.')}</p>
         ) : (
           invites.map((i) => (
@@ -236,8 +237,9 @@ export default function Team() {
             </div>
           ))
         )}
+        {pagination}
       </section>
-      <InvitationMailPanel refreshKey={url}/>
+      <InvitationMailPanel refreshKey={String(mailRefresh)}/>
       </>}
     </main>
   );

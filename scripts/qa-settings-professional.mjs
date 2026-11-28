@@ -61,9 +61,18 @@ try{for(const language of ['ar','en'])for(const width of [390,1366]){
  // Verify server search and reconnect without any external provider traffic.
  const indexed=await api('/integrations/index?group=email-tab&q='+created[0],token);assert.equal(indexed.total,1);assert.equal(indexed.items[0].id,created[0]);
  assert.equal((await api('/integrations/index?group=email-tab&q='+created[0],other.accessToken)).total,0);
- await api('/integrations/'+created[0]+'/disconnect',token,{});
+ await page.getByRole('tab',{name:new RegExp(t('تكامل البريد','Email API'))}).click();
+ const emailRow=page.getByRole('row').filter({hasText:'QA email edited'});
+ await emailRow.waitFor();
+ page.once('dialog',d=>d.accept());await emailRow.getByRole('button',{name:t('فصل الربط','Disconnect'),exact:true}).click();
+ await emailRow.getByRole('button',{name:t('إعادة الربط','Reconnect'),exact:true}).waitFor();
  await api('/integrations/'+created[0],token,{enabled:true},'PATCH',400);
- const reconnected=await api('/integrations/'+created[0],token,{credential:'synthetic-rotated-key'},'PATCH');assert.equal(reconnected.status,'pending');assert.equal(reconnected.enabled,false);
+ await emailRow.getByRole('button',{name:t('إعادة الربط','Reconnect'),exact:true}).click();
+ const reconnectDialog=page.getByRole('dialog',{name:t('تكامل البريد','Email API')});
+ await reconnectDialog.locator('input[name=credential]').fill('synthetic-rotated-key');
+ page.once('dialog',d=>d.accept());await reconnectDialog.getByRole('button',{name:t('حفظ','Save'),exact:true}).click();
+ await reconnectDialog.waitFor({state:'hidden'});
+ const reconnected=(await api('/integrations',token)).find(x=>x.id===created[0]);assert.equal(reconnected.status,'pending');assert.equal(reconnected.enabled,false);
  await api('/integrations/'+created[0],token,{enabled:true},'PATCH');
  assert.equal((await api('/integrations',other.accessToken)).length,0);await api('/integrations/'+created[0],other.accessToken,{enabled:true},'PATCH',400);
  await api('/integrations',token,{provider:'email',name:'Unsafe URL',credential:'synthetic',config:{url:'https://user:password@example.test'}},'POST',400);

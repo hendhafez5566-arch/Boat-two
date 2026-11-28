@@ -112,6 +112,14 @@ export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolea
       setBusy(false);
     }
   }
+  async function disconnect(connection:Connection){
+    if(lock.current||!window.confirm(t('فصل ملف الربط وحذف مفتاحه المحفوظ؟ ستحتاج إلى مفتاح جديد لإعادة الربط. لا يلغي ذلك المفتاح لدى المزود.','Disconnect and remove the stored key? Reconnection requires a new key. This does not revoke the key at the provider.')))return;
+    lock.current=true;setBusy(true);setError('');setFeedback('');
+    try{await api('/integrations/'+connection.id+'/disconnect',{method:'POST'});setFeedback(t('تم فصل ملف الربط.','Integration profile disconnected.'));await list.reload();}
+    catch(e){setError((e as Error).message);}
+    finally{lock.current=false;setBusy(false);}
+  }
+  const statusLabel=(status:string)=>({pending:t('بانتظار التحقق','Pending verification'),connected:t('متصل','Connected'),active:t('نشط','Active'),error:t('خطأ','Error'),disconnected:t('غير متصل','Disconnected')} as Record<string,string>)[status]||status;
   return (
     <div className={styles.security}>
       <nav
@@ -156,13 +164,13 @@ export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolea
           <input
             type="search"
             aria-label={t('البحث بملفات الربط', 'Search profiles')}
-            maxLength={100} value={search}
+            disabled={busy} maxLength={100} value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
             }}
           />
-          <button className="btn" disabled={!search} onClick={()=>{setSearch('');setPage(1);}}>{t('مسح البحث','Clear search')}</button><button className="btn" disabled={busy||list.loading} onClick={()=>void list.reload()}>{t('تحديث','Refresh')}</button>
+          <button className="btn" disabled={busy||!search} onClick={()=>{setSearch('');setPage(1);}}>{t('مسح البحث','Clear search')}</button><button className="btn" disabled={busy||list.loading} onClick={()=>void list.reload()}>{t('تحديث','Refresh')}</button>
         </div>
         <div className={styles.tablewrap}>
           <table className={`${styles.table} ${styles.profilesTable}`}>
@@ -178,12 +186,12 @@ export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolea
               {ready&&rows.map((c, index) => (
                 <tr key={c.id}>
                   <td>{(current - 1) * size + index + 1}</td>
-                  <td>{c.name}<small> · {c.id.slice(0,8)}</small><br/><small>{c.enabled?t('مفعّل','Enabled'):t('متوقف','Disabled')} · {c.status}</small></td>
+                  <td>{c.name}<small> · {c.id.slice(0,8)}</small><br/><small>{c.enabled?t('مفعّل','Enabled'):t('متوقف','Disabled')} · {statusLabel(c.status)}</small></td>
                   <td>{providerNames[c.provider]}</td>
                   <td>
                     <div className={styles.rowActions}>
                       <button type="button" className="btn" disabled={busy} onClick={() => edit(c)}>
-                        {t('تعديل', 'Edit')}
+                        {c.status==='disconnected'?t('إعادة الربط','Reconnect'):t('تعديل', 'Edit')}
                       </button>
                       <button
                         type="button"
@@ -193,6 +201,7 @@ export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolea
                       >
                         {c.enabled ? t('تعطيل', 'Disable') : t('تفعيل', 'Enable')}
                       </button>
+                      {c.status!=='disconnected'&&<button type="button" className="btn btn-danger" disabled={busy} onClick={()=>void disconnect(c)}>{t('فصل الربط','Disconnect')}</button>}
                     </div>
                   </td>
                 </tr>
@@ -212,7 +221,7 @@ export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolea
         <footer className={styles.footer}>
           <select
             aria-label={t('عدد الصفوف', 'Rows per page')}
-            value={size}
+            disabled={busy} value={size}
             onChange={(e) => {
               setSize(Number(e.target.value));
               setPage(1);
@@ -230,7 +239,7 @@ export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolea
             <button
               type="button"
               className="btn"
-              disabled={!ready||current === 1}
+              disabled={busy||!ready||current === 1}
               onClick={() => setPage(current - 1)}
             >
               {t('السابق', 'Previous')}
@@ -238,7 +247,7 @@ export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolea
             <button
               type="button"
               className="btn"
-              disabled={!ready||current >= pages}
+              disabled={busy||!ready||current >= pages}
               onClick={() => setPage(current + 1)}
             >
               {t('التالي', 'Next')}
@@ -265,13 +274,15 @@ export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolea
               if(!String(values.get('name')||'').trim()){setFormError(t('أدخل اسم الملف','Enter profile name'));return;}
               if(needsUrl){try{const u=new URL(String(values.get('url')||''));if(u.protocol!=='https:'||u.username||u.password)throw Error();}catch{setFormError(t('أدخل عنوان HTTPS بدون بيانات دخول','Use HTTPS without embedded credentials'));return;}}
               if(editing&&credential&&!window.confirm(t('استبدال مفتاح الربط الحالي؟','Replace the current integration key?')))return;
-              const body = {
-                name: String(values.get('name')||'').trim(),
-                ...(credential ? { credential } : {}),
-                config: {
-                  ...(needsUrl ? { url: values.get('url') } : {}),
-                  ...(needsList ? { listId: values.get('listId') } : {}),
-                },
+              const config={
+                ...(needsUrl ? {url:String(values.get('url')||'').trim()} : {}),
+                ...(needsList ? {listId:String(values.get('listId')||'').trim()} : {}),
+              };
+              const changedConfig=!editing||(needsUrl&&config.url!==editing.config.url)||(needsList&&config.listId!==editing.config.listId);
+              const body={
+                name:String(values.get('name')||'').trim(),
+                ...(credential?{credential}:{}),
+                ...(changedConfig?{config}:{}),
               };
               lock.current = true;
               setBusy(true);
