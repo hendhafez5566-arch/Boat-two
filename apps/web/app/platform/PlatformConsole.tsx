@@ -6,6 +6,7 @@ import { NavIcon } from '../../components/product/NavIcon';
 import { useTransientNotice } from '../../components/product/useTransientNotice';
 import styles from './platform.module.css';
 import BillingReviews from './BillingReviews';
+import RecordEditor from './RecordEditor';
 import OperationalReports from './OperationalReports';
 import PriceCatalog from './PriceCatalog';
 import AuditTrail from './AuditTrail';
@@ -266,6 +267,7 @@ export default function Console({designReview=false,designPlans=null}:{designRev
     ...primaryLimits,
     agents: t('مقاعد الفريق', 'Team seats'),
     bots: t('البوتات','Bots'),
+    ai_agents:t('وكلاء الذكاء الاصطناعي','AI agents'),knowledge_sources:t('مصادر المعرفة','Knowledge sources'),automation_rules:t('قواعد الأتمتة','Automation rules'),campaigns_per_month:t('الحملات شهريًا','Monthly campaigns'),embedding_token_budget:t('رصيد توكنز المعرفة','Knowledge token budget'),
     channels: t('القنوات', 'Channels'),
     flows: t('التدفقات', 'Flows'),
   };
@@ -284,6 +286,10 @@ export default function Console({designReview=false,designPlans=null}:{designRev
     { id: 'audit', label: t('سجل العمليات', 'Audit log'), permission: 'audit.read' },
     { id: 'security', label: t('أمان الحساب', 'Account security'), permission: '' },
   ].filter(({ permission }) => !permission || permissions.includes(permission));
+  const featureLabels:Record<string,string>={api_access:t('الوصول إلى API','API access'),broadcasts:t('الحملات','Campaigns'),automations:t('الأتمتة','Automation'),white_label:t('العلامة التجارية الخاصة','White label')};
+  const permissionLabels:Record<string,string>={'companies.read':t('عرض الشركات','View companies'),'companies.write':t('إدارة الشركات','Manage companies'),'users.read':t('عرض المستخدمين','View users'),'users.write':t('إدارة المستخدمين','Manage users'),'subscriptions.read':t('عرض الاشتراكات','View subscriptions'),'subscriptions.write':t('إدارة الاشتراكات','Manage subscriptions'),'plans.read':t('عرض الباقات','View plans'),'plans.write':t('إدارة الباقات','Manage plans'),'reports.read':t('عرض التقارير','View reports'),'audit.read':t('عرض سجل العمليات','View audit log'),'sessions.revoke':t('إبطال الجلسات','Revoke sessions'),'mfa.manage':t('إدارة المصادقة','Manage MFA')};
+  const canCloseEditor=()=>{if(lock.current||writeLock.current)return false;if(draft.current&&!confirm(t('تجاهل التغييرات غير المحفوظة؟','Discard unsaved changes?')))return false;draft.current=false;setStepUpCode('');setError('');setMessage('');return true;};
+  const editorProps={canClose:canCloseEditor,disabled:busy||writing,verification:!designReview?<label className={styles.inlineVerification}>{t('رمز مصادقة جديد لكل حفظ','Fresh authenticator code for each save')}<input value={stepUpCode} onChange={e=>setStepUpCode(e.target.value.replace(/[^0-9]/g,'').slice(0,6))} inputMode="numeric" autoComplete="one-time-code" maxLength={6}/></label>:null,feedback:<>{error&&<p role="alert" className="notice error">{error}</p>}{message&&<p role="status" className="notice">{message}</p>}</>};
   const activeSection = sections.find(({ id }) => id === section) ?? sections[0];
 
   const visibleCompanies = data?.companies.filter((company) => {
@@ -309,7 +315,7 @@ export default function Console({designReview=false,designPlans=null}:{designRev
           {t('English', 'العربية')}
         </button></div>
       </header>
-      {designReview&&<p role="status" className="notice">{t('وضع مراجعة التصميم: الشركات والمستخدمون والفوترة تجريبية، والباقات تبدأ من الكتالوج العام عند توفره. التعديلات محلية فقط.','Design review: companies, users and billing are fictional; plans start from the public catalog when available. All edits stay local.')}</p>}
+      {designReview&&<p role="status" className={styles.reviewBanner}><NavIcon name="info"/>{t('وضع مراجعة التصميم: الشركات والمستخدمون والفوترة تجريبية، والباقات تبدأ من الكتالوج العام عند توفره. التعديلات محلية فقط.','Design review: companies, users and billing are fictional; plans start from the public catalog when available. All edits stay local.')}</p>}
       {error && (
         <p role="alert" className="notice error">
           {error}
@@ -473,7 +479,7 @@ export default function Console({designReview=false,designPlans=null}:{designRev
         </form>
       ) : (
         <>
-          <div className="form-actions">
+          <div className={styles.toolbar}>
             {loadedAt&&<span className={styles.secondary}>{t('آخر تحديث','Last refreshed')}: {loadedAt.toLocaleTimeString(language)}</span>}
             <button
               className="btn"
@@ -524,10 +530,10 @@ export default function Console({designReview=false,designPlans=null}:{designRev
               ))}
             </nav>
             <div className={styles.content} data-platform-section={activeSection.id} aria-busy={busy||writing} onChange={e=>{const form=(e.target as HTMLElement).closest("form");if(form&&form.querySelector("[name=reason]"))draft.current=true;}}>
-              <header className={styles.sectionHeader}><span className={styles.sectionIcon}><NavIcon name={sectionIcons[activeSection.id]}/></span><div><h2>{activeSection.label}</h2><p>{t("إدارة ومراجعة البيانات الفعلية للمنصة","Manage and review live platform records")}</p></div></header>
+              <header className={styles.sectionHeader}><span className={styles.sectionIcon}><NavIcon name={sectionIcons[activeSection.id]}/></span><div><h2>{activeSection.label}</h2><p>{designReview?t("بيئة مراجعة وتجربة معزولة","Isolated design workspace"):t("إدارة ومراجعة بيانات المنصة","Manage platform records")}</p></div></header>
               {activeSection.id === 'overview' && (
                 <section className={styles.panel}>
-                  <h2>{activeSection.label}</h2>
+                  <h2>{t('الملخص التشغيلي','Operations summary')}</h2>
                   <nav className="platform-quick" aria-label={t('إدارة المنصة','Platform operations')}>{sections.filter(item=>['companies','users','billing','plans','reports','audit'].includes(item.id)).map(item=><button type="button" key={item.id} disabled={busy||writing} onClick={()=>selectSection(item.id)}><span className={styles.sectionIcon}><NavIcon name={sectionIcons[item.id]}/></span><strong>{item.label}</strong><span aria-hidden="true">‹</span></button>)}</nav>
                   {reportError && (
                     <p role="alert" className="notice error">
@@ -575,11 +581,11 @@ export default function Console({designReview=false,designPlans=null}:{designRev
               )}
               {activeSection.id === 'security' && (
                 <section className={styles.panel}>
-                  <h2>{activeSection.label}</h2>
-                  <p>{t('الصلاحيات الفعّالة', 'Effective permissions')}</p>
+                  <h2>{t('صلاحيات الحساب','Account permissions')}</h2>
+                  <div className={styles.securityState}><NavIcon name="shield"/><div><strong>{designReview?t('وضع المعاينة','Design review'):t('جلسة محمية بالمصادقة','MFA-protected session')}</strong><p>{t('الصلاحيات الفعّالة', 'Effective permissions')} · {permissions.length}</p></div></div>
                   <ul className={styles.permissions}>
                     {permissions.map((permission) => (
-                      <li key={permission}>{permission}</li>
+                      <li key={permission} title={permission}><NavIcon name="circleCheck"/>{permissionLabels[permission]??permission}</li>
                     ))}
                   </ul>
                   {permissions.includes('mfa.manage') && (
@@ -587,7 +593,7 @@ export default function Console({designReview=false,designPlans=null}:{designRev
                       <h2>{t('رموز الاسترداد الاحتياطية', 'Backup recovery codes')}</h2>
                       <p>
                         {t(
-                          'توليد مجموعة جديدة يُبطل المجموعة السابقة. احفظ الرموز خارج المتصفح؛ ستظهر مرة واحدة فقط. يلزم رمز مصادقة جديد أدناه.',
+                          'توليد مجموعة جديدة يُبطل المجموعة السابقة. احفظ الرموز خارج المتصفح؛ ستظهر مرة واحدة فقط. في الوضع الفعلي يلزم رمز مصادقة جديد.',
                           'Generating a new set invalidates the previous set. Save the codes outside your browser; they appear only once. Enter a fresh authenticator code below first.',
                         )}
                       </p>
@@ -703,21 +709,19 @@ export default function Console({designReview=false,designPlans=null}:{designRev
                       ))}
                     </select>
                   </label>
+                  <div className={styles.directoryHead}><span>{t('الشركة','Company')}</span><span>{t('الباقة','Plan')}</span><span>{t('الحالة','Status')}</span><span>{t('الإجراء','Action')}</span></div>
                   {visibleCompanies?.map((company) => (
-                    <details key={company.id} className={styles.row}>
-                      <DisclosureSummary>
-                        <span className={styles.rowTitle}>{company.name}</span>
+                    <RecordEditor key={company.id} {...editorProps} title={company.name} summary={<>
+                        <div className={styles.entityName}><span className={styles.avatar}>{company.name.slice(0,2).toUpperCase()}</span><div><strong>{company.name}</strong><small>{company.slug} · {company.members} {t('أعضاء','members')}</small></div></div>
                         <span className={styles.tag}>{company.plan_code}</span>
                         <span className={styles.tag} data-state={company.suspended_at?'suspended':company.status}>
                           {company.suspended_at
                             ? t('معلّقة', 'Suspended')
                             : subscriptionLabel(company.status)}
                         </span>
-                      </DisclosureSummary>
+                      </>}>
                       <div className={styles.rowBody}>
-                        <small dir="auto">
-                          {company.slug} · {company.members} {t('أعضاء', 'members')}
-                        </small>
+                        <h3>{t('بيانات الشركة','Company details')}</h3>
                         <form
                           className="form-actions"
                           onSubmit={(e) => {
@@ -764,6 +768,7 @@ export default function Console({designReview=false,designPlans=null}:{designRev
                             {t('حفظ الشركة', 'Save company')}
                           </button>
                         </form>
+                        <h3>{t('إدارة الاشتراك المحلي','Local subscription')}</h3>
                         <form
                           className="form-actions"
                           onSubmit={(e) => {
@@ -843,7 +848,7 @@ export default function Console({designReview=false,designPlans=null}:{designRev
                           </button>
                         </form>
                       </div>
-                    </details>
+                    </RecordEditor>
                   ))}
                   {visibleCompanies?.length === 0 && (
                     <p className={styles.empty}>
@@ -892,17 +897,15 @@ export default function Console({designReview=false,designPlans=null}:{designRev
                       {t('التالي', 'Next')}
                     </button>
                   </form>
+                  <div className={styles.directoryHead} data-users><span>{t('المستخدم','User')}</span><span>{t('الجلسات','Sessions')}</span><span>{t('الحالة','Status')}</span><span>{t('الإجراء','Action')}</span></div>
                   {data?.users.map((user) => (
-                    <details className={styles.row} key={user.id}>
-                      <DisclosureSummary>
-                        <span className={styles.rowTitle}>{user.full_name || user.email}</span>
-                        <span className={styles.secondary} dir="ltr">
-                          {user.email}
-                        </span>
+                    <RecordEditor key={user.id} {...editorProps} title={user.full_name||user.email} summary={<>
+                        <div className={styles.entityName}><span className={styles.avatar}>{(user.full_name||user.email).slice(0,2).toUpperCase()}</span><div><strong>{user.full_name||user.email}</strong><small dir="ltr">{user.email}</small></div></div>
+                        <span className={styles.secondary}>{t('إدارة الجلسات','Session management')}</span>
                         <span className={styles.tag} data-state={user.disabled_at?'disabled':'active'}>
                           {user.disabled_at ? t('موقوف', 'Disabled') : t('نشط', 'Active')}
                         </span>
-                      </DisclosureSummary>
+                      </>}>
                       <div className={styles.rowBody}>
                         <form
                           className="form-actions"
@@ -970,7 +973,7 @@ export default function Console({designReview=false,designPlans=null}:{designRev
                           </button>
                         </form>
                       </div>
-                    </details>
+                    </RecordEditor>
                   ))}
                   {data?.users.length === 0 && (
                     <p className={styles.empty}>
@@ -985,8 +988,7 @@ export default function Console({designReview=false,designPlans=null}:{designRev
                   {designReview&&designPlans===null&&<p className="notice error" role="alert">{t('تعذّر تحميل الباقات العامة. البيانات الحالية أمثلة فقط.','Could not load the public catalog. Current records are examples only.')}</p>}
                   <p className="notice">{designReview?t('الكتالوج يبدأ من الباقات العامة الفعلية عند توفرها، لكن أي تعديل هنا تجريبي ومحلي فقط.','Catalog starts from the real public plans when available; all edits here are local simulations.'):t('هذه الباقات هي مصدر قسم اشتراكي. تعديل الحدود والمميزات يؤثر على الشركات المشتركة، أما الأسعار الحالية فتُدار من كتالوج الأسعار ولا تعيد تسعير الاشتراكات القائمة تلقائيًا.','These plans power My Subscription. Limits and features affect subscribed companies; prices are managed in the price catalog and do not automatically reprice existing subscriptions.')}</p>
                   {permissions.includes('plans.write') && data && data.plans.length > 0 && (
-                    <details className={styles.row}>
-                      <DisclosureSummary>{t('إنشاء باقة', 'Create plan')}</DisclosureSummary>
+                    <RecordEditor {...editorProps} variant="create" title={t('إنشاء باقة','Create plan')} action={t('إنشاء باقة','Create plan')} summary={<strong>{t('إضافة باقة إلى الكتالوج','Add a plan to the catalog')}</strong>}>
                       <form
                         className="stack"
                         onSubmit={(event) => {
@@ -1046,11 +1048,11 @@ export default function Console({designReview=false,designPlans=null}:{designRev
                           {t('إنشاء باقة', 'Create plan')}
                         </button>
                       </form>
-                    </details>
+                    </RecordEditor>
                   )}
+                  <div className={styles.planGrid}>
                   {data?.plans.map((plan) => (
-                    <details className={styles.row} key={plan.code}>
-                      <DisclosureSummary>
+                    <RecordEditor key={plan.code} {...editorProps} variant="plan" title={plan.name} action={t('تعديل الباقة','Edit plan')} summary={<>
                         <span className={styles.rowTitle}>{plan.name}</span>
                         <span className={styles.tag}>{plan.code}</span>
                         <span className={styles.tag}>{plan.currency?billingMoney(plan.price_cents,plan.currency):'—'} / {plan.interval==='year'?t('سنة','year'):t('شهر','month')}</span>
@@ -1058,7 +1060,8 @@ export default function Console({designReview=false,designPlans=null}:{designRev
                         <span className={styles.tag} data-state={plan.is_active?'active':'disabled'}>
                           {plan.is_active ? t('متاحة', 'Available') : t('غير متاحة', 'Unavailable')}
                         </span>
-                      </DisclosureSummary>
+                      <div className={styles.planStats}>{Object.entries(primaryLimits).map(([key,label])=><div key={key}><span>{label}</span><strong>{plan.limits[key]===-1?t('غير محدود','Unlimited'):plan.limits[key]??'—'}</strong></div>)}</div>
+                      </>}>
                       <form
                         className="stack"
                         onSubmit={(e) => {
@@ -1116,12 +1119,12 @@ export default function Console({designReview=false,designPlans=null}:{designRev
                             </label>
                           ))}
                         </div>
-                        {Object.entries(plan.features).map(([key, value]) => (
+                        <h3>{t('المميزات','Features')}</h3><div className={styles.featureGrid}>{Object.entries(plan.features).map(([key, value]) => (
                           <label key={key}>
                             <input type="checkbox" name={'feature-' + key} defaultChecked={value} />{' '}
-                            {key}
+                            {featureLabels[key]??key}
                           </label>
-                        ))}
+                        ))}</div>
                         <input
                           name="reason"
                           minLength={10}
@@ -1135,9 +1138,9 @@ export default function Console({designReview=false,designPlans=null}:{designRev
                           {t('حفظ الباقة', 'Save plan')}
                         </button>
                       </form>
-                    </details>
-                  ))}
-                  <PriceCatalog request={request} canWrite={permissions.includes('plans.write')} plans={data?.plans??[]} onChanged={()=>loadSnapshot()} />
+                    </RecordEditor>
+                  ))}</div>
+                  <PriceCatalog editorProps={editorProps} request={request} canWrite={permissions.includes('plans.write')} plans={data?.plans??[]} onChanged={()=>loadSnapshot()} />
                 </section>
               )}
               {activeSection.id === 'billing' && (
