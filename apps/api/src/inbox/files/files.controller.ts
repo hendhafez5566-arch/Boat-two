@@ -28,8 +28,21 @@ export class FilesController{
  private valid(name:string){if(!isStoredName(name)||!mimeFromStoredName(name))throw new NotFoundException();}
  @Roles('owner','admin') @Get('uploads')
  list(@Req() req:AuthedRequest,@Query() query:unknown){
-  const q=parse(z.object({after:z.string().regex(/^[a-f0-9]{48}\.[a-z0-9]{2,5}$/).optional(),limit:z.coerce.number().int().min(1).max(100).default(50)}),query);
-  return this.db.withTenant(req.user.tenantId,async c=>{const r=await c.query('SELECT id,name,original_name,mime,size,created_at,deleted_at,revoked_at FROM files WHERE ($1::text IS NULL OR name>$1) ORDER BY name LIMIT $2',[q.after??null,q.limit+1]);const items=r.rows.slice(0,q.limit);return {items,nextAfter:r.rows.length>q.limit?items.at(-1)?.name:null};});
+  const q=parse(z.object({after:z.string().regex(/^[a-f0-9]{48}\.[a-z0-9]{2,5}$/).optional(),limit:z.coerce.number().int().min(1).max(100).default(50),q:z.string().trim().max(200).default(''),state:z.enum(['all','active','revoked','deleted']).default('all')}),query);
+  return this.db.withTenant(req.user.tenantId,async c=>{
+   const params:unknown[]=[];
+   const filters:string[]=[];
+   if(q.q){params.push(q.q);filters.push('(strpos(lower(original_name),lower($1))>0 OR strpos(lower(name),lower($1))>0)');}
+   if(q.state==='active')filters.push('deleted_at IS NULL AND revoked_at IS NULL');
+   if(q.state==='revoked')filters.push('deleted_at IS NULL AND revoked_at IS NOT NULL');
+   if(q.state==='deleted')filters.push('deleted_at IS NOT NULL');
+   const where=filters.length?' WHERE '+filters.join(' AND '):'';
+   const total=Number((await c.query('SELECT count(*)::int AS n FROM files'+where,params)).rows[0].n);
+   params.push(q.after??null);const cursor='$'+params.length;
+   params.push(q.limit+1);const limit='$'+params.length;
+   const r=await c.query('SELECT id,name,original_name,mime,size,created_at,deleted_at,revoked_at FROM files'+where+(where?' AND ':' WHERE ')+'('+cursor+'::text IS NULL OR name>'+cursor+') ORDER BY name LIMIT '+limit,params);
+   const items=r.rows.slice(0,q.limit);return {items,total,nextAfter:r.rows.length>q.limit?items.at(-1)?.name:null};
+  });
  }
  @Get('uploads/:name')
  async metadata(@Req() req:AuthedRequest,@Param('name') name:string){
