@@ -1,5 +1,7 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ComponentProps } from 'react';
+import RecordEditor from './RecordEditor';
+import styles from './platform.module.css';
 import { NavIcon } from '../../components/product/NavIcon';
 import { useTransientNotice } from '../../components/product/useTransientNotice';
 import { billingMoney } from '../../lib/billing-display';
@@ -14,10 +16,11 @@ type Price = {
 };
 export default function PriceCatalog({
   request,
-  canWrite,plans,onChanged,
+  canWrite,plans,onChanged,editorProps,
 }: {
   request: (path: string, body?: unknown, method?: string) => Promise<unknown>;
   canWrite: boolean;
+  editorProps:Pick<ComponentProps<typeof RecordEditor>,'canClose'|'disabled'|'verification'|'feedback'>;
   plans: {code:string;name:string;is_active:boolean}[];
   onChanged:()=>Promise<void>;
 }) {
@@ -62,7 +65,7 @@ export default function PriceCatalog({
         <NavIcon name="refresh"/>{t('تحميل الأسعار', 'Load prices')}
       </button>
       {notice&&<p role="status" className="notice">{notice}</p>}
-      {canWrite&&<form
+      {canWrite&&<RecordEditor {...editorProps} disabled={busy||editorProps.disabled} variant="create" title={t('تسجيل سعر جديد','Register new price')} action={t('تسجيل سعر جديد','Register new price')} summary={<strong>{t('ربط سعر موثق بباقة','Map a verified price to a plan')}</strong>} feedback={<>{editorProps.feedback}{error&&<p role="alert" className="notice error">{error}</p>}{notice&&<p role="status" className="notice">{notice}</p>}</>}><form
         className="stack"
         onSubmit={(e) => {
           e.preventDefault();
@@ -110,12 +113,12 @@ export default function PriceCatalog({
         <button className="btn btn-primary" disabled={busy || !canWrite}>
           {t('تسجيل سعر جديد', 'Register new price')}
         </button>
-      </form>}
+      </form></RecordEditor>}
       <div className="form-actions"><input type="search" aria-label={t('بحث الأسعار','Search prices')} value={search} onChange={e=>setSearch(e.target.value)}/><select aria-label={t('حالة السعر','Price status')} value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">{t('كل الحالات','All statuses')}</option><option value="active">{t('متاح','Available')}</option><option value="retired">{t('متقاعد','Retired')}</option></select><span className="muted">{visible.length} / {prices.length}</span></div>
       {busy&&<p role="status">{t('جارٍ التحميل…','Loading…')}</p>}
       {loaded&&!busy&&!error&&!visible.length&&<p className="empty">{t('لا توجد أسعار مطابقة','No matching prices')}</p>}
       {visible.map((p) => (
-        <article key={p.provider_id} className="card">
+        <article key={p.provider_id} className={styles.priceRow}>
           <strong>
             {p.plan_code} · {p.provider_id}
           </strong>
@@ -124,7 +127,7 @@ export default function PriceCatalog({
             {p.active ? t('متاح', 'Available') : t('متقاعد', 'Retired')}
           </p>
           {p.active && canWrite && (
-            <form
+            <RecordEditor {...editorProps} disabled={busy||editorProps.disabled} title={t('تقاعد السعر','Retire price')} action={t('تقاعد السعر','Retire price')} summary={<span>{t('إيقاف الاشتراكات الجديدة بهذا السعر','Stop new subscriptions at this price')}</span>} feedback={<>{editorProps.feedback}{error&&<p role="alert" className="notice error">{error}</p>}{notice&&<p role="status" className="notice">{notice}</p>}</>}><form
               onSubmit={(e) => {
                 e.preventDefault();
                 const reason = new FormData(e.currentTarget).get('reason');
@@ -138,7 +141,7 @@ export default function PriceCatalog({
               <button className="btn" disabled={busy || !canWrite}>
                 {t('تقاعد السعر', 'Retire price')}
               </button>
-            </form>
+            </form></RecordEditor>
           )}
         </article>
       ))}
