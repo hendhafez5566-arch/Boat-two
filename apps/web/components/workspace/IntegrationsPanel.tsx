@@ -151,7 +151,7 @@ export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolea
         <div className={styles.profileHeading}>
           <h1>{t(group.ar, group.en)}</h1>
           <button type="button" className="btn" disabled={busy||list.loading||!!list.error} onClick={() => edit(null)}>
-            ＋ {t('جديد', 'New')}
+            <NavIcon name="plus"/>{t('جديد', 'New')}
           </button>
         </div>
         {(error || list.error) && (
@@ -191,7 +191,7 @@ export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolea
                   <td>
                     <div className={styles.rowActions}>
                       <button type="button" className="btn" disabled={busy} onClick={() => edit(c)}>
-                        {c.status==='disconnected'?t('إعادة الربط','Reconnect'):t('تعديل', 'Edit')}
+                        <NavIcon name={c.status==='disconnected'?'refresh':'edit'}/>{c.status==='disconnected'?t('إعادة الربط','Reconnect'):t('تعديل', 'Edit')}
                       </button>
                       <button
                         type="button"
@@ -199,9 +199,9 @@ export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolea
                         disabled={busy || c.status === 'disconnected'}
                         onClick={() => void change(c)}
                       >
-                        {c.enabled ? t('تعطيل', 'Disable') : t('تفعيل', 'Enable')}
+                        <NavIcon name={c.enabled?'pause':'play'}/>{c.enabled ? t('تعطيل', 'Disable') : t('تفعيل', 'Enable')}
                       </button>
-                      {c.status!=='disconnected'&&<button type="button" className="btn btn-danger" disabled={busy} onClick={()=>void disconnect(c)}>{t('فصل الربط','Disconnect')}</button>}
+                      {c.status!=='disconnected'&&<button type="button" className="btn btn-danger" disabled={busy} onClick={()=>void disconnect(c)}><NavIcon name="blocked"/>{t('فصل الربط','Disconnect')}</button>}
                     </div>
                   </td>
                 </tr>
@@ -377,7 +377,7 @@ export default function Integrations({onDraftState}:{onDraftState?:(dirty:boolea
             </div>
             <footer className={styles.profileSave}>
               <button className="btn btn-primary" disabled={busy||!dirty}>
-                {t('حفظ', 'Save')}
+                <NavIcon name="check"/>{t('حفظ', 'Save')}
               </button>
             </footer>
           </form>
