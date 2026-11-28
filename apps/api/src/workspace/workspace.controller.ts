@@ -258,6 +258,282 @@ export class WorkspaceController {
     });
   }
 
+  @Get('team/index')
+  teamIndex(@Req() req: AuthedRequest, @Query() query: unknown) {
+    const q = parse(z.object({
+      tab: z.enum(['members', 'invites']).default('members'),
+      q: z.string().trim().max(200).default(''),
+      role: z.enum(['all', 'owner', 'admin', 'agent']).default('all'),
+      availability: z.enum(['all', 'available', 'away']).default('all'),
+      page: z.coerce.number().int().min(1).max(100000).default(1),
+      limit: z.coerce.number().int().min(1).max(100).default(25),
+    }), query);
+    const manager = ['owner', 'admin'].includes(req.user.role);
+    if (q.tab === 'invites' && !manager) throw new ForbiddenException('Invitation management requires administrator access');
+    return this.db.withTenant(req.user.tenantId, async c => {
+      const memberCounts = (await c.query('SELECT count(*)::int AS members, count(*) FILTER (WHERE available)::int AS available FROM memberships')).rows[0];
+      const pending = manager ? Number((await c.query('SELECT count(*)::int AS n FROM invitations WHERE accepted_at IS NULL AND expires_at > now()')).rows[0].n) : null;
+      const params: unknown[] = [];
+      const clauses: string[] = [];
+      const arg = (value: unknown) => { params.push(value); return '
+  invite(@Req() req: AuthedRequest, @Body() body: unknown) {
+    const input = parse(inviteSchema, body);
+    if (input.role === 'admin' && req.user.role !== 'owner')
+      throw new ForbiddenException('Only the owner can invite admins');
+    return this.db.withTenant(req.user.tenantId, async (c) => {
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+      const members = (await c.query('SELECT count(*)::int AS n FROM memberships')).rows[0].n;
+      const pending = (
+        await c.query(
+          'SELECT count(*)::int AS n FROM invitations WHERE accepted_at IS NULL AND expires_at > now()',
+        )
+      ).rows[0].n;
+      await this.plans.assertWithinLimit(c, 'agents', members + pending);
+
+      const token = randomBytes(32).toString('hex');
+      const inserted = await c.query(
+        `INSERT INTO invitations (tenant_id, email, role, token_hash, invited_by, expires_at)
+         VALUES ($1, $2, $3, $4, $5, now() + interval '7 days') RETURNING id`,
+        [
+          req.user.tenantId,
+          input.email.toLowerCase(),
+          input.role,
+          createHash('sha256').update(token).digest('hex'),
+          req.user.userId,
+        ],
+      );
+      const brand = await this.mail.appearance(req.user.tenantId);
+      const mailJob = input.sendEmail
+        ? await this.mail.enqueue(
+            req.user.tenantId,
+            inserted.rows[0].id,
+            input.email,
+            token,
+            input.language,
+          )
+        : null;
+      return { inviteUrl: `${brand.origin}/accept-invitation?token=${token}`, mailJob };
+    });
+  }
+
+  @Roles('owner')
+  @Patch('team/members/:userId')
+  changeRole(
+    @Req() req: AuthedRequest,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() body: unknown,
+  ) {
+    const { role } = parse(roleSchema, body);
+    if (userId === req.user.userId) throw new BadRequestException('Cannot change your own role');
+    return this.db.withTenant(req.user.tenantId, async (c) => {
+      const r = await c.query(
+        "UPDATE memberships SET role = $1 WHERE user_id = $2 AND role <> 'owner' RETURNING user_id, role",
+        [role, userId],
+      );
+      if (!r.rows[0]) throw new NotFoundException('Member not found or is the owner');
+      return r.rows[0];
+    });
+  }
+
+  @Roles('owner', 'admin')
+  @Delete('team/members/:userId')
+  removeMember(@Req() req: AuthedRequest, @Param('userId', ParseUUIDPipe) userId: string) {
+    return this.db.withTenant(req.user.tenantId, async (c) => {
+      const target = (await c.query('SELECT role FROM memberships WHERE user_id = $1', [userId]))
+        .rows[0];
+      if (!target) throw new NotFoundException('Member not found');
+      if (target.role === 'owner') throw new ForbiddenException('Cannot remove the owner');
+      if (target.role === 'admin' && req.user.role !== 'owner') {
+        throw new ForbiddenException('Only the owner can remove an admin');
+      }
+      await c.query('DELETE FROM memberships WHERE user_id = $1', [userId]);
+      await c.query(
+        'UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND tenant_id = $2',
+        [userId, req.user.tenantId],
+      );
+      return { removed: true };
+    });
+  }
+}
+ + params.length; };
+      const members = q.tab === 'members';
+      const from = members ? ' FROM memberships m JOIN users u ON u.id=m.user_id' : ' FROM invitations i';
+      if (!members) clauses.push('i.accepted_at IS NULL AND i.expires_at > now()');
+      if (q.q) {
+        const p = arg(q.q);
+        clauses.push(members ? "(strpos(lower(u.full_name),lower(" + p + "))>0 OR strpos(lower(u.email),lower(" + p + "))>0)" : "strpos(lower(i.email),lower(" + p + "))>0");
+      }
+      if (q.role !== 'all') clauses.push((members ? 'm.role' : 'i.role') + '=' + arg(q.role));
+      if (members && q.availability !== 'all') clauses.push('m.available=' + arg(q.availability === 'available'));
+      const where = from + (clauses.length ? ' WHERE ' + clauses.join(' AND ') : '');
+      const total = Number((await c.query('SELECT count(*)::int AS n' + where, params)).rows[0].n);
+      const fields = members ? 'm.user_id,m.role,m.available,u.email,u.full_name' : 'i.id,i.email,i.role,i.expires_at';
+      const order = members ? 'm.created_at,m.user_id' : 'i.created_at DESC,i.id DESC';
+      const items = (await c.query('SELECT ' + fields + where + ' ORDER BY ' + order + ' LIMIT 
+  invite(@Req() req: AuthedRequest, @Body() body: unknown) {
+    const input = parse(inviteSchema, body);
+    if (input.role === 'admin' && req.user.role !== 'owner')
+      throw new ForbiddenException('Only the owner can invite admins');
+    return this.db.withTenant(req.user.tenantId, async (c) => {
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+      const members = (await c.query('SELECT count(*)::int AS n FROM memberships')).rows[0].n;
+      const pending = (
+        await c.query(
+          'SELECT count(*)::int AS n FROM invitations WHERE accepted_at IS NULL AND expires_at > now()',
+        )
+      ).rows[0].n;
+      await this.plans.assertWithinLimit(c, 'agents', members + pending);
+
+      const token = randomBytes(32).toString('hex');
+      const inserted = await c.query(
+        `INSERT INTO invitations (tenant_id, email, role, token_hash, invited_by, expires_at)
+         VALUES ($1, $2, $3, $4, $5, now() + interval '7 days') RETURNING id`,
+        [
+          req.user.tenantId,
+          input.email.toLowerCase(),
+          input.role,
+          createHash('sha256').update(token).digest('hex'),
+          req.user.userId,
+        ],
+      );
+      const brand = await this.mail.appearance(req.user.tenantId);
+      const mailJob = input.sendEmail
+        ? await this.mail.enqueue(
+            req.user.tenantId,
+            inserted.rows[0].id,
+            input.email,
+            token,
+            input.language,
+          )
+        : null;
+      return { inviteUrl: `${brand.origin}/accept-invitation?token=${token}`, mailJob };
+    });
+  }
+
+  @Roles('owner')
+  @Patch('team/members/:userId')
+  changeRole(
+    @Req() req: AuthedRequest,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() body: unknown,
+  ) {
+    const { role } = parse(roleSchema, body);
+    if (userId === req.user.userId) throw new BadRequestException('Cannot change your own role');
+    return this.db.withTenant(req.user.tenantId, async (c) => {
+      const r = await c.query(
+        "UPDATE memberships SET role = $1 WHERE user_id = $2 AND role <> 'owner' RETURNING user_id, role",
+        [role, userId],
+      );
+      if (!r.rows[0]) throw new NotFoundException('Member not found or is the owner');
+      return r.rows[0];
+    });
+  }
+
+  @Roles('owner', 'admin')
+  @Delete('team/members/:userId')
+  removeMember(@Req() req: AuthedRequest, @Param('userId', ParseUUIDPipe) userId: string) {
+    return this.db.withTenant(req.user.tenantId, async (c) => {
+      const target = (await c.query('SELECT role FROM memberships WHERE user_id = $1', [userId]))
+        .rows[0];
+      if (!target) throw new NotFoundException('Member not found');
+      if (target.role === 'owner') throw new ForbiddenException('Cannot remove the owner');
+      if (target.role === 'admin' && req.user.role !== 'owner') {
+        throw new ForbiddenException('Only the owner can remove an admin');
+      }
+      await c.query('DELETE FROM memberships WHERE user_id = $1', [userId]);
+      await c.query(
+        'UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND tenant_id = $2',
+        [userId, req.user.tenantId],
+      );
+      return { removed: true };
+    });
+  }
+}
+ + (params.length + 1) + ' OFFSET 
+  invite(@Req() req: AuthedRequest, @Body() body: unknown) {
+    const input = parse(inviteSchema, body);
+    if (input.role === 'admin' && req.user.role !== 'owner')
+      throw new ForbiddenException('Only the owner can invite admins');
+    return this.db.withTenant(req.user.tenantId, async (c) => {
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+      const members = (await c.query('SELECT count(*)::int AS n FROM memberships')).rows[0].n;
+      const pending = (
+        await c.query(
+          'SELECT count(*)::int AS n FROM invitations WHERE accepted_at IS NULL AND expires_at > now()',
+        )
+      ).rows[0].n;
+      await this.plans.assertWithinLimit(c, 'agents', members + pending);
+
+      const token = randomBytes(32).toString('hex');
+      const inserted = await c.query(
+        `INSERT INTO invitations (tenant_id, email, role, token_hash, invited_by, expires_at)
+         VALUES ($1, $2, $3, $4, $5, now() + interval '7 days') RETURNING id`,
+        [
+          req.user.tenantId,
+          input.email.toLowerCase(),
+          input.role,
+          createHash('sha256').update(token).digest('hex'),
+          req.user.userId,
+        ],
+      );
+      const brand = await this.mail.appearance(req.user.tenantId);
+      const mailJob = input.sendEmail
+        ? await this.mail.enqueue(
+            req.user.tenantId,
+            inserted.rows[0].id,
+            input.email,
+            token,
+            input.language,
+          )
+        : null;
+      return { inviteUrl: `${brand.origin}/accept-invitation?token=${token}`, mailJob };
+    });
+  }
+
+  @Roles('owner')
+  @Patch('team/members/:userId')
+  changeRole(
+    @Req() req: AuthedRequest,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() body: unknown,
+  ) {
+    const { role } = parse(roleSchema, body);
+    if (userId === req.user.userId) throw new BadRequestException('Cannot change your own role');
+    return this.db.withTenant(req.user.tenantId, async (c) => {
+      const r = await c.query(
+        "UPDATE memberships SET role = $1 WHERE user_id = $2 AND role <> 'owner' RETURNING user_id, role",
+        [role, userId],
+      );
+      if (!r.rows[0]) throw new NotFoundException('Member not found or is the owner');
+      return r.rows[0];
+    });
+  }
+
+  @Roles('owner', 'admin')
+  @Delete('team/members/:userId')
+  removeMember(@Req() req: AuthedRequest, @Param('userId', ParseUUIDPipe) userId: string) {
+    return this.db.withTenant(req.user.tenantId, async (c) => {
+      const target = (await c.query('SELECT role FROM memberships WHERE user_id = $1', [userId]))
+        .rows[0];
+      if (!target) throw new NotFoundException('Member not found');
+      if (target.role === 'owner') throw new ForbiddenException('Cannot remove the owner');
+      if (target.role === 'admin' && req.user.role !== 'owner') {
+        throw new ForbiddenException('Only the owner can remove an admin');
+      }
+      await c.query('DELETE FROM memberships WHERE user_id = $1', [userId]);
+      await c.query(
+        'UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND tenant_id = $2',
+        [userId, req.user.tenantId],
+      );
+      return { removed: true };
+    });
+  }
+}
+ + (params.length + 2), [...params,q.limit,(q.page-1)*q.limit])).rows;
+      return { items,total,role:req.user.role,metrics:{members:Number(memberCounts.members),available:Number(memberCounts.available),pending} };
+    });
+  }
+
   @Roles('owner', 'admin')
   @Post('team/invitations')
   invite(@Req() req: AuthedRequest, @Body() body: unknown) {
