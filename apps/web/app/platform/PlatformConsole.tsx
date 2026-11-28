@@ -86,6 +86,7 @@ export default function Console({designReview=false,designPlans=null}:{designRev
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   useEffect(()=>{const guard=(e:BeforeUnloadEvent)=>{if(draft.current||lock.current||writeLock.current||backupCodes.length){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',guard);return()=>window.removeEventListener('beforeunload',guard);},[backupCodes.length]);
   const [companyStatus, setCompanyStatus] = useState('');
+  const [userStatus,setUserStatus]=useState('');
   const [appliedCompanyQuery, setAppliedCompanyQuery] = useState('');
   const [appliedUserQuery, setAppliedUserQuery] = useState('');
   const [companyQuery, setCompanyQuery] = useState(''),
@@ -102,19 +103,21 @@ export default function Console({designReview=false,designPlans=null}:{designRev
       userPage?: number;
       companyQuery?: string;
       userQuery?: string;
+      companyStatus?:string;userStatus?:string;
     } = {},
   ) {
     const cp = options.companyPage ?? companyPage,
       up = options.userPage ?? userPage;
     const companySearch = options.companyQuery ?? appliedCompanyQuery;
     const userSearch = options.userQuery ?? appliedUserQuery;
+    const cs=options.companyStatus??companyStatus,us=options.userStatus??userStatus;
     const session = await request('/session', undefined, 'GET', access);
     const [snapshot, companies, users, overview] = await Promise.all([
       request('', undefined, 'GET', access),
       session.permissions.includes('companies.read')
         ? request(
             '/directory?' +
-              new URLSearchParams({ kind: 'companies', q: companySearch, page: String(cp) }),
+              new URLSearchParams({ kind: 'companies', q: companySearch, page: String(cp),status:cs }),
             undefined,
             'GET',
             access,
@@ -122,7 +125,7 @@ export default function Console({designReview=false,designPlans=null}:{designRev
         : Promise.resolve({ items: [], total: 0 }),
       session.permissions.includes('users.read')
         ? request(
-            '/directory?' + new URLSearchParams({ kind: 'users', q: userSearch, page: String(up) }),
+            '/directory?' + new URLSearchParams({ kind: 'users', q: userSearch, page: String(up),status:us }),
             undefined,
             'GET',
             access,
@@ -150,10 +153,11 @@ export default function Console({designReview=false,designPlans=null}:{designRev
     setAppliedUserQuery(userSearch);
     setCompanyTotal(companies.total);
     setUserTotal(users.total);
+    setCompanyStatus(cs);setUserStatus(us);
     setCompanyPage(cp);
     setUserPage(up);
   }
-  async function directoryPage(kind: 'companies' | 'users', page: number, query?: string) {
+  async function directoryPage(kind: 'companies' | 'users', page: number, query?: string,status?:string) {
     if(lock.current||writeLock.current)return;
     lock.current=true;setBusy(true);
     setError('');
@@ -161,8 +165,8 @@ export default function Console({designReview=false,designPlans=null}:{designRev
       await loadSnapshot(
         token,
         kind === 'companies'
-          ? { companyPage: page, companyQuery: query }
-          : { userPage: page, userQuery: query },
+          ? { companyPage: page, companyQuery: query,companyStatus:status }
+          : { userPage: page, userQuery: query,userStatus:status },
       );
     } catch (e) {
       setError((e as Error).message);
@@ -292,11 +296,7 @@ export default function Console({designReview=false,designPlans=null}:{designRev
   const editorProps={canClose:canCloseEditor,disabled:busy||writing,verification:!designReview?<label className={styles.inlineVerification}>{t('رمز مصادقة جديد لكل حفظ','Fresh authenticator code for each save')}<input value={stepUpCode} onChange={e=>setStepUpCode(e.target.value.replace(/[^0-9]/g,'').slice(0,6))} inputMode="numeric" autoComplete="one-time-code" maxLength={6}/></label>:null,feedback:<>{error&&<p role="alert" className="notice error">{error}</p>}{message&&<p role="status" className="notice">{message}</p>}</>};
   const activeSection = sections.find(({ id }) => id === section) ?? sections[0];
 
-  const visibleCompanies = data?.companies.filter((company) => {
-    if (!companyStatus) return true;
-    if (companyStatus === 'suspended') return Boolean(company.suspended_at);
-    return company.status === companyStatus;
-  });
+  const visibleCompanies=data?.companies;
 
   return (
     <main
@@ -506,7 +506,7 @@ export default function Console({designReview=false,designPlans=null}:{designRev
                 setUserQuery('');
                 setAppliedCompanyQuery('');
                 setAppliedUserQuery('');
-                setCompanyStatus('');
+                setCompanyStatus('');setUserStatus('');
                 setCompanyPage(1);
                 setUserPage(1);
                 setError('');
@@ -695,10 +695,10 @@ export default function Console({designReview=false,designPlans=null}:{designRev
                     </button>
                   </form>
                   <label className={styles.filter}>
-                    {t('تصفية الصفحة الحالية', 'Filter this page')}
+                    {t('حالة الشركة','Company status')}
                     <select
                       value={companyStatus}
-                      onChange={(event) => setCompanyStatus(event.target.value)}
+                      disabled={busy||writing} onChange={(event) => void directoryPage('companies',1,companyQuery.trim(),event.target.value)}
                     >
                       <option value="">{t('كل الحالات', 'All statuses')}</option>
                       <option value="suspended">{t('معلّقة', 'Suspended')}</option>
@@ -897,6 +897,7 @@ export default function Console({designReview=false,designPlans=null}:{designRev
                       {t('التالي', 'Next')}
                     </button>
                   </form>
+                  <label className={styles.filter}>{t('حالة المستخدم','User status')}<select value={userStatus} disabled={busy||writing} onChange={e=>void directoryPage('users',1,userQuery.trim(),e.target.value)}><option value="">{t('كل الحالات','All statuses')}</option><option value="active">{t('نشط','Active')}</option><option value="disabled">{t('موقوف','Disabled')}</option></select></label>
                   <div className={styles.directoryHead} data-users><span>{t('المستخدم','User')}</span><span>{t('الجلسات','Sessions')}</span><span>{t('الحالة','Status')}</span><span>{t('الإجراء','Action')}</span></div>
                   {data?.users.map((user) => (
                     <RecordEditor key={user.id} {...editorProps} title={user.full_name||user.email} summary={<>
