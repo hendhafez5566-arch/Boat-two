@@ -12,7 +12,7 @@ import { env } from '../config/env';
 import { PlansService } from '../plans/plans.service';
 import { Role } from '../common/types';
 import { DatabaseService } from '../database/database.service';
-import { hashPassword, verifyPassword } from './password';
+import { hashPassword, verifyPassword, isSetupCredential, verifySetupCredential } from './password';
 
 interface Workspace {
   tenant_id: string;
@@ -129,13 +129,15 @@ export class AuthService {
     password: string;
     tenantId?: string;
     brandHostname?: string;
+    newPassword?: string;
   }) {
     const r = await this.db.query<{ id: string; password_hash: string | null }>(
       'SELECT id, password_hash FROM users WHERE email = $1',
       [input.email.toLowerCase()],
     );
     const user = r.rows[0];
-    const ok = await verifyPassword(input.password, user?.password_hash ?? null);
+    const setup=isSetupCredential(user?.password_hash ?? null);
+    const ok = setup?await verifySetupCredential(input.password,user.password_hash):await verifyPassword(input.password, user?.password_hash ?? null);
     if (!user || !ok) throw new UnauthorizedException('Invalid email or password');
 
     if (input.brandHostname) input.tenantId = await this.brandedTenant(input.brandHostname);
@@ -143,6 +145,17 @@ export class AuthService {
     const chosen = input.tenantId ? spaces.find((s) => s.tenant_id === input.tenantId) : spaces[0];
     if (!chosen) throw new ForbiddenException('No workspace for this user');
 
+    if(setup){
+      if(!input.newPassword)throw new ForbiddenException({code:'PASSWORD_CHANGE_REQUIRED',message:'Choose a new password before signing in'});
+      if(input.newPassword===input.password)throw new BadRequestException('Choose a different password');
+      const changed=await this.db.withTenant(chosen.tenant_id,async c=>{
+        await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+        if(!(await c.query('SELECT 1 FROM memberships WHERE user_id=$1',[user.id])).rowCount)return false;
+        const updated=await c.query('UPDATE users SET password_hash=$2 WHERE id=$1 AND password_hash=$3 AND disabled_at IS NULL',[user.id,await hashPassword(input.newPassword!),user.password_hash]);
+        return !!updated.rowCount;
+      });
+      if(!changed)throw new UnauthorizedException('Setup credential already used or membership removed');
+    }else if(input.newPassword){throw new BadRequestException('Password setup is not required');}
     const tokens = await this.issueTokens(user.id, chosen.tenant_id, chosen.role);
     return {
       ...tokens,
