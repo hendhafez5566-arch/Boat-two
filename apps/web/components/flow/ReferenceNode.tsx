@@ -45,7 +45,7 @@ export default function ReferenceNode({ data }: NodeProps<ReferenceData>) {
           top: 'auto',
           bottom: 14,
           background: '#fff',
-          border: '2px solid #778292',
+          border: '2px solid #50647d',
           width: 15,
           height: 15,
         }}
