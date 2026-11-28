@@ -6,6 +6,7 @@ import { useTransientNotice } from '../../../components/product/useTransientNoti
 import { useSearchParams } from 'next/navigation';
 import { api } from '../../../lib/api';
 import PlansPanel from './PlansPanel';
+import CurrentSubscription from './CurrentSubscription';
 import BillingPanel from './BillingPanel';
 import { useData } from '../../../components/business/useData';
 import {
@@ -16,12 +17,10 @@ import { useLocale } from '../../../components/product/locale';
 import { NavIcon } from '../../../components/product/NavIcon';
 import {
   billingDate,
-  billingMoney,
   type BillingPlan,
   type BillingStatus,
   type BillingWorkspace,
 } from '../../../lib/billing-display';
-import { statusLabel } from '../../../components/product/status';
 import styles from './subscription.module.css';
 
 type History = {
@@ -98,11 +97,7 @@ export default function Subscription() {
 function SubscriptionContent() {
   const params = useSearchParams();
   const section = params.get('tab');
-  const tab = section === 'billing' || section === 'plans' ? section : 'usage';
-  const [openedBilling, setOpenedBilling] = useState(tab === 'billing');
-  useEffect(() => {
-    if (tab === 'billing') setOpenedBilling(true);
-  }, [tab]);
+  const tab = section === 'billing' || section === 'plans' || section === 'usage' ? section : 'overview';
   const { t, language } = useLocale();
   const [restoring, setRestoring] = useState(false);
   const [restoreResult, setRestoreResult] = useState<{ count?: number; error?: boolean } | null>(
@@ -134,7 +129,7 @@ function SubscriptionContent() {
   const reloadPlans=plans.reload;
   useEffect(()=>{const refresh=()=>{if(!document.hidden)void reloadPlans();};const timer=setInterval(refresh,15000);document.addEventListener('visibilitychange',refresh);window.addEventListener('focus',refresh);return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',refresh);window.removeEventListener('focus',refresh);};},[reloadPlans]);
   const usage = snapshot?.usage;
-  const history = useData<History | null>(usage ? '/workspace/subscription-history' : null, null);
+  const history = useData<History | null>(usage && tab==='usage' ? '/workspace/subscription-history' : null, null);
   const reloadHistory = history.reload;
   useEffect(() => {
     if (usage?.cycleStart) void reloadHistory();
@@ -148,21 +143,6 @@ function SubscriptionContent() {
   const n = new Intl.NumberFormat(language === 'ar' ? 'ar-EG' : 'en-GB');
   const date = (value: string | null | undefined) =>
     value ? billingDate(value, language, 'UTC') : '—';
-  const limit = (key: string) => {
-    const value = usage?.plan.limits[key];
-    return value === -1 ? t('غير محدود', 'Unlimited') : value == null ? '—' : n.format(value);
-  };
-  const subscription = !billing.error&&!billing.loading?billing.data?.subscription:undefined;
-  const renewal =
-    subscription?.linked &&
-    ['active', 'trialing'].includes(subscription.status) &&
-    !subscription.cancelAtPeriodEnd
-      ? subscription.currentPeriodEnd
-      : null;
-  const days =
-    renewal && usage
-      ? Math.max(0, Math.ceil((Date.parse(renewal) - Date.parse(usage.asOf)) / 86400000))
-      : null;
   const max = Math.max(1, ...(history.data?.days.map((item) => item.count) ?? []));
   const warning = usage
     ? ([
@@ -184,7 +164,8 @@ function SubscriptionContent() {
       <nav className={styles.tabs} aria-label={t('أقسام الاشتراك', 'Subscription sections')}>
         {(
           [
-            ['usage', '', 'الاستهلاك', 'Usage'],
+            ['overview', '', 'اشتراكي الحالي', 'Current subscription'],
+            ['usage', '?tab=usage', 'الاستهلاك والحدود', 'Usage & limits'],
             ['plans', '?tab=plans', 'الباقات والترقية', 'Plans & upgrades'],
             ['billing', '?tab=billing', 'الفواتير والمدفوعات', 'Invoices & payments'],
           ] as const
@@ -195,11 +176,12 @@ function SubscriptionContent() {
             scroll={false}
             aria-current={tab === key ? 'page' : undefined}
           >
-            <NavIcon name={key==='usage'?'reports':key==='plans'?'upgrade':'billing'}/>{t(ar, en)}
+            <NavIcon name={key==='overview'?'calendar':key==='usage'?'reports':key==='plans'?'upgrade':'billing'}/>{t(ar, en)}
           </Link>
         ))}
       </nav>
-      <div hidden={tab !== 'plans'}>
+      {tab==='overview'&&<CurrentSubscription usage={usage} plan={plan} billing={billing.data} billingLoading={billing.loading} billingError={billing.error} stale={!!snapshot?.stale} role={workspace.data?.role}/>}
+      {tab==='plans'&&<div>
         <PlansPanel
           plans={plans.data}
           currentPlan={usage?.plan.plan_code ?? workspace.data?.plan.plan_code}
@@ -208,9 +190,9 @@ function SubscriptionContent() {
           loading={plans.loading}
           requestError={plans.error || workspace.error || billing.error}
         />
-      </div>
-      {(openedBilling || tab === 'billing') && (
-        <div hidden={tab !== 'billing'}>
+      </div>}
+      {tab === 'billing' && (
+        <div>
           <BillingPanel
             status={billing.data}
             role={workspace.data?.role}
@@ -219,7 +201,7 @@ function SubscriptionContent() {
           />
         </div>
       )}
-      <div hidden={tab !== 'usage'}>
+      {tab==='usage'&&<div>
         {!usage ? (
           <section className={styles.panel} role={snapshot?.stale ? 'alert' : 'status'}>
             {snapshot?.stale
@@ -232,34 +214,6 @@ function SubscriptionContent() {
         ) : (
           <div className={styles.layout}>
             <div className={styles.content}>
-              <section className={styles.hero}>
-                <div>
-                  <span>{t('باقتك الحالية', 'Your current plan')}</span>
-                  <h2>{usage.plan.plan_name}</h2>
-                  <p>
-                    {usage.plan.trial_expired
-                      ? t('انتهت التجربة', 'Trial ended')
-                      : statusLabel(usage.plan.status, t)}
-                  </p>
-                </div>
-                <dl>
-                  {(
-                    [
-                      ['channels', 'القنوات', 'Channels'],
-                      ['agents', 'الموظفون', 'Staff'],
-                      ['flows', 'التدفقات', 'Flows'],
-                    ] as const
-                  ).map(([key, ar, en]) => (
-                    <div key={key}>
-                      <dt>{t(ar, en)}</dt>
-                      <dd>{limit(key)}</dd>
-                    </div>
-                  ))}
-                </dl>
-                <Link className="btn" href="/dashboard/subscription?tab=plans">
-                  <NavIcon name="settings"/>{t('إدارة الاشتراك', 'Manage subscription')}
-                </Link>
-              </section>
               <section className={styles.panel} aria-labelledby="usage-heading">
                 <div className={styles.sectionHeader}>
                   <h2 id="usage-heading">{t('الاستخدام الحالي', 'Current usage')}</h2>
@@ -300,6 +254,12 @@ function SubscriptionContent() {
                     purple
                   />
                 </div>
+                {usage.resources&&<><h2>{t('الموظفون والقنوات والبوتات','Staff, channels and bots')}</h2><div className={styles.meters}>
+                  <UsageCard title={t('الموظفون','Staff')} subtitle={t('مقاعد الفريق الحالية','Current team seats')} icon="team" meter={usage.resources.agents}/>
+                  <UsageCard title={t('القنوات','Channels')} subtitle={t('القنوات المسجلة','Registered channels')} icon="channels" meter={usage.resources.channels}/>
+                  <UsageCard title={t('التدفقات','Flows')} subtitle={t('التدفقات والمكونات القابلة لإعادة الاستخدام','Flows including reusable components')} icon="flows" meter={usage.resources.flows}/>
+                  <article className={styles.meter}><div className={styles.cardHeader}><h3>{t('البوتات المستقلة','Standalone bots')}</h3><NavIcon name="flows"/></div><p className={styles.reading}>{n.format(usage.resources.bots)}</p><p className={styles.muted}>{t('عدد التدفقات غير المخصصة كمكونات؛ ضمن حد التدفقات أعلاه.','Non-component flows; included in the flow quota above.')}</p></article>
+                </div></>}
                 {(usage.tokens.limit >= 0 || usage.costLimitMicrousd != null) && (
                   <p className={styles.muted}>
                     {t('التوكنز المحتسبة والمحجوزة', 'Charged and reserved tokens')}{' '}
@@ -328,7 +288,7 @@ function SubscriptionContent() {
                     ))}
                   </div>
                 )}
-                {(usage.heldInbound ?? 0) > 0 && (
+                {['owner','admin'].includes(workspace.data?.role??'')&&(usage.heldInbound ?? 0) > 0 && (
                   <div className={styles.warning}>
                     <span>
                       <bdi>{n.format(usage.heldInbound ?? 0)}</bdi>{' '}
@@ -370,9 +330,6 @@ function SubscriptionContent() {
                 <div className={styles.actions}>
                   <Link className="btn btn-primary" href="/dashboard/subscription?tab=plans">
                     <NavIcon name="upgrade"/>{t('عرض الباقات والترقية', 'Compare and upgrade plans')}
-                  </Link>
-                  <Link className="btn" href="/dashboard/subscription?tab=plans#additional-credit">
-                    <NavIcon name="coins"/>{t('حالة الرصيد الإضافي', 'Top-up availability')}
                   </Link>
                 </div>
               </section>
@@ -442,67 +399,10 @@ function SubscriptionContent() {
                   </div>
                 </dl>
               </section>
-              <section className={styles.panel}>
-                <h2>{t('الفوترة والدفع', 'Billing & payment')}</h2>
-                <dl className={styles.sideFacts}>
-                  <div>
-                    <dt>{t('سعر الباقة', 'Plan price')}</dt>
-                    <dd>
-                      {plan ? (
-                        <>
-                          <bdi>{billingMoney(plan.price_cents, plan.currency)}</bdi> /{' '}
-                          {plan.interval === 'year' ? t('سنة', 'year') : t('شهر', 'month')}
-                        </>
-                      ) : (
-                        '—'
-                      )}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>{t('التجديد المقبل', 'Next renewal')}</dt>
-                    <dd>
-                      {date(renewal)}
-                      {days != null && (
-                        <>
-                          {' '}
-                          · {n.format(days)} {t('يوم', 'days')}
-                        </>
-                      )}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>{t('التجديد التلقائي', 'Automatic renewal')}</dt>
-                    <dd>
-                      {renewal
-                        ? t('مفعّل', 'On')
-                        : subscription?.cancelAtPeriodEnd
-                          ? t('متوقف', 'Off')
-                          : t('غير مؤكد', 'Unconfirmed')}
-                    </dd>
-                  </div>
-                </dl>
-                {!billing.loading && billing.data && !billing.data.configured && (
-                  <p className={styles.muted}>
-                    {t(
-                      'الدفع عبر المنصة غير مفعّل حاليًا.',
-                      'Online payment is currently disabled.',
-                    )}
-                  </p>
-                )}
-                <Link className="btn" href="/dashboard/subscription?tab=billing">
-                  <NavIcon name="billing"/>{t('عرض سجل الفواتير', 'Invoice history')}
-                </Link>
-              </section>
-              <section className={styles.panel}>
-                <h2>{t('مساعدة الاشتراك', 'Subscription support')}</h2>
-                <Link className="btn" href="/dashboard/support">
-                  <NavIcon name="support"/>{t('تواصل مع الدعم', 'Contact support')}
-                </Link>
-              </section>
             </aside>
           </div>
         )}
-      </div>
+      </div>}
     </main>
   );
 }
