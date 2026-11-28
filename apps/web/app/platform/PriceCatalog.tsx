@@ -1,5 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { NavIcon } from '../../components/product/NavIcon';
+import { useTransientNotice } from '../../components/product/useTransientNotice';
 import { useLocale } from '../../components/product/locale';
 type Price = {
   provider_id: string;
@@ -20,21 +22,25 @@ export default function PriceCatalog({
   const [prices, setPrices] = useState<Price[]>([]),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
+  const lock=useRef(false),[loaded,setLoaded]=useState(false),[notice,setNotice]=useState(''),[filter,setFilter]=useState('all'),[search,setSearch]=useState('');
+  useTransientNotice(notice,()=>setNotice(''));
+  const visible=prices.filter(p=>(filter==='all'||p.active===(filter==='active'))&&[p.plan_code,p.provider_id,p.currency].join(' ').toLowerCase().includes(search.toLowerCase()));
   async function load() {
-    setPrices((await request('/prices')) as Price[]);
+    setPrices((await request('/prices')) as Price[]);setLoaded(true);
   }
-  async function act(fn: () => Promise<unknown>) {
-    setBusy(true);
+  async function act(fn?: () => Promise<unknown>) {
+    if(lock.current||fn&&!canWrite)return;lock.current=true;setBusy(true);
     setError('');
     try {
-      await fn();
+      if(fn){await fn();setNotice(t('تم تحديث الكتالوج','Catalog updated'));}
       await load();
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      lock.current=false;setBusy(false);
     }
   }
+  useEffect(()=>{void act();},[]);
   return (
     <section className="card stack">
       <h2>{t('كتالوج أسعار Stripe', 'Stripe price catalog')}</h2>
@@ -49,14 +55,16 @@ export default function PriceCatalog({
           {error}
         </p>
       )}
-      <button className="btn" disabled={busy} onClick={() => act(load)}>
-        {t('تحميل الأسعار', 'Load prices')}
+      <button className="btn" disabled={busy} onClick={() => void act()}>
+        <NavIcon name="refresh"/>{t('تحميل الأسعار', 'Load prices')}
       </button>
-      <form
+      {notice&&<p role="status" className="notice">{notice}</p>}
+      {canWrite&&<form
         className="stack"
         onSubmit={(e) => {
           e.preventDefault();
           const f = new FormData(e.currentTarget);
+          if(!confirm(t('تسجيل السعر في الكتالوج المحلي فقط؟','Register price in the local catalog only?')))return;
           void act(() =>
             request('/prices', {
               planCode: f.get('planCode'),
@@ -99,8 +107,11 @@ export default function PriceCatalog({
         <button className="btn btn-primary" disabled={busy || !canWrite}>
           {t('تسجيل سعر جديد', 'Register new price')}
         </button>
-      </form>
-      {prices.map((p) => (
+      </form>}
+      <div className="form-actions"><input type="search" aria-label={t('بحث الأسعار','Search prices')} value={search} onChange={e=>setSearch(e.target.value)}/><select aria-label={t('حالة السعر','Price status')} value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">{t('كل الحالات','All statuses')}</option><option value="active">{t('متاح','Available')}</option><option value="retired">{t('متقاعد','Retired')}</option></select><span className="muted">{visible.length} / {prices.length}</span></div>
+      {busy&&<p role="status">{t('جارٍ التحميل…','Loading…')}</p>}
+      {loaded&&!busy&&!error&&!visible.length&&<p className="empty">{t('لا توجد أسعار مطابقة','No matching prices')}</p>}
+      {visible.map((p) => (
         <article key={p.provider_id} className="card">
           <strong>
             {p.plan_code} · {p.provider_id}
@@ -109,12 +120,12 @@ export default function PriceCatalog({
             {p.amount_cents} {p.currency} / {p.interval} ·{' '}
             {p.active ? t('متاح', 'Available') : t('متقاعد', 'Retired')}
           </p>
-          {p.active && (
+          {p.active && canWrite && (
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 const reason = new FormData(e.currentTarget).get('reason');
-                void act(() => request(`/prices/${p.provider_id}/retire`, { reason }));
+                if(confirm(t('تقاعد السعر ومنع الاشتراكات الجديدة به؟','Retire this price and prevent new subscriptions using it?')))void act(() => request(`/prices/${p.provider_id}/retire`, { reason }));
               }}
             >
               <label>
