@@ -70,7 +70,7 @@ export class BillingService {
     const stripe = this.requireStripe();
     const plan = (
       await this.db.query<{ code: string; stripe_price_id: string | null }>(
-        'SELECT code, stripe_price_id FROM plans WHERE code = $1 AND is_active AND price_cents > 0',
+        'SELECT code, stripe_price_id FROM unified_plan_catalog WHERE code = $1 AND is_active AND checkout_available',
         [planCode],
       )
     ).rows[0];
