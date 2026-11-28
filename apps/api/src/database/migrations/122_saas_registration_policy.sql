@@ -23,17 +23,17 @@ BEGIN
 END $$;
 CREATE FUNCTION saas_registration_record(tid uuid,uid uuid,default_days integer) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
-DECLARE cfg jsonb;pid uuid;days integer;code text;
+DECLARE cfg jsonb;pid uuid;days integer;chosen_code text;
 BEGIN
  IF tid IS DISTINCT FROM nullif(current_setting('app.tenant_id',true),'')::uuid OR NOT EXISTS(SELECT 1 FROM memberships WHERE tenant_id=tid AND user_id=uid AND role='owner') THEN RAISE EXCEPTION 'Registration scope invalid';END IF;
  cfg:=saas_registration_settings(default_days);
  IF NOT (cfg->>'selfRegistration')::boolean THEN RAISE EXCEPTION 'Registration closed';END IF;
  days:=(cfg->>'trialDays')::integer;
- code:=CASE WHEN days=0 THEN 'free' ELSE cfg->>'trialPlanCode' END;
- SELECT id INTO pid FROM plans WHERE plans.code=code AND is_active;
+ chosen_code:=CASE WHEN days=0 THEN 'free' ELSE cfg->>'trialPlanCode' END;
+ SELECT id INTO pid FROM plans WHERE plans.code=chosen_code AND is_active;
  IF pid IS NULL THEN RAISE EXCEPTION 'Registration plan unavailable';END IF;
  INSERT INTO subscriptions(tenant_id,plan_id,status,trial_ends_at) VALUES(tid,pid,CASE WHEN days=0 THEN 'active' ELSE 'trialing' END,CASE WHEN days=0 THEN NULL ELSE now()+make_interval(days=>days) END);
- INSERT INTO platform_audit_logs(actor_id,action,tenant_id,details) VALUES(uid,'company.registered',tid,jsonb_build_object('plan',code,'trialDays',days,'source','self_registration'));
+ INSERT INTO platform_audit_logs(actor_id,action,tenant_id,details) VALUES(uid,'company.registered',tid,jsonb_build_object('plan',chosen_code,'trialDays',days,'source','self_registration'));
 END $$;
 REVOKE ALL ON FUNCTION saas_registration_settings(integer),platform_set_registration_policy(uuid,boolean,text,integer,text),saas_registration_record(uuid,uuid,integer) FROM PUBLIC,app_user,boat_platform;
 GRANT EXECUTE ON FUNCTION saas_registration_settings(integer) TO app_user,boat_platform;
