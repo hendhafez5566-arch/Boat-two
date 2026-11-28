@@ -28,7 +28,7 @@ export default function Team() {
   const path='/team/index?'+new URLSearchParams({tab,q:search,role:roleFilter,availability,page:String(page),limit:String(size)});
   const records=useData<{items:(Member|Invite)[];total:number;role:string;metrics:{members:number;available:number;pending:number|null}}>(path,{items:[],total:0,role:'',metrics:{members:0,available:0,pending:null}});
   const ready=records.loadedPath===path&&!records.loading&&!records.error;
-  const role=records.data.role,loading=!ready&&!records.error,metrics=records.data.metrics;
+  const role=records.error?'':records.data.role,loading=!ready&&!records.error,metrics=records.data.metrics;
   const visibleMembers=ready&&tab==='members'?records.data.items as Member[]:[];
   const invites=ready&&tab==='invites'?records.data.items as Invite[]:[];
   const pages=Math.max(1,Math.ceil(records.data.total/size));
@@ -83,7 +83,7 @@ export default function Team() {
     <input type="search" disabled={busy} maxLength={200} aria-label={tab==='members'?t('بحث في الفريق','Search team'):t('بحث الدعوات','Search invitations')} placeholder={t('ابحث بالاسم أو البريد','Search name or email')} value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/>
     <select disabled={busy} aria-label={t('تصفية الدور','Filter role')} value={roleFilter} onChange={e=>{setRoleFilter(e.target.value);setPage(1);}}><option value="all">{t('كل الأدوار','All roles')}</option>{tab==='members'&&<option value="owner">{t('مالك','Owner')}</option>}<option value="admin">{t('مدير','Admin')}</option><option value="agent">{t('موظف','Agent')}</option></select>
     {tab==='members'&&<select disabled={busy} aria-label={t('تصفية التوفر','Filter availability')} value={availability} onChange={e=>{setAvailability(e.target.value);setPage(1);}}><option value="all">{t('كل الحالات','All states')}</option><option value="available">{t('متاح','Available')}</option><option value="away">{t('غير متاح','Away')}</option></select>}
-    <button className="btn" type="button" disabled={busy} onClick={()=>{setSearch('');setRoleFilter('all');setAvailability('all');setPage(1);}}>{t('مسح الفلاتر','Clear filters')}</button>
+    <button className="btn" type="button" disabled={busy} onClick={()=>{setSearch('');setRoleFilter('all');setAvailability('all');setPage(1);}}>{t('مسح الفلاتر','Clear filters')}</button><button className="btn" type="button" disabled={busy||records.loading} onClick={()=>void records.reload()}><NavIcon name="refresh"/>{t('تحديث','Refresh')}</button>
   </div>;
   const pagination=<div className="form-actions"><label>{t('عدد الصفوف','Rows per page')} <select disabled={busy} value={size} onChange={e=>{setSize(Number(e.target.value));setPage(1);}}>{[10,25,50,100].map(n=><option key={n}>{n}</option>)}</select></label><span aria-live="polite">{ready?records.data.total:'…'} {t('نتيجة','results')}</span><button className="btn" disabled={busy||!ready||page<=1} onClick={()=>setPage(p=>p-1)}>{t('السابق','Previous')}</button><span>{page} / {ready?pages:'…'}</span><button className="btn" disabled={busy||!ready||page>=pages} onClick={()=>setPage(p=>p+1)}>{t('التالي','Next')}</button></div>;
   return (
@@ -92,7 +92,7 @@ export default function Team() {
         title={t('الفريق والصلاحيات', 'Team & permissions')}
         description={t('راجع أعضاء الفريق وأدوارهم ودعواتهم.', 'Manage team members, roles and invitations.')}
         actions={<>
-            {['owner','admin'].includes(role)&&<button className="btn btn-primary" type="button" disabled={busy} onClick={()=>{setUrl('');setDirty(false);setError('');setInviteOpen(true);}}>+ {t('دعوة موظف','Invite teammate')}</button>}
+            {['owner','admin'].includes(role)&&<button className="btn btn-primary" type="button" disabled={busy} onClick={()=>{setUrl('');setDirty(false);setError('');setInviteOpen(true);}}><NavIcon name="plus"/>{t('دعوة موظف','Invite teammate')}</button>}
           </>}
       />
       {records.error&&<p role="alert" className="notice error">{records.error} <button className="btn" onClick={()=>void records.reload()}>{t('إعادة المحاولة','Retry')}</button></p>}
@@ -162,7 +162,7 @@ export default function Team() {
       </section>}
       {['owner','admin'].includes(role) && (
         <Dialog open={inviteOpen} onClose={closeInvite} title={t('دعوة موظف','Invite a teammate')}>
-          <form id="team-invitations" onSubmit={invite} onChange={()=>setDirty(true)} hidden={!!url}>
+          {inviteOpen&&<form id="team-invitations" onSubmit={invite} onChange={()=>setDirty(true)} hidden={!!url}>
             <div className="form-grid">
               <label className="field">
                 {t('البريد الإلكتروني', 'Email')}
@@ -185,7 +185,7 @@ export default function Team() {
                 {t('إنشاء رابط دعوة', 'Create invitation link')}
               </button>
             </div>
-          </form>
+          </form>}
           {url && (
             <div className="notice">
               <p>
