@@ -126,8 +126,8 @@ function SubscriptionContent() {
   const billing = useData<BillingStatus | null>('/billing/status', null);
   const workspace = useData<BillingWorkspace | null>('/workspace', null);
   const plans = useData<BillingPlan[]>('/plans', []);
-  const reloadPlans=plans.reload;
-  useEffect(()=>{const refresh=()=>{if(!document.hidden)void reloadPlans();};const timer=setInterval(refresh,15000);document.addEventListener('visibilitychange',refresh);window.addEventListener('focus',refresh);return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',refresh);window.removeEventListener('focus',refresh);};},[reloadPlans]);
+  const reloadPlans=plans.reload,reloadStatus=billing.reload;
+  useEffect(()=>{const refresh=()=>{if(!document.hidden){void reloadPlans();void reloadStatus();}};const timer=setInterval(refresh,15000);document.addEventListener('visibilitychange',refresh);window.addEventListener('focus',refresh);return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',refresh);window.removeEventListener('focus',refresh);};},[reloadPlans,reloadStatus]);
   const usage = snapshot?.usage;
   const history = useData<History | null>(usage && tab==='usage' ? '/workspace/subscription-history' : null, null);
   const reloadHistory = history.reload;
@@ -185,9 +185,10 @@ function SubscriptionContent() {
         <PlansPanel
           plans={plans.data}
           currentPlan={usage?.plan.plan_code ?? workspace.data?.plan.plan_code}
+          trialActive={!!usage&&!usage.plan.trial_expired&&usage.plan.status==='trialing'}
           status={billing.data}
           role={workspace.data?.role}
-          loading={plans.loading}
+          loading={plans.loading||billing.loading||workspace.loading}
           requestError={plans.error || workspace.error || billing.error}
         />
       </div>}
@@ -384,7 +385,7 @@ function SubscriptionContent() {
             </div>
             <aside
               className={styles.content}
-              aria-label={t('الدورة والفوترة', 'Cycle and billing')}
+              aria-label={t('دورة الاستخدام', 'Usage cycle')}
             >
               <section className={styles.panel}>
                 <h2>{t('دورة الاستخدام الحالية', 'Current usage cycle')}</h2>
