@@ -90,9 +90,9 @@ export default function PlansPanel({
               <small> / {p.interval === 'year' ? t('سنة', 'year') : t('شهر', 'month')}</small>
             </div>
             <dl className={styles.planLimits}>
-              {Object.keys(labels).filter(key=>typeof p.limits[key]==='number').map(key=> (
+              {Object.keys(p.limits).filter(key=>typeof p.limits[key]==='number').sort((a,b)=>(Object.keys(labels).indexOf(a)+1||100)-(Object.keys(labels).indexOf(b)+1||100)).map(key=> (
                 <div key={key}>
-                  <dt>{labels[key]}</dt>
+                  <dt>{labels[key]??key.replaceAll('_',' ')}</dt>
                   <dd>
                     {p.limits[key] === -1
                       ? t('غير محدود', 'Unlimited')
@@ -103,7 +103,7 @@ export default function PlansPanel({
                 </div>
               ))}
             </dl>
-            {p.features&&Object.entries(p.features).some(([key,value])=>value&&featureLabels[key])&&<ul className={styles.features}>{Object.entries(p.features).filter(([key,value])=>value&&featureLabels[key]).map(([key])=><li key={key}><NavIcon name="circleCheck"/>{featureLabels[key]}</li>)}</ul>}
+            {p.features&&Object.values(p.features).some(Boolean)&&<ul className={styles.features}>{Object.entries(p.features).filter(([,value])=>value).map(([key])=><li key={key}><NavIcon name="circleCheck"/>{featureLabels[key]??key.replaceAll('_',' ')}</li>)}</ul>}
             {p.price_cents>0&&p.checkout_available!==true&&<p className={styles.muted}>{t('السعر غير متاح للاشتراكات الجديدة حاليًا.','This price is not available for new subscriptions.')}</p>}
             {!linked&&role==='owner'&&status?.configured&&p.price_cents>0&&p.checkout_available===true&&(
               <button
