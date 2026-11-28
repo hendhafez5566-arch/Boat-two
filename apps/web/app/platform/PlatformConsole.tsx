@@ -315,7 +315,7 @@ export default function Console({designReview=false,designPlans=null}:{designRev
           {t('English', 'العربية')}
         </button></div>
       </header>
-      {designReview&&<p role="status" className={styles.reviewBanner}><NavIcon name="info"/>{t('وضع مراجعة التصميم: الشركات والمستخدمون والفوترة تجريبية، والباقات تبدأ من الكتالوج العام عند توفره. التعديلات محلية فقط.','Design review: companies, users and billing are fictional; plans start from the public catalog when available. All edits stay local.')}</p>}
+      {designReview&&<p role="status" className={styles.reviewBanner}><NavIcon name="question"/>{t('وضع مراجعة التصميم: الشركات والمستخدمون والفوترة تجريبية، والباقات تبدأ من الكتالوج العام عند توفره. التعديلات محلية فقط.','Design review: companies, users and billing are fictional; plans start from the public catalog when available. All edits stay local.')}</p>}
       {error && (
         <p role="alert" className="notice error">
           {error}
@@ -956,13 +956,11 @@ export default function Console({designReview=false,designPlans=null}:{designRev
                             type="button"
                             className="btn"
                             disabled={busy || writing || !permissions.includes('sessions.revoke')}
-                            onClick={() => {
-                              const reason = prompt(
-                                t(
-                                  'سبب إبطال جميع جلسات المستخدم (10 أحرف على الأقل)',
-                                  'Reason for revoking all user sessions (at least 10 characters)',
-                                ),
-                              );
+                            onClick={(event) => {
+                              const form=(event.currentTarget as HTMLButtonElement).form;
+                              const reason=String(form?new FormData(form).get('reason')??'':'').trim();
+                              if(reason.length<10){setError(t('اكتب سببًا لا يقل عن 10 أحرف.','Enter a reason of at least 10 characters.'));return;}
+                              if(!confirm(t('إبطال جميع جلسات هذا المستخدم؟','Revoke all sessions for this user?')))return;
                               if (reason)
                                 void act(() =>
                                   request('/users/' + user.id + '/revoke-sessions', { reason }),
@@ -1145,12 +1143,13 @@ export default function Console({designReview=false,designPlans=null}:{designRev
               )}
               {activeSection.id === 'billing' && (
                 <BillingReviews
+                  editorProps={editorProps}
                   request={request}
                   canWrite={permissions.includes('subscriptions.write')}
                 />
               )}
               {activeSection.id === 'reports' && <OperationalReports request={request} />}
-              {activeSection.id === 'audit' && <AuditTrail request={request} />}
+              {activeSection.id === 'audit' && <AuditTrail request={request} users={data?.users??[]} companies={data?.companies??[]} />}
             </div>
           </div>
         </>
