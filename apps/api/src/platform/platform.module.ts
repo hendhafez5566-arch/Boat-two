@@ -31,7 +31,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Pool } from 'pg';
 import { z } from 'zod';
 import { Public } from '../auth/decorators';
-import { verifyPassword } from '../auth/password';
+import { createSetupCredential, verifyPassword } from '../auth/password';
 import { parse } from '../common/zod';
 import { env } from '../config/env';
 import { DatabaseService } from '../database/database.service';
@@ -558,6 +558,17 @@ class PlatformController {
         body,
       ),
     );
+  }
+  @Header('Cache-Control','no-store')
+  @Permission('companies.write') @Post('companies')
+  async createCompany(@Req() r:PlatformRequest,@Body() input:unknown){
+    if(!r.platformPermissions.includes('users.write')||!r.platformPermissions.includes('subscriptions.write'))throw new ForbiddenException('Company onboarding requires user and subscription management');
+    const b=parse(z.object({companyName:z.string().trim().min(1).max(120),ownerName:z.string().trim().min(1).max(120),ownerEmail:z.string().trim().email().max(254),planCode:z.string().min(1).max(50),trialDays:z.number().int().min(0).max(365),reason:z.string().trim().min(10).max(1000)}),input);
+    if(b.trialDays===0&&b.planCode!=='free')throw new BadRequestException('Select Free or a positive trial duration; no payment is recorded here');
+    const tid=randomUUID(),uid=randomUUID(),setup=await createSetupCredential();
+    const slug=(b.companyName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,70)||'workspace')+'-'+tid.slice(0,12);
+    await this.access.query('SELECT platform_create_company($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',[r.platformActor,tid,uid,b.companyName,slug,b.ownerName,b.ownerEmail,setup.stored,b.planCode,b.trialDays,b.reason]);
+    return {tenantId:tid,userId:uid,temporaryPassword:setup.temporaryPassword,expiresAt:setup.expiresAt,displayOnce:true};
   }
   @Permission('companies.write')
   @Patch('companies/:id')
