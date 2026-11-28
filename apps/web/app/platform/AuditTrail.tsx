@@ -1,7 +1,8 @@
 'use client';
 import { DisclosureSummary } from '../../components/product/DisclosureSummary';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { NavIcon } from '../../components/product/NavIcon';
 import { useLocale } from '../../components/product/locale';
 type Row = {
   id: string;
@@ -29,8 +30,9 @@ export default function AuditTrail({
     [tenant, setTenant] = useState(''),
     [action, setAction] = useState('');
   const [applied, setApplied] = useState<URLSearchParams | null>(null);
+  const lock=useRef(false);
   async function load(next?: string) {
-    setBusy(true);
+    if(lock.current)return;lock.current=true;setBusy(true);
     setError('');
     try {
       const params =
@@ -48,11 +50,11 @@ export default function AuditTrail({
       const result = await request('/audit?' + params);
       setRows((previous) => (next ? [...previous, ...result.items] : result.items));
       setCursor(result.nextCursor);
-      setApplied(params);
+      const filters=new URLSearchParams(params);filters.delete('cursor');setApplied(filters);
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      lock.current=false;setBusy(false);
     }
   }
   useEffect(() => {
@@ -107,7 +109,7 @@ export default function AuditTrail({
           <input maxLength={100} value={action} onChange={(e) => setAction(e.target.value)} />
         </label>
         <button className="btn" disabled={busy}>
-          {t('تطبيق الفلاتر', 'Apply filters')}
+          <NavIcon name="filter"/>{t('تطبيق الفلاتر', 'Apply filters')}
         </button>
       </form>
       {error && (
@@ -144,7 +146,7 @@ export default function AuditTrail({
                 </td>
                 <td>
                   <details>
-                    <DisclosureSummary>{t('عرض التفاصيل', 'View details')}</DisclosureSummary>
+                    <DisclosureSummary><NavIcon name="eye"/>{t('عرض التفاصيل', 'View details')}</DisclosureSummary>
                     <pre>{JSON.stringify(row.details, null, 2)}</pre>
                   </details>
                 </td>
@@ -163,7 +165,7 @@ export default function AuditTrail({
           {t('تحميل الأقدم', 'Load older')}
         </button>
         <button className="btn" disabled={busy || !rows.length} onClick={download}>
-          {t('تصدير السجلات المحمّلة فقط', 'Export loaded records only')}
+          <NavIcon name="export"/>{t('تصدير السجلات المحمّلة فقط', 'Export loaded records only')}
         </button>
         <span>
           {rows.length} {t('سجل محمّل', 'loaded records')}
