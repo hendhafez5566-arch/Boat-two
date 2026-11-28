@@ -8,6 +8,7 @@ on:
       - 'apps/web/app/platform/**'
       - 'apps/api/src/platform/**'
       - 'scripts/qa-platform-admin-professional.mjs'
+      - 'scripts/qa-platform-open-design.mjs'
       - '.github/workflows/platform-admin-professional-qa.yml'
   workflow_dispatch:
 permissions:
@@ -42,6 +43,14 @@ jobs:
         env:
           BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
           BOAT_QA_BROWSER_SCRIPT: scripts/qa-platform-admin-professional.mjs
+          BOAT_CHROMIUM: /usr/bin/google-chrome
+        run: python3 scripts/run-connect-browser-qa.py
+      - name: Open design review isolation
+        env:
+          RAILWAY_ENVIRONMENT_NAME: preview
+          PLATFORM_DESIGN_REVIEW_OPEN: 'true'
+          BOAT_PLAYWRIGHT_MODULE: ${{ runner.temp }}/boat-playwright/node_modules/playwright
+          BOAT_QA_BROWSER_SCRIPT: scripts/qa-platform-open-design.mjs
           BOAT_CHROMIUM: /usr/bin/google-chrome
         run: python3 scripts/run-connect-browser-qa.py
       - uses: actions/upload-artifact@v4
