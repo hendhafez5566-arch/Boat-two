@@ -1,7 +1,9 @@
 'use client';
 import { DisclosureSummary } from './DisclosureSummary';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useTransientNotice } from './useTransientNotice';
+import { NavIcon } from './NavIcon';
 import { useData } from '../business/useData';
 import { api } from '../../lib/api';
 import { useLocale } from './locale';
@@ -20,23 +22,29 @@ export function InvitationMailPanel({ refreshKey }: { refreshKey: string }) {
     [html, setHtml] = useState(''),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
+  const lock=useRef(false),[loading,setLoading]=useState(true),[notice,setNotice]=useState(''),[filter,setFilter]=useState('all');
+  const visible=jobs.filter(j=>filter==='all'||j.status===filter);
+  useTransientNotice(notice,()=>setNotice(''));
   async function load() {
+    setLoading(true);setError('');
     try {
       setJobs(await api<Job[]>('/workspace/mail'));
     } catch (e) {
       setError((e as Error).message);
-    }
+    } finally {setLoading(false);}
   }
   useEffect(() => {
     load();
   }, [refreshKey]);
   async function run(id?: string) {
-    setBusy(true);
-    setError('');
+    if(lock.current)return;
+    if(id&&!window.confirm(t('إعادة فحص بوابة الإرسال لهذه الرسالة؟','Recheck this message’s delivery gate?')))return;
+    lock.current=true;setBusy(true);
+    setError('');setNotice('');
     try {
       if (id) {
         await api('/workspace/mail/' + id + '/resume', { method: 'POST' });
-        await load();
+        await load();setNotice(t('تم تحديث حالة الرسالة.','Message status updated.'));
       } else {
         const result = await api<{ html: string }>('/workspace/mail/preview', {
           method: 'POST',
@@ -47,7 +55,7 @@ export function InvitationMailPanel({ refreshKey }: { refreshKey: string }) {
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      lock.current=false;setBusy(false);
     }
   }
   return (
@@ -56,9 +64,9 @@ export function InvitationMailPanel({ refreshKey }: { refreshKey: string }) {
         <h2>{t('بريد دعوات الفريق', 'Team invitation mail')}</h2>
         <div className="form-actions">
           <button className="btn" disabled={busy} onClick={() => run()}>
-            {t('معاينة الهوية', 'Preview branding')}
+            <NavIcon name="eye"/>{t('معاينة الهوية', 'Preview branding')}
           </button>
-          <button className="btn" disabled={busy} onClick={load}>
+          <button className="btn" disabled={busy||loading} onClick={load}>
             {t('تحديث الحالات', 'Refresh statuses')}
           </button>
         </div>
@@ -74,16 +82,18 @@ export function InvitationMailPanel({ refreshKey }: { refreshKey: string }) {
           {error}
         </p>
       )}
-      {html && (
+      {notice&&<p role="status" className="notice">{notice}</p>}
+      {html && (<div className="stack"><div className="form-actions"><button className="btn" onClick={()=>setHtml('')}>{t('إغلاق المعاينة','Close preview')}</button></div>
         <iframe
           title={t('معاينة رسالة الدعوة', 'Invitation email preview')}
           sandbox=""
           srcDoc={html}
           style={{ width: '100%', height: 430, border: 0 }}
-        />
+        /></div>
       )}
-      {!jobs.length ? (
-        <p className="empty">{t('لا توجد رسائل دعوة بعد.', 'No invitation emails yet.')}</p>
+      <div className="workbench-toolbar"><label>{t('حالة الرسالة','Message status')} <select value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">{t('كل الحالات','All states')}</option><option value="pending">{t('بالانتظار','Pending')}</option><option value="blocked">{t('محظور بالبوابة','Blocked by gate')}</option><option value="accepted">{t('قبله المزود','Provider accepted')}</option><option value="ambiguous">{t('نتيجة غامضة','Ambiguous')}</option><option value="canceled">{t('ملغى','Canceled')}</option></select></label></div>
+      {loading?<p role="status">{t('جارٍ تحميل الرسائل…','Loading messages…')}</p>:error&&!jobs.length?null:!visible.length ? (
+        <p className="empty">{filter==='all'?t('لا توجد رسائل دعوة بعد.', 'No invitation emails yet.'):t('لا توجد رسائل مطابقة.','No matching messages.')}</p>
       ) : (
         <div className="table-wrap">
           <table className="product-table">
@@ -96,7 +106,7 @@ export function InvitationMailPanel({ refreshKey }: { refreshKey: string }) {
               </tr>
             </thead>
             <tbody>
-              {jobs.map((j) => (
+              {visible.map((j) => (
                 <tr key={j.id}>
                   <td>{new Date(j.created_at).toLocaleString(language)}</td>
                   <td>
@@ -138,9 +148,11 @@ export function InvitationMailPanel({ refreshKey }: { refreshKey: string }) {
                           className="stack"
                           onSubmit={async (e) => {
                             e.preventDefault();
+                            if(lock.current||!window.confirm(t('حفظ نتيجة المراجعة دون إعادة إرسال؟','Save the evidence review without resending?')))return;
+                            lock.current=true;
                             const f = new FormData(e.currentTarget);
                             setBusy(true);
-                            setError('');
+                            setError('');setNotice('');
                             try {
                               await api('/workspace/mail/' + j.id + '/reconcile', {
                                 method: 'POST',
@@ -152,11 +164,11 @@ export function InvitationMailPanel({ refreshKey }: { refreshKey: string }) {
                                   evidence: f.get('evidence'),
                                 }),
                               });
-                              await load();
+                              await load();setNotice(t('تم حفظ المراجعة.','Evidence review saved.'));
                             } catch (e) {
                               setError((e as Error).message);
                             } finally {
-                              setBusy(false);
+                              lock.current=false;setBusy(false);
                             }
                           }}
                         >
