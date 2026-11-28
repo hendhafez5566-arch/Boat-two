@@ -8,6 +8,8 @@ on:
       - 'apps/web/app/dashboard/team/**'
       - 'apps/web/components/product/InvitationMailPanel.tsx'
       - 'apps/api/src/workspace/workspace.controller.ts'
+      - 'apps/api/src/auth/**'
+      - 'apps/web/components/product/AuthExperience.tsx'
       - 'scripts/qa-team-professional.mjs'
       - '.github/workflows/team-professional-qa.yml'
   workflow_dispatch:
@@ -36,7 +38,7 @@ jobs:
           ENCRYPTION_KEY: '1111111111111111111111111111111111111111111111111111111111111111'
           EXTERNAL_DELIVERY_ENABLED: 'false'
           AI_PROVIDER_CALLS_ENABLED: 'false'
-        run: pnpm --filter api exec tsx --test src/auth/role-session.test.ts src/auth/account-profile.pg.test.ts src/integrations/contracts.test.ts src/integrations/google-oauth.test.ts src/flows/engine/integration-output.test.ts
+        run: pnpm --filter api exec tsx --test src/auth/setup-credential.test.ts src/auth/role-session.test.ts src/auth/account-profile.pg.test.ts src/integrations/contracts.test.ts src/integrations/google-oauth.test.ts src/flows/engine/integration-output.test.ts
       - name: Install browser driver
         run: npm install --prefix "$RUNNER_TEMP/boat-playwright" playwright@1.56.1 --ignore-scripts
       - name: Isolated team browser acceptance

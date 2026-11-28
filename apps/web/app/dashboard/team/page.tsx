@@ -15,7 +15,9 @@ type Member = {
   email: string;
   role: string;
   available: boolean;
+  setup_pending?: boolean;
 };
+type SetupResult={userId:string;email:string;temporaryPassword:string;expiresAt:string};
 type Invite = { id: string; email: string; role: string; expires_at: string };
 export default function Team() {
   const { t, language } = useLocale();
@@ -24,10 +26,12 @@ export default function Team() {
   const [busy,setBusy]=useState(false),lock=useRef(false);
   const [tab,setTab]=useState<'members'|'invites'>('members');
   const [inviteOpen,setInviteOpen]=useState(false),[dirty,setDirty]=useState(false);
+  const [directOpen,setDirectOpen]=useState(false),[setupResult,setSetupResult]=useState<SetupResult|null>(null),[copied,setCopied]=useState(false);
   const [search,setSearch]=useState(''),[roleFilter,setRoleFilter]=useState('all'),[availability,setAvailability]=useState('all');
   const [page,setPage]=useState(1),[size,setSize]=useState(25);
   const path='/team/index?'+new URLSearchParams({tab,q:search,role:roleFilter,availability,page:String(page),limit:String(size)});
   const records=useData<{items:(Member|Invite)[];total:number;role:string;metrics:{members:number;available:number;pending:number|null}}>(path,{items:[],total:0,role:'',metrics:{members:0,available:0,pending:null}});
+  const departments=useData<{id:string;name:string}[]>(directOpen&&!setupResult?'/departments':null,[]);
   const ready=records.loadedPath===path&&!records.loading&&!records.error;
   const role=records.error?'':records.data.role,loading=!ready&&!records.error,metrics=records.data.metrics;
   const visibleMembers=ready&&tab==='members'?records.data.items as Member[]:[];
@@ -37,6 +41,15 @@ export default function Team() {
   useTransientNotice(notice,()=>setNotice(''));
   const closeInvite=()=>{if(lock.current)return;if(dirty&&!window.confirm(t('تجاهل بيانات الدعوة غير المحفوظة؟','Discard unsaved invitation details?')))return;setInviteOpen(false);setDirty(false);setUrl('');setError('');};
   useEffect(()=>{const guard=(event:BeforeUnloadEvent)=>{if(dirty||lock.current){event.preventDefault();event.returnValue='';}};window.addEventListener('beforeunload',guard);return()=>window.removeEventListener('beforeunload',guard);},[dirty]);
+  function closeDirect(){if(lock.current)return;if((dirty||setupResult)&&!window.confirm(setupResult?t('أغلقت بيانات التفعيل؟ لن تظهر كلمة المرور مرة أخرى.','Close activation details? This password will not be shown again.'):t('تجاهل بيانات الموظف غير المحفوظة؟','Discard unsaved employee details?')))return;setDirectOpen(false);setSetupResult(null);setCopied(false);setDirty(false);setError('');}
+  async function createDirect(e:FormEvent<HTMLFormElement>){
+    e.preventDefault();if(lock.current||setupResult)return;
+    const f=new FormData(e.currentTarget);lock.current=true;setBusy(true);setError('');setCopied(false);
+    try{const result=await api<SetupResult>('/team/members',{method:'POST',body:JSON.stringify({fullName:f.get('fullName'),email:f.get('email'),phone:f.get('phone'),role:f.get('role'),...(f.get('departmentId')?{departmentId:f.get('departmentId')}:{}),language})});setSetupResult(result);setDirty(false);selectTab('members');await records.reload();}
+    catch(e){const err=e as Error & {details?:{code?:string}};setError(err.details?.code==='ACCOUNT_EXISTS'?t('البريد مرتبط بحساب موجود. استخدم الدعوة بدلًا من الإضافة المباشرة.','This email belongs to an existing account. Use an invitation instead.'):err.details?.code==='PLAN_LIMIT'?t('وصلت إلى الحد المسموح به في باقتك.','Your plan seat limit has been reached.'):err.message);}
+    finally{lock.current=false;setBusy(false);}
+  }
+  async function renewSetup(m:Member){if(lock.current||!confirm(t('إنشاء كلمة مرور مؤقتة جديدة؟ ستُلغى السابقة فورًا.','Generate a new temporary password? The previous one stops working immediately.')))return;lock.current=true;setBusy(true);setError('');setCopied(false);try{setSetupResult(await api<SetupResult>('/team/members/'+m.user_id+'/setup',{method:'POST'}));setDirectOpen(true);setDirty(false);}catch(e){setError((e as Error).message);}finally{lock.current=false;setBusy(false);}}
   function selectTab(value:'members'|'invites'){setTab(value);setPage(1);setSearch('');setRoleFilter('all');setAvailability('all');}
   async function action(path: string, method: string, body?: unknown) {
     if(lock.current)return;
@@ -93,7 +106,7 @@ export default function Team() {
         title={t('الفريق والصلاحيات', 'Team & permissions')}
         description={t('راجع أعضاء الفريق وأدوارهم ودعواتهم.', 'Manage team members, roles and invitations.')}
         actions={<>
-            {['owner','admin'].includes(role)&&<button className="btn btn-primary" type="button" disabled={busy} onClick={()=>{setUrl('');setDirty(false);setError('');setInviteOpen(true);}}><NavIcon name="plus"/>{t('دعوة موظف','Invite teammate')}</button>}
+            {['owner','admin'].includes(role)&&<><button className="btn btn-primary" type="button" disabled={busy} onClick={()=>{setSetupResult(null);setCopied(false);setDirty(false);setError('');setDirectOpen(true);}}><NavIcon name="plus"/>{t('إضافة موظف','Add employee')}</button><button className="btn" type="button" disabled={busy} onClick={()=>{setUrl('');setDirty(false);setError('');setInviteOpen(true);}}><NavIcon name="mail"/>{t('دعوة موظف','Invite teammate')}</button></>}
           </>}
       />
       {records.error&&<p role="alert" className="notice error">{records.error} <button className="btn" onClick={()=>void records.reload()}>{t('إعادة المحاولة','Retry')}</button></p>}
@@ -137,8 +150,9 @@ export default function Team() {
                     statusLabel(m.role, t)
                   )}
                 </td>
-                <td><span className="workbench-state" data-active={m.available}>{m.available ? t('متاح', 'Available') : t('غير متاح', 'Away')}</span></td>
+                <td><span className="workbench-state" data-active={m.available&&!m.setup_pending}>{m.setup_pending?t('بانتظار التفعيل','Awaiting activation'):m.available ? t('متاح', 'Available') : t('غير متاح', 'Away')}</span></td>
                 <td>
+                  {m.setup_pending&&(role==='owner'||(role==='admin'&&m.role==='agent'))&&<button className="btn" disabled={busy} onClick={()=>void renewSetup(m)}><NavIcon name="refresh"/>{t('تجديد كلمة المرور المؤقتة','Renew temporary password')}</button>}
                   {m.role !== 'owner' &&
                     (role === 'owner' || (role === 'admin' && m.role === 'agent')) && (
                       <button
@@ -160,6 +174,30 @@ export default function Team() {
         {loading && <p className="empty">{t('جارٍ التحميل…', 'Loading…')}</p>}
         {ready&&!visibleMembers.length&&<p className="empty">{t('لا توجد نتائج مطابقة','No matching members')}</p>}{pagination}
       </section>}
+      {['owner','admin'].includes(role)&&<Dialog open={directOpen} onClose={closeDirect} title={t('إضافة موظف مباشرة','Add employee directly')}>
+        {directOpen&&(setupResult?<div className="stack">
+          <p className="notice" role="status">{t('تم إنشاء الحساب. شارك بيانات التفعيل بشكل خاص. تظهر كلمة المرور مرة واحدة فقط وتصلح لمدة 7 أيام.','Account created. Share activation details privately. The temporary password is shown once and expires after 7 days.')}</p>
+          <label className="field">{t('البريد الإلكتروني','Email')}<input readOnly dir="ltr" value={setupResult.email}/></label>
+          <label className="field">{t('كلمة المرور المؤقتة','Temporary password')}<input readOnly dir="ltr" value={setupResult.temporaryPassword} autoComplete="off"/></label>
+          <p className="muted">{t('تنتهي الصلاحية','Expires')}: {new Date(setupResult.expiresAt).toLocaleString(language)}</p>
+          <p className="muted">{t('سيُطلب من الموظف تغيير كلمة المرور قبل الدخول.','The employee must replace the password before signing in.')}</p>
+          <div className="form-actions"><button className="btn btn-primary" onClick={async()=>{try{await navigator.clipboard.writeText(setupResult.temporaryPassword);setCopied(true);}catch{setError(t('تعذر النسخ، انسخ كلمة المرور يدويًا.','Copy failed; copy the password manually.'));}}}><NavIcon name="copy"/>{copied?t('تم النسخ','Copied'):t('نسخ كلمة المرور','Copy password')}</button><button className="btn" onClick={closeDirect}>{t('إغلاق','Close')}</button></div>
+        </div>:<form className="stack" onSubmit={createDirect} onChange={()=>setDirty(true)}>
+          <p className="muted">{t('أنشئ حسابًا داخل شركتك دون إرسال دعوة. للبريد المسجل مسبقًا استخدم الدعوة.','Create an account in your workspace without an invitation. Use invitations for existing accounts.')}</p>
+          <fieldset className="stack" disabled={busy} style={{border:0,padding:0,margin:0,minWidth:0}}>
+          <div className="form-grid">
+            <label className="field">{t('الاسم الكامل','Full name')}<input name="fullName" required maxLength={120}/></label>
+            <label className="field">{t('البريد الإلكتروني','Email')}<input name="email" dir="ltr" type="email" required maxLength={254}/></label>
+            <label className="field">{t('رقم الهاتف (اختياري)','Phone (optional)')}<input name="phone" dir="ltr" type="tel" maxLength={25}/></label>
+            <label className="field">{t('الدور','Role')}<select name="role"><option value="agent">{t('موظف','Agent')}</option>{role==='owner'&&<option value="admin">{t('مدير','Admin')}</option>}</select></label>
+            <label className="field">{t('القسم (اختياري)','Department (optional)')}<select name="departmentId" disabled={departments.loading||!!departments.error}><option value="">{t('بدون قسم','No department')}</option>{departments.data.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
+          </div>
+          {departments.error&&<p role="alert" className="notice error">{departments.error} <button type="button" className="btn" onClick={()=>void departments.reload()}>{t('إعادة المحاولة','Retry')}</button></p>}
+          <p className="notice">{t('ينشئ النظام كلمة مرور مؤقتة آمنة تلقائيًا ويجب تغييرها عند أول دخول.','The system generates a secure temporary password that must be replaced on first sign-in.')}</p>
+          <div className="form-actions"><button className="btn btn-primary" disabled={busy}><NavIcon name="check"/>{t('إنشاء حساب الموظف','Create employee account')}</button><button type="button" className="btn" onClick={closeDirect}>{t('إلغاء','Cancel')}</button></div>
+          </fieldset>
+        </form>)}{error&&<p className="notice error" role="alert">{error}</p>}
+      </Dialog>}
       {['owner','admin'].includes(role) && (
         <Dialog open={inviteOpen} onClose={closeInvite} title={t('دعوة موظف','Invite a teammate')}>
           {inviteOpen&&<form id="team-invitations" onSubmit={invite} onChange={()=>setDirty(true)} hidden={!!url}>

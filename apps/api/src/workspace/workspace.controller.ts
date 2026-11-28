@@ -9,6 +9,7 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  Header,
   NotFoundException,
   Param,
   ParseUUIDPipe,
@@ -17,9 +18,10 @@ import {
   Req,
   Query,
 } from '@nestjs/common';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { Roles } from '../auth/decorators';
+import { createSetupCredential, isSetupCredential } from '../auth/password';
 import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
 import { DatabaseService } from '../database/database.service';
@@ -287,11 +289,69 @@ export class WorkspaceController {
       if (members && q.availability !== 'all') clauses.push('m.available=' + arg(q.availability === 'available'));
       const where = from + (clauses.length ? ' WHERE ' + clauses.join(' AND ') : '');
       const total = Number((await c.query('SELECT count(*)::int AS n' + where, params)).rows[0].n);
-      const fields = members ? 'm.user_id,m.role,m.available,u.email,u.full_name' : 'i.id,i.email,i.role,i.expires_at';
+      const fields = members ? "m.user_id,m.role,m.available,u.email,u.full_name,(u.password_hash LIKE 'setup$%') AS setup_pending" : 'i.id,i.email,i.role,i.expires_at';
       const order = members ? 'm.created_at,m.user_id' : 'i.created_at DESC,i.id DESC';
       const items = (await c.query('SELECT ' + fields + where + ' ORDER BY ' + order + ' LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2), [...params,q.limit,(q.page-1)*q.limit])).rows;
       return { items,total,role:req.user.role,metrics:{members:Number(memberCounts.members),available:Number(memberCounts.available),pending} };
     });
+  }
+
+  @Roles('owner', 'admin')
+  @Header('Cache-Control','no-store')
+  @Post('team/members')
+  async createMember(@Req() req:AuthedRequest,@Body() body:unknown){
+    const input=parse(z.object({
+      fullName:z.string().trim().min(1).max(120),
+      email:z.string().trim().email().max(254),
+      phone:z.string().trim().max(25).regex(/^\+?[0-9 ()-]*$/).default(''),
+      role:z.enum(['admin','agent']),
+      departmentId:z.string().uuid().optional(),
+      language:z.enum(['ar','en']).default('ar')
+    }).strict(),body);
+    if(input.role==='admin'&&req.user.role!=='owner')throw new ForbiddenException('Only the owner can add admins');
+    const email=input.email.toLowerCase();
+    const credential=await createSetupCredential();
+    const userId=randomUUID();
+    try{
+      await this.db.withTenant(req.user.tenantId,async c=>{
+        await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+        if((await c.query('SELECT 1 FROM users WHERE email=$1',[email])).rowCount)
+          throw new ConflictException({code:'ACCOUNT_EXISTS',message:'This email already has an account. Use an invitation instead.'});
+        if((await c.query('SELECT 1 FROM invitations WHERE lower(email)=$1 AND accepted_at IS NULL AND expires_at>now()',[email])).rowCount)
+          throw new ConflictException({code:'INVITATION_EXISTS',message:'An active invitation exists. Revoke it before direct creation.'});
+        const members=Number((await c.query('SELECT count(*)::int AS n FROM memberships')).rows[0].n);
+        const pending=Number((await c.query('SELECT count(*)::int AS n FROM invitations WHERE accepted_at IS NULL AND expires_at>now()')).rows[0].n);
+        await this.plans.assertWithinLimit(c,'agents',members+pending);
+        if(input.departmentId&&!(await c.query('SELECT id FROM departments WHERE id=$1 AND archived_at IS NULL FOR UPDATE',[input.departmentId])).rowCount)
+          throw new BadRequestException('Select an active department in this workspace');
+        await c.query('INSERT INTO users(id,email,password_hash,full_name,account_profile) VALUES($1,$2,$3,$4,$5::jsonb)',[userId,email,credential.stored,input.fullName,JSON.stringify({phone:input.phone,address:'',timezone:'UTC',language:input.language})]);
+        await c.query('INSERT INTO memberships(tenant_id,user_id,role,available) VALUES($1,$2,$3,false)',[req.user.tenantId,userId,input.role]);
+        if(input.departmentId)await c.query('INSERT INTO department_members(tenant_id,department_id,user_id) VALUES($1,$2,$3)',[req.user.tenantId,input.departmentId,userId]);
+        await c.query('INSERT INTO audit_logs(tenant_id,actor_id,action,resource_type,resource_id) VALUES($1,$2,$3,$4,$5)',[req.user.tenantId,req.user.userId,'team.member.create','users',userId]);
+      });
+    }catch(e){
+      if((e as {code?:string}).code==='23505')throw new ConflictException({code:'ACCOUNT_EXISTS',message:'This email already has an account. Use an invitation instead.'});
+      throw e;
+    }
+    return {userId,email,role:input.role,temporaryPassword:credential.temporaryPassword,expiresAt:credential.expiresAt};
+  }
+
+  @Roles('owner','admin')
+  @Header('Cache-Control','no-store')
+  @Post('team/members/:userId/setup')
+  async renewMemberSetup(@Req() req:AuthedRequest,@Param('userId',ParseUUIDPipe) userId:string){
+    const credential=await createSetupCredential();
+    const email=await this.db.withTenant(req.user.tenantId,async c=>{
+      await c.query('SELECT id FROM tenants FOR NO KEY UPDATE');
+      const row=(await c.query('SELECT m.role,u.email,u.password_hash FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.user_id=$1 AND u.disabled_at IS NULL FOR UPDATE OF u',[userId])).rows[0];
+      if(!row)throw new NotFoundException('Member not found');
+      if(row.role==='owner'||(row.role==='admin'&&req.user.role!=='owner'))throw new ForbiddenException('Cannot renew this member credential');
+      if(!isSetupCredential(row.password_hash))throw new ConflictException('Account is already activated');
+      await c.query('UPDATE users SET password_hash=$2 WHERE id=$1',[userId,credential.stored]);
+      await c.query('INSERT INTO audit_logs(tenant_id,actor_id,action,resource_type,resource_id) VALUES($1,$2,$3,$4,$5)',[req.user.tenantId,req.user.userId,'team.member.setup_renew','users',userId]);
+      return row.email as string;
+    });
+    return {userId,email,temporaryPassword:credential.temporaryPassword,expiresAt:credential.expiresAt};
   }
 
   @Roles('owner', 'admin')

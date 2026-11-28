@@ -29,6 +29,7 @@ const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1).max(128),
   tenantId: z.string().uuid().optional(),
+  newPassword: password.optional(),
 });
 const refreshSchema = z.object({ refreshToken: z.string().min(10) });
 const switchSchema = z.object({ tenantId: z.string().uuid() });
