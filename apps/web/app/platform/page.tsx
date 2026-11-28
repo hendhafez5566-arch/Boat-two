@@ -1,7 +1,9 @@
 'use client';
 import { DisclosureSummary } from '../../components/product/DisclosureSummary';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { NavIcon } from '../../components/product/NavIcon';
+import { useTransientNotice } from '../../components/product/useTransientNotice';
 import styles from './platform.module.css';
 import BillingReviews from './BillingReviews';
 import OperationalReports from './OperationalReports';
@@ -44,9 +46,20 @@ type Overview = {
   subscriptions: Record<string, number>;
 };
 
+const sectionIcons:Record<string,string>={overview:'grid',companies:'commerce',plans:'billing',billing:'coins',users:'team',reports:'reports',audit:'audit',security:'shield'};
 function Console() {
   const { language, t, toggle } = useLocale();
   const [section, setSection] = useState('overview');
+  const lock=useRef(false),writeLock=useRef(false),draft=useRef(false);
+  const [writing,setWriting]=useState(false);
+  const [loadedAt,setLoadedAt]=useState<Date|null>(null);
+  function selectSection(id:string){
+    if(id===section||lock.current||writeLock.current)return;
+    if(draft.current&&!confirm(t('تجاهل التغييرات غير المحفوظة؟','Discard unsaved changes?')))return;
+    if(backupCodes.length&&!confirm(t('هل حفظت رموز الاسترداد؟ لن تظهر مرة أخرى.','Have you saved your recovery codes? They will not be shown again.')))return;
+    draft.current=false;setBackupCodes([]);setStepUpCode('');setError('');setMessage('');setSection(id);
+  }
+  useEffect(()=>{const guard=(e:BeforeUnloadEvent)=>{if(draft.current||lock.current||writeLock.current||backupCodes.length){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',guard);return()=>window.removeEventListener('beforeunload',guard);},[backupCodes.length]);
   const [report, setReport] = useState<Overview | null>(null);
   const [reportError, setReportError] = useState(false);
   const [token, setToken] = useState(''),
@@ -54,6 +67,7 @@ function Console() {
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState('');
+  useTransientNotice(message,()=>setMessage(''));
   const [enrollment, setEnrollment] = useState<{
       secret: string;
       provisioningUri: string;
@@ -118,6 +132,7 @@ function Console() {
           ).catch(() => null)
         : Promise.resolve(null),
     ]);
+    setLoadedAt(new Date());
     setReport(overview);
     setReportError(session.permissions.includes('reports.read') && !overview);
     setPermissions(session.permissions);
@@ -130,7 +145,8 @@ function Console() {
     setUserPage(up);
   }
   async function directoryPage(kind: 'companies' | 'users', page: number, query?: string) {
-    setBusy(true);
+    if(lock.current||writeLock.current)return;
+    lock.current=true;setBusy(true);
     setError('');
     try {
       await loadSnapshot(
@@ -142,7 +158,7 @@ function Console() {
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      lock.current=false;setBusy(false);
     }
   }
   async function request(
@@ -151,12 +167,12 @@ function Console() {
     method = body ? 'POST' : 'GET',
     access = token,
   ) {
+    const mutation=!!access&&['POST','PATCH','DELETE'].includes(method)&&!['/login','/mfa/enroll','/step-up'].includes(path);
+    if(mutation&&writeLock.current)throw new Error(t('هناك إجراء قيد التنفيذ','An action is already in progress'));
+    if(mutation){writeLock.current=true;setWriting(true);}
+    try{
     let stepUpToken = '';
-    if (
-      access &&
-      ['POST', 'PATCH', 'DELETE'].includes(method) &&
-      !['/login', '/mfa/enroll', '/step-up'].includes(path)
-    ) {
+    if (mutation) {
       if (!/^[0-9]{6}$/.test(stepUpCode))
         throw new Error(
           t(
@@ -189,10 +205,13 @@ function Console() {
           ? result.message.join(' · ')
           : result.message || t('تعذّر تنفيذ الطلب', 'Platform request rejected'),
       );
+    if(mutation)draft.current=false;
     return result;
+    }finally{if(mutation){writeLock.current=false;setWriting(false);}}
   }
   async function act(fn: () => Promise<unknown>) {
-    setBusy(true);
+    if(lock.current||writeLock.current)return;
+    lock.current=true;setBusy(true);
     setError('');
     setMessage('');
     try {
@@ -213,7 +232,7 @@ function Console() {
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      lock.current=false;setBusy(false);
     }
   }
   function subscriptionLabel(status: string) {
@@ -269,13 +288,16 @@ function Console() {
       dir={language === 'ar' ? 'rtl' : 'ltr'}
     >
       <header className={styles.header}>
-        <div>
-          <p className={styles.brand}>BOT TWO</p>
+        <div className={styles.identity}>
+          <span className={styles.brandIcon}><NavIcon name="shield"/></span>
+          <div><p className={styles.brand}>BOT TWO · PLATFORM</p>
           <h1>{t('لوحة مدير المنصة', 'Platform administration')}</h1>
+          <p className={styles.subtitle}>{t('إدارة مركزية للشركات والتشغيل والأمان','Central control of companies, operations and security')}</p></div>
         </div>
-        <button className="btn" onClick={toggle}>
+        <div className={styles.headerActions}>{token&&<span className={styles.sessionBadge}><NavIcon name="shield"/>{t('جلسة إدارية محمية','Secured admin session')}</span>}
+        <button className="btn" onClick={toggle}><NavIcon name="language"/>
           {t('English', 'العربية')}
-        </button>
+        </button></div>
       </header>
       {error && (
         <p role="alert" className="notice error">
@@ -332,7 +354,7 @@ function Console() {
                 maxLength={32}
               />
             </label>
-            <button className="btn" disabled={busy}>
+            <button className="btn" disabled={busy||writing}>
               {t('بدء الاسترداد الآمن', 'Start secure recovery')}
             </button>
           </form>
@@ -376,7 +398,7 @@ function Console() {
               required
             />
           </label>
-          <button className="btn btn-primary" disabled={busy}>
+          <button className="btn btn-primary" disabled={busy||writing}>
             {t('تأكيد وتسجيل الدخول', 'Confirm and sign in')}
           </button>
           <button className="btn" type="button" onClick={() => setEnrollment(null)}>
@@ -434,24 +456,28 @@ function Console() {
               )}
             </p>
           )}
-          <button className="btn btn-primary" disabled={busy}>
+          <button className="btn btn-primary" disabled={busy||writing}>
             {t('دخول مستقل', 'Platform sign-in')}
           </button>
         </form>
       ) : (
         <>
           <div className="form-actions">
+            {loadedAt&&<span className={styles.secondary}>{t('آخر تحديث','Last refreshed')}: {loadedAt.toLocaleTimeString(language)}</span>}
             <button
               className="btn"
-              disabled={busy}
+              disabled={busy||writing}
               onClick={() => void directoryPage('companies', companyPage)}
             >
-              {t('تحديث', 'Refresh')}
+              <NavIcon name="refresh"/>{t('تحديث', 'Refresh')}
             </button>
             <button
               className="btn"
-              disabled={busy}
+              disabled={busy||writing}
               onClick={() => {
+                if(writeLock.current||lock.current)return;
+                if((draft.current||backupCodes.length)&&!confirm(t('إنهاء الجلسة وتجاهل البيانات غير المحفوظة؟','End session and discard unsaved data?')))return;
+                draft.current=false;setLoadedAt(null);setPermissions([]);
                 setToken('');
                 setBackupCodes([]);
                 setStepUpCode('');
@@ -469,7 +495,7 @@ function Console() {
                 setMessage('');
               }}
             >
-              {t('إنهاء جلسة المنصة', 'End platform session')}
+              <NavIcon name="logout"/>{t('إنهاء جلسة المنصة', 'End platform session')}
             </button>
           </div>
           <div className={styles.layout}>
@@ -479,17 +505,18 @@ function Console() {
                   key={id}
                   type="button"
                   aria-current={activeSection.id === id ? 'page' : undefined}
-                  onClick={() => setSection(id)}
+                  disabled={busy||writing} onClick={() => selectSection(id)}
                 >
-                  {label}
+                  <NavIcon name={sectionIcons[id]}/>{label}
                 </button>
               ))}
             </nav>
-            <div className={styles.content}>
+            <div className={styles.content} data-platform-section={activeSection.id} aria-busy={busy||writing} onChange={e=>{const form=(e.target as HTMLElement).closest("form");if(form&&form.querySelector("[name=reason]"))draft.current=true;}}>
+              <header className={styles.sectionHeader}><span className={styles.sectionIcon}><NavIcon name={sectionIcons[activeSection.id]}/></span><div><h2>{activeSection.label}</h2><p>{t("إدارة ومراجعة البيانات الفعلية للمنصة","Manage and review live platform records")}</p></div></header>
               {activeSection.id === 'overview' && (
                 <section className={styles.panel}>
                   <h2>{activeSection.label}</h2>
-                  <nav className="platform-quick" aria-label={t('إدارة المنصة','Platform operations')}>{sections.filter(item=>['companies','users','billing','plans','reports','audit'].includes(item.id)).map(item=><button type="button" key={item.id} onClick={()=>setSection(item.id)}><strong>{item.label}</strong><span aria-hidden="true">‹</span></button>)}</nav>
+                  <nav className="platform-quick" aria-label={t('إدارة المنصة','Platform operations')}>{sections.filter(item=>['companies','users','billing','plans','reports','audit'].includes(item.id)).map(item=><button type="button" key={item.id} disabled={busy||writing} onClick={()=>selectSection(item.id)}><span className={styles.sectionIcon}><NavIcon name={sectionIcons[item.id]}/></span><strong>{item.label}</strong><span aria-hidden="true">‹</span></button>)}</nav>
                   {reportError && (
                     <p role="alert" className="notice error">
                       {t(
@@ -525,9 +552,9 @@ function Console() {
                             ],
                           ]
                         : []),
-                    ].map(([label, value]) => (
+                    ].map(([label, value],index) => (
                       <div className={styles.metric} key={label}>
-                        <span>{label}</span>
+                        <span className={styles.metricIcon}><NavIcon name={['commerce','blocked','circleCheck','calendar','billing'][index%5]}/></span><span>{label}</span>
                         <strong>{Number(value).toLocaleString(language)}</strong>
                       </div>
                     ))}
@@ -554,13 +581,14 @@ function Console() {
                       </p>
                       <button
                         className="btn"
-                        disabled={busy}
-                        onClick={() =>
+                        disabled={busy||writing}
+                        onClick={() => {
+                          if(!confirm(t('إبطال الرموز الاحتياطية القديمة وتوليد أخرى؟','Invalidate old backup codes and generate new ones?')))return;
                           void act(async () => {
                             const r = await request('/mfa/backup-codes', {});
                             setBackupCodes(r.codes);
-                          })
-                        }
+                          });
+                        }}
                       >
                         {t('توليد رموز جديدة', 'Generate new codes')}
                       </button>
@@ -592,7 +620,7 @@ function Console() {
                     'mfa.manage',
                   ].includes(permission),
                 ) && (
-                  <section className={styles.verification}>
+                  <section className={styles.verification}><NavIcon name="shield"/>
                     <label>
                       {t(
                         'رمز جديد من تطبيق المصادقة لكل إجراء',
@@ -600,7 +628,7 @@ function Console() {
                       )}
                       <input
                         value={stepUpCode}
-                        onChange={(e) => setStepUpCode(e.target.value)}
+                        onChange={(e) => setStepUpCode(e.target.value.replace(/[^0-9]/g,'').slice(0,6))}
                         inputMode="numeric"
                         autoComplete="one-time-code"
                         maxLength={6}
@@ -625,7 +653,7 @@ function Console() {
                       maxLength={100}
                       placeholder={t('الاسم أو المعرّف', 'Name or ID')}
                     />
-                    <button className="btn" disabled={busy}>
+                    <button className="btn" disabled={busy||writing}>
                       {t('بحث', 'Search')}
                     </button>
                     <button
@@ -668,7 +696,7 @@ function Console() {
                       <DisclosureSummary>
                         <span className={styles.rowTitle}>{company.name}</span>
                         <span className={styles.tag}>{company.plan_code}</span>
-                        <span className={styles.tag}>
+                        <span className={styles.tag} data-state={company.suspended_at?'suspended':company.status}>
                           {company.suspended_at
                             ? t('معلّقة', 'Suspended')
                             : subscriptionLabel(company.status)}
@@ -683,6 +711,7 @@ function Console() {
                           onSubmit={(e) => {
                             e.preventDefault();
                             const f = new FormData(e.currentTarget);
+                            if(!confirm(t('تأكيد حفظ بيانات الشركة وحالتها؟','Confirm company details and status change?')))return;
                             void act(() =>
                               request(
                                 '/companies/' + company.id,
@@ -718,7 +747,7 @@ function Console() {
                           />
                           <button
                             className="btn"
-                            disabled={busy || !permissions.includes('companies.write')}
+                            disabled={busy || writing || !permissions.includes('companies.write')}
                           >
                             {t('حفظ الشركة', 'Save company')}
                           </button>
@@ -796,7 +825,7 @@ function Console() {
                           />
                           <button
                             className="btn"
-                            disabled={busy || !permissions.includes('subscriptions.write')}
+                            disabled={busy || writing || !permissions.includes('subscriptions.write')}
                           >
                             {t('تعديل الاستحقاق المحلي', 'Override local entitlement')}
                           </button>
@@ -828,7 +857,7 @@ function Console() {
                       maxLength={100}
                       placeholder={t('الاسم أو البريد أو المعرّف', 'Name, email or ID')}
                     />
-                    <button className="btn" disabled={busy}>
+                    <button className="btn" disabled={busy||writing}>
                       {t('بحث', 'Search')}
                     </button>
                     <button
@@ -858,7 +887,7 @@ function Console() {
                         <span className={styles.secondary} dir="ltr">
                           {user.email}
                         </span>
-                        <span className={styles.tag}>
+                        <span className={styles.tag} data-state={user.disabled_at?'disabled':'active'}>
                           {user.disabled_at ? t('موقوف', 'Disabled') : t('نشط', 'Active')}
                         </span>
                       </DisclosureSummary>
@@ -868,6 +897,7 @@ function Console() {
                           onSubmit={(e) => {
                             e.preventDefault();
                             const f = new FormData(e.currentTarget);
+                            if(!confirm(t('تأكيد حفظ المستخدم وإبطال جلساته؟','Confirm saving user and revoking sessions?')))return;
                             void act(() =>
                               request(
                                 '/users/' + user.id,
@@ -903,14 +933,14 @@ function Console() {
                           />
                           <button
                             className="btn"
-                            disabled={busy || !permissions.includes('users.write')}
+                            disabled={busy || writing || !permissions.includes('users.write')}
                           >
                             {t('حفظ وإبطال الجلسات', 'Save and revoke sessions')}
                           </button>
                           <button
                             type="button"
                             className="btn"
-                            disabled={busy || !permissions.includes('sessions.revoke')}
+                            disabled={busy || writing || !permissions.includes('sessions.revoke')}
                             onClick={() => {
                               const reason = prompt(
                                 t(
@@ -998,7 +1028,7 @@ function Console() {
                           {t('سبب التغيير', 'Change reason')}
                           <input name="reason" minLength={10} maxLength={1000} required />
                         </label>
-                        <button className="btn btn-primary" disabled={busy}>
+                        <button className="btn btn-primary" disabled={busy||writing}>
                           {t('إنشاء باقة', 'Create plan')}
                         </button>
                       </form>
@@ -1009,7 +1039,7 @@ function Console() {
                       <DisclosureSummary>
                         <span className={styles.rowTitle}>{plan.name}</span>
                         <span className={styles.tag}>{plan.code}</span>
-                        <span className={styles.tag}>
+                        <span className={styles.tag} data-state={plan.is_active?'active':'disabled'}>
                           {plan.is_active ? t('متاحة', 'Available') : t('غير متاحة', 'Unavailable')}
                         </span>
                       </DisclosureSummary>
@@ -1084,7 +1114,7 @@ function Console() {
                         />
                         <button
                           className="btn"
-                          disabled={busy || !permissions.includes('plans.write')}
+                          disabled={busy || writing || !permissions.includes('plans.write')}
                         >
                           {t('حفظ الباقة', 'Save plan')}
                         </button>
