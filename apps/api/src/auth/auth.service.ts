@@ -22,7 +22,6 @@ interface Workspace {
 }
 
 const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
-const TRIAL_PLAN = 'pro';
 
 function slugify(name: string) {
   const base = name
@@ -66,6 +65,8 @@ export class AuthService {
     return { accessToken, refreshToken, expiresIn: env.JWT_ACCESS_TTL_SECONDS };
   }
 
+  async registrationPolicy(){return (await this.db.query('SELECT saas_registration_settings($1) AS data',[env.TRIAL_DAYS])).rows[0].data as {selfRegistration:boolean;trialPlanCode:string;trialDays:number};}
+
   async register(input: {
     brandHostname?: string;
     email: string;
@@ -75,6 +76,7 @@ export class AuthService {
   }) {
     if (input.brandHostname)
       throw new ForbiddenException('Join a branded workspace using an invitation');
+    if(!(await this.registrationPolicy()).selfRegistration)throw new ForbiddenException('Self-registration is currently closed');
     const email = input.email.toLowerCase();
     const tenantId = randomUUID();
     const userId = randomUUID();
@@ -96,15 +98,16 @@ export class AuthService {
           [tenantId, userId],
         );
         await c.query(
-          `INSERT INTO subscriptions (tenant_id, plan_id, status, trial_ends_at)
-           SELECT $1, id, 'trialing', now() + ($3 || ' days')::interval FROM plans WHERE code = $2`,
-          [tenantId, TRIAL_PLAN, String(env.TRIAL_DAYS)],
+          'SELECT saas_registration_record($1,$2,$3)',
+          [tenantId,userId,env.TRIAL_DAYS],
         );
       });
     } catch (e) {
       if ((e as { code?: string }).code === '23505') {
         throw new ConflictException('Email already registered');
       }
+      if((e as Error).message==='Registration closed')throw new ForbiddenException('Self-registration is currently closed');
+      if((e as Error).message==='Registration plan unavailable')throw new ForbiddenException('Registration is temporarily unavailable');
       throw e;
     }
 
