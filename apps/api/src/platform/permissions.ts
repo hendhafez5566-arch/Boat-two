@@ -11,6 +11,8 @@ export const platformPermissions = [
   'sessions.revoke',
   'subscriptions.write',
   'plans.write',
+  'settings.read',
+  'settings.write',
 ] as const;
 export type PlatformPermission = (typeof platformPermissions)[number];
 export const operatorRoles = {
@@ -22,6 +24,7 @@ export const operatorRoles = {
     'plans.read',
     'audit.read',
     'reports.read',
+    'settings.read',
   ],
   support: ['mfa.manage', 'companies.read', 'users.read', 'companies.write', 'users.write'],
   security: ['mfa.manage', 'users.read', 'audit.read', 'sessions.revoke'],
