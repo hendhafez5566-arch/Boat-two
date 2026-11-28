@@ -122,6 +122,7 @@ export default function PlansPanel({
                   ))}
               </ul>
             )}
+            {p.price_cents>0&&p.checkout_available!==true&&<p className={styles.muted}>{t('السعر غير متاح للاشتراكات الجديدة حاليًا.','This price is not available for new subscriptions.')}</p>}
             {currentPlan !== p.code && (
               <button
                 className="btn btn-primary"
@@ -130,6 +131,7 @@ export default function PlansPanel({
                   role !== 'owner' ||
                   !status?.configured ||
                   !p.price_cents ||
+                  p.checkout_available!==true ||
                   (linked ? !status.portalAvailable : false)
                 }
                 onClick={() => {
@@ -190,7 +192,7 @@ export default function PlansPanel({
             <button
               className="btn btn-primary"
               type="button"
-              disabled={busy||loading||!!requestError||role!=='owner'||!status?.configured||Boolean(linked&&!status.portalAvailable)}
+              disabled={busy||loading||!!requestError||role!=='owner'||!status?.configured||selected.checkout_available!==true||!plans.some(p=>p.code===selected.code&&p.checkout_available===true&&p.price_cents===selected.price_cents&&p.currency===selected.currency&&p.interval===selected.interval)||Boolean(linked&&!status.portalAvailable)}
               onClick={() =>
                 void pay(
                   linked ? '/billing/portal' : '/billing/checkout',
