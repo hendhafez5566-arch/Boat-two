@@ -10,6 +10,7 @@ import OperationalReports from './OperationalReports';
 import PriceCatalog from './PriceCatalog';
 import AuditTrail from './AuditTrail';
 import { API } from '../../lib/api';
+import { billingMoney } from '../../lib/billing-display';
 import { createDesignReview } from './design-review';
 import { useLocale } from '../../components/product/locale';
 type Company = {
@@ -32,6 +33,9 @@ type Plan = {
   code: string;
   name: string;
   price_cents: number;
+  currency?: string;
+  interval?: string;
+  checkout_available?: boolean;
   is_active: boolean;
   limits: Record<string, number>;
   features: Record<string, boolean>;
@@ -261,6 +265,7 @@ export default function Console({designReview=false}:{designReview?:boolean}) {
   const limitLabels: Record<string, string> = {
     ...primaryLimits,
     agents: t('مقاعد الفريق', 'Team seats'),
+    bots: t('البوتات','Bots'),
     channels: t('القنوات', 'Channels'),
     flows: t('التدفقات', 'Flows'),
   };
@@ -977,6 +982,7 @@ export default function Console({designReview=false}:{designReview?:boolean}) {
               {activeSection.id === 'plans' && (
                 <section className={styles.panel}>
                   <h2>{t('الباقات والحدود', 'Plans and limits')}</h2>
+                  <p className="notice">{designReview?t('الكتالوج يبدأ من الباقات العامة الفعلية عند توفرها، لكن أي تعديل هنا تجريبي ومحلي فقط.','Catalog starts from the real public plans when available; all edits here are local simulations.'):t('هذه الباقات هي مصدر قسم اشتراكي. تعديل الحدود والمميزات يؤثر على الشركات المشتركة، أما الأسعار الحالية فتُدار من كتالوج الأسعار ولا تعيد تسعير الاشتراكات القائمة تلقائيًا.','These plans power My Subscription. Limits and features affect subscribed companies; prices are managed in the price catalog and do not automatically reprice existing subscriptions.')}</p>
                   {permissions.includes('plans.write') && data && data.plans.length > 0 && (
                     <details className={styles.row}>
                       <DisclosureSummary>{t('إنشاء باقة', 'Create plan')}</DisclosureSummary>
@@ -1046,6 +1052,8 @@ export default function Console({designReview=false}:{designReview?:boolean}) {
                       <DisclosureSummary>
                         <span className={styles.rowTitle}>{plan.name}</span>
                         <span className={styles.tag}>{plan.code}</span>
+                        <span className={styles.tag}>{plan.currency?billingMoney(plan.price_cents,plan.currency):'—'} / {plan.interval==='year'?t('سنة','year'):t('شهر','month')}</span>
+                        {plan.price_cents>0&&<span className={styles.tag} data-state={plan.checkout_available?'active':'past_due'}>{plan.checkout_available?t('سعر مرتبط بالكتالوج','Catalog price mapped'):t('سعر غير جاهز للدفع','Price not ready for checkout')}</span>}
                         <span className={styles.tag} data-state={plan.is_active?'active':'disabled'}>
                           {plan.is_active ? t('متاحة', 'Available') : t('غير متاحة', 'Unavailable')}
                         </span>
@@ -1128,7 +1136,7 @@ export default function Console({designReview=false}:{designReview?:boolean}) {
                       </form>
                     </details>
                   ))}
-                  <PriceCatalog request={request} canWrite={permissions.includes('plans.write')} />
+                  <PriceCatalog request={request} canWrite={permissions.includes('plans.write')} plans={data?.plans??[]} onChanged={()=>loadSnapshot()} />
                 </section>
               )}
               {activeSection.id === 'billing' && (
