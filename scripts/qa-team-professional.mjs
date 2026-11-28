@@ -23,6 +23,8 @@ try{for(const language of ['ar','en'])for(const width of [390,1366]){
  const context=await browser.newContext({viewport:{width,height:936}});await context.addInitScript(({session,language})=>{localStorage.setItem('session',JSON.stringify(session));localStorage.setItem('boat-language',language);},{session,language});
  const page=await context.newPage();page.setDefaultTimeout(25000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>['localhost','127.0.0.1'].includes(new URL(r.request().url()).hostname)?r.continue():r.abort());
  await page.goto(web+'/dashboard/team');
+ const hero=page.locator('[data-workbench=team] .workspace-heading');await hero.waitFor();assert.ok((await hero.evaluate(el=>getComputedStyle(el).backgroundImage)).includes('linear-gradient'),'team hero must render gradient');
+ const metric=page.locator('.workbench-metrics>div').first();assert.ok((await metric.evaluate(el=>getComputedStyle(el).backgroundImage)).includes('linear-gradient'),'team metric gradient missing');
  const search=page.getByRole('searchbox',{name:t('بحث في الفريق','Search team')});
  await page.getByRole('row').filter({hasText:credentials.email}).waitFor();
  await search.fill('does-not-exist');await page.getByText(t('لا توجد نتائج مطابقة','No matching members'),{exact:true}).waitFor();
@@ -32,7 +34,7 @@ try{for(const language of ['ar','en'])for(const width of [390,1366]){
  await page.getByText(t('لا توجد نتائج مطابقة','No matching members'),{exact:true}).waitFor();
  await page.getByRole('button',{name:t('مسح الفلاتر','Clear filters'),exact:true}).click();
  await page.getByRole('button',{name:new RegExp(t('دعوة موظف','Invite teammate'))}).click();
- const dialog=page.getByRole('dialog');await dialog.locator('input[name=email]').fill('synthetic@example.test');
+ const dialog=page.getByRole('dialog');await dialog.waitFor();await page.screenshot({path:out+'/invite-dialog-'+language+'-'+width+'.png',fullPage:true});await dialog.locator('input[name=email]').fill('synthetic@example.test');
  let prompted=false;page.once('dialog',d=>{prompted=true;return d.dismiss();});await page.keyboard.press('Escape');assert.ok(prompted);assert.equal(await dialog.locator('input[name=email]').inputValue(),'synthetic@example.test');
  page.once('dialog',d=>d.accept());await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});
  await page.getByRole('button',{name:t('الدعوات','Invitations'),exact:true}).click();
@@ -40,6 +42,7 @@ try{for(const language of ['ar','en'])for(const width of [390,1366]){
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'team viewport overflow');assert.deepEqual(errors,[]);
  await page.screenshot({path:out+'/team-'+language+'-'+width+'.png',fullPage:true});
  await page.goto(web+'/dashboard/settings/attachments');
+ const fileHero=page.locator('[data-workbench=attachments] .workspace-heading');await fileHero.waitFor();assert.ok((await fileHero.evaluate(el=>getComputedStyle(el).backgroundImage)).includes('linear-gradient'),'attachment hero must render gradient');
  await page.locator('input[type=file]').setInputFiles({name:'synthetic-attachment.txt',mimeType:'text/plain',buffer:Buffer.from('Synthetic attachment QA')});
  const attachment=page.getByRole('row',{name:'synthetic-attachment.txt',exact:true});
  await attachment.waitFor();
