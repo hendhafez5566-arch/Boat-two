@@ -2,6 +2,7 @@ import { CryptoService } from '../messaging/crypto.service';
 import { matchingTotpStep, newTotpSecret } from './totp';
 import { createHash, randomUUID, randomBytes } from 'node:crypto';
 import { stepUpDigest } from './step-up';
+import { previewReviewAllowed,previewReviewPermissions } from './preview-signin';
 import {
   BadRequestException,
   Body,
@@ -37,6 +38,7 @@ import type { Request } from 'express';
 type PlatformRequest = Request & {
   platformActor: string;
   platformVersion: number;
+  platformReview?: boolean;
   platformPermissions: PlatformPermission[];
 };
 const Permission = (value: PlatformPermission) => SetMetadata('platform.permission', value);
@@ -93,6 +95,9 @@ export class PlatformAccess implements CanActivate, OnModuleDestroy {
     ).rows[0];
     if (!account || account.disabled_at)
       throw new ForbiddenException('Invalid platform credentials');
+    if(!input.otp&&previewReviewAllowed(user.id)){
+      return {accessToken:await this.jwt.signAsync({sub:user.id,purpose:'platform-preview-review',sv:account.session_version,mfa:false},{secret:env.PLATFORM_JWT_SECRET,expiresIn:600}),expiresIn:600,reviewOnly:true};
+    }
     const state = await this.mfaState(user.id);
     if (!state?.enabled) {
       const secret = newTotpSecret(),
@@ -215,18 +220,21 @@ export class PlatformAccess implements CanActivate, OnModuleDestroy {
           payload.sub,
         ])
       ).rows[0];
+      const review=payload.purpose==='platform-preview-review'&&payload.mfa===false&&previewReviewAllowed(payload.sub);
       if (
-        account?.disabled_at ||
-        payload.purpose !== 'platform' ||
-        payload.mfa !== true ||
+        !account||account.disabled_at ||
+        (!review&&(payload.purpose !== 'platform' || payload.mfa !== true)) ||
         !this.allowed(payload.sub) ||
         account?.session_version !== payload.sv
       )
         throw new Error();
-      if (!(await this.mfaState(payload.sub))?.enabled) throw new Error();
+      if(review&&req.method!=='GET')throw new Error();
+      if (!review&&!(await this.mfaState(payload.sub))?.enabled) throw new Error();
       req.platformActor = payload.sub;
       req.platformVersion = payload.sv;
-      req.platformPermissions = operatorPermissions(env.PLATFORM_OPERATOR_ROLES, payload.sub);
+      req.platformReview=review;
+      const permissions=operatorPermissions(env.PLATFORM_OPERATOR_ROLES,payload.sub);
+      req.platformPermissions=review?previewReviewPermissions(permissions):permissions;
       const required = this.reflector.getAllAndOverride<PlatformPermission>('platform.permission', [
         context.getHandler(),
         context.getClass(),
@@ -424,7 +432,7 @@ class PlatformLoginController {
 class PlatformController {
   constructor(private access: PlatformAccess) {}
   @Get('session') session(@Req() r: PlatformRequest) {
-    return { actor: r.platformActor, permissions: r.platformPermissions };
+    return { actor: r.platformActor, permissions: r.platformPermissions, reviewOnly:!!r.platformReview };
   }
   @Permission('subscriptions.read') @Get('billing-reviews') async billingReviews() {
     return (await this.access.query('SELECT platform_billing_review_queue() AS data'))[0].data;
