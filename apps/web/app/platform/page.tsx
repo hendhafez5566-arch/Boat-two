@@ -59,7 +59,6 @@ function Console() {
     if(backupCodes.length&&!confirm(t('هل حفظت رموز الاسترداد؟ لن تظهر مرة أخرى.','Have you saved your recovery codes? They will not be shown again.')))return;
     draft.current=false;setBackupCodes([]);setStepUpCode('');setError('');setMessage('');setSection(id);
   }
-  useEffect(()=>{const guard=(e:BeforeUnloadEvent)=>{if(draft.current||lock.current||writeLock.current||backupCodes.length){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',guard);return()=>window.removeEventListener('beforeunload',guard);},[backupCodes.length]);
   const [report, setReport] = useState<Overview | null>(null);
   const [reportError, setReportError] = useState(false);
   const [token, setToken] = useState(''),
@@ -77,6 +76,7 @@ function Console() {
   const [permissions, setPermissions] = useState<string[]>([]);
   const [stepUpCode, setStepUpCode] = useState('');
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  useEffect(()=>{const guard=(e:BeforeUnloadEvent)=>{if(draft.current||lock.current||writeLock.current||backupCodes.length){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',guard);return()=>window.removeEventListener('beforeunload',guard);},[backupCodes.length]);
   const [companyStatus, setCompanyStatus] = useState('');
   const [appliedCompanyQuery, setAppliedCompanyQuery] = useState('');
   const [appliedUserQuery, setAppliedUserQuery] = useState('');
@@ -467,7 +467,7 @@ function Console() {
             <button
               className="btn"
               disabled={busy||writing}
-              onClick={() => void directoryPage('companies', companyPage)}
+              onClick={() => {if(draft.current&&!confirm(t('تحديث العرض مع تجاهل المسودة؟','Refresh and discard draft?')))return;draft.current=false;void directoryPage('companies', companyPage);}}
             >
               <NavIcon name="refresh"/>{t('تحديث', 'Refresh')}
             </button>
