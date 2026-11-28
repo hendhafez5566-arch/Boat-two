@@ -16,11 +16,11 @@ export function createDesignReview(publicPlans:BillingPlan[]|null=null){
   const url=new URL(path||'/', 'https://design.invalid'),p=url.pathname,q=url.searchParams,b=(body||{}) as DesignBody;
   if(method==='GET'){
    if(p==='/session')return {actor:users[0].id,permissions};
-   if(p==='/')return {companies,users,plans,audit};
-   if(p==='/directory'){const source=q.get('kind')==='companies'?companies:users;const search=(q.get('q')||'').toLowerCase();const rows=source.filter(x=>Object.values(x).join(' ').toLowerCase().includes(search));const page=Math.max(1,Number(q.get('page')||1)),limit=50;return {items:rows.slice((page-1)*limit,page*limit),total:rows.length};}
+   if(p==='/')return structuredClone({companies,users,plans,audit});
+   if(p==='/directory'){const source=q.get('kind')==='companies'?companies:users;const search=(q.get('q')||'').toLowerCase();const status=q.get('status')||'';const rows=source.filter(x=>Object.values(x).join(' ').toLowerCase().includes(search)&&(!status||('suspended_at' in x?(status==='suspended'?!!x.suspended_at:!x.suspended_at&&x.status===status):status==='disabled'?!!x.disabled_at:!x.disabled_at)));const page=Math.max(1,Number(q.get('page')||1)),limit=50;return {items:structuredClone(rows.slice((page-1)*limit,page*limit)),total:rows.length};}
    if(p==='/reports')return {companies:{total:companies.length,suspended:companies.filter(c=>c.suspended_at).length},subscriptions:Object.fromEntries(['active','trialing','past_due','canceled'].map(s=>[s,companies.filter(c=>c.status===s).length])),queues:{pending:0},paidInvoicesByCurrency:[{currency:'usd',invoices:2,gross_paid_minor_units:'9800'}],invoiceCohortByCurrency:[{currency:'usd',invoices:2,due_minor_units:'9800',remaining_minor_units:'0',failed_open:0}],recurringByCurrency:[{currency:'usd',status:'active',subscriptions:1,monthly_equivalent_minor_units:'4900'}],paidInvoicesMissingPaymentDate:0,unpricedLinkedSubscriptions:0};
-   if(p==='/prices')return prices.slice();
-   if(p==='/billing-reviews')return reviews.slice();
+   if(p==='/prices')return structuredClone(prices);
+   if(p==='/billing-reviews')return structuredClone(reviews);
    if(p==='/audit'){const rows=audit.filter(x=>(!q.get('actor')||q.get('actor')===x.actor_id)&&(!q.get('tenant')||q.get('tenant')===x.tenant_id)&&(!q.get('action')||q.get('action')===x.action)&&(!q.get('from')||x.created_at>=q.get('from')!)&&(!q.get('to')||x.created_at<q.get('to')!));return {items:rows,nextCursor:null};}
   }
   const id=p.split('/')[2];const now=new Date().toISOString();

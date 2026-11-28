@@ -46,12 +46,14 @@ try{for(const language of ['ar','en'])for(const width of [390,1366]){
  for(const [id,ar,en] of labels){
  await nav.getByRole('button',{name:t(ar,en),exact:true}).click();
  const section=page.locator('[data-platform-section='+id+']');await section.waitFor();
- if(id==='companies'||id==='users'||id==='plans'){const details=section.locator('details').first();await details.locator('summary').click();}
+ if(id==='companies'||id==='users'||id==='plans'){await section.locator('[data-record-editor]').first().click();const modal=page.getByRole('dialog');await modal.waitFor();assert.ok(await modal.evaluate(el=>el.getBoundingClientRect().height<=innerHeight));await page.screenshot({path:out+'/'+id+'-dialog-'+language+'-'+width+'.png'});await modal.getByRole('button',{name:t('إغلاق','Close'),exact:true}).click();await modal.waitFor({state:'hidden'});}
  if(id==='plans')await section.getByText(t('لا توجد أسعار مطابقة','No matching prices'),{exact:true}).waitFor();
  if(id==='billing')await section.getByText(t('لا توجد نتائج مطابقة للمراجعة','No matching reviews'),{exact:true}).waitFor();
  if(id==='reports')await section.getByText(t('لا توجد فواتير مسددة في الفترة','No paid invoices in range'),{exact:true}).waitFor();
  if(id==='audit')await section.getByText(t('لا توجد عمليات ضمن الفلاتر.','No operations match these filters.'),{exact:true}).waitFor();
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'overflow '+id+' '+width);
+ assert.ok(await section.evaluate(el=>Array.from(el.querySelectorAll('input:not([type=checkbox]),select')).filter(x=>x.getClientRects().length).every(x=>x.getBoundingClientRect().height<=48)),'oversized inputs '+id+' '+width);
+ if(width===1366)assert.ok(await section.evaluate(el=>el.getBoundingClientRect().top<260),'oversized shell '+id);
  await page.screenshot({path:out+'/'+id+'-'+language+'-'+width+'.png',fullPage:true});
  }
  assert.deepEqual(errors,[]);assert.ok(calls.every(c=>['GET','OPTIONS'].includes(c.method)||c.p==='/login'));

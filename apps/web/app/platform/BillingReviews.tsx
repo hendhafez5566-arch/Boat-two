@@ -1,5 +1,7 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ComponentProps } from 'react';
+import RecordEditor from './RecordEditor';
+import styles from './platform.module.css';
 import { NavIcon } from '../../components/product/NavIcon';
 import { useTransientNotice } from '../../components/product/useTransientNotice';
 import { useLocale } from '../../components/product/locale';
@@ -24,12 +26,13 @@ type Item = {
 };
 export default function BillingReviews({
   request,
-  canWrite,
+  canWrite,editorProps,
 }: {
   request: (path: string, body?: unknown) => Promise<unknown>;
   canWrite: boolean;
+  editorProps:Pick<ComponentProps<typeof RecordEditor>,'canClose'|'disabled'|'verification'|'feedback'>;
 }) {
-  const { t } = useLocale(),
+  const { t,language } = useLocale(),
     [rows, setRows] = useState<Item[]>([]),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
@@ -85,10 +88,7 @@ export default function BillingReviews({
       {busy&&<p role="status">{t('جارٍ التحميل…','Loading…')}</p>}
       {loaded&&!busy&&!error&&!visible.length&&<p className="empty">{t('لا توجد نتائج مطابقة للمراجعة','No matching reviews')}</p>}
       {visible.map((row) => (
-        <article key={row.id} className="card stack">
-          <h3>
-            {row.company} · {row.kind} {row.plan_code}
-          </h3>
+        <RecordEditor key={row.id} {...editorProps} disabled={busy||editorProps.disabled} title={row.company} action={t('مراجعة','Review')} summary={<><div className={styles.entityName}><span className={styles.avatar}><NavIcon name="billing"/></span><div><strong>{row.company}</strong><small>{({subscription_update:t('تحديث الاشتراك','Subscription update'),change_plan:t('تغيير الباقة','Plan change'),cancel:t('إلغاء الاشتراك','Cancellation')} as Record<string,string>)[row.kind]??row.kind}</small></div></div><span className={styles.tag}>{row.plan_code??'—'}</span><span className={styles.tag} data-state="past_due">{t('قيد المراجعة','In review')}</span></>} feedback={<>{editorProps.feedback}{error&&<p role="alert" className="notice error">{error}</p>}{notice&&<p role="status" className="notice">{notice}</p>}</>}>
           <form
             className="form-actions"
             onSubmit={(e) => {
@@ -109,22 +109,22 @@ export default function BillingReviews({
           </form>
           {row.reviews.map((review) => (
             <div key={review.id} className="review-evidence">
-              <strong>{review.status}</strong>
+              <strong>{review.status==='ready'?t('الدليل جاهز','Evidence ready'):review.status}</strong>
               <p>{review.error}</p>
               {review.evidence && (
                 <dl>
                   <dt>{t('النتيجة', 'Verdict')}</dt>
-                  <dd>{review.evidence.verdict}</dd>
+                  <dd>{review.evidence.verdict==='satisfied'?t('مطابق','Matched'):review.evidence.verdict}</dd>
                   <dt>Stripe request</dt>
                   <dd>
                     <code>{review.evidence.providerRequestId}</code>
                   </dd>
                   <dt>{t('وقت القراءة', 'Read time')}</dt>
-                  <dd>{review.observed_at}</dd>
+                  <dd>{review.observed_at?new Date(review.observed_at).toLocaleString(language):'—'}</dd>
                 </dl>
               )}
               {review.status === 'ready' && review.evidence?.verdict === 'satisfied' && (
-                <form
+                <form className="stack"
                   onSubmit={(e) => {
                     e.preventDefault();
                     void act(
@@ -144,7 +144,7 @@ export default function BillingReviews({
               )}
             </div>
           ))}
-        </article>
+        </RecordEditor>
       ))}
     </section>
   );

@@ -509,6 +509,7 @@ class PlatformController {
       z.object({
         kind: z.enum(['companies', 'users']),
         q: z.string().max(100).default(''),
+        status:z.enum(['','active','trialing','past_due','canceled','suspended','disabled']).default(''),
         page: z.coerce.number().int().min(1).max(100000).default(1),
         limit: z.coerce.number().int().min(1).max(100).default(50),
       }),
@@ -516,12 +517,14 @@ class PlatformController {
     );
     if (!r.platformPermissions.includes(q.kind === 'users' ? 'users.read' : 'companies.read'))
       throw new ForbiddenException('Directory read scope required');
+    if((q.kind==='users'&&!['','active','disabled'].includes(q.status))||(q.kind==='companies'&&q.status==='disabled'))throw new BadRequestException('Invalid directory status');
     return (
-      await this.access.query('SELECT platform_directory($1,$2,$3,$4) AS data', [
+      await this.access.query('SELECT platform_directory_status($1,$2,$3,$4,$5) AS data', [
         q.kind,
         q.q,
         q.page,
         q.limit,
+        q.status,
       ])
     )[0].data;
   }

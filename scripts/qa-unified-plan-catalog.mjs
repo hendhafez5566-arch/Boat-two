@@ -26,6 +26,12 @@ try{
  const paid=before.find(p=>p.code==='pro')??before.find(p=>p.price_cents>0);assert.ok(paid);
  const other=before.find(p=>p.code!==paid.code);assert.ok(other);
  for(const [tenant,plan] of [[a,paid],[b,other]])await role('app_user',async tx=>{await tx.query('INSERT INTO tenants(id,name,slug) VALUES($1,$2,$3)',[tenant,'Synthetic '+tenant,tenant]);await tx.query("INSERT INTO subscriptions(tenant_id,plan_id,status) SELECT $1,id,'active' FROM plans WHERE code=$2",[tenant,plan.code]);},tenant);
+ const filtered=(await operator('SELECT platform_directory_status($1,$2,$3,$4,$5) AS data',['companies','Synthetic',1,1,'active'])).rows[0].data;assert.equal(filtered.total,2);assert.equal(filtered.items.length,1);const next=(await operator('SELECT platform_directory_status($1,$2,$3,$4,$5) AS data',['companies','Synthetic',2,1,'active'])).rows[0].data;assert.notEqual(filtered.items[0].id,next.items[0].id);
+ await assert.rejects(()=>query('SELECT platform_directory_status($1,$2,$3,$4,$5)',['companies','',1,1,'active']));
+ await operator('SELECT platform_change_company($1,$2,$3,$4,$5)',[actor,a,'Synthetic '+a,true,'Synthetic status filtering test']);
+ assert.equal((await operator('SELECT platform_directory_status($1,$2,$3,$4,$5) AS data',['companies','Synthetic',1,1,'suspended'])).rows[0].data.total,1);
+ assert.equal((await operator('SELECT platform_directory_status($1,$2,$3,$4,$5) AS data',['companies','Synthetic',1,1,'active'])).rows[0].data.total,1);
+ await operator('SELECT platform_change_company($1,$2,$3,$4,$5)',[actor,a,'Synthetic '+a,false,'Synthetic status reset']);
  const effective=tenant=>role('app_user',tx=>plans.getTenantPlan(tx),tenant);
  const limits={...paid.limits,agents:73,messages_per_month:12345},features={...paid.features,broadcasts:true};
  const label='Synthetic catalog QA '+paid.code;

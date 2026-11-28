@@ -1,5 +1,6 @@
 'use client';
 import { useEffect,useRef,useState } from 'react';
+import { billingMoney } from '../../lib/billing-display';
 import { NavIcon } from '../../components/product/NavIcon';
 import styles from './platform.module.css';
 import { useLocale } from '../../components/product/locale';
@@ -87,34 +88,30 @@ export default function OperationalReports({
         <>
           <p className="muted">{t('الفترة المعروضة UTC','Displayed range UTC')}: {applied}</p>
           <div className={styles.metrics}>{[[t('الشركات','Companies'),data.companies.total],[t('الشركات الموقوفة','Suspended companies'),data.companies.suspended],[t('فواتير بلا تاريخ سداد','Invoices without payment date'),data.paidInvoicesMissingPaymentDate],[t('اشتراكات بلا سعر','Unpriced subscriptions'),data.unpricedLinkedSubscriptions]].map(([label,value],i)=><div className={styles.metric} key={label}><span className={styles.metricIcon}><NavIcon name={['commerce','blocked','billing','coins'][i]}/></span><span>{label}</span><strong>{value}</strong></div>)}</div>
-          <h3>{t('فواتير مسددة خلال الفترة', 'Invoices paid in range')}</h3>
+          <div className={styles.reportGrid}><article className={styles.reportCard}><h3>{t('فواتير مسددة خلال الفترة', 'Invoices paid in range')}</h3>
           {!data.paidInvoicesByCurrency.length&&<p className="empty">{t('لا توجد فواتير مسددة في الفترة','No paid invoices in range')}</p>}
           {data.paidInvoicesByCurrency.map((r) => (
             <p key={r.currency}>
-              {r.currency.toUpperCase()}: {r.gross_paid_minor_units} {t('وحدة صغرى', 'minor units')}{' '}
-              · {r.invoices} {t('فاتورة', 'invoices')}
+              <strong>{billingMoney(r.gross_paid_minor_units,r.currency)}</strong><br/>{r.invoices} {t('فاتورة', 'invoices')}
             </p>
           ))}
-          <h3>{t('الفواتير المنشأة خلال الفترة', 'Invoice creation cohort')}</h3>
+          </article><article className={styles.reportCard}><h3>{t('الفواتير المنشأة خلال الفترة', 'Invoice creation cohort')}</h3>
           {!data.invoiceCohortByCurrency.length&&<p className="empty">{t('لا توجد فواتير في الفترة','No invoices in range')}</p>}
           {data.invoiceCohortByCurrency.map((r) => (
             <p key={r.currency}>
-              {r.currency.toUpperCase()} · {t('مستحق / متبقٍ', 'Due / remaining')}:{' '}
-              {r.due_minor_units} / {r.remaining_minor_units} · {t('فشل مفتوح', 'Failed open')}:{' '}
-              {r.failed_open}
+              <strong>{billingMoney(r.due_minor_units,r.currency)}</strong><br/>{t('متبقٍ','Remaining')}: {billingMoney(r.remaining_minor_units,r.currency)} · {t('فشل مفتوح','Failed open')}: {r.failed_open}
             </p>
           ))}
-          <h3>
+          </article><article className={styles.reportCard}><h3>
             {t('المكافئ الشهري للاشتراكات الحالية', 'Current subscription monthly equivalents')}
           </h3>
           {!data.recurringByCurrency.length&&<p className="empty">{t('لا توجد اشتراكات مسعّرة','No priced subscriptions')}</p>}
           {data.recurringByCurrency.map((r) => (
             <p key={r.currency + r.status}>
-              {r.currency.toUpperCase()} · {r.status} · {r.monthly_equivalent_minor_units}{' '}
-              {t('وحدة صغرى شهريًا', 'minor units per month')} · {r.subscriptions}
+              <strong>{billingMoney(r.monthly_equivalent_minor_units,r.currency)}</strong><br/>{t('شهريًا','Monthly')} · {r.subscriptions} {t('اشتراك','subscriptions')} · {({active:t('نشط','Active'),trialing:t('تجريبي','Trial'),past_due:t('متأخر','Past due'),canceled:t('ملغى','Canceled')} as Record<string,string>)[r.status]??r.status}
             </p>
           ))}
-          <p className="notice">
+          </article></div><p className="notice">
             {t(
               'فواتير بلا تاريخ سداد / اشتراكات بلا سعر موثّق',
               'Invoices missing payment date / subscriptions without mapped price',
@@ -122,10 +119,10 @@ export default function OperationalReports({
             : {data.paidInvoicesMissingPaymentDate} / {data.unpricedLinkedSubscriptions}
           </p>
           <h3>{t('الحالات التشغيلية الحالية', 'Current operational state')}</h3>
-          <dl>
+          <dl className={styles.stateGrid}>
             {Object.entries({ ...data.subscriptions, ...data.queues }).map(([key, value]) => (
               <div key={key}>
-                <dt>{key}</dt>
+                <dt>{({active:t('نشط','Active'),trialing:t('تجريبي','Trial'),past_due:t('متأخر السداد','Past due'),canceled:t('ملغى','Canceled'),pending:t('قيد الانتظار','Pending'),processing:t('قيد التنفيذ','Processing'),failed:t('فشل','Failed')} as Record<string,string>)[key]??key}</dt>
                 <dd>{value}</dd>
               </div>
             ))}
