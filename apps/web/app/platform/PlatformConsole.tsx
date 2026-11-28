@@ -10,7 +10,7 @@ import OperationalReports from './OperationalReports';
 import PriceCatalog from './PriceCatalog';
 import AuditTrail from './AuditTrail';
 import { API } from '../../lib/api';
-import { billingMoney } from '../../lib/billing-display';
+import { billingMoney, type BillingPlan } from '../../lib/billing-display';
 import { createDesignReview } from './design-review';
 import { useLocale } from '../../components/product/locale';
 type Company = {
@@ -52,9 +52,9 @@ type Overview = {
 };
 
 const sectionIcons:Record<string,string>={overview:'grid',companies:'commerce',plans:'billing',billing:'coins',users:'team',reports:'reports',audit:'audit',security:'shield'};
-export default function Console({designReview=false}:{designReview?:boolean}) {
+export default function Console({designReview=false,designPlans=null}:{designReview?:boolean;designPlans?:BillingPlan[]|null}) {
   const designRequest=useRef<ReturnType<typeof createDesignReview>|null>(null);
-  if(designReview&&!designRequest.current)designRequest.current=createDesignReview();
+  if(designReview&&!designRequest.current)designRequest.current=createDesignReview(designPlans);
   const { language, t, toggle } = useLocale();
   const [section, setSection] = useState('overview');
   const lock=useRef(false),writeLock=useRef(false),draft=useRef(false);
@@ -309,7 +309,7 @@ export default function Console({designReview=false}:{designReview?:boolean}) {
           {t('English', 'العربية')}
         </button></div>
       </header>
-      {designReview&&<p role="status" className="notice">{t('وضع مراجعة التصميم: جميع البيانات تجريبية والتعديلات محلية ولا تُحفظ في قاعدة البيانات.','Design review: all records are fictional; changes stay local and are not saved to the database.')}</p>}
+      {designReview&&<p role="status" className="notice">{t('وضع مراجعة التصميم: الشركات والمستخدمون والفوترة تجريبية، والباقات تبدأ من الكتالوج العام عند توفره. التعديلات محلية فقط.','Design review: companies, users and billing are fictional; plans start from the public catalog when available. All edits stay local.')}</p>}
       {error && (
         <p role="alert" className="notice error">
           {error}
@@ -982,6 +982,7 @@ export default function Console({designReview=false}:{designReview?:boolean}) {
               {activeSection.id === 'plans' && (
                 <section className={styles.panel}>
                   <h2>{t('الباقات والحدود', 'Plans and limits')}</h2>
+                  {designReview&&designPlans===null&&<p className="notice error" role="alert">{t('تعذّر تحميل الباقات العامة. البيانات الحالية أمثلة فقط.','Could not load the public catalog. Current records are examples only.')}</p>}
                   <p className="notice">{designReview?t('الكتالوج يبدأ من الباقات العامة الفعلية عند توفرها، لكن أي تعديل هنا تجريبي ومحلي فقط.','Catalog starts from the real public plans when available; all edits here are local simulations.'):t('هذه الباقات هي مصدر قسم اشتراكي. تعديل الحدود والمميزات يؤثر على الشركات المشتركة، أما الأسعار الحالية فتُدار من كتالوج الأسعار ولا تعيد تسعير الاشتراكات القائمة تلقائيًا.','These plans power My Subscription. Limits and features affect subscribed companies; prices are managed in the price catalog and do not automatically reprice existing subscriptions.')}</p>
                   {permissions.includes('plans.write') && data && data.plans.length > 0 && (
                     <details className={styles.row}>
