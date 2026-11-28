@@ -38,6 +38,26 @@ try{for(const language of ['ar','en'])for(const width of [390,1366]){
  await page.getByRole('button',{name:t('الدعوات','Invitations'),exact:true}).click();
  await page.getByText(t('لا توجد دعوات معلقة.','No pending invitations.'),{exact:true}).waitFor();
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'team viewport overflow');assert.deepEqual(errors,[]);
- await page.screenshot({path:out+'/team-'+language+'-'+width+'.png',fullPage:true});results.push({language,width,status:'PASS'});await context.close();
+ await page.screenshot({path:out+'/team-'+language+'-'+width+'.png',fullPage:true});
+ await page.goto(web+'/dashboard/settings/attachments');
+ await page.locator('input[type=file]').setInputFiles({name:'synthetic-attachment.txt',mimeType:'text/plain',buffer:Buffer.from('Synthetic attachment QA')});
+ const attachment=page.getByRole('row',{name:'synthetic-attachment.txt',exact:true});
+ await attachment.waitFor();
+ const files=await api('/uploads?q=synthetic-attachment.txt&state=active&limit=1',token);
+ assert.equal(files.total,1);assert.equal(files.items.length,1);
+ assert.equal((await api('/uploads?q=synthetic-attachment.txt',other.accessToken)).total,0);
+ const searchFiles=page.getByRole('searchbox',{name:t('بحث المرفقات','Search attachments')});
+ await searchFiles.fill('absent-qa');await page.getByText(t('لا توجد مرفقات مطابقة.','No matching attachments.'),{exact:true}).waitFor();
+ await searchFiles.fill('synthetic-attachment.txt');await attachment.waitFor();
+ page.once('dialog',d=>d.accept());await attachment.getByRole('button',{name:t('إيقاف الرابط','Revoke link'),exact:true}).click();
+ await attachment.getByRole('button',{name:t('استعادة وإتاحة الرابط','Restore and enable link'),exact:true}).waitFor();
+ assert.equal((await api('/uploads?state=revoked&q=synthetic-attachment.txt',token)).total,1);
+ page.once('dialog',d=>d.accept());await attachment.getByRole('button',{name:t('استعادة وإتاحة الرابط','Restore and enable link'),exact:true}).click();
+ await attachment.getByRole('button',{name:t('حذف غير المستخدم','Delete unused'),exact:true}).waitFor();
+ page.once('dialog',d=>d.accept());await attachment.getByRole('button',{name:t('حذف غير المستخدم','Delete unused'),exact:true}).click();
+ await attachment.getByRole('button',{name:t('استعادة وإتاحة الرابط','Restore and enable link'),exact:true}).waitFor();
+ assert.equal((await api('/uploads?state=deleted&q=synthetic-attachment.txt',token)).total,1);
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'attachment viewport overflow');assert.deepEqual(errors,[]);
+ await page.screenshot({path:out+'/attachments-'+language+'-'+width+'.png',fullPage:true});results.push({language,width,status:'PASS'});await context.close();
 }}finally{await browser.close();writeFileSync(out+'/results.json',JSON.stringify(results,null,2)+'\n');}
 console.log('PASS tenant-scoped team search, pagination, legacy roster compatibility, role filters and protected invitation drafts',results.length);
