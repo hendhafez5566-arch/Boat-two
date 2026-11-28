@@ -528,7 +528,7 @@ class PlatformController {
     return {
       companies: r.platformPermissions.includes('companies.read') ? snapshot.companies : [],
       users: r.platformPermissions.includes('users.read') ? snapshot.users : [],
-      plans: r.platformPermissions.includes('plans.read') ? snapshot.plans : [],
+      plans: r.platformPermissions.includes('plans.read') ? (await this.access.query('SELECT platform_plan_catalog() AS data'))[0].data : [],
       audit: r.platformPermissions.includes('audit.read') ? snapshot.audit : [],
     };
   }
