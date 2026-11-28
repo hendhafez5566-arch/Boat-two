@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useBrand } from './BrandContext';
 import { useLocale } from './locale';
@@ -19,14 +19,17 @@ export function AuthExperience({
     [visible, setVisible] = useState(false);
   const joining = register && (!!brand || invitation);
   const [token, setToken] = useState('');
+  const [setup,setSetup]=useState(false),lock=useRef(false);
   useEffect(() => {
     setToken(new URLSearchParams(window.location.search).get('token') ?? '');
   }, []);
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setBusy(true);
+    if(lock.current)return;
     setError('');
     const f = new FormData(e.currentTarget);
+    if(setup&&f.get('newPassword')!==f.get('confirmPassword')){setError(t('كلمتا المرور غير متطابقتين','Passwords do not match'));return;}
+    lock.current=true;setBusy(true);
     try {
       const session = await api<{ accessToken: string; refreshToken: string }>(
         joining ? '/auth/accept-invitation' : register ? '/auth/register' : '/auth/login',
@@ -35,6 +38,7 @@ export function AuthExperience({
           body: JSON.stringify({
             email: f.get('email'),
             password: f.get('password'),
+            ...(setup&&!register?{newPassword:f.get('newPassword')}:{}),
             ...(register
               ? {
                   fullName: f.get('fullName'),
@@ -50,9 +54,10 @@ export function AuthExperience({
       setSession(session);
       window.location.assign(register && !joining ? '/dashboard/onboarding' : '/dashboard');
     } catch (err) {
-      setError((err as Error).message);
-      setBusy(false);
-    }
+      const e=err as Error & {details?:{code?:string}};
+      if(!register&&e.details?.code==='PASSWORD_CHANGE_REQUIRED'){setSetup(true);setError('');}
+      else setError(e.message);
+    }finally{lock.current=false;setBusy(false);}
   }
   return (
     <main className="auth-experience auth-v2">
@@ -141,7 +146,7 @@ export function AuthExperience({
               </label>
             )}
             <label>
-              {t('كلمة المرور', 'Password')}
+              {setup?t('كلمة المرور المؤقتة','Temporary password'):t('كلمة المرور', 'Password')}
               <div className="password-field">
                 <input
                   name="password"
@@ -156,6 +161,11 @@ export function AuthExperience({
                 </button>
               </div>
             </label>
+            {setup&&!register&&<>
+              <p role="status" className="notice">{t('أول تسجيل دخول: اختر كلمة مرور خاصة بك قبل فتح مساحة العمل.','First sign-in: choose your own password before accessing the workspace.')}</p>
+              <label>{t('كلمة المرور الجديدة','New password')}<input name="newPassword" type="password" autoComplete="new-password" required minLength={8} maxLength={128}/></label>
+              <label>{t('تأكيد كلمة المرور الجديدة','Confirm new password')}<input name="confirmPassword" type="password" autoComplete="new-password" required minLength={8} maxLength={128}/></label>
+            </>}
             {register && (
               <p className="muted">
                 {t(
@@ -176,7 +186,7 @@ export function AuthExperience({
                   ? t('قبول الدعوة', 'Accept invitation')
                   : register
                     ? t('إنشاء مساحة العمل', 'Create workspace')
-                    : t('تسجيل الدخول', 'Sign in')}
+                    : setup?t('تعيين كلمة المرور والدخول','Set password and sign in'):t('تسجيل الدخول', 'Sign in')}
             </button>
           </form>
           <p className="auth-switch">
