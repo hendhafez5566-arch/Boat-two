@@ -131,6 +131,8 @@ function SubscriptionContent() {
   const billing = useData<BillingStatus | null>('/billing/status', null);
   const workspace = useData<BillingWorkspace | null>('/workspace', null);
   const plans = useData<BillingPlan[]>('/plans', []);
+  const reloadPlans=plans.reload;
+  useEffect(()=>{const refresh=()=>{if(!document.hidden)void reloadPlans();};const timer=setInterval(refresh,15000);document.addEventListener('visibilitychange',refresh);window.addEventListener('focus',refresh);return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',refresh);window.removeEventListener('focus',refresh);};},[reloadPlans]);
   const usage = snapshot?.usage;
   const history = useData<History | null>(usage ? '/workspace/subscription-history' : null, null);
   const reloadHistory = history.reload;
