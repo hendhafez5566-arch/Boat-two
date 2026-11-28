@@ -1,4 +1,5 @@
 'use client';
+import styles from '../../../components/workspace/settings-hub.module.css';
 import { WorkspaceHeading, Dialog } from '../../../components/product/ProductUI';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useData } from '../../../components/business/useData';
@@ -87,7 +88,7 @@ export default function Team() {
   </div>;
   const pagination=<div className="form-actions"><label>{t('عدد الصفوف','Rows per page')} <select disabled={busy} value={size} onChange={e=>{setSize(Number(e.target.value));setPage(1);}}>{[10,25,50,100].map(n=><option key={n}>{n}</option>)}</select></label><span aria-live="polite">{ready?records.data.total:'…'} {t('نتيجة','results')}</span><button className="btn" disabled={busy||!ready||page<=1} onClick={()=>setPage(p=>p-1)}>{t('السابق','Previous')}</button><span>{page} / {ready?pages:'…'}</span><button className="btn" disabled={busy||!ready||page>=pages} onClick={()=>setPage(p=>p+1)}>{t('التالي','Next')}</button></div>;
   return (
-    <main className="stack" data-workbench="team">
+    <main className={`stack ${styles.workbench}`} data-workbench="team">
       <WorkspaceHeading
         title={t('الفريق والصلاحيات', 'Team & permissions')}
         description={t('راجع أعضاء الفريق وأدوارهم ودعواتهم.', 'Manage team members, roles and invitations.')}
@@ -102,8 +103,8 @@ export default function Team() {
           {error}
         </p>
       )}
-      <div className="workbench-metrics">{[[t('أعضاء الفريق','Team members'),metrics.members],[t('متاحون الآن','Available now'),metrics.available],...(metrics.pending===null?[]:[[t('دعوات معلقة','Pending invitations'),metrics.pending]])].map(([label,n])=><div key={String(label)}><small>{label}</small><strong>{records.error?'—':records.loadedPath?n:'…'}</strong></div>)}</div>
-      <nav className="workbench-tabs" aria-label={t('إدارة الفريق','Team management')}><button type="button" disabled={busy} aria-pressed={tab==='members'} onClick={()=>selectTab('members')}>{t('أعضاء الفريق','Members')}</button>{role&&role!=='agent'&&<button type="button" aria-pressed={tab==='invites'} onClick={()=>selectTab('invites')}>{t('الدعوات','Invitations')}</button>}</nav>
+      <div className="workbench-metrics">{[[t('أعضاء الفريق','Team members'),metrics.members],[t('متاحون الآن','Available now'),metrics.available],...(metrics.pending===null?[]:[[t('دعوات معلقة','Pending invitations'),metrics.pending]])].map(([label,n],index)=><div key={String(label)}><span className={styles.metricIcon}><NavIcon name={['team','circleCheck','mail'][index]}/></span><small>{label}</small><strong>{records.error?'—':records.loadedPath?n:'…'}</strong></div>)}</div>
+      <nav className="workbench-tabs" aria-label={t('إدارة الفريق','Team management')}><button type="button" disabled={busy} aria-pressed={tab==='members'} onClick={()=>selectTab('members')}><NavIcon name="team"/>{t('أعضاء الفريق','Members')}</button>{role&&role!=='agent'&&<button type="button" aria-pressed={tab==='invites'} onClick={()=>selectTab('invites')}><NavIcon name="mail"/>{t('الدعوات','Invitations')}</button>}</nav>
       {tab==='members'&&<section className="card table-wrap">
         <h2>{t('أعضاء الفريق','Team members')}</h2>{filters}
         <table className="product-table">
@@ -119,8 +120,7 @@ export default function Team() {
             {visibleMembers.map((m) => (
               <tr key={m.user_id}>
                 <td>
-                  <strong>{m.full_name}</strong>
-                  <div className="muted">{m.email}</div>
+                  <div className={styles.memberIdentity}><span className={styles.memberAvatar} aria-hidden="true">{(m.full_name||m.email).trim().slice(0,2).toUpperCase()}</span><div><strong>{m.full_name}</strong><div className="muted">{m.email}</div></div></div>
                 </td>
                 <td>
                   {role === 'owner' && m.role !== 'owner' ? (
@@ -232,7 +232,7 @@ export default function Team() {
                 className="btn btn-danger"
                 onClick={() => {if(confirm(t('إلغاء هذه الدعوة؟','Revoke this invitation?')))void action('/team/invitations/' + i.id, 'DELETE');}}
               >
-                {t('إلغاء الدعوة', 'Revoke')}
+                <NavIcon name="trash"/>{t('إلغاء الدعوة', 'Revoke')}
               </button>
             </div>
           ))
