@@ -1,4 +1,5 @@
 // All records are fictional. The design console never calls platform APIs.
+type DesignBody={name:string;suspended:boolean;planCode:string;status:string;disabled:boolean;enabled:boolean;limits:Record<string,number>;features:Record<string,boolean>;code:string;templateCode:string;priceId:string;amountCents:number;currency:string;interval:string};
 export function createDesignReview(){
  const companies=[{id:'11111111-1111-4111-8111-111111111111',name:'Demo Company',slug:'demo-company',plan_code:'pro',status:'active',suspended_at:null as string|null,members:8},{id:'22222222-2222-4222-8222-222222222222',name:'Sample Studio',slug:'sample-studio',plan_code:'starter',status:'trialing',suspended_at:null as string|null,members:3}];
  const users=[{id:'33333333-3333-4333-8333-333333333333',email:'manager@example.test',full_name:'Demo Manager',session_version:0,disabled_at:null as string|null},{id:'44444444-4444-4444-8444-444444444444',email:'agent@example.test',full_name:'Demo Agent',session_version:0,disabled_at:null as string|null}];
@@ -7,8 +8,8 @@ export function createDesignReview(){
  const reviews=[{id:'review-demo',company:'Demo Company',kind:'subscription_update',plan_code:'pro',reviews:[{id:'evidence-demo',status:'ready',observed_at:new Date().toISOString(),evidence:{verdict:'satisfied',providerRequestId:'req_demo_only',status:'active',cancelAtPeriodEnd:false},error:null}]}];
  const audit=[{id:'1',actor_id:users[0].id,tenant_id:companies[0].id,action:'demo.company.review',details:{sample:true},created_at:new Date().toISOString()}];
  const permissions=['companies.read','companies.write','users.read','users.write','plans.read','plans.write','subscriptions.read','subscriptions.write','reports.read','audit.read','sessions.revoke','mfa.manage'];
- return async function request(path:string,body?:unknown,method='GET'):Promise<any>{
-  const url=new URL(path||'/', 'https://design.invalid'),p=url.pathname,q=url.searchParams,b=(body||{}) as Record<string,any>;
+ return async function request(path:string,body?:unknown,method='GET'){
+  const url=new URL(path||'/', 'https://design.invalid'),p=url.pathname,q=url.searchParams,b=(body||{}) as DesignBody;
   if(method==='GET'){
    if(p==='/session')return {actor:users[0].id,permissions};
    if(p==='/')return {companies,users,plans,audit};
