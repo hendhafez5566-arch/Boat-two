@@ -1,5 +1,6 @@
 'use client';
-import { DisclosureSummary } from '../../components/product/DisclosureSummary';
+import { Dialog } from '../../components/product/ProductUI';
+import styles from './platform.module.css';
 
 import { useEffect, useRef, useState } from 'react';
 import { NavIcon } from '../../components/product/NavIcon';
@@ -13,11 +14,14 @@ type Row = {
   created_at: string;
 };
 export default function AuditTrail({
-  request,
+  request,users,companies,
 }: {
   request: (path: string) => Promise<{ items: Row[]; nextCursor: string | null }>;
+  users:{id:string;full_name:string;email:string}[];companies:{id:string;name:string}[];
 }) {
-  const { t } = useLocale();
+  const { t,language } = useLocale();
+  const [selected,setSelected]=useState<Row|null>(null);
+  const actions:Record<string,string>={'company.update':t('تعديل شركة','Company updated'),'subscription.override':t('تعديل استحقاق','Entitlement updated'),'plan.update':t('تعديل باقة','Plan updated'),'price.publish':t('نشر سعر','Price published'),'price.retire':t('تقاعد سعر','Price retired'),'user.update':t('تعديل مستخدم','User updated'),'user.revoke_sessions':t('إبطال الجلسات','Sessions revoked')};
   const [rows, setRows] = useState<Row[]>([]),
     [cursor, setCursor] = useState<string | null>(null),
     [busy, setBusy] = useState(false),
@@ -138,19 +142,14 @@ export default function AuditTrail({
           <tbody>
             {rows.map((row) => (
               <tr key={row.id}>
-                <td>{row.action}</td>
+                <td><span title={row.action}>{actions[row.action]??row.action}</span></td>
                 <td>
-                  {row.actor_id}
-                  <br />
-                  {row.tenant_id}
+                  <strong title={row.actor_id}>{users.find(u=>u.id===row.actor_id)?.full_name||row.actor_id.slice(0,8)+'…'}</strong><br/><small title={row.tenant_id??undefined}>{companies.find(c=>c.id===row.tenant_id)?.name||(row.tenant_id?row.tenant_id.slice(0,8)+'…':'—')}</small>
                 </td>
                 <td>
-                  <details>
-                    <DisclosureSummary><NavIcon name="eye"/>{t('عرض التفاصيل', 'View details')}</DisclosureSummary>
-                    <pre>{JSON.stringify(row.details, null, 2)}</pre>
-                  </details>
+                  <button type="button" className="btn" onClick={()=>setSelected(row)}><NavIcon name="eye"/>{t('عرض التفاصيل','View details')}</button>
                 </td>
-                <td>{new Date(row.created_at).toLocaleString()}</td>
+                <td>{new Date(row.created_at).toLocaleString(language)}</td>
               </tr>
             ))}
           </tbody>
@@ -171,6 +170,7 @@ export default function AuditTrail({
           {rows.length} {t('سجل محمّل', 'loaded records')}
         </span>
       </div>
+      {selected&&<Dialog open title={t('تفاصيل العملية','Operation details')} onClose={()=>setSelected(null)} className={styles.editor}><dl className={styles.stateGrid}><div><dt>{t('الإجراء','Action')}</dt><dd>{actions[selected.action]??selected.action}</dd></div><div><dt>{t('المسؤول','Actor')}</dt><dd>{selected.actor_id}</dd></div><div><dt>{t('الشركة','Company')}</dt><dd>{selected.tenant_id??'—'}</dd></div></dl><pre dir="ltr">{JSON.stringify(selected.details,null,2)}</pre></Dialog>}
     </section>
   );
 }
