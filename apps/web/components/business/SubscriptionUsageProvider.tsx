@@ -29,9 +29,12 @@ export type Usage = {
     status: string;
     limits: Record<string, number>;
     trial_expired: boolean;
+    delinquent_restricted?:boolean;
+    features?:Record<string,boolean>;
     trial_ends_at: string | null;
     current_period_end: string | null;
   };
+  resources?:{agents:Meter;channels:Meter;flows:Meter;bots:number};
   messages: Meter;
   contacts: Meter;
   ai: Meter;
