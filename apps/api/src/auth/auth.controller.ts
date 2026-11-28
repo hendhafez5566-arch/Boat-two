@@ -1,7 +1,7 @@
 import type { Request } from 'express';
 import { AuthRateLimit } from './auth-rate-limit';
 import { accountProfileSchema } from './account-profile';
-import { Body, Controller, Get, HttpCode, Patch, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, Patch, Post, Req } from '@nestjs/common';
 import { z } from 'zod';
 import { AuthedRequest } from '../common/types';
 import { parse } from '../common/zod';
@@ -43,6 +43,11 @@ const acceptSchema = z.object({
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService, private readonly limits: AuthRateLimit) {}
+
+  @Public()
+  @Header('Cache-Control','no-store')
+  @Get('registration-policy')
+  registrationPolicy(){return this.auth.registrationPolicy();}
 
   @Public()
   @Post('register')
