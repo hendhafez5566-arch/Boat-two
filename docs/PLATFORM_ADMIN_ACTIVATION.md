@@ -55,3 +55,14 @@ Migration 049 requires fresh TOTP step-up for every platform write. `POST /platf
 ## Backup factor recovery (migration 050)
 
 Operators can generate eight one-use backup codes after fresh TOTP step-up; rotation invalidates previous codes. Save them outside the browser. Only hashes are stored. Recovery requires the correct password and an unused code for an enabled, allowlisted user. It revokes all sessions, invalidates every backup code and creates a five-minute enrollment challenge; confirm a new authenticator before platform access is restored, then generate new backup codes. No codes plus lost authenticator still requires the externally reviewed DBA recovery procedure above. No password-only reset is available. Prior sections describing backup codes as future work are superseded by this checkpoint.
+
+
+## Central SaaS lifecycle continuation (122–123)
+
+- `/platform/live` always uses independent authenticated platform access, even when the open design review is enabled at `/platform`. Design review never reads private records or applies real changes.
+- The restricted platform operator login and the customer app connect to the same database using separate least-privilege roles. Before enabling real administration, the owner must verify their existing account UUID and provision the independent restricted login, JWT signing secret, allowlist and administrator role mapping. Never use a customer owner role or database administrator credential as a substitute.
+- Registration policy is persisted centrally; defaults preserve the former Pro trial and environment duration. Saving a new policy affects new registrations only. Self-registration can be disabled, or zero days starts new accounts on Free. Registration and its audit event commit together. Existing customer subscriptions are not rewritten.
+- Company creation from the operator console creates a new owner with a seven-day one-time setup credential, requires a fresh step-up and all three company/user/subscription write scopes, and rejects existing email accounts. New accounts start Free or on a defined trial; no payment is implied.
+- Real company directories include registration and trial dates, refresh every 15 seconds when visible and not editing, and remain permission-scoped. The open review is clearly marked and simulated.
+- Same-plan paid checkout is offered to unlinked trial customers; existing provider validation remains mandatory.
+- Outstanding: provision the real operator, live registration-to-directory acceptance, payment activation, manual paid entitlement ledger, discounts, approval workflows, renewal and notification lifecycle, and support workflows. No real provider payment or customer record was changed by this implementation.
