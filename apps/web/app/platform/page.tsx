@@ -74,6 +74,7 @@ function Console() {
     } | null>(null),
     [requiresMfa, setRequiresMfa] = useState(false);
   const [permissions, setPermissions] = useState<string[]>([]);
+  const [reviewOnly,setReviewOnly]=useState(false);
   const [stepUpCode, setStepUpCode] = useState('');
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   useEffect(()=>{const guard=(e:BeforeUnloadEvent)=>{if(draft.current||lock.current||writeLock.current||backupCodes.length){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',guard);return()=>window.removeEventListener('beforeunload',guard);},[backupCodes.length]);
@@ -135,7 +136,7 @@ function Console() {
     setLoadedAt(new Date());
     setReport(overview);
     setReportError(session.permissions.includes('reports.read') && !overview);
-    setPermissions(session.permissions);
+    setPermissions(session.permissions);setReviewOnly(!!session.reviewOnly);
     setData({ ...snapshot, companies: companies.items, users: users.items });
     setAppliedCompanyQuery(companySearch);
     setAppliedUserQuery(userSearch);
@@ -294,14 +295,15 @@ function Console() {
           <h1>{t('لوحة مدير المنصة', 'Platform administration')}</h1>
           <p className={styles.subtitle}>{t('إدارة مركزية للشركات والتشغيل والأمان','Central control of companies, operations and security')}</p></div>
         </div>
-        <div className={styles.headerActions}>{token&&<span className={styles.sessionBadge}><NavIcon name="shield"/>{t('جلسة إدارية محمية','Secured admin session')}</span>}
+        <div className={styles.headerActions}>{token&&<span className={styles.sessionBadge}><NavIcon name="shield"/>{reviewOnly?t('معاينة مؤقتة للقراءة فقط','Temporary read-only review'):t('جلسة إدارية محمية','Secured admin session')}</span>}
         <button className="btn" onClick={toggle}><NavIcon name="language"/>
           {t('English', 'العربية')}
         </button></div>
       </header>
+      {token&&reviewOnly&&<p className="notice" role="status">{t('الدخول المؤقت للمعاينة فقط. يلزم تسجيل الدخول بالمصادقة الثنائية لإجراء التعديلات.','Temporary review is read-only. Sign in with two-factor authentication to make changes.')}</p>}
       {error && (
         <p role="alert" className="notice error">
-          {error}
+          {error==='Platform administration requires operator configuration'?t('إدارة المنصة غير مهيأة على الخادم بعد. تواصل مع مسؤول التشغيل.','Platform administration has not been configured on the server. Contact the operator.'):error}
         </p>
       )}
       {message && (
@@ -477,7 +479,7 @@ function Console() {
               onClick={() => {
                 if(writeLock.current||lock.current)return;
                 if((draft.current||backupCodes.length)&&!confirm(t('إنهاء الجلسة وتجاهل البيانات غير المحفوظة؟','End session and discard unsaved data?')))return;
-                draft.current=false;setLoadedAt(null);setPermissions([]);
+                draft.current=false;setLoadedAt(null);setPermissions([]);setReviewOnly(false);
                 setToken('');
                 setBackupCodes([]);
                 setStepUpCode('');
