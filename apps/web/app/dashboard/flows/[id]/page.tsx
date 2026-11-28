@@ -96,7 +96,7 @@ function Editor({ id }: { id: string }) {
   useEffect(() => {
     if (!nodesInitialized || initialViewportReady.current) return;
     initialViewportReady.current = true;
-    void rf.fitView({ padding: 0.25, minZoom: INITIAL_CANVAS_MIN_ZOOM, maxZoom: 1 });
+    void rf.fitView({ padding: 0.16, minZoom: INITIAL_CANVAS_MIN_ZOOM, maxZoom: 1 });
   }, [nodesInitialized, rf]);
   const { t, language } = useLocale();
   const [nodeSearch, setNodeSearch] = useState('');
@@ -2193,10 +2193,10 @@ function Editor({ id }: { id: string }) {
                       }
                       defaultEdgeOptions={{
                         type: 'smoothstep',
-                        style: { stroke: '#778292', strokeWidth: 2 },
+                        style: { stroke: '#50647d', strokeWidth: 2.5 },
                         markerEnd: {
                           type: MarkerType.ArrowClosed,
-                          color: '#778292',
+                          color: '#50647d',
                           width: 18,
                           height: 18,
                         },
@@ -2225,6 +2225,13 @@ function Editor({ id }: { id: string }) {
               </FlowStatsContext.Provider>
             </FlowStatsAvailabilityContext.Provider>
           </FlowAnalyticsContext.Provider>
+          {!previewOpen&&<div className={styles.zoomDock} role="group" aria-label={t('تكبير ووضوح اللوحة','Canvas readability controls')}>
+            <button type="button" aria-label={t('تصغير اللوحة','Zoom canvas out')} onClick={()=>void rf.zoomOut({duration:200})}>−</button>
+            <output aria-label={t('نسبة تكبير اللوحة','Canvas zoom level')}>{zoomPercent}%</output>
+            <button type="button" aria-label={t('تكبير اللوحة','Zoom canvas in')} onClick={()=>void rf.zoomIn({duration:200})}>+</button>
+            <button type="button" className={styles.zoomFit} onClick={()=>void rf.zoomTo(1,{duration:200})} aria-label={t('عرض بالحجم الطبيعي','Actual size')}>100%</button>
+            <button type="button" className={styles.zoomFit} onClick={fitAllSteps}>{t('ملاءمة','Fit')}</button>
+          </div>}
           {toast && (
             <div className="designer-toast" role="status">
               <span>{toast.text}</span>
