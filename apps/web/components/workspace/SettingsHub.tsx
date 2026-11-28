@@ -55,10 +55,9 @@ export default function SettingsHub() {
   return (
     <main className={styles.page}>
       <header className={styles.heading}>
-        <h1>{t('الإعدادات والتكاملات', 'Settings & Integration')}</h1>
-        <p>{t('الإعدادات وتكاملات API', 'Settings and API Integration')}</p>
+        <div className={styles.heroTitle}><span className={styles.heroIcon}><NavIcon name="settings"/></span><div><h1>{t('الإعدادات والتكاملات', 'Settings & Integration')}</h1><p>{t('إدارة مساحة العمل والأمان والاتصالات الخارجية','Manage your workspace, security and connections')}</p></div></div>
         {workspace.error&&<p role="alert" className="notice error">{workspace.error} <button className="btn" onClick={()=>void workspace.reload()}>{t('إعادة المحاولة','Retry')}</button></p>}
-        {canManageFiles&&<Link className="btn" href="/dashboard/settings/attachments">{t('إدارة المرفقات','Attachment management')}</Link>}
+        {canManageFiles&&<Link className="btn" href="/dashboard/settings/attachments"><NavIcon name="folder"/>{t('إدارة المرفقات','Attachment management')}</Link>}
       </header>
       <div className={styles.layout}>
         <nav
@@ -98,7 +97,7 @@ export default function SettingsHub() {
           }
         >
           <header>
-            <h2>
+            <span className={styles.heroIcon}><NavIcon name={tab==='company'?'settings':tab==='integrations'?'integrations':'shield'}/></span><h2>
               {tab === 'company'
                 ? t('بيانات الشركة', 'Company details')
                 : tab === 'integrations'
